@@ -1,3 +1,6 @@
+# Disabled in the GitHub UI (Actions minutes): `gh workflow enable ci.yml` turns it
+# back on. Everything it checks still has to pass locally before pushing:
+# `npm run lint && npm run typecheck && npm run build`.
 name: CI
 
 on:
