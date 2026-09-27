@@ -13,7 +13,12 @@ npm run dev                 # http://localhost:3000
 - **API** adalah [laksamana-api](https://github.com/dwipapap/laksamana-api). Kontrak tiap modul ada di `laksamana-api/docs/api/<modul>.md`. Semua panggilan memakai `/api/v1/...`.
 - **CORS:** API hanya menerima origin yang terdaftar di `CORS_ALLOWED_ORIGINS` (`.env` server API).
   - `dev-api` perlu `http://localhost:3000` supaya bisa develop secara lokal.
-  - Untuk API lokal, jalankan: `CORS_ALLOWED_ORIGINS=http://localhost:3000 php artisan serve`
+  - Untuk API lokal: tambahkan `CORS_ALLOWED_ORIGINS=http://localhost:3000` ke `.env` laksamana-api, lalu
+    `php artisan serve` (API di `http://127.0.0.1:8000/api/v1`) dan isi `.env` di sini dengan
+    `NUXT_PUBLIC_API_BASE=http://127.0.0.1:8000/api/v1`.
+  - Database core lokal harus siap dulu sebelum bisa masuk: `php artisan migrate`, lalu
+    `php artisan core:import account` (tanpa ini tabel `user`/`modul` kosong dan login selalu gagal).
+    Tambah modul lain secukupnya, misalnya `php artisan core:import absensi`.
 
 Sebelum push: `npm run lint && npm run typecheck`. CI menjalankan keduanya ditambah `npm run build`.
 
