@@ -1,0 +1,54 @@
+import type { FetchError } from 'ofetch'
+
+/** The v1 envelope. Every laksamana-api response is `{data, meta?}` or `{error}`. */
+export interface Envelope<T> {
+  data: T
+  meta?: Record<string, unknown>
+}
+
+export interface ApiErrorBody {
+  error: { code: string, message: string, details?: unknown }
+}
+
+/** Bearer token from POST /auth/login. Lives 30 days (sanctum.token_days). */
+export const useToken = () =>
+  useCookie<string | null>('lm_token', { maxAge: 60 * 60 * 24 * 30, sameSite: 'lax', secure: !import.meta.dev })
+
+/**
+ * The one way to call laksamana-api. Adds the Bearer token; a 401 clears it and
+ * goes to /login. Returns the raw envelope, so callers read `.data` (and `.meta`).
+ *
+ *   const api = useApi()
+ *   const { data } = await api<Envelope<Me>>('/me')
+ */
+export function useApi() {
+  const token = useToken()
+  const { apiBase } = useRuntimeConfig().public
+
+  return $fetch.create({
+    baseURL: apiBase,
+    headers: { Accept: 'application/json' },
+    onRequest({ options }) {
+      if (token.value) options.headers.set('Authorization', `Bearer ${token.value}`)
+    },
+    onResponseError({ response }) {
+      if (response.status === 401 && token.value) {
+        token.value = null
+        useMe().value = null
+        navigateTo('/login')
+      }
+    },
+  })
+}
+
+/** The API's own message (`error.message`), or a plain fallback. Show this to users. */
+export function apiErrorMessage(e: unknown, fallback = 'Terjadi kesalahan. Coba lagi.'): string {
+  const body = (e as FetchError<ApiErrorBody>)?.data
+  if (body?.error?.message) return body.error.message
+  if ((e as FetchError)?.statusCode === undefined) return 'Tidak bisa terhubung ke server. Periksa koneksi.'
+  return fallback
+}
+
+/** The API's error code (`error.code`), for branching on a specific refusal. */
+export const apiErrorCode = (e: unknown): string | undefined =>
+  (e as FetchError<ApiErrorBody>)?.data?.error?.code
