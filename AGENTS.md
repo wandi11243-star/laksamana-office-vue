@@ -6,6 +6,8 @@ Nuxt 4 + Nuxt UI v4 SPA (`ssr: false`, PWA) for Laksamana Muda's office. Backend
 
 Hard rules:
 - API calls only through `useApi()`; show errors with `apiErrorMessage(e)`. Field names exactly as the API sends them.
+- Session token only through `useToken()` — never `useCookie('lm_token')` directly. Nuxt flushes the cookie write on the
+  next tick, so `useToken()` mirrors it in `useState`; a request fired right after `login()` must still see it.
 - Module pages: `definePageMeta({ access: [...] })` with the keys from `app/utils/modul.ts`. Module calls + types in `app/composables/use<Module>.ts`.
 - Design: yellow (primary) only as a fill for the one main action / "now" marker, never as text; one `AppFocus` per screen;
   content as `AppList`/`AppListRow`; status via `AppStatus`; forms in `ResponsiveSheet`; `UTable` only at `lg+`.

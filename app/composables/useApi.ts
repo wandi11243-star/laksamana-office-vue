@@ -10,9 +10,27 @@ export interface ApiErrorBody {
   error: { code: string, message: string, details?: unknown }
 }
 
-/** Bearer token from POST /auth/login. Lives 30 days (sanctum.token_days). */
-export const useToken = () =>
-  useCookie<string | null>('lm_token', { maxAge: 60 * 60 * 24 * 30, sameSite: 'lax', secure: !import.meta.dev })
+/**
+ * Bearer token from POST /auth/login. Lives 30 days (sanctum.token_days).
+ *
+ * The cookie is only the persistence layer: Nuxt flushes the `document.cookie`
+ * write on the next tick, so reading the cookie straight after `login()` (which
+ * `fetchMe()` does) would still come back empty and the request would go out
+ * unauthenticated. `useState` is the value callers see immediately; the cookie
+ * keeps it across reloads.
+ */
+export const useToken = () => {
+  const cookie = useCookie<string | null>('lm_token', { maxAge: 60 * 60 * 24 * 30, sameSite: 'lax', secure: !import.meta.dev })
+  const token = useState<string | null>('lm_token', () => cookie.value ?? null)
+
+  return computed<string | null>({
+    get: () => token.value ?? cookie.value ?? null,
+    set: (value) => {
+      token.value = value
+      cookie.value = value
+    },
+  })
+}
 
 /**
  * The one way to call laksamana-api. Adds the Bearer token; a 401 clears it and
