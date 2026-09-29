@@ -631,10 +631,10 @@ Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di 
 | analitik | reservasi | `pages/reservasi/analitik.vue` + `utils/analitik.ts` | ✅ | `GET /reservations` (tanpa batas — keseluruhan butuh semua) | grafik div tanpa lib (K-05 CSV) · ringkasan butuh seluruh tabel (G-08) |
 | master | reservasi | `pages/reservasi/master.vue` | ✅ | `GET/PUT /master/{dineEstMin,categories,dpMethods,infoSources,waTargets,users,perms}` + `GET /reservations` + `GET /master` (backup) | Restore/Hapus Semua → K-11 · waTargets tampil saja (seperti lama) |
 | audit | reservasi | `pages/reservasi/audit.vue` | ✅ | `GET /reservasi/audit` | paging di browser (G-08) · tautan hanya bila bawa id reservasi |
-| capaian | service_excellent | `pages/service_excellent/index.vue` (menu) | ⬜ | `GET /master/reviews`, `/master/reviewCfg`, `/master/seCrew` | reward hanya tampilan (T-19) |
-| review | service_excellent | `pages/service_excellent/review.vue` | ⬜ | `GET/PUT/DELETE /master/reviews/{id}`, `/files/rv:*` | — |
-| feedback | service_excellent | `pages/service_excellent/feedback.vue` | ⬜ | `GET/PUT/DELETE /master/feedbacks/{id}`, `/files/fb:*` | — |
-| peran | service_excellent | `pages/service_excellent/peran.vue` | ⬜ | `GET/PUT /master/seCrew`, `/master/sePerms` | — |
+| capaian | service_excellent | `pages/service_excellent/index.vue` (beranda + capaian) | ✅ | `GET /master/reviews`, `/feedbacks`, `/reviewCfg`, `/seCrew`, `GET /reservations`, `GET /account/roster` | reward hanya tampilan (T-19) · tanpa G-16 |
+| review | service_excellent | `pages/service_excellent/review.vue` | ✅ | `GET/PUT/DELETE /master/reviews/{id}`, `/files/rv:*`, `GET /reservations` | — |
+| feedback | service_excellent | `pages/service_excellent/feedback.vue` | ✅ | `GET/PUT/DELETE /master/feedbacks/{id}`, `/files/fb:*`, `GET /reservations` (direktori) | — |
+| peran | service_excellent | `pages/service_excellent/peran.vue` + `components/MatriksIzin.vue` | ✅ | `GET/PUT /master/seCrew`, `/master/sePerms`, `GET /account/roster` | — |
 | setelan | service_excellent | `pages/service_excellent/setelan.vue` | ✅ | `GET/PUT /master/reviewCfg` + `POST /audit` | — |
 
 Tahap 0 (fondasi) ✅ di branch `migrasi/fondasi`: `app/utils/versi.ts` (F1), `app/composables/useRoster.ts`
