@@ -1,0 +1,2228 @@
+<!--
+  DanaMasukPanel — the money screen, owned by reservasi (PLAN.md §4, T-12 U5).
+  No page assumptions: cashier and finance/kas mount this later instead of the
+  old `<iframe …?embed=finance>`. The panel loads its own data; the host page
+  only passes what its people may do.
+
+  Props:
+    bolehVerifikasi — verify / reject / edit transfers (old CAN.finance).
+    bolehHapus       — delete one money record, System Admin alone
+                       (old CAN.deleteDp, row `financeDelete`).
+    bolehHapusDemo   — delete the built-in demo rows (admin; same gate).
+    sumberAwal       — which source tab opens first (default 'reservasi').
+
+  No emits: the panel toasts and audits by itself.
+
+  One row = one transfer (`{r, p, ke, dari}`); DP paid in instalments stands
+  apart. Formulas live in app/utils/dp-reservasi.ts, never here.
+  Source: laksamana-office/deploy/reservasi/index.html:9358-9584 (render),
+          :8997-9213 (rows, filters), :9549-9584 (autoscan).
+-->
+<script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
+import type { Reservasi, ReservasiDp } from '~/composables/useReservasi'
+import {
+  deleteReservation, getFile, getReservation, listReservations, patchReservation,
+  postAudit, useSection,
+} from '~/composables/useReservasi'
+import { getMarketingDp, type DpEvent, type DpEventData } from '~/composables/useMarketing'
+import { apiErrorCode, apiErrorMessage } from '~/composables/useApi'
+import { tanganiKonflik, versiDari, type Versi } from '~/utils/versi'
+import {
+  bankDariMetode, buktiAdalahGambar, cerminDp, cerminTfUtama, dpBaru, dpHitungTerverifikasi,
+  dpMetodeBawaan, dpTotal, dpsTampilan, kurangDataTf, normPhone, pastikanDps,
+  ringkasDanaMasuk, saringDanaMasuk, txBank,
+  txBuktiGambar, txNama, txNominal, txSelisih, txSudahScan,
+  type SaringDanaMasuk, type TxDanaMasuk,
+} from '~/utils/dp-reservasi'
+import { OCR_BANK, jam24, jamRagu, jamSeharusnya, tglSeharusnya } from '~/utils/ocr-transfer'
+import { angka, fmtRupiah, hariIni, rupiahVal, tglPendek } from '~/utils/format'
+
+const props = withDefaults(defineProps<{
+  bolehVerifikasi?: boolean
+  bolehHapus?: boolean
+  bolehHapusDemo?: boolean
+  sumberAwal?: 'reservasi' | 'event'
+}>(), {
+  bolehVerifikasi: false,
+  bolehHapus: false,
+  bolehHapusDemo: false,
+  sumberAwal: 'reservasi',
+})
+
+const { bolehVerifikasi, bolehHapus, bolehHapusDemo } = props
+const me = useMe()
+const toast = useToast()
+const namaSaya = computed(() => me.value?.name ?? '')
+
+// --- filters -----------------------------------------------------------------
+// Default: TODAY on the booking date. "Hari Ini" means reservations scheduled
+// today, not transfers that happened to move today — a DP is often paid weeks
+// ahead (`:9176-9190`). The default stays 'reservasi' for the same reason.
+
+const saring = reactive<SaringDanaMasuk>({
+  basis: 'reservasi',
+  dari: hariIni(),
+  sampai: hariIni(),
+  bank: '',
+  status: '',
+  q: '',
+  tab: 'perlu',
+})
+
+const sumber = ref<'reservasi' | 'event'>(props.sumberAwal)
+
+function pilihan(kind: 'today' | 'week' | 'month' | 'all') {
+  const t = hariIni()
+  if (kind === 'today') {
+    saring.dari = t
+    saring.sampai = t
+  }
+  else if (kind === 'week') {
+    const d = new Date(`${t}T00:00:00`)
+    d.setDate(d.getDate() - 6)
+    saring.dari = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    saring.sampai = t
+  }
+  else if (kind === 'month') {
+    saring.dari = `${t.slice(0, 8)}01`
+    saring.sampai = t
+  }
+  else {
+    // Empty bounds = the whole table. Heavy, and the only way the 'masuk'
+    // basis sees transfers whose booking sits outside any range.
+    saring.dari = ''
+    saring.sampai = ''
+  }
+}
+
+// --- the rows ----------------------------------------------------------------
+// The window follows the filter on the BOOKING date — the only date the list
+// endpoint filters on. In 'masuk' basis a transfer is still found through its
+// booking, so a DP paid today for next month's party needs a wider range (or
+// "Semua"). The banner below says how many rows ride on the fallback date.
+
+const { data: semua, refresh, error: galatMuat, status } = useAsyncData(
+  'dana-masuk',
+  () => listReservations(saring.dari || undefined, saring.sampai || undefined).then(r => r.data),
+  { watch: [() => saring.dari, () => saring.sampai], default: () => [] },
+)
+
+const { data: dpMethods } = useSection<string[]>('dpMethods')
+
+/** 403 module_not_granted (G-14): the caller's account has no reservasi module. */
+const tanpaAkses = computed(() => apiErrorCode(galatMuat.value) === 'module_not_granted')
+
+const tx = computed(() => txSemua(semua.value ?? []))
+const daftarSemua = computed(() => saringDanaMasuk(tx.value, saring, false))
+const ringkas = computed(() => ringkasDanaMasuk(daftarSemua.value))
+const daftar = computed(() => saringDanaMasuk(tx.value, saring, true))
+
+const semuaBank = computed(() => [...new Set(tx.value.map(txBank).filter(Boolean))].sort())
+
+/** Rows riding on the booking date because their transfer date is still unread (`:9383-9388`). */
+const tglCadangan = computed(() => saring.basis === 'masuk' ? daftarSemua.value.filter(x => !x.p.tfDate) : [])
+
+/** The built-in demo rows polluting the sums (`:10802-10808`). */
+const DEMO_NAMA = ['Budi Santoso', 'Sarah Wijaya', 'Andre Kurniawan', 'Melati Putri', 'PT Nusantara Jaya', 'Rian Hidayat', 'Keluarga Tanjung', 'Fitri Amelia']
+const demoTelepon = new Set(DEMO_NAMA.map((_, i) => normPhone(`08${1234500000 + i * 11111}`)))
+const adalahDemo = (r: Reservasi) => DEMO_NAMA.includes(String(r?.name || '').trim()) && demoTelepon.has(normPhone(r?.phone))
+const demo = computed(() => (semua.value ?? []).filter(adalahDemo))
+
+// --- client paging (G-08: no server paging in v1) ------------------------------
+
+const hal = ref(1)
+const perHal = ref(10)
+const maxHal = computed(() => Math.max(1, Math.ceil(daftar.value.length / perHal.value)))
+const halaman = computed(() => daftar.value.slice((hal.value - 1) * perHal.value, hal.value * perHal.value))
+watch([daftar, perHal], () => {
+  hal.value = Math.min(hal.value, maxHal.value)
+})
+
+// --- the table -----------------------------------------------------------------
+
+const kolom = computed<TableColumn<TxDanaMasuk>[]>(() => [
+  { accessorKey: 'tanggal', header: 'Tanggal TF' },
+  { accessorKey: 'jam', header: 'Jam' },
+  { accessorKey: 'bank', header: 'Bank' },
+  { accessorKey: 'nama', header: 'Nama pengirim' },
+  { accessorKey: 'nominal', header: 'Nominal' },
+  { accessorKey: 'tamu', header: 'Tamu / reservasi' },
+  { accessorKey: 'bukti', header: 'Bukti' },
+  { accessorKey: 'status', header: 'Status' },
+  { accessorKey: 'aksi', header: 'Aksi' },
+])
+
+const rp = (n: number) => n ? `Rp. ${new Intl.NumberFormat('id-ID').format(n)}` : 'Rp. 0'
+const bankOpsi = computed(() =>
+  [...new Set([...OCR_BANK.map(b => b[0]), ...(dpMethods.value ?? []).map(bankDariMetode)])].filter(Boolean).sort())
+const capWaktu = (ts: number) => ts
+  ? new Date(ts).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+  : '-'
+const jamTampil = (v: string) => v ? `${jam24(v)} WIB` : ''
+
+// --- writes ------------------------------------------------------------------
+// Every money write re-reads its row first: the list may be stale, and the
+// PATCH carries the whole `dps[]` (a shallow merge cannot replace one
+// element). Only the touched DP fields travel — never the whole record
+// (§2.6, and the "saveAll menimpa buta" lesson of input.vue 0.1).
+
+interface KerjaDp {
+  segar: Reservasi
+  versi: Versi | undefined
+  dps: ReservasiDp[]
+}
+
+async function salinDps(resId: string): Promise<KerjaDp> {
+  const env = await getReservation(resId)
+  const segar = env.data
+  // The copy, lifted like pastikanDps() when the flat deposit never moved
+  // into `dps[]`. Never the list's own objects.
+  const dps = dpsTampilan(segar).map(p => ({ ...p }))
+  return { segar, versi: versiDari(env) ?? segar.updatedAt, dps }
+}
+
+const cariCicilan = (dps: ReservasiDp[], payId: string, ke: number) => {
+  const i = dps.findIndex(p => p.id === payId)
+  return i >= 0 ? i : ke - 1
+}
+
+/**
+ * PATCH one transfer's row: `dps` from the freshest row, its flat mirrors,
+ * and the first instalment's transfer fields only when instalment 0 is the
+ * one touched. `tambahan` carries what the action owns beyond that (e.g. a
+ * Pending -> Confirmed flip on new money).
+ */
+async function tulisTransfer(resId: string, idx: number, dps: ReservasiDp[], tambahan: Partial<Reservasi>, versi: Versi | undefined) {
+  const fields: Partial<Reservasi> = { dps, ...cerminDp(dps), ...tambahan }
+  if (idx === 0) Object.assign(fields, cerminTfUtama(dps))
+  await patchReservation(resId, fields, versi)
+}
+
+const catatDp = (aksi: string, detail: string, resId: string) =>
+  postAudit({ action: aksi, detail, res: resId })
+
+/** Reload what a write touched: the list. Sheets re-snapshot their own row (below). */
+const muatUlangDaftar = () => refresh()
+
+/** A stored proof as a data URI: inline as-is, `@f:` read from the file endpoint. */
+async function muatBukti(ref: string): Promise<string> {
+  if (!ref) return ''
+  if (!ref.startsWith('@f:')) return ref
+  const { data } = await getFile(ref.replace(/^@f:/, ''))
+  return data.data
+}
+
+// --- the proof viewer ----------------------------------------------------------
+// Opened instantly in a "loading" state, filled when the file lands: a button
+// that sits quiet for seconds gets pressed again and again (`:8075-8108).
+
+const sheetBukti = ref(false)
+const buktiJudul = ref('')
+const buktiData = ref('')
+const buktiPdf = ref(false)
+const buktiMemuat = ref(false)
+const buktiGalat = ref('')
+
+async function lihatBukti(x: TxDanaMasuk) {
+  sheetBukti.value = true
+  buktiJudul.value = x.p.proofName || 'Bukti transfer'
+  buktiData.value = ''
+  buktiPdf.value = false
+  buktiMemuat.value = true
+  buktiGalat.value = ''
+  try {
+    const data = await muatBukti(x.p.proofData)
+    if (!data) throw new Error('Bukti tidak ditemukan di database')
+    buktiPdf.value = !buktiAdalahGambar(data, x.p.proofName)
+    buktiData.value = data
+  }
+  catch (e) {
+    buktiGalat.value = apiErrorMessage(e)
+  }
+  finally {
+    buktiMemuat.value = false
+  }
+}
+
+// --- Cek / Edit ----------------------------------------------------------------
+// The correction form. Machine suggestions sit under their boxes with a
+// "Pakai" button each — never filled in by themselves (`:9751-9834`).
+
+const sheetTf = ref(false)
+const tfForm = reactive({
+  resId: '', payId: '', ke: 0, dari: 0,
+  date: '', time: '', bank: '', name: '', amount: '', note: '',
+})
+const tfSimpan = ref<ReservasiDp | null>(null)
+const tfRes = ref<Reservasi | null>(null)
+const tfTampil = ref({ nama: '', info: '', hostNominal: 0, hostMetode: '', buktiAda: false, buktiGambar: false })
+
+const KUNCI_SARAN: { kunci: KunciSaran, label: string }[] = [
+  { kunci: 'date', label: 'Tanggal' },
+  { kunci: 'time', label: 'Jam' },
+  { kunci: 'bank', label: 'Bank' },
+  { kunci: 'name', label: 'Nama' },
+  { kunci: 'amount', label: 'Nominal' },
+]
+
+function bukaTfEdit(x: TxDanaMasuk) {
+  tfSimpan.value = { ...x.p }
+  tfRes.value = { ...x.r }
+  Object.assign(tfForm, {
+    resId: x.r.id, payId: x.p.id, ke: x.ke, dari: x.dari,
+    date: x.p.tfDate || '', time: x.p.tfTime || '', bank: txBank(x),
+    name: x.p.tfName || '', amount: fmtRupiah(txNominal(x)), note: x.p.tfNote || '',
+  })
+  tfTampil.value = {
+    nama: x.r.name, info: `${tglPendek(x.r.date)} ${x.r.time}, ${x.r.pax} pax${x.r.table ? `, meja ${x.r.table}` : ''}`,
+    hostNominal: Number(x.p.amount) || 0, hostMetode: x.p.method || '',
+    buktiAda: !!x.p.proofData, buktiGambar: txBuktiGambar(x),
+  }
+  sheetTf.value = true
+}
+
+const saranTf = (kunci: KunciSaran) => (tfSimpan.value ? saranOcr(tfSimpan.value, kunci) : '')
+const jumlahSaran = computed(() => KUNCI_SARAN.filter(k => saranTf(k.kunci) !== '').length)
+const tglStempelTf = computed(() => tfSimpan.value ? tglSeharusnya(tfSimpan.value.tfOcrText, tfSimpan.value.tfTime, tfSimpan.value.tfDate) : '')
+
+function pakaiSaran(kunci: KunciSaran) {
+  const v = saranTf(kunci)
+  if (v === '') return
+  if (kunci === 'amount') tfForm.amount = fmtRupiah(Number(v))
+  else if (kunci === 'date') tfForm.date = String(v)
+  else if (kunci === 'time') tfForm.time = String(v)
+  else if (kunci === 'bank') tfForm.bank = String(v)
+  else tfForm.name = String(v)
+}
+
+function pakaiSemuaSaran() {
+  let n = 0
+  for (const k of KUNCI_SARAN) {
+    if (saranTf(k.kunci) !== '') {
+      pakaiSaran(k.kunci)
+      n++
+    }
+  }
+  if (n) toast.add({ title: `${n} kolom diisi dari hasil baca mesin — cocokkan dengan gambarnya, lalu Simpan` })
+}
+
+/** Read the boxes into an instalment (`:9835-9843`). `tfSource` becomes "manual": a person pressed Save. */
+function terapkanFormTf(p: ReservasiDp) {
+  p.tfDate = tfForm.date
+  p.tfTime = tfForm.time
+  p.tfBank = tfForm.bank.trim()
+  p.tfName = tfForm.name.trim()
+  p.tfAmount = rupiahVal(tfForm.amount)
+  p.tfNote = tfForm.note.trim()
+  p.tfSource = 'manual'
+}
+
+/** Reload the sheet's own row after a conflict — the form holds a copy (`input.vue` 0.1). */
+async function muatUlangTf() {
+  await refresh()
+  if (!tfForm.resId) return
+  try {
+    const env = await getReservation(tfForm.resId)
+    const segar = env.data
+    const dps = dpsTampilan(segar).map(p => ({ ...p }))
+    const p = dps[cariCicilan(dps, tfForm.payId, tfForm.ke)]
+    if (p) {
+      const x: TxDanaMasuk = { r: segar, p, ke: tfForm.ke, dari: dps.length }
+      bukaTfEdit(x)
+    }
+  }
+  catch {
+    // The list already reloaded; the sheet keeps its copy.
+  }
+}
+
+async function simpanTf(verifikasi: boolean) {
+  if (!bolehVerifikasi) return
+  if (verifikasi) {
+    bukaVerifikasiDariForm()
+    return
+  }
+  try {
+    const { dps, versi } = await salinDps(tfForm.resId)
+    const idx = cariCicilan(dps, tfForm.payId, tfForm.ke)
+    const p = dps[idx]
+    if (!p) {
+      toast.add({ title: 'Barisnya tidak ketemu — daftar dimuat ulang', color: 'error' })
+      await muatUlangTf()
+      return
+    }
+    terapkanFormTf(p)
+    await tulisTransfer(tfForm.resId, idx, dps, {}, versi)
+    await catatDp('Koreksi Data Transfer', `${tfTampil.value.nama}: ${p.tfBank || '-'} ${p.tfName || '-'} ${p.tfDate || '-'} ${p.tfTime || ''} ${rp(txNominal({ r: tfRes.value!, p, ke: 0, dari: 0 }))}`, tfForm.resId)
+    await refresh()
+    sheetTf.value = false
+    toast.add({ title: 'Data transfer disimpan', color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, muatUlangTf))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
+
+// --- Verifikasi ----------------------------------------------------------------
+// A dialog, because "verified" states money that REALLY arrived — used by
+// other screens as fact, recorded under the person's name (`:9894-9942`).
+// Empty columns do NOT block: the person is looking at the proof, and a
+// retyped number is no truer than admitting the data is unread. Unread
+// columns ride along as `tfTanpaData` ("dari gambar").
+
+const sheetVer = ref(false)
+const ver = reactive({
+  resId: '', payId: '', ke: 0, dari: 0, nama: '', sumber: 'manual',
+  date: '', time: '', bank: '', name: '', nomBukti: 0, nomHost: 0, kurang: [] as string[],
+})
+
+function isiVerifikasi(resId: string, payId: string, ke: number, dari: number, nama: string, p: ReservasiDp, bank: string, sumber: string) {
+  Object.assign(ver, {
+    resId, payId, ke, dari, nama, sumber,
+    date: p.tfDate || '', time: p.tfTime || '', bank, name: p.tfName || '',
+    nomBukti: Number(p.tfAmount) || 0, nomHost: Number(p.amount) || 0,
+    kurang: kurangDataTf(p, bank),
+  })
+  sheetVer.value = true
+}
+
+function bukaVerifikasi(x: TxDanaMasuk) {
+  isiVerifikasi(x.r.id, x.p.id, x.ke, x.dari, x.r.name, { ...x.p }, txBank(x), x.p.tfSource || 'manual')
+}
+
+/** From the edit sheet: the dialog states what was JUST typed, not what is stored (`:9846-9854`). */
+function bukaVerifikasiDariForm() {
+  const p = { ...(tfSimpan.value ?? {}), tfDate: tfForm.date, tfTime: tfForm.time, tfBank: tfForm.bank.trim(), tfName: tfForm.name.trim(), tfAmount: rupiahVal(tfForm.amount) } as ReservasiDp
+  isiVerifikasi(tfForm.resId, tfForm.payId, tfForm.ke, tfForm.dari, tfTampil.value.nama, p, tfForm.bank.trim(), 'manual')
+}
+
+async function verifikasiGo() {
+  if (!bolehVerifikasi) return
+  sheetVer.value = false
+  try {
+    const { dps, versi } = await salinDps(ver.resId)
+    const idx = cariCicilan(dps, ver.payId, ver.ke)
+    const p = dps[idx]
+    if (!p) {
+      toast.add({ title: 'Barisnya tidak ketemu — daftar dimuat ulang', color: 'error' })
+      await refresh()
+      return
+    }
+    if (ver.sumber === 'manual') {
+      p.tfDate = ver.date
+      p.tfTime = ver.time
+      p.tfBank = ver.bank.trim()
+      p.tfName = ver.name.trim()
+      p.tfAmount = ver.nomBukti
+      p.tfSource = 'manual'
+    }
+    const kurang = kurangDataTf(p, p.tfBank || bankDariMetode(p.method))
+    if (!Number(p.tfAmount)) p.tfAmount = Number(p.amount) || 0
+    if (!p.tfBank) p.tfBank = bankDariMetode(p.method)
+    p.tfStatus = 'verified'
+    p.tfBy = namaSaya.value
+    p.tfAt = Date.now()
+    p.tfTanpaData = kurang.length ? kurang.join(', ') : ''
+    await tulisTransfer(ver.resId, idx, dps, {}, versi)
+    const x = { r: { name: ver.nama } as Reservasi, p, ke: 0, dari: 0 }
+    await catatDp('Verifikasi Dana Masuk',
+      `${ver.nama}: ${p.tfBank || '-'} ${p.tfName || '-'} ${p.tfDate || '(tanggal tidak terbaca)'} ${p.tfTime || ''} ${rp(txNominal(x))}`
+      + (kurang.length ? ` — TANPA ${kurang.join(', ').toUpperCase()}, diverifikasi dari gambar bukti` : ''), ver.resId)
+    await refresh()
+    toast.add({ title: kurang.length ? 'Dana masuk terverifikasi (data tidak lengkap)' : 'Dana masuk terverifikasi', color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, muatUlangDaftar))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
+
+// --- Tolak ---------------------------------------------------------------------
+// A reason, typed — refused money was checked and found absent (`:9963-9975`).
+
+const sheetTolak = ref(false)
+const tolak = reactive({ resId: '', payId: '', ke: 0, nama: '', alasan: '', dariForm: false })
+
+function bukaTolak(x: TxDanaMasuk, dariForm = false) {
+  Object.assign(tolak, { resId: x.r.id, payId: x.p.id, ke: x.ke, nama: x.r.name, alasan: x.p.tfNote || '', dariForm })
+  sheetTolak.value = true
+}
+
+async function tolakGo() {
+  if (!bolehVerifikasi) return
+  sheetTolak.value = false
+  try {
+    const { dps, versi } = await salinDps(tolak.resId)
+    const idx = cariCicilan(dps, tolak.payId, tolak.ke)
+    const p = dps[idx]
+    if (!p) {
+      toast.add({ title: 'Barisnya tidak ketemu — daftar dimuat ulang', color: 'error' })
+      await refresh()
+      return
+    }
+    if (tolak.dariForm) terapkanFormTf(p) // called from the edit sheet: the boxes travel along (`:9969`)
+    p.tfStatus = 'rejected'
+    p.tfNote = tolak.alasan.trim()
+    p.tfBy = namaSaya.value
+    p.tfAt = Date.now()
+    await tulisTransfer(tolak.resId, idx, dps, {}, versi)
+    await catatDp('Tolak Bukti Transfer', `${tolak.nama}: ${tolak.alasan.trim() || 'tanpa alasan'}`, tolak.resId)
+    if (tolak.dariForm) sheetTf.value = false
+    await refresh()
+    toast.add({ title: 'Bukti transfer ditolak' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, tolak.dariForm ? muatUlangTf : muatUlangDaftar))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
+
+// --- Betulkan tanggal / jam ------------------------------------------------------
+// Recomputed from the SAVED ocr text — never a fresh read of the same picture
+// with the same machine. The fixer is always a person (`:8856-8924`).
+
+const konfirmasi = reactive({
+  buka: false, judul: '', pesan: '', label: '', bahaya: true, aksi: null as null | (() => Promise<void>),
+})
+
+function mintaKonfirmasi(judul: string, pesan: string, label: string, aksi: () => Promise<void>, bahaya = true) {
+  Object.assign(konfirmasi, { buka: true, judul, pesan, label, bahaya, aksi })
+}
+
+async function jalankanKonfirmasi() {
+  konfirmasi.buka = false
+  try {
+    await konfirmasi.aksi?.()
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, muatUlangDaftar))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
+
+function betulkanTanggal(x: TxDanaMasuk) {
+  const benar = tglSeharusnya(x.p.tfOcrText, x.p.tfTime, x.p.tfDate)
+  if (!benar) {
+    toast.add({ title: 'Tanggalnya sudah sesuai dengan bukti.' })
+    return
+  }
+  const lama = x.p.tfDate || ''
+  mintaKonfirmasi('Betulkan tanggal transfer',
+    `${lama ? `Tanggal transfer dibetulkan dari ${tglPendek(lama)} jadi ${tglPendek(benar)}.` : `Tanggal transfer diisi ${tglPendek(benar)} (sebelumnya kosong).`} Angkanya dibaca dari stempel waktu di nomor Ref pada bukti yang sudah tersimpan, dan jam di stempel itu cocok — bukan ditebak.`,
+    'Betulkan tanggal', async () => {
+      const { dps, versi } = await salinDps(x.r.id)
+      const p = dps[cariCicilan(dps, x.p.id, x.ke)]
+      if (!p) throw new Error('Barisnya tidak ketemu')
+      p.tfDate = benar
+      await tulisTransfer(x.r.id, cariCicilan(dps, x.p.id, x.ke), dps, {}, versi)
+      await catatDp('Betulkan Tanggal TF', `${x.r.name}: ${lama || '(kosong)'} → ${benar} (dari stempel Ref di bukti tersimpan)`, x.r.id)
+      await refresh()
+      toast.add({ title: `Tanggal transfer jadi ${tglPendek(benar)}.`, color: 'success' })
+    }, false)
+}
+
+function betulkanJam(x: TxDanaMasuk) {
+  const benar = jamSeharusnya(x.p.tfOcrText, x.p.tfTime)
+  if (!benar) {
+    toast.add({ title: 'Jamnya sudah sesuai dengan hasil scan.' })
+    return
+  }
+  mintaKonfirmasi('Betulkan jam transfer',
+    `Jam transfer dibetulkan dari ${x.p.tfTime} jadi ${benar} WIB. Angkanya dihitung ulang dari teks bukti yang sudah tersimpan (di sana tertulis AM/PM), bukan ditebak.`,
+    'Betulkan jam', async () => {
+      const { dps, versi } = await salinDps(x.r.id)
+      const idx = cariCicilan(dps, x.p.id, x.ke)
+      const p = dps[idx]
+      if (!p) throw new Error('Barisnya tidak ketemu')
+      const lama = p.tfTime
+      p.tfTime = benar
+      await tulisTransfer(x.r.id, idx, dps, {}, versi)
+      await catatDp('Betulkan Jam TF', `${x.r.name}: ${lama} → ${benar} (dari teks bukti tersimpan)`, x.r.id)
+      await refresh()
+      toast.add({ title: `Jam transfer dibetulkan jadi ${benar} WIB.`, color: 'success' })
+    }, false)
+}
+
+// --- Tambah Bukti TF DP ------------------------------------------------------------
+// A new instalment is born here — proof required with NO exception: whoever
+// types the amount is holding the receipt (`:7977-8036`, F4).
+
+const sheetTambah = ref(false)
+const tambah = reactive({
+  resId: '', nama: '', info: '', ke: 1, sudahMasuk: 0, nominal: '', metode: '',
+  berkas: null as File | null, namaBerkas: '',
+})
+
+function bukaTambah(resId: string) {
+  const r = (semua.value ?? []).find(v => v.id === resId)
+  if (!r) return
+  const n = dpsTampilan(r).length
+  Object.assign(tambah, {
+    resId, nama: r.name, info: `${tglPendek(r.date)} ${r.time}, ${r.pax} pax${r.table ? `, meja ${r.table}` : ''}`,
+    ke: n + 1, sudahMasuk: dpTotal(r), nominal: '', metode: dpMetodeBawaan(dpMethods.value ?? []),
+    berkas: null, namaBerkas: '',
+  })
+  sheetTambah.value = true
+}
+
+function pilihBerkas(e: Event) {
+  const f = (e.target as HTMLInputElement).files?.[0] ?? null
+  // The 5 MB gate runs BEFORE reading (F1): a bigger file never becomes a data URI.
+  if (f && f.size > 5 * 1024 * 1024) {
+    toast.add({ title: 'Bukti melebihi 5 MB — kecilkan dulu', color: 'error' })
+    tambah.berkas = null
+    tambah.namaBerkas = ''
+    return
+  }
+  tambah.berkas = f
+  tambah.namaBerkas = f ? f.name : ''
+}
+
+const bacaBerkas = (f: File): Promise<string> => new Promise((resolve, reject) => {
+  const fr = new FileReader()
+  fr.onload = () => resolve(String(fr.result))
+  fr.onerror = () => reject(fr.error)
+  fr.readAsDataURL(f)
+})
+
+async function simpanTambah() {
+  if (!bolehVerifikasi) return
+  const nominal = rupiahVal(tambah.nominal)
+  if (!nominal) {
+    toast.add({ title: 'Nominal DP wajib diisi', color: 'error' })
+    return
+  }
+  if (!tambah.berkas) {
+    toast.add({ title: 'Bukti transfer wajib diunggah untuk tiap DP', color: 'error' })
+    return
+  }
+  try {
+    const dataUri = await bacaBerkas(tambah.berkas)
+    const { dps, segar, versi } = await salinDps(tambah.resId)
+    pastikanDps({ ...segar, dps } as Reservasi)
+    const p = {
+      ...dpBaru(namaSaya.value),
+      amount: nominal,
+      method: tambah.metode,
+      proofData: dataUri,
+      proofName: tambah.berkas.name,
+    }
+    dps.push(p)
+    // Money in flips a Pending booking to Confirmed — but only from Pending:
+    // anything else (Datang, …) is someone else's state, not ours to move.
+    const tambahan: Partial<Reservasi> = segar.status === 'Pending' ? { status: 'Confirmed' } : {}
+    await tulisTransfer(tambah.resId, dps.length - 1, dps, tambahan, versi)
+    await catatDp('Tambah DP', `${tambah.nama}: DP ke-${dps.length} ${rp(nominal)} (total ${rp(dpTotal({ ...segar, dps } as Reservasi))})`, tambah.resId)
+    sheetTambah.value = false
+    await refresh()
+    toast.add({ title: `DP ${rp(nominal)} tercatat`, color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, muatUlangDaftar))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
+
+// --- Hapus catatan DP (admin) --------------------------------------------------------
+// Erases the money trace, so it is the System Admin's alone on both the button
+// and here. A cashier or manager rejects the proof instead (`:8037-8056`).
+
+function hapusDp(x: TxDanaMasuk) {
+  if (!props.bolehHapus) {
+    toast.add({ title: 'Hanya Admin Sistem yang boleh menghapus transaksi dana masuk', color: 'error' })
+    return
+  }
+  mintaKonfirmasi('Hapus transaksi dana masuk',
+    `Hapus transaksi dana masuk ${rp(txNominal(x))} (${x.p.method || '-'}) milik "${x.r.name}"? Catatan uang masuk ini akan hilang. Tindakan ini tercatat di audit log.`,
+    'Hapus', async () => {
+      const { dps, versi } = await salinDps(x.r.id)
+      const idx = cariCicilan(dps, x.p.id, x.ke)
+      const sisa = dps.filter((_, i) => i !== idx)
+      // Removing instalment 0 promotes the next one: the flat mirrors follow.
+      await tulisTransfer(x.r.id, idx === 0 ? 0 : 1, sisa, {}, versi)
+      await catatDp('Hapus Dana Masuk', `${x.r.name}: hapus ${rp(txNominal(x))} (${x.p.tfBank || x.p.method || '-'}${x.p.tfName ? `, a.n. ${x.p.tfName}` : ''}) — sisa total DP ${rp(sisa.reduce((a, p) => a + (Number(p.amount) || 0), 0))}`, x.r.id)
+      await refresh()
+      toast.add({ title: 'Transaksi dana masuk dihapus' })
+    })
+}
+
+// --- Hapus Data Demo (admin) -----------------------------------------------------------
+
+async function hapusDemo() {
+  if (!props.bolehHapusDemo) return
+  if (!demo.value.length) {
+    toast.add({ title: 'Tidak ada data demo yang tersisa' })
+    return
+  }
+  mintaKonfirmasi('Hapus data demo',
+    `Hapus ${demo.value.length} data DEMO/contoh ini secara permanen? ${demo.value.slice(0, 3).map(r => r.name).join(', ')}${demo.value.length > 3 ? ', dll' : ''}. Data ini ikut hilang dari Dashboard, Riwayat & Analitik, bukan cuma dari Dana Masuk. Tindakan ini tercatat di audit log.`,
+    `Hapus ${demo.value.length} data demo`, async () => {
+      for (const r of demo.value) {
+        await deleteReservation(r.id, r.updatedAt)
+      }
+      await postAudit({ action: 'Hapus Data Demo', detail: `${demo.value.length} reservasi contoh dihapus: ${demo.value.map(r => r.name).join(', ')}` })
+      await refresh()
+      toast.add({ title: `${demo.value.length} data demo dihapus`, color: 'success' })
+    })
+}
+
+// --- Export CSV (browser, K-05: CSV dulu) ------------------------------------------------
+// The basis rides in the filename: two exports of the same range with different
+// bases hold different rows, and an identical name would overwrite (`:9976-10004`).
+
+function unduhCsv() {
+  const list = daftar.value
+  if (!list.length) {
+    toast.add({ title: 'Tidak ada transaksi untuk diekspor', color: 'error' })
+    return
+  }
+  const cols = ['Tanggal TF', 'Jam TF', 'Bank', 'Nama Pengirim', 'Nominal Bukti', 'Nominal Input Host', 'Selisih',
+    'DP Ke', 'Dari Total DP', 'Total DP Reservasi', 'Status', 'Catatan Finance',
+    'Tamu', 'No HP', 'Tanggal Reservasi', 'Jam', 'Meja', 'Pax', 'Ada Bukti', 'Sumber Data', 'Diverifikasi Oleh', 'Waktu Verifikasi']
+  const rows = list.map((x) => {
+    const r = x.r
+    const p = x.p
+    return [
+      p.tfDate || '', p.tfTime || '', txBank(x), txNama(x), txNominal(x), Number(p.amount) || 0,
+      (Number(p.tfAmount) || 0) && (Number(p.amount) || 0) ? (Number(p.tfAmount) - Number(p.amount)) : 0,
+      x.ke, x.dari, dpTotal(r),
+      p.tfStatus === 'verified'
+        ? (`Terverifikasi${p.tfTanpaData ? ` (dari gambar, ${p.tfTanpaData} tidak terbaca)` : ''}`)
+        : p.tfStatus === 'rejected' ? 'Ditolak' : 'Belum dicek',
+      p.tfNote || '', r.name, r.phone, r.date, r.time, r.table, r.pax,
+      p.proofData ? 'Ada' : 'Tidak ada', p.tfSource === 'ocr' ? 'OCR bukti' : p.tfSource === 'manual' ? 'Manual' : '-',
+      p.tfBy || '', p.tfAt ? capWaktu(p.tfAt) : '',
+    ]
+  })
+  const csv = [cols, ...rows].map(row => row.map(c => `"${String(c ?? '').replace(/"/g, '""')}"`).join(',')).join('\n')
+  const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = `dana_masuk_laksamana_${saring.basis === 'masuk' ? 'tgluang' : 'tglreservasi'}_${saring.dari || 'awal'}_${saring.sampai || hariIni()}.csv`
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+  toast.add({ title: 'CSV dana masuk diunduh', color: 'success' })
+}
+
+// --- Scan ----------------------------------------------------------------------
+// Proofs unscanned at open are read by themselves, so suggestions are ready
+// before anyone opens Cek / Edit — one picture takes seconds, and waiting for
+// it inside the sheet makes people press the button again and again. Already
+// scanned proofs are not re-read, and a failed proof is not retried in the
+// same session (`:9549-9584`).
+
+const pindai = reactive({ sibuk: false, sudah: 0, total: 0, coba: new Set<string>() })
+
+async function pindaiSatu(resId: string, payId: string) {
+  const env = await getReservation(resId)
+  const segar = env.data
+  const versi = versiDari(env) ?? segar.updatedAt
+  const dps = dpsTampilan(segar).map(p => ({ ...p }))
+  const idx = dps.findIndex(p => p.id === payId)
+  if (idx < 0) throw new Error('Barisnya tidak ketemu — daftar dimuat ulang')
+  const p = dps[idx]!
+  if (!buktiAdalahGambar(p.proofData, p.proofName)) throw new Error('Bukti bukan gambar (PDF tidak bisa dipindai otomatis)')
+  const gambar = await muatBukti(p.proofData)
+  if (!gambar) throw new Error('Bukti tidak ditemukan di database')
+  const hasil = pakaiHasilOcr(p, await ocrBaca(gambar))
+  await patchReservation(resId, { dps }, versi)
+  return hasil
+}
+
+/** One queue runner for the auto-scan and the "Ulangi Scan" button. */
+async function jalankanAntrean(todo: TxDanaMasuk[], aksiAudit: string) {
+  pindai.sibuk = true
+  pindai.sudah = 0
+  pindai.total = todo.length
+  let ok = 0
+  let gagal = 0
+  for (const x of todo) {
+    pindai.coba.add(x.p.id)
+    try {
+      const h = await pindaiSatu(x.r.id, x.p.id)
+      if (h && (h.date || h.amount || h.bank)) ok++
+      else gagal++
+    }
+    catch {
+      gagal++
+    }
+    pindai.sudah++
+  }
+  pindai.sibuk = false
+  await postAudit({ action: 'Scan Bukti TF', detail: `${aksiAudit}: ${todo.length} bukti (${ok} terbaca, ${gagal} gagal)` })
+  await refresh()
+  return { ok, gagal }
+}
+
+async function pindaiOtomatis() {
+  if (pindai.sibuk) return
+  const todo = tx.value.filter(x => !txSudahScan(x) && txBuktiGambar(x) && !pindai.coba.has(x.p.id))
+  if (!todo.length) return
+  const { ok, gagal } = await jalankanAntrean(todo, 'Scan otomatis saat halaman Dana Masuk dibuka')
+  if (ok) toast.add({ title: `${ok} bukti punya saran hasil baca mesin — buka Cek / Edit untuk memakainya${gagal ? `, ${gagal} gagal dibaca` : ''}`, color: gagal ? 'warning' : 'success' })
+  else if (gagal) toast.add({ title: 'Bukti tidak terbaca mesin. Cek koneksi internet, atau ketik sendiri lewat tombol Cek / Edit.', color: 'error' })
+}
+
+onMounted(() => {
+  setTimeout(pindaiOtomatis, 60) // once the screen is up, new proofs read themselves
+})
+
+const belumPindai = computed(() => tx.value.filter(x => !txSudahScan(x) && txBuktiGambar(x)))
+
+async function pindaiBorongan() {
+  if (pindai.sibuk || !belumPindai.value.length) return
+  const { ok, gagal } = await jalankanAntrean([...belumPindai.value], 'Scan borongan')
+  toast.add({ title: `Selesai: ${ok} bukti punya saran${gagal ? `, ${gagal} gagal dibaca` : ''}`, color: gagal ? 'warning' : 'success' })
+}
+
+async function pindaiBaris(x: TxDanaMasuk) {
+  toast.add({ title: 'Membaca bukti transfer…' })
+  try {
+    const hasil = await pindaiSatu(x.r.id, x.p.id)
+    const bank = hasil.bank || '?'
+    await postAudit({ action: 'Scan Bukti TF', detail: `${x.r.name}: ${bank} ${hasil.name || '?'} ${hasil.date || '?'} ${hasil.time || '?'} ${hasil.amount ? rp(hasil.amount) : '?'}`, res: x.r.id })
+    await refresh()
+    const kurang = (['date', 'time', 'amount', 'bank', 'name'] as const).filter(k => !hasil[k])
+    const segar = (semua.value ?? []).flatMap(r => txSemua([r])).find(t => t.r.id === x.r.id && t.p.id === x.p.id)
+    if (segar) bukaTfEdit(segar)
+    toast.add({
+      title: kurang.length
+        ? `Bukti terbaca sebagian — ${kurang.join(', ')} tidak terbaca, ketik sendiri`
+        : 'Bukti terbaca — cocokkan dengan gambarnya lalu tekan Pakai',
+      color: 'success',
+    })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, muatUlangDaftar))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
+
+// --- DP Event (Marketing), read-only -------------------------------------------------
+// Payments the Marketing team recorded for events AND VIP reservations — DP or
+// payoff. Verified there first; the cashier only checks the money really came
+// in and how much. Filtered by EVENT date, never the pay date: a DP moves
+// weeks before its party (F11, `:9259-9356`).
+
+const dpev = reactive({
+  memuat: false, galat: '', tanpaAkses: false,
+  data: null as DpEventData | null, kunci: '', q: '',
+})
+
+/** The range sent to the server. The boxes may be empty ("Semua") while the
+ *  backend demands real dates — clamped wide, not refused (`:9116-9122`). */
+const rentangEv = (): [string, string] => [saring.dari || '2000-01-01', saring.sampai || '2100-12-31']
+
+async function muatDpEvent() {
+  const [dari, sampai] = rentangEv()
+  const kunci = `${dari}|${sampai}`
+  // 'galat' JOINS the cache guard: without it a failed fetch re-renders the
+  // banner, the render refires the fetch, forever. Only "Coba lagi" clears it.
+  if (dpev.memuat) return
+  if (dpev.kunci === kunci && (dpev.data || dpev.galat)) return
+  dpev.memuat = true
+  dpev.kunci = kunci
+  dpev.galat = ''
+  dpev.tanpaAkses = false
+  dpev.data = null
+  try {
+    const { data } = await getMarketingDp(dari, sampai)
+    dpev.data = data ?? {
+      baris: [], total: 0, tanpaTanggal: 0,
+      vipTerkunci: { n: 0, total: 0 }, luar: { n: 0, total: 0, dari: '', sampai: '' }, dari, sampai,
+    }
+  }
+  catch (e) {
+    if (apiErrorCode(e) === 'module_not_granted') dpev.tanpaAkses = true
+    else dpev.galat = apiErrorMessage(e)
+  }
+  finally {
+    dpev.memuat = false
+  }
+}
+
+function dpevCobaLagi() {
+  dpev.kunci = ''
+  dpev.galat = ''
+  dpev.tanpaAkses = false
+  dpev.data = null
+  muatDpEvent()
+}
+
+watch([sumber, () => saring.dari, () => saring.sampai], () => {
+  if (sumber.value === 'event') muatDpEvent()
+})
+
+/** The visible rows — matched against event, client, PIC, method and receipt number at once (`:9158-9164`). */
+const barisEv = computed(() => {
+  const semuaBaris = dpev.data?.baris ?? []
+  const q = dpev.q.trim().toLowerCase()
+  if (!q) return semuaBaris
+  return semuaBaris.filter(b => [b.event, b.client, b.pic, b.method, b.no, b.type]
+    .some(v => String(v == null ? '' : v).toLowerCase().includes(q)))
+})
+
+const nEvent = computed(() => new Set(barisEv.value.map(b => b.evId)).size)
+const totalEv = computed(() => barisEv.value.reduce((a, b) => a + (Number(b.amount) || 0), 0))
+
+/** Split by payment KIND: DP and payoff answer different questions (`:9265-9269`). */
+const perJenis = computed(() => {
+  const map = new Map<string, { n: number, sum: number }>()
+  for (const b of barisEv.value) {
+    const k = b.type || '(tanpa jenis)'
+    const e = map.get(k) ?? { n: 0, sum: 0 }
+    e.n++
+    e.sum += Number(b.amount) || 0
+    map.set(k, e)
+  }
+  return [...map.entries()].map(([jenis, v]) => ({ jenis, ...v })).sort((a, b) => b.sum - a.sum)
+})
+
+/** Jump to the range that really holds payments (`:9249-9257`). */
+function pakaiRentangLuar() {
+  const luar = dpev.data?.luar
+  if (!luar?.dari || !luar?.sampai) return
+  saring.dari = luar.dari
+  saring.sampai = luar.sampai
+}
+
+/** A legacy `?action=receipt&key=` URL cannot open here; only real links leave the screen. */
+const tautanBuktiEv = (b: DpEvent) => b.receiptUrl && /^https?:\/\//i.test(b.receiptUrl) ? b.receiptUrl : ''
+
+const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
+  { accessorKey: 'tglEvent', header: 'Tgl acara' },
+  { accessorKey: 'event', header: 'Event' },
+  { accessorKey: 'type', header: 'Jenis' },
+  { accessorKey: 'amount', header: 'Nominal' },
+  { accessorKey: 'method', header: 'Metode' },
+  { accessorKey: 'at', header: 'Tgl bayar' },
+  { accessorKey: 'no', header: 'No. kwitansi' },
+  { accessorKey: 'bukti', header: 'Bukti' },
+])
+</script>
+
+<template>
+  <div>
+    <!-- The source switch stands on both tabs — one-sided, the other side has no way back (`:9215-9221`). -->
+    <div class="mb-2 flex flex-wrap gap-2">
+      <UButton
+        label="DP Reservasi"
+        color="neutral"
+        :variant="sumber === 'reservasi' ? 'soft' : 'ghost'"
+        size="sm"
+        @click="sumber = 'reservasi'"
+      />
+      <UButton
+        :label="`DP Event (Marketing)${dpev.data ? ` (${dpev.data.baris.length})` : ''}`"
+        color="neutral"
+        :variant="sumber === 'event' ? 'soft' : 'ghost'"
+        size="sm"
+        @click="sumber = 'event'; muatDpEvent()"
+      />
+    </div>
+    <p class="mb-5 text-sm text-muted">
+      Dua daftar yang <b>tidak bisa dijumlahkan</b>: DP reservasi diverifikasi di halaman ini,
+      pembayaran event sudah diverifikasi lebih dulu di modul Marketing.
+    </p>
+
+    <template v-if="sumber === 'reservasi'">
+      <div class="mb-3 flex flex-wrap gap-2">
+        <UButton
+          v-if="demo.length && bolehHapusDemo"
+          :label="`Hapus data demo (${demo.length})`"
+          color="error"
+          variant="soft"
+          size="sm"
+          @click="hapusDemo"
+        />
+        <UButton
+          v-if="belumPindai.length && !pindai.sibuk && bolehVerifikasi"
+          :label="`Ulangi scan (${belumPindai.length})`"
+          color="neutral"
+          variant="soft"
+          size="sm"
+          @click="pindaiBorongan"
+        />
+        <UButton
+          label="Export CSV"
+          color="neutral"
+          variant="soft"
+          size="sm"
+          @click="unduhCsv"
+        />
+      </div>
+      <p
+        v-if="pindai.sibuk"
+        class="mb-3 text-sm text-muted"
+      >
+        {{ pindai.sudah }} / {{ pindai.total }} bukti dibaca…
+      </p>
+
+      <!-- One AppFocus: what the desk checks first. -->
+      <div class="mb-7 max-w-xl">
+        <AppFocus
+          label="Perlu diverifikasi"
+          :value="`${angka(ringkas.perlu)} transfer`"
+          :hint="`${rp(ringkas.belum)} belum dicek${ringkas.belumScan ? ` · ${angka(ringkas.belumScan)} bukti belum discan` : ''}`"
+        />
+      </div>
+
+      <p
+        v-if="tanpaAkses"
+        class="mb-5 rounded-lg border border-default p-3 text-sm"
+      >
+        <b>Belum punya akses ke Data Reservasi · G-14.</b>
+        Akun ini tidak memegang modul reservasi. Minta aksesnya, atau buka halaman ini dari modul Reservasi.
+      </p>
+      <p
+        v-else-if="galatMuat"
+        class="mb-5 rounded-lg border border-default p-3 text-sm"
+      >
+        <b>Daftar tidak terbaca:</b> {{ apiErrorMessage(galatMuat) }}
+        <UButton
+          label="Coba lagi"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          class="ms-2"
+          @click="refresh()"
+        />
+      </p>
+
+      <AppList title="Ringkasan">
+        <AppListRow
+          title="Total dana masuk"
+          :description="`${angka(daftarSemua.length)} kali transfer${ringkas.cicilan ? ` · ${angka(ringkas.cicilan)} dari DP bertahap` : ''}`"
+          icon="i-lucide-wallet"
+        >
+          <template #trailing>
+            {{ rp(ringkas.total) }}
+          </template>
+        </AppListRow>
+        <AppListRow
+          title="Total terverifikasi"
+          :description="`${angka(ringkas.sudah)} transaksi, dana dipastikan masuk`"
+          icon="i-lucide-check"
+        >
+          <template #trailing>
+            {{ rp(ringkas.terverifikasi) }}
+          </template>
+        </AppListRow>
+        <AppListRow
+          title="Total belum terverifikasi"
+          :description="`${angka(ringkas.perlu)} transaksi${ringkas.belumScan ? ` · ${angka(ringkas.belumScan)} bukti belum discan` : ''}`"
+          icon="i-lucide-hourglass"
+        >
+          <template #trailing>
+            {{ rp(ringkas.belum) }}
+          </template>
+        </AppListRow>
+        <AppListRow
+          title="Dana tidak sama"
+          :description="ringkas.selisih ? `selisih ${rp(Math.abs(daftarSemua.filter(txSelisih).reduce((a, x) => a + txNominal(x), 0) - daftarSemua.filter(txSelisih).reduce((a, x) => a + (Number(x.p.amount) || 0), 0)))} dari input host` : 'nominal bukti cocok semua'"
+          icon="i-lucide-triangle-alert"
+        >
+          <template #trailing>
+            {{ angka(ringkas.selisih) }}
+          </template>
+        </AppListRow>
+        <AppListRow
+          title="Tanpa bukti"
+          description="DP tercatat, bukti kosong"
+          icon="i-lucide-paperclip"
+        >
+          <template #trailing>
+            {{ angka(ringkas.tanpaBukti) }}
+          </template>
+        </AppListRow>
+        <AppListRow
+          title="Ditolak"
+          :description="ringkas.tolak ? `${rp(ringkas.ditolak)} tidak dihitung` : 'tidak ada'"
+          icon="i-lucide-x"
+        >
+          <template #trailing>
+            {{ angka(ringkas.tolak) }}
+          </template>
+        </AppListRow>
+      </AppList>
+
+      <AppList
+        v-if="ringkas.perBank.length"
+        title="Rekap per bank / metode"
+      >
+        <AppListRow
+          v-for="b in ringkas.perBank"
+          :key="b.bank"
+          :title="b.bank"
+          :description="`${angka(b.n)} transaksi`"
+        >
+          <template #trailing>
+            {{ rp(b.sum) }}
+          </template>
+        </AppListRow>
+      </AppList>
+
+      <p
+        v-if="demo.length"
+        class="mb-5 rounded-lg border border-default p-3 text-sm text-muted"
+      >
+        Ada <b>{{ angka(demo.length) }} reservasi contoh/demo</b> bawaan sistem yang ikut terhitung di sini
+        ({{ demo.slice(0, 3).map(r => r.name).join(', ') }}{{ demo.length > 3 ? ', dll' : '' }}).
+        Angka dana masuk belum bersih sampai data ini dihapus.
+        {{ bolehHapusDemo ? 'Tekan “Hapus data demo” di atas.' : 'Minta Admin Sistem menghapusnya.' }}
+      </p>
+
+      <p
+        v-if="tglCadangan.length"
+        class="mb-5 rounded-lg border border-default p-3 text-sm text-muted"
+      >
+        <b>{{ angka(tglCadangan.length) }} baris di daftar ini dipakai tanggal reservasinya</b>, bukan tanggal
+        uang masuk — tanggal transfernya belum terbaca dari bukti. Nominalnya
+        <b>{{ rp(tglCadangan.reduce((a, x) => a + txNominal(x), 0)) }}</b>.
+        Tekan <b>Scan</b> di barisnya (atau isi lewat <b>Cek / Edit</b>) supaya ia jatuh di tanggal yang benar.
+      </p>
+
+      <div class="mb-5 flex flex-wrap items-end gap-2">
+        <div class="flex w-full flex-wrap gap-2">
+          <UButton
+            label="Tgl reservasi"
+            color="neutral"
+            :variant="saring.basis !== 'masuk' ? 'soft' : 'ghost'"
+            size="sm"
+            @click="saring.basis = 'reservasi'"
+          />
+          <UButton
+            label="Tgl uang masuk"
+            color="neutral"
+            :variant="saring.basis === 'masuk' ? 'soft' : 'ghost'"
+            size="sm"
+            @click="saring.basis = 'masuk'"
+          />
+        </div>
+        <UFormField
+          :label="saring.basis === 'masuk' ? 'Tgl uang masuk — Dari' : 'Tgl reservasi — Dari'"
+          class="max-w-44"
+        >
+          <UInput
+            v-model="saring.dari"
+            type="date"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField
+          label="Sampai"
+          class="max-w-44"
+        >
+          <UInput
+            v-model="saring.sampai"
+            type="date"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField
+          label="Bank"
+          class="max-w-44"
+        >
+          <USelect
+            v-model="saring.bank"
+            :items="[{ value: '', label: 'Semua bank' }, ...semuaBank.map(b => ({ value: b, label: b }))]"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField
+          label="Saring"
+          class="max-w-44"
+        >
+          <USelect
+            v-model="saring.status"
+            :items="[{ value: '', label: 'Semua' }, { value: 'belumScan', label: 'Bukti belum discan' }, { value: 'selisih', label: 'Dana tidak sama' }]"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField
+          label="Cari"
+          class="min-w-44 flex-1"
+        >
+          <UInput
+            v-model="saring.q"
+            placeholder="Nama tamu / no. HP / bank…"
+            class="w-full"
+          />
+        </UFormField>
+        <div class="flex gap-1">
+          <UButton
+            label="Hari ini"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            @click="pilihan('today')"
+          />
+          <UButton
+            label="7 hari"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            @click="pilihan('week')"
+          />
+          <UButton
+            label="Bulan ini"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            @click="pilihan('month')"
+          />
+          <UButton
+            label="Semua"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            @click="pilihan('all')"
+          />
+        </div>
+      </div>
+
+      <div class="mb-3 flex flex-wrap gap-2">
+        <UButton
+          :label="`Perlu diverifikasi${ringkas.perlu ? ` (${ringkas.perlu})` : ''}`"
+          color="neutral"
+          :variant="saring.tab === 'perlu' ? 'soft' : 'ghost'"
+          size="sm"
+          @click="saring.tab = 'perlu'"
+        />
+        <UButton
+          :label="`Terverifikasi${ringkas.sudah ? ` (${ringkas.sudah})` : ''}`"
+          color="neutral"
+          :variant="saring.tab === 'sudah' ? 'soft' : 'ghost'"
+          size="sm"
+          @click="saring.tab = 'sudah'"
+        />
+        <UButton
+          :label="`Ditolak${ringkas.tolak ? ` (${ringkas.tolak})` : ''}`"
+          color="neutral"
+          :variant="saring.tab === 'tolak' ? 'soft' : 'ghost'"
+          size="sm"
+          @click="saring.tab = 'tolak'"
+        />
+      </div>
+      <div class="mb-7 hidden overflow-hidden rounded-2xl bg-default lg:block">
+        <UTable
+          :data="halaman"
+          :columns="kolom"
+          :loading="status === 'pending'"
+          empty="Tidak ada transaksi pada saringan ini."
+        >
+          <template #tanggal-cell="{ row }">
+            <b>{{ row.original.p.tfDate ? tglPendek(row.original.p.tfDate) : '' }}</b>
+            <span
+              v-if="!row.original.p.tfDate"
+              class="text-muted"
+            >{{ tglPendek(row.original.r.date) }}</span>
+            <div
+              v-if="!row.original.p.tfDate"
+              class="text-xs text-dimmed"
+            >
+              dari tgl reservasi
+            </div>
+            <div
+              v-if="tglSeharusnya(row.original.p.tfOcrText, row.original.p.tfTime, row.original.p.tfDate)"
+              class="text-xs font-bold"
+            >
+              Seharusnya {{ tglPendek(tglSeharusnya(row.original.p.tfOcrText, row.original.p.tfTime, row.original.p.tfDate)) }}
+              <div class="font-medium">
+                <UButton
+                  v-if="bolehVerifikasi"
+                  label="Betulkan"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  @click="betulkanTanggal(row.original)"
+                />
+              </div>
+            </div>
+          </template>
+          <template #jam-cell="{ row }">
+            <b v-if="row.original.p.tfTime">{{ jamTampil(row.original.p.tfTime) }}</b>
+            <span
+              v-else
+              class="text-muted"
+            >-</span>
+            <div
+              v-if="jamRagu(row.original.p.tfOcrText, row.original.p.tfTime)"
+              class="text-xs text-dimmed"
+            >
+              bukti menulis {{ jamRagu(row.original.p.tfOcrText, row.original.p.tfTime) }}, tanpa AM/PM
+            </div>
+            <div
+              v-if="jamSeharusnya(row.original.p.tfOcrText, row.original.p.tfTime)"
+              class="text-xs font-bold"
+            >
+              Seharusnya {{ jamSeharusnya(row.original.p.tfOcrText, row.original.p.tfTime) }}
+              <div class="font-medium">
+                <UButton
+                  v-if="bolehVerifikasi"
+                  label="Betulkan"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  @click="betulkanJam(row.original)"
+                />
+              </div>
+            </div>
+          </template>
+          <template #bank-cell="{ row }">
+            {{ txBank(row.original) || '-' }}
+          </template>
+          <template #nama-cell="{ row }">
+            <b v-if="txNama(row.original)">{{ txNama(row.original) }}</b>
+            <span
+              v-else
+              class="text-muted"
+            >-</span>
+            <div
+              v-if="txNama(row.original) && txNama(row.original).toLowerCase() !== (row.original.r.name || '').toLowerCase()"
+              class="text-xs text-dimmed"
+            >
+              beda dgn pemesan
+            </div>
+          </template>
+          <template #nominal-cell="{ row }">
+            <b class="num">{{ rp(txNominal(row.original)) }}</b>
+            <div
+              v-if="row.original.dari > 1"
+              class="text-xs text-dimmed"
+            >
+              DP {{ row.original.ke }} dari {{ row.original.dari }} · total {{ rp(dpTotal(row.original.r)) }}
+            </div>
+            <div
+              v-if="txSelisih(row.original)"
+              class="text-xs font-bold"
+            >
+              Dana tidak sama
+              <div class="font-medium text-muted">
+                input host {{ rp(Number(row.original.p.amount) || 0) }}
+              </div>
+            </div>
+          </template>
+          <template #tamu-cell="{ row }">
+            <div class="font-semibold">
+              {{ row.original.r.name }}
+            </div>
+            <div class="text-muted">
+              {{ row.original.r.phone }} · {{ tglPendek(row.original.r.date) }} {{ row.original.r.time }}{{ row.original.r.table ? ` · ${row.original.r.table}` : '' }}
+            </div>
+            <div
+              v-if="row.original.dari > 1"
+              class="text-xs text-dimmed"
+            >
+              reservasi ini: {{ dpHitungTerverifikasi(row.original.r) }} dari {{ row.original.dari }} DP terverifikasi
+            </div>
+          </template>
+          <template #bukti-cell="{ row }">
+            <UButton
+              v-if="row.original.p.proofData"
+              label="Lihat"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              @click="lihatBukti(row.original)"
+            />
+            <AppStatus v-else>
+              tanpa bukti
+            </AppStatus>
+          </template>
+          <template #status-cell="{ row }">
+            <AppStatus :color="row.original.p.tfStatus === 'verified' ? 'success' : row.original.p.tfStatus === 'rejected' ? 'error' : 'neutral'">
+              {{ row.original.p.tfStatus === 'verified' ? 'Terverifikasi' : row.original.p.tfStatus === 'rejected' ? 'Ditolak' : 'Belum terverifikasi' }}
+            </AppStatus>
+            <span
+              v-if="row.original.p.tfStatus === 'verified' && row.original.p.tfTanpaData"
+              class="ms-1 text-xs text-muted"
+            >(dari gambar)</span>
+            <span
+              v-if="!row.original.p.tfStatus && row.original.p.tfSource === 'ocr'"
+              class="ms-1 text-xs"
+            >(angka dari mesin)</span>
+            <div
+              v-if="row.original.p.tfNote"
+              class="mt-0.5 text-xs text-muted"
+            >
+              {{ row.original.p.tfNote }}
+            </div>
+          </template>
+          <template #aksi-cell="{ row }">
+            <div class="flex flex-wrap gap-1">
+              <UButton
+                v-if="txBuktiGambar(row.original) && bolehVerifikasi"
+                :label="txSudahScan(row.original) ? 'Scan ulang' : 'Scan'"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                @click="pindaiBaris(row.original)"
+              />
+              <UButton
+                label="Cek / Edit"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                @click="bukaTfEdit(row.original)"
+              />
+              <UButton
+                v-if="row.original.p.tfStatus !== 'verified' && bolehVerifikasi"
+                label="Verifikasi"
+                color="neutral"
+                variant="soft"
+                size="xs"
+                @click="bukaVerifikasi(row.original)"
+              />
+              <UButton
+                v-if="row.original.p.tfStatus !== 'rejected' && bolehVerifikasi"
+                label="Tolak"
+                color="error"
+                variant="ghost"
+                size="xs"
+                @click="bukaTolak(row.original)"
+              />
+              <UButton
+                v-if="bolehHapus"
+                label="Hapus"
+                color="error"
+                variant="ghost"
+                size="xs"
+                @click="hapusDp(row.original)"
+              />
+            </div>
+          </template>
+        </UTable>
+      </div>
+
+      <!-- Phone: the same rows, tapped open into Cek / Edit. -->
+      <AppList
+        title="Transaksi masuk"
+        class="lg:hidden"
+      >
+        <AppListRow
+          v-for="x in halaman"
+          :key="`${x.r.id}#${x.ke}`"
+          :title="`${x.r.name} · ${rp(txNominal(x))}`"
+          :description="`${txBank(x) || 'tanpa bank'} · ${x.p.tfDate ? tglPendek(x.p.tfDate) : tglPendek(x.r.date)}${x.dari > 1 ? ` · DP ${x.ke}/${x.dari}` : ''}${txSelisih(x) ? ' · dana tidak sama' : ''}${x.p.proofData ? '' : ' · tanpa bukti'}`"
+          icon="i-lucide-banknote"
+          @click="bukaTfEdit(x)"
+        >
+          <template #trailing>
+            <AppStatus :color="x.p.tfStatus === 'verified' ? 'success' : x.p.tfStatus === 'rejected' ? 'error' : 'neutral'">
+              {{ x.p.tfStatus === 'verified' ? 'Terverifikasi' : x.p.tfStatus === 'rejected' ? 'Ditolak' : 'Belum dicek' }}
+            </AppStatus>
+          </template>
+        </AppListRow>
+        <p
+          v-if="!halaman.length"
+          class="px-4 py-3 text-muted"
+        >
+          Tidak ada transaksi pada saringan ini.
+        </p>
+      </AppList>
+
+      <AppList title="Halaman">
+        <div class="flex flex-wrap items-center justify-between gap-2 px-4 pb-4">
+          <div class="flex items-center gap-2 text-sm text-muted">
+            <span>Baris per halaman</span>
+            <USelect
+              v-model.number="perHal"
+              :items="[10, 25, 50]"
+              class="w-20"
+            />
+          </div>
+          <div class="flex items-center gap-2 text-sm text-muted">
+            <UButton
+              label="Sebelumnya"
+              color="neutral"
+              variant="soft"
+              size="sm"
+              :disabled="hal <= 1"
+              @click="hal--"
+            />
+            <span class="num">Hal {{ hal }} dari {{ maxHal }}</span>
+            <UButton
+              label="Berikutnya"
+              color="neutral"
+              variant="soft"
+              size="sm"
+              :disabled="hal >= maxHal"
+              @click="hal++"
+            />
+          </div>
+        </div>
+      </AppList>
+    </template>
+    <template v-else>
+      <p class="mb-3 text-sm text-muted">
+        Pembayaran yang dicatat tim Marketing untuk event <b>dan Reservasi VIP</b> — DP maupun pelunasan.
+        Dipakai kasir memastikan dananya benar-benar masuk dan berapa. Daftar ini <b>hanya dibaca</b>;
+        yang mengubahnya modul Marketing. Disaring menurut <b>tanggal acara</b>, bukan tanggal bayar.
+      </p>
+
+      <div
+        v-if="dpev.memuat"
+        class="rounded-lg border border-default p-3 text-sm text-muted"
+      >
+        Memuat pembayaran event dari modul Marketing…
+      </div>
+      <div
+        v-else-if="dpev.tanpaAkses"
+        class="rounded-lg border border-default p-3 text-sm"
+      >
+        <b>Belum punya akses · G-15.</b>
+        Tab ini dibaca dari modul Marketing, dan akun ini tidak memegangnya. DP reservasi di tab sebelah tetap bisa dipakai.
+      </div>
+      <div
+        v-else-if="dpev.galat"
+        class="rounded-lg border border-default p-3 text-sm"
+      >
+        <b>Pembayaran event tidak terbaca.</b> {{ dpev.galat }}<br>
+        Daftar ini datang dari modul <b>Marketing</b>. Kalau baru saja diperbarui, backend-nya mungkin belum ter-deploy;
+        kalau modulnya sendiri sedang bermasalah, DP reservasi di tab sebelah tetap bisa dipakai.
+        <UButton
+          label="Coba lagi"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          class="ms-1"
+          @click="dpevCobaLagi"
+        />
+      </div>
+      <p
+        v-else-if="!dpev.data"
+        class="text-sm text-muted"
+      >
+        Belum dimuat.
+      </p>
+      <template v-else>
+        <AppList title="Ringkasan DP event">
+          <AppListRow
+            title="Total DP event masuk"
+            :description="`${angka(barisEv.length)} kali bayar · ${saring.dari ? tglPendek(saring.dari) : 'awal'} – ${saring.sampai ? tglPendek(saring.sampai) : 'sekarang'}`"
+            icon="i-lucide-wallet"
+          >
+            <template #trailing>
+              {{ rp(totalEv) }}
+            </template>
+          </AppListRow>
+          <AppListRow
+            title="Event"
+            description="punya pembayaran di rentang ini"
+            icon="i-lucide-party-popper"
+          >
+            <template #trailing>
+              {{ angka(nEvent) }}
+            </template>
+          </AppListRow>
+          <AppListRow
+            v-for="j in perJenis.slice(0, 2)"
+            :key="j.jenis"
+            :title="j.jenis"
+            :description="`${angka(j.n)} kali bayar`"
+          >
+            <template #trailing>
+              {{ rp(j.sum) }}
+            </template>
+          </AppListRow>
+        </AppList>
+
+        <p
+          v-if="(dpev.data.tanpaTanggal || 0) > 0"
+          class="mb-5 rounded-lg border border-default p-3 text-sm text-muted"
+        >
+          <b>{{ dpev.data.tanpaTanggal }} pembayaran belum punya tanggal bayar.</b> Barisnya TETAP muncul —
+          penyaring memakai tanggal <b>acara</b>, bukan tanggal bayar — dan kolom Tgl Bayar-nya ditandai
+          <b>belum diisi</b>. Dilengkapi di modul <b>Marketing</b> → event terkait → tab Finance.
+        </p>
+
+        <p
+          v-if="dpev.data.vipTerkunci && Number(dpev.data.vipTerkunci.n) > 0"
+          class="mb-5 rounded-lg border border-default p-3 text-sm text-muted"
+        >
+          <b>{{ dpev.data.vipTerkunci.n }} DP Reservasi VIP</b> senilai
+          <b>{{ rp(Number(dpev.data.vipTerkunci.total) || 0) }}</b> di daftar ini
+          <b>juga berdiri di tab DP Reservasi</b> — mejanya sudah dikunci, jadi DP-nya ikut tersalin ke sana.
+          <b>Jangan menjumlahkan kedua tab</b>. VIP yang mejanya <i>belum</i> dikunci hanya ada di sini.
+        </p>
+
+        <div class="mb-5 flex flex-wrap items-end gap-2">
+          <UFormField
+            label="Tanggal acara — Dari"
+            class="max-w-44"
+          >
+            <UInput
+              v-model="saring.dari"
+              type="date"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField
+            label="Sampai"
+            class="max-w-44"
+          >
+            <UInput
+              v-model="saring.sampai"
+              type="date"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField
+            label="Cari"
+            class="min-w-44 flex-1"
+          >
+            <UInput
+              v-model="dpev.q"
+              placeholder="Nama event / client / PIC / no. kwitansi…"
+              class="w-full"
+            />
+          </UFormField>
+          <div class="flex gap-1">
+            <UButton
+              label="Hari ini"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              @click="pilihan('today')"
+            />
+            <UButton
+              label="7 hari"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              @click="pilihan('week')"
+            />
+            <UButton
+              label="Bulan ini"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              @click="pilihan('month')"
+            />
+            <UButton
+              label="Semua"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              @click="pilihan('all')"
+            />
+          </div>
+        </div>
+
+        <div class="mb-7 hidden overflow-hidden rounded-2xl bg-default lg:block">
+          <UTable
+            :data="barisEv"
+            :columns="kolomEv"
+            :loading="dpev.memuat"
+            empty="Tidak ada pembayaran event pada rentang ini."
+          >
+            <template #tglEvent-cell="{ row }">
+              <b>{{ row.original.tglEvent ? tglPendek(row.original.tglEvent) : '—' }}</b>
+            </template>
+            <template #event-cell="{ row }">
+              <div class="font-semibold">
+                {{ row.original.event || '(tanpa nama)' }}
+              </div>
+              <div class="text-muted">
+                {{ row.original.client || 'tanpa client' }}{{ row.original.pic ? ` · PIC ${row.original.pic}` : '' }}
+              </div>
+              <div class="text-xs text-dimmed">
+                {{ row.original.status }}{{ row.original.sumber === 'vip' ? ' · Reservasi VIP' : '' }}
+              </div>
+              <div
+                v-if="row.original.sumber === 'vip' && row.original.resId"
+                class="text-xs text-dimmed"
+              >
+                Juga ada di tab DP Reservasi — jangan dihitung dua kali
+              </div>
+            </template>
+            <template #type-cell="{ row }">
+              {{ row.original.type || '-' }}
+            </template>
+            <template #amount-cell="{ row }">
+              <b class="num">{{ rp(Number(row.original.amount) || 0) }}</b>
+            </template>
+            <template #method-cell="{ row }">
+              <span class="text-muted">{{ row.original.method || '-' }}</span>
+            </template>
+            <template #at-cell="{ row }">
+              <span
+                v-if="row.original.at"
+                class="text-muted"
+              >{{ tglPendek(row.original.at) }}</span>
+              <AppStatus v-else>
+                belum diisi
+              </AppStatus>
+            </template>
+            <template #no-cell="{ row }">
+              <span class="num text-muted">{{ row.original.no || '-' }}</span>
+            </template>
+            <template #bukti-cell="{ row }">
+              <UButton
+                v-if="tautanBuktiEv(row.original)"
+                label="Bukti"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                :to="tautanBuktiEv(row.original)"
+                target="_blank"
+                rel="noopener"
+              />
+              <span
+                v-else-if="row.original.receipt"
+                class="text-xs text-muted"
+              >ada (di Marketing)</span>
+              <AppStatus v-else>
+                tanpa bukti
+              </AppStatus>
+            </template>
+          </UTable>
+        </div>
+
+        <AppList
+          title="Pembayaran event"
+          class="lg:hidden"
+        >
+          <AppListRow
+            v-for="b in barisEv"
+            :key="`${b.evId}#${b.id}`"
+            :title="`${b.event || '(tanpa nama)'} · ${rp(Number(b.amount) || 0)}`"
+            :description="`${b.tglEvent ? tglPendek(b.tglEvent) : '—'} · ${b.type || '-'}${b.sumber === 'vip' && b.resId ? ' · juga di DP Reservasi' : ''}`"
+            icon="i-lucide-party-popper"
+            dim
+          />
+          <div
+            v-if="!barisEv.length"
+            class="px-4 py-3 text-sm text-muted"
+          >
+            <p v-if="dpev.q">
+              Tidak ada pembayaran yang cocok dengan “{{ dpev.q }}”.
+            </p>
+            <p v-else>
+              Tidak ada pembayaran untuk acara pada {{ saring.dari ? tglPendek(saring.dari) : 'awal' }} – {{ saring.sampai ? tglPendek(saring.sampai) : 'sekarang' }}.
+            </p>
+            <p
+              v-if="dpev.data.luar && Number(dpev.data.luar.n) > 0"
+              class="mt-2"
+            >
+              Di luar rentang ini ada <b>{{ dpev.data.luar.n }} pembayaran</b> senilai
+              <b>{{ rp(Number(dpev.data.luar.total) || 0) }}</b>
+              ({{ dpev.data.luar.dari ? tglPendek(dpev.data.luar.dari) : '' }} – {{ dpev.data.luar.sampai ? tglPendek(dpev.data.luar.sampai) : '' }}).
+              <UButton
+                label="Tampilkan"
+                color="neutral"
+                variant="soft"
+                size="sm"
+                class="ms-1"
+                @click="pakaiRentangLuar"
+              />
+            </p>
+          </div>
+        </AppList>
+      </template>
+    </template>
+    <ResponsiveSheet
+      v-model:open="sheetBukti"
+      :title="buktiJudul"
+    >
+      <p
+        v-if="buktiMemuat"
+        class="text-sm text-muted"
+      >
+        Memuat bukti…
+      </p>
+      <p
+        v-else-if="buktiGalat"
+        class="text-sm"
+      >
+        {{ buktiGalat }}
+      </p>
+      <img
+        v-else-if="!buktiPdf && buktiData"
+        :src="buktiData"
+        :alt="buktiJudul"
+        class="w-full rounded-lg border border-default"
+      >
+      <object
+        v-else-if="buktiPdf && buktiData"
+        :data="buktiData"
+        type="application/pdf"
+        class="h-96 w-full rounded-lg border border-default"
+      />
+      <template #footer>
+        <UButton
+          label="Tutup"
+          color="neutral"
+          variant="soft"
+          size="xl"
+          @click="sheetBukti = false"
+        />
+      </template>
+    </ResponsiveSheet>
+
+    <ResponsiveSheet
+      v-model:open="sheetTf"
+      :title="`Cek dana masuk — ${tfTampil.nama}${tfForm.dari > 1 ? ` (DP ${tfForm.ke} dari ${tfForm.dari})` : ''}`"
+      :description="tfTampil.info"
+    >
+      <div class="space-y-3">
+        <p class="rounded-lg border border-default bg-default p-3 text-sm text-muted">
+          Nominal transfer ini menurut host: <b>{{ rp(tfTampil.hostNominal) }}</b> ({{ tfTampil.hostMetode || '-' }})
+          <template v-if="tfForm.dari > 1">
+            <br>Total DP semua cicilan: <b>{{ rp(tfRes ? dpTotal(tfRes) : 0) }}</b> dari {{ tfForm.dari }} kali transfer.
+          </template>
+        </p>
+        <div
+          v-if="jumlahSaran && bolehVerifikasi"
+          class="rounded-lg border border-default p-3 text-sm"
+        >
+          <b>{{ jumlahSaran }} kolom punya hasil baca mesin.</b> Angkanya <b>belum masuk</b> —
+          cocokkan dulu dengan gambar di bawah, baru tekan <b>Pakai</b>.
+          Mesin sering benar, tapi pernah membaca Rp200.000 jadi Rp20.000.000.
+          <div class="mt-2">
+            <UButton
+              :label="`Pakai semua (${jumlahSaran})`"
+              color="neutral"
+              variant="soft"
+              size="sm"
+              @click="pakaiSemuaSaran"
+            />
+          </div>
+        </div>
+        <UFormField label="Tanggal transfer">
+          <UInput
+            v-model="tfForm.date"
+            type="date"
+            size="xl"
+            class="w-full"
+          />
+          <p
+            v-if="tglStempelTf"
+            class="mt-1.5 text-xs font-bold"
+          >
+            Nomor Ref di bukti menyebut <b>{{ tglPendek(tglStempelTf) }}</b>, dan jamnya cocok dengan jam transfer ini.
+            <UButton
+              v-if="bolehVerifikasi"
+              label="Pakai tanggal ini"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              class="ms-1"
+              @click="tfForm.date = tglStempelTf"
+            />
+          </p>
+          <p
+            v-for="k in KUNCI_SARAN.filter(k => k.kunci === 'date' && saranTf(k.kunci) !== '')"
+            :key="k.kunci"
+            class="mt-1.5 text-xs text-muted"
+          >
+            Hasil baca mesin: <b>{{ saranTampil(k.kunci, saranTf(k.kunci)) }}</b>
+            <UButton
+              v-if="bolehVerifikasi"
+              label="Pakai"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              class="ms-1"
+              @click="pakaiSaran(k.kunci)"
+            />
+          </p>
+        </UFormField>
+        <UFormField label="Jam transfer (24 jam, WIB — ikut detik bila ada di bukti)">
+          <UInput
+            v-model="tfForm.time"
+            type="time"
+            step="1"
+            size="xl"
+            class="w-full"
+          />
+          <p
+            v-for="k in KUNCI_SARAN.filter(k => k.kunci === 'time' && saranTf(k.kunci) !== '')"
+            :key="k.kunci"
+            class="mt-1.5 text-xs text-muted"
+          >
+            Hasil baca mesin: <b>{{ saranTampil(k.kunci, saranTf(k.kunci)) }}</b>
+            <UButton
+              v-if="bolehVerifikasi"
+              label="Pakai"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              class="ms-1"
+              @click="pakaiSaran(k.kunci)"
+            />
+          </p>
+        </UFormField>
+        <UFormField label="Bank / metode">
+          <UInput
+            v-model="tfForm.bank"
+            list="tfBanks"
+            placeholder="mis. BCA"
+            size="xl"
+            class="w-full"
+          />
+          <datalist id="tfBanks">
+            <option
+              v-for="b in bankOpsi"
+              :key="b"
+              :value="b"
+            />
+          </datalist>
+          <p
+            v-for="k in KUNCI_SARAN.filter(k => k.kunci === 'bank' && saranTf(k.kunci) !== '')"
+            :key="k.kunci"
+            class="mt-1.5 text-xs text-muted"
+          >
+            Hasil baca mesin: <b>{{ saranTampil(k.kunci, saranTf(k.kunci)) }}</b>
+            <UButton
+              v-if="bolehVerifikasi"
+              label="Pakai"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              class="ms-1"
+              @click="pakaiSaran(k.kunci)"
+            />
+          </p>
+        </UFormField>
+        <UFormField label="Nama pemilik rekening pengirim">
+          <UInput
+            v-model="tfForm.name"
+            placeholder="mis. DODY IRWANDI"
+            size="xl"
+            class="w-full"
+          />
+          <p
+            v-for="k in KUNCI_SARAN.filter(k => k.kunci === 'name' && saranTf(k.kunci) !== '')"
+            :key="k.kunci"
+            class="mt-1.5 text-xs text-muted"
+          >
+            Hasil baca mesin: <b>{{ saranTampil(k.kunci, saranTf(k.kunci)) }}</b>
+            <UButton
+              v-if="bolehVerifikasi"
+              label="Pakai"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              class="ms-1"
+              @click="pakaiSaran(k.kunci)"
+            />
+          </p>
+        </UFormField>
+        <UFormField label="Nominal di bukti">
+          <UInput
+            :model-value="tfForm.amount"
+            inputmode="numeric"
+            placeholder="mis. 500.000"
+            size="xl"
+            class="w-full"
+            @update:model-value="(v) => (tfForm.amount = fmtRupiah(rupiahVal(String(v))))"
+          />
+          <p
+            v-for="k in KUNCI_SARAN.filter(k => k.kunci === 'amount' && saranTf(k.kunci) !== '')"
+            :key="k.kunci"
+            class="mt-1.5 text-xs text-muted"
+          >
+            Hasil baca mesin: <b>{{ saranTampil(k.kunci, saranTf(k.kunci)) }}</b>
+            <UButton
+              v-if="bolehVerifikasi"
+              label="Pakai"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              class="ms-1"
+              @click="pakaiSaran(k.kunci)"
+            />
+          </p>
+        </UFormField>
+        <div>
+          <UButton
+            v-if="bolehVerifikasi"
+            label="Tamu bayar lagi? Tambah DP"
+            color="neutral"
+            variant="soft"
+            size="sm"
+            @click="sheetTf = false; bukaTambah(tfForm.resId)"
+          />
+        </div>
+        <UFormField label="Catatan finance">
+          <UInput
+            v-model="tfForm.note"
+            placeholder="mis. dana masuk rek. BCA 12:04"
+            size="xl"
+            class="w-full"
+          />
+        </UFormField>
+        <p
+          v-if="tfSimpan"
+          class="text-xs text-muted"
+        >
+          {{ tfSimpan.tfOcrAt ? `Terakhir dibaca mesin ${capWaktu(tfSimpan.tfOcrAt)}${tfSimpan.tfSource === 'manual' ? ' · isian di atas sudah pernah disimpan orang' : tfSimpan.tfSource === 'ocr' ? ' · isian di atas berasal dari mesin dan belum pernah dicek orang' : ''}` : 'Belum pernah dibaca mesin.' }}
+        </p>
+        <details v-if="tfSimpan?.tfOcrText">
+          <summary class="cursor-pointer text-xs text-muted">
+            Lihat teks mentah hasil OCR
+          </summary>
+          <pre class="mt-1.5 max-h-40 overflow-auto rounded-lg border border-default bg-default p-2 text-xs whitespace-pre-wrap">{{ tfSimpan.tfOcrText }}</pre>
+        </details>
+        <div>
+          <p class="mb-1 text-xs font-semibold text-muted">
+            Bukti transfer
+          </p>
+          <div class="flex flex-wrap gap-2">
+            <UButton
+              v-if="tfTampil.buktiAda"
+              label="Lihat bukti"
+              color="neutral"
+              variant="soft"
+              size="sm"
+              @click="tfSimpan && tfRes && lihatBukti({ r: tfRes, p: tfSimpan, ke: tfForm.ke, dari: tfForm.dari })"
+            />
+            <UButton
+              v-if="tfTampil.buktiGambar && bolehVerifikasi"
+              label="Scan ulang bukti ini"
+              color="neutral"
+              variant="soft"
+              size="sm"
+              @click="tfSimpan && tfRes && pindaiBaris({ r: tfRes, p: tfSimpan, ke: tfForm.ke, dari: tfForm.dari })"
+            />
+            <span
+              v-if="!tfTampil.buktiAda"
+              class="text-sm text-muted"
+            >Tidak ada bukti transfer yang di-upload.</span>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <UButton
+          v-if="bolehVerifikasi"
+          label="Simpan"
+          size="xl"
+          @click="simpanTf(false)"
+        />
+        <UButton
+          v-if="bolehVerifikasi"
+          label="Simpan & verifikasi"
+          color="neutral"
+          variant="soft"
+          size="xl"
+          @click="simpanTf(true)"
+        />
+        <UButton
+          v-if="bolehVerifikasi"
+          label="Tolak"
+          color="error"
+          variant="ghost"
+          size="xl"
+          @click="tfSimpan && tfRes && bukaTolak({ r: tfRes, p: tfSimpan, ke: tfForm.ke, dari: tfForm.dari }, true)"
+        />
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="ghost"
+          size="xl"
+          @click="sheetTf = false"
+        />
+      </template>
+    </ResponsiveSheet>
+    <ResponsiveSheet
+      v-model:open="sheetVer"
+      :title="`Verifikasi dana masuk — ${ver.nama}${ver.dari > 1 ? ` (DP ${ver.ke} dari ${ver.dari})` : ''}`"
+    >
+      <div class="space-y-2 text-sm">
+        <p class="rounded-lg border border-default bg-default p-3 text-muted">
+          Kamu menyatakan uang ini <b>benar-benar sudah masuk</b> ke rekening.
+          Pernyataan ini dipakai halaman lain sebagai fakta dan tercatat atas namamu di audit log.
+        </p>
+        <div class="flex justify-between gap-3 border-b border-default py-1.5">
+          <span class="text-muted">Tanggal transfer</span>
+          <b>{{ ver.date ? `${tglPendek(ver.date)}${ver.time ? ` ${ver.time}` : ''}` : '— tidak terbaca —' }}</b>
+        </div>
+        <div class="flex justify-between gap-3 border-b border-default py-1.5">
+          <span class="text-muted">Bank / metode</span>
+          <span>{{ ver.bank || '— tidak terbaca —' }}</span>
+        </div>
+        <div class="flex justify-between gap-3 border-b border-default py-1.5">
+          <span class="text-muted">Nama pengirim</span>
+          <span>{{ ver.name || '— tidak terbaca —' }}</span>
+        </div>
+        <div class="flex justify-between gap-3 border-b border-default py-1.5">
+          <span class="text-muted">Nominal di bukti</span>
+          <b>{{ ver.nomBukti ? rp(ver.nomBukti) : '— tidak terbaca —' }}</b>
+        </div>
+        <div class="flex justify-between gap-3 border-b border-default py-1.5">
+          <span class="text-muted">Nominal menurut host</span>
+          <span>{{ rp(ver.nomHost) }}</span>
+        </div>
+        <p
+          v-if="ver.nomBukti && ver.nomHost && ver.nomBukti !== ver.nomHost"
+          class="rounded-lg border border-default p-3"
+        >
+          Selisih <b>{{ rp(Math.abs(ver.nomBukti - ver.nomHost)) }}</b> antara bukti dan angka yang diinput host.
+          Yang dipakai sebagai dana masuk adalah <b>{{ rp(ver.nomBukti) }}</b> (angka di bukti).
+        </p>
+        <p
+          v-if="ver.kurang.length"
+          class="rounded-lg border border-default p-3"
+        >
+          <b>{{ ver.kurang.length }} data tidak terbaca:</b> {{ ver.kurang.join(', ') }}.<br>
+          Ini wajar kalau gambar buktinya gelap, miring, atau berupa foto layar.
+          <b>Kamu tetap boleh memverifikasi</b> berdasarkan gambar buktinya.
+          Barisnya akan ditandai <i>“dari gambar”</i> supaya bedanya terlihat saat diaudit.
+          <template v-if="!ver.nomBukti">
+            <br>Nominal yang dicatat memakai angka host: <b>{{ rp(ver.nomHost) }}</b>.
+          </template>
+        </p>
+      </div>
+      <template #footer>
+        <UButton
+          :label="ver.kurang.length ? 'Ya, verifikasi tanpa data lengkap' : 'Ya, verifikasi'"
+          size="xl"
+          @click="verifikasiGo"
+        />
+        <UButton
+          label="Lengkapi dulu"
+          color="neutral"
+          variant="soft"
+          size="xl"
+          @click="sheetVer = false; sheetTf = true"
+        />
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="ghost"
+          size="xl"
+          @click="sheetVer = false"
+        />
+      </template>
+    </ResponsiveSheet>
+
+    <ResponsiveSheet
+      v-model:open="sheetTolak"
+      :title="`Tolak bukti transfer — ${tolak.nama}`"
+    >
+      <UFormField label="Alasan (mis. bukti tidak terbaca / dana tidak masuk)">
+        <UTextarea
+          v-model="tolak.alasan"
+          :rows="3"
+          size="xl"
+          class="w-full"
+        />
+      </UFormField>
+      <template #footer>
+        <UButton
+          label="Tolak bukti"
+          color="error"
+          size="xl"
+          @click="tolakGo"
+        />
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="ghost"
+          size="xl"
+          @click="sheetTolak = false"
+        />
+      </template>
+    </ResponsiveSheet>
+
+    <ResponsiveSheet
+      v-model:open="sheetTambah"
+      :title="`Tambah bukti TF DP — ${tambah.nama}`"
+      :description="tambah.info"
+    >
+      <div class="space-y-3">
+        <p
+          v-if="tambah.ke > 1"
+          class="rounded-lg border border-default bg-default p-3 text-sm text-muted"
+        >
+          Sudah masuk <b>{{ rp(tambah.sudahMasuk) }}</b> dari {{ tambah.ke - 1 }} kali transfer.
+          Ini akan jadi <b>DP ke-{{ tambah.ke }}</b>.
+        </p>
+        <p
+          v-else
+          class="rounded-lg border border-default bg-default p-3 text-sm text-muted"
+        >
+          Belum ada DP tercatat. Ini akan jadi <b>DP pertama</b>.
+        </p>
+        <UFormField
+          label="Nominal DP"
+          required
+        >
+          <UInput
+            :model-value="tambah.nominal"
+            inputmode="numeric"
+            placeholder="mis. 300.000"
+            size="xl"
+            class="w-full"
+            @update:model-value="(v) => (tambah.nominal = fmtRupiah(rupiahVal(String(v))))"
+          />
+        </UFormField>
+        <UFormField label="Metode / tujuan transfer">
+          <USelect
+            v-model="tambah.metode"
+            :items="(dpMethods ?? []).map(m => ({ value: m, label: m }))"
+            size="xl"
+            class="w-full"
+          />
+          <p class="mt-1 text-xs text-muted">
+            Tanggal, jam, nominal, bank &amp; nama pengirim akan dibaca otomatis dari bukti ini di halaman Dana Masuk.
+          </p>
+        </UFormField>
+        <UFormField
+          label="Upload bukti transfer (foto/pdf)"
+          required
+        >
+          <input
+            type="file"
+            accept="image/*,application/pdf"
+            class="w-full text-sm"
+            @change="pilihBerkas"
+          >
+          <p
+            v-if="tambah.namaBerkas"
+            class="mt-1 text-xs text-muted"
+          >
+            {{ tambah.namaBerkas }}
+          </p>
+        </UFormField>
+      </div>
+      <template #footer>
+        <UButton
+          label="Simpan DP"
+          size="xl"
+          @click="simpanTambah"
+        />
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="ghost"
+          size="xl"
+          @click="sheetTambah = false"
+        />
+      </template>
+    </ResponsiveSheet>
+
+    <ResponsiveSheet
+      v-model:open="konfirmasi.buka"
+      :title="konfirmasi.judul"
+    >
+      <p class="text-sm text-muted">
+        {{ konfirmasi.pesan }}
+      </p>
+      <template #footer>
+        <UButton
+          :label="konfirmasi.label"
+          :color="konfirmasi.bahaya ? 'error' : 'neutral'"
+          :variant="konfirmasi.bahaya ? 'solid' : 'soft'"
+          size="xl"
+          @click="jalankanKonfirmasi"
+        />
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="ghost"
+          size="xl"
+          @click="konfirmasi.buka = false"
+        />
+      </template>
+    </ResponsiveSheet>
+  </div>
+</template>
