@@ -309,7 +309,9 @@ const kalenderDibatalkan = computed(() => (kalenderStatus.value !== SEMUA ? 0 : 
  *  neighbouring months greyed out (`:5578-5581`, `:5624-5628`). */
 const selBulan = computed(() => {
   const [y, m] = bulan.value.split('-').map(Number)
-  const pertama = new Date(y!, m!, 1)
+  // `m` is 1-based ("09"); Date months are 0-based — `new Date(y, m, 1)` would
+  // draw October with September numbers, and no chip would ever match.
+  const pertama = new Date(y!, m! - 1, 1)
   const mundur = (pertama.getDay() + 6) % 7 // Monday is the first column
   const jumlah = new Date(y!, m!, 0).getDate()
   const sel: { tgl: string, num: number, dalam: boolean, list: Reservasi[] }[] = []
@@ -322,9 +324,9 @@ const selBulan = computed(() => {
     d.setDate(d.getDate() - i + 1)
     tambah(d, false)
   }
-  for (let d = 1; d <= jumlah; d++) tambah(new Date(y!, m!, d), true)
+  for (let d = 1; d <= jumlah; d++) tambah(new Date(y!, m! - 1, d), true)
   const sisa = (7 - (sel.length % 7)) % 7
-  for (let d = 1; d <= sisa; d++) tambah(new Date(y!, m! + 1, d), false)
+  for (let d = 1; d <= sisa; d++) tambah(new Date(y!, m!, d), false)
   return sel
 })
 
