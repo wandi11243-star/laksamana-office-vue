@@ -244,3 +244,33 @@ Catatan build: Absensi **tidak punya `version`/ETag/`If-Match`** (kontrak
 keputusan antrean hanya selagi `MENUNGGU`, yang kalah diberi tahu lewat `{berubah:0}`. `tanganiKonflik()`
 tetap dipanggil sebagai pola (untuk Absensi ia selalu mengembalikan `false`, lalu pesan API ditampilkan).
 Deteksi HR memakai `siapa.hr` dari `GET /absensi/context` (T-05), bukan dari isi baris.
+
+## K. Daftar uji cutover
+Format: [cutover.md](cutover.md) §"Daftar uji per modul". Dijalankan owner di Vue dev (data dev), lalu
+disilang ke PWA lama. Punch & pendaftaran wajah **belum** di Vue; yang diuji di sini hanya layar yang sudah ada.
+
+| # | layar | langkah | hasil yang diharapkan |
+|---|---|---|---|
+| K1 | Absen | Buka `/absensi` untuk kru yang punya shift hari ini | Kartu Shift/Masuk/Pulang/Durasi & Jam server terisi dari server; badge status hari ini benar. Tombol "Buka aplikasi absen" membuka PWA. |
+| K2 | Absen | Buka sebagai kru tanpa shift / dengan jadwal tak terbaca | Shift menulis "Tidak dijadwalkan" (atau "Jadwal tak terbaca"), bukan crash. |
+| K3 | Absen | Cek syarat lokasi & wajah | "N titik kerja" / "Belum disetel" dan "Wajah terdaftar" / "Belum didaftarkan" sesuai kondisi; tidak ada perhitungan area di browser. |
+| K4 | Riwayat | Buka `/absensi/riwayat` (kru) | Default awal bulan s.d. hari ini; hanya baris sendiri; total Hari kerja/Telat/Lembur tampil. |
+| K5 | Riwayat | Ubah Dari/Sampai → Tampilkan; coba chip Bulan ini / 7 hari / Hari ini | Rentang ikut berubah, total & daftar ikut; tidak ada geser samping di 1366px, kartu rapi di 390px. |
+| K6 | Riwayat | Buka sebagai HR | Kolom Nama muncul dan berisi semua orang (bukan hanya diri sendiri); kru tidak melihat kolom Nama. |
+| K7 | Riwayat | Bandingkan satu hari yang punya Telat & Lembur dengan PWA lama | Angka telat/lembur/durasi **sama** (dihitung server), termasuk shift malam yang lewat tengah malam. |
+| K8 | Antrean (HR) | Buka `/absensi/antrean` | Daftar pengajuan menunggu, terlama di atas; sebab, jarak, shift, wajah, alasan tampil. Kru tidak melihat menu Antrean. |
+| K9 | Antrean (HR) | Setujui satu pengajuan | Konfirmasi sheet, toast "Disetujui", baris hilang dari daftar; di PWA lama absen itu jadi `VALID`. |
+| K10 | Antrean (HR) | Tolak satu pengajuan | Toast "Ditolak"; di PWA lama absen jadi `DITOLAK` dan angka telat/lembur jadi nol. |
+| K11 | Antrean (HR) | Dua HR membuka bersamaan, putus baris yang sama | Yang kedua melihat "sudah diputus orang lain lebih dulu", daftar dimuat ulang; tidak ada penimpaan. |
+| K12 | Wajah | Buka `/absensi/wajah` (kru) | "Wajahmu sudah/belum terdaftar" sesuai; tautan PWA untuk mendaftar. Tidak ada tombol daftar/hapus di Vue. |
+| K13 | Wajah (HR) | Buka daftar kru | Daftar dari `GET /faces`: nama, tipe (Kru/Pekerja harian), oleh, status Terdaftar/Kosong. Cocok dengan PWA lama. |
+| K14 | Atur (HR) | Buka `/absensi/atur` | Titik kerja tampil dengan koordinat & radius; Aturan terisi dari `GET /settings`. Kru tidak melihat menu Atur. |
+| K15 | Atur (HR) | Tambah titik: ketik lat/lng, atau tempel `-0.5071, 101.4478` → Baca koordinat; simpan | Titik tersimpan (`POST /locations`); muncul di daftar Vue **dan** di PWA lama; "Buka di Google Maps" mengarah ke titik itu. |
+| K16 | Atur (HR) | Ubah radius jadi 10 lalu simpan | Server menjepit ke 30 m (kontrak); jangan mengandalkan browser. |
+| K17 | Atur (HR) | Ubah titik jadi Nonaktif lalu simpan | Status Nonaktif tampil; titik tidak lagi dihitung untuk absen di PWA lama. |
+| K18 | Atur (HR) | Hapus titik (konfirmasi) | Titik hilang di Vue & PWA lama; absen di sana masuk antrean pengajuan. |
+| K19 | Atur (HR) | Ubah Aturan → Simpan | `PUT /settings`; nilai baru terbaca di PWA lama (toleransi telat, lembur, awal/akhir, ambang, saklar). Daftar `hr` tidak hilang. |
+| K20 | Beranda | Widget "Absensi hari ini" | Masuk/Pulang hari ini tampil; tautan "Riwayat" menuju `/absensi/riwayat`. |
+
+Silang wajib: K9–K11, K15–K19 dijalankan dua arah — ubah di Vue, periksa di PWA `absensi.laksamanamuda.id`
+(dan sebaliknya) sebelum modul dinyatakan lulus C1.
