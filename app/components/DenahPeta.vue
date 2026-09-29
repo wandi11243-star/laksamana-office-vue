@@ -352,12 +352,25 @@ function klik(mejaId: string) {
   position: relative;
   width: 100%;
   aspect-ratio: 1600 / 1160;
+  max-height: 78vh;
   overflow: auto;
   background: var(--color-ink-100);
   border: 1px solid var(--color-ink-200);
   border-radius: 0.75rem;
   user-select: none;
   overscroll-behavior-x: contain;
+}
+
+/*
+  A phone cannot show the whole plan at a readable size, so the map becomes its
+  own scroll window — both axes, inside the box. The page itself never scrolls
+  sideways, which is the rule for 390px.
+*/
+@media (width < 64rem) {
+  .denah {
+    height: 62vh;
+    aspect-ratio: auto;
+  }
 }
 
 .denah-in {

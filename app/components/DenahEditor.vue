@@ -362,12 +362,21 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
   position: relative;
   width: 100%;
   aspect-ratio: 1600 / 1160;
+  max-height: 78vh;
   overflow: auto;
   background: var(--color-ink-100);
   border: 1px solid var(--color-ink-200);
   border-radius: 0.75rem;
   user-select: none;
   touch-action: pan-y;
+}
+
+/* On a phone the editor is read-only, so the plan gets a scroll window of its own. */
+@media (width < 64rem) {
+  .denah {
+    height: 55vh;
+    aspect-ratio: auto;
+  }
 }
 
 .denah-in {
