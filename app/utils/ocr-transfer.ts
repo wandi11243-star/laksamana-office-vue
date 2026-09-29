@@ -275,7 +275,7 @@ export function ocrNominal(t: string): number {
       if (!best || score > best.score || (score === best.score && val > best.val)) best = { score, val }
     }
   })
-  return best ? best.val : 0
+  return best?.val ?? 0
 }
 
 const NAMA_LABEL = /^(sumber dana|nama pengirim|rekening sumber|nama rekening|pengirim|dari|from)\b[\s:.\-]*/i
