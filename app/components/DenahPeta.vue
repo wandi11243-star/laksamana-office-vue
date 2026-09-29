@@ -400,6 +400,7 @@ function klik(mejaId: string) {
   align-items: center;
   justify-content: center;
   padding: 0.25rem;
+  overflow: hidden;
   text-align: center;
   font-weight: 700;
   line-height: 1.1;
@@ -410,7 +411,7 @@ function klik(mejaId: string) {
 
 .fix-stage {
   background: var(--color-seat-line);
-  color: var(--color-seat-floor);
+  color: var(--color-seat-ink);
   font-size: clamp(0.7rem, 2.1vw, 1.6rem);
   letter-spacing: 0.06em;
 }
@@ -422,7 +423,7 @@ function klik(mejaId: string) {
 
 .fix-foh {
   background: var(--color-seat-dark);
-  color: var(--color-seat-floor);
+  color: var(--color-seat-ink);
   font-size: clamp(0.6rem, 1.3vw, 0.95rem);
 }
 
@@ -433,10 +434,26 @@ function klik(mejaId: string) {
   font-size: clamp(0.5rem, 1vw, 0.8rem);
 }
 
-.fix-viproom,
+.fix-viproom {
+  border: 1px dashed var(--color-seat-line);
+  color: var(--color-seat-ink);
+  font-size: clamp(0.5rem, 1vw, 0.8rem);
+}
+
+/*
+  The entrance block is 44 units wide, so its label is written along its height —
+  printed across, "ENTRANCE IN / OUT" is clipped to "NTRANCE" on both 1366px and
+  390px. `writing-mode` + the 180° turn reads bottom-to-top, the way the old plan
+  did (deploy/reservasi/index.html:450).
+*/
 .fix-entrance {
   border: 1px dashed var(--color-seat-line);
-  font-size: clamp(0.5rem, 1vw, 0.8rem);
+  background: var(--color-seat-ext);
+  color: var(--color-seat-ink);
+  font-size: clamp(0.45rem, 0.8vw, 0.7rem);
+  letter-spacing: 0.08em;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
 }
 
 .seat {

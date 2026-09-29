@@ -405,7 +405,7 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
 
 .fix-stage {
   background: var(--color-seat-line);
-  color: var(--color-seat-floor);
+  color: var(--color-seat-ink);
   font-size: clamp(0.7rem, 2.1vw, 1.6rem);
   letter-spacing: 0.06em;
 }
@@ -417,7 +417,7 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
 
 .fix-foh {
   background: var(--color-seat-dark);
-  color: var(--color-seat-floor);
+  color: var(--color-seat-ink);
   font-size: clamp(0.6rem, 1.3vw, 0.95rem);
 }
 
@@ -428,10 +428,21 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
   font-size: clamp(0.5rem, 1vw, 0.8rem);
 }
 
-.fix-viproom,
+.fix-viproom {
+  border: 1px dashed var(--color-seat-line);
+  color: var(--color-seat-ink);
+  font-size: clamp(0.5rem, 1vw, 0.8rem);
+}
+
+/* See DenahPeta: the 44-unit-wide entrance label is written along its height. */
 .fix-entrance {
   border: 1px dashed var(--color-seat-line);
-  font-size: clamp(0.5rem, 1vw, 0.8rem);
+  background: var(--color-seat-ext);
+  color: var(--color-seat-ink);
+  font-size: clamp(0.45rem, 0.8vw, 0.7rem);
+  letter-spacing: 0.08em;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
 }
 
 .seat {
