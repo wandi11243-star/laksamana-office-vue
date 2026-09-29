@@ -192,7 +192,10 @@ function subT(stat: ReturnType<typeof statusMeja>) {
     if (m < 0) return `Telat ${fmtMenit(-m)}`
     return stat.state === 'mepet' ? `Mepet · ${jamR(stat.next)}` : jamR(stat.next)
   }
-  return props.nunggu ? `${props.nunggu} menunggu` : ''
+  // The waiting count belongs in the tooltip only (`:2331`). Printed under every
+  // empty table it repeats the same number across the whole plan and trains the
+  // eye to skip the line.
+  return ''
 }
 
 /** The dot in the corner: status as a colour, the words are in the legend. */
@@ -229,6 +232,16 @@ function judul(stat: ReturnType<typeof statusMeja>, cap: string) {
   if (stat.fill.sisaMax > 0) baris.push(`Kursi: terisi ${stat.fill.terisi} dari ${cap} pax, masih muat ${roomText(stat.fill)} orang lagi.`)
   if (stat.lain) baris.push(`Ada ${stat.lain} reservasi lain di meja ini.`)
   if (stat.next) baris.push(`Dipesan ${stat.next.name} jam ${jamR(stat.next)}.`)
+  if (!stat.list.length && !stat.next) {
+    baris.push('Kosong. Klik untuk ' + (props.nunggu
+      ? `pilih tamu dari waiting list (${props.nunggu} menunggu) atau catat walk-in.`
+      : 'catat walk-in.'))
+  }
+  else if (!stat.list.length) {
+    baris.push(props.mode === 'pilih'
+      ? 'Klik kalau tetap mau memakainya — kamu akan ditanya dulu.'
+      : 'Masih boleh dipakai walk-in / duduk sementara. Klik untuk isi tamu — kamu akan ditanya dulu.')
+  }
   if (stat.over) baris.push('Sudah duduk melewati estimasi — meja tetap terisi sampai ditandai Selesai.')
   if (stat.alih.length) baris.push(`${stat.alih.map(x => `${x.name} jam ${x.time}`).join(', ')} sudah dekat — meja masih terisi, alihkan sementara ke meja lain.`)
   return baris.join('\n')
@@ -302,6 +315,7 @@ function klik(mejaId: string) {
           :class="[kelasT(states.get(String(t.id))!.state, states.get(String(t.id))!.dipaksa), `seat-${t.zone}`, { 'seat-duduk': states.get(String(t.id))!.over }]"
           :style="kotak(t)"
           :title="judul(states.get(String(t.id))!, t.cap)"
+          :aria-label="judul(states.get(String(t.id))!, t.cap)"
           @click="klik(String(t.id))"
         >
           <span class="sn">{{ t.id }}</span>
@@ -354,8 +368,8 @@ function klik(mejaId: string) {
   aspect-ratio: 1600 / 1160;
   max-height: 78vh;
   overflow: auto;
-  background: var(--color-ink-100);
-  border: 1px solid var(--color-ink-200);
+  background: var(--color-seat-floor);
+  border: 1px solid var(--color-seat-line);
   border-radius: 0.75rem;
   user-select: none;
   overscroll-behavior-x: contain;
@@ -389,26 +403,26 @@ function klik(mejaId: string) {
   text-align: center;
   font-weight: 700;
   line-height: 1.1;
-  color: var(--color-ink-500);
+  color: var(--color-seat-ink);
   border-radius: 0.375rem;
   pointer-events: none;
 }
 
 .fix-stage {
-  background: var(--color-ink-300);
-  color: var(--color-ink-100);
+  background: var(--color-seat-line);
+  color: var(--color-seat-floor);
   font-size: clamp(0.7rem, 2.1vw, 1.6rem);
   letter-spacing: 0.06em;
 }
 
 .fix-floor2 {
-  border: 1px solid var(--color-ink-300);
+  border: 1px solid var(--color-seat-line);
   font-size: clamp(0.7rem, 1.9vw, 1.4rem);
 }
 
 .fix-foh {
-  background: var(--color-ink-800);
-  color: var(--color-ink-100);
+  background: var(--color-seat-dark);
+  color: var(--color-seat-floor);
   font-size: clamp(0.6rem, 1.3vw, 0.95rem);
 }
 
@@ -421,7 +435,7 @@ function klik(mejaId: string) {
 
 .fix-viproom,
 .fix-entrance {
-  border: 1px dashed var(--color-ink-300);
+  border: 1px dashed var(--color-seat-line);
   font-size: clamp(0.5rem, 1vw, 0.8rem);
 }
 
@@ -435,8 +449,8 @@ function klik(mejaId: string) {
   padding: 0.125rem;
   overflow: hidden;
   line-height: 1.05;
-  color: var(--color-ink-900);
-  border: 1.5px solid var(--color-ink-300);
+  color: var(--color-seat-ink);
+  border: 1.5px solid var(--color-seat-line);
   border-radius: 0.375rem;
   cursor: pointer;
   transition: transform 0.1s;
@@ -519,7 +533,11 @@ function klik(mejaId: string) {
   box-shadow: 0 0 0 3px var(--color-laksamana-600);
 }
 
+/* Seated past the expected stay: a dashed edge, not a colour of its own. The
+   red dot beside it is the warning (DESIGN.md: status is a dot + words), and a
+   border style reads the same in both themes without another token. */
 .seat-duduk {
-  border-color: var(--color-error);
+  border-style: dashed;
+  border-width: 2px;
 }
 </style>

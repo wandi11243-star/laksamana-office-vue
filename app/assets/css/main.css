@@ -41,16 +41,24 @@
     Status rides on top as a dot + words (DESIGN.md), so the two never compete
     for the same channel.
 
-    Seven zones, muted on purpose: this is a plan, not a chart, and it sits on a
-    white surface next to real text. Dark values sit under `.dark` below.
+    Seven zones plus the floor they sit on, and the ink written over them. All
+    three groups flip under `.dark` below: a plan drawn on a light floor in dark
+    mode reads as a photograph of someone else's venue, and dark text on a dark
+    zone is simply unreadable.
   */
   --color-seat-green: #BFDCA9;
   --color-seat-blue: #AFD0EA;
   --color-seat-wood: #E3CBAA;
   --color-seat-vip: #E7D7B4;
-  --color-seat-dark: #C6C3BA;
+  --color-seat-dark: #A6A29A;
   --color-seat-diamond: #DCD6CB;
   --color-seat-ext: #F2C795;
+  /* The floor of the room, and the ink written over every zone. The ink is what
+     follows the theme: dark on the light zones in light mode, light on the dimmed
+     zones in dark mode, so a table is readable in both. */
+  --color-seat-floor: #EFEEEA;
+  --color-seat-ink: #1C1B18;
+  --color-seat-line: #CFCEC8;
 }
 
 :root {
@@ -76,9 +84,12 @@
   --color-seat-blue: #2C5B80;
   --color-seat-wood: #6E5233;
   --color-seat-vip: #77633C;
-  --color-seat-dark: #3C3B37;
+  --color-seat-dark: #575651;
   --color-seat-diamond: #4E4A44;
   --color-seat-ext: #7C5220;
+  --color-seat-floor: #141413;
+  --color-seat-ink: #F1F0EC;
+  --color-seat-line: #3A3936;
 }
 
 body {

@@ -364,8 +364,8 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
   aspect-ratio: 1600 / 1160;
   max-height: 78vh;
   overflow: auto;
-  background: var(--color-ink-100);
-  border: 1px solid var(--color-ink-200);
+  background: var(--color-seat-floor);
+  border: 1px solid var(--color-seat-line);
   border-radius: 0.75rem;
   user-select: none;
   touch-action: pan-y;
@@ -398,26 +398,26 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
   padding: 0.25rem;
   text-align: center;
   font-weight: 700;
-  color: var(--color-ink-500);
+  color: var(--color-seat-ink);
   border-radius: 0.375rem;
   pointer-events: none;
 }
 
 .fix-stage {
-  background: var(--color-ink-300);
-  color: var(--color-ink-100);
+  background: var(--color-seat-line);
+  color: var(--color-seat-floor);
   font-size: clamp(0.7rem, 2.1vw, 1.6rem);
   letter-spacing: 0.06em;
 }
 
 .fix-floor2 {
-  border: 1px solid var(--color-ink-300);
+  border: 1px solid var(--color-seat-line);
   font-size: clamp(0.7rem, 1.9vw, 1.4rem);
 }
 
 .fix-foh {
-  background: var(--color-ink-800);
-  color: var(--color-ink-100);
+  background: var(--color-seat-dark);
+  color: var(--color-seat-floor);
   font-size: clamp(0.6rem, 1.3vw, 0.95rem);
 }
 
@@ -430,7 +430,7 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
 
 .fix-viproom,
 .fix-entrance {
-  border: 1px dashed var(--color-ink-300);
+  border: 1px dashed var(--color-seat-line);
   font-size: clamp(0.5rem, 1vw, 0.8rem);
 }
 
@@ -444,8 +444,8 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
   padding: 0.125rem;
   overflow: hidden;
   line-height: 1.05;
-  color: var(--color-ink-900);
-  border: 1.5px solid var(--color-ink-300);
+  color: var(--color-seat-ink);
+  border: 1.5px solid var(--color-seat-line);
   border-radius: 0.375rem;
   cursor: grab;
   touch-action: none;

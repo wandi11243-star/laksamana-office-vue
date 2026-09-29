@@ -521,8 +521,8 @@ const columns: TableColumn<Row>[] = [
           Dihitung dari baris tiruan di atas, tanpa jaringan.
         </div>
         <AppListRow
-          title="Denah Lt.1 hari ini (Senin → Weekday)"
-          :description="`dayTypeLayoutLt() = ${contohRingkas.denah}`"
+          title="Denah Lt.1 hari ini"
+          :description="`${tglPanjang(DENAH_HARI_INI)} → dayTypeLayoutLt() = ${contohRingkas.denah}`"
         />
         <AppListRow
           title="Denah Lt.2 hari ini"
