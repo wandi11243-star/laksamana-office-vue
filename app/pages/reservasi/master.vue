@@ -164,36 +164,27 @@ const labelBaris = computed(() => {
 })
 
 const barisMatriks = computed(() => {
-  const keluar: { key: string, ekstra: boolean }[] = []
+  const keluar: { key: string, label: string, ekstra: boolean }[] = []
   for (const l of LAYAR_RESERVASI) {
-    keluar.push({ key: l.key, ekstra: false })
+    keluar.push({ key: l.key, label: labelBaris.value.get(l.key) ?? l.key, ekstra: false })
     for (const b of BARIS_IZIN_RESERVASI.filter(b => b.afterPage === l.key && b.key !== l.key)) {
-      keluar.push({ key: b.key, ekstra: true })
+      keluar.push({ key: b.key, label: b.label, ekstra: true })
     }
   }
   return keluar
 })
 
-const nilaiSel = (row: string, r: RoleReservasi): number => {
-  const v = kerja.value[row]?.[r]
-  return r === 'viewer' ? Math.min(typeof v === 'number' ? v : 1, 1) : (typeof v === 'number' ? v : 1)
-}
-
 /** An extra row is useless for a role that cannot even SEE its parent page — locked, not clickable. */
-const indukTerlihat = (row: string, r: RoleReservasi): boolean => {
+const indukTerlihat = (row: string, r: string): boolean => {
   const b = BARIS_IZIN_RESERVASI.find(b => b.key === row)
   if (!b || b.key === b.page) return true
-  return (kerja.value[b.page]?.[r] ?? 0) >= 1
+  return (kerja.value[b.page]?.[r as RoleReservasi] ?? 0) >= 1
 }
 
-function geserSel(row: string, r: RoleReservasi) {
-  if (!indukTerlihat(row, r)) return
-  const putaran = r === 'viewer' ? 2 : 3
-  const next = (nilaiSel(row, r) + 1) % putaran
-  kerja.value[row] = { ...kerja.value[row], [r]: next as 0 | 1 | 2 }
+const bacaSel = (row: string, r: RoleReservasi): number => {
+  const v = kerja.value[row]?.[r]
+  return typeof v === 'number' ? v : 1
 }
-
-const TEKS_SEL = ['Tak terlihat', 'Lihat', 'Boleh ubah']
 
 async function simpanMatriks() {
   const next: PeranMatrix = {}
@@ -201,8 +192,8 @@ async function simpanMatriks() {
     next[key] = {}
     for (const r of ROLE_RESERVASI) {
       if (r === 'admin') next[key]![r] = 2
-      else if (r === 'viewer') next[key]![r] = Math.min(nilaiSel(key, r), 1) as 0 | 1
-      else next[key]![r] = nilaiSel(key, r) as 0 | 1 | 2
+      else if (r === 'viewer') next[key]![r] = Math.min(bacaSel(key, r), 1) as 0 | 1
+      else next[key]![r] = bacaSel(key, r) as 0 | 1 | 2
     }
   }
   try {
@@ -399,68 +390,13 @@ async function backupJson() {
         </AppList>
 
         <AppList title="Hak akses per role">
-          <p class="px-4 py-3 text-sm text-muted">
-            Atur per halaman: <b>Tak terlihat</b> (hilang dari menu), <b>Lihat</b> (buka halamannya tapi tombol ubah/hapus disembunyikan), atau <b>Boleh ubah</b>. <b>Admin</b> selalu akses penuh.
-          </p>
-          <div class="mb-7 hidden overflow-x-auto lg:block">
-            <table class="w-full text-sm">
-              <thead>
-                <tr class="border-b border-default text-start">
-                  <th class="px-4 py-2 text-start font-semibold">
-                    Halaman
-                  </th>
-                  <th
-                    v-for="r in kolomRole"
-                    :key="r"
-                    class="px-2 py-2 text-start font-semibold"
-                  >
-                    {{ ROLE_LABEL_RESERVASI[r] }}
-                  </th>
-                  <th class="px-2 py-2 text-start font-semibold">
-                    Admin
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="b in barisMatriks"
-                  :key="b.key"
-                  class="border-b border-default"
-                >
-                  <td class="px-4 py-2">
-                    {{ labelBaris.get(b.key) ?? b.key }}
-                  </td>
-                  <td
-                    v-for="r in kolomRole"
-                    :key="r"
-                    class="px-2 py-1.5"
-                  >
-                    <UButton
-                      v-if="indukTerlihat(b.key, r)"
-                      :label="TEKS_SEL[nilaiSel(b.key, r)] ?? 'Lihat'"
-                      color="neutral"
-                      variant="ghost"
-                      size="xs"
-                      :title="`${TEKS_SEL[nilaiSel(b.key, r)]}${r === 'viewer' ? ' — View Only hanya bisa Tak Terlihat / Lihat' : ' — klik untuk ubah'}`"
-                      @click="geserSel(b.key, r)"
-                    />
-                    <span
-                      v-else
-                      class="text-xs text-dimmed"
-                    >Tak terlihat</span>
-                  </td>
-                  <td class="px-2 py-1.5">
-                    <AppStatus>Ubah</AppStatus>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="px-4 pb-3 lg:hidden">
-            <p class="text-sm text-muted">
-              Matriks butuh layar lebar — buka di desktop untuk mengubah hak akses.
-            </p>
-          </div>
+          <MatriksIzin
+            v-model="kerja"
+            :baris="barisMatriks"
+            :roles="kolomRole.map(r => ({ key: r, label: ROLE_LABEL_RESERVASI[r] ?? r }))"
+            :putaran="(r) => r === 'viewer' ? 2 : 3"
+            :terkunci="(row, r) => !indukTerlihat(row, r)"
+          />
           <div class="flex flex-wrap gap-2 px-4 pb-4">
             <UButton
               label="Simpan hak akses"

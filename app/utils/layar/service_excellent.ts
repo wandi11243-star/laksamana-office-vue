@@ -113,6 +113,34 @@ export function pagePermSe(page: string, tingkat: SeTingkat): 0 | 1 | 2 {
 
 export const bolehBukaSe = (page: string, tingkat: SeTingkat) => pagePermSe(page, tingkat) >= 1
 
+/** The matrix seed, mirroring the old DEFAULT_PERMS IIFE (`:1084-1100`).
+ *  Unlike Reservasi there is no viewer clamp: all three levels may reach Ubah.
+ *  `sePerms` is this module's own section — saving it never touches
+ *  Reservasi's `perms` (the old code merged for exactly this reason). */
+export function seedPermsSE(): Record<string, Record<string, 0 | 1 | 2>> {
+  const seed: Record<string, Record<string, 0 | 1 | 2>> = {}
+  const induk = (row: string) => BARIS_IZIN_SE.find(b => b.key === row)?.page ?? row
+  const baris: string[] = []
+  for (const l of LAYAR_SERVICE_EXCELLENT) {
+    baris.push(l.key)
+    for (const b of BARIS_IZIN_SE.filter(b => b.afterPage === l.key && b.key !== l.key)) baris.push(b.key)
+  }
+  for (const row of baris) {
+    seed[row] = {}
+    const vis = induk(row)
+    for (const t of TINGKAT_SE) {
+      if (!ROLE_NAV[t].includes(vis)) {
+        seed[row]![t] = 0
+        continue
+      }
+      const aksi = Object.keys(ACTION_PAGE).filter(a => ACTION_PAGE[a] === row)
+      const bolehUbah = aksi.length ? aksi.some(a => CAN_DEFAULT[a]?.(t)) : true
+      seed[row]![t] = bolehUbah ? 2 : 1
+    }
+  }
+  return seed
+}
+
 /** `CAN` proxy of this panel (`:999-1003`): an action with no row falls back to its default. */
 export function bolehAksiSe(aksi: string, tingkat: SeTingkat): boolean {
   if (aksi === 'seeDP') return CAN_DEFAULT[aksi]!(tingkat)
