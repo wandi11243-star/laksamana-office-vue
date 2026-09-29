@@ -618,7 +618,7 @@ HTTP 200 + `APP_LAWAS` (klien terlalu tua) + `conflict:true` (`docs/modules/rese
 ## J. Progres build
 
 Branch: `migrasi/fondasi` (fondasi F1–F5) lalu `migrasi/reservasi` · Mulai: 2026-09-29
-LANJUTKAN DARI: Tahap 4 — finance (`DanaMasukPanel`): `pages/reservasi/finance.vue`. Baca D.3 (finance) di bagian H dan kontrak Dana Masuk di `laksamana-api/docs/api/reservasi.md`. Regarkan G-14 dulu kalau belum: `DanaMasukPanel` 403 untuk pemegang peran `cashier`/`finance` tanpa modul `reservasi`, jadi Cashier/Kas perlu menampilkan "Segera" sampai API dilonggarkan.
+LANJUTKAN DARI: Tahap 4b — riwayat, analitik, master, audit (`pages/reservasi/riwayat.vue`, `analitik.vue`, `master.vue`, `audit.vue`). Baca D.4–D.7 di bagian H, F19 (baris EKSTRA hapus ikut dibangun di master), dan kontrak `GET /reservations` + `GET /audit` + `PUT /master/{section}`. Regarkan G-08 (paging klien) dan G-14 (Cashier/Kas menampilkan "Segera" sampai API dilonggarkan).
 
 Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di kolom terakhir)
 
@@ -626,7 +626,7 @@ Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di 
 |---|---|---|---|---|---|
 | dashboard | reservasi | `pages/reservasi/dashboard.vue` | ✅ | `GET /reservasi/reservations`, `GET/PATCH/POST/DELETE /reservations`, `GET/POST /audit`, `GET/PUT/DELETE /master/{dineEstMin,clashLeadMin,waitlist,waTargets,layouts,layoutOverrides,layoutOverrides2,layoutTanggal}` | tipe tamu G-07 · drag ganti bulan tidak dibangun |
 | input | reservasi | `pages/reservasi/input.vue` | ✅ | `GET/POST/PATCH/DELETE /reservations`, `GET /reservations/{id}`, `GET /files/*` | autofill profil tamu → G-07 |
-| finance | reservasi | `pages/reservasi/finance.vue` | ⬜ | `GET /reservations`, `PATCH /reservations/{id}` | kwitansi via Finance invoices; paging `halDana` → G-08 |
+| finance | reservasi | `pages/reservasi/finance.vue` + `components/DanaMasukPanel.vue` + `components/KwitansiSlot.vue` | ✅ | `GET /reservations`, `GET/PATCH/DELETE /reservations/{id}`, `GET /files/{key}`, `GET /marketing/dp`, `POST /finance/invoices/requests`, `GET /finance/invoices/status`, `GET /finance/invoices/file/{resId}`, `POST /audit` | paging klien (G-08) · tipe tamu G-07 · DP Event 403 → G-15 · terbit-langsung manajer ditunda (sesi finance) |
 | riwayat | reservasi | `pages/reservasi/riwayat.vue` | ⬜ | `GET /reservations` | `riwayat`/ekspor server → G-08 |
 | analitik | reservasi | `pages/reservasi/analitik.vue` | ⬜ | `GET /reservations` | — |
 | master | reservasi | `pages/reservasi/master.vue` | ⬜ | `GET/PUT /master/{section}` | baris EKSTRA hapus (F19) ikut dibangun |
@@ -806,6 +806,8 @@ Semua field D.2 ada, dengan pesan validasinya apa adanya. Yang dibangun di layar
 **Bagian 1** (`feat(reservasi): dashboard bagian 1`) — ringkasan, filter, tab Tabel. Ringkasan = `AppFocus` (jumlah reservasi + pax) + `AppList` (empat barisa angka), bukan grid kartu. Tab Tabel: `UTable` di `lg+` dan `AppList` di HP dari baris yang sama, urut per kolom (Tombol sort, bukan klik header — sorting lewat tombol di bawah tabel, bukan klik header (klik header pada UTable tidak bisa di-style dan tidak konsisten)), paging 10/25/50 di browser dengan catatan **G-08** di layar. "Tipe tamu" **Segera · G-07** (butuh `ringkasTamu`).
 
 ## Tahap 4a — finance (Dana Masuk / DanaMasukPanel)
+
+**Halaman finance** (`feat(reservasi): halaman finance`) — `app/pages/reservasi/finance.vue` tipis: `AppPage` + `DanaMasukPanel` dengan izin dari matriks (`finance` → verifikasi, `financeDelete` → hapus + demo, `master` → kwitansi langsung); tanpa itu "Tidak ada akses."
 
 **Kwitansi** (`feat(reservasi): kwitansi`) — `app/utils/kwitansi.ts` (milik reservasi, dipakai Marketing nanti) + `app/components/KwitansiSlot.vue` + `app/composables/useFinance.ts` (3 call invoice; milik modul finance, reservasi hanya meminjam). Port `kwitansiData()` + `kwitansi-sheet.js` (`kwitansiHtml()`, `tulisLembar()` — jendela dibuka pemanggil sinkron, jeda 400ms; gaya cetak lembar dipertahankan supaya tak bisa dibedakan dari sebelumnya) + `kwiTertahan()`/`kwiTertahanTeks()` (F10: SEMUA transfer, rejected ikut menahan) + `kwitansiNo()` + `invRingkas()`. Alur: request → `POST /finance/invoices/requests` (`resId`, `jenis: 'KWITANSI'`); status → `GET /finance/invoices/status?res=` (tiga keadaan undefined/null/isi — gagal jaringan bukan null); cetak → `GET /finance/invoices/file/{resId}` (404 `not_issued` → pesan "belum terbit", bukan lembar tanpa tanda tangan). Tombol di detail reservasi (slot DP + kaki modal `:7879`,`:7913`), BUKAN tabel Dana Masuk — di Vue dipasang di sheet Cek/Edit (`KwitansiSlot`, prop `bolehKwitansiLangsung` dari matriks role). Logo base64 lama tidak ikut di-port (inline besar; lembar tetap tercetak tanpanya). DITUNDA ke sesi finance: penerbitan langsung manager/admin (old invMinta+invPutus) — memanggil endpoint decision + pilihan penanda milik modul finance; dari sini manajer tanpa modul finance mencetak lembar tanpa tanda tangan (perilaku jatuh yang sama dengan kode lama).
 
