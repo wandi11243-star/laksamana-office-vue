@@ -160,13 +160,12 @@ function hapusItem(i: number) {
   if (!form.items.length) form.items.push({ cat: 'floor', catOther: '', text: '' })
 }
 
-function pilihFoto(e: Event) {
-  const f = (e.target as HTMLInputElement).files?.[0] ?? null
+function pilihFoto(f: File | null | undefined) {
   if (f && f.size > 5 * 1024 * 1024) {
     toast.add({ title: 'Foto melebihi 5 MB — kecilkan dulu', color: 'error' })
     return
   }
-  form.berkas = f
+  form.berkas = f ?? null
   form.namaBerkas = f ? f.name : ''
 }
 
@@ -732,15 +731,17 @@ async function lihatBukti(fb: Feedback) {
           />
         </UFormField>
         <UFormField label="Foto bukti (opsional)">
-          <input
-            type="file"
+          <UFileUpload
+            :model-value="form.berkas"
             accept="image/*"
-            class="w-full text-sm"
-            @change="pilihFoto"
+            label="Pilih foto"
+            description="Gambar, maks 5 MB"
+            @update:model-value="pilihFoto"
           >
-          <p class="mt-1 text-xs text-muted">
-            {{ form.namaBerkas || form.namaFotoLama || 'Belum ada foto' }}
-          </p>
+            <p class="mt-1 text-xs text-muted">
+              {{ form.namaBerkas || form.namaFotoLama || 'Belum ada foto' }}
+            </p>
+          </ufileupload>
         </UFormField>
         <div
           v-for="(it, i) in form.items"

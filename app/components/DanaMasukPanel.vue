@@ -646,8 +646,7 @@ async function muatUlangTambah() {
   if (r) isiTambah(r, true)
 }
 
-function pilihBerkas(e: Event) {
-  const f = (e.target as HTMLInputElement).files?.[0] ?? null
+function pilihBerkas(f: File | null | undefined) {
   // The 5 MB gate runs BEFORE reading (F1): a bigger file never becomes a data URI.
   if (f && f.size > 5 * 1024 * 1024) {
     toast.add({ title: 'Bukti melebihi 5 MB — kecilkan dulu', color: 'error' })
@@ -655,7 +654,7 @@ function pilihBerkas(e: Event) {
     tambah.namaBerkas = ''
     return
   }
-  tambah.berkas = f
+  tambah.berkas = f ?? null
   tambah.namaBerkas = f ? f.name : ''
 }
 
@@ -2278,18 +2277,20 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           label="Upload bukti transfer (foto/pdf)"
           required
         >
-          <input
-            type="file"
+          <UFileUpload
+            :model-value="tambah.berkas"
             accept="image/*,application/pdf"
-            class="w-full text-sm"
-            @change="pilihBerkas"
+            label="Pilih bukti"
+            description="Gambar atau PDF, maks 5 MB"
+            @update:model-value="pilihBerkas"
           >
-          <p
-            v-if="tambah.namaBerkas"
-            class="mt-1 text-xs text-muted"
-          >
-            {{ tambah.namaBerkas }}
-          </p>
+            <p
+              v-if="tambah.namaBerkas"
+              class="mt-1 text-xs text-muted"
+            >
+              {{ tambah.namaBerkas }}
+            </p>
+          </ufileupload>
         </UFormField>
       </div>
       <template #footer>

@@ -231,18 +231,17 @@ function bukaKlaim(rvId = '', resId = '') {
   sheetKlaim.value = true
 }
 
-function pilihFoto(e: Event, mana: 1 | 2) {
-  const f = (e.target as HTMLInputElement).files?.[0] ?? null
+function pilihFoto(f: File | null | undefined, mana: 1 | 2) {
   if (f && f.size > 5 * 1024 * 1024) {
     toast.add({ title: 'Foto melebihi 5 MB — kecilkan dulu', color: 'error' })
     return
   }
   if (mana === 1) {
-    klaim.foto1 = f
+    klaim.foto1 = f ?? null
     klaim.namaFoto1 = f ? f.name : ''
   }
   else {
-    klaim.foto2 = f
+    klaim.foto2 = f ?? null
     klaim.namaFoto2 = f ? f.name : ''
   }
 }
@@ -818,26 +817,30 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
           />
         </UFormField>
         <UFormField label="1) Screenshot review tamu (wajib)">
-          <input
-            type="file"
+          <UFileUpload
+            :model-value="klaim.foto1"
             accept="image/*"
-            class="w-full text-sm"
-            @change="pilihFoto($event, 1)"
+            label="Pilih foto"
+            description="Gambar, maks 5 MB"
+            @update:model-value="(f) => pilihFoto(f, 1)"
           >
-          <p class="mt-1 text-xs text-muted">
-            {{ klaim.namaFoto1 || klaim.namaFoto1Lama || 'belum ada' }}
-          </p>
+            <p class="mt-1 text-xs text-muted">
+              {{ klaim.namaFoto1 || klaim.namaFoto1Lama || 'belum ada' }}
+            </p>
+          </ufileupload>
         </UFormField>
         <UFormField label="2) Bukti poin bertambah (menyusul)">
-          <input
-            type="file"
+          <UFileUpload
+            :model-value="klaim.foto2"
             accept="image/*"
-            class="w-full text-sm"
-            @change="pilihFoto($event, 2)"
+            label="Pilih foto"
+            description="Gambar, maks 5 MB"
+            @update:model-value="(f) => pilihFoto(f, 2)"
           >
-          <p class="mt-1 text-xs text-muted">
-            {{ klaim.namaFoto2 || klaim.namaFoto2Lama || 'belum ada' }}. Layar Google “poin bertambah” biasanya baru muncul H+1. Klaim belum bisa diverifikasi sebelum Foto 2 dilampirkan.
-          </p>
+            <p class="mt-1 text-xs text-muted">
+              {{ klaim.namaFoto2 || klaim.namaFoto2Lama || 'belum ada' }}. Layar Google “poin bertambah” biasanya baru muncul H+1. Klaim belum bisa diverifikasi sebelum Foto 2 dilampirkan.
+            </p>
+          </ufileupload>
         </UFormField>
       </div>
       <template #footer>

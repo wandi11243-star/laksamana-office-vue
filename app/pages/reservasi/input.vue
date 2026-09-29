@@ -163,8 +163,6 @@ function pilihBukti(f: File | null | undefined, ke: 'dp' | 'doc') {
   else buktiDocBaru.value = f
 }
 
-const dariInput = (e: Event) => (e.target as HTMLInputElement).files?.[0]
-
 const jadiDataUri = (f: File) => new Promise<string>((resolve, reject) => {
   const fr = new FileReader()
   fr.onload = () => resolve(String(fr.result))
@@ -926,12 +924,13 @@ async function hapus() {
         </UFormField>
         <UFormField label="Bukti transfer DP">
           <div class="space-y-2">
-            <input
-              type="file"
+            <UFileUpload
+              :model-value="buktiDpBaru"
               accept="image/*,application/pdf"
-              class="block w-full text-sm"
-              @change="pilihBukti(dariInput($event), 'dp')"
-            >
+              label="Pilih bukti"
+              description="Gambar atau PDF, maks 5 MB"
+              @update:model-value="(f) => pilihBukti(f, 'dp')"
+            />
             <p
               v-if="buktiDpBaru"
               class="text-sm text-muted"
@@ -962,12 +961,13 @@ async function hapus() {
         </UFormField>
         <UFormField label="Dokumen special request">
           <div class="space-y-2">
-            <input
-              type="file"
+            <UFileUpload
+              :model-value="buktiDocBaru"
               accept="image/*,application/pdf"
-              class="block w-full text-sm"
-              @change="pilihBukti(dariInput($event), 'doc')"
-            >
+              label="Pilih dokumen"
+              description="Gambar atau PDF, maks 5 MB"
+              @update:model-value="(f) => pilihBukti(f, 'doc')"
+            />
             <p
               v-if="buktiDocBaru"
               class="text-sm text-muted"
