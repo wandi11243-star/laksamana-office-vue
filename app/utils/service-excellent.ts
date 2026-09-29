@@ -214,8 +214,8 @@ export function labelKategori(cat: string, catOther: string): string {
 }
 
 /** Guests eligible for an ask: really came, in range, with a callable number (`reviewTargetsInRange`). */
-export function layakDiminta(
-  reservasi: { id: string, date: string, time: string, status: string, phone: string }[],
+export function layakDiminta<T extends { id: string, date: string, time: string, status: string, phone: string }>(
+  reservasi: T[],
   r: { from: string, to: string },
   sudahIds: Set<string>,
   normTelp: (p: string) => string,

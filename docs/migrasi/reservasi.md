@@ -805,6 +805,10 @@ Semua field D.2 ada, dengan pesan validasinya apa adanya. Yang dibangun di layar
 
 **Bagian 1** (`feat(reservasi): dashboard bagian 1`) — ringkasan, filter, tab Tabel. Ringkasan = `AppFocus` (jumlah reservasi + pax) + `AppList` (empat barisa angka), bukan grid kartu. Tab Tabel: `UTable` di `lg+` dan `AppList` di HP dari baris yang sama, urut per kolom (Tombol sort, bukan klik header — sorting lewat tombol di bawah tabel, bukan klik header (klik header pada UTable tidak bisa di-style dan tidak konsisten)), paging 10/25/50 di browser dengan catatan **G-08** di layar. "Tipe tamu" **Segera · G-07** (butuh `ringkasTamu`).
 
+## Tahap 5 — Service Excellent
+
+**Review** (`feat(se): review`) — `app/pages/service_excellent/review.vue`: periode Harian/Mingguan/Bulanan bersama (`usePeriodeReview`), panel Tamu belum diminta (datang + ber-nomor + belum tercatat; panel tampil hanya bila saklar WA hidup DAN divisi office/ceo/cfo/host atau admin — F-divisi `:7720-7738`), Minta review (WA via `waKirim` + catatan `diminta` dengan `askedAt` sendiri; link wajib; penjaga ganda di tombol DAN fungsi), Salin link, Catat review (Foto 1 wajib, Foto 2 menyusul, host = yang login dan dipertahankan saat edit, penjaga klaim ganda lintas waktu — F16), Daftar review [Saya] (mine kecuali admin/office/verifikator — agar tombol verifikasi bisa ditekan, `:7780-7798`), Verifikasi (Foto 2 WAJIB — F15 — + dialog), Tolak + alasan, ubah, hapus (`hapusCatatan`), bukti via `rv:/rv2:` + sheet. Hanya `terverifikasi` dihitung ke target (F14). Tulis: `PUT /master/reviews/{id}` + versi section termuat + `tanganiKonflik(refresh)`; sheet klaim isi-ulang setelah konflik. Foto ≤5MB.
+
 ## Tahap 4b — riwayat, analitik, master, audit
 
 **Audit** (`feat(reservasi): audit`) — `app/pages/reservasi/audit.vue`: 500 terakhir (server), kolom `Waktu, User, Role, Aksi, Detail`, cari (user/role/aksi/detail), paging browser (G-08), baris ber-`res` → `/reservasi/input?id=` — TANPA tebakan nama (tautan menebak bisa membuka reservasi orang lain, `:10728-10753`). Tanpa tulisan di layar ini.
