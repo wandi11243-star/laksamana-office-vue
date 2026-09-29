@@ -130,6 +130,8 @@ export interface Reservasi {
   tfDate: string
   tfTime: string
   tfBank: string
+  /** The sender's name as read from the proof. Dana Masuk writes it; the old form builder (`:4850-4890`) forgot it, so an edit there dropped it. Copied by the new form, and noted in reservasi.md bagian J. */
+  tfName?: string
   tfAmount: number
   tfStatus: TfStatus
   tfNote: string

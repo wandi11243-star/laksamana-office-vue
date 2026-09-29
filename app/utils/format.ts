@@ -73,3 +73,51 @@ export function tambahHari(tgl: string, n: number): string {
   d.setDate(d.getDate() + n)
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
+
+/**
+ * Tidy whatever was typed into a time field into 24-hour "HH:MM".
+ * "7" -> 07:00, "19" -> 19:00, "1930" -> 19:30, "19.30" -> 19:30. An
+ * unparseable value comes back as "" so the caller can refuse it.
+ * Source: laksamana-office/deploy/reservasi/index.html:4019-4033.
+ */
+export function normTime(v: unknown): string {
+  let s = String(v ?? '').trim()
+  if (!s) return ''
+  s = s.replace(/[^\d:]/g, m => (m === '.' || m === ' ') ? ':' : '')
+  let h: number
+  let m: number
+  if (s.includes(':')) {
+    const p = s.split(':')
+    h = Number.parseInt(p[0]!, 10)
+    m = Number.parseInt(p[1] || '0', 10)
+  }
+  else if (s.length <= 2) {
+    h = Number.parseInt(s, 10)
+    m = 0
+  }
+  else {
+    h = Number.parseInt(s.slice(0, s.length - 2), 10)
+    m = Number.parseInt(s.slice(-2), 10)
+  }
+  if (Number.isNaN(h)) return ''
+  if (Number.isNaN(m)) m = 0
+  h = Math.min(23, Math.max(0, h))
+  m = Math.min(59, Math.max(0, m))
+  return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`
+}
+
+/** "Rp. 1.000.000" or "1500000" -> 1500000. Every non-digit is dropped, so what the crew typed never blocks the save. */
+export function rupiahVal(v: unknown): number {
+  const d = String(v ?? '').replace(/\D/g, '')
+  return d ? Number(d) : 0
+}
+
+/** The rupiah field as it is typed: 1500000 -> "Rp. 1.000.000", 0 -> "". */
+export const fmtRupiah = (n: number) => (n ? `Rp. ${new Intl.NumberFormat('id-ID').format(n)}` : '')
+
+/** Every 15 minutes from 00:00, for a time dropdown. */
+export const opsiJam = (step = 15): string[] => {
+  const out: string[] = []
+  for (let m = 0; m < 1440; m += step) out.push(`${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`)
+  return out
+}
