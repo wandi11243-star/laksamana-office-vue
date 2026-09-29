@@ -205,149 +205,126 @@ async function simpanTarget() {
     description="Pencapaian tim, review Google, dan feedback tamu."
   >
     <template v-if="bolehBukaSe('capaian', tingkat)">
-      <div class="mb-5 flex flex-wrap items-end gap-2">
-        <div class="flex gap-2">
-          <UButton
-            label="Harian"
-            color="neutral"
-            :variant="periode.mode === 'hari' ? 'soft' : 'ghost'"
-            size="sm"
-            @click="periode.mode = 'hari'"
-          />
-          <UButton
-            label="Mingguan"
-            color="neutral"
-            :variant="periode.mode === 'minggu' ? 'soft' : 'ghost'"
-            size="sm"
-            @click="periode.mode = 'minggu'"
-          />
-          <UButton
-            label="Bulanan"
-            color="neutral"
-            :variant="periode.mode === 'bulan' ? 'soft' : 'ghost'"
-            size="sm"
-            @click="periode.mode = 'bulan'"
-          />
-        </div>
-        <UFormField
-          v-if="periode.mode === 'bulan'"
-          label="Bulan"
-          class="max-w-44"
-        >
-          <UInput
-            v-model="periode.month"
-            type="month"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          v-else
-          label="Tanggal acuan"
-          class="max-w-44"
-        >
-          <UInput
-            v-model="periode.date"
-            type="date"
-            class="w-full"
-          />
-        </UFormField>
-        <span class="pb-2 text-sm text-muted">
-          {{ kruCapaian.nama.length }} kru{{ kruCapaian.dariRoster ? ' (seluruh tim)' : ' (kru modul — roster Office belum termuat)' }} · target tim {{ targetTimBulan || 'belum diatur' }}
-        </span>
-        <div class="ms-auto">
-          <UButton
-            v-if="bolehAtur"
-            label="Atur target"
-            color="neutral"
-            variant="soft"
-            size="sm"
-            @click="bukaTarget"
-          />
-        </div>
-      </div>
+      <AppPanel>
+        <template #head>
+          <div class="flex w-full flex-wrap items-center gap-3">
+            <AppSeg
+              v-model="periode.mode"
+              size="sm"
+              :options="[
+                { value: 'hari', label: 'Harian' },
+                { value: 'minggu', label: 'Mingguan' },
+                { value: 'bulan', label: 'Bulanan' },
+              ]"
+            />
+            <UInput
+              v-if="periode.mode === 'bulan'"
+              v-model="periode.month"
+              type="month"
+              class="w-40"
+              aria-label="Bulan"
+            />
+            <UInput
+              v-else
+              v-model="periode.date"
+              type="date"
+              class="w-40"
+              aria-label="Tanggal acuan"
+            />
+            <span class="text-sm text-muted">
+              {{ kruCapaian.nama.length }} kru{{ kruCapaian.dariRoster ? ' (seluruh tim)' : ' (kru modul — roster Office belum termuat)' }} · target tim {{ targetTimBulan || 'belum diatur' }}
+            </span>
+            <UButton
+              v-if="bolehAtur"
+              class="ms-auto"
+              label="Atur target"
+              icon="i-lucide-target"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              @click="bukaTarget"
+            />
+          </div>
+        </template>
 
-      <div class="mb-7 max-w-xl">
-        <AppFocus
-          label="Pencapaian tim"
-          :value="`${angka(targetTimBulan ? pctTim : 0)}%`"
-          :hint="targetTimBulan ? (sah.length >= targetTimBulan ? 'target tim tercapai' : `kurang ${angka(targetTimBulan - sah.length)} review lagi · ${labelPeriode}`) : `target tim belum diatur · ${labelPeriode}`"
-        />
-      </div>
-
-      <div class="mb-5">
-        <div class="h-2 overflow-hidden rounded bg-muted">
+        <div class="flex flex-wrap items-end justify-between gap-2">
+          <div>
+            <h2 class="text-lg font-semibold text-highlighted">
+              Pencapaian tim
+            </h2>
+            <p class="text-sm text-muted">
+              {{ targetTimBulan ? (sah.length >= targetTimBulan ? 'Target tim tercapai' : `Kurang ${angka(targetTimBulan - sah.length)} review lagi`) : 'Target tim belum diatur' }} · {{ labelPeriode }}
+            </p>
+          </div>
+          <p class="font-display text-3xl font-bold text-highlighted num">
+            {{ angka(targetTimBulan ? pctTim : 0) }}<span class="text-lg text-muted">%</span>
+          </p>
+        </div>
+        <div
+          class="mt-3 h-3.5 overflow-hidden rounded-full bg-muted"
+          role="progressbar"
+          :aria-valuenow="targetTimBulan ? pctTim : 0"
+          aria-valuemin="0"
+          aria-valuemax="100"
+        >
           <div
-            class="h-full rounded bg-primary"
+            class="h-full rounded-full bg-primary-400 transition-[width] duration-500"
             :style="{ width: `${targetTimBulan ? pctTim : 0}%` }"
           />
         </div>
-      </div>
+      </AppPanel>
 
-      <AppList :title="`Pencapaian tim — ${labelPeriode}`">
-        <AppListRow
-          title="Diminta"
-          description="ajakan terkirim"
+      <AppStatGrid>
+        <AppStat
+          label="Diminta"
           icon="i-lucide-send"
-        >
-          <template #trailing>
-            {{ angka(diminta.length) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Perlu verifikasi"
-          description="tamu sudah klaim"
+          :value="angka(diminta.length)"
+          sub="ajakan terkirim"
+        />
+        <AppStat
+          label="Perlu verifikasi"
           icon="i-lucide-hourglass"
-        >
-          <template #trailing>
-            {{ angka(klaim.length) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Terverifikasi"
-          description="sah dihitung"
-          icon="i-lucide-check"
-        >
-          <template #trailing>
-            {{ angka(sah.length) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Ditolak"
-          description="tak ada di Google"
-          icon="i-lucide-x"
-        >
-          <template #trailing>
-            {{ angka(tolak.length) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Cakupan tamu"
-          :description="`${angka(target.sudah.length)} dari ${angka(target.layak.length)} ber-nomor`"
+          :tone="klaim.length ? 'warning' : 'gold'"
+          :value="angka(klaim.length)"
+          sub="tamu sudah klaim"
+        />
+        <AppStat
+          label="Terverifikasi"
+          icon="i-lucide-badge-check"
+          tone="success"
+          :value="angka(sah.length)"
+          sub="sah dihitung"
+        />
+        <AppStat
+          label="Ditolak"
+          icon="i-lucide-circle-x"
+          :tone="tolak.length ? 'error' : 'gold'"
+          :value="angka(tolak.length)"
+          sub="tak ada di Google"
+        />
+        <AppStat
+          label="Cakupan tamu"
           icon="i-lucide-scan"
-        >
-          <template #trailing>
-            {{ angka(cakupan) }}%
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Feedback"
-          :description="`${angka(fbSelesai)} selesai ditangani`"
+          tone="info"
+          :value="angka(cakupan)"
+          satuan="%"
+          :sub="`${angka(target.sudah.length)} dari ${angka(target.layak.length)} ber-nomor`"
+        />
+        <AppStat
+          label="Feedback"
           icon="i-lucide-messages-square"
-        >
-          <template #trailing>
-            {{ angka(fbRange.length) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Total reward"
-          :description="`${angka(kruDapat)} kru mencapai tangga bonus · hanya tampilan`"
+          tone="vip"
+          :value="angka(fbRange.length)"
+          :sub="`${angka(fbSelesai)} selesai ditangani`"
+        />
+        <AppStat
+          label="Total reward"
           icon="i-lucide-award"
-        >
-          <template #trailing>
-            {{ rupiah(totalBonus) }}
-          </template>
-        </AppListRow>
-      </AppList>
+          tone="success"
+          :value="rupiah(totalBonus)"
+          :sub="`${angka(kruDapat)} kru · hanya tampilan`"
+        />
+      </AppStatGrid>
 
       <AppList title="Reward review">
         <p class="px-4 pt-3 text-sm text-muted">
@@ -392,7 +369,7 @@ async function simpanTarget() {
         </AppListRow>
         <div
           v-if="tangga.length"
-          class="mb-7 hidden overflow-hidden rounded-2xl bg-default lg:block"
+          class="mb-7 hidden overflow-hidden rounded-panel border border-default bg-default shadow-panel lg:block"
         >
           <UTable
             :data="tangga"
@@ -424,7 +401,7 @@ async function simpanTarget() {
       </AppList>
 
       <AppList title="Perolehan per kru">
-        <div class="mb-7 hidden overflow-hidden rounded-2xl bg-default lg:block">
+        <div class="mb-7 hidden overflow-hidden rounded-panel border border-default bg-default shadow-panel lg:block">
           <UTable
             :data="baris"
             :columns="[{ accessorKey: 'nama', header: 'Kru' }, { accessorKey: 'minta', header: 'Diminta' }, { accessorKey: 'klaim', header: 'Diklaim' }, { accessorKey: 'sah', header: 'Terverifikasi' }, { accessorKey: 'tolak', header: 'Ditolak' }, { accessorKey: 'fb', header: 'Feedback' }, { accessorKey: 'target', header: 'Target' }, { accessorKey: 'pct', header: 'Capaian' }, { accessorKey: 'reward', header: 'Reward' }]"

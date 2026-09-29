@@ -330,37 +330,22 @@ async function lihatBukti(fb: Feedback) {
   <AppPage
     title="Catat feedback"
     description="Pujian & keluhan tamu, dikategorikan per divisi."
-    :back="{ label: 'Semua layar', to: '/service_excellent' }"
   >
     <template v-if="bolehBukaSe('feedback', tingkat)">
-      <div class="mb-5 flex flex-wrap items-end gap-2">
-        <div class="flex gap-2">
-          <UButton
-            label="Harian"
-            color="neutral"
-            :variant="periode.mode === 'hari' ? 'soft' : 'ghost'"
-            size="sm"
-            @click="periode.mode = 'hari'"
-          />
-          <UButton
-            label="Mingguan"
-            color="neutral"
-            :variant="periode.mode === 'minggu' ? 'soft' : 'ghost'"
-            size="sm"
-            @click="periode.mode = 'minggu'"
-          />
-          <UButton
-            label="Bulanan"
-            color="neutral"
-            :variant="periode.mode === 'bulan' ? 'soft' : 'ghost'"
-            size="sm"
-            @click="periode.mode = 'bulan'"
-          />
-        </div>
+      <div class="mb-5 flex flex-wrap items-center gap-3">
+        <AppSeg
+          v-model="periode.mode"
+          size="sm"
+          :options="[
+            { value: 'hari', label: 'Harian' },
+            { value: 'minggu', label: 'Mingguan' },
+            { value: 'bulan', label: 'Bulanan' },
+          ]"
+        />
         <UFormField
           v-if="periode.mode === 'bulan'"
           label="Bulan"
-          class="max-w-44"
+          class="max-w-44 [&_label]:sr-only"
         >
           <UInput
             v-model="periode.month"
@@ -371,7 +356,7 @@ async function lihatBukti(fb: Feedback) {
         <UFormField
           v-else
           label="Tanggal acuan"
-          class="max-w-44"
+          class="max-w-44 [&_label]:sr-only"
         >
           <UInput
             v-model="periode.date"
@@ -379,7 +364,7 @@ async function lihatBukti(fb: Feedback) {
             class="w-full"
           />
         </UFormField>
-        <span class="pb-2 text-sm text-muted">Menampilkan data <b>{{ labelPeriode }}</b></span>
+        <span class="text-sm text-muted">Menampilkan data <b>{{ labelPeriode }}</b></span>
         <div class="ms-auto">
           <UButton
             v-if="bolehUbah"
@@ -390,118 +375,78 @@ async function lihatBukti(fb: Feedback) {
         </div>
       </div>
 
-      <AppList :title="`Rekap tanggapan — ${labelPeriode}`">
-        <AppListRow
-          title="Total feedback"
-          :description="`${angka(semuaItem.length)} keluhan`"
+      <AppStatGrid>
+        <AppStat
+          label="Total feedback"
           icon="i-lucide-messages-square"
-        >
-          <template #trailing>
-            {{ angka(dalam.length) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Baru"
-          description="belum ditangani"
+          :value="angka(dalam.length)"
+          :sub="`${angka(semuaItem.length)} catatan · ${labelPeriode}`"
+        />
+        <AppStat
+          label="Baru"
           icon="i-lucide-sparkle"
-        >
-          <template #trailing>
-            {{ angka(hitung('baru')) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Diproses"
-          description="sedang ditangani"
+          :tone="hitung('baru') ? 'error' : 'gold'"
+          :value="angka(hitung('baru'))"
+          sub="belum ditangani"
+        />
+        <AppStat
+          label="Diproses"
           icon="i-lucide-wrench"
-        >
-          <template #trailing>
-            {{ angka(hitung('proses')) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Selesai"
-          description="sudah ditindaklanjuti"
-          icon="i-lucide-check"
-        >
-          <template #trailing>
-            {{ angka(hitung('selesai')) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Paling sering"
-          :description="perKategori.length ? `${angka(perKategori[0]!.n)} keluhan` : 'belum ada'"
+          tone="warning"
+          :value="angka(hitung('proses'))"
+          sub="sedang ditangani"
+        />
+        <AppStat
+          label="Selesai"
+          icon="i-lucide-badge-check"
+          tone="success"
+          :value="angka(hitung('selesai'))"
+          sub="sudah ditindaklanjuti"
+        />
+        <AppStat
+          label="Paling sering"
           icon="i-lucide-flame"
-        >
-          <template #trailing>
-            {{ perKategori.length ? namaKategori(perKategori[0]!.k) : '—' }}
-          </template>
-        </AppListRow>
-        <div
-          v-if="perKategori.length"
-          class="space-y-2 px-4 py-3"
-        >
-          <div
-            v-for="c in perKategori"
-            :key="c.k"
-          >
-            <div class="flex items-baseline justify-between gap-2 text-sm">
-              <span>{{ namaKategori(c.k) }}</span>
-              <b class="num">{{ c.n }}</b>
-            </div>
-            <div class="mt-0.5 h-2 overflow-hidden rounded bg-muted">
-              <div
-                class="h-full rounded"
-                :class="c.n === maksKategori ? 'bg-error' : 'bg-info'"
-                :style="{ width: `${Math.round(c.n / maksKategori * 100)}%` }"
-              />
-            </div>
-          </div>
-        </div>
-      </AppList>
+          tone="vip"
+          :value="perKategori.length ? namaKategori(perKategori[0]!.k) : '—'"
+          :sub="perKategori.length ? `${angka(perKategori[0]!.n)} catatan` : 'belum ada'"
+        />
+      </AppStatGrid>
 
-      <div class="mb-5 flex flex-wrap items-end gap-2">
-        <div class="flex gap-2">
-          <UButton
-            v-for="s in [{ v: '', l: 'Semua' }, { v: 'baru', l: 'Baru' }, { v: 'proses', l: 'Diproses' }, { v: 'selesai', l: 'Selesai' }]"
-            :key="s.v"
-            :label="s.l"
-            color="neutral"
-            :variant="filterStatus === s.v ? 'soft' : 'ghost'"
-            size="sm"
-            @click="filterStatus = s.v"
+      <AppPanel
+        v-if="perKategori.length"
+        title="Per kategori / divisi"
+        icon="i-lucide-chart-bar"
+      >
+        <AppBar
+          v-for="c in perKategori"
+          :key="c.k"
+          :label="namaKategori(c.k)"
+          :value="c.n"
+          :persen="c.n / maksKategori * 100"
+          :tone="c.n === maksKategori ? 'error' : 'info'"
+        />
+      </AppPanel>
+
+      <AppPanel>
+        <div class="flex flex-col gap-3">
+          <AppChips
+            v-model="filterStatus"
+            :options="[{ value: '', label: 'Semua status' }, { value: 'baru', label: 'Baru' }, { value: 'proses', label: 'Diproses' }, { value: 'selesai', label: 'Selesai' }]"
           />
-        </div>
-        <div class="flex flex-wrap gap-2">
-          <UButton
-            label="Semua kategori"
-            color="neutral"
-            :variant="filterKategori === '' ? 'soft' : 'ghost'"
-            size="sm"
-            @click="filterKategori = ''"
+          <AppChips
+            v-model="filterKategori"
+            :options="[{ value: '', label: 'Semua kategori' }, ...FB_CATS.map(c => ({ value: c.id, label: c.label }))]"
           />
-          <UButton
-            v-for="c in FB_CATS"
-            :key="c.id"
-            :label="c.label"
-            color="neutral"
-            :variant="filterKategori === c.id ? 'soft' : 'ghost'"
-            size="sm"
-            @click="filterKategori = c.id"
-          />
-        </div>
-        <UFormField
-          label="Cari nama, no. HP, atau isi catatan"
-          class="min-w-44 flex-1"
-        >
           <UInput
             v-model="cari"
+            icon="i-lucide-search"
             placeholder="Cari nama, no. HP, atau isi catatan…"
-            class="w-full"
+            class="w-full sm:max-w-md"
           />
-        </UFormField>
-      </div>
+        </div>
+      </AppPanel>
 
-      <div class="mb-7 hidden overflow-hidden rounded-2xl bg-default lg:block">
+      <div class="mb-7 hidden overflow-hidden rounded-panel border border-default bg-default shadow-panel lg:block">
         <UTable
           :data="halaman"
           :columns="kolom"

@@ -91,7 +91,6 @@ async function simpan() {
   <AppPage
     title="Setelan"
     description="Link Google Review, saklar ajakan WhatsApp, dan reward. Cukup diisi sekali."
-    :back="{ label: 'Semua layar', to: '/service_excellent' }"
   >
     <template v-if="bolehBukaSe('setelan', tingkat)">
       <div

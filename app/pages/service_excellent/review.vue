@@ -254,6 +254,12 @@ const bacaBerkas = (f: File): Promise<string> => new Promise((resolve, reject) =
 })
 
 /** Reload the open claim from the newest section after a conflict. */
+// The top bar's gold "+" (`?catat=1`) opens the claim form straight away.
+const routeRv = useRoute()
+onMounted(() => {
+  if (routeRv.query.catat === '1') bukaKlaim()
+})
+
 async function muatUlangKlaim() {
   await reviews.refresh()
   if (!klaim.id) return
@@ -455,37 +461,22 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
   <AppPage
     title="Google review"
     description="Ajakan review ke tamu, klaim, dan verifikasinya."
-    :back="{ label: 'Semua layar', to: '/service_excellent' }"
   >
     <template v-if="bolehBukaSe('review', tingkat)">
-      <div class="mb-5 flex flex-wrap items-end gap-2">
-        <div class="flex gap-2">
-          <UButton
-            label="Harian"
-            color="neutral"
-            :variant="periode.mode === 'hari' ? 'soft' : 'ghost'"
-            size="sm"
-            @click="periode.mode = 'hari'"
-          />
-          <UButton
-            label="Mingguan"
-            color="neutral"
-            :variant="periode.mode === 'minggu' ? 'soft' : 'ghost'"
-            size="sm"
-            @click="periode.mode = 'minggu'"
-          />
-          <UButton
-            label="Bulanan"
-            color="neutral"
-            :variant="periode.mode === 'bulan' ? 'soft' : 'ghost'"
-            size="sm"
-            @click="periode.mode = 'bulan'"
-          />
-        </div>
+      <div class="mb-5 flex flex-wrap items-center gap-3">
+        <AppSeg
+          v-model="periode.mode"
+          size="sm"
+          :options="[
+            { value: 'hari', label: 'Harian' },
+            { value: 'minggu', label: 'Mingguan' },
+            { value: 'bulan', label: 'Bulanan' },
+          ]"
+        />
         <UFormField
           v-if="periode.mode === 'bulan'"
           label="Bulan"
-          class="max-w-44"
+          class="max-w-44 [&_label]:sr-only"
         >
           <UInput
             v-model="periode.month"
@@ -496,7 +487,7 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
         <UFormField
           v-else
           label="Tanggal acuan"
-          class="max-w-44"
+          class="max-w-44 [&_label]:sr-only"
         >
           <UInput
             v-model="periode.date"
@@ -504,7 +495,7 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
             class="w-full"
           />
         </UFormField>
-        <span class="pb-2 text-sm text-muted">Menampilkan data <b>{{ labelPeriode }}</b>{{ periode.mode === 'minggu' ? ' (Senin–Minggu)' : '' }}</span>
+        <span class="text-sm text-muted">Menampilkan data <b>{{ labelPeriode }}</b>{{ periode.mode === 'minggu' ? ' (Senin–Minggu)' : '' }}</span>
         <div class="ms-auto flex gap-2">
           <UButton
             v-if="cfg?.link"
@@ -524,13 +515,32 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
       </div>
 
       <template v-if="panelMintaTampil">
-        <div class="mb-7 max-w-xl">
-          <AppFocus
+        <AppStatGrid>
+          <AppStat
             label="Belum diminta"
-            :value="`${angka(target.belum.length)} tamu`"
-            :hint="`${angka(target.sudah.length)} dari ${angka(target.layak.length)} tamu ber-nomor sudah tersentuh`"
+            icon="i-lucide-user-round-search"
+            :tone="target.belum.length ? 'warning' : 'success'"
+            :value="angka(target.belum.length)"
+            satuan="tamu"
+            sub="datang, belum diajak review"
           />
-        </div>
+          <AppStat
+            label="Sudah diminta"
+            icon="i-lucide-send"
+            tone="success"
+            :value="angka(target.sudah.length)"
+            satuan="tamu"
+            sub="ajakan terkirim / klaim tercatat"
+          />
+          <AppStat
+            label="Cakupan"
+            icon="i-lucide-scan"
+            tone="info"
+            :value="angka(target.layak.length ? Math.round(target.sudah.length / target.layak.length * 100) : 0)"
+            satuan="%"
+            :sub="`${angka(target.sudah.length)} dari ${angka(target.layak.length)} tamu ber-nomor`"
+          />
+        </AppStatGrid>
 
         <AppList title="Tamu belum diminta review">
           <UFormField
@@ -543,7 +553,7 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
               class="w-full"
             />
           </UFormField>
-          <div class="mb-7 hidden overflow-hidden rounded-2xl bg-default lg:block">
+          <div class="mt-3 hidden overflow-hidden border-t border-default lg:block">
             <UTable
               :data="halamanBelum"
               :columns="kolomBelum"
@@ -617,7 +627,7 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
             class="w-full"
           />
         </UFormField>
-        <div class="mb-7 hidden overflow-hidden rounded-2xl bg-default lg:block">
+        <div class="mt-3 hidden overflow-hidden border-t border-default lg:block">
           <UTable
             :data="halamanDaftar"
             :columns="kolomDaftar"

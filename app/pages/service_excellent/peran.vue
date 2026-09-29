@@ -209,7 +209,6 @@ async function resetMatriks() {
   <AppPage
     title="Kelola role"
     description="Kelola role Service Excellent."
-    :back="{ label: 'Semua layar', to: '/service_excellent' }"
   >
     <template v-if="bolehBukaSe('peran', tingkat)">
       <div
