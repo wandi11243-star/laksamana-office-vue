@@ -78,7 +78,9 @@ export interface ReservasiDp {
   tfOcrAt: number
   tfOcrText: string
   /** OCR output is a suggestion only, never a filled-in value. */
-  tfOcrSaran?: unknown
+  tfOcrSaran?: { date: string, time: string, bank: string, name: string, amount: number } | null
+  /** Columns left empty when this transfer was verified from the picture (`:9894-9942`). */
+  tfTanpaData?: string
 }
 
 /** A reservation row, exactly as the old client stored it. */
