@@ -42,6 +42,7 @@ export function konflikTerkini<T>(e: unknown): T | undefined {
 /**
  * Call after a failed write. On a version conflict: toast + run `muatUlang`,
  * return true. Otherwise return false so the caller shows apiErrorMessage(e).
+ * A `muatUlang` that throws adds a second toast and still returns true.
  *
  * Usage — the pattern every module repeats:
  *
@@ -58,8 +59,12 @@ export function konflikTerkini<T>(e: unknown): T | undefined {
 export async function tanganiKonflik(e: unknown, muatUlang: () => Promise<unknown>): Promise<boolean> {
   if (!isKonflik(e) && !isVersiWajib(e)) return false
 
-  await muatUlang()
-  toastDiLuarKonteks()?.add(isKonflik(e)
+  const toast = toastDiLuarKonteks()
+
+  // Toast FIRST: if the reload itself fails (offline, server down), the person
+  // still has to be told their write was refused. Swallowing that failure would
+  // leave a screen that looks refreshed but is not.
+  toast?.add(isKonflik(e)
     ? {
         title: 'Data sudah diubah orang lain',
         description: 'Tampilan dimuat ulang dengan versi terbaru. Periksa lalu simpan lagi.',
@@ -70,6 +75,20 @@ export async function tanganiKonflik(e: unknown, muatUlang: () => Promise<unknow
         description: 'Tampilan dimuat ulang dari server. Periksa lalu simpan lagi.',
         color: 'warning',
       })
+
+  try {
+    await muatUlang()
+  }
+  catch (err) {
+    // Still `true`: the write WAS refused by a version check, not by this reload.
+    // The caller must not fall back to apiErrorMessage(e) and hide the real reason.
+    toast?.add({
+      title: 'Gagal memuat ulang data',
+      description: apiErrorMessage(err),
+      color: 'error',
+    })
+  }
+
   return true
 }
 

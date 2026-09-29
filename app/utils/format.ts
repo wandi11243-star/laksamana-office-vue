@@ -25,7 +25,11 @@ export function angka(n: number | null | undefined, digit = 0): string {
   }).format(n)
 }
 
-/** 0.125 -> "12,5%". A number already in percent (12.5) is not divided. */
+/**
+ * 0.125 -> "12,5%". The input is a FRACTION: `Intl` percent style always
+ * multiplies by 100, so a number that is already in percent (12.5) has to be
+ * divided by 100 by the caller before it comes here.
+ */
 export function persen(n: number | null | undefined, digit = 1): string {
   if (n === null || n === undefined || !Number.isFinite(n)) return '—'
   return new Intl.NumberFormat('id-ID', {
