@@ -262,6 +262,20 @@ export const useDaftarReservasi = (from: Ref<string>, to: Ref<string>, key = 're
     { watch: [from, to], default: () => [] },
   )
 
+/**
+ * The red counts of the Reservasi chrome: today's bookings still Pending, on the
+ * Dashboard menu item and as the bell dot (`deploy/reservasi/index.html:3819`,
+ * the same rule as the dashboard's "Perlu follow up").
+ */
+export function useLencanaReservasi() {
+  const hari = computed(() => hariIni())
+  const { data } = useDaftarReservasi(hari, hari, 'reservasi-lencana')
+  return computed<Record<string, number>>(() => {
+    const followUp = (data.value ?? []).filter(r => r.status === 'Pending').length
+    return { dashboard: followUp, lonceng: followUp }
+  })
+}
+
 /** GET /reservations/{id} — one row, with the authoritative `meta.version`. */
 export const getReservation = (id: string) => useApi()<Envelope<Reservasi>>(`/reservasi/reservations/${id}`)
 
