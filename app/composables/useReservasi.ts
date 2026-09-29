@@ -152,7 +152,8 @@ export interface Waitlist {
   date: string
   addedAt: number
   by: string
-  status: 'waiting' | 'seated'
+  /** 'cancelled' keeps the row as a trace; the queue only shows 'waiting'. */
+  status: 'waiting' | 'seated' | 'cancelled'
   seatedAt: number
   table: string
   resId: string
@@ -270,6 +271,14 @@ export const getSection = <T = unknown>(section: string) => useApi()<Envelope<T>
 export const useSection = <T = unknown>(section: string) =>
   useAsyncData(`reservasi-section-${section}`, () => getSection<T>(section).then(r => r.data), { default: () => undefined })
 
+/**
+ * One master section with its ENVELOPE kept. A section write needs that
+ * section's own version, and `useAsyncData` throws `meta` away — so a caller
+ * that has to write the section must read it this way.
+ */
+export const useSectionVersi = <T = unknown>(section: string) =>
+  useAsyncData(`reservasi-section-${section}`, () => getSection<T>(section))
+
 /** GET /audit — the newest 500 rows, newest first. */
 export const getAudit = () => useApi()<Envelope<AuditRow[]>>('/reservasi/audit')
 
@@ -339,10 +348,10 @@ export type SectionLayout = typeof SECTION_LAYOUT[number]
  */
 export const useDenah = () => {
   const sections = {
-    layouts: useAsyncData('reservasi-section-layouts', () => getSection<Record<string, LayoutDenah>>('layouts')),
-    layoutOverrides: useAsyncData('reservasi-section-layoutOverrides', () => getSection<Record<string, string>>('layoutOverrides')),
-    layoutOverrides2: useAsyncData('reservasi-section-layoutOverrides2', () => getSection<Record<string, string>>('layoutOverrides2')),
-    layoutTanggal: useAsyncData('reservasi-section-layoutTanggal', () => getSection<Record<string, LayoutDenah>>('layoutTanggal')),
+    layouts: useSectionVersi<Record<string, LayoutDenah>>('layouts'),
+    layoutOverrides: useSectionVersi<Record<string, string>>('layoutOverrides'),
+    layoutOverrides2: useSectionVersi<Record<string, string>>('layoutOverrides2'),
+    layoutTanggal: useSectionVersi<Record<string, LayoutDenah>>('layoutTanggal'),
   }
 
   const master = computed<Master>(() => ({
