@@ -245,10 +245,14 @@ export const muatPeranReservasi = () => {
 export const listReservations = (from?: string, to?: string) =>
   useApi()<Envelope<Reservasi[]> & { meta: { total: number, ver: number } }>('/reservasi/reservations', { query: { from, to } })
 
-/** The reactive window every Reservasi screen filters from (dashboard, Dana Masuk, riwayat, analitik). */
-export const useDaftarReservasi = (from: Ref<string>, to: Ref<string>) =>
+/**
+ * The reactive window every Reservasi screen filters from (dashboard, Dana
+ * Masuk, riwayat, analitik). `key` keeps two screens on the same page from
+ * sharing one `useAsyncData` slot with different dates.
+ */
+export const useDaftarReservasi = (from: Ref<string>, to: Ref<string>, key = 'reservasi-daftar') =>
   useAsyncData(
-    'reservasi-daftar',
+    key,
     () => listReservations(from.value, to.value).then(r => r.data),
     { watch: [from, to], default: () => [] },
   )

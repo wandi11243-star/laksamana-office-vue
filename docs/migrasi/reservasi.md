@@ -618,14 +618,14 @@ HTTP 200 + `APP_LAWAS` (klien terlalu tua) + `conflict:true` (`docs/modules/rese
 ## J. Progres build
 
 Branch: `migrasi/fondasi` (fondasi F1–F5) lalu `migrasi/reservasi` · Mulai: 2026-09-29
-LANJUTKAN DARI: Tahap 3 — `input` (form + pilih meja) lalu `dashboard` (tab Tabel/Kalender/Denah/Waiting List).
+LANJUTKAN DARI: Tahap 3 — `dashboard` bagian 1 (ringkasan + filter & pills + tab Tabel).
 
 Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di kolom terakhir)
 
 | layar (key) | panel | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|---|
 | dashboard | reservasi | `pages/reservasi/index.vue` (menu) | ⬜ | `GET /reservasi/reservations`, `/master/*` | — |
-| input | reservasi | `pages/reservasi/input.vue` | ⬜ | `POST/PUT/PATCH/DELETE /reservations`, `PUT /files/*` | autofill profil tamu → G-07 |
+| input | reservasi | `pages/reservasi/input.vue` | ✅ | `GET/POST/PUT/DELETE /reservations`, `GET /reservations/{id}`, `GET /files/*` | autofill profil tamu → G-07 |
 | finance | reservasi | `pages/reservasi/finance.vue` | ⬜ | `GET /reservations`, `PATCH /reservations/{id}` | kwitansi via Finance invoices; paging `halDana` → G-08 |
 | riwayat | reservasi | `pages/reservasi/riwayat.vue` | ⬜ | `GET /reservations` | `riwayat`/ekspor server → G-08 |
 | analitik | reservasi | `pages/reservasi/analitik.vue` | ⬜ | `GET /reservations` | — |
@@ -753,6 +753,40 @@ Komponen tidak memanggil API dan tidak menyimpan state modul. Penulisan section 
 **Catatan API**
 - `GET /master/{section}` mengembalikan versi section sendiri di `meta.version` + header `ETag`; `useDenah()` menyimpan amplopnya utuh karena `useAsyncData` membuang `meta` (versi tidak akan terlihat kalau tidak).
 - Override per tanggal = 4 section terpisah: `layouts`, `layoutOverrides` (Lt.1), `layoutOverrides2` (Lt.2), `layoutTanggal` (denah utuh per tanggal). Semuanya harus ditulis sebagai **section**, bukan `PUT /master` blob penuh.
+
+### J.2 Tahap 3 — `input` (selesai 2026-09-29, `feat(reservasi): input`)
+
+Semua field D.2 ada, dengan pesan validasinya apa adanya. Yang dibangun di layar ini:
+
+| bagian | cara |
+|---|---|
+| pilih meja | `DenahPeta mode="pilih"` + `pilihMeja()`; denah mengikuti tanggal lewat `dayTypeLayoutLt()` + `master` dari `useDenah()`; tombol Weekday/Weekend/Lantai 2 **hanya mengubah yang digambar**, tidak disimpan (paritas `:4391-4393`, `:4618-4625`) |
+| izin tumpang (F6) | `@tumpang` dari DenahPeta → `ResponsiveSheet`; "tetap pakai meja" menambah meja ke `dipaksa`, dan `bangunRecord()` menulis `izinTumpang` ke baris. Expired sendiri saat tanggal/jam berubah (`:2204-2207`) |
+| cek meja sebelum simpan (`:4637`) | `listReservations(dari-1, sampai+1)` lalu `conflictCheck(..., {loose: dipaksa.length>0, dineEst: dineEstOf})`; kalau bentrok, meja yang dipakai dibuang dari pilihan dan `galat` diisi |
+| penjaga DP (F1–F3) | `cekDp()`: nominal > 0 **dan** bukti (baru atau tersimpan) **dalam satu pemeriksaan**; baris DP lama hanya ditanya sekali lewat sheet, tidak dikunci |
+| bukti ≤ 5 MB (F1) | dicek sebelum dibaca jadi data URI; data URI dikirim inline di body baris (server yang memindahkannya ke berkas) |
+| `status` baru | `dpStatus==='Sudah' ? 'Confirmed' : 'Pending'` (`:4869`); status lama tidak ditimpa saat edit |
+| `dps[0]` | `pastikanDps()` + `dpBaru()` + `resetDpScan()` bila bukti baru (`:4915-4924`) |
+| `normPhone` | `normPhone()` dari `utils/dp-reservasi.ts` → `62…` (`:3295`) |
+| `pax >= 20` | peringatan "butuh approval manajer" (`:4628`), bukan blokir |
+| "Samakan dengan jumlah pax" | hanya muncul kalau tercatat masuk > dipesan, dan **ditahan sampai Simpan** (`:4689-4703`) |
+| hapus | hanya mode edit + `bolehAksi('deleteReservation', role)`, lewat `ResponsiveSheet` (`:8469`) |
+| versi | edit: `meta.version` dari `GET /reservations/{id}`, atau `updatedAt`; `ifMatch()` + `tanganiKonflik()` (reload membaca ulang barisnya) |
+| autofill profil tamu | blok "Segera · G-07" (text-dimmed); datalist nama/HP tetap diisi dari jendela yang dimuat, seperti mode berjendela lama |
+
+**Pembangun record** — `bangunRecord()` menyalin seluruh field yang ditulis `:4850-4890`, termasuk dua yang **lupa ditulis** di sana dan koreksi build 2026-09-29:
+- **`tableAsli`** — tanpa ini "pulang ke meja asal" hilang begitu reservasi disunting.
+- **`tfName`** — ditulis Dana Masuk, dihapus form lama (pola sama seperti `izinTumpang` & `log` yang memang dijaga komentar).
+
+**Pemanggilan fungsi kunci meja** (semua lewat master, tidak ada default 180/10 yang dipakai diam-diam):
+
+| pemanggilan | args dari master |
+|---|---|
+| `conflictCheck()` di `cekMejaServer()` | `dineEst: dineEst.value` (= `dineEstOf(master)`) |
+| `<DenahPeta :master="masterKunci">` | `dineEstMin` + `clashLeadMin` diteruskan ke `statusMeja()` |
+| `perluDialihkan()` (di dalam `statusMeja`) | `clashLeadOf(master)` |
+
+`masterKunci` menggabungkan `useDenah().master` dengan `dineEstMin`/`clashLeadMin` dari section masing-masing, jadi tidak pernah ada jalur yang menghitung kunci dengan default lama.
 
 
 
