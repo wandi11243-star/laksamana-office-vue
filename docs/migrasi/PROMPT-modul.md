@@ -69,12 +69,25 @@ dengan `access` dari `BRANCHES` di `laksamana-office/deploy/index.html` (lihat `
 
 ## 4. Aturan tampilan (ringkas — detail di DESIGN.md)
 
-- Satu halaman untuk HP dan desktop. Daftar: `AppList`/`AppListRow` di HP, `UTable` hanya di `lg+`, dari data yang sama.
-- Form dan konfirmasi di `ResponsiveSheet`. Maksimal satu `AppFocus` dan satu tombol kuning per layar.
-- Status lewat `AppStatus`. Tanpa kartu angka besar, gradien, shadow, emoji, hex, teks kuning.
-- Elemen lama yang melanggar DESIGN.md sudah dicatat di bagian H `{{MODUL}}.md` beserta padanannya — ikuti.
+**Keputusan mentor 29 September 2026: tata letak Office Vue meniru Office lama.** Contoh jadinya: modul
+Reservasi (`app/pages/reservasi/*`). Bagian H `{{MODUL}}.md` yang dulu menyuruh "ganti kartu angka besar"
+**tidak berlaku lagi** — kartu statistik, tabel berkepala gelap, dan label kapital justru dibawa.
+
+- Buka layar lamanya (`laksamana-office/deploy/{{MODUL}}/…`) dan susun ulang dengan urutan bagian, kolom
+  tabel, isi kartu statistik, dan letak tombol yang sama. Blok: `AppPage` (+ `#actions`), `AppStatGrid`/`AppStat`,
+  `AppPanel`, `AppFilterGrid`, `AppChips`, `AppSeg`, `AppStatus`, `AppSectionTitle`, `AppPilihan`, `AppBar`, `UTable`.
+- Daftarkan chrome modul di `app/utils/modul-shell.ts` (layar di sidebar, tombol `+`, lonceng, badge,
+  `siapkan` untuk matriks peran). Beranda modul (`pages/{{MODUL}}/index.vue`) langsung membuka layar pertamanya.
+- Emoji lama → ikon Lucide di posisi yang sama. Emoji hanya di isi pesan WhatsApp.
+- Warna status tetap artinya (DESIGN.md aturan 4), satu file peta status per modul (`app/utils/status-<modul>.ts`).
+- Tabel desktop (`UTable`, `lg+`) harus muat di 1366px tanpa geser; di HP baris yang sama jadi daftar kartu.
+- Form dan konfirmasi di `ResponsiveSheet`, form input panjang di satu `AppPanel` dua kolom.
+- Tanpa hex di komponen, tanpa gradien. Teks emas = `text-primary-700`.
 - Hak akses di dalam modul (matriks role, admin) → `Layar.boleh` dan `isAdminOf(me,'{{MODUL}}')`.
   Server tetap menolak; ini soal tidak menampilkan yang pasti gagal.
+- **Cek di browser sungguhan** (1366 & 390, terang & gelap) dengan API tiruan read-only
+  (`/home/dwipapap/Projek/laksamana/mock-api-reservasi.mjs` sebagai contoh; buat salinan untuk modulmu di luar repo).
+  Lint/typecheck/build tidak menangkap error runtime.
 
 ## 5. Langkah kerja
 

@@ -17,7 +17,10 @@ Semua file lain di folder ini adalah rinciannya.
 ## 1. Prinsip
 
 1. **laksamana-office adalah spesifikasi, bukan kode yang disalin.** Vue meniru perilakunya
-   (paritas, U1), dengan tampilan baru menurut `DESIGN.md`.
+   (paritas, U1) **dan tata letaknya** (keputusan mentor 29 September 2026): susunan layar, kolom tabel,
+   kartu statistik, dan warna Office lama, dibangun ulang dengan blok `DESIGN.md` (ikon Lucide pengganti
+   emoji, kontras dibetulkan, daftar kartu di HP). Contoh jadi: modul Reservasi. Usulan "padanan DESIGN.md"
+   di bagian H inventaris yang menyuruh membuang kartu angka/label kapital sudah tidak berlaku.
 2. **Vue hanya bicara dengan `/api/v1`.** Tidak pernah memanggil `*-api-mysql/api.php`.
    Satu-satunya pengecualian: prakiraan Stock/Ordering memanggil Google Apps Script seperti lama (K-06).
 3. **Office lama tetap hidup selama migrasi.** Menurut ADR-0005 laksamana-api (production)
