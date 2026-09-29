@@ -13,7 +13,7 @@ const shift = computed(() => {
 <template>
   <AppList
     title="Absensi hari ini"
-    :action="{ label: 'Riwayat', to: '/absensi' }"
+    :action="{ label: 'Riwayat', to: '/absensi/riwayat' }"
   >
     <USkeleton
       v-if="status === 'pending'"

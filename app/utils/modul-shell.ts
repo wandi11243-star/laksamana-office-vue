@@ -30,6 +30,13 @@ export interface ModulShell {
 }
 
 export const MODUL_SHELL: Record<string, ModulShell> = {
+  absensi: {
+    subjudul: 'Absensi',
+    layar: LAYAR_ABSENSI,
+    peran: () => (useAbsensiSiapa().value?.hr ? 'HR Absensi' : 'Kru'),
+    lencana: () => useLencanaAbsensi(),
+    siapkan: () => muatAbsensiSiapa(),
+  },
   reservasi: {
     subjudul: 'Reservasi',
     layar: LAYAR_RESERVASI,
