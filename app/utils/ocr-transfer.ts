@@ -71,8 +71,9 @@ const BANK_NEG = /(penerima|acquirer|pengakuisisi|merchant|tujuan|kepada|benefic
 export function ocrBank(t: string): string {
   const lines = String(t || '').split(/\r?\n/).map(s => s.trim())
   let best: { name: string, score: number } | null = null
-  lines.forEach((line, i) => {
-    if (!line) return
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!
+    if (!line) continue
     const ctx = [lines[i - 2] || '', lines[i - 1] || '', line].join('\n')
     // "Sumber Dana" is context, but its "Dana" must not read as the DANA e-wallet.
     const hay = line.replace(/sumber\s+dana/ig, ' ')
@@ -86,13 +87,13 @@ export function ocrBank(t: string): string {
       const score = base + (name === 'QRIS' ? -1 : 0)
       if (!best || score > best.score) best = { name, score }
     }
-  })
+  }
   return best ? best.name : ''
 }
 
 /** A date written anywhere: ISO, "09 Jul 2026" / "01Agu 2026" without space (BRImo), or 14/07/2026 (`:8650-8675`). */
 export function tanggalDalam(s: string): string {
-  let m = s.match(/\b(20\d{2})[-\/.](\d{1,2})[-\/.](\d{1,2})\b/)
+  let m = s.match(/\b(20\d{2})[-./](\d{1,2})[-./](\d{1,2})\b/)
   if (m) return isoTanggal(m[1]!, m[2]!, m[3]!)
   // Swept over ALL occurrences, not just the first: `match` without /g stops
   // at the first hit, and a non-month word there would hide the real date below.
@@ -100,7 +101,7 @@ export function tanggalDalam(s: string): string {
     const mo = OCR_BULAN[mm[2]!.slice(0, 3).toLowerCase()]
     if (mo) return isoTanggal(mm[3]!, mo, mm[1]!)
   }
-  m = s.match(/\b(\d{1,2})[-\/.](\d{1,2})[-\/.](20\d{2}|\d{2})\b/)
+  m = s.match(/\b(\d{1,2})[-./](\d{1,2})[-./](20\d{2}|\d{2})\b/)
   if (m) return isoTanggal(m[3]!.length === 2 ? `20${m[3]}` : m[3]!, m[2]!, m[1]!)
   return ''
 }
@@ -253,7 +254,8 @@ export function ocrNominal(t: string): number {
   const RE = /(rp\.?\s*)?(\d{1,3}(?:[.,]\d{3})+(?:[.,]\d{2})?)|rp\.?\s*(\d{4,})/gi
   const lines = String(t || '').split(/\r?\n/)
   let best: { score: number, val: number } | null = null
-  lines.forEach((line, i) => {
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i]!
     let pos = POS.test(line)
     const negHere = NEG.test(line)
     let neg = negHere
@@ -274,11 +276,11 @@ export function ocrNominal(t: string): number {
       const score = base + (m[1] || m[3] ? 1 : 0)
       if (!best || score > best.score || (score === best.score && val > best.val)) best = { score, val }
     }
-  })
-  return best?.val ?? 0
+  }
+  return best ? best.val : 0
 }
 
-const NAMA_LABEL = /^(sumber dana|nama pengirim|rekening sumber|nama rekening|pengirim|dari|from)\b[\s:.\-]*/i
+const NAMA_LABEL = /^(sumber dana|nama pengirim|rekening sumber|nama rekening|pengirim|dari|from)\b[\s:.-]*/i
 
 function miripNama(s: string): boolean {
   s = String(s || '').trim()
@@ -315,7 +317,7 @@ export interface HasilParseTransfer {
  * it anchors the Ref-stamp cross-check (`:8982-8996`).
  */
 export function parseTeksTransfer(txt: string): HasilParseTransfer {
-  const t = String(txt || '').replace(/ /g, ' ')
+  const t = String(txt || '').replace(/\u00a0/g, ' ')
   const time = ocrJam(t)
   return { bank: ocrBank(t), date: ocrTanggal(t, time), time, amount: ocrNominal(t), name: ocrNama(t) }
 }
