@@ -30,6 +30,9 @@ export interface Review {
   proof2Name: string
   by: string
   at: number
+  /** When the invitation went out. Old notes lack it and fall back to `at`. */
+  askedAt?: number
+  askedBy?: string
   claimedBy: string
   claimedAt: number
   verifiedBy: string
@@ -92,6 +95,9 @@ export interface SeKru {
   name: string
   divisi: string
   role: 'staff' | 'manager' | 'admin'
+  /** Set only by a human picking the level: `staff` from a roster sync and `staff` picked here look identical without it. */
+  roleSetAt?: number
+  roleSetBy?: string
 }
 
 /** `master.sePerms` — the module's own matrix; it is NOT the same object as Reservasi's `perms`. */
@@ -122,6 +128,24 @@ export interface PeranSE {
 
 /** The loaded matrix, shared by every screen's `Layar.boleh`. */
 export const usePeranSE = () => useState<PeranSE>('se-peran', () => ({ crew: [], perms: null }))
+
+// ---------------------------------------------------------------- period
+// Harian / Mingguan / Bulanan, shared by capaian, review and feedback: every
+// number on one screen answers the same time (`:7853-7860`).
+
+export type ModePeriodeReview = 'hari' | 'minggu' | 'bulan'
+
+export interface PeriodeReview {
+  mode: ModePeriodeReview
+  date: string
+  month: string
+}
+
+export const usePeriodeReview = () => useState<PeriodeReview>('se-periode', () => ({
+  mode: 'bulan',
+  date: hariIni(),
+  month: hariIni().slice(0, 7),
+}))
 
 /** Load `master.seCrew` and `master.sePerms` once, on the module home. */
 export const muatPeranSE = () => {
