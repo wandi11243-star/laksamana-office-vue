@@ -384,3 +384,21 @@ export function cerminTfUtama(dps: ReservasiDp[]): TfUtama {
     tfBy: p0.tfBy, tfAt: p0.tfAt, tfOcrAt: p0.tfOcrAt, tfOcrText: p0.tfOcrText,
   }
 }
+
+/**
+ * Distinct DP destination accounts of one booking (`:1461-1466` in
+ * deploy/reservasi/index.html). The history CSV reads it; the money screens
+ * never duplicate it.
+ */
+export function rekeningDp(r?: Reservasi | null): string[] {
+  const keluar: string[] = []
+  for (const p of dpsOf(r)) {
+    const v = String(p?.method || '').trim()
+    if (v && !keluar.includes(v)) keluar.push(v)
+  }
+  if (!keluar.length) {
+    const v = String(r?.dpMethod || '').trim()
+    if (v) keluar.push(v)
+  }
+  return keluar
+}

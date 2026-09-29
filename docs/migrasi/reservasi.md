@@ -618,7 +618,7 @@ HTTP 200 + `APP_LAWAS` (klien terlalu tua) + `conflict:true` (`docs/modules/rese
 ## J. Progres build
 
 Branch: `migrasi/fondasi` (fondasi F1–F5) lalu `migrasi/reservasi` · Mulai: 2026-09-29
-LANJUTKAN DARI: Tahap 4b — riwayat, analitik, master, audit (`pages/reservasi/riwayat.vue`, `analitik.vue`, `master.vue`, `audit.vue`). Baca D.4–D.7 di bagian H, F19 (baris EKSTRA hapus ikut dibangun di master), dan kontrak `GET /reservations` + `GET /audit` + `PUT /master/{section}`. Regarkan G-08 (paging klien) dan G-14 (Cashier/Kas menampilkan "Segera" sampai API dilonggarkan).
+LANJUTKAN DARI: Tahap 4b — analitik, master, audit (`pages/reservasi/analitik.vue`, `master.vue`, `audit.vue`). Baca D.4–D.7 di bagian H, F19 (baris EKSTRA hapus ikut dibangun di master), dan kontrak `GET /reservations` + `GET /audit` + `PUT /master/{section}`. Regarkan G-08 (paging klien) dan G-14 (Cashier/Kas menampilkan "Segera" sampai API dilonggarkan).
 
 Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di kolom terakhir)
 
@@ -627,7 +627,7 @@ Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di 
 | dashboard | reservasi | `pages/reservasi/dashboard.vue` | ✅ | `GET /reservasi/reservations`, `GET/PATCH/POST/DELETE /reservations`, `GET/POST /audit`, `GET/PUT/DELETE /master/{dineEstMin,clashLeadMin,waitlist,waTargets,layouts,layoutOverrides,layoutOverrides2,layoutTanggal}` | tipe tamu G-07 · drag ganti bulan tidak dibangun |
 | input | reservasi | `pages/reservasi/input.vue` | ✅ | `GET/POST/PATCH/DELETE /reservations`, `GET /reservations/{id}`, `GET /files/*` | autofill profil tamu → G-07 |
 | finance | reservasi | `pages/reservasi/finance.vue` + `components/DanaMasukPanel.vue` + `components/KwitansiSlot.vue` | ✅ | `GET /reservations`, `GET/PATCH/DELETE /reservations/{id}`, `GET /files/{key}`, `GET /marketing/dp`, `POST /finance/invoices/requests`, `GET /finance/invoices/status`, `GET /finance/invoices/file/{resId}`, `POST /audit` | paging klien (G-08) · tipe tamu G-07 · DP Event 403 → G-15 · terbit-langsung manajer ditunda (sesi finance) |
-| riwayat | reservasi | `pages/reservasi/riwayat.vue` | ⬜ | `GET /reservations` | `riwayat`/ekspor server → G-08 |
+| riwayat | reservasi | `pages/reservasi/riwayat.vue` + `utils/riwayat.ts` | ✅ | `GET /reservations?from&to` (+ tanpa batas untuk mode Semua) | paging + ekspor di browser (G-08) · profil dari data termuat (G-07) · bawaan Bulan ini, bukan Semua |
 | analitik | reservasi | `pages/reservasi/analitik.vue` | ⬜ | `GET /reservations` | — |
 | master | reservasi | `pages/reservasi/master.vue` | ⬜ | `GET/PUT /master/{section}` | baris EKSTRA hapus (F19) ikut dibangun |
 | audit | reservasi | `pages/reservasi/audit.vue` | ⬜ | `GET /reservasi/audit` | pager `halAudit` → G-08 |
@@ -804,6 +804,10 @@ Semua field D.2 ada, dengan pesan validasinya apa adanya. Yang dibangun di layar
 ### J.3 Tahap 3 — `dashboard` (bagian 1 & 2, 2026-09-29)
 
 **Bagian 1** (`feat(reservasi): dashboard bagian 1`) — ringkasan, filter, tab Tabel. Ringkasan = `AppFocus` (jumlah reservasi + pax) + `AppList` (empat barisa angka), bukan grid kartu. Tab Tabel: `UTable` di `lg+` dan `AppList` di HP dari baris yang sama, urut per kolom (Tombol sort, bukan klik header — sorting lewat tombol di bawah tabel, bukan klik header (klik header pada UTable tidak bisa di-style dan tidak konsisten)), paging 10/25/50 di browser dengan catatan **G-08** di layar. "Tipe tamu" **Segera · G-07** (butuh `ringkasTamu`).
+
+## Tahap 4b — riwayat, analitik, master, audit
+
+**Riwayat** (`feat(reservasi): riwayat`) — `app/pages/reservasi/riwayat.vue` + `app/utils/riwayat.ts` (milik reservasi): kartu CRM saat mencari (profil dari baris TERMUAT saja — `ringkasTamu` = G-07 — dan kartunya menyebut itu), arsip `Tanggal, Tamu, Pax (datang/dipesan), Meja, Durasi, DP, Status`, filter D.4 (Cari, Periode Semua/Bulanan/Tahunan, Status Akhir), paging + Export CSV di browser (G-08; kolom = lama termasuk Lantai via `lantaiMap`, Rekening via `rekeningDp()` baru di `dp-reservasi.ts`), baris → `/reservasi/input?id=` (layar yang sudah ada). Rumus murni `// Source:`: `PUNCTUAL_TOL=10`, `keterlambatanDatang()`, `tepatWaktu()`, `durasiDuduk()`, `profilTamu()`, `barisArsip()` (lewat ATAU sudah-tutup), `urutArsip()`, `csvRiwayat()` + `unduhCsv()`. 15 kasus uji lolos (node strip-types). `fmtDur` tidak di-port — `fmtMenit()` kunci-meja sudah setara ("1j 5m" vs "1 j 20 m"). Bawaan = **Bulan ini** (penyimpangan disengaja dari `HIST_F.mode="all"`): tanpa paging server, "Semua" menarik seluruh tabel — buka layar harus tetap cepat, "Semua" tinggal satu ketukan.
 
 ## Tahap 4a — finance (Dana Masuk / DanaMasukPanel)
 
