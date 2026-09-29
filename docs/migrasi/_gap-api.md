@@ -24,7 +24,7 @@ Status: ⬜ belum diajukan · 📨 issue dibuat (tulis nomornya) · ✅ ada di v
 | G-11 | 📨 | [laksamana-api#186](https://github.com/dwipapap/laksamana-api/issues/186) |
 | G-12 | 📨 | [laksamana-api#188](https://github.com/dwipapap/laksamana-api/issues/188) |
 | G-13 | 📨 | [laksamana-api#187](https://github.com/dwipapap/laksamana-api/issues/187) |
-| G-14 | ⬜ | belum diajukan (lihat bawah) |
+| G-14 | 📨 | [laksamana-api#189](https://github.com/dwipapap/laksamana-api/issues/189) |
 
 ---
 
