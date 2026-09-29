@@ -14,7 +14,9 @@
 //   try { await patchReservation(id, { status: 'Datang' }, versi) }
 //   catch (e) { if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' }) }
 //
-// NOT ported on purpose, they have no v1 endpoint (see docs/migrasi/reservasi.md
+import type { LayoutDenah } from '~/utils/venue-layouts'
+
+// Not ported on purpose, they have no v1 endpoint (see docs/migrasi/reservasi.md
 // bagian E and _gap-api.md): `ringkasTamu` (G-07, guest profile / autofill),
 // `halRecap` / `halDana` / `halAudit` (server paging, G-08), `riwayat` (paging +
 // CSV export, G-08), `ver` (version-only poll, G-08), and the diagnostics
@@ -169,10 +171,10 @@ export interface Master {
   perms?: Perms
   dineEstMin?: number
   clashLeadMin?: number
-  layouts?: Record<string, unknown>
+  layouts?: Record<string, LayoutDenah>
   layoutOverrides?: Record<string, string>
   layoutOverrides2?: Record<string, string>
-  layoutTanggal?: Record<string, unknown>
+  layoutTanggal?: Record<string, LayoutDenah>
   waitlist?: Waitlist[]
   reviews?: unknown[]
   reviewCfg?: unknown
@@ -314,3 +316,48 @@ export const postAudit = (body: { action: string, detail?: string, res?: string 
 /** PUT /files/{key} — empty `data` deletes the file. */
 export const putFile = (key: string, data: string) =>
   useApi()<{ ok: true }>(`/reservasi/files/${key}`, { method: 'PUT', body: { data } })
+
+// ---------------------------------------------------------------- the table plan
+// Four master sections, each with its own content-hash version, so two people
+// editing the plan and the per-date schedule never collide. The rules that read
+// them (which plan applies on a date, which floor a template belongs to) and the
+// editor's data helpers live in app/utils/venue-layouts.ts — this is transport.
+
+export const SECTION_LAYOUT = ['layouts', 'layoutOverrides', 'layoutOverrides2', 'layoutTanggal'] as const
+export type SectionLayout = typeof SECTION_LAYOUT[number]
+
+/**
+ * The four plan sections with their versions, in one read.
+ * The envelope is kept whole, because a section write needs its own version and
+ * `useAsyncData` throws the `meta` away.
+ */
+export const useDenah = () => {
+  const sections = {
+    layouts: useAsyncData('reservasi-section-layouts', () => getSection<Record<string, LayoutDenah>>('layouts')),
+    layoutOverrides: useAsyncData('reservasi-section-layoutOverrides', () => getSection<Record<string, string>>('layoutOverrides')),
+    layoutOverrides2: useAsyncData('reservasi-section-layoutOverrides2', () => getSection<Record<string, string>>('layoutOverrides2')),
+    layoutTanggal: useAsyncData('reservasi-section-layoutTanggal', () => getSection<Record<string, LayoutDenah>>('layoutTanggal')),
+  }
+
+  const master = computed<Master>(() => ({
+    layouts: sections.layouts.data.value?.data,
+    layoutOverrides: sections.layoutOverrides.data.value?.data,
+    layoutOverrides2: sections.layoutOverrides2.data.value?.data,
+    layoutTanggal: sections.layoutTanggal.data.value?.data,
+  }))
+
+  /** Each section's own version, for `putDenah(section, value, versi)`. */
+  const versi = computed<Record<SectionLayout, Versi | undefined>>(() => ({
+    layouts: versiDari(sections.layouts.data.value),
+    layoutOverrides: versiDari(sections.layoutOverrides.data.value),
+    layoutOverrides2: versiDari(sections.layoutOverrides2.data.value),
+    layoutTanggal: versiDari(sections.layoutTanggal.data.value),
+  }))
+
+  const status = computed(() => (Object.values(sections).some(s => s.status.value === 'pending') ? 'pending' : 'success'))
+
+  return { ...sections, master, versi, status }
+}
+
+/** Write one plan section. Its version goes back in `If-Match`; the caller handles a conflict with tanganiKonflik(). */
+export const putDenah = (section: SectionLayout, value: unknown, versi?: Versi) => putSection(section, value, versi)

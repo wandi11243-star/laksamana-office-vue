@@ -14,6 +14,7 @@
 // Pure: no Vue, no API, no state of its own. Every function that needs the
 // saved overrides takes them as an argument (`MasterDenah`), because Marketing
 // holds the same master blob under its own record.
+import { tglPendek } from './format'
 
 /** The fixed canvas the coordinates are written against. */
 export const SEAT_W = 1600
@@ -437,3 +438,35 @@ export function cariMeja(master: MasterDenah | undefined, id: string): { t: Meja
   }
   return null
 }
+
+// --- the editor's own helpers ------------------------------------------------
+
+/** Stamp the plan with who changed it and when (`:6123-6126`). The stamp rides ON the plan, not in the audit: audit is trimmed to 500 rows, so an old edit is exactly the one whose trace is gone. */
+export const capDenah = (data: LayoutDenah, nama: string, at = Date.now()): LayoutDenah => ({ ...data, _editBy: nama, _editAt: at })
+
+/**
+ * "Terakhir diubah Rani · 12 Sep 15.04" (`:6128-6133`).
+ * Empty for a plan that was never edited: a built-in plan has no editor, and
+ * writing "last changed: -" sends people looking for someone who never existed.
+ */
+export function jejakDenah(data?: LayoutDenah | null): string {
+  if (!data?._editBy) return ''
+  if (!data._editAt) return `Terakhir diubah ${data._editBy}`
+  const d = new Date(data._editAt)
+  const tgl = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const jam = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  return `Terakhir diubah ${data._editBy} · ${tglPendek(tgl)} ${jam}`
+}
+
+/**
+ * A fresh copy of a plan, stored for ONE date (`:6244-6247`).
+ * The template is left completely untouched — that is the whole point: weekday
+ * and weekend stay as they were, and the next day the plan goes back to normal
+ * by itself.
+ */
+export const denahTanggalBaru = (data: LayoutDenah, date: string, lt: number): LayoutDenah => ({
+  ...data,
+  name: `Denah ${date} · Lt.${lt}`,
+  tables: (data.tables ?? []).map(t => ({ ...t })),
+  fixed: (data.fixed ?? []).map(f => ({ ...f })),
+})

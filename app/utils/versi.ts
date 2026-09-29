@@ -22,8 +22,8 @@ export type Versi = string | number
 export const ifMatch = (v: Versi) => ({ 'If-Match': `"${v}"` })
 
 /** `meta.version` of an envelope, if that read produced one. */
-export function versiDari(res: { meta?: Record<string, unknown> }): Versi | undefined {
-  const v = res.meta?.version
+export function versiDari(res?: { meta?: Record<string, unknown> } | null): Versi | undefined {
+  const v = res?.meta?.version
   return typeof v === 'string' || typeof v === 'number' ? v : undefined
 }
 

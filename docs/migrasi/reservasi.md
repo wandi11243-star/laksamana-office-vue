@@ -618,7 +618,7 @@ HTTP 200 + `APP_LAWAS` (klien terlalu tua) + `conflict:true` (`docs/modules/rese
 ## J. Progres build
 
 Branch: `migrasi/fondasi` (fondasi F1–F5) lalu `migrasi/reservasi` · Mulai: 2026-09-29
-LANJUTKAN DARI: Tahap 2 — `venue-layouts.ts` + komponen `Denah*` + Editor Denah + override per tanggal.
+LANJUTKAN DARI: Tahap 3 — `input` (form + pilih meja) lalu `dashboard` (tab Tabel/Kalender/Denah/Waiting List).
 
 Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di kolom terakhir)
 
@@ -656,4 +656,103 @@ Catatan implementasi:
   yang belum ada di `master.users` sudah sejak itu menjadi `host` di Office lama juga.
 - `divisi` tidak ada di `GET /account/roster` (hanya `GET /jadwal/roster`, terkunci modul `jadwal`).
   Papan capaian memakai `DIVISI_REVIEW`; kalau butuh divisi per kru, catat sebagai G baru.
+
+### J.1 Tahap 2 — Denah bersama (selesai 2026-09-29, `feat(reservasi): venue-layouts.ts, kunci-meja.ts, dan DenahPeta` + `feat(reservasi): DenahEditor, seksi denah, contoh styleguide`)
+
+**API publik — `app/utils/venue-layouts.ts`** (fungsi murni; `master` selalu argumen, tidak ada state & tidak ada fetch):
+
+| kelompok | ekspor |
+|---|---|
+| data | `SEAT_W` (1600), `SEAT_H` (1160), `VENUE_LAYOUTS` (4 denah), `BUILTIN_LAYOUT_KEYS`, `LAYOUT_LABEL`, `LT_CFG`, `ltCfg`, `ZONA_MEJA`, `LABEL_ZONA` |
+| tipe | `LayoutDenah`, `MejaDenah`, `FixDenah`, `MasterDenah`, `ZonaMeja` |
+| pembaca master | `customLayouts(master)`, `layoutTanggal(master)`, `ovLantai(master, lt)`, `allLayoutKeys(master)` |
+| kunci | `keyTanggal(date, lt)`, `parseKeyTanggal(key)`, `adaDenahTanggal(master, date, lt)` |
+| memilih denah | `getLayout(master, key)`, `layoutName(master, key)`, `isBuiltinLayout(key)`, `lantaiLayout(master, key)`, `lantaiMap(master)`, `hariAkhirPekan(date)`, `defaultDayTypeLt(date, lt)`, `dayTypeLayoutLt(master, date, lt)`, `dayTypeLayout`, `dayTypeLayout2`, `defaultDayType`, `hasOverrideLt`, `hasLayoutOverride` |
+| kapasitas | `capMax(cap)`, `capMin(cap)`, `kapasitasLayout(layout)`, `kapasitasTanggal(master, date)`, `cariMeja(master, id)` |
+| editor | `capDenah(data, nama, at)`, `jejakDenah(data)` (F23), `denahTanggalBaru(data, date, lt)` |
+
+Marketing (VIP) cukup: `dayTypeLayoutLt` + `getLayout` + `keyTanggal` + `parseKeyTanggal` + `capMax` + `lantaiMap` — persis yang dipakai `vipDenah()`/`vipKeyTanggal()` di `deploy/marketing/index.html:17643-17668`.
+
+**API publik — `app/utils/kunci-meja.ts`** (fungsi murni, `now` bisa diberi):
+
+| kelompok | ekspor |
+|---|---|
+| konstanta | `LOCK_LEAD_MIN` 180, `MEPET_MIN` 60, `TUMPANG_MEPET_MIN` 120 |
+| waktu absolut | `dayNo`, `toMin`, `hhmm`, `absMin`, `ymdOf`, `absOfTs`, `absNow`, `fmtMenit` |
+| reservasi | `tablesOf`, `mejaAsliOf`, `sedangDialihkan`, `arrivalsOf`, `arrivedPax`, `remainingPax`, `paxFull`, `canAddArrival`, `isSeated`, `STATUS_BEBAS` |
+| jendela kunci | `dineEstOf(master)`, `clashLeadOf(master)`, `lockStart`, `seatStart`, `lockEnd`, `locksRange`, `locksAt`, `locksTable`, `dudukMenempati`, `overStay`, `overStayMin`, `menitMenuju`, `lockStartText`, `lockWindowText` |
+| mepet | `mepetKah`, `bedaMenitRes`, `mepetTerhadap` |
+| isi meja | `isJoinable`, `paxDiMeja`, `takenPaxAt`, `tableFill`, `hasRoom`, `roomText` |
+| peta | `occupiedMap(list, {date, time, exceptId, realita, dineEst})`, `partiesAt`, `harihOccupancy(list, {date, hariIni, saring?, dineEst})` → `{occ, later}`, `nextBookingAt`, `perluDialihkan` |
+| izin tumpang | `izinTumpangBerlaku(r)`, `buatIzinTumpang(meja, date, time, lawan, nama)` |
+| bentrok | `OpsiCek`, `opsiCekOf(r)`, `conflictCheck(list, {date, table, time, exceptId?, sharing?, loose?, dineEst?, now?})`, `periksaTumpang(lawan, meja, date, time, dineEst?)` → `KeputusanTumpang` |
+| status meja | `StateMeja`, `StatusMeja`, `statusMeja(meja, {...})` |
+
+`loose: true` = jalur walk-in / izin (hanya tamu yang SEDANG DUDUK + mepet ≤60 mnt yang menahan). Tanpa `loose` = menjual kursi untuk nanti (jendela H±3 jam). `periksaTumpang()` hanya MEMPUTUSKAN; dialognya tugas pemanggil (`ResponsiveSheet`).
+
+**Komponen**
+
+| file | props | emit |
+|---|---|---|
+| `DenahPeta.vue` | `layout` (wajib), `reservasi`, `tanggal`, `jam?`, `mode?: 'tampil'\|'pilih'`, `terpilih?`, `dipaksa?`, `kecualiId?`, `hariIni?`, `saringAktif?`, `master?`, `timer?`, `nunggu?`, `legenda?` | `pilih(meja)`, `buka(resId)`, `tumpang({meja, tanggal, jam, lawan, kunci, mepet, pesan})` |
+| `DenahEditor.vue` | `layout`, `konteks?`, `tanggal?`, `templateTanggal?`, `bisaUbah?`, `jejak?` | `simpanTemplat(data)`, `simpanTanggal(data)` |
+| `DenahLegenda.vue` | `zona?` | — |
+
+Komponen tidak memanggil API dan tidak menyimpan state modul. Penulisan section tetap di pemanggil: `useReservasi.ts` menambah `SECTION_LAYOUT`, `useDenah()` (4 section + versi masing-masing), `putDenah(section, value, versi)` → `PUT /master/{section}` dengan `If-Match` + `tanganiKonflik()`.
+
+**Keputusan tampilan (tidak ada di kode lama)**
+- **Warna isi meja = ZONA, bukan status.** Zona adalah bahasa lapangan kru ("yang di area kayu"), dan Marketing sudah mewarnai denah VIP per zona. Status dibawa sebagai **titik + kata** sesuai DESIGN.md, jadi dua hal tidak berebut saluran yang sama. Status jadi 9 state: `kosong`, `terpilih`, `sharing`, `pending`, `confirmed`, `datang`, `terkunci`, `mepet`, `dipesan`. Legenda di `DenahLegenda`.
+- Token baru `--color-seat-{green,blue,wood,vip,dark,diamond,ext}` di `main.css` (terang + `.dark`). Tidak ada hex di komponen.
+- **Meja terkunci diredupkan, bukan diwarnai ulang** — zona harus tetap terbaca; "terpilih" memakai cincin kuning di LUAR kotak (bukan isian), supaya zona tetap terlihat justru saat sedang diperiksa sebelum menyimpan.
+- **Editor read-only di bawah `lg`** dengan pesan "Buka di layar lebar untuk mengubah denah" (prompt §3). Alasannya: denah yang bergeser dari jari adalah kerusakan yang sulitUndo.
+- Komponen bernama `DenahPeta.vue`, bukan `Denah.vue`: `vue/multi-word-component-names` melarang nama satu kata.
+
+**Tabel uji rumus** — dijalankan berdampingan dengan fungsi lama yang diambil **verbatim** dari `deploy/reservasi/index.html` (dieksekusi ulang di luar browser, harness sekali pakai lalu dihapus; repo tidak menambah dependensi). Hasil: **45/45 identik**, 4 denah **deep-equal** dengan `deploy/assets/venue-layouts.js`. Tanggal dasar 2026-09-29; `r.duduk` = Dimas, meja 12, 18:30, status `Datang`, `checkinAt` 18:40, 4 dari 6 pax; `r.nanti` = Rani, meja 12, 23:00, `Pending`.
+
+| # | kasus (masuk → keluar) | hasil lama = baru |
+|---|---|---|
+| 1 | `absMin(29 Sep, 00:30)` (lewat tengah malam) | hari × 1440 + 30, tetap bisa dibandingkan |
+| 2 | `hhmm(1500)` | `01:00` |
+| 3 | `lockStart(booking 19:00)` | 16:00 (H−3 jam) |
+| 4 | `lockEnd(booking 19:00, belum datang)` | 22:00 |
+| 5 | `lockEnd(tamu duduk 18:30, dineEst 180)` | 21:30 (18:30 + estimasi) |
+| 6 | `seatStart(tamu datang lebih awal)` | `max(jamBooking, checkinAt)` — datang lebih awal tidak melepas meja lebih cepat |
+| 7 | `locksTable(19:00, 21:00)` / `(…, 23:00)` | bentrok / bebas |
+| 8 | `locksAt(r, null)` | `true` (tanpa jam = dianggap terkunci) |
+| 9 | `mepetKah(60)` / `mepetKah(61)` | `true` / `false` |
+| 10 | `bedaMenitRes(lawan 23:00, jam diisi 22:30)` | 30 (absolut, bukan 210) |
+| 11 | `dudukMenempati(tamu duduk, besok 10:00 / besok 19:00)` | `false` / `false` (sudah pulang) |
+| 12 | `occupiedMap(29 Sep, realita)` | meja 12 → [duduk, nanti] (duduk lebih dulu) |
+| 13 | `occupiedMap(29 Sep, jam 15:00)` | meja 12 tidak terisi |
+| 14 | `occupiedMap` dengan `leftAt` | meja bebas |
+| 15 | `conflictCheck` ketat meja 12 jam 20:00 | `Dimas` (duduk) |
+| 16 | `conflictCheck` longgar (walk-in) meja 12 jam 20:00 | `Dimas` |
+| 17 | `conflictCheck` longgar meja 12 jam 23:10 | `Rani` (mepet ≤60 mnt) |
+| 18 | `conflictCheck` dengan `exceptId` sendiri | tidak menyangkut dirinya |
+| 19 | `isJoinable` dua-duanya sharing / salah satu tidak | `true` / `false` |
+| 20 | `capMax`/`capMin("10-12")` | 12 / 10 |
+| 21 | `arrivedPax` dari `arrivals[]` vs `actualPax` lama | 5 / 4 |
+| 22 | `izinTumpangBerlaku` dengan meja/jam berubah | `false` (izin sekali pakai) |
+| 23 | `periksaTumpang` tamu sedang duduk | `kunci: true` — tidak pernah bisa dilewati |
+| 24 | `periksaTumpang` beda 30 mnt | `kunci: true` (≤ `MEPET_MIN`) |
+| 25 | `periksaTumpang` beda 100 mnt | `mepet: true` (≤ `TUMPANG_MEPET_MIN`) |
+| 26 | `periksaTumpang` beda 200 mnt | `mepet: false`, boleh lewat konfirmasi |
+| 27 | `hariAkhirPekan` Jumat/Sab/Min/Minggu–Kamis | weekend / weekday |
+| 28 | `kapasitasTanggal` Lt.1 + Lt.2 | 45+63 meja, `pax` = Σ `capMax` per denah yang berlaku |
+| 29 | `getLayout` dengan override tidak dikenal | jatuh ke bawaan hari, bukan `null` |
+
+**Perilaku lama yang ambigu (dicatat, tidak ditebak)**
+- **`R1`/`R3`/`R5` weekend Lt.1 tidak ada** (`:99-103` weekday punya R1–R6, weekend hanya R1,R2,R3,R5,R4,R6) — pertahankan persis, Edit denialah yang memperbaiki.
+- **`EXT 12` & `EXT 13` tidak pernah ada** di denah weekend (loncat 11 → 14). Slot itu dulu dipakai untuk meja yang dipindah; jangan dibuat oleh Editor.
+- **`lantai2_weekend` salinan identik `lantai2`** dan sengaja begitu (`:134-141`). Kalau suatu saat diisi berbeda, itu perubahan disengaja, bukan bug port.
+- **Meja kembar dalam satu denah**: `kapasitasTanggal()` melompat id kembar (`:5863-5865`), `tableFill` menghitung dua kali. Editor memberi tanda "ada nomor meja kembar" tetapi tidak memperbaiki sendiri — data lama bisa saja memang begitu. **Tahap 3/4: putuskan** apakah penyimpanan template baru menolak nomor kembar.
+- **`tableAsli` tidak ikut disalin** oleh pembangun record form lama (`:4850-4890`) — berbeda dari `izinTumpang` dan `log` yang sengaja dijaga. Field-nya sudah masuk tipe `Reservasi`; **Tahap 3** harus ikut menyalinnya, kalau tidak "pulang ke meja asal" hilang begitu reservasi disunting.
+- **`absOfTs` memakai jam lokal** untuk `checkinAt` (`:1592`) — jadi jam duduk ikut zona waktu browser. Di produksi (WIB) sama; tidak diubah.
+- **`statusMeja` untuk tabel non-GET di luar rentang**: `occupiedMap` hanya memeriksa `dd` dalam −1..+1, dan `harihOccupancy` menyembunyikan booking besok yang belum datang. Sudah mengikuti.
+
+**Catatan API**
+- `GET /master/{section}` mengembalikan versi section sendiri di `meta.version` + header `ETag`; `useDenah()` menyimpan amplopnya utuh karena `useAsyncData` membuang `meta` (versi tidak akan terlihat kalau tidak).
+- Override per tanggal = 4 section terpisah: `layouts`, `layoutOverrides` (Lt.1), `layoutOverrides2` (Lt.2), `layoutTanggal` (denah utuh per tanggal). Semuanya harus ditulis sebagai **section**, bukan `PUT /master` blob penuh.
+
+
 
