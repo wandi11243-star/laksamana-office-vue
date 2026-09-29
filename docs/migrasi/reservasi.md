@@ -634,6 +634,8 @@ HTTP 200 + `APP_LAWAS` (klien terlalu tua) + `conflict:true` (`docs/modules/rese
 Branch: `migrasi/fondasi` (fondasi F1–F5) lalu `migrasi/reservasi` · Mulai: 2026-09-29
 LANJUTKAN DARI: — (modul selesai; menunggu review owner & cutover).
 
+Cek visual 2026-09-29: API tiruan (`mock-api-reservasi.mjs`, read-only, tulis 403), 1366px terang — 13 layar + Beranda + tab/sheet/dialog utama dibuka, tanpa crash/console-error/scroll-samping. Temuan & perbaikan: sentinel `'semua'` untuk opsi Semua di USelect (crash dashboard/finance/riwayat), UFileUpload berteks Indonesia (6 titik), sel kalender bulan-0-based. 1366px gelap, 390px terang/gelap BELUM dicek (sesi dipersingkat atas permintaan owner).
+
 Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di kolom terakhir)
 
 | layar (key) | panel | file | status | endpoint dipakai | ditunda karena |
