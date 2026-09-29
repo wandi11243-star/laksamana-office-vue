@@ -19,11 +19,12 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
+import { useMediaQuery } from '@vueuse/core'
 import type { Reservasi, Waitlist, WaTarget } from '~/composables/useReservasi'
 import { createReservation, patchReservation, postAudit, putDenah, putSectionItem, useDaftarReservasi, useDenah, useSection, useSectionVersi } from '~/composables/useReservasi'
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
-import { arrivedPax, buatIzinTumpang, fmtMenit, harihOccupancy, isSeated, remainingPax, sedangDialihkan, tablesOf } from '~/utils/kunci-meja'
-import { dpTotal, normPhone, uid } from '~/utils/dp-reservasi'
+import { arrivedPax, buatIzinTumpang, canAddArrival, fmtMenit, harihOccupancy, isSeated, occupiedMap, remainingPax, sedangDialihkan, tableFill, tablesOf } from '~/utils/kunci-meja'
+import { dpTotal, normPhone, rekeningDp, tampilPhone, uid } from '~/utils/dp-reservasi'
 import type { LayoutDenah } from '~/utils/venue-layouts'
 import {
   adaDenahTanggal, allLayoutKeys, capDenah, capMax, cariMeja, dayTypeLayout,
@@ -31,7 +32,7 @@ import {
   keyTanggal, lantaiLayout, lantaiMap, layoutTanggal, kapasitasTanggal, layoutName, ltCfg,
   ovLantai, parseKeyTanggal,
 } from '~/utils/venue-layouts'
-import { angka, fmtRupiah, hariIni, normTime, rupiah, tglPendek, tambahHari } from '~/utils/format'
+import { angka, fmtRupiah, hariIni, normTime, rupiah, tglPanjang, tglPendek, tambahHari } from '~/utils/format'
 import { teksPanggilAntrean, waKirim, waSalin } from '~/utils/wa'
 
 definePageMeta({ access: ['reservasi'] })
@@ -201,6 +202,34 @@ function setBulanIni() {
   filter.mode = 'month'
   filter.month = hariIni().slice(0, 7)
 }
+/** Which quick pill matches the current filter, if any (old `.pill.active`). */
+const pilJalan = computed(() => {
+  if (filter.mode === 'day') {
+    if (filter.date === hariIni()) return 'hari'
+    if (filter.date === tambahHari(hariIni(), 1)) return 'besok'
+    if (filter.date === tambahHari(hariIni(), 2)) return 'lusa'
+  }
+  if (filter.mode === 'range' && filter.from === hariIni() && filter.to === tambahHari(hariIni(), 6)) return '7hari'
+  if (filter.mode === 'month' && filter.month === hariIni().slice(0, 7)) return 'bulan'
+  return null
+})
+function pilih(v: string | null | undefined) {
+  if (v === 'hari') setHari(0)
+  else if (v === 'besok') setHari(1)
+  else if (v === 'lusa') setHari(2)
+  else if (v === '7hari') set7Hari()
+  else if (v === 'bulan') setBulanIni()
+}
+
+// The top bar's search (`?q=`) and bell (`?tab=denah`, old `bukaKedatangan` :3830).
+const route = useRoute()
+watch(() => route.query, (q) => {
+  if (typeof q.q === 'string') cari.value = q.q
+  if (q.tab === 'denah') {
+    setHari(0)
+    tab.value = 'map'
+  }
+}, { immediate: true })
 const filterAktif = computed(() => filter.mode !== 'day' || filter.date !== hariIni() || !!filter.fromHour || !!filter.toHour
   || saringAktif(filter.status) || saringAktif(filter.category) || saringAktif(filter.lantai) || !!filter.kursi || saringAktif(filter.dp) || saringAktif(filter.pic) || !!filter.q || !!cari.value)
 function resetFilter() {
@@ -216,16 +245,18 @@ const hal = ref(1)
 const perHal = ref(10)
 
 const kolomUrut: { key: Urut, label: string, ambil: (r: Reservasi) => string | number }[] = [
+  { key: 'table', label: 'Meja', ambil: r => r.table },
   { key: 'date', label: 'Tanggal', ambil: r => `${r.date}${r.time}` },
+  { key: 'time', label: 'Jam', ambil: r => r.time },
   { key: 'name', label: 'Tamu', ambil: r => r.name },
   { key: 'pax', label: 'Pax', ambil: r => r.pax },
-  { key: 'table', label: 'Meja', ambil: r => r.table },
   { key: 'dp', label: 'DP', ambil: r => dpTotal(r) },
+  { key: 'picName', label: 'PIC', ambil: r => r.picName },
   { key: 'status', label: 'Status', ambil: r => r.status },
 ]
 
 const terurut = computed(() => {
-  const k = kolomUrut.find(c => c.key === urut.value.kolom) ?? kolomUrut[0]!
+  const k = kolomUrut.find(c => c.key === urut.value.kolom) ?? kolomUrut[1]!
   const arah = urut.value.naik ? 1 : -1
   return [...list.value].sort((a, b) => {
     const x = k.ambil(a)
@@ -245,24 +276,166 @@ function urutkan(kolom: Urut) {
     : { kolom, naik: true }
 }
 
-const statusWarna: Record<string, 'success' | 'warning' | 'error' | 'neutral'> = {
-  'Pending': 'warning',
-  'Confirmed': 'success',
-  'Datang': 'error',
-  'Cancelled': 'neutral',
-  'No-show': 'neutral',
+const statusWarna = STATUS_WARNA
+const statusIkon = STATUS_IKON
+
+// --- per-row cells of the old recap table (`:5507-5557`) ------------------------
+
+/** Minutes since midnight, ticking, for the late / soon marks and seat timers. */
+const sekarang = ref(Date.now())
+const nowMin = computed(() => {
+  const d = new Date(sekarang.value)
+  return d.getHours() * 60 + d.getMinutes()
+})
+const belumDatang = (r: Reservasi) => ['Pending', 'Confirmed'].includes(r.status)
+/** Today, still expected, and past its time: the yellow row (`:5520-5522`). */
+const telat = (r: Reservasi) => r.date === hariIni() && belumDatang(r) && menitDari(r.time) < nowMin.value
+/** Today, still expected, due within 30 minutes: the pale row and "segera". */
+const segera = (r: Reservasi) => r.date === hariIni() && belumDatang(r) && menitDari(r.time) >= nowMin.value && menitDari(r.time) - nowMin.value <= 30
+function lamaTelat(r: Reservasi) {
+  const ms = sekarang.value - new Date(`${r.date}T${r.time || '00:00'}:00`).getTime()
+  const m = Math.max(0, Math.floor(ms / 60000))
+  const d = Math.max(0, Math.floor(ms / 1000) % 60)
+  return m >= 60 ? `${Math.floor(m / 60)}j ${m % 60}m` : `${m}:${String(d).padStart(2, '0')}`
+}
+const detik = setInterval(() => {
+  sekarang.value = Date.now()
+}, 1000)
+onBeforeUnmount(() => clearInterval(detik))
+function lamaDuduk(r: Reservasi) {
+  if (!r.checkinAt) return ''
+  const m = Math.max(0, Math.floor((sekarang.value - r.checkinAt) / 60000))
+  return m >= 60 ? `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}` : `${m}m`
+}
+const jamDari = (ts?: number | null) => (ts ? new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) : '')
+
+/** Floors of a booking's tables (`lantaiRes`, `:1851`). */
+const petaLantai = computed(() => lantaiMap(master.value))
+function lantaiRes(r: Reservasi): number[] {
+  const set = new Set<number>()
+  for (const id of tablesOf(r)) {
+    const f = petaLantai.value.get(id)
+    if (f) set.add(f)
+  }
+  return [...set].sort((a, b) => a - b)
 }
 
-/** The table and the phone list read the same rows (DESIGN.md). */
-const kolom = computed<TableColumn<Reservasi>[]>(() => [
-  { accessorKey: 'date', header: 'Tanggal', cell: ({ row }) => `${tglPendek(row.original.date)} ${row.original.time}` },
-  { accessorKey: 'name', header: 'Tamu', cell: ({ row }) => row.original.name },
-  { id: 'pax', header: 'Pax' },
-  { accessorKey: 'table', header: 'Meja' },
-  { id: 'dp', header: 'DP', cell: ({ row }) => rupiah(dpTotal(row.original)) },
-  { id: 'status', header: 'Status' },
-  { id: 'aksi', header: '' },
-])
+/** Seats still free at a booking's tables, on its own date; null = not applicable (`sisaKursiRes`, `:1878`). */
+const okupasiPerTanggal = computed(() => {
+  const m = new Map<string, Map<string, Reservasi[]>>()
+  for (const d of new Set(list.value.map(r => r.date))) {
+    m.set(d, occupiedMap(semua.value ?? [], { date: d, dineEst: dineEst.value }))
+  }
+  return m
+})
+const kapMeja = (id: string) => capMax(cariMeja(master.value, id)?.t.cap)
+function sisaKursiRes(r: Reservasi): number | null {
+  if (['Cancelled', 'No-show', 'Completed'].includes(r.status) || r.leftAt) return null
+  const occ = okupasiPerTanggal.value.get(r.date)
+  let total = 0
+  let ketemu = false
+  for (const id of tablesOf(r)) {
+    const t = cariMeja(master.value, id)?.t
+    if (!t) continue
+    ketemu = true
+    total += tableFill(t, occ?.get(id) ?? [], kapMeja).sisaMax
+  }
+  return ketemu ? total : null
+}
+
+/** The table and the phone list read the same rows (DESIGN.md). Headers sort, like the old `thead th`. */
+const kolomTabel: { id: string, label: string, urut?: Urut }[] = [
+  { id: 'table', label: 'Meja', urut: 'table' },
+  { id: 'lantai', label: 'Lantai' },
+  { id: 'date', label: 'Tanggal', urut: 'date' },
+  { id: 'time', label: 'Jam', urut: 'time' },
+  { id: 'name', label: 'Tamu', urut: 'name' },
+  { id: 'pax', label: 'Pax', urut: 'pax' },
+  { id: 'sisa', label: 'Sisa kursi' },
+  { id: 'dp', label: 'DP', urut: 'dp' },
+  { id: 'rekening', label: 'Rekening' },
+  { id: 'pic', label: 'PIC', urut: 'picName' },
+  { id: 'status', label: 'Status', urut: 'status' },
+  { id: 'aksi', label: 'Aksi' },
+]
+const UButtonC = resolveComponent('UButton')
+const kolom = computed<TableColumn<Reservasi>[]>(() => kolomTabel.map(k => ({
+  id: k.id,
+  header: () => k.urut
+    ? h(UButtonC, {
+        label: k.label,
+        variant: 'link',
+        color: 'neutral',
+        class: '-mx-1 px-1 text-xs font-semibold uppercase tracking-wide text-table-head-text hover:text-primary-200',
+        trailingIcon: urut.value.kolom === k.urut ? (urut.value.naik ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down') : undefined,
+        onClick: () => urutkan(k.urut!),
+      })
+    : k.label,
+})))
+/** Below 1536px the floor rides under the table and the account under the DP, so
+ *  every column of the old table still fits without a sideways scroll. */
+const lebar = useMediaQuery('(min-width: 1536px)')
+const kolomTampil = computed(() => ({ lantai: lebar.value, rekening: lebar.value }))
+/** "29 Sep" — the old table's date, without the weekday so the column stays narrow. */
+const tglTabel = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
+const kelasBaris = (r: Reservasi) => (telat(r) ? 'bg-warning/15 hover:bg-warning/20' : segera(r) ? 'bg-primary-50 dark:bg-primary-950/40' : '')
+
+// --- follow up and no-show (`:7577-7622`) ---------------------------------------
+
+const sheetFU = ref(false)
+const catatanFU = ref('')
+const PILIHAN_FU = [
+  { value: 'Tamu konfirmasi hadir tepat waktu', label: 'Hadir' },
+  { value: 'Tamu konfirmasi telat ~15 menit', label: 'Telat' },
+  { value: 'Tamu membatalkan', label: 'Batal' },
+  { value: 'Belum ada balasan', label: 'Belum dibalas' },
+]
+
+/** Opens WhatsApp with the confirmation text, then asks what the guest said. */
+async function followUp(r: Reservasi) {
+  aksiId.value = r.id
+  sheetAksi.value = false
+  const teks = `Halo Kak ${r.name} \u{1F44B}\n\nKami dari *Laksamana Muda* ingin mengonfirmasi reservasi Anda hari ini:\n\u{1F4C5} ${tglPanjang(r.date)}\n\u{1F557} Jam ${r.time} WIB\n\u{1F465} ${r.pax} pax${r.table ? `\n\u{1FA91} ${r.table}` : ''}\n\nApakah Kakak jadi hadir? Ditunggu kedatangannya ya \u2693\n\n_Sail to Good Taste, Stay for the Vibes_`
+  await waKirim(r.phone, teks)
+  catatanFU.value = ''
+  sheetFU.value = true
+}
+
+async function simpanFU() {
+  const r = baris(aksiId.value)
+  const note = catatanFU.value.trim()
+  sheetFU.value = false
+  if (!r || !note) return
+  const ok = await patch(r, { followups: [...(r.followups ?? []), { ts: Date.now(), by: namaSaya.value, note }] }, 'Catatan follow up tersimpan')
+  if (ok) await catat(`${r.name}: ${note}`, r.id, 'Follow Up')
+}
+
+const sheetNoShow = ref(false)
+function bukaNoShow(r: Reservasi) {
+  aksiId.value = r.id
+  sheetAksi.value = false
+  sheetNoShow.value = true
+}
+async function simpanNoShow() {
+  const r = baris(aksiId.value)
+  sheetNoShow.value = false
+  if (!r) return
+  const ok = await patch(r, { status: 'No-show' }, 'Ditandai no-show')
+  if (ok) await catat(`${r.name} (${tglPendek(r.date)} ${r.time}, ${r.pax} pax)`, r.id, 'No-show')
+}
+
+/** CSV of the rows on screen (old `exportCSV`), built in the browser (G-08, K-05). */
+function eksporCSV() {
+  const sel = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const head = ['Tanggal', 'Jam', 'Nama', 'HP', 'Pax', 'Meja', 'Jenis', 'Status', 'DP', 'Nominal DP', 'Rekening', 'PIC', 'Catatan']
+  const rows = terurut.value.map(r => [r.date, r.time, r.name, r.phone, r.pax, r.table, r.category, r.status, r.dpStatus, dpTotal(r) || r.dpAmount || 0, rekeningDp(r).join(' / '), r.picName, r.notes])
+  const csv = [head, ...rows].map(x => x.map(sel).join(',')).join('\n')
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' }))
+  a.download = `reservasi-${hariIni()}.csv`
+  a.click()
+  URL.revokeObjectURL(a.href)
+}
 
 // --- the calendar (`:5573-5630`) ------------------------------------------------
 
@@ -1171,107 +1344,103 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
 <template>
   <AppPage
     title="Dashboard & recap"
-    description="Satu halaman: data reservasi, denah meja, dan antrean."
-    :back="{ label: 'Semua layar', to: '/reservasi' }"
+    description="Satu halaman: data reservasi, denah meja, dan antrean. Klik meja untuk aksi cepat."
   >
-    <div class="mb-5 flex flex-wrap gap-2">
-      <UButton
-        v-if="bolehEdit"
-        label="Reservasi baru"
-        to="/reservasi/input"
-        size="xl"
-      />
+    <template #actions>
       <UButton
         v-if="bolehEdit"
         label="WA koordinasi"
-        color="neutral"
-        variant="soft"
-        size="xl"
+        icon="i-lucide-message-circle"
+        color="success"
         @click="sheetWA = true"
       />
       <UButton
         v-if="bolehAksi('master', role)"
         label="Atur denah"
+        icon="i-lucide-map"
         color="neutral"
-        variant="soft"
-        size="xl"
+        variant="outline"
         @click="bukaLayout"
       />
-    </div>
-
-    <!-- One AppFocus: the number the desk needs first, never a grid of big cards
-         (DESIGN.md, and :5376-5380 — the old six cards filled two full rows and
-         pushed the table off screen). -->
-    <div class="mb-7 max-w-xl">
-      <AppFocus
-        label="Reservasi"
-        :value="angka(basis.length)"
-        :hint="`${labelPeriode} · ${angka(totalPax)} pax dipesan, ${angka(paxDatang)} datang`"
-      />
-    </div>
-
-    <AppList title="Ringkasan">
-      <AppListRow
-        title="Pax datang / dipesan"
-        :description="totalPax ? `${Math.round(paxDatang / totalPax * 100)}% realisasi` : 'Belum ada pax dipesan'"
-        icon="i-lucide-users"
-      >
-        <template #trailing>
-          {{ angka(paxDatang) }} / {{ angka(totalPax) }}
-        </template>
-      </AppListRow>
-      <AppListRow
-        title="Kapasitas terisi"
-        :description="`${pctKap}% dari ${kap.meja} meja · ${tglPendek(tglDenah)}`"
-        icon="i-lucide-armchair"
-      >
-        <template #trailing>
-          {{ angka(paxTgl) }} / {{ angka(kap.pax) }}
-        </template>
-      </AppListRow>
-      <AppListRow
-        title="Sudah DP"
-        :description="`${angka(basis.length - dpYes)} reservasi belum`"
-        icon="i-lucide-wallet"
-      >
-        <template #trailing>
-          {{ angka(dpYes) }} / {{ angka(basis.length) }}
-        </template>
-      </AppListRow>
-      <AppListRow
-        title="Perlu follow up"
-        description="belum dikonfirmasi hari ini"
-        icon="i-lucide-phone-call"
-      >
-        <template #trailing>
-          <AppStatus
-            :color="perluFollowUp ? 'warning' : 'neutral'"
-          >
-            {{ angka(perluFollowUp) }}
-          </AppStatus>
-        </template>
-      </AppListRow>
-    </AppList>
-
-    <div class="mb-5 flex flex-wrap items-center gap-2">
       <UButton
-        v-for="t in ([['list', 'Tabel'], ['calendar', 'Kalender'], ['map', 'Denah meja'], ['wait', 'Waiting list']] as const)"
-        :key="t[0]"
-        :label="t[1]"
-        color="neutral"
-        :variant="tab === t[0] ? 'soft' : 'ghost'"
-        @click="tab = t[0]"
+        v-if="bolehEdit"
+        label="Reservasi"
+        icon="i-lucide-plus"
+        to="/reservasi/input"
       />
-      <UInput
-        v-model="cari"
-        icon="i-lucide-search"
-        placeholder="Cari nama tamu, nomor HP, atau meja…"
-        class="max-w-xs"
-      />
-    </div>
+    </template>
 
-    <AppList title="Filter">
-      <div class="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+    <!-- The old recap row (:5380-5391): six cards, each one question the desk asks. -->
+    <AppStatGrid>
+      <AppStat
+        label="Total reservasi"
+        icon="i-lucide-clipboard-list"
+        :value="angka(basis.length)"
+        :sub="labelPeriode"
+      />
+      <AppStat
+        label="Pax datang / dipesan"
+        icon="i-lucide-users"
+        tone="info"
+        :value="angka(paxDatang)"
+        :satuan="`/ ${angka(totalPax)}`"
+        :sub="totalPax ? `${Math.round(paxDatang / totalPax * 100)}% realisasi` : 'belum ada pax dipesan'"
+      />
+      <AppStat
+        label="Kapasitas terisi"
+        icon="i-lucide-armchair"
+        tone="info"
+        :value="angka(paxTgl)"
+        :satuan="`/ ${angka(kap.pax)}`"
+        :sub="`${pctKap}% dari ${kap.meja} meja · ${tglPendek(tglDenah)}`"
+      />
+      <AppStat
+        label="Sudah DP"
+        icon="i-lucide-wallet"
+        tone="success"
+        :value="angka(dpYes)"
+        :satuan="`/ ${angka(basis.length - dpYes)} belum`"
+        sub="reservasi ber-DP"
+      />
+      <AppStat
+        label="Perlu follow up"
+        icon="i-lucide-phone-call"
+        :tone="perluFollowUp ? 'error' : 'gold'"
+        :value="angka(perluFollowUp)"
+        sub="belum konfirmasi hari ini"
+      />
+      <AppStat
+        label="Waiting list"
+        icon="i-lucide-hourglass"
+        :tone="antreanHari.length ? 'warning' : 'gold'"
+        :value="angka(antreanHari.length)"
+        :sub="antreanHari.length ? `menunggu meja · ${tglPendek(tglDenah)}` : 'antrean kosong'"
+      />
+    </AppStatGrid>
+
+    <AppPanel>
+      <template #head>
+        <div class="flex w-full flex-wrap items-center gap-3">
+          <AppSeg
+            v-model="tab"
+            :options="[
+              { value: 'list', label: 'Tabel', icon: 'i-lucide-table' },
+              { value: 'calendar', label: 'Kalender', icon: 'i-lucide-calendar-days' },
+              { value: 'map', label: 'Denah meja', icon: 'i-lucide-map' },
+              { value: 'wait', label: 'Waiting list', icon: 'i-lucide-hourglass', badge: antreanHari.length },
+            ]"
+          />
+          <UInput
+            v-model="cari"
+            icon="i-lucide-search"
+            placeholder="Cari nama tamu, nomor HP, atau meja…"
+            class="min-w-0 flex-1 sm:max-w-md"
+            :ui="{ base: 'rounded-full' }"
+          />
+        </div>
+      </template>
+
+      <AppFilterGrid>
         <UFormField label="Periode">
           <USelect
             v-model="filter.mode"
@@ -1395,190 +1564,443 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
         </UFormField>
         <UFormField
           label="Tipe tamu"
-          disabled
           help="Segera · G-07"
         >
-          <p class="text-sm text-dimmed">
-            Butuh riwayat kunjungan seluruh tamu, belum ada endpoint ringkas. <span class="text-dimmed">G-07</span>
-          </p>
+          <USelect
+            :items="[{ value: SEMUA, label: 'Semua' }]"
+            :model-value="SEMUA"
+            disabled
+            class="w-full"
+          />
         </UFormField>
-      </div>
+      </AppFilterGrid>
 
-      <div class="flex flex-wrap items-center gap-2 px-4 pb-4">
-        <UButton
-          label="Hari ini"
-          color="neutral"
-          :variant="filter.mode === 'day' && filter.date === hariIni() ? 'soft' : 'ghost'"
-          size="sm"
-          @click="setHari(0)"
-        />
-        <UButton
-          label="Besok"
-          color="neutral"
-          :variant="filter.mode === 'day' && filter.date === tambahHari(hariIni(), 1) ? 'soft' : 'ghost'"
-          size="sm"
-          @click="setHari(1)"
-        />
-        <UButton
-          label="Lusa"
-          color="neutral"
-          :variant="filter.mode === 'day' && filter.date === tambahHari(hariIni(), 2) ? 'soft' : 'ghost'"
-          size="sm"
-          @click="setHari(2)"
-        />
-        <UButton
-          label="7 hari"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          @click="set7Hari"
-        />
-        <UButton
-          label="Bulan ini"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          @click="setBulanIni"
+      <div class="mt-4 flex flex-wrap items-center gap-3">
+        <AppChips
+          :model-value="pilJalan"
+          :options="[
+            { value: 'hari', label: 'Hari ini' },
+            { value: 'besok', label: 'Besok' },
+            { value: 'lusa', label: 'Lusa' },
+            { value: '7hari', label: '7 hari' },
+            { value: 'bulan', label: 'Bulan ini' },
+          ]"
+          @update:model-value="pilih"
         />
         <UButton
           v-if="filterAktif"
           label="Reset filter"
+          icon="i-lucide-x"
           color="error"
           variant="soft"
           size="sm"
           @click="resetFilter"
         />
         <span class="text-sm text-muted">
-          {{ angka(list.length) }} reservasi · {{ labelPeriode }}
+          <b class="text-highlighted num">{{ angka(list.length) }}</b> reservasi · {{ labelPeriode }}
           <template v-if="batal">
             · <b>{{ angka(batal) }}</b> dibatalkan tidak ditampilkan
           </template>
         </span>
       </div>
-    </AppList>
+    </AppPanel>
 
-    <p
-      v-if="status === 'pending'"
-      class="mb-3 text-muted"
-    >
-      Memuat data…
-    </p>
-
-    <!-- Phone -->
-    <AppList
+    <AppPanel
       v-if="tab === 'list'"
-      class="lg:hidden"
+      title="Daftar reservasi"
+      :count="list.length"
+      flush
     >
-      <AppListRow
-        v-for="r in halaman"
-        :key="r.id"
-        :title="r.name"
-        :description="`${tglPendek(r.date)} ${r.time} · meja ${r.table || '—'} · ${statusPax(r)} pax · ${rupiah(dpTotal(r))}`"
-        icon="i-lucide-calendar-days"
-        :to="`/reservasi/input?id=${r.id}`"
-      >
-        <template #trailing>
-          <AppStatus :color="statusWarna[r.status]">
-            {{ r.status }}
-          </AppStatus>
-        </template>
-      </AppListRow>
-      <p
-        v-if="!halaman.length"
-        class="px-4 py-3 text-muted"
-      >
-        Tidak ada reservasi di saringan ini.
-      </p>
-    </AppList>
+      <template #actions>
+        <UButton
+          label="Export CSV"
+          icon="i-lucide-download"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          :disabled="!list.length"
+          @click="eksporCSV"
+        />
+      </template>
 
-    <!-- Desktop -->
-    <div
-      v-if="tab === 'list'"
-      class="mb-7 hidden overflow-hidden rounded-2xl bg-default lg:block"
-    >
+      <!-- Phone: the same rows as cards -->
+      <div class="divide-y divide-default lg:hidden">
+        <button
+          v-for="r in halaman"
+          :key="r.id"
+          type="button"
+          class="block w-full px-4 py-3 text-start hover:bg-muted/60"
+          :class="kelasBaris(r)"
+          @click="bukaAksi(r)"
+        >
+          <div class="flex items-start justify-between gap-3">
+            <div class="min-w-0">
+              <p class="truncate font-semibold text-highlighted">
+                {{ r.name }}
+                <AppStatus
+                  v-if="r.vip"
+                  color="vip"
+                  size="sm"
+                  icon="i-lucide-crown"
+                >
+                  VIP
+                </AppStatus>
+              </p>
+              <p class="text-sm text-muted num">
+                {{ tglPendek(r.date) }} · <b class="text-highlighted">{{ r.time }}</b> · meja {{ r.table || '—' }} · {{ statusPax(r) }} pax
+              </p>
+            </div>
+            <AppStatus
+              :color="statusWarna[r.status]"
+              :icon="statusIkon[r.status]"
+            >
+              {{ r.status }}
+            </AppStatus>
+          </div>
+          <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+            <AppStatus
+              v-if="telat(r)"
+              color="gold"
+              size="sm"
+              icon="i-lucide-alarm-clock"
+            >
+              telat {{ lamaTelat(r) }}
+            </AppStatus>
+            <AppStatus
+              v-else-if="segera(r)"
+              color="warning"
+              size="sm"
+            >
+              segera
+            </AppStatus>
+            <AppStatus
+              :color="r.dpStatus === 'Sudah' ? 'success' : 'neutral'"
+              size="sm"
+            >
+              {{ r.dpStatus === 'Sudah' ? (dpTotal(r) || r.dpAmount ? rupiah(dpTotal(r) || r.dpAmount) : 'DP') : 'Belum DP' }}
+            </AppStatus>
+            <span class="text-xs text-muted">{{ r.picName || '—' }}</span>
+          </div>
+        </button>
+        <p
+          v-if="!halaman.length"
+          class="px-4 py-6 text-center text-muted"
+        >
+          Tidak ada reservasi untuk saringan ini.
+        </p>
+      </div>
+
+      <!-- Desktop: the old recap table -->
       <UTable
+        class="hidden lg:block"
         :data="halaman"
         :columns="kolom"
+        :column-visibility="kolomTampil"
+        :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 text-[13px]' }"
         :loading="status === 'pending'"
-        empty="Tidak ada reservasi di saringan ini."
+        :meta="{ class: { tr: (row: { original: Reservasi }) => `cursor-pointer ${kelasBaris(row.original)}` } }"
+        empty="Tidak ada reservasi untuk saringan ini."
+        @select="(_e: Event, row: { original: Reservasi }) => bukaAksi(row.original)"
       >
-        <template #name-cell="{ row }">
-          <ULink
-            :to="`/reservasi/input?id=${row.original.id}`"
-            class="font-semibold text-highlighted underline-offset-4 hover:underline"
+        <template #table-cell="{ row }">
+          <b class="text-highlighted">{{ row.original.table || '—' }}</b>
+          <span
+            v-if="!lebar && lantaiRes(row.original).length"
+            class="mt-1 flex gap-1"
           >
+            <AppStatus
+              v-for="f in lantaiRes(row.original)"
+              :key="f"
+              size="sm"
+            >Lt {{ f }}</AppStatus>
+          </span>
+        </template>
+        <template #lantai-cell="{ row }">
+          <span
+            v-if="lantaiRes(row.original).length"
+            class="flex gap-1"
+          >
+            <AppStatus
+              v-for="f in lantaiRes(row.original)"
+              :key="f"
+              size="sm"
+            >Lt {{ f }}</AppStatus>
+          </span>
+          <span
+            v-else
+            class="text-dimmed"
+          >—</span>
+        </template>
+        <template #date-cell="{ row }">
+          <b class="whitespace-nowrap text-highlighted">{{ tglTabel(row.original.date) }}</b>
+        </template>
+        <template #time-cell="{ row }">
+          <b class="text-highlighted">{{ row.original.time }}</b>
+          <div
+            v-if="telat(row.original)"
+            class="mt-1"
+          >
+            <AppStatus
+              color="gold"
+              size="sm"
+              icon="i-lucide-alarm-clock"
+            >
+              telat {{ lamaTelat(row.original) }}
+            </AppStatus>
+          </div>
+          <div
+            v-else-if="segera(row.original)"
+            class="mt-1"
+          >
+            <AppStatus
+              color="warning"
+              size="sm"
+            >
+              segera
+            </AppStatus>
+          </div>
+        </template>
+        <template #name-cell="{ row }">
+          <p class="font-semibold text-highlighted">
             {{ row.original.name }}
-          </ULink>
+            <AppStatus
+              v-if="row.original.vip"
+              color="vip"
+              size="sm"
+              icon="i-lucide-crown"
+            >
+              VIP
+            </AppStatus>
+            <AppStatus
+              v-if="row.original.sharing"
+              color="vip"
+              size="sm"
+              icon="i-lucide-handshake"
+            >
+              sharing
+            </AppStatus>
+          </p>
+          <p class="text-[13px] text-muted num">
+            {{ tampilPhone(row.original.phone) }}
+          </p>
+          <AppStatus
+            v-if="row.original.category"
+            color="gold"
+            size="sm"
+            class="mt-1"
+          >
+            {{ row.original.category }}
+          </AppStatus>
+          <p
+            v-if="isSeated(row.original)"
+            class="mt-1 text-xs font-bold text-success num"
+          >
+            <UIcon
+              name="i-lucide-utensils"
+              class="size-3"
+            /> duduk {{ lamaDuduk(row.original) }} <span class="font-medium text-muted">· sejak {{ jamDari(row.original.checkinAt) }}</span>
+          </p>
+          <p
+            v-else-if="row.original.leftAt"
+            class="mt-1 text-xs text-muted"
+          >
+            selesai duduk (pulang {{ jamDari(row.original.leftAt) }})
+          </p>
         </template>
         <template #pax-cell="{ row }">
-          {{ statusPax(row.original) }}
+          <template v-if="row.original.status === 'Datang'">
+            <b class="text-highlighted">{{ arrivedPax(row.original) }}</b><span class="text-muted">/{{ row.original.pax }}</span>
+            <div class="mt-1">
+              <AppStatus
+                :color="remainingPax(row.original) ? 'warning' : 'success'"
+                size="sm"
+              >
+                {{ remainingPax(row.original) ? `kurang ${remainingPax(row.original)}` : 'penuh' }}
+              </AppStatus>
+            </div>
+          </template>
+          <template v-else>
+            {{ row.original.pax }}
+          </template>
+        </template>
+        <template #sisa-cell="{ row }">
+          <b
+            v-if="(sisaKursiRes(row.original) ?? 0) > 0"
+            class="text-highlighted"
+          >{{ sisaKursiRes(row.original) }}</b>
+          <span
+            v-else
+            class="text-dimmed"
+          >{{ sisaKursiRes(row.original) === 0 ? '0' : '—' }}</span>
+        </template>
+        <template #dp-cell="{ row }">
+          <AppStatus
+            v-if="row.original.dpStatus !== 'Sudah'"
+            color="gold"
+            size="sm"
+          >
+            Belum
+          </AppStatus>
+          <template v-else>
+            <AppStatus
+              color="success"
+              size="sm"
+              icon="i-lucide-check"
+            >
+              {{ dpTotal(row.original) || row.original.dpAmount ? rupiah(dpTotal(row.original) || row.original.dpAmount) : 'DP (nominal belum diisi)' }}
+            </AppStatus>
+            <p
+              v-if="(row.original.dps?.length ?? 0) > 1"
+              class="mt-0.5 text-[11px] text-muted"
+            >
+              total {{ row.original.dps.length }}× transfer
+            </p>
+            <p
+              v-if="!lebar"
+              class="mt-1 text-[11px] text-muted"
+            >
+              {{ rekeningDp(row.original).join(' · ') || 'rekening belum diisi' }}
+            </p>
+          </template>
+        </template>
+        <template #rekening-cell="{ row }">
+          <span
+            v-if="row.original.dpStatus !== 'Sudah'"
+            class="text-dimmed"
+          >—</span>
+          <span
+            v-else-if="!rekeningDp(row.original).length"
+            title="DP-nya tercatat masuk tapi rekening tujuannya belum diisi"
+          >
+            <AppStatus
+              color="error"
+              size="sm"
+            >belum diisi</AppStatus>
+          </span>
+          <span
+            v-else
+            class="flex flex-wrap gap-1"
+          >
+            <AppStatus
+              v-for="v in rekeningDp(row.original)"
+              :key="v"
+              size="sm"
+            >{{ v }}</AppStatus>
+          </span>
+        </template>
+        <template #pic-cell="{ row }">
+          <span class="text-muted">{{ row.original.picName || '—' }}</span>
         </template>
         <template #status-cell="{ row }">
-          <AppStatus :color="statusWarna[row.original.status]">
+          <AppStatus
+            :color="statusWarna[row.original.status]"
+            :icon="statusIkon[row.original.status]"
+          >
             {{ row.original.status }}
           </AppStatus>
         </template>
         <template #aksi-cell="{ row }">
-          <UButton
-            label="Buka"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            :to="`/reservasi/input?id=${row.original.id}`"
-          />
+          <div
+            class="flex w-[146px] flex-wrap gap-1.5"
+            @click.stop
+          >
+            <template v-if="bolehEdit && belumDatang(row.original)">
+              <UButton
+                label="Datang"
+                icon="i-lucide-check"
+                color="success"
+                size="xs"
+                @click="bukaDatang(row.original, true)"
+              />
+              <UButton
+                label="Follow up"
+                icon="i-lucide-phone"
+                color="success"
+                variant="soft"
+                size="xs"
+                @click="followUp(row.original)"
+              />
+              <UButton
+                icon="i-lucide-user-x"
+                color="error"
+                size="xs"
+                aria-label="Tandai no-show"
+                title="Tandai no-show"
+                @click="bukaNoShow(row.original)"
+              />
+            </template>
+            <UButton
+              v-if="bolehEdit && canAddArrival(row.original)"
+              :label="`${remainingPax(row.original)} lagi`"
+              icon="i-lucide-plus"
+              color="success"
+              size="xs"
+              title="Rombongan datang bertahap — catat tamu yang baru masuk"
+              @click="bukaDatang(row.original, false)"
+            />
+            <UButton
+              v-if="bolehEdit && isSeated(row.original)"
+              label="Selesai"
+              icon="i-lucide-utensils"
+              size="xs"
+              @click="selesai(row.original)"
+            />
+            <UButton
+              v-if="bolehEdit"
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              aria-label="Sunting reservasi"
+              title="Sunting reservasi"
+              :to="`/reservasi/input?id=${row.original.id}`"
+            />
+            <AppStatus
+              v-if="row.original.followups?.length"
+              size="sm"
+            >
+              {{ row.original.followups.length }} FU
+            </AppStatus>
+          </div>
         </template>
       </UTable>
-    </div>
 
-    <AppList
-      v-if="tab === 'list'"
-      title="Urut & halaman"
-    >
-      <div class="flex flex-wrap items-center gap-2 p-4">
-        <UButton
-          v-for="c in kolomUrut"
-          :key="c.key"
-          :label="urut.kolom === c.key ? `${c.label} ${urut.naik ? '↑' : '↓'}` : c.label"
-          color="neutral"
-          :variant="urut.kolom === c.key ? 'soft' : 'ghost'"
-          size="sm"
-          @click="urutkan(c.key)"
-        />
-      </div>
-      <div class="flex flex-wrap items-center justify-between gap-2 px-4 pb-4">
-        <div class="flex items-center gap-2 text-sm text-muted">
-          <span>Baris per halaman</span>
+      <div class="flex flex-wrap items-center justify-between gap-3 border-t border-default px-4 py-3 text-sm text-muted">
+        <div class="flex items-center gap-2">
+          <span class="num">{{ list.length ? (hal - 1) * perHal + 1 : 0 }}–{{ Math.min(hal * perHal, list.length) }} dari {{ list.length }}</span>
           <USelect
             v-model.number="perHal"
-            :items="[10, 25, 50]"
-            class="w-20"
+            :items="[{ value: 10, label: '10 / hal' }, { value: 25, label: '25 / hal' }, { value: 50, label: '50 / hal' }]"
+            size="sm"
+            class="w-28"
           />
         </div>
-        <div class="flex items-center gap-2 text-sm text-muted">
+        <div
+          v-if="maxHal > 1"
+          class="flex items-center gap-2"
+        >
           <UButton
-            label="Sebelumnya"
+            icon="i-lucide-chevron-left"
             color="neutral"
-            variant="soft"
+            variant="outline"
             size="sm"
+            aria-label="Halaman sebelumnya"
             :disabled="hal <= 1"
             @click="hal--"
           />
-          <span class="num">Hal {{ hal }} dari {{ maxHal }}</span>
+          <span class="num">Hal {{ hal }} / {{ maxHal }}</span>
           <UButton
-            label="Berikutnya"
+            icon="i-lucide-chevron-right"
             color="neutral"
-            variant="soft"
+            variant="outline"
             size="sm"
+            aria-label="Halaman berikutnya"
             :disabled="hal >= maxHal"
             @click="hal++"
           />
         </div>
       </div>
-      <p class="px-4 pb-4 text-sm text-dimmed">
-        Paging di browser: server v1 belum menerima <code class="text-dimmed">page</code>/
-        <code class="text-dimmed">perPage</code>. <span class="text-dimmed">G-08</span>
-      </p>
-    </AppList>
+    </AppPanel>
 
     <template v-if="tab === 'calendar'">
       <div class="mb-3 flex flex-wrap items-center gap-2">
@@ -1620,7 +2042,7 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
       </p>
 
       <!-- Desktop: the month grid. -->
-      <div class="mb-7 hidden overflow-hidden rounded-2xl bg-default lg:block">
+      <div class="mb-7 hidden overflow-hidden rounded-panel border border-default bg-default shadow-panel lg:block">
         <div class="grid grid-cols-7 divide-x divide-y divide-default border-b border-default">
           <div
             v-for="d in DOW"
@@ -1746,7 +2168,7 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
       />
     </template>
 
-    <template v-else>
+    <template v-else-if="tab === 'wait'">
       <div class="mb-3 flex flex-wrap items-center gap-2">
         <UButton
           v-if="bolehEdit"
@@ -2233,12 +2655,22 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
             @click="bukaDatang(aksi, true)"
           />
           <UButton
-            v-if="bolehEdit && aksiTelat"
-            label="Follow up tamu (telat)"
-            color="neutral"
+            v-if="bolehEdit && ['Pending', 'Confirmed'].includes(aksi.status)"
+            :label="aksiTelat ? 'Follow up tamu (telat)' : 'Follow up tamu'"
+            icon="i-lucide-phone"
+            color="success"
             variant="soft"
             size="xl"
-            disabled
+            @click="followUp(aksi)"
+          />
+          <UButton
+            v-if="bolehEdit && aksiTelat"
+            label="Tandai no-show"
+            icon="i-lucide-user-x"
+            color="error"
+            variant="soft"
+            size="xl"
+            @click="bukaNoShow(aksi)"
           />
           <UButton
             v-if="bolehEdit && canAddArrival(aksi)"
@@ -2470,6 +2902,59 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
           variant="soft"
           size="xl"
           @click="sheetWalkin = false"
+        />
+      </template>
+    </ResponsiveSheet>
+
+    <ResponsiveSheet
+      v-model:open="sheetFU"
+      title="Catat hasil follow up"
+      :description="aksi ? `WhatsApp terbuka ke ${aksi.name} (${tampilPhone(aksi.phone)}). Catat hasilnya:` : ''"
+    >
+      <UFormField label="Hasil / catatan">
+        <UTextarea
+          v-model="catatanFU"
+          :rows="3"
+          placeholder="mis. Tamu konfirmasi telat 15 menit / Tamu batal / Belum dibalas"
+          class="w-full"
+        />
+      </UFormField>
+      <AppChips
+        v-model="catatanFU"
+        class="mt-3"
+        :options="PILIHAN_FU"
+      />
+      <template #footer>
+        <UButton
+          label="Nanti saja"
+          color="neutral"
+          variant="outline"
+          @click="sheetFU = false"
+        />
+        <UButton
+          label="Simpan catatan"
+          :disabled="!catatanFU.trim()"
+          @click="simpanFU"
+        />
+      </template>
+    </ResponsiveSheet>
+
+    <ResponsiveSheet
+      v-model:open="sheetNoShow"
+      title="Tandai no-show?"
+      :description="aksi ? `${aksi.name} · ${tglPendek(aksi.date)} ${aksi.time} · ${aksi.pax} pax. Mejanya kembali tersedia.` : ''"
+    >
+      <template #footer>
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="outline"
+          @click="sheetNoShow = false"
+        />
+        <UButton
+          label="Tandai no-show"
+          color="error"
+          @click="simpanNoShow"
         />
       </template>
     </ResponsiveSheet>
