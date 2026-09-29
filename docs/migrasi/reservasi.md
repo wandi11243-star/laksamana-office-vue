@@ -635,7 +635,7 @@ Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di 
 | review | service_excellent | `pages/service_excellent/review.vue` | ⬜ | `GET/PUT/DELETE /master/reviews/{id}`, `/files/rv:*` | — |
 | feedback | service_excellent | `pages/service_excellent/feedback.vue` | ⬜ | `GET/PUT/DELETE /master/feedbacks/{id}`, `/files/fb:*` | — |
 | peran | service_excellent | `pages/service_excellent/peran.vue` | ⬜ | `GET/PUT /master/seCrew`, `/master/sePerms` | — |
-| setelan | service_excellent | `pages/service_excellent/setelan.vue` | ⬜ | `GET/PUT /master/reviewCfg` | — |
+| setelan | service_excellent | `pages/service_excellent/setelan.vue` | ✅ | `GET/PUT /master/reviewCfg` + `POST /audit` | — |
 
 Tahap 0 (fondasi) ✅ di branch `migrasi/fondasi`: `app/utils/versi.ts` (F1), `app/composables/useRoster.ts`
 (F2), `app/utils/format.ts` (F3), `app/utils/layar.ts` + `app/components/ModulMenu.vue` (F4),
@@ -806,6 +806,8 @@ Semua field D.2 ada, dengan pesan validasinya apa adanya. Yang dibangun di layar
 **Bagian 1** (`feat(reservasi): dashboard bagian 1`) — ringkasan, filter, tab Tabel. Ringkasan = `AppFocus` (jumlah reservasi + pax) + `AppList` (empat barisa angka), bukan grid kartu. Tab Tabel: `UTable` di `lg+` dan `AppList` di HP dari baris yang sama, urut per kolom (Tombol sort, bukan klik header — sorting lewat tombol di bawah tabel, bukan klik header (klik header pada UTable tidak bisa di-style dan tidak konsisten)), paging 10/25/50 di browser dengan catatan **G-08** di layar. "Tipe tamu" **Segera · G-07** (butuh `ringkasTamu`).
 
 ## Tahap 5 — Service Excellent
+
+**Setelan** (`feat(se): setelan`) — `app/pages/service_excellent/setelan.vue`: link, saklar WA (+ pita bila mati), reward min + tangga tambah/hapus (baris lokal — + tidak mengubah cfg; yang jumlah 0 dibuang saat simpan), Simpan (`reviewCfg` + versi termuat + audit). Di bawah manager: "Setelan diatur oleh manager."
 
 **Peran** (`feat(se): peran`) — `app/pages/service_excellent/peran.vue` (+ `seedPermsSE()`): daftar kru (pengurus dulu, hanya Kasir/Host/Floor/Office + hitungan tersaring), ubah tingkat langsung di baris (penjaga pengurus-terakhir; `roleSetAt/By` mengunci pilihan manusia; tanpa tambah — seperti lama), Segarkan (sinkron roster → tulis bila berubah), peringatan F20 APA ADANYA (belum ada pengurus → semua Admin Sistem), matriks `sePerms` via komponen bersama **`MatriksIzin.vue`** (juga dipakai `master.vue` Reservasi — ekstraksi, bukan salinan), Default + Simpan + audit. Tulis: `PUT /master/seCrew` / `PUT /master/sePerms` + versi section termuat + `tanganiKonflik(refresh)`. `sePerms` section sendiri — tak pernah menyentuh `perms` Reservasi.
 
