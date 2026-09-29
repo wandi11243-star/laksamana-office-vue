@@ -158,6 +158,8 @@ export interface Waitlist {
   table: string
   resId: string
   calledAt: number
+  /** Set when leaving the queue, like the old client (`:1954`). */
+  cancelledAt?: number
 }
 
 /** `master.perms` — 0 not visible, 1 view, 2 may edit; per permission row, per role. */

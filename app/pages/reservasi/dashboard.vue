@@ -501,7 +501,7 @@ async function simpanDudukkan() {
  *  same, and a queue has no trace of its own to lose. */
 async function batalkanAntrean(w: Waitlist) {
   try {
-    await putSectionItem('waitlist', w.id, { ...w, status: 'cancelled' }, versiWaitlist.value)
+    await putSectionItem('waitlist', w.id, { ...w, status: 'cancelled', cancelledAt: Date.now() }, versiWaitlist.value)
     await refreshWaitlist()
     await catat(`${w.name} keluar dari antrean`, undefined, 'Waiting List')
     toast.add({ title: 'Dikeluarkan dari antrean' })
