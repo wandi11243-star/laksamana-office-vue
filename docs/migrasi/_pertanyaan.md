@@ -89,7 +89,7 @@ Daftar lengkap + draf issue: [`_gap-api.md`](_gap-api.md). Ringkas:
 | G-01 | konten | hapus satu platform di `PUT /content/{id}/performance` | 1 aksi di Input Performa |
 | G-02 | bd, finance/brankas | baca master vendor tanpa modul stock | kolom Vendor PO, nama penerima |
 | G-03 | jadwal | baris DW disetujui untuk pemegang `jadwal` tanpa `dw` | blok "DAILY WORKER" |
-| G-04 | jadwal | `setting.manajemen` (penerima akses Rekap) | layar Pengaturan |
+| G-04 | jadwal | ~~`setting.manajemen`~~ sudah didukung API (lihat `_gap-api.md`) | tidak memblokir |
 | G-05 | dw | pax harian gabungan marketing/event/reservasi | Kalender Tamu |
 | G-06 | finance/kas | saldo wallet untuk modul `finance` | Planning Pembayaran |
 | G-07 | reservasi | `ringkasTamu` (Loyal/blacklist/auto-isi) | autofill di Input Reservasi |

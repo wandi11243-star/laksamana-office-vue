@@ -11,19 +11,19 @@ Status: ⬜ belum diajukan · 📨 issue dibuat (tulis nomornya) · ✅ ada di v
 
 | ID | status | issue |
 |---|---|---|
-| G-01 | ⬜ | |
-| G-02 | ⬜ | |
-| G-03 | ⬜ | |
-| G-04 | ⬜ | |
-| G-05 | ⬜ | |
-| G-06 | ⬜ | |
-| G-07 | ⬜ | |
-| G-08 | ⬜ | |
-| G-09 | ⬜ | |
-| G-10 | ⬜ | |
-| G-11 | ⬜ | |
-| G-12 | ⬜ | |
-| G-13 | ⬜ | |
+| G-01 | 📨 | [laksamana-api#177](https://github.com/dwipapap/laksamana-api/issues/177) |
+| G-02 | 📨 | [laksamana-api#178](https://github.com/dwipapap/laksamana-api/issues/178) |
+| G-03 | 📨 | [laksamana-api#179](https://github.com/dwipapap/laksamana-api/issues/179) |
+| G-04 | ✅ | sudah didukung API; hanya dokumentasi → G-12 |
+| G-05 | 📨 | [laksamana-api#180](https://github.com/dwipapap/laksamana-api/issues/180) |
+| G-06 | 📨 | [laksamana-api#181](https://github.com/dwipapap/laksamana-api/issues/181) |
+| G-07 | 📨 | [laksamana-api#182](https://github.com/dwipapap/laksamana-api/issues/182) |
+| G-08 | 📨 | [laksamana-api#183](https://github.com/dwipapap/laksamana-api/issues/183) |
+| G-09 | 📨 | [laksamana-api#184](https://github.com/dwipapap/laksamana-api/issues/184) |
+| G-10 | 📨 | [laksamana-api#185](https://github.com/dwipapap/laksamana-api/issues/185) |
+| G-11 | 📨 | [laksamana-api#186](https://github.com/dwipapap/laksamana-api/issues/186) |
+| G-12 | 📨 | [laksamana-api#188](https://github.com/dwipapap/laksamana-api/issues/188) |
+| G-13 | 📨 | [laksamana-api#187](https://github.com/dwipapap/laksamana-api/issues/187) |
 
 ---
 
@@ -48,8 +48,9 @@ Jadwal menggambar blok "DAILY WORKER" dari `jadwalDW` yang di legacy OPEN
 ### G-04 — jadwal: `setting.manajemen`
 Penerima akses Rekap disimpan di `setting.manajemen` (`laksamana-office/deploy/jadwal/index.html:5413`).
 `GET/PUT /api/v1/jadwal/settings` hanya mendokumentasikan `shifts, heads, divOverride, jabatan, shiftKru, template`
-(`laksamana-api/docs/api/jadwal.md:56`). **Perlu dicek dulu:** apakah PUT mempertahankan kunci lain.
-Jika tidak, tambahkan `manajemen`.
+(`laksamana-api/docs/api/jadwal.md:56`). **Dicek 2026-09-29: BUKAN gap.** `JadwalService::saveSetting` sudah menyimpan `manajemen`, `maksBeruntun`, `jedaMin`
+(`laksamana-api/app/Modules/Jadwal/Services/JadwalService.php:787`). Vue memakai `PUT /jadwal/settings` apa adanya;
+kontraknya saja yang belum menyebut kunci itu (masuk G-12).
 
 ### G-05 — dw: pax harian gabungan
 Kalender Tamu DW menjumlahkan pax Marketing + Event + Reservasi (`laksamana-office/deploy/dw/index.html:971-979`,

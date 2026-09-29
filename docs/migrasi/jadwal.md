@@ -5,7 +5,7 @@ Terakhir diperbarui: 2026-09-29
 
 > **Triase 2026-09-29** — status di tabel E yang bertentangan dengan catatan ini: catatan ini yang berlaku.
 > Rincian: [`_pertanyaan.md`](_pertanyaan.md), [`_gap-api.md`](_gap-api.md).
-> - Roster → U2. Blok DW → G-03. `setting.manajemen` → G-04. Pax tamu → G-05. Matriks akses DW → T-10. Heads → T-11.
+> - Roster → U2. Blok DW → G-03. `setting.manajemen` sudah didukung `PUT /jadwal/settings` (G-04 bukan gap). Pax tamu → G-05. Matriks akses DW → T-10. Heads → T-11.
 
 ## Ringkasan
 - Jumlah layar: 20 (1 pemilih Roster + 8 layar Jadwal Shift + 11 layar Daily Worker; 0 tersembunyi) · Aksi backend lama: 10 (jadwal) + 16 (dw) + 4 (account, lintas modul) · Gap v1: 3 ❌ · 5 ⚠️
