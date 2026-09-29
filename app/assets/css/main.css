@@ -1,50 +1,87 @@
 /*
   Laksamana design tokens. The ONLY place colours and fonts are defined.
   Rules and reasons: DESIGN.md. Component defaults (radius, sizes): app/app.config.ts.
+
+  The palette is the old Office's own (laksamana-office deploy/reservasi/index.html
+  :62-73: --gold, --paper, --ink, --ok/--warn/--danger/--info/--purple), kept so a
+  crew member moving between the two apps sees the same place. Two values moved,
+  both for contrast: the button gold is one step darker than the old --gold
+  (white on #A9791F is 3.9:1, on #93691A 4.9:1), and the status hues are the
+  darker half of the old pairs so their words pass AA on the tinted pill.
 */
 @import "tailwindcss";
 @import "@nuxt/ui";
 
+/* The old Office's own faces, self-hosted (never Google Fonts: a blocking
+   stylesheet once held the Reservasi page for 33 s on a slow line). Both are
+   variable fonts, latin subset: enough for Indonesian. */
+@font-face {
+  font-family: 'Inter';
+  font-style: normal;
+  font-weight: 400 800;
+  font-display: swap;
+  src: url('/fonts/inter-latin.woff2') format('woff2');
+}
+@font-face {
+  font-family: 'Plus Jakarta Sans';
+  font-style: normal;
+  font-weight: 500 800;
+  font-display: swap;
+  src: url('/fonts/plus-jakarta-sans-latin.woff2') format('woff2');
+}
+
 @theme static {
-  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  /* Page titles, panel titles and the big numbers of a stat card. */
+  --font-display: 'Plus Jakarta Sans', 'Inter', ui-sans-serif, system-ui, sans-serif;
 
-  /* Logo yellow. 500 is the brand colour. Fills only; never text on a light background. */
-  --color-laksamana-50: #FFFAEB;
-  --color-laksamana-100: #FEF0C3;
-  --color-laksamana-200: #FDE28A;
-  --color-laksamana-300: #FBD14F;
-  --color-laksamana-400: #F8C426;
-  --color-laksamana-500: #F5BC0F;
-  --color-laksamana-600: #D99A06;
-  --color-laksamana-700: #B47309;
-  --color-laksamana-800: #92590E;
-  --color-laksamana-900: #784910;
-  --color-laksamana-950: #452604;
+  /* Gold. 400 is the old --gold-2, 700 the old --gold-dim, 100 the old --gold-soft.
+     600 fills buttons (white text passes); 700 is gold used as TEXT on light. */
+  --color-laksamana-50: #FBF7EC;
+  --color-laksamana-100: #F2E9D3;
+  --color-laksamana-200: #E9D7A9;
+  --color-laksamana-300: #DDBF74;
+  --color-laksamana-400: #C8961F;
+  --color-laksamana-500: #B08223;
+  --color-laksamana-600: #93691A;
+  --color-laksamana-700: #7A560F;
+  --color-laksamana-800: #5E420B;
+  --color-laksamana-900: #452F08;
+  --color-laksamana-950: #2B1D05;
 
-  /* Ink: a warm neutral, from page background (100) to near-black text (950). */
-  --color-ink-50: #F8F8F6;
-  --color-ink-100: #F3F3F1;
-  --color-ink-200: #E3E2DD;
-  --color-ink-300: #CFCEC8;
-  --color-ink-400: #9C9B95;
-  --color-ink-500: #6B6A65;
-  --color-ink-600: #52514D;
-  --color-ink-700: #3A3936;
-  --color-ink-800: #232321;
-  --color-ink-900: #161615;
-  --color-ink-950: #0A0A09;
+  /* Ink: the old warm brown-black, from paper (100) to the table head (900). */
+  --color-ink-50: #FBFAF8;
+  --color-ink-100: #F7F6F4;
+  --color-ink-200: #E7E1D3;
+  --color-ink-300: #D6CEBD;
+  --color-ink-400: #A39C8E;
+  --color-ink-500: #7D776B;
+  --color-ink-600: #5C574D;
+  --color-ink-700: #4A4234;
+  --color-ink-800: #3A3428;
+  --color-ink-900: #2A2620;
+  --color-ink-950: #1C1915;
+
+  /* The fifth tone of the old Office (VIP, sharing, "Pelanggan unik"). The other
+     four are Nuxt UI's success / warning / error / info, set in :root below. */
+  --color-vip: #6B4FB0;
+
+  /* The head of every data table: the old dark bar with white capitals. */
+  --color-table-head: #2A2620;
+  --color-table-head-text: #FFFFFF;
+
+  /* Radii of the old Office: 14px panels, 10px fields and small cards. */
+  --radius-panel: 14px;
+  --radius-field: 10px;
+
+  /* One soft, offset shadow for panels (the old --shadow). */
+  --shadow-panel: 0 4px 18px rgb(50 42 28 / 0.06);
 
   /*
     Denah (the table plan). A table's FILL is its ZONE, not its status: the zone
-    is what the crew uses to name a table on the floor ("yang di area kayu"), and
-    the old client coloured Marketing's VIP plan by zone for exactly that reason.
-    Status rides on top as a dot + words (DESIGN.md), so the two never compete
-    for the same channel.
-
-    Seven zones plus the floor they sit on, and the ink written over them. All
-    three groups flip under `.dark` below: a plan drawn on a light floor in dark
-    mode reads as a photograph of someone else's venue, and dark text on a dark
-    zone is simply unreadable.
+    is what the crew uses to name a table on the floor ("yang di area kayu").
+    Status rides on top as a dot + words, so the two never compete for the same
+    channel. All three groups flip under `.dark` below.
   */
   --color-seat-green: #BFDCA9;
   --color-seat-blue: #AFD0EA;
@@ -53,33 +90,60 @@
   --color-seat-dark: #A6A29A;
   --color-seat-diamond: #DCD6CB;
   --color-seat-ext: #F2C795;
-  /* The floor of the room, and the ink written over every zone. The ink is what
-     follows the theme: dark on the light zones in light mode, light on the dimmed
-     zones in dark mode, so a table is readable in both. */
-  --color-seat-floor: #EFEEEA;
-  --color-seat-ink: #1C1B18;
-  --color-seat-line: #CFCEC8;
+  --color-seat-floor: #F7F6F4;
+  --color-seat-ink: #2A2620;
+  --color-seat-line: #D6CEBD;
 }
 
 :root {
-  --ui-radius: 0.375rem;
-  --ui-primary: var(--ui-color-primary-500);
-  /* Page = bg-muted (grey), surfaces = bg-default (white). Lists sit white on grey. */
+  --ui-radius: 0.5rem;
+  --ui-primary: var(--ui-color-primary-600);
+
+  /* Status hues: the old --ok/--warn/--danger/--info, darkened to pass AA as
+     words on white and on their own 10 % tint. */
+  --ui-success: #17804C;
+  --ui-warning: #946A12;
+  --ui-error: #B83A24;
+  --ui-info: #2A6FAD;
+
+  /* Page = paper, surfaces = white, lines = the old warm --line. */
+  --ui-bg: #FFFFFF;
   --ui-bg-muted: var(--ui-color-neutral-100);
-  --ui-text: var(--ui-color-neutral-800);
-  --ui-text-highlighted: var(--ui-color-neutral-950);
+  --ui-bg-elevated: var(--ui-color-neutral-100);
+  --ui-bg-accented: var(--ui-color-neutral-200);
+  --ui-border: var(--ui-color-neutral-200);
+  --ui-border-accented: var(--ui-color-neutral-300);
+  --ui-text: var(--ui-color-neutral-900);
+  --ui-text-highlighted: var(--ui-color-neutral-900);
+  --ui-text-muted: var(--ui-color-neutral-600);
+  --ui-text-dimmed: var(--ui-color-neutral-500);
 }
 
 .dark {
+  /* Dark mode is a composed theme, not an inversion: the same warm browns,
+     lit from below, with the gold one step brighter so it still reads as gold. */
   --ui-primary: var(--ui-color-primary-400);
-  --ui-text: var(--ui-color-neutral-200);
-  --ui-text-highlighted: var(--ui-color-neutral-50);
-  --ui-bg: var(--ui-color-neutral-900);
-  --ui-bg-muted: var(--ui-color-neutral-950);
-  --ui-bg-elevated: var(--ui-color-neutral-800);
-  --ui-border: var(--ui-color-neutral-800);
+  --ui-success: #3DBE7E;
+  --ui-warning: #D9A63A;
+  --ui-error: #E4705A;
+  --ui-info: #5FA2E0;
 
-  /* Denah zones, dimmed for a dark surface so the plan reads as a plan. */
+  --ui-bg: #1E1B17;
+  --ui-bg-muted: #14120F;
+  --ui-bg-elevated: #28241E;
+  --ui-bg-accented: #332E26;
+  --ui-border: #3A342B;
+  --ui-border-accented: #4A4234;
+  --ui-text: #E6DFD2;
+  --ui-text-highlighted: #FAF6EE;
+  --ui-text-muted: #B5AC9B;
+  --ui-text-dimmed: #938A7B;
+
+  --color-vip: #A48DE6;
+  --color-table-head: #0F0D0B;
+  --color-table-head-text: #EFE8DA;
+  --shadow-panel: 0 4px 18px rgb(0 0 0 / 0.25);
+
   --color-seat-green: #3F6437;
   --color-seat-blue: #2C5B80;
   --color-seat-wood: #6E5233;
@@ -87,13 +151,32 @@
   --color-seat-dark: #575651;
   --color-seat-diamond: #4E4A44;
   --color-seat-ext: #7C5220;
-  --color-seat-floor: #141413;
-  --color-seat-ink: #F1F0EC;
-  --color-seat-line: #3A3936;
+  --color-seat-floor: #14120F;
+  --color-seat-ink: #F1ECE2;
+  --color-seat-line: #3A342B;
 }
 
 body {
-  @apply bg-muted antialiased;
+  @apply bg-muted text-default antialiased;
+}
+
+h1, h2, h3, .font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+/* Browser surfaces carry the palette too. */
+::selection {
+  background: var(--color-laksamana-200);
+  color: var(--color-ink-950);
+}
+.dark ::selection {
+  background: var(--color-laksamana-700);
+  color: #FFFFFF;
+}
+* {
+  scrollbar-color: var(--ui-border-accented) transparent;
+  scrollbar-width: thin;
 }
 
 /* Digits that line up (money, times, counts). */
