@@ -5,13 +5,18 @@ Tujuannya supaya 13 agen modul tidak membuat 13 versi berbeda dari hal yang sama
 
 Status: ⬜ belum · 🟡 dikerjakan · ✅ selesai
 
-| ID | tugas | status |
-|---|---|---|
-| F1 | Helper versi & konflik | ⬜ |
-| F2 | Roster Office (`useRoster`) | ⬜ |
-| F3 | Format angka & tanggal | ⬜ |
-| F4 | Konvensi layar modul + `ModulMenu` | ⬜ |
-| F5 | Perbarui `CONTRIBUTING.md` | ⬜ |
+| ID | tugas | status | file |
+|---|---|---|---|
+| F1 | Helper versi & konflik | ✅ | `app/utils/versi.ts`, contoh di `/styleguide` |
+| F2 | Roster Office (`useRoster`) | ✅ | `app/composables/useRoster.ts` |
+| F3 | Format angka & tanggal | ✅ | `app/utils/format.ts` |
+| F4 | Konvensi layar modul + `ModulMenu` | ✅ | `app/utils/layar.ts`, `app/components/ModulMenu.vue`, `AppListRow` prop `dim`, contoh di `/styleguide` |
+| F5 | Perbarui `CONTRIBUTING.md` | ✅ | bagian "Struktur" & "Menambah modul" |
+
+Selesai 2026-09-29: `npm run lint && npm run typecheck && npm run build` hijau.
+Koreksi build 2026-09-29: `rupiah()` memakai `Intl` id-ID, jadi hasilnya `Rp 1.250.000`
+(spasi non-breaking) seperti contoh di `/styleguide`, bukan `Rp1.250.000` seperti
+tertulis di tabel F3.
 
 Aturan yang berlaku untuk semua tugas: `AGENTS.md`, `DESIGN.md`, `CONTRIBUTING.md`.
 Komentar kode dalam bahasa Inggris, teks UI dalam bahasa Indonesia. Tanpa dependensi baru.
@@ -95,7 +100,7 @@ Pengganti `listModuleRoster` / `listDivisiRoster` untuk semua modul (`_pertanyaa
 
 | fungsi | contoh |
 |---|---|
-| `rupiah(n)` | `1250000` → `Rp1.250.000` (Intl `id-ID`, tanpa desimal; `null`/`undefined` → `—`) |
+| `rupiah(n)` | `1250000` → `Rp 1.250.000` (Intl `id-ID`, tanpa desimal; `null`/`undefined` → `—`) |
 | `angka(n)` | `1250000` → `1.250.000` |
 | `persen(n, digit = 1)` | `0.125` → `12,5%` |
 | `tglPendek(tgl)` | `2026-09-27` → `Sab, 27 Sep` (pindahkan dari `useAbsensi.ts`, hapus yang lama) |

@@ -57,6 +57,5 @@ export function statusHari(h: AbsensiHari): { color: 'success' | 'warning' | 'er
   return { color: 'success', label: 'Tepat waktu' }
 }
 
-/** "2026-09-27" -> "Sab, 27 Sep". */
-export const tglPendek = (tgl: string) =>
-  new Date(`${tgl}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })
+// `tglPendek` moved to app/utils/format.ts (fondasi F3) so every module formats
+// dates the same way; the auto-import keeps this page working unchanged.
