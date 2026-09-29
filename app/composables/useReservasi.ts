@@ -115,6 +115,8 @@ export interface Reservasi {
   actualPax: number | null
   arrivals: ReservasiArrival[]
   checkinAt: number | null
+  /** The tables a guest was moved off while waiting, so they can be put back. The old form rebuilds the record from an explicit field list and does NOT copy this one (`:4850-4890`), so an edit can drop it. Kept in the type because the day-of map reads it; Tahap 3 must decide. */
+  tableAsli?: string
   /** Marker for "counted as arrived at closing time". */
   datangDiasumsikan: 0 | 1
   leftAt: number
