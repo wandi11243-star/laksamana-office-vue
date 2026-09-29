@@ -165,25 +165,35 @@ const capWaktu = (ts: number) => ts
 const jamTampil = (v: string) => v ? `${jam24(v)} WIB` : ''
 
 // --- writes ------------------------------------------------------------------
-// Every money write re-reads its row first: the list may be stale, and the
-// PATCH carries the whole `dps[]` (a shallow merge cannot replace one
-// element). Only the touched DP fields travel — never the whole record
+// A money write sends the version the person SAW — the row's `updatedAt` as
+// displayed when the sheet opened, never a fresh re-read. Re-reading right
+// before writing makes 409 impossible, and the cashier could verify a
+// nominal/proof the host replaced after the list loaded, without ever seeing
+// it. The old client refused such saves (the `baseVer` guard).
+//
+// So: every sheet snapshots its row at open (`dasarDari`); the PATCH `dps`
+// is built from that snapshot's COPY, never the list's objects. A change in
+// between → 409 → `tanganiKonflik` → the list reloads AND the sheet
+// re-snapshots from the newest row → the person checks again. Only the OCR
+// scan (writing `tfOcr*` suggestions) uses a fresh version: suggestions never
+// decide anything by themselves.
 // (§2.6, and the "saveAll menimpa buta" lesson of input.vue 0.1).
 
-interface KerjaDp {
-  segar: Reservasi
+/** The row as the person saw it: a copy, plus its `updatedAt` as displayed. */
+interface DasarTampilan {
+  r: Reservasi
   versi: Versi | undefined
-  dps: ReservasiDp[]
 }
 
-async function salinDps(resId: string): Promise<KerjaDp> {
-  const env = await getReservation(resId)
-  const segar = env.data
-  // The copy, lifted like pastikanDps() when the flat deposit never moved
-  // into `dps[]`. Never the list's own objects.
-  const dps = dpsTampilan(segar).map(p => ({ ...p }))
-  return { segar, versi: versiDari(env) ?? segar.updatedAt, dps }
-}
+const dasarDari = (x: TxDanaMasuk): DasarTampilan => ({
+  // The instalment array is copied too: the snapshot must not share anything
+  // mutable with the list.
+  r: { ...x.r, dps: Array.isArray(x.r.dps) ? [...x.r.dps] : x.r.dps },
+  versi: x.r.updatedAt,
+})
+
+/** Working instalments from the snapshot — lifted like pastikanDps(). */
+const dpsKerja = (d: DasarTampilan): ReservasiDp[] => dpsTampilan(d.r).map(p => ({ ...p }))
 
 const cariCicilan = (dps: ReservasiDp[], payId: string, ke: number) => {
   const i = dps.findIndex(p => p.id === payId)
@@ -259,6 +269,8 @@ const tfForm = reactive({
 })
 const tfSimpan = ref<ReservasiDp | null>(null)
 const tfRes = ref<Reservasi | null>(null)
+/** The row as seen when this sheet opened — the version the save carries. */
+const tfDasar = ref<DasarTampilan | null>(null)
 const tfTampil = ref({ nama: '', info: '', hostNominal: 0, hostMetode: '', buktiAda: false, buktiGambar: false })
 
 const KUNCI_SARAN: { kunci: KunciSaran, label: string }[] = [
@@ -272,6 +284,7 @@ const KUNCI_SARAN: { kunci: KunciSaran, label: string }[] = [
 function bukaTfEdit(x: TxDanaMasuk) {
   tfSimpan.value = { ...x.p }
   tfRes.value = { ...x.r }
+  tfDasar.value = dasarDari(x)
   Object.assign(tfForm, {
     resId: x.r.id, payId: x.p.id, ke: x.ke, dari: x.dari,
     date: x.p.tfDate || '', time: x.p.tfTime || '', bank: txBank(x),
@@ -347,7 +360,13 @@ async function simpanTf(verifikasi: boolean) {
     return
   }
   try {
-    const { dps, versi } = await salinDps(tfForm.resId)
+    const d = tfDasar.value
+    if (!d || d.r.id !== tfForm.resId) {
+      toast.add({ title: 'Data di layar berubah — daftar dimuat ulang', color: 'error' })
+      await muatUlangTf()
+      return
+    }
+    const dps = dpsKerja(d)
     const idx = cariCicilan(dps, tfForm.payId, tfForm.ke)
     const p = dps[idx]
     if (!p) {
@@ -356,7 +375,7 @@ async function simpanTf(verifikasi: boolean) {
       return
     }
     terapkanFormTf(p)
-    await tulisTransfer(tfForm.resId, idx, dps, {}, versi)
+    await tulisTransfer(tfForm.resId, idx, dps, {}, d.versi)
     await catatDp('Koreksi Data Transfer', `${tfTampil.value.nama}: ${p.tfBank || '-'} ${p.tfName || '-'} ${p.tfDate || '-'} ${p.tfTime || ''} ${rp(txNominal({ r: tfRes.value!, p, ke: 0, dari: 0 }))}`, tfForm.resId)
     await refresh()
     sheetTf.value = false
@@ -378,33 +397,49 @@ const sheetVer = ref(false)
 const ver = reactive({
   resId: '', payId: '', ke: 0, dari: 0, nama: '', sumber: 'manual',
   date: '', time: '', bank: '', name: '', nomBukti: 0, nomHost: 0, kurang: [] as string[],
+  versi: undefined as Versi | undefined,
+  dasarR: null as Reservasi | null,
 })
 
-function isiVerifikasi(resId: string, payId: string, ke: number, dari: number, nama: string, p: ReservasiDp, bank: string, sumber: string) {
+function isiVerifikasi(resId: string, payId: string, ke: number, dari: number, nama: string, p: ReservasiDp, bank: string, sumber: string, dasar: DasarTampilan) {
   Object.assign(ver, {
     resId, payId, ke, dari, nama, sumber,
     date: p.tfDate || '', time: p.tfTime || '', bank, name: p.tfName || '',
     nomBukti: Number(p.tfAmount) || 0, nomHost: Number(p.amount) || 0,
     kurang: kurangDataTf(p, bank),
+    versi: dasar.versi,
+    dasarR: dasar.r,
   })
   sheetVer.value = true
 }
 
 function bukaVerifikasi(x: TxDanaMasuk) {
-  isiVerifikasi(x.r.id, x.p.id, x.ke, x.dari, x.r.name, { ...x.p }, txBank(x), x.p.tfSource || 'manual')
+  isiVerifikasi(x.r.id, x.p.id, x.ke, x.dari, x.r.name, { ...x.p }, txBank(x), x.p.tfSource || 'manual', dasarDari(x))
 }
 
-/** From the edit sheet: the dialog states what was JUST typed, not what is stored (`:9846-9854`). */
+/** From the edit sheet: the dialog states what was JUST typed, not what is stored (`:9846-9854`). The version stays the sheet's. */
 function bukaVerifikasiDariForm() {
+  const d = tfDasar.value
+  if (!d || d.r.id !== tfForm.resId) {
+    toast.add({ title: 'Data di layar berubah — daftar dimuat ulang', color: 'error' })
+    muatUlangTf()
+    return
+  }
   const p = { ...(tfSimpan.value ?? {}), tfDate: tfForm.date, tfTime: tfForm.time, tfBank: tfForm.bank.trim(), tfName: tfForm.name.trim(), tfAmount: rupiahVal(tfForm.amount) } as ReservasiDp
-  isiVerifikasi(tfForm.resId, tfForm.payId, tfForm.ke, tfForm.dari, tfTampil.value.nama, p, tfForm.bank.trim(), 'manual')
+  isiVerifikasi(tfForm.resId, tfForm.payId, tfForm.ke, tfForm.dari, tfTampil.value.nama, p, tfForm.bank.trim(), 'manual', d)
 }
 
 async function verifikasiGo() {
   if (!bolehVerifikasi) return
   sheetVer.value = false
   try {
-    const { dps, versi } = await salinDps(ver.resId)
+    const dasarR = ver.dasarR
+    if (!dasarR || dasarR.id !== ver.resId) {
+      toast.add({ title: 'Data di layar berubah — daftar dimuat ulang', color: 'error' })
+      await refresh()
+      return
+    }
+    const dps = dpsTampilan(dasarR).map(p => ({ ...p }))
     const idx = cariCicilan(dps, ver.payId, ver.ke)
     const p = dps[idx]
     if (!p) {
@@ -427,7 +462,7 @@ async function verifikasiGo() {
     p.tfBy = namaSaya.value
     p.tfAt = Date.now()
     p.tfTanpaData = kurang.length ? kurang.join(', ') : ''
-    await tulisTransfer(ver.resId, idx, dps, {}, versi)
+    await tulisTransfer(ver.resId, idx, dps, {}, ver.versi)
     const x = { r: { name: ver.nama } as Reservasi, p, ke: 0, dari: 0 }
     await catatDp('Verifikasi Dana Masuk',
       `${ver.nama}: ${p.tfBank || '-'} ${p.tfName || '-'} ${p.tfDate || '(tanggal tidak terbaca)'} ${p.tfTime || ''} ${rp(txNominal(x))}`
@@ -444,10 +479,19 @@ async function verifikasiGo() {
 // A reason, typed — refused money was checked and found absent (`:9963-9975`).
 
 const sheetTolak = ref(false)
-const tolak = reactive({ resId: '', payId: '', ke: 0, nama: '', alasan: '', dariForm: false })
+const tolak = reactive({
+  resId: '', payId: '', ke: 0, nama: '', alasan: '', dariForm: false,
+  versi: undefined as Versi | undefined,
+  dasarR: null as Reservasi | null,
+})
 
 function bukaTolak(x: TxDanaMasuk, dariForm = false) {
-  Object.assign(tolak, { resId: x.r.id, payId: x.p.id, ke: x.ke, nama: x.r.name, alasan: x.p.tfNote || '', dariForm })
+  // From the edit sheet the version is the sheet's, not the table's.
+  const d = dariForm && tfDasar.value ? tfDasar.value : dasarDari(x)
+  Object.assign(tolak, {
+    resId: x.r.id, payId: x.p.id, ke: x.ke, nama: x.r.name, alasan: x.p.tfNote || '', dariForm,
+    versi: d.versi, dasarR: d.r,
+  })
   sheetTolak.value = true
 }
 
@@ -455,7 +499,13 @@ async function tolakGo() {
   if (!bolehVerifikasi) return
   sheetTolak.value = false
   try {
-    const { dps, versi } = await salinDps(tolak.resId)
+    const dasarR = tolak.dasarR
+    if (!dasarR || dasarR.id !== tolak.resId) {
+      toast.add({ title: 'Data di layar berubah — daftar dimuat ulang', color: 'error' })
+      await refresh()
+      return
+    }
+    const dps = dpsTampilan(dasarR).map(p => ({ ...p }))
     const idx = cariCicilan(dps, tolak.payId, tolak.ke)
     const p = dps[idx]
     if (!p) {
@@ -468,7 +518,7 @@ async function tolakGo() {
     p.tfNote = tolak.alasan.trim()
     p.tfBy = namaSaya.value
     p.tfAt = Date.now()
-    await tulisTransfer(tolak.resId, idx, dps, {}, versi)
+    await tulisTransfer(tolak.resId, idx, dps, {}, tolak.versi)
     await catatDp('Tolak Bukti Transfer', `${tolak.nama}: ${tolak.alasan.trim() || 'tanpa alasan'}`, tolak.resId)
     if (tolak.dariForm) sheetTf.value = false
     await refresh()
@@ -508,15 +558,18 @@ function betulkanTanggal(x: TxDanaMasuk) {
     return
   }
   const lama = x.p.tfDate || ''
+  // Frozen now: the confirm box states this, and the write carries this version.
+  const d = dasarDari(x)
   mintaKonfirmasi('Betulkan tanggal transfer',
     `${lama ? `Tanggal transfer dibetulkan dari ${tglPendek(lama)} jadi ${tglPendek(benar)}.` : `Tanggal transfer diisi ${tglPendek(benar)} (sebelumnya kosong).`} Angkanya dibaca dari stempel waktu di nomor Ref pada bukti yang sudah tersimpan, dan jam di stempel itu cocok — bukan ditebak.`,
     'Betulkan tanggal', async () => {
-      const { dps, versi } = await salinDps(x.r.id)
-      const p = dps[cariCicilan(dps, x.p.id, x.ke)]
+      const dps = dpsKerja(d)
+      const idx = cariCicilan(dps, x.p.id, x.ke)
+      const p = dps[idx]
       if (!p) throw new Error('Barisnya tidak ketemu')
       p.tfDate = benar
-      await tulisTransfer(x.r.id, cariCicilan(dps, x.p.id, x.ke), dps, {}, versi)
-      await catatDp('Betulkan Tanggal TF', `${x.r.name}: ${lama || '(kosong)'} → ${benar} (dari stempel Ref di bukti tersimpan)`, x.r.id)
+      await tulisTransfer(x.r.id, idx, dps, {}, d.versi)
+      await catatDp('Betulkan Tanggal TF', `${d.r.name}: ${lama || '(kosong)'} → ${benar} (dari stempel Ref di bukti tersimpan)`, x.r.id)
       await refresh()
       toast.add({ title: `Tanggal transfer jadi ${tglPendek(benar)}.`, color: 'success' })
     }, false)
@@ -528,17 +581,20 @@ function betulkanJam(x: TxDanaMasuk) {
     toast.add({ title: 'Jamnya sudah sesuai dengan hasil scan.' })
     return
   }
+  // Frozen now, like the date fix above.
+  const dJam = dasarDari(x)
   mintaKonfirmasi('Betulkan jam transfer',
     `Jam transfer dibetulkan dari ${x.p.tfTime} jadi ${benar} WIB. Angkanya dihitung ulang dari teks bukti yang sudah tersimpan (di sana tertulis AM/PM), bukan ditebak.`,
     'Betulkan jam', async () => {
-      const { dps, versi } = await salinDps(x.r.id)
+      const d = dJam
+      const dps = dpsKerja(d)
       const idx = cariCicilan(dps, x.p.id, x.ke)
       const p = dps[idx]
       if (!p) throw new Error('Barisnya tidak ketemu')
       const lama = p.tfTime
       p.tfTime = benar
-      await tulisTransfer(x.r.id, idx, dps, {}, versi)
-      await catatDp('Betulkan Jam TF', `${x.r.name}: ${lama} → ${benar} (dari teks bukti tersimpan)`, x.r.id)
+      await tulisTransfer(x.r.id, idx, dps, {}, d.versi)
+      await catatDp('Betulkan Jam TF', `${d.r.name}: ${lama} → ${benar} (dari teks bukti tersimpan)`, x.r.id)
       await refresh()
       toast.add({ title: `Jam transfer dibetulkan jadi ${benar} WIB.`, color: 'success' })
     }, false)
@@ -552,18 +608,37 @@ const sheetTambah = ref(false)
 const tambah = reactive({
   resId: '', nama: '', info: '', ke: 1, sudahMasuk: 0, nominal: '', metode: '',
   berkas: null as File | null, namaBerkas: '',
+  versi: undefined as Versi | undefined,
+  dasarR: null as Reservasi | null,
 })
+
+function isiTambah(r: Reservasi, simpanKetik: boolean) {
+  const n = dpsTampilan(r).length
+  const simpan = simpanKetik
+    ? { nominal: tambah.nominal, metode: tambah.metode, berkas: tambah.berkas, namaBerkas: tambah.namaBerkas }
+    : { nominal: '', metode: dpMetodeBawaan(dpMethods.value ?? []), berkas: null, namaBerkas: '' }
+  Object.assign(tambah, {
+    resId: r.id, nama: r.name, info: `${tglPendek(r.date)} ${r.time}, ${r.pax} pax${r.table ? `, meja ${r.table}` : ''}`,
+    ke: n + 1, sudahMasuk: dpTotal(r),
+    ...simpan,
+    versi: r.updatedAt,
+    dasarR: { ...r, dps: Array.isArray(r.dps) ? [...r.dps] : r.dps },
+  })
+}
 
 function bukaTambah(resId: string) {
   const r = (semua.value ?? []).find(v => v.id === resId)
   if (!r) return
-  const n = dpsTampilan(r).length
-  Object.assign(tambah, {
-    resId, nama: r.name, info: `${tglPendek(r.date)} ${r.time}, ${r.pax} pax${r.table ? `, meja ${r.table}` : ''}`,
-    ke: n + 1, sudahMasuk: dpTotal(r), nominal: '', metode: dpMetodeBawaan(dpMethods.value ?? []),
-    berkas: null, namaBerkas: '',
-  })
+  isiTambah(r, false)
   sheetTambah.value = true
+}
+
+/** After a conflict: the list is newest; the sheet follows it but keeps what was typed. */
+async function muatUlangTambah() {
+  await refresh()
+  if (!tambah.resId) return
+  const r = (semua.value ?? []).find(v => v.id === tambah.resId)
+  if (r) isiTambah(r, true)
 }
 
 function pilihBerkas(e: Event) {
@@ -599,8 +674,14 @@ async function simpanTambah() {
   }
   try {
     const dataUri = await bacaBerkas(tambah.berkas)
-    const { dps, segar, versi } = await salinDps(tambah.resId)
-    pastikanDps({ ...segar, dps } as Reservasi)
+    const dasarR = tambah.dasarR
+    if (!dasarR || dasarR.id !== tambah.resId) {
+      toast.add({ title: 'Data di layar berubah — daftar dimuat ulang', color: 'error' })
+      await muatUlangTambah()
+      return
+    }
+    const dps = dpsTampilan(dasarR).map(p => ({ ...p }))
+    pastikanDps({ ...dasarR, dps } as Reservasi)
     const p = {
       ...dpBaru(namaSaya.value),
       amount: nominal,
@@ -611,15 +692,15 @@ async function simpanTambah() {
     dps.push(p)
     // Money in flips a Pending booking to Confirmed — but only from Pending:
     // anything else (Datang, …) is someone else's state, not ours to move.
-    const tambahan: Partial<Reservasi> = segar.status === 'Pending' ? { status: 'Confirmed' } : {}
-    await tulisTransfer(tambah.resId, dps.length - 1, dps, tambahan, versi)
-    await catatDp('Tambah DP', `${tambah.nama}: DP ke-${dps.length} ${rp(nominal)} (total ${rp(dpTotal({ ...segar, dps } as Reservasi))})`, tambah.resId)
+    const tambahan: Partial<Reservasi> = dasarR.status === 'Pending' ? { status: 'Confirmed' } : {}
+    await tulisTransfer(tambah.resId, dps.length - 1, dps, tambahan, tambah.versi)
+    await catatDp('Tambah DP', `${tambah.nama}: DP ke-${dps.length} ${rp(nominal)} (total ${rp(dpTotal({ ...dasarR, dps } as Reservasi))})`, tambah.resId)
     sheetTambah.value = false
     await refresh()
     toast.add({ title: `DP ${rp(nominal)} tercatat`, color: 'success' })
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, muatUlangDaftar))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, muatUlangTambah))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
 }
 
@@ -632,15 +713,17 @@ function hapusDp(x: TxDanaMasuk) {
     toast.add({ title: 'Hanya Admin Sistem yang boleh menghapus transaksi dana masuk', color: 'error' })
     return
   }
+  // Frozen now: the confirm box states this, and the write carries this version.
+  const d = dasarDari(x)
   mintaKonfirmasi('Hapus transaksi dana masuk',
     `Hapus transaksi dana masuk ${rp(txNominal(x))} (${x.p.method || '-'}) milik "${x.r.name}"? Catatan uang masuk ini akan hilang. Tindakan ini tercatat di audit log.`,
     'Hapus', async () => {
-      const { dps, versi } = await salinDps(x.r.id)
+      const dps = dpsKerja(d)
       const idx = cariCicilan(dps, x.p.id, x.ke)
       const sisa = dps.filter((_, i) => i !== idx)
       // Removing instalment 0 promotes the next one: the flat mirrors follow.
-      await tulisTransfer(x.r.id, idx === 0 ? 0 : 1, sisa, {}, versi)
-      await catatDp('Hapus Dana Masuk', `${x.r.name}: hapus ${rp(txNominal(x))} (${x.p.tfBank || x.p.method || '-'}${x.p.tfName ? `, a.n. ${x.p.tfName}` : ''}) — sisa total DP ${rp(sisa.reduce((a, p) => a + (Number(p.amount) || 0), 0))}`, x.r.id)
+      await tulisTransfer(x.r.id, idx === 0 ? 0 : 1, sisa, {}, d.versi)
+      await catatDp('Hapus Dana Masuk', `${d.r.name}: hapus ${rp(txNominal(x))} (${x.p.tfBank || x.p.method || '-'}${x.p.tfName ? `, a.n. ${x.p.tfName}` : ''}) — sisa total DP ${rp(sisa.reduce((a, p) => a + (Number(p.amount) || 0), 0))}`, x.r.id)
       await refresh()
       toast.add({ title: 'Transaksi dana masuk dihapus' })
     })
@@ -713,6 +796,11 @@ function unduhCsv() {
 
 const pindai = reactive({ sibuk: false, sudah: 0, total: 0, coba: new Set<string>() })
 
+/**
+ * The ONE sanctioned fresh re-read: a scan writes only `tfOcrSaran` /
+ * `tfOcrAt` / `tfOcrText` — suggestions nobody decides by. Re-reading keeps a
+ * slow OCR run from clobbering a host's edit that landed mid-scan.
+ */
 async function pindaiSatu(resId: string, payId: string) {
   const env = await getReservation(resId)
   const segar = env.data
