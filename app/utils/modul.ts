@@ -33,7 +33,11 @@ export const MODUL: Modul[] = [
   { key: 'akademi', label: 'Akademi', desc: 'Training kru', icon: 'i-lucide-graduation-cap', group: 'Tim & Kru', access: ['akademi'] },
   { key: 'hr', label: 'Staff Performance', desc: 'Human resource', icon: 'i-lucide-users', group: 'Tim & Kru', access: ['hr'] },
   { key: 'stock', label: 'Stock', desc: 'Ordering, purchasing & HPP', icon: 'i-lucide-package', group: 'Operasional', access: ['ordering', 'purchasing', 'tree', 'usage', 'hpp'] },
-  { key: 'reservasi', label: 'Reservasi', desc: 'Booking dan tamu', icon: 'i-lucide-coffee', group: 'Operasional', access: ['reservasi'] },
+  { key: 'reservasi', label: 'Reservasi', desc: 'Booking dan tamu', icon: 'i-lucide-coffee', group: 'Operasional', access: ['reservasi'],
+    widgets: [
+      defineAsyncComponent(() => import('~/widgets/reservasi/ReservasiHariIni.vue')),
+      defineAsyncComponent(() => import('~/widgets/reservasi/DpPerluVerifikasi.vue')),
+    ] },
   { key: 'service_excellent', label: 'Service Excellent', desc: 'Review, feedback, reward', icon: 'i-lucide-star', group: 'Operasional', access: ['service_excellent'] },
   { key: 'cashier', label: 'Cashier', desc: 'Setoran & dana masuk', icon: 'i-lucide-banknote', group: 'Operasional', access: ['cashier'] },
   { key: 'konten', label: 'Konten', desc: 'Content operations', icon: 'i-lucide-pen-line', group: 'Marketing & Event', access: ['konten'] },

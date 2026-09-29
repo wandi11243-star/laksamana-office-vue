@@ -615,10 +615,24 @@ HTTP 200 + `APP_LAWAS` (klien terlalu tua) + `conflict:true` (`docs/modules/rese
 - **Service Excellent → HR/Finance?** papan Reward menghitung bonus per kru tapi TIDAK menulis ke HR/Finance — TIDAK DITEMUKAN (dicari: `payroll|gaji|penggajian` di `deploy/service_excellent/index.html`). Perlu keputusan owner.
 ```
 
+## Logika bersama untuk modul lain
+
+| aset | file | API publik | perhatian pemakai |
+|---|---|---|---|
+| Denah + venue | `components/DenahPeta.vue`, `DenahEditor.vue`, `utils/venue-layouts.ts` | props `layout`, `reservasi`, `tanggal`, `mode`, `master` | marketing (VIP), analytics, konten |
+| Kunci meja | `utils/kunci-meja.ts` | `statusMeja`, `occupiedMap`, `conflictCheck`, `dineEstOf`, `clashLeadOf` | selalu beri `dineEstOf(master)`/`clashLeadOf(master)`, jangan default diam-diam |
+| DanaMasukPanel | `components/DanaMasukPanel.vue` | props `bolehVerifikasi`, `bolehHapus`, `bolehHapusDemo`, `bolehKwitansiLangsung`, `sumberAwal` | cashier & finance/kas pasang ini (bukan iframe); 403 → pesan G-14 |
+| Kwitansi | `utils/kwitansi.ts`, `components/KwitansiSlot.vue` | `kwiTertahan(+Teks)`, `kwitansiData/Html`, `tulisLembar` | marketing pakai untuk VIP; terbit-langsung manajer menunggu sesi finance |
+| OCR | `utils/ocr.ts`, `utils/ocr-transfer.ts` | `ocrBaca`, `terapkanOcr`, `saranOcr`, `parseTeksTransfer` | lazy (chunk terpisah); hasil hanya saran |
+| DP | `utils/dp-reservasi.ts` | `dpsOf`, `dpTotal`, `tx*`, `ringkasDanaMasuk`, `saringDanaMasuk`, `rekeningDp` | satu sumber rumus uang |
+| WA | `utils/wa.ts` | `waKirim` (wa.me + salin), `waSalin`, `teksPanggilAntrean` | grup tanpa nomor → salin + tempel |
+| Matriks izin | `components/MatriksIzin.vue` | `v-model`, `baris`, `roles`, `putaran`, `terkunci` | dipakai reservasi master + SE peran |
+| SE murni | `utils/service-excellent.ts` | `rewardDari`, `rekapCapaian`, `rentangReview`, `divisiCocok` | — |
+
 ## J. Progres build
 
 Branch: `migrasi/fondasi` (fondasi F1–F5) lalu `migrasi/reservasi` · Mulai: 2026-09-29
-LANJUTKAN DARI: Tahap 5 — Service Excellent (`pages/service_excellent/`: capaian, review, feedback, peran, setelan). Baca D.8–D.12 di bagian H, F12–F18, bagian G (embed), dan kontrak sections `reviews`/`feedbacks`/`reviewCfg`/`seCrew`/`sePerms` + `useServiceExcellent.ts`. Baca D.4–D.7 di bagian H, F19 (baris EKSTRA hapus ikut dibangun di master), dan kontrak `GET /reservations` + `GET /audit` + `PUT /master/{section}`. Regarkan G-08 (paging klien) dan G-14 (Cashier/Kas menampilkan "Segera" sampai API dilonggarkan).
+LANJUTKAN DARI: — (modul selesai; menunggu review owner & cutover).
 
 Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di kolom terakhir)
 
@@ -881,3 +895,46 @@ Helper baru **`app/utils/wa.ts`** (dipakai juga Service Excellent nanti): `waKir
 
 
 
+
+## K. Daftar uji cutover
+
+Bahasa user. Setiap aksi tulis diuji juga **silang**: ubah di Vue → terlihat di Office lama, dan sebaliknya.
+
+### Panel Reservasi
+1. Buka Input Reservasi, isi tamu baru (< 2 menit), simpan, pastikan muncul di Dashboard dan di Office lama.
+2. Edit reservasi di Vue, simpan, pastikan `tableAsli`, `tfName`, `log`, dan `izinTumpang` tidak hilang (cek di Office lama).
+3. Dua tab: tab A edit reservasi, tab B verifikasi DP / Tandai datang, tab A simpan → harus 409 + form dimuat ulang → simpan lagi → pekerjaan tab B tetap ada.
+4. Dashboard: saring Harian/Mingguan/Bulanan, klik tanggal di Kalender → tabel hari itu; klik meja → aksi cepat; tambah walk-in.
+5. Denah: pindah lantai, kunci meja terkunci di H-3 jam, izin tumpang sekali pakai; ubah layout per tanggal sebagai manager, pastikan jejak penyunting tampil.
+6. Waiting list: tambah (tanpa nama → "Walkin"), kabari via WA, dudukkan ke meja, keluarkan; pastikan `cancelledAt` tercatat.
+7. Dana Masuk: Cek/Edit transfer, Verifikasi (coba tanpa data lengkap → tanda "dari gambar"), Tolak + alasan, Betulkan tanggal/jam dari stempel, Tambah Bukti (tanpa bukti harus ditolak), Hapus DP sebagai admin.
+8. Dua tab: tab A buka Cek/Edit baris X (biarkan terbuka), tab B ganti nominal di Input, tab A Simpan/Verifikasi → harus 409 + muat ulang → periksa lagi.
+9. Kwitansi: minta sebagai cashier saat ada DP belum terverifikasi → harus ditahan + alasan; setelah semua terverifikasi → request terkirim; unduh PDF setelah terbit.
+10. Riwayat: cari nama/HP → kartu CRM; ekspor CSV, buka di Excel (kolom Lantai terisi).
+11. Analitik: bandingkan angka kehadiran/pax dengan hitungan manual satu hari.
+12. Master: tambah/hapus dropdown sebagai manager; ubah matriks sebagai admin; viewer tetap Lihat; backup JSON terunduh.
+13. Audit: cari nama → jejak ketemu; klik aksi ber-`res` → detail reservasi terbuka.
+14. Peran: host tidak melihat Hapus DP / Master / Audit; viewer hanya Lihat (tombol ubah disembunyikan, bukan ditolak saat ditekan).
+15. G-14/G-15: pemegang cashier/finance tanpa `reservasi`, dan tanpa `marketing`, melihat pesan "Belum punya akses · G-14/G-15", bukan error mentah.
+
+### Panel Service Excellent
+16. Minta review ke tamu datang → WA terkirim + catatan `diminta`; matikan saklar WA → tombol hilang (bukan abu-abu).
+17. Catat review tanpa Foto 1 → ditolak; klaim dengan akun Google yang sama dua kali → ditolak (F16); verifikasi tanpa Foto 2 → ditolak (F15).
+18. Verifikasi satu klaim di Vue → terlihat terverifikasi di Office lama, dan masuk hitungan target + reward; sebaliknya.
+19. Catat feedback 2 keluhan beda divisi (+ satu `other` tanpa nama → ditolak); tandai Selesai + tindakan; kirim WA tindak lanjut.
+20. Kelola role: turunkan satu-satunya manager ke staff → ditolak; tambah pengurus pertama → peringatan F20 hilang.
+21. Setelan: ubah tangga reward → papan capaian ikut berubah; reward hanya tampil (tidak ada tulis ke mana pun).
+
+## L. Definition of Done (PLAN.md §5)
+
+- [x] Setiap layar bagian C punya halaman: 7 Reservasi + 5 SE ✅. "Segera" ber-ID: Restore/Hapus Semua (K-11), DP Event 403 (G-15). `hariH` alias + `review` hantu tidak dibangun (tercatat di C). ⚠️ Terbit-langsung kwitansi manajer jatuh ke lembar tanpa tanda tangan (menunggu sesi finance, tercatat di J).
+- [x] Setiap baris tabel E dipakai lewat `useReservasi.ts` / `useServiceExcellent.ts`; tanpa URL legacy ✅ (grep `api-mysql` di `app/` → 0).
+- [x] Aturan F1–F24 diterapkan: F1–F5 fondasi; F5–F8 kunci meja; F10 kwitansi; F11 pisah DP; F12–F18 SE; F19 matriks + ekstra; F20 darurat admin; F22 audit server; F23 jejak denah; F24 default master. F9 tutup-otomatis mati (tidak dibawa, sesuai sumber). F21 PIN = modul auth, bukan layar ini.
+- [x] Rumus bersama diimpor dari `app/utils/`, bukan disalin ✅ (tabel Logika bersama di atas).
+- [x] Tulisan memakai `ifMatch` + `tanganiKonflik` ✅ (reservasi, section master, review/feedback).
+- [x] Menu modul terdaftar (`utils/modul.ts`, `utils/layar/*`) + 2 widget Beranda ✅.
+- [x] `npm run lint && npm run typecheck && npm run build` hijau ✅ (bukti di bawah).
+- [ ] Dicek di 390px dan 1366px, terang dan gelap → ❌ belum dicek visual (tidak ada browser terhubung sepanjang modul).
+- [x] Bagian J terisi ✅. Status §3 PLAN.md → ✅ (diisi sesi ini).
+
+Bukti hijau terakhir: lint 0 error 0 warning · typecheck 0 error · build ✔ Generated public `.output/public`.

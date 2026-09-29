@@ -52,7 +52,7 @@ Urutan mempertimbangkan ukuran, risiko, dan **siapa yang membangun komponen bers
 | 5 | bd | 11 layar | — (G-02) | — | ⬜ |
 | 6 | hr | 17 layar | K-01 (G-13), K-05 | `people-score.ts` | ⬜ |
 | 7 | jadwal | jadwal + dw + roster, 20 layar | K-10 (G-03/05) | `pax-harian.ts` (`satukan()`) | ⬜ |
-| 8 | reservasi | reservasi + service_excellent, 12 layar | K-05: OCR `tesseract.js` diizinkan, lazy (G-07/08) | `DanaMasukPanel`, `Denah` + `venue-layouts.ts`, `kwitansi.ts` | 🟡 |
+| 8 | reservasi | reservasi + service_excellent, 12 layar | K-05: OCR `tesseract.js` diizinkan, lazy (G-07/08) | `DanaMasukPanel`, `Denah` + `venue-layouts.ts`, `kwitansi.ts` | ✅ (visual belum dicek) |
 | 9 | cashier | 11 layar | K-04 | `cocok-bri.ts`, `porsi-pic.ts` | ⬜ |
 | 10 | finance | omset + kas + brankas + rekap, 29 layar | K-04 (G-06) | `performa-bonus.ts` | ⬜ |
 | 11 | stock | 5 panel, 26 layar | K-05 (ekspor CSV), K-06 (Apps Script), K-07 | — | ⬜ |
