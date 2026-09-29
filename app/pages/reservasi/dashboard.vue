@@ -61,7 +61,10 @@ const tglDenah = ref(hariIni())
 const tab = ref<'list' | 'calendar' | 'map' | 'wait'>('list')
 const perTanggal = computed(() => tab.value === 'map' || tab.value === 'wait')
 
+/** The calendar tab reads a whole month, so its first day joins the window while
+ *  that tab is open — otherwise most of the grid would be empty (`:5296`). */
 const dari = computed(() => {
+  if (tab.value === 'calendar') return bulan.value ? `${bulan.value}-01` : hariIni()
   const dasar = filter.mode === 'month'
     ? `${filter.month}-01`
     : filter.mode === 'year'
@@ -72,6 +75,7 @@ const dari = computed(() => {
   return tambahHari(dasar, -1)
 })
 const sampai = computed(() => {
+  if (tab.value === 'calendar') return bulan.value ? jumlahHariBulan(bulan.value) : hariIni()
   const akhir = filter.mode === 'month'
     ? `${filter.month}-31`
     : filter.mode === 'year'
@@ -245,6 +249,83 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
   { id: 'status', header: 'Status' },
   { id: 'aksi', header: '' },
 ])
+
+// --- the calendar (`:5573-5630`) ------------------------------------------------
+
+/** "2026-09" -> "2026-09-30". Month arithmetic goes through Date because
+ *  new Date('2026-02-30') silently rolls into March. */
+function jumlahHariBulan(ym: string): string {
+  const [y, m] = ym.split('-').map(Number)
+  return `${ym}-${String(new Date(y!, m!, 0).getDate()).padStart(2, '0')}`
+}
+
+const bulan = ref(hariIni().slice(0, 7))
+const kalenderStatus = ref('')
+
+/** Left/right a month, without the Date rollover trap. */
+function geserBulan(n: number) {
+  const [y, m] = bulan.value.split('-').map(Number)
+  const d = new Date(y!, m! - 1 + n, 1)
+  bulan.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
+const labelBulan = computed(() => new Date(`${bulan.value}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }))
+
+/** Reservations grouped by date, with the calendar's own status legend. Cancelled
+ *  rows are left out when no status is chosen — the same as the table. */
+const kalenderPerTanggal = computed(() => {
+  const map = new Map<string, Reservasi[]>()
+  for (const r of semua.value ?? []) {
+    if (!r.date) continue
+    if (kalenderStatus.value) {
+      if (r.status !== kalenderStatus.value) continue
+    }
+    else if (r.status === 'Cancelled') continue
+    const list = map.get(r.date) ?? []
+    list.push(r)
+    map.set(r.date, list)
+  }
+  for (const list of map.values()) list.sort((a, b) => (a.time || '').localeCompare(b.time || ''))
+  return map
+})
+
+const kalenderDibatalkan = computed(() => (kalenderStatus.value ? 0 : (semua.value ?? []).filter(r => r.status === 'Cancelled').length))
+
+/** The month's cells, Monday first, with the leading and trailing days of the
+ *  neighbouring months greyed out (`:5578-5581`, `:5624-5628`). */
+const selBulan = computed(() => {
+  const [y, m] = bulan.value.split('-').map(Number)
+  const pertama = new Date(y!, m!, 1)
+  const mundur = (pertama.getDay() + 6) % 7 // Monday is the first column
+  const jumlah = new Date(y!, m!, 0).getDate()
+  const sel: { tgl: string, num: number, dalam: boolean, list: Reservasi[] }[] = []
+  const tambah = (t: Date, dalam: boolean) => {
+    const tgl = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
+    sel.push({ tgl, num: t.getDate(), dalam, list: kalenderPerTanggal.value.get(tgl) ?? [] })
+  }
+  for (let i = mundur; i > 0; i--) {
+    const d = new Date(y!, m! - 1, 0)
+    d.setDate(d.getDate() - i + 1)
+    tambah(d, false)
+  }
+  for (let d = 1; d <= jumlah; d++) tambah(new Date(y!, m!, d), true)
+  const sisa = (7 - (sel.length % 7)) % 7
+  for (let d = 1; d <= sisa; d++) tambah(new Date(y!, m! + 1, d), false)
+  return sel
+})
+
+const paxHari = (list: Reservasi[]) => list.filter(r => r.status !== 'No-show').reduce((a, r) => a + (Number(r.pax) || 0), 0)
+
+/** A click on a day switches to Daily for that date AND moves the map's date, so
+ *  the map does not stay on the previous day (`:5608-5611`). */
+function pilihTanggal(tgl: string) {
+  filter.mode = 'day'
+  filter.date = tgl
+  tglDenah.value = tgl
+  tab.value = 'list'
+}
+
+const DOW = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
 
 // --- the day-of map, its quick actions, and the poll (`:2045-2242`, `:3089-3156`) ---
 
@@ -604,7 +685,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', saatKemba
 const saringBerlaku = computed(() => !!(filter.fromHour || filter.toHour || filter.status || filter.category
   || filter.lantai || filter.kursi || filter.dp || filter.pic || filter.q || cari.value || filter.mode !== 'day'))
 
-const tglPanjangLama = computed(() => new Date(`${tglDenah.value}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' }))
+const tglPanjangLama = (tgl: string) => new Date(`${tgl}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })
 
 /** The queue count used in the map's header line. */
 const ants = computed(() => antreanHari.value)
@@ -1023,7 +1104,107 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
       </p>
     </AppList>
 
-    <template v-if="tab === 'map'">
+    <template v-if="tab === 'calendar'">
+      <div class="mb-3 flex flex-wrap items-center gap-2">
+        <UButton
+          label="‹"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          @click="geserBulan(-1)"
+        />
+        <span class="min-w-40 text-center text-lg font-bold text-highlighted">{{ labelBulan }}</span>
+        <UButton
+          label="›"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          @click="geserBulan(1)"
+        />
+        <UButton
+          label="Bulan ini"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          @click="bulan = hariIni().slice(0, 7)"
+        />
+        <USelect
+          v-model="kalenderStatus"
+          :items="[{ value: '', label: 'Semua (kecuali dibatalkan)' }, 'Pending', 'Confirmed', 'Datang', 'Cancelled', 'No-show']"
+          class="max-w-52"
+        />
+      </div>
+
+      <p
+        v-if="kalenderDibatalkan"
+        class="mb-3 text-sm text-muted"
+      >
+        <b>{{ kalenderDibatalkan }} reservasi dibatalkan</b> tidak ikut digambar — sama seperti
+        tabel. Pilih “Cancelled” di atas untuk melihatnya.
+      </p>
+
+      <!-- Desktop: the month grid. -->
+      <div class="mb-7 hidden overflow-hidden rounded-2xl bg-default lg:block">
+        <div class="grid grid-cols-7 divide-x divide-y divide-default border-b border-default">
+          <div
+            v-for="d in DOW"
+            :key="d"
+            class="px-2 py-1.5 text-xs font-semibold text-muted"
+          >
+            {{ d }}
+          </div>
+        </div>
+        <div class="grid grid-cols-7">
+          <button
+            v-for="c in selBulan"
+            :key="c.tgl"
+            type="button"
+            class="min-h-24 border-r border-b border-default p-2 text-start align-top"
+            :class="c.dalam ? 'hover:bg-elevated/60' : 'bg-muted'"
+            :disabled="!c.dalam"
+            @click="pilihTanggal(c.tgl)"
+          >
+            <span
+              class="num text-sm font-semibold"
+              :class="c.tgl === hariIni() ? 'text-highlighted underline' : (c.dalam ? '' : 'text-dimmed')"
+            >{{ c.num }}</span>
+            <span
+              v-for="r in c.list.slice(0, 3)"
+              :key="r.id"
+              class="mt-1 block truncate rounded-sm bg-default px-1 py-0.5 text-xs"
+            >
+              <b class="num">{{ r.time }}</b> {{ r.name }}
+            </span>
+            <span
+              v-if="c.list.length > 3"
+              class="mt-1 block text-xs text-dimmed"
+            >
+              +{{ c.list.length - 3 }} lagi
+            </span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Phone: a list of the days that have bookings, so nothing is clipped. -->
+      <AppList class="lg:hidden">
+        <AppListRow
+          v-for="c in selBulan.filter(x => x.dalam && x.list.length)"
+          :key="c.tgl"
+          :title="tglPanjangLama(c.tgl)"
+          :description="`${c.list.length} reservasi · ${paxHari(c.list)} pax`"
+          :icon="c.tgl === hariIni() ? 'i-lucide-calendar-check-2' : 'i-lucide-calendar-days'"
+          @click="pilihTanggal(c.tgl)"
+        />
+        <p
+          v-if="!selBulan.some(x => x.dalam && x.list.length)"
+          class="px-4 py-3 text-muted"
+        >
+          Belum ada reservasi di bulan ini.
+        </p>
+      </AppList>
+    </template>
+
+    <template v-else-if="tab === 'map'">
       <div class="mb-3 flex flex-wrap items-center gap-2">
         <UButton
           v-for="l in ([1, 2] as const)"
@@ -1071,8 +1252,7 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
       v-else
       class="text-muted"
     >
-      Tab {{ tab === 'calendar' ? 'Kalender' : 'Waiting list' }} sedang dibangun — lanjut di
-      sesi berikutnya.
+      Tab Waiting list sedang dibangun — lanjut di sesi berikutnya.
     </p>
 
     <ResponsiveSheet

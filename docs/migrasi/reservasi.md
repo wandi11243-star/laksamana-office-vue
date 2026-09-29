@@ -618,13 +618,13 @@ HTTP 200 + `APP_LAWAS` (klien terlalu tua) + `conflict:true` (`docs/modules/rese
 ## J. Progres build
 
 Branch: `migrasi/fondasi` (fondasi F1–F5) lalu `migrasi/reservasi` · Mulai: 2026-09-29
-LANJUTKAN DARI: Tahap 3 — `dashboard` bagian 3 (tab Kalender), lalu bagian 4 (tab Waiting List, override layout per tanggal, WA Koordinasi).
+LANJUTKAN DARI: Tahap 3 — `dashboard` bagian 4a (tab Waiting List), lalu 4b (override layout per tanggal + DenahEditor) dan 4c (WA Koordinasi).
 
 Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di kolom terakhir)
 
 | layar (key) | panel | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|---|
-| dashboard | reservasi | `pages/reservasi/dashboard.vue` | 🟡 | `GET /reservasi/reservations`, `PATCH/POST /reservations`, `GET/POST /audit`, `/master/{dineEstMin,clashLeadMin,waitlist,layouts,*}` | tab Kalender, Waiting List, override layout & WA Koordinasi belum · tipe tamu G-07 |
+| dashboard | reservasi | `pages/reservasi/dashboard.vue` | 🟡 | `GET /reservasi/reservations`, `PATCH/POST /reservations`, `GET/POST /audit`, `/master/{dineEstMin,clashLeadMin,waitlist,layouts,*}` | tab Waiting List, override layout & WA Koordinasi belum · tipe tamu G-07 |
 | input | reservasi | `pages/reservasi/input.vue` | ✅ | `GET/POST/PUT/DELETE /reservations`, `GET /reservations/{id}`, `GET /files/*` | autofill profil tamu → G-07 |
 | finance | reservasi | `pages/reservasi/finance.vue` | ⬜ | `GET /reservations`, `PATCH /reservations/{id}` | kwitansi via Finance invoices; paging `halDana` → G-08 |
 | riwayat | reservasi | `pages/reservasi/riwayat.vue` | ⬜ | `GET /reservations` | `riwayat`/ekspor server → G-08 |
@@ -804,6 +804,8 @@ Semua field D.2 ada, dengan pesan validasinya apa adanya. Yang dibangun di layar
 ### J.3 Tahap 3 — `dashboard` (bagian 1 & 2, 2026-09-29)
 
 **Bagian 1** (`feat(reservasi): dashboard bagian 1`) — ringkasan, filter, tab Tabel. Ringkasan = `AppFocus` (jumlah reservasi + pax) + `AppList` (empat barisa angka), bukan grid kartu. Tab Tabel: `UTable` di `lg+` dan `AppList` di HP dari baris yang sama, urut per kolom (Tombol sort, bukan klik header — sorting lewat tombol di bawah tabel, bukan klik header (klik header pada UTable tidak bisa di-style dan tidak konsisten)), paging 10/25/50 di browser dengan catatan **G-08** di layar. "Tipe tamu" **Segera · G-07** (butuh `ringkasTamu`).
+
+**Bagian 3** (`feat(reservasi): dashboard bagian 3`) — tab **Kalender** (`:5573-5630`): grid bulan dengan kolom Senin–Minggu, maksimal 3 acara per hari lalu "+n lagi", legenda saringan status, `‹ ›` + "Bulan ini", dan **klik satu tanggal** → pindah ke mode Harian tanggal itu DAN menggeser tanggal denah, lalu membuka tab Tabel (`:5608-5611`). Dibalik: `dari`/`sampai` ikut encompass bulan kalender saat tab itu terbuka (`:5296`), kalau tidak gridnya kosong. Di HP diganti daftar per hari (`AppList`) berisi tanggal yang punya reservasi + jumlah reservasi/pax — grid 7 kolom akan terpotong di 390px. Drag kiri/kanan ganti bulan **tidak** dibangun (bertabrakan dengan scroll layar sentuh; tombol `‹ ›` sudah ada).
 
 **Bagian 2** (`feat(reservasi): dashboard bagian 2`) — tab **Denah Meja**:
 - `DenahPeta mode="tampil"` untuk Lt.1 & Lt.2, timer duduk, jumlah antrean di header, plan yang berlaku dicetak namanya.
