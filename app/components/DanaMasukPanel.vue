@@ -42,15 +42,18 @@ const props = withDefaults(defineProps<{
   bolehVerifikasi?: boolean
   bolehHapus?: boolean
   bolehHapusDemo?: boolean
+  /** Manager/admin direct-print path (old ROLE_KWI_LANGSUNG). The host page sets it from its role matrix. */
+  bolehKwitansiLangsung?: boolean
   sumberAwal?: 'reservasi' | 'event'
 }>(), {
   bolehVerifikasi: false,
   bolehHapus: false,
   bolehHapusDemo: false,
+  bolehKwitansiLangsung: false,
   sumberAwal: 'reservasi',
 })
 
-const { bolehVerifikasi, bolehHapus, bolehHapusDemo } = props
+const { bolehVerifikasi, bolehHapus, bolehHapusDemo, bolehKwitansiLangsung } = props
 const me = useMe()
 const toast = useToast()
 const namaSaya = computed(() => me.value?.name ?? '')
@@ -1932,6 +1935,18 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
             />
           </p>
         </UFormField>
+        <div>
+          <p class="mb-1 text-xs font-semibold text-muted">
+            Kwitansi
+          </p>
+          <KwitansiSlot
+            v-if="tfRes"
+            :res-id="tfForm.resId"
+            :reservasi="tfRes"
+            :boleh-minta="bolehVerifikasi"
+            :boleh-langsung="bolehKwitansiLangsung"
+          />
+        </div>
         <div>
           <UButton
             v-if="bolehVerifikasi"

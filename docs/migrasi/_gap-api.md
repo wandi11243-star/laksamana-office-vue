@@ -25,6 +25,7 @@ Status: ⬜ belum diajukan · 📨 issue dibuat (tulis nomornya) · ✅ ada di v
 | G-12 | 📨 | [laksamana-api#188](https://github.com/dwipapap/laksamana-api/issues/188) |
 | G-13 | 📨 | [laksamana-api#187](https://github.com/dwipapap/laksamana-api/issues/187) |
 | G-14 | 📨 | [laksamana-api#189](https://github.com/dwipapap/laksamana-api/issues/189) |
+| G-15 | ⬜ | — |
 
 ---
 
@@ -127,3 +128,17 @@ Input tetap tertutup untuk mereka, persis seperti keadaan lama.
 **Sampai salah satu ada:** komponen `DanaMasukPanel` menampilkan 403 apa adanya dengan teks
 "Belum punya akses ke Data Reservasi" beserta ID gap **G-14**, dan modul cashier/finance menampilkan
 bagian itu sebagai "Segera" (`text-dimmed`) — bukan halaman kosong.
+
+### G-15 — marketing: tab DP Event untuk pemegang `reservasi`/`cashier`/`finance` tanpa modul `marketing`
+Tab "DP Event (Marketing)" di Dana Masuk dibaca Office lama lewat `GET marketing-api-mysql/api.php?action=dpMasuk`
+(`laksamana-office/deploy/reservasi/index.html:9108-9136`) — endpoint sempit TANPA gate modul (hanya `API_TOKEN`
+opsional; `laksamana-office/marketing-mysql/api.php:64-90`). Kasir lewat `?embed=finance` membukanya tanpa modul
+marketing. v1 `GET /api/v1/marketing/dp` digate `module:marketing`
+(`laksamana-api/app/Modules/Marketing/routes/v1.php:6`) → pemegang `reservasi`/`cashier`/`finance` tanpa
+`marketing` kena 403 `module_not_granted`.
+
+**Usul:** longgarkan gate untuk `GET /marketing/dp` saja (read-only, tanpa CRM/pipeline — alasan endpoint
+sempit ini lahir), atau sertakan modul `marketing` pada pemegang `cashier`/`finance`.
+
+**Sampai salah satu ada:** tab DP Event di `DanaMasukPanel` menampilkan "Belum punya akses · G-15",
+DP reservasi di tab sebelah tetap bisa dipakai.
