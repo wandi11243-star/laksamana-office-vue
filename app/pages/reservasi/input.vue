@@ -94,6 +94,18 @@ function setLayer(l: 1 | 2) {
   layer.value = l
 }
 
+/** The three plan buttons (Weekday / Weekend / Lantai 2). Leaving floor 2 first
+ *  lets the date watcher settle, then draws the chosen floor-1 plan. */
+async function pilihDenah(v?: string) {
+  if (!v) return
+  if (v === 'lt2') return setLayer(2)
+  if (layer.value !== 1) {
+    setLayer(1)
+    await nextTick()
+  }
+  layoutKey.value = v
+}
+
 // --- the rows around the date, and the row being edited ---------------------
 
 const dari = computed(() => tambahHari(form.date, -1))
@@ -610,34 +622,45 @@ async function hapus() {
 
 <template>
   <AppPage
-    :title="modeEdit ? 'Edit reservasi' : 'Input reservasi'"
-    :description="modeEdit ? 'Perubahan langsung berlaku di denah & Dana Masuk' : 'Isi data tamu. Field bertanda * wajib diisi.'"
-    :back="{ label: 'Batal', to: '/reservasi/dashboard' }"
+    :title="modeEdit ? 'Edit reservasi' : 'Input reservasi baru'"
+    :description="modeEdit ? 'Perubahan langsung berlaku di denah & Dana Masuk.' : 'Isi data tamu. Field bertanda * wajib diisi. Target: selesai < 2 menit.'"
   >
     <p
       v-if="galat"
-      class="mb-4 rounded-xl bg-default p-3 text-error"
+      class="mb-4 flex items-start gap-2 rounded-field border border-error/30 bg-error/10 p-3 text-sm font-semibold text-error"
       role="alert"
     >
-      {{ galat }}
+      <UIcon
+        name="i-lucide-circle-alert"
+        class="mt-0.5 size-4 shrink-0"
+      />{{ galat }}
     </p>
 
-    <AppList title="Tamu">
-      <div class="grid gap-4 p-4 sm:grid-cols-2">
-        <datalist id="nama-tamu">
-          <option
-            v-for="n in namaTamu"
-            :key="n"
-            :value="n"
-          />
-        </datalist>
-        <datalist id="nomor-tamu">
-          <option
-            v-for="n in nomorTamu"
-            :key="n"
-            :value="n"
-          />
-        </datalist>
+    <datalist id="nama-tamu">
+      <option
+        v-for="n in namaTamu"
+        :key="n"
+        :value="n"
+      />
+    </datalist>
+    <datalist id="nomor-tamu">
+      <option
+        v-for="n in nomorTamu"
+        :key="n"
+        :value="n"
+      />
+    </datalist>
+    <datalist id="opsi-jam">
+      <option
+        v-for="t in opsiJam(5)"
+        :key="t"
+        :value="t"
+      />
+    </datalist>
+
+    <!-- One panel, two columns, in the old form's order (:4330-4497). -->
+    <AppPanel>
+      <div class="grid gap-x-4 gap-y-4 lg:grid-cols-2">
         <UFormField
           label="Nama tamu"
           required
@@ -647,7 +670,7 @@ async function hapus() {
             list="nama-tamu"
             size="xl"
             class="w-full"
-            placeholder="Nama tamu"
+            placeholder="Nama pemesan / PJ"
           />
         </UFormField>
         <UFormField
@@ -661,84 +684,9 @@ async function hapus() {
             inputmode="numeric"
             size="xl"
             class="w-full"
-            placeholder="08xxxxxxxxxx"
+            placeholder="08xxxx"
           />
         </UFormField>
-        <UFormField
-          label="Jenis reservasi"
-          required
-        >
-          <USelect
-            v-model="form.category"
-            :items="(categories ?? []).filter(c => c).length ? (categories ?? []).filter(c => c) : ['Tamu Umum']"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Sumber informasi">
-          <USelect
-            v-model="form.source"
-            :items="(infoSources ?? []).filter(c => c)"
-            placeholder="Tau dari mana"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Menu makanan request">
-          <UInput
-            v-model="form.foodReq"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Menu minuman request">
-          <UInput
-            v-model="form.drinkReq"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Status member">
-          <div class="flex gap-4 pt-2">
-            <label class="flex items-center gap-2 text-sm">
-              <input
-                v-model="form.member"
-                type="radio"
-                value="tidak"
-              > Tidak
-            </label>
-            <label class="flex items-center gap-2 text-sm">
-              <input
-                v-model="form.member"
-                type="radio"
-                value="ya"
-              > Member
-            </label>
-          </div>
-        </UFormField>
-        <UFormField
-          v-if="form.member === 'ya'"
-          label="No. member"
-        >
-          <UInput
-            v-model="form.memberNo"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-      </div>
-
-      <div class="px-4 pb-4 text-sm text-dimmed">
-        <UIcon
-          name="i-lucide-user-search"
-          class="mr-1 inline size-4 align-text-bottom"
-        />Profil tamu (loyal, daftar hitam, riwayat kunjungan) — Segera, butuh endpoint
-        ringkasan tamu. <span class="text-dimmed">G-07</span>
-      </div>
-    </AppList>
-
-    <AppList title="Kapan & berapa orang">
-      <div class="grid gap-4 p-4 sm:grid-cols-2">
         <UFormField
           label="Tanggal reservasi"
           required
@@ -753,23 +701,17 @@ async function hapus() {
         <UFormField
           label="Jam datang"
           required
-          help="24 jam, mis. 19:00"
+          help="Format 24 jam, mis. 19:00"
         >
           <UInput
             v-model="form.time"
             list="opsi-jam"
+            icon="i-lucide-clock"
             size="xl"
             class="w-full"
             @blur="form.time = normTime(form.time) || form.time"
           />
         </UFormField>
-        <datalist id="opsi-jam">
-          <option
-            v-for="t in opsiJam(5)"
-            :key="t"
-            :value="t"
-          />
-        </datalist>
         <UFormField
           label="Jumlah pax"
           required
@@ -780,248 +722,315 @@ async function hapus() {
             :min="1"
             size="xl"
             class="w-full"
+            placeholder="mis. 4"
             @update:model-value="form.pax = Number($event) || 0"
           />
         </UFormField>
-      </div>
-      <p
-        v-if="butuhApproval"
-        class="mx-4 mb-4 rounded-lg border border-default bg-default p-3 text-sm text-muted"
-      >
-        <UIcon
-          name="i-lucide-users"
-          class="mr-1 inline size-4 align-text-bottom"
-        />{{ form.pax }} pax · butuh approval manajer.
-      </p>
-      <p
-        v-if="paxTidakLogis"
-        class="mx-4 mb-4 rounded-lg border border-default bg-default p-3 text-sm text-muted"
-      >
-        Tercatat <b>{{ paxDatang }}</b> orang sudah masuk — lebih banyak dari yang dipesan
-        ({{ form.pax }} pax). Angka inilah yang tampil di daftar & dashboard.
-        <UButton
-          class="mt-2"
-          label="Samakan dengan jumlah pax"
-          color="neutral"
-          variant="soft"
-          size="sm"
-          @click="samakanDenganPax"
-        />
-      </p>
-      <p
-        v-else-if="pendingArrivals"
-        class="mx-4 mb-4 rounded-lg border border-default bg-default p-3 text-sm text-muted"
-      >
-        Catatan kedatangan akan diperbaiki jadi <b>{{ paxDatang }} pax</b> begitu
-        <b>Simpan</b> ditekan.
-      </p>
-    </AppList>
+        <UFormField
+          label="Jenis reservasi"
+          required
+        >
+          <USelect
+            v-model="form.category"
+            :items="(categories ?? []).filter(c => c).length ? (categories ?? []).filter(c => c) : ['Tamu Umum']"
+            size="xl"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField label="Menu makanan request">
+          <UInput
+            v-model="form.foodReq"
+            size="xl"
+            class="w-full"
+            placeholder="Opsional, mis. Nasi Goreng Kapal"
+          />
+        </UFormField>
+        <UFormField label="Menu minuman request">
+          <UInput
+            v-model="form.drinkReq"
+            size="xl"
+            class="w-full"
+            placeholder="Opsional"
+          />
+        </UFormField>
 
-    <AppList title="Meja">
-      <template #action>
-        <span class="text-sm font-semibold text-muted">
-          {{ form.table ? `Terpilih: ${form.table}` : 'Belum ada meja dipilih' }}
-        </span>
-      </template>
-      <div class="space-y-3 p-4">
-        <div class="flex flex-wrap items-center gap-2">
+        <p
+          v-if="butuhApproval"
+          class="col-span-full flex items-center gap-2 rounded-field bg-warning/10 p-3 text-sm font-semibold text-warning"
+        >
+          <UIcon
+            name="i-lucide-users"
+            class="size-4"
+          />{{ form.pax }} pax · butuh approval manajer.
+        </p>
+        <div
+          v-if="paxTidakLogis"
+          class="col-span-full rounded-field bg-warning/10 p-3 text-sm text-default"
+        >
+          Tercatat <b>{{ paxDatang }}</b> orang sudah masuk — lebih banyak dari yang dipesan
+          ({{ form.pax }} pax). Angka inilah yang tampil di daftar & dashboard.
           <UButton
-            label="Weekday"
+            class="ms-2"
+            label="Samakan dengan jumlah pax"
             color="neutral"
-            :variant="layoutKey === 'weekday' ? 'soft' : 'ghost'"
-            @click="layoutKey = 'weekday'"
+            variant="outline"
+            size="sm"
+            @click="samakanDenganPax"
           />
-          <UButton
-            label="Weekend"
-            color="neutral"
-            :variant="layoutKey === 'weekend' ? 'soft' : 'ghost'"
-            @click="layoutKey = 'weekend'"
-          />
-          <UButton
-            label="Lantai 2"
-            color="neutral"
-            :variant="layer === 2 ? 'soft' : 'ghost'"
-            @click="setLayer(2)"
-          />
-          <UButton
-            v-if="layer === 2"
-            label="Lantai 1"
-            color="neutral"
-            variant="ghost"
-            @click="setLayer(1)"
-          />
-          <label class="flex items-center gap-2 text-sm">
-            <input
-              v-model="form.sharing"
-              type="checkbox"
-            > Sharing table
-          </label>
         </div>
         <p
-          v-if="denahTanggal"
-          class="text-sm text-muted"
+          v-else-if="pendingArrivals"
+          class="col-span-full rounded-field bg-info/10 p-3 text-sm text-default"
         >
-          Meja untuk tanggal ini digeser khusus (denah tanggal sendiri). Ubah lewat dashboard.
+          Catatan kedatangan akan diperbaiki jadi <b>{{ paxDatang }} pax</b> begitu
+          <b>Simpan</b> ditekan.
         </p>
-        <DenahPeta
-          v-if="denah"
-          :layout="denah"
-          :reservasi="sekitar ?? []"
-          :tanggal="form.date"
-          :jam="normTime(form.time)"
-          mode="pilih"
-          :terpilih="terpilih"
-          :dipaksa="dipaksa"
-          :kecuali-id="id || null"
-          :master="masterKunci"
-          @pilih="pilihMeja"
-          @tumpang="onTumpang"
-          @buka="(resId) => router.push({ path: '/reservasi/dashboard', query: { fokus: resId } })"
-        />
-      </div>
-    </AppList>
 
-    <AppList title="Down payment (DP)">
-      <div class="grid gap-4 p-4 sm:grid-cols-2">
+        <!-- Table picker -->
+        <div class="col-span-full">
+          <div class="mb-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span class="text-sm font-semibold text-highlighted">
+              Posisi duduk / meja <span class="text-error">*</span>
+              <span class="font-normal text-muted">(wajib, klik meja pada denah)</span>
+            </span>
+            <AppSeg
+              :model-value="layer === 2 ? 'lt2' : layoutKey"
+              size="sm"
+              :options="[
+                { value: 'weekday', label: 'Weekday' },
+                { value: 'weekend', label: 'Weekend' },
+                { value: 'lt2', label: 'Lantai 2' },
+              ]"
+              @update:model-value="pilihDenah"
+            />
+            <span class="text-sm text-muted">
+              {{ form.table ? `Terpilih: ${form.table}` : 'Belum ada meja dipilih' }}
+            </span>
+            <label class="inline-flex cursor-pointer items-center gap-2 rounded-full border border-vip/30 bg-vip/10 px-3 py-1.5 text-sm font-semibold text-vip">
+              <UCheckbox
+                v-model="form.sharing"
+                :ui="{ base: 'ring-vip' }"
+              />
+              <UIcon
+                name="i-lucide-handshake"
+                class="size-4"
+              />
+              Sharing table <span class="font-normal">(boleh digabung tamu lain)</span>
+            </label>
+          </div>
+          <p
+            v-if="denahTanggal"
+            class="mb-2 text-sm text-muted"
+          >
+            Meja untuk tanggal ini digeser khusus (denah tanggal sendiri). Ubah lewat dashboard.
+          </p>
+          <DenahPeta
+            v-if="denah"
+            :layout="denah"
+            :reservasi="sekitar ?? []"
+            :tanggal="form.date"
+            :jam="normTime(form.time)"
+            mode="pilih"
+            :terpilih="terpilih"
+            :dipaksa="dipaksa"
+            :kecuali-id="id || null"
+            :master="masterKunci"
+            @pilih="pilihMeja"
+            @tumpang="onTumpang"
+            @buka="(resId) => router.push({ path: '/reservasi/dashboard', query: { fokus: resId } })"
+          />
+        </div>
+
+        <AppSectionTitle
+          title="Down payment (DP)"
+          icon="i-lucide-wallet"
+        />
         <UFormField
           label="Status DP"
           required
         >
-          <div class="flex gap-4 pt-2">
-            <label class="flex items-center gap-2 text-sm">
-              <input
-                v-model="form.dpStatus"
-                type="radio"
-                value="Sudah"
-              > Sudah DP
-            </label>
-            <label class="flex items-center gap-2 text-sm">
-              <input
-                v-model="form.dpStatus"
-                type="radio"
-                value="Belum"
-              > Belum DP
-            </label>
-          </div>
-        </UFormField>
-        <UFormField label="Jenis pembayaran">
-          <USelect
-            v-model="form.dpMethod"
-            :items="(dpMethods ?? []).filter(c => c)"
-            size="xl"
-            class="w-full"
+          <AppPilihan
+            v-model="form.dpStatus"
+            name="dp-status"
+            :options="[
+              { value: 'Sudah', label: 'Sudah DP', icon: 'i-lucide-check' },
+              { value: 'Belum', label: 'Belum DP' },
+            ]"
           />
+          <label
+            v-if="form.dpStatus === 'Sudah'"
+            class="mt-2.5 flex items-center gap-2 text-sm font-semibold text-highlighted"
+          >
+            <UCheckbox v-model="form.lunas" />
+            Lunas (bayar penuh) — kwitansi jadi pelunasan
+          </label>
         </UFormField>
-        <UFormField label="Nominal DP">
-          <UInput
-            :model-value="fmtRupiah(rupiahVal(form.dpAmount))"
-            inputmode="numeric"
-            size="xl"
-            class="w-full"
-            placeholder="Rp. 1.000.000"
-            @update:model-value="form.dpAmount = String($event).replace(/\D/g, '')"
-          />
-        </UFormField>
-        <UFormField label="Bukti transfer DP">
-          <div class="space-y-2">
-            <UFileUpload
-              :model-value="buktiDpBaru"
-              accept="image/*,application/pdf"
-              label="Pilih bukti"
-              description="Gambar atau PDF, maks 5 MB"
-              @update:model-value="(f) => pilihBukti(f, 'dp')"
+        <template v-if="form.dpStatus === 'Sudah'">
+          <UFormField label="Metode / tujuan pembayaran">
+            <USelect
+              v-model="form.dpMethod"
+              :items="(dpMethods ?? []).filter(c => c)"
+              size="xl"
+              class="w-full"
             />
-            <p
-              v-if="buktiDpBaru"
-              class="text-sm text-muted"
-            >
-              {{ buktiDpBaru.name }} · {{ ukuran(buktiDpBaru.size) }}
-            </p>
-            <div
-              v-else-if="buktiTersimpan"
-              class="text-sm text-muted"
-            >
-              Bukti sudah tersimpan
-              <UButton
-                class="ml-2"
-                label="Lihat"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                @click="lihatBukti"
+          </UFormField>
+          <UFormField
+            label="Nominal DP"
+            required
+          >
+            <UInput
+              :model-value="fmtRupiah(rupiahVal(form.dpAmount))"
+              inputmode="numeric"
+              size="xl"
+              class="w-full"
+              placeholder="Rp. 1.000.000"
+              @update:model-value="form.dpAmount = String($event).replace(/\D/g, '')"
+            />
+          </UFormField>
+          <UFormField
+            label="Upload bukti DP (foto/pdf)"
+            required
+          >
+            <div class="space-y-2">
+              <UFileUpload
+                :model-value="buktiDpBaru"
+                accept="image/*,application/pdf"
+                label="Pilih bukti transfer"
+                description="Gambar atau PDF, maks 5 MB"
+                @update:model-value="(f) => pilihBukti(f, 'dp')"
               />
+              <p
+                v-if="buktiDpBaru"
+                class="text-sm text-muted"
+              >
+                {{ buktiDpBaru.name }} · {{ ukuran(buktiDpBaru.size) }}
+              </p>
+              <div
+                v-else-if="buktiTersimpan"
+                class="text-sm text-muted"
+              >
+                Bukti sudah tersimpan
+                <UButton
+                  class="ms-2"
+                  label="Lihat"
+                  icon="i-lucide-eye"
+                  color="neutral"
+                  variant="outline"
+                  size="xs"
+                  @click="lihatBukti"
+                />
+              </div>
             </div>
-            <p
-              v-else
-              class="text-sm text-dimmed"
-            >
-              Belum ada bukti
-            </p>
-          </div>
+          </UFormField>
+        </template>
+
+        <AppSectionTitle
+          title="Detail tamu & penanganan"
+          icon="i-lucide-clipboard-list"
+        />
+        <UFormField label="Sumber informasi (tau dari mana)">
+          <USelect
+            v-model="form.source"
+            :items="(infoSources ?? []).filter(c => c)"
+            placeholder="Tau dari mana"
+            size="xl"
+            class="w-full"
+          />
         </UFormField>
-        <UFormField label="Dokumen special request">
-          <div class="space-y-2">
-            <UFileUpload
-              :model-value="buktiDocBaru"
-              accept="image/*,application/pdf"
-              label="Pilih dokumen"
-              description="Gambar atau PDF, maks 5 MB"
-              @update:model-value="(f) => pilihBukti(f, 'doc')"
-            />
-            <p
-              v-if="buktiDocBaru"
-              class="text-sm text-muted"
-            >
-              {{ buktiDocBaru.name }} · {{ ukuran(buktiDocBaru.size) }}
-            </p>
-          </div>
+        <UFormField
+          label="PIC penanganan"
+          :help="`Otomatis diisi kru yang login: ${namaSaya}`"
+        >
+          <UInput
+            :model-value="namaSaya"
+            size="xl"
+            class="w-full"
+            disabled
+          />
+        </UFormField>
+        <UFormField label="Status member">
+          <AppPilihan
+            v-model="form.member"
+            name="member"
+            :options="[
+              { value: 'ya', label: 'Ya' },
+              { value: 'tidak', label: 'Tidak' },
+            ]"
+          />
+        </UFormField>
+        <UFormField
+          v-if="form.member === 'ya'"
+          label="No. member"
+        >
+          <UInput
+            v-model="form.memberNo"
+            size="xl"
+            class="w-full"
+          />
+        </UFormField>
+        <div
+          v-else
+          class="hidden lg:block"
+        />
+        <p class="col-span-full -mt-1 flex items-center gap-1.5 text-sm text-dimmed">
+          <UIcon
+            name="i-lucide-user-search"
+            class="size-4"
+          />Profil tamu (loyal, daftar hitam, riwayat kunjungan) — Segera · G-07
+        </p>
+        <UFormField
+          label="Upload dokumen special request (opsional)"
+          class="col-span-full"
+        >
+          <UFileUpload
+            :model-value="buktiDocBaru"
+            accept="image/*,application/pdf"
+            label="Pilih dokumen"
+            description="Gambar atau PDF, maks 5 MB"
+            layout="list"
+            @update:model-value="(f) => pilihBukti(f, 'doc')"
+          />
+        </UFormField>
+        <UFormField
+          label="Catatan khusus / special notes"
+          class="col-span-full"
+        >
+          <UTextarea
+            v-model="form.notes"
+            class="w-full"
+            :rows="3"
+            placeholder="mis. alergi seafood, kursi bayi, dekorasi ulang tahun…"
+          />
         </UFormField>
       </div>
-      <label
-        v-if="form.dpStatus === 'Sudah'"
-        class="mx-4 mb-4 flex items-center gap-2 text-sm"
-      >
-        <input
-          v-model="form.lunas"
-          type="checkbox"
-        > Lunas (bayar penuh)
-      </label>
-    </AppList>
 
-    <AppList title="Catatan">
-      <div class="p-4">
-        <UTextarea
-          v-model="form.notes"
-          class="w-full"
-          :rows="3"
-          placeholder="Catatan khusus untuk kru"
+      <div class="mt-6 flex flex-wrap items-center gap-2 border-t border-default pt-4">
+        <UButton
+          :label="modeEdit ? 'Simpan perubahan' : 'Simpan reservasi'"
+          icon="i-lucide-save"
+          size="xl"
+          :loading="sibuk"
+          @click="simpan()"
+        />
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="outline"
+          size="xl"
+          to="/reservasi/dashboard"
+        />
+        <div class="flex-1" />
+        <UButton
+          v-if="modeEdit && bolehHapus"
+          label="Hapus reservasi"
+          icon="i-lucide-trash-2"
+          color="error"
+          variant="soft"
+          size="xl"
+          @click="sheetHapus = true"
         />
       </div>
-    </AppList>
-
-    <div class="flex flex-wrap gap-2">
-      <UButton
-        :label="modeEdit ? 'Simpan perubahan' : 'Simpan reservasi'"
-        size="xl"
-        :loading="sibuk"
-        @click="simpan()"
-      />
-      <UButton
-        v-if="modeEdit && bolehHapus"
-        label="Hapus reservasi"
-        color="error"
-        variant="soft"
-        size="xl"
-        @click="sheetHapus = true"
-      />
-      <UButton
-        label="Batal"
-        color="neutral"
-        variant="soft"
-        size="xl"
-        to="/reservasi/dashboard"
-      />
-    </div>
+    </AppPanel>
 
     <ResponsiveSheet
       v-model:open="sheetTumpang"

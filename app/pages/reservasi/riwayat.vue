@@ -17,6 +17,8 @@ import { useDaftarReservasi, useDenah } from '~/composables/useReservasi'
 import { lantaiMap } from '~/utils/venue-layouts'
 import { bolehBuka, roleReservasi } from '~/utils/layar/reservasi'
 import { angka, hariIni, tglPendek } from '~/utils/format'
+import { fmtMenit } from '~/utils/kunci-meja'
+import { tampilPhone } from '~/utils/dp-reservasi'
 import {
   barisArsip, csvRiwayat, durasiDuduk, profilTamu, paxRiwayat, unduhCsv, urutArsip,
 } from '~/utils/riwayat'
@@ -98,13 +100,10 @@ function ekspor() {
 
 // --- the table -------------------------------------------------------------------
 
-const warnaStatus: Record<string, 'success' | 'warning' | 'error' | 'neutral'> = {
-  'Pending': 'warning',
-  'Confirmed': 'success',
-  'Datang': 'success',
-  'Cancelled': 'neutral',
-  'No-show': 'neutral',
-}
+const warnaStatus = STATUS_WARNA
+const router = useRouter()
+/** "28 Sep 2026", the old archive's date. */
+const tglPanjangPendek = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
 
 const kolom = computed<TableColumn<Reservasi>[]>(() => [
   { accessorKey: 'date', header: 'Tanggal' },
@@ -121,135 +120,148 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
   <AppPage
     title="Riwayat reservasi"
     description="Arsip reservasi yang sudah lewat, basis CRM dan evaluasi. Cari nama/HP untuk lihat riwayat pelanggan."
-    :back="{ label: 'Semua layar', to: '/reservasi' }"
   >
     <template v-if="bolehBuka('riwayat', role)">
-      <div class="mb-7 max-w-xl">
-        <AppFocus
-          label="Arsip"
-          :value="`${angka(daftar.length)} baris`"
-          :hint="mode === 'month' ? `bulan ${bulan}` : mode === 'year' ? `tahun ${tahun}` : 'seluruh data yang dimuat'"
-        />
-      </div>
+      <AppPanel>
+        <AppFilterGrid>
+          <UFormField
+            label="Cari pelanggan"
+            class="col-span-2"
+          >
+            <UInput
+              v-model="cari"
+              icon="i-lucide-search"
+              placeholder="Nama / No HP"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Periode">
+            <USelect
+              v-model="mode"
+              :items="[{ value: 'all', label: 'Semua' }, { value: 'month', label: 'Bulanan' }, { value: 'year', label: 'Tahunan' }]"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField
+            v-if="mode === 'month'"
+            label="Bulan"
+          >
+            <UInput
+              v-model="bulan"
+              type="month"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField
+            v-if="mode === 'year'"
+            label="Tahun"
+          >
+            <UInput
+              v-model.number="tahun"
+              type="number"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Status akhir">
+            <USelect
+              v-model="statusAkhir"
+              :items="[{ value: SEMUA, label: 'Semua' }, 'Datang', 'No-show', 'Cancelled']"
+              class="w-full"
+            />
+          </UFormField>
+        </AppFilterGrid>
+      </AppPanel>
 
-      <div class="mb-5 flex flex-wrap items-end gap-2">
-        <UFormField
-          label="Cari pelanggan"
-          class="min-w-44 flex-1"
-        >
-          <UInput
-            v-model="cari"
-            placeholder="Nama / No HP"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Periode">
-          <USelect
-            v-model="mode"
-            :items="[{ value: 'all', label: 'Semua' }, { value: 'month', label: 'Bulanan' }, { value: 'year', label: 'Tahunan' }]"
-          />
-        </UFormField>
-        <UFormField
-          v-if="mode === 'month'"
-          label="Bulan"
-        >
-          <UInput
-            v-model="bulan"
-            type="month"
-          />
-        </UFormField>
-        <UFormField
-          v-if="mode === 'year'"
-          label="Tahun"
-        >
-          <UInput
-            v-model.number="tahun"
-            type="number"
-          />
-        </UFormField>
-        <UFormField label="Status akhir">
-          <USelect
-            v-model="statusAkhir"
-            :items="[{ value: SEMUA, label: 'Semua' }, 'Datang', 'No-show', 'Cancelled']"
-          />
-        </UFormField>
-        <UButton
-          label="Export CSV"
-          color="neutral"
-          variant="soft"
-          size="sm"
-          @click="ekspor"
-        />
-      </div>
-
-      <AppList
-        v-if="profil"
-        title="Pelanggan"
-      >
-        <AppListRow
-          :title="profil.nama || '(tanpa nama)'"
-          :description="`${profil.telepon}${profil.member ? `, member ${profil.memberNo}` : ''} · dihitung dari data yang dimuat (G-07)`"
+      <!-- The CRM card of one guest, when the search names someone (:10181-10193). -->
+      <AppStatGrid v-if="profil">
+        <AppStat
+          label="Pelanggan"
           icon="i-lucide-user-round"
+          :value="profil.nama || '(tanpa nama)'"
+          :sub="`${tampilPhone(profil.telepon)}${profil.member ? ` · member ${profil.memberNo}` : ''}`"
         />
-        <AppListRow
-          title="Total kunjungan"
-          :description="`rata-rata ${profil.rataPax} pax`"
+        <AppStat
+          label="Total kunjungan"
           icon="i-lucide-footprints"
-        >
-          <template #trailing>
-            {{ angka(profil.kunjungan) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="No-show"
-          :description="`dari ${angka(profil.totalBaris)} baris`"
+          tone="success"
+          :value="angka(profil.kunjungan)"
+          :sub="`rata-rata ${profil.rataPax} pax`"
+        />
+        <AppStat
+          label="No-show"
           icon="i-lucide-user-x"
-        >
-          <template #trailing>
-            {{ angka(profil.noShow) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Status"
-          :description="profil.kunjunganTerakhir ? `terakhir ${tglPendek(profil.kunjunganTerakhir)}` : 'belum pernah datang'"
+          :tone="profil.noShow ? 'error' : 'gold'"
+          :value="angka(profil.noShow)"
+          :sub="`dari ${angka(profil.totalBaris)} reservasi`"
+        />
+        <AppStat
+          label="Status"
           icon="i-lucide-badge-check"
-        >
-          <template #trailing>
-            <AppStatus :color="profil.blacklist ? 'error' : profil.vip ? 'success' : 'neutral'">
-              {{ profil.blacklist ? 'Blacklist' : profil.vip ? 'VIP' : profil.tipe }}
-            </AppStatus>
-          </template>
-        </AppListRow>
-      </AppList>
+          :tone="profil.blacklist ? 'error' : profil.vip ? 'vip' : 'info'"
+          :value="profil.blacklist ? 'Blacklist' : profil.vip ? 'VIP' : profil.tipe"
+          :sub="profil.kunjunganTerakhir ? `terakhir ${tglPendek(profil.kunjunganTerakhir)} · dari data yang dimuat (G-07)` : 'belum pernah datang'"
+        />
+      </AppStatGrid>
 
-      <div class="mb-7 hidden overflow-hidden rounded-2xl bg-default lg:block">
+      <AppPanel
+        title="Arsip"
+        :count="daftar.length"
+        :description="mode === 'month' ? `Bulan ${bulan}` : mode === 'year' ? `Tahun ${tahun}` : undefined"
+        flush
+      >
+        <template #actions>
+          <UButton
+            label="Export CSV"
+            icon="i-lucide-download"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            @click="ekspor"
+          />
+        </template>
+
         <UTable
+          class="hidden lg:block"
           :data="halaman"
           :columns="kolom"
           :loading="status === 'pending'"
+          :meta="{ class: { tr: 'cursor-pointer' } }"
           empty="Belum ada riwayat."
+          @select="(_e: Event, row: { original: Reservasi }) => router.push(`/reservasi/input?id=${row.original.id}`)"
         >
           <template #date-cell="{ row }">
-            {{ tglPendek(row.original.date) }}
-            <div class="text-muted">
+            <span class="text-highlighted">{{ tglPanjangPendek(row.original.date) }}</span>
+            <div class="text-[13px] text-muted num">
               {{ row.original.time }}
             </div>
           </template>
           <template #name-cell="{ row }">
-            <ULink
-              :to="`/reservasi/input?id=${row.original.id}`"
-              class="font-semibold text-highlighted underline-offset-4 hover:underline"
-            >
+            <p class="font-semibold text-highlighted">
               {{ row.original.name }}
-            </ULink>
-            <div class="text-muted">
-              {{ row.original.phone }}
+              <AppStatus
+                v-if="row.original.vip"
+                color="vip"
+                size="sm"
+                icon="i-lucide-crown"
+              >
+                VIP
+              </AppStatus>
+            </p>
+            <div class="text-[13px] text-muted num">
+              {{ tampilPhone(row.original.phone) }}
             </div>
           </template>
           <template #pax-cell="{ row }">
             <template v-if="paxRiwayat(row.original).datang !== null">
-              <b class="num">{{ paxRiwayat(row.original).datang }}</b><span class="text-muted">/{{ paxRiwayat(row.original).dipesan }}</span>
+              <b class="text-highlighted num">{{ paxRiwayat(row.original).datang }}</b><span class="text-muted">/{{ paxRiwayat(row.original).dipesan }}</span>
+              <AppStatus
+                v-if="(paxRiwayat(row.original).datang ?? 0) >= paxRiwayat(row.original).dipesan"
+                color="success"
+                size="sm"
+                class="ms-1.5"
+              >
+                penuh
+              </AppStatus>
             </template>
             <span
               v-else
@@ -257,81 +269,110 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
             >{{ paxRiwayat(row.original).dipesan }}</span>
           </template>
           <template #table-cell="{ row }">
-            {{ row.original.table || '-' }}
+            {{ row.original.table || '—' }}
           </template>
           <template #durasi-cell="{ row }">
-            <span class="text-muted">{{ durasiDuduk(row.original) !== null ? `${durasiDuduk(row.original)} m` : '-' }}</span>
+            <span
+              v-if="durasiDuduk(row.original) !== null"
+              class="inline-flex items-center gap-1 text-muted"
+            >
+              <UIcon
+                name="i-lucide-timer"
+                class="size-3.5"
+              />{{ fmtMenit(durasiDuduk(row.original)!) }}
+            </span>
+            <span
+              v-else
+              class="text-dimmed"
+            >—</span>
           </template>
           <template #dp-cell="{ row }">
-            <AppStatus :color="row.original.dpStatus === 'Sudah' ? 'success' : 'neutral'">
-              {{ row.original.dpStatus === 'Sudah' ? 'Sudah' : '-' }}
-            </AppStatus>
+            <span
+              class="inline-flex size-6 items-center justify-center rounded-full"
+              :class="row.original.dpStatus === 'Sudah' ? 'bg-success/12 text-success' : 'bg-primary-100 text-primary-700 dark:bg-primary-950 dark:text-primary-300'"
+              :title="row.original.dpStatus === 'Sudah' ? 'Sudah DP' : 'Belum DP'"
+            >
+              <UIcon
+                :name="row.original.dpStatus === 'Sudah' ? 'i-lucide-check' : 'i-lucide-minus'"
+                class="size-3.5"
+              />
+            </span>
           </template>
           <template #status-cell="{ row }">
-            <AppStatus :color="warnaStatus[row.original.status] ?? 'neutral'">
+            <AppStatus
+              :color="warnaStatus[row.original.status] ?? 'neutral'"
+              :icon="STATUS_IKON[row.original.status]"
+            >
               {{ row.original.status }}
             </AppStatus>
           </template>
         </UTable>
-      </div>
 
-      <AppList
-        title="Arsip"
-        class="lg:hidden"
-      >
-        <AppListRow
-          v-for="r in halaman"
-          :key="r.id"
-          :title="`${r.name} · ${r.pax} pax`"
-          :description="`${tglPendek(r.date)} ${r.time} · ${r.table || 'tanpa meja'} · ${r.status}`"
-          icon="i-lucide-history"
-          :to="`/reservasi/input?id=${r.id}`"
-        >
-          <template #trailing>
-            <AppStatus :color="warnaStatus[r.status] ?? 'neutral'">
+        <div class="divide-y divide-default lg:hidden">
+          <NuxtLink
+            v-for="r in halaman"
+            :key="r.id"
+            :to="`/reservasi/input?id=${r.id}`"
+            class="flex items-start justify-between gap-3 px-4 py-3 hover:bg-muted/60"
+          >
+            <div class="min-w-0">
+              <p class="truncate font-semibold text-highlighted">{{ r.name }}</p>
+              <p class="text-sm text-muted num">{{ tglPendek(r.date) }} {{ r.time }} · meja {{ r.table || '—' }} · {{ r.pax }} pax</p>
+            </div>
+            <AppStatus
+              :color="warnaStatus[r.status] ?? 'neutral'"
+              :icon="STATUS_IKON[r.status]"
+            >
               {{ r.status }}
             </AppStatus>
-          </template>
-        </AppListRow>
-        <p
-          v-if="!halaman.length"
-          class="px-4 py-3 text-muted"
-        >
-          Belum ada riwayat.
-        </p>
-      </AppList>
+          </NuxtLink>
+          <p
+            v-if="!halaman.length"
+            class="px-4 py-6 text-center text-muted"
+          >
+            Belum ada riwayat.
+          </p>
+        </div>
 
-      <AppList title="Halaman">
-        <div class="flex flex-wrap items-center justify-between gap-2 px-4 pb-4">
-          <div class="flex items-center gap-2 text-sm text-muted">
-            <span>Baris per halaman</span>
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-default px-4 py-3 text-sm text-muted">
+          <div class="flex items-center gap-2">
+            <span class="num">{{ daftar.length ? (hal - 1) * perHal + 1 : 0 }}–{{ Math.min(hal * perHal, daftar.length) }} dari {{ daftar.length }}</span>
             <USelect
               v-model.number="perHal"
-              :items="[10, 25, 50]"
-              class="w-20"
+              :items="[{ value: 10, label: '10 / hal' }, { value: 25, label: '25 / hal' }, { value: 50, label: '50 / hal' }]"
+              size="sm"
+              class="w-28"
             />
           </div>
-          <div class="flex items-center gap-2 text-sm text-muted">
+          <div
+            v-if="maxHal > 1"
+            class="flex items-center gap-2"
+          >
             <UButton
-              label="Sebelumnya"
+              icon="i-lucide-chevron-left"
               color="neutral"
-              variant="soft"
+              variant="outline"
               size="sm"
+              aria-label="Halaman sebelumnya"
               :disabled="hal <= 1"
               @click="hal--"
             />
-            <span class="num">Hal {{ hal }} dari {{ maxHal }}</span>
+            <span class="num">Hal {{ hal }} / {{ maxHal }}</span>
             <UButton
-              label="Berikutnya"
+              icon="i-lucide-chevron-right"
               color="neutral"
-              variant="soft"
+              variant="outline"
               size="sm"
+              aria-label="Halaman berikutnya"
               :disabled="hal >= maxHal"
               @click="hal++"
             />
           </div>
         </div>
-      </AppList>
+        <p class="border-t border-default px-4 py-2 text-xs text-dimmed">
+          Paging & ekspor di browser — server v1 belum menerima halaman (G-08).
+        </p>
+      </AppPanel>
     </template>
     <p
       v-else

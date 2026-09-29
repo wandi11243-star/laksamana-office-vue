@@ -61,7 +61,6 @@ const kolom = computed<TableColumn<AuditRow>[]>(() => [
   <AppPage
     title="Audit log"
     description="Jejak seluruh aktivitas: siapa, kapan, apa yang diubah. Untuk akuntabilitas & kontrol data DP."
-    :back="{ label: 'Semua layar', to: '/reservasi' }"
   >
     <template v-if="bolehBuka('audit', role)">
       <div class="mb-5 max-w-xl">
@@ -82,7 +81,7 @@ const kolom = computed<TableColumn<AuditRow>[]>(() => [
         </p>
       </div>
 
-      <div class="mb-7 hidden overflow-hidden rounded-2xl bg-default lg:block">
+      <div class="mb-7 hidden overflow-hidden rounded-panel border border-default bg-default shadow-panel lg:block">
         <UTable
           :data="halaman"
           :columns="kolom"

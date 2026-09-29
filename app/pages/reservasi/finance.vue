@@ -17,7 +17,6 @@ const role = computed(() => roleReservasi(me.value))
   <AppPage
     title="Dana masuk (DP)"
     description="Cek uang DP yang benar-benar masuk."
-    :back="{ label: 'Semua layar', to: '/reservasi' }"
   >
     <DanaMasukPanel
       v-if="bolehBuka('finance', role)"

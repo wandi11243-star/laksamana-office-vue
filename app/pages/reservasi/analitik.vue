@@ -37,6 +37,13 @@ const perf = computed(() => performaPeriode(periode.value, labelPeriode.value, m
 const ring = computed(() => ringkasKeseluruhan(semua.value ?? []))
 
 const maksTren = computed(() => Math.max(1, ...perf.value.trenHarian.map(t => t.total)))
+// Each bar list is scaled to its own largest value, like the old .bar-fill.
+const maksDuduk = computed(() => Math.max(1, ...perf.value.dudukTerlama.map(d => d.durasi)))
+const maksSumber = computed(() => Math.max(1, ...ring.value.perSumber.map(x => x.n)))
+const maksPic = computed(() => Math.max(1, ...ring.value.perPic.map(x => x.total)))
+const maksJam = computed(() => Math.max(1, ...ring.value.perJam.map(x => x.pax)))
+const maksHari = computed(() => Math.max(1, ...ring.value.perHari.map(x => x.pax)))
+const maksBulan = computed(() => Math.max(1, ...ring.value.perBulan.map(x => x.n)))
 const jamCapWaktu = (ts: number) => ts
   ? new Date(ts).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
   : '-'
@@ -46,330 +53,316 @@ const jamCapWaktu = (ts: number) => ts
   <AppPage
     title="Analitik & laporan"
     description="Insight bisnis dari seluruh data reservasi. Angka menyesuaikan seiring data bertambah."
-    :back="{ label: 'Semua layar', to: '/reservasi' }"
   >
     <template v-if="bolehBuka('analitik', role)">
-      <div class="mb-5 flex flex-wrap items-end gap-2">
-        <div class="flex gap-2">
-          <UButton
-            label="Harian"
-            color="neutral"
-            :variant="mode === 'harian' ? 'soft' : 'ghost'"
+      <AppPanel
+        :title="`Performa ${mode === 'bulanan' ? 'bulanan' : 'harian'}`"
+        icon="i-lucide-chart-column"
+      >
+        <template #actions>
+          <AppSeg
+            v-model="mode"
             size="sm"
-            @click="mode = 'harian'"
+            :options="[
+              { value: 'harian', label: 'Harian', icon: 'i-lucide-calendar' },
+              { value: 'bulanan', label: 'Bulanan', icon: 'i-lucide-calendar-range' },
+            ]"
           />
-          <UButton
-            label="Bulanan"
-            color="neutral"
-            :variant="mode === 'bulanan' ? 'soft' : 'ghost'"
-            size="sm"
-            @click="mode = 'bulanan'"
-          />
-        </div>
-        <UFormField
-          v-if="mode === 'harian'"
-          label="Tanggal"
-          class="max-w-44"
-        >
           <UInput
+            v-if="mode === 'harian'"
             v-model="tanggal"
             type="date"
-            class="w-full"
+            class="w-40"
           />
-        </UFormField>
-        <UFormField
-          v-else
-          label="Bulan"
-          class="max-w-44"
-        >
           <UInput
+            v-else
             v-model="bulan"
             type="month"
-            class="w-full"
+            class="w-40"
           />
-        </UFormField>
-      </div>
+        </template>
 
-      <div class="mb-7 max-w-xl">
-        <AppFocus
-          label="Kehadiran"
-          :value="`${angka(perf.kehadiran)}%`"
-          :hint="`${labelPeriode} · ${angka(perf.hadir)} hadir dari ${angka(perf.diharapkan)} diharapkan`"
-        />
-      </div>
+        <p class="mb-4 rounded-field border border-info/25 bg-info/10 px-3.5 py-2.5 text-sm text-default">
+          Penilaian operasional <b class="text-info">{{ labelPeriode }}</b> —
+          {{ angka(perf.reservasi) }} reservasi<template v-if="perf.walkin">
+            + {{ angka(perf.walkin) }} walk-in
+          </template><template v-if="mode === 'bulanan'">
+            dalam {{ angka(perf.hariAktif) }} hari aktif
+          </template>.
+          <b
+            v-if="perf.masihDuduk"
+            class="text-info"
+          >{{ angka(perf.masihDuduk) }} tamu masih duduk</b><template v-if="perf.masihDuduk">
+            sekarang.
+          </template>
+        </p>
 
-      <AppList :title="`Performa ${mode === 'bulanan' ? 'bulanan' : 'harian'} — ${labelPeriode}`">
-        <AppListRow
-          title="Penilaian operasional"
-          :description="`${angka(perf.reservasi)} reservasi${perf.walkin ? ` + ${angka(perf.walkin)} walk-in` : ''}${mode === 'bulanan' ? ` dalam ${angka(perf.hariAktif)} hari aktif` : ''}${perf.masihDuduk ? ` · ${angka(perf.masihDuduk)} tamu masih duduk` : ''}`"
-          icon="i-lucide-gauge"
-        />
-        <AppListRow
-          title="Tingkat kehadiran"
-          :description="`${angka(perf.hadir)} hadir / ${angka(perf.diharapkan)} diharapkan`"
-          icon="i-lucide-user-check"
+        <p
+          v-if="status === 'pending' && !periode.length"
+          class="mb-4 text-sm text-muted"
         >
-          <template #trailing>
-            {{ angka(perf.kehadiran) }}%
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Tepat waktu"
-          :description="`${angka(perf.tepat)} tepat, ${angka(perf.telat)} telat${perf.telatRata ? `, rata-rata +${fmtMenit(perf.telatRata)}` : ''}`"
-          icon="i-lucide-timer"
+          Memuat…
+        </p>
+        <p
+          v-else-if="!periode.length"
+          class="mb-4 text-sm text-muted"
         >
-          <template #trailing>
-            {{ angka(perf.tepatPersen) }}%
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Rata-rata durasi duduk"
-          :description="`${angka(perf.durasiN)} tamu selesai${perf.masihDuduk ? `, ${angka(perf.masihDuduk)} masih duduk` : ''}`"
-          icon="i-lucide-armchair"
-        >
-          <template #trailing>
-            {{ perf.durasiRata !== null ? fmtMenit(perf.durasiRata) : '—' }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Realisasi pax"
-          :description="`${angka(perf.paxDatang)} datang / ${angka(perf.paxPesan)} dipesan`"
-          icon="i-lucide-users"
-        >
-          <template #trailing>
-            {{ angka(perf.paxRealisasi) }}%
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="No-show"
-          :description="`${angka(perf.batal)} batal`"
-          icon="i-lucide-user-x"
-        >
-          <template #trailing>
-            {{ angka(perf.noShow) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Walk-in"
-          description="tamu tanpa reservasi"
-          icon="i-lucide-footprints"
-        >
-          <template #trailing>
-            {{ angka(perf.walkin) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          v-if="mode === 'bulanan'"
-          title="Hari tersibuk"
-          :description="perf.tersibuk ? `${angka(perf.tersibuk.total)} tamu` : 'belum ada'"
-          icon="i-lucide-trending-up"
-        >
-          <template #trailing>
-            {{ perf.tersibuk ? tglPendek(perf.tersibuk.tgl) : '—' }}
-          </template>
-        </AppListRow>
-      </AppList>
+          Belum ada data pada {{ mode === 'bulanan' ? 'bulan' : 'tanggal' }} ini.
+        </p>
 
-      <AppList
-        v-if="mode === 'bulanan' && perf.trenHarian.length"
-        :title="`Tren harian — ${labelPeriode}`"
-      >
-        <div class="space-y-2 px-4 py-3">
-          <div
-            v-for="t in perf.trenHarian"
-            :key="t.tgl"
-          >
-            <div class="flex items-baseline justify-between gap-2 text-sm">
-              <span>{{ tglPendek(t.tgl) }} — {{ angka(t.hadir) }} hadir</span>
-              <b class="num">{{ angka(t.total) }}</b>
-            </div>
-            <div class="mt-0.5 h-2 overflow-hidden rounded bg-muted">
+        <AppStatGrid>
+          <AppStat
+            label="Tingkat kehadiran"
+            icon="i-lucide-user-check"
+            tone="success"
+            :value="angka(perf.kehadiran)"
+            satuan="%"
+            :sub="`${angka(perf.hadir)} hadir / ${angka(perf.diharapkan)} diharapkan`"
+          />
+          <AppStat
+            label="Tepat waktu"
+            icon="i-lucide-timer"
+            :tone="perf.telat > perf.tepat ? 'error' : 'success'"
+            :value="angka(perf.tepatPersen)"
+            satuan="%"
+            :sub="`${angka(perf.tepat)} tepat, ${angka(perf.telat)} telat${perf.telatRata ? `, rata² +${fmtMenit(perf.telatRata)}` : ''}`"
+          />
+          <AppStat
+            label="Rata² durasi duduk"
+            icon="i-lucide-utensils"
+            tone="info"
+            :value="perf.durasiRata !== null ? fmtMenit(perf.durasiRata) : '—'"
+            :sub="`${angka(perf.durasiN)} tamu selesai${perf.masihDuduk ? `, ${angka(perf.masihDuduk)} masih duduk` : ''}`"
+          />
+          <AppStat
+            label="Realisasi pax"
+            icon="i-lucide-users"
+            tone="vip"
+            :value="angka(perf.paxRealisasi)"
+            satuan="%"
+            :sub="`${angka(perf.paxDatang)} datang / ${angka(perf.paxPesan)} dipesan`"
+          />
+          <AppStat
+            label="No-show"
+            icon="i-lucide-user-x"
+            :tone="perf.noShow ? 'error' : 'success'"
+            :value="angka(perf.noShow)"
+            :sub="`${angka(perf.batal)} batal`"
+          />
+          <AppStat
+            label="Walk-in"
+            icon="i-lucide-footprints"
+            :value="angka(perf.walkin)"
+            sub="tamu tanpa reservasi"
+          />
+          <AppStat
+            v-if="mode === 'bulanan'"
+            label="Hari tersibuk"
+            icon="i-lucide-trending-up"
+            tone="info"
+            :value="perf.tersibuk ? tglPendek(perf.tersibuk.tgl) : '—'"
+            :sub="perf.tersibuk ? `${angka(perf.tersibuk.total)} tamu` : 'belum ada'"
+          />
+        </AppStatGrid>
+
+        <div class="grid gap-x-8 gap-y-2 lg:grid-cols-2">
+          <div>
+            <h3 class="mb-3 font-sans text-xs font-bold uppercase tracking-wider text-muted">
+              Ketepatan kedatangan
+            </h3>
+            <AppBar
+              label="Tepat waktu (≤10m)"
+              :value="angka(perf.tepat)"
+              :persen="perf.tepat + perf.telat ? perf.tepat / (perf.tepat + perf.telat) * 100 : 0"
+              tone="success"
+            />
+            <AppBar
+              label="Telat (>10m)"
+              :value="angka(perf.telat)"
+              :persen="perf.tepat + perf.telat ? perf.telat / (perf.tepat + perf.telat) * 100 : 0"
+              tone="error"
+            />
+            <template v-if="perf.palingTelat.length">
+              <h3 class="mb-2 mt-5 font-sans text-xs font-bold uppercase tracking-wider text-muted">
+                Tamu paling telat
+              </h3>
               <div
-                class="h-full rounded bg-info"
-                :style="{ width: `${Math.round(t.total / maksTren * 100)}%` }"
-              />
-            </div>
+                v-for="t in perf.palingTelat"
+                :key="`${t.nama}${t.datang}`"
+                class="mb-2 border-s-2 border-primary-400 ps-3"
+              >
+                <p class="text-sm text-highlighted">
+                  {{ t.nama }} — <b>telat {{ fmtMenit(t.telat) }}</b>
+                </p>
+                <p class="text-xs text-muted">
+                  booking {{ t.booking }}{{ mode === 'bulanan' ? `, ${tglPendek(t.tgl)}` : '' }}, datang {{ jamCapWaktu(t.datang) }}
+                </p>
+              </div>
+            </template>
+          </div>
+          <div>
+            <h3 class="mb-3 font-sans text-xs font-bold uppercase tracking-wider text-muted">
+              Durasi duduk terlama
+            </h3>
+            <AppBar
+              v-for="d in perf.dudukTerlama"
+              :key="`${d.nama}${d.durasi}`"
+              :label="`${d.nama} (${d.meja})`"
+              :value="fmtMenit(d.durasi)"
+              :persen="d.durasi / maksDuduk * 100"
+              tone="info"
+            />
+            <p
+              v-if="!perf.dudukTerlama.length"
+              class="text-sm text-muted"
+            >
+              Belum ada tamu yang selesai duduk. Tandai <b>Selesai</b> saat tamu pulang untuk mencatat durasi.
+            </p>
           </div>
         </div>
-      </AppList>
 
-      <div
-        v-if="status === 'pending' && !periode.length"
-        class="mb-5 text-sm text-muted"
-      >
-        Memuat…
-      </div>
-      <p
-        v-else-if="!periode.length"
-        class="mb-5 text-sm text-muted"
-      >
-        Belum ada data pada {{ mode === 'bulanan' ? 'bulan' : 'tanggal' }} ini.
-      </p>
+        <template v-if="mode === 'bulanan' && perf.trenHarian.length">
+          <h3 class="mb-3 mt-5 font-sans text-xs font-bold uppercase tracking-wider text-muted">
+            Tren harian
+          </h3>
+          <AppBar
+            v-for="t in perf.trenHarian"
+            :key="t.tgl"
+            :label="`${tglPendek(t.tgl)} — ${angka(t.hadir)} hadir`"
+            :value="angka(t.total)"
+            :persen="t.total / maksTren * 100"
+            tone="info"
+          />
+        </template>
+      </AppPanel>
 
-      <AppList
-        v-if="perf.palingTelat.length"
-        title="Tamu paling telat"
-      >
-        <AppListRow
-          v-for="t in perf.palingTelat"
-          :key="`${t.nama}${t.datang}`"
-          :title="`${t.nama} — telat ${fmtMenit(t.telat)}`"
-          :description="`booking ${t.booking}${mode === 'bulanan' ? `, ${tglPendek(t.tgl)}` : ''}, datang ${jamCapWaktu(t.datang)}`"
-          icon="i-lucide-alarm-clock"
+      <AppSectionTitle
+        title="Ringkasan keseluruhan"
+        icon="i-lucide-trending-up"
+      />
+      <AppStatGrid>
+        <AppStat
+          label="Total reservasi"
+          :value="angka(ring.total)"
         />
-      </AppList>
-
-      <AppList
-        v-if="perf.dudukTerlama.length"
-        title="Durasi duduk terlama"
-      >
-        <AppListRow
-          v-for="d in perf.dudukTerlama"
-          :key="`${d.nama}${d.durasi}`"
-          :title="`${d.nama} (${d.meja})`"
-          :description="`${fmtMenit(d.durasi)}${perf.durasiRata !== null ? ` · rata-rata ${fmtMenit(perf.durasiRata)}` : ''}`"
-          icon="i-lucide-armchair"
-        >
-          <template #trailing>
-            {{ fmtMenit(d.durasi) }}
-          </template>
-        </AppListRow>
-      </AppList>
-
-      <AppList title="Ringkasan keseluruhan">
-        <AppListRow
-          title="Total reservasi"
-          icon="i-lucide-calendar-days"
-        >
-          <template #trailing>
-            {{ angka(ring.total) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Total pax"
-          description="seluruh orang dipesan"
+        <AppStat
+          label="Total pax"
           icon="i-lucide-users"
-        >
-          <template #trailing>
-            {{ angka(ring.totalPax) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Rata-rata pax"
-          description="per reservasi"
-          icon="i-lucide-scale"
-        >
-          <template #trailing>
-            {{ ring.rataPax }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Rasio no-show"
-          :description="`${angka(ring.noShow)} dari ${angka(ring.dinilai)} tamu`"
-          icon="i-lucide-user-x"
-        >
-          <template #trailing>
-            {{ angka(ring.rasioNoShow) }}%
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Pelanggan unik"
-          icon="i-lucide-fingerprint"
-        >
-          <template #trailing>
-            {{ angka(ring.unik) }}
-          </template>
-        </AppListRow>
-      </AppList>
+          tone="info"
+          :value="angka(ring.totalPax)"
+          sub="seluruh orang dipesan"
+        />
+        <AppStat
+          label="Rata-rata pax"
+          tone="info"
+          :value="ring.rataPax"
+          sub="per reservasi"
+        />
+        <AppStat
+          label="Rasio no-show"
+          :tone="ring.rasioNoShow ? 'error' : 'success'"
+          :value="angka(ring.rasioNoShow)"
+          satuan="%"
+          :sub="`${angka(ring.noShow)} dari ${angka(ring.dinilai)} tamu`"
+        />
+        <AppStat
+          label="Pelanggan unik"
+          tone="vip"
+          :value="angka(ring.unik)"
+        />
+      </AppStatGrid>
 
-      <AppList title="Sumber reservasi terefektif">
-        <AppListRow
-          v-for="s in ring.perSumber"
-          :key="s.label"
-          :title="s.label"
+      <div class="grid gap-x-5 lg:grid-cols-2">
+        <AppPanel
+          title="Sumber reservasi terefektif"
           icon="i-lucide-megaphone"
         >
-          <template #trailing>
-            {{ angka(s.n) }}
-          </template>
-        </AppListRow>
-        <p
-          v-if="!ring.perSumber.length"
-          class="px-4 py-3 text-muted"
-        >
-          Belum ada data.
-        </p>
-      </AppList>
-
-      <AppList title="Performa PIC">
-        <AppListRow
-          v-for="p in ring.perPic"
-          :key="p.nama"
-          :title="`${p.nama} (${angka(p.hadirPersen)}% hadir)`"
+          <AppBar
+            v-for="x in ring.perSumber"
+            :key="x.label"
+            :label="x.label"
+            :value="angka(x.n)"
+            :persen="x.n / maksSumber * 100"
+          />
+          <p
+            v-if="!ring.perSumber.length"
+            class="text-sm text-muted"
+          >
+            Belum ada data.
+          </p>
+        </AppPanel>
+        <AppPanel
+          title="Performa PIC"
           icon="i-lucide-compass"
         >
-          <template #trailing>
-            {{ angka(p.total) }}
-          </template>
-        </AppListRow>
-        <p
-          v-if="!ring.perPic.length"
-          class="px-4 py-3 text-muted"
-        >
-          Belum ada data.
-        </p>
-      </AppList>
-
-      <AppList title="Jam paling ramai (jumlah pax)">
-        <AppListRow
-          v-for="h in ring.perJam"
-          :key="h.jam"
-          :title="`${h.jam}:00 WIB`"
+          <AppBar
+            v-for="x in ring.perPic"
+            :key="x.nama"
+            :label="`${x.nama} (${angka(x.hadirPersen)}% hadir)`"
+            :value="angka(x.total)"
+            :persen="x.total / maksPic * 100"
+            tone="info"
+          />
+          <p
+            v-if="!ring.perPic.length"
+            class="text-sm text-muted"
+          >
+            Belum ada data.
+          </p>
+        </AppPanel>
+        <AppPanel
+          title="Jam paling ramai (peak hour)"
           icon="i-lucide-clock"
+          description="jumlah pax"
         >
-          <template #trailing>
-            {{ angka(h.pax) }} pax
-          </template>
-        </AppListRow>
-        <p
-          v-if="!ring.perJam.length"
-          class="px-4 py-3 text-muted"
-        >
-          Belum ada data.
-        </p>
-      </AppList>
-
-      <AppList title="Hari paling ramai (jumlah pax)">
-        <AppListRow
-          v-for="h in ring.perHari"
-          :key="h.hari"
-          :title="h.hari"
+          <AppBar
+            v-for="x in ring.perJam"
+            :key="x.jam"
+            :label="`${x.jam}:00 WIB`"
+            :value="angka(x.pax)"
+            :persen="x.pax / maksJam * 100"
+          />
+          <p
+            v-if="!ring.perJam.length"
+            class="text-sm text-muted"
+          >
+            Belum ada data.
+          </p>
+        </AppPanel>
+        <AppPanel
+          title="Hari paling ramai"
           icon="i-lucide-calendar-range"
+          description="jumlah pax"
         >
-          <template #trailing>
-            {{ angka(h.pax) }} pax
-          </template>
-        </AppListRow>
-      </AppList>
-
-      <AppList title="Tren reservasi per bulan">
-        <AppListRow
-          v-for="m in ring.perBulan"
-          :key="m.bulan"
-          :title="m.bulan"
-          icon="i-lucide-chart-column"
-        >
-          <template #trailing>
-            {{ angka(m.n) }}
-          </template>
-        </AppListRow>
+          <AppBar
+            v-for="x in ring.perHari"
+            :key="x.hari"
+            :label="x.hari"
+            :value="angka(x.pax)"
+            :persen="x.pax / maksHari * 100"
+            tone="success"
+          />
+        </AppPanel>
+      </div>
+      <AppPanel
+        title="Tren reservasi per bulan"
+        icon="i-lucide-chart-column"
+      >
+        <AppBar
+          v-for="x in ring.perBulan"
+          :key="x.bulan"
+          :label="x.bulan"
+          :value="angka(x.n)"
+          :persen="x.n / maksBulan * 100"
+          tone="info"
+        />
         <p
           v-if="!ring.perBulan.length"
-          class="px-4 py-3 text-muted"
+          class="text-sm text-muted"
         >
           Belum ada data.
         </p>
-      </AppList>
+      </AppPanel>
     </template>
     <p
       v-else

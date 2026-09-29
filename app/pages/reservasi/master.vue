@@ -249,7 +249,6 @@ async function backupJson() {
   <AppPage
     title="Master data"
     description="Kelola pilihan dropdown & pengaturan sistem."
-    :back="{ label: 'Semua layar', to: '/reservasi' }"
   >
     <template v-if="bolehBuka('master', role)">
       <div class="mb-3 flex flex-wrap gap-2">

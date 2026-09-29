@@ -31,7 +31,7 @@ import { tanganiKonflik, versiDari, type Versi } from '~/utils/versi'
 import {
   bankDariMetode, buktiAdalahGambar, cerminDp, cerminTfUtama, dpBaru, dpHitungTerverifikasi,
   dpMetodeBawaan, dpTotal, dpsTampilan, kurangDataTf, normPhone, pastikanDps,
-  ringkasDanaMasuk, saringDanaMasuk, txBank,
+  ringkasDanaMasuk, saringDanaMasuk, tampilPhone, txBank,
   txBuktiGambar, txNama, txNominal, txSelisih, txSudahScan,
   type SaringDanaMasuk, type TxDanaMasuk,
 } from '~/utils/dp-reservasi'
@@ -995,32 +995,36 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
 <template>
   <div>
     <!-- The source switch stands on both tabs — one-sided, the other side has no way back (`:9215-9221`). -->
-    <div class="mb-2 flex flex-wrap gap-2">
-      <UButton
-        label="DP Reservasi"
-        color="neutral"
-        :variant="sumber === 'reservasi' ? 'soft' : 'ghost'"
-        size="sm"
-        @click="sumber = 'reservasi'"
+    <div class="mb-4 flex flex-wrap items-center gap-3">
+      <AppSeg
+        :model-value="sumber"
+        :options="[
+          { value: 'reservasi', label: 'DP reservasi', icon: 'i-lucide-utensils' },
+          { value: 'event', label: `DP event (Marketing)${dpev.data ? ` · ${dpev.data.baris.length}` : ''}`, icon: 'i-lucide-party-popper' },
+        ]"
+        @update:model-value="(v) => { sumber = v as typeof sumber; if (v === 'event') muatDpEvent() }"
       />
-      <UButton
-        :label="`DP Event (Marketing)${dpev.data ? ` (${dpev.data.baris.length})` : ''}`"
-        color="neutral"
-        :variant="sumber === 'event' ? 'soft' : 'ghost'"
-        size="sm"
-        @click="sumber = 'event'; muatDpEvent()"
-      />
+      <p class="text-sm text-muted">
+        Dua daftar yang <b class="text-highlighted">tidak bisa dijumlahkan</b>: DP reservasi diverifikasi di sini,
+        pembayaran event sudah diverifikasi lebih dulu di Marketing.
+      </p>
     </div>
-    <p class="mb-5 text-sm text-muted">
-      Dua daftar yang <b>tidak bisa dijumlahkan</b>: DP reservasi diverifikasi di halaman ini,
-      pembayaran event sudah diverifikasi lebih dulu di modul Marketing.
-    </p>
 
     <template v-if="sumber === 'reservasi'">
-      <div class="mb-3 flex flex-wrap gap-2">
+      <div class="mb-3 flex flex-wrap items-center justify-end gap-2">
+        <p
+          v-if="pindai.sibuk"
+          class="me-auto text-sm text-muted"
+        >
+          <UIcon
+            name="i-lucide-scan-line"
+            class="me-1 inline size-4 align-text-bottom"
+          />{{ pindai.sudah }} / {{ pindai.total }} bukti dibaca…
+        </p>
         <UButton
           v-if="demo.length && bolehHapusDemo"
           :label="`Hapus data demo (${demo.length})`"
+          icon="i-lucide-trash-2"
           color="error"
           variant="soft"
           size="sm"
@@ -1029,133 +1033,120 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
         <UButton
           v-if="belumPindai.length && !pindai.sibuk && bolehVerifikasi"
           :label="`Ulangi scan (${belumPindai.length})`"
+          icon="i-lucide-scan-line"
           color="neutral"
-          variant="soft"
+          variant="outline"
           size="sm"
           @click="pindaiBorongan"
         />
         <UButton
           label="Export CSV"
+          icon="i-lucide-download"
           color="neutral"
-          variant="soft"
+          variant="outline"
           size="sm"
           @click="unduhCsv"
-        />
-      </div>
-      <p
-        v-if="pindai.sibuk"
-        class="mb-3 text-sm text-muted"
-      >
-        {{ pindai.sudah }} / {{ pindai.total }} bukti dibaca…
-      </p>
-
-      <!-- One AppFocus: what the desk checks first. -->
-      <div class="mb-7 max-w-xl">
-        <AppFocus
-          label="Perlu diverifikasi"
-          :value="`${angka(ringkas.perlu)} transfer`"
-          :hint="`${rp(ringkas.belum)} belum dicek${ringkas.belumScan ? ` · ${angka(ringkas.belumScan)} bukti belum discan` : ''}`"
         />
       </div>
 
       <p
         v-if="tanpaAkses"
-        class="mb-5 rounded-lg border border-default p-3 text-sm"
+        class="mb-4 flex items-start gap-2 rounded-field border border-warning/30 bg-warning/10 p-3 text-sm"
       >
-        <b>Belum punya akses ke Data Reservasi · G-14.</b>
-        Akun ini tidak memegang modul reservasi. Minta aksesnya, atau buka halaman ini dari modul Reservasi.
+        <UIcon
+          name="i-lucide-lock"
+          class="mt-0.5 size-4 shrink-0 text-warning"
+        />
+        <span><b>Belum punya akses ke Data Reservasi · G-14.</b>
+          Akun ini tidak memegang modul reservasi. Minta aksesnya, atau buka halaman ini dari modul Reservasi.</span>
       </p>
       <p
         v-else-if="galatMuat"
-        class="mb-5 rounded-lg border border-default p-3 text-sm"
+        class="mb-4 rounded-field border border-error/30 bg-error/10 p-3 text-sm"
       >
         <b>Daftar tidak terbaca:</b> {{ apiErrorMessage(galatMuat) }}
         <UButton
           label="Coba lagi"
           color="neutral"
-          variant="ghost"
-          size="sm"
+          variant="outline"
+          size="xs"
           class="ms-2"
           @click="refresh()"
         />
       </p>
 
-      <AppList title="Ringkasan">
-        <AppListRow
-          title="Total dana masuk"
-          :description="`${angka(daftarSemua.length)} kali transfer${ringkas.cicilan ? ` · ${angka(ringkas.cicilan)} dari DP bertahap` : ''}`"
+      <!-- The old six cards (:9428-9436). -->
+      <AppStatGrid>
+        <AppStat
+          label="Total dana masuk"
           icon="i-lucide-wallet"
-        >
-          <template #trailing>
-            {{ rp(ringkas.total) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Total terverifikasi"
-          :description="`${angka(ringkas.sudah)} transaksi, dana dipastikan masuk`"
-          icon="i-lucide-check"
-        >
-          <template #trailing>
-            {{ rp(ringkas.terverifikasi) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Total belum terverifikasi"
-          :description="`${angka(ringkas.perlu)} transaksi${ringkas.belumScan ? ` · ${angka(ringkas.belumScan)} bukti belum discan` : ''}`"
+          :value="rp(ringkas.total)"
+          :sub="`${angka(daftarSemua.length)} kali transfer${ringkas.cicilan ? ` · ${angka(ringkas.cicilan)} bertahap` : ''}`"
+        />
+        <AppStat
+          label="Total terverifikasi"
+          icon="i-lucide-badge-check"
+          tone="success"
+          :value="rp(ringkas.terverifikasi)"
+          :sub="`${angka(ringkas.sudah)} transaksi, dana dipastikan masuk`"
+        />
+        <AppStat
+          label="Belum terverifikasi"
           icon="i-lucide-hourglass"
-        >
-          <template #trailing>
-            {{ rp(ringkas.belum) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Dana tidak sama"
-          :description="ringkas.selisih ? `selisih ${rp(Math.abs(daftarSemua.filter(txSelisih).reduce((a, x) => a + txNominal(x), 0) - daftarSemua.filter(txSelisih).reduce((a, x) => a + (Number(x.p.amount) || 0), 0)))} dari input host` : 'nominal bukti cocok semua'"
+          tone="warning"
+          :value="rp(ringkas.belum)"
+          :sub="`${angka(ringkas.perlu)} transaksi${ringkas.belumScan ? ` · ${angka(ringkas.belumScan)} belum discan` : ''}`"
+        />
+        <AppStat
+          label="Dana tidak sama"
           icon="i-lucide-triangle-alert"
-        >
-          <template #trailing>
-            {{ angka(ringkas.selisih) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Tanpa bukti"
-          description="DP tercatat, bukti kosong"
+          :tone="ringkas.selisih ? 'error' : 'gold'"
+          :value="angka(ringkas.selisih)"
+          :sub="ringkas.selisih ? 'nominal bukti ≠ input host' : 'nominal bukti cocok semua'"
+        />
+        <AppStat
+          label="Tanpa bukti"
           icon="i-lucide-paperclip"
-        >
-          <template #trailing>
-            {{ angka(ringkas.tanpaBukti) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Ditolak"
-          :description="ringkas.tolak ? `${rp(ringkas.ditolak)} tidak dihitung` : 'tidak ada'"
-          icon="i-lucide-x"
-        >
-          <template #trailing>
-            {{ angka(ringkas.tolak) }}
-          </template>
-        </AppListRow>
-      </AppList>
+          :tone="ringkas.tanpaBukti ? 'warning' : 'gold'"
+          :value="angka(ringkas.tanpaBukti)"
+          sub="DP tercatat, bukti kosong"
+        />
+        <AppStat
+          label="Ditolak"
+          icon="i-lucide-circle-x"
+          :tone="ringkas.tolak ? 'error' : 'gold'"
+          :value="angka(ringkas.tolak)"
+          :sub="ringkas.tolak ? `${rp(ringkas.ditolak)} tidak dihitung` : 'tidak ada'"
+        />
+      </AppStatGrid>
 
-      <AppList
+      <AppPanel
         v-if="ringkas.perBank.length"
         title="Rekap per bank / metode"
+        icon="i-lucide-landmark"
       >
-        <AppListRow
-          v-for="b in ringkas.perBank"
-          :key="b.bank"
-          :title="b.bank"
-          :description="`${angka(b.n)} transaksi`"
-        >
-          <template #trailing>
-            {{ rp(b.sum) }}
-          </template>
-        </AppListRow>
-      </AppList>
+        <div class="grid gap-3 sm:grid-cols-[repeat(auto-fill,minmax(180px,1fr))]">
+          <div
+            v-for="b in ringkas.perBank"
+            :key="b.bank"
+            class="rounded-field border border-default bg-muted px-3.5 py-2.5"
+          >
+            <p class="text-xs font-bold uppercase tracking-wide text-muted">
+              {{ b.bank }}
+            </p>
+            <p class="mt-1 font-display text-lg font-bold text-highlighted num">
+              {{ rp(b.sum) }}
+            </p>
+            <p class="text-xs text-muted">
+              {{ angka(b.n) }} transaksi
+            </p>
+          </div>
+        </div>
+      </AppPanel>
 
       <p
         v-if="demo.length"
-        class="mb-5 rounded-lg border border-default p-3 text-sm text-muted"
+        class="mb-4 rounded-field border border-warning/30 bg-warning/10 p-3 text-sm text-default"
       >
         Ada <b>{{ angka(demo.length) }} reservasi contoh/demo</b> bawaan sistem yang ikut terhitung di sini
         ({{ demo.slice(0, 3).map(r => r.name).join(', ') }}{{ demo.length > 3 ? ', dll' : '' }}).
@@ -1165,7 +1156,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
 
       <p
         v-if="tglCadangan.length"
-        class="mb-5 rounded-lg border border-default p-3 text-sm text-muted"
+        class="mb-4 rounded-field border border-info/25 bg-info/10 p-3 text-sm text-default"
       >
         <b>{{ angka(tglCadangan.length) }} baris di daftar ini dipakai tanggal reservasinya</b>, bukan tanggal
         uang masuk — tanggal transfernya belum terbaca dari bukti. Nominalnya
@@ -1173,377 +1164,346 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
         Tekan <b>Scan</b> di barisnya (atau isi lewat <b>Cek / Edit</b>) supaya ia jatuh di tanggal yang benar.
       </p>
 
-      <div class="mb-5 flex flex-wrap items-end gap-2">
-        <div class="flex w-full flex-wrap gap-2">
-          <UButton
-            label="Tgl reservasi"
-            color="neutral"
-            :variant="saring.basis !== 'masuk' ? 'soft' : 'ghost'"
-            size="sm"
-            @click="saring.basis = 'reservasi'"
-          />
-          <UButton
-            label="Tgl uang masuk"
-            color="neutral"
-            :variant="saring.basis === 'masuk' ? 'soft' : 'ghost'"
-            size="sm"
-            @click="saring.basis = 'masuk'"
-          />
-        </div>
-        <UFormField
-          :label="saring.basis === 'masuk' ? 'Tgl uang masuk — Dari' : 'Tgl reservasi — Dari'"
-          class="max-w-44"
-        >
-          <UInput
-            v-model="saring.dari"
-            type="date"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          label="Sampai"
-          class="max-w-44"
-        >
-          <UInput
-            v-model="saring.sampai"
-            type="date"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          label="Bank"
-          class="max-w-44"
-        >
-          <USelect
-            v-model="saring.bank"
-            :items="[{ value: SEMUA, label: 'Semua bank' }, ...semuaBank.map(b => ({ value: b, label: b }))]"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          label="Saring"
-          class="max-w-44"
-        >
-          <USelect
-            v-model="saring.status"
-            :items="[{ value: SEMUA, label: 'Semua' }, { value: 'belumScan', label: 'Bukti belum discan' }, { value: 'selisih', label: 'Dana tidak sama' }]"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          label="Cari"
-          class="min-w-44 flex-1"
-        >
-          <UInput
-            v-model="saring.q"
-            placeholder="Nama tamu / no. HP / bank…"
-            class="w-full"
-          />
-        </UFormField>
-        <div class="flex gap-1">
-          <UButton
-            label="Hari ini"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            @click="pilihan('today')"
-          />
-          <UButton
-            label="7 hari"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            @click="pilihan('week')"
-          />
-          <UButton
-            label="Bulan ini"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            @click="pilihan('month')"
-          />
-          <UButton
-            label="Semua"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            @click="pilihan('all')"
-          />
-        </div>
-      </div>
-
-      <div class="mb-3 flex flex-wrap gap-2">
-        <UButton
-          :label="`Perlu diverifikasi${ringkas.perlu ? ` (${ringkas.perlu})` : ''}`"
-          color="neutral"
-          :variant="saring.tab === 'perlu' ? 'soft' : 'ghost'"
-          size="sm"
-          @click="saring.tab = 'perlu'"
-        />
-        <UButton
-          :label="`Terverifikasi${ringkas.sudah ? ` (${ringkas.sudah})` : ''}`"
-          color="neutral"
-          :variant="saring.tab === 'sudah' ? 'soft' : 'ghost'"
-          size="sm"
-          @click="saring.tab = 'sudah'"
-        />
-        <UButton
-          :label="`Ditolak${ringkas.tolak ? ` (${ringkas.tolak})` : ''}`"
-          color="neutral"
-          :variant="saring.tab === 'tolak' ? 'soft' : 'ghost'"
-          size="sm"
-          @click="saring.tab = 'tolak'"
-        />
-      </div>
-      <div class="mb-7 hidden overflow-hidden rounded-2xl bg-default lg:block">
-        <UTable
-          :data="halaman"
-          :columns="kolom"
-          :loading="status === 'pending'"
-          empty="Tidak ada transaksi pada saringan ini."
-        >
-          <template #tanggal-cell="{ row }">
-            <b>{{ row.original.p.tfDate ? tglPendek(row.original.p.tfDate) : '' }}</b>
-            <span
-              v-if="!row.original.p.tfDate"
-              class="text-muted"
-            >{{ tglPendek(row.original.r.date) }}</span>
-            <div
-              v-if="!row.original.p.tfDate"
-              class="text-xs text-dimmed"
-            >
-              dari tgl reservasi
-            </div>
-            <div
-              v-if="tglSeharusnya(row.original.p.tfOcrText, row.original.p.tfTime, row.original.p.tfDate)"
-              class="text-xs font-bold"
-            >
-              Seharusnya {{ tglPendek(tglSeharusnya(row.original.p.tfOcrText, row.original.p.tfTime, row.original.p.tfDate)) }}
-              <div class="font-medium">
-                <UButton
-                  v-if="bolehVerifikasi"
-                  label="Betulkan"
-                  color="neutral"
-                  variant="ghost"
-                  size="xs"
-                  @click="betulkanTanggal(row.original)"
-                />
-              </div>
-            </div>
-          </template>
-          <template #jam-cell="{ row }">
-            <b v-if="row.original.p.tfTime">{{ jamTampil(row.original.p.tfTime) }}</b>
-            <span
-              v-else
-              class="text-muted"
-            >-</span>
-            <div
-              v-if="jamRagu(row.original.p.tfOcrText, row.original.p.tfTime)"
-              class="text-xs text-dimmed"
-            >
-              bukti menulis {{ jamRagu(row.original.p.tfOcrText, row.original.p.tfTime) }}, tanpa AM/PM
-            </div>
-            <div
-              v-if="jamSeharusnya(row.original.p.tfOcrText, row.original.p.tfTime)"
-              class="text-xs font-bold"
-            >
-              Seharusnya {{ jamSeharusnya(row.original.p.tfOcrText, row.original.p.tfTime) }}
-              <div class="font-medium">
-                <UButton
-                  v-if="bolehVerifikasi"
-                  label="Betulkan"
-                  color="neutral"
-                  variant="ghost"
-                  size="xs"
-                  @click="betulkanJam(row.original)"
-                />
-              </div>
-            </div>
-          </template>
-          <template #bank-cell="{ row }">
-            {{ txBank(row.original) || '-' }}
-          </template>
-          <template #nama-cell="{ row }">
-            <b v-if="txNama(row.original)">{{ txNama(row.original) }}</b>
-            <span
-              v-else
-              class="text-muted"
-            >-</span>
-            <div
-              v-if="txNama(row.original) && txNama(row.original).toLowerCase() !== (row.original.r.name || '').toLowerCase()"
-              class="text-xs text-dimmed"
-            >
-              beda dgn pemesan
-            </div>
-          </template>
-          <template #nominal-cell="{ row }">
-            <b class="num">{{ rp(txNominal(row.original)) }}</b>
-            <div
-              v-if="row.original.dari > 1"
-              class="text-xs text-dimmed"
-            >
-              DP {{ row.original.ke }} dari {{ row.original.dari }} · total {{ rp(dpTotal(row.original.r)) }}
-            </div>
-            <div
-              v-if="txSelisih(row.original)"
-              class="text-xs font-bold"
-            >
-              Dana tidak sama
-              <div class="font-medium text-muted">
-                input host {{ rp(Number(row.original.p.amount) || 0) }}
-              </div>
-            </div>
-          </template>
-          <template #tamu-cell="{ row }">
-            <div class="font-semibold">
-              {{ row.original.r.name }}
-            </div>
-            <div class="text-muted">
-              {{ row.original.r.phone }} · {{ tglPendek(row.original.r.date) }} {{ row.original.r.time }}{{ row.original.r.table ? ` · ${row.original.r.table}` : '' }}
-            </div>
-            <div
-              v-if="row.original.dari > 1"
-              class="text-xs text-dimmed"
-            >
-              reservasi ini: {{ dpHitungTerverifikasi(row.original.r) }} dari {{ row.original.dari }} DP terverifikasi
-            </div>
-          </template>
-          <template #bukti-cell="{ row }">
-            <UButton
-              v-if="row.original.p.proofData"
-              label="Lihat"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              @click="lihatBukti(row.original)"
-            />
-            <AppStatus v-else>
-              tanpa bukti
-            </AppStatus>
-          </template>
-          <template #status-cell="{ row }">
-            <AppStatus :color="row.original.p.tfStatus === 'verified' ? 'success' : row.original.p.tfStatus === 'rejected' ? 'error' : 'neutral'">
-              {{ row.original.p.tfStatus === 'verified' ? 'Terverifikasi' : row.original.p.tfStatus === 'rejected' ? 'Ditolak' : 'Belum terverifikasi' }}
-            </AppStatus>
-            <span
-              v-if="row.original.p.tfStatus === 'verified' && row.original.p.tfTanpaData"
-              class="ms-1 text-xs text-muted"
-            >(dari gambar)</span>
-            <span
-              v-if="!row.original.p.tfStatus && row.original.p.tfSource === 'ocr'"
-              class="ms-1 text-xs"
-            >(angka dari mesin)</span>
-            <div
-              v-if="row.original.p.tfNote"
-              class="mt-0.5 text-xs text-muted"
-            >
-              {{ row.original.p.tfNote }}
-            </div>
-          </template>
-          <template #aksi-cell="{ row }">
-            <div class="flex flex-wrap gap-1">
-              <UButton
-                v-if="txBuktiGambar(row.original) && bolehVerifikasi"
-                :label="txSudahScan(row.original) ? 'Scan ulang' : 'Scan'"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                @click="pindaiBaris(row.original)"
-              />
-              <UButton
-                label="Cek / Edit"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                @click="bukaTfEdit(row.original)"
-              />
-              <UButton
-                v-if="row.original.p.tfStatus !== 'verified' && bolehVerifikasi"
-                label="Verifikasi"
-                color="neutral"
-                variant="soft"
-                size="xs"
-                @click="bukaVerifikasi(row.original)"
-              />
-              <UButton
-                v-if="row.original.p.tfStatus !== 'rejected' && bolehVerifikasi"
-                label="Tolak"
-                color="error"
-                variant="ghost"
-                size="xs"
-                @click="bukaTolak(row.original)"
-              />
-              <UButton
-                v-if="bolehHapus"
-                label="Hapus"
-                color="error"
-                variant="ghost"
-                size="xs"
-                @click="hapusDp(row.original)"
-              />
-            </div>
-          </template>
-        </UTable>
-      </div>
-
-      <!-- Phone: the same rows, tapped open into Cek / Edit. -->
-      <AppList
-        title="Transaksi masuk"
-        class="lg:hidden"
-      >
-        <AppListRow
-          v-for="x in halaman"
-          :key="`${x.r.id}#${x.ke}`"
-          :title="`${x.r.name} · ${rp(txNominal(x))}`"
-          :description="`${txBank(x) || 'tanpa bank'} · ${x.p.tfDate ? tglPendek(x.p.tfDate) : tglPendek(x.r.date)}${x.dari > 1 ? ` · DP ${x.ke}/${x.dari}` : ''}${txSelisih(x) ? ' · dana tidak sama' : ''}${x.p.proofData ? '' : ' · tanpa bukti'}`"
-          icon="i-lucide-banknote"
-          @click="bukaTfEdit(x)"
-        >
-          <template #trailing>
-            <AppStatus :color="x.p.tfStatus === 'verified' ? 'success' : x.p.tfStatus === 'rejected' ? 'error' : 'neutral'">
-              {{ x.p.tfStatus === 'verified' ? 'Terverifikasi' : x.p.tfStatus === 'rejected' ? 'Ditolak' : 'Belum dicek' }}
-            </AppStatus>
-          </template>
-        </AppListRow>
-        <p
-          v-if="!halaman.length"
-          class="px-4 py-3 text-muted"
-        >
-          Tidak ada transaksi pada saringan ini.
-        </p>
-      </AppList>
-
-      <AppList title="Halaman">
-        <div class="flex flex-wrap items-center justify-between gap-2 px-4 pb-4">
-          <div class="flex items-center gap-2 text-sm text-muted">
-            <span>Baris per halaman</span>
-            <USelect
-              v-model.number="perHal"
-              :items="[10, 25, 50]"
-              class="w-20"
+      <AppPanel>
+        <template #head>
+          <div class="flex w-full flex-wrap items-center gap-3">
+            <span class="text-sm font-semibold text-muted">Saring tanggal menurut</span>
+            <AppSeg
+              v-model="saring.basis"
+              size="sm"
+              :options="[
+                { value: 'reservasi', label: 'Tgl reservasi', icon: 'i-lucide-calendar' },
+                { value: 'masuk', label: 'Tgl uang masuk', icon: 'i-lucide-banknote' },
+              ]"
             />
           </div>
-          <div class="flex items-center gap-2 text-sm text-muted">
+        </template>
+        <AppFilterGrid>
+          <UFormField label="Dari">
+            <UInput
+              v-model="saring.dari"
+              type="date"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Sampai">
+            <UInput
+              v-model="saring.sampai"
+              type="date"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Bank">
+            <USelect
+              v-model="saring.bank"
+              :items="[{ value: SEMUA, label: 'Semua bank' }, ...semuaBank.map(b => ({ value: b, label: b }))]"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Saring">
+            <USelect
+              v-model="saring.status"
+              :items="[{ value: SEMUA, label: 'Semua' }, { value: 'belumScan', label: 'Bukti belum discan' }, { value: 'selisih', label: 'Dana tidak sama' }]"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField
+            label="Cari"
+            class="col-span-2"
+          >
+            <UInput
+              v-model="saring.q"
+              icon="i-lucide-search"
+              placeholder="Nama tamu / no. HP / bank…"
+              class="w-full"
+            />
+          </UFormField>
+        </AppFilterGrid>
+        <AppChips
+          class="mt-4"
+          :model-value="null"
+          :options="[
+            { value: 'today', label: 'Hari ini' },
+            { value: 'week', label: '7 hari' },
+            { value: 'month', label: 'Bulan ini' },
+            { value: 'all', label: 'Semua' },
+          ]"
+          @update:model-value="(v) => v && pilihan(v as 'today' | 'week' | 'month' | 'all')"
+        />
+      </AppPanel>
+
+      <AppPanel flush>
+        <template #head>
+          <AppSeg
+            v-model="saring.tab"
+            :options="[
+              { value: 'perlu', label: 'Perlu diverifikasi', icon: 'i-lucide-hourglass', badge: ringkas.perlu },
+              { value: 'sudah', label: `Terverifikasi${ringkas.sudah ? ` · ${ringkas.sudah}` : ''}`, icon: 'i-lucide-check' },
+              { value: 'tolak', label: `Ditolak${ringkas.tolak ? ` · ${ringkas.tolak}` : ''}`, icon: 'i-lucide-x' },
+            ]"
+          />
+        </template>
+        <div class="hidden lg:block">
+          <UTable
+            :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 text-[13px] whitespace-normal' }"
+            :data="halaman"
+            :columns="kolom"
+            :loading="status === 'pending'"
+            empty="Tidak ada transaksi pada saringan ini."
+          >
+            <template #tanggal-cell="{ row }">
+              <b>{{ row.original.p.tfDate ? tglPendek(row.original.p.tfDate) : '' }}</b>
+              <span
+                v-if="!row.original.p.tfDate"
+                class="text-muted"
+              >{{ tglPendek(row.original.r.date) }}</span>
+              <div
+                v-if="!row.original.p.tfDate"
+                class="text-xs text-dimmed"
+              >
+                dari tgl reservasi
+              </div>
+              <div
+                v-if="tglSeharusnya(row.original.p.tfOcrText, row.original.p.tfTime, row.original.p.tfDate)"
+                class="text-xs font-bold"
+              >
+                Seharusnya {{ tglPendek(tglSeharusnya(row.original.p.tfOcrText, row.original.p.tfTime, row.original.p.tfDate)) }}
+                <div class="font-medium">
+                  <UButton
+                    v-if="bolehVerifikasi"
+                    label="Betulkan"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    @click="betulkanTanggal(row.original)"
+                  />
+                </div>
+              </div>
+            </template>
+            <template #jam-cell="{ row }">
+              <b v-if="row.original.p.tfTime">{{ jamTampil(row.original.p.tfTime) }}</b>
+              <span
+                v-else
+                class="text-muted"
+              >-</span>
+              <div
+                v-if="jamRagu(row.original.p.tfOcrText, row.original.p.tfTime)"
+                class="text-xs text-dimmed"
+              >
+                bukti menulis {{ jamRagu(row.original.p.tfOcrText, row.original.p.tfTime) }}, tanpa AM/PM
+              </div>
+              <div
+                v-if="jamSeharusnya(row.original.p.tfOcrText, row.original.p.tfTime)"
+                class="text-xs font-bold"
+              >
+                Seharusnya {{ jamSeharusnya(row.original.p.tfOcrText, row.original.p.tfTime) }}
+                <div class="font-medium">
+                  <UButton
+                    v-if="bolehVerifikasi"
+                    label="Betulkan"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    @click="betulkanJam(row.original)"
+                  />
+                </div>
+              </div>
+            </template>
+            <template #bank-cell="{ row }">
+              {{ txBank(row.original) || '-' }}
+            </template>
+            <template #nama-cell="{ row }">
+              <b v-if="txNama(row.original)">{{ txNama(row.original) }}</b>
+              <span
+                v-else
+                class="text-muted"
+              >-</span>
+              <div
+                v-if="txNama(row.original) && txNama(row.original).toLowerCase() !== (row.original.r.name || '').toLowerCase()"
+                class="text-xs text-dimmed"
+              >
+                beda dgn pemesan
+              </div>
+            </template>
+            <template #nominal-cell="{ row }">
+              <b class="num">{{ rp(txNominal(row.original)) }}</b>
+              <div
+                v-if="row.original.dari > 1"
+                class="text-xs text-dimmed"
+              >
+                DP {{ row.original.ke }} dari {{ row.original.dari }} · total {{ rp(dpTotal(row.original.r)) }}
+              </div>
+              <div
+                v-if="txSelisih(row.original)"
+                class="text-xs font-bold"
+              >
+                Dana tidak sama
+                <div class="font-medium text-muted">
+                  input host {{ rp(Number(row.original.p.amount) || 0) }}
+                </div>
+              </div>
+            </template>
+            <template #tamu-cell="{ row }">
+              <div class="font-semibold">
+                {{ row.original.r.name }}
+              </div>
+              <div class="text-muted num">
+                {{ tampilPhone(row.original.r.phone) }}
+              </div>
+              <div class="text-muted num">
+                {{ tglPendek(row.original.r.date) }} {{ row.original.r.time }}{{ row.original.r.table ? ` · meja ${row.original.r.table}` : '' }}
+              </div>
+              <div
+                v-if="row.original.dari > 1"
+                class="text-xs text-dimmed"
+              >
+                reservasi ini: {{ dpHitungTerverifikasi(row.original.r) }} dari {{ row.original.dari }} DP terverifikasi
+              </div>
+            </template>
+            <template #bukti-cell="{ row }">
+              <UButton
+                v-if="row.original.p.proofData"
+                label="Lihat"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                @click="lihatBukti(row.original)"
+              />
+              <AppStatus v-else>
+                tanpa bukti
+              </AppStatus>
+            </template>
+            <template #status-cell="{ row }">
+              <AppStatus
+                :color="row.original.p.tfStatus === 'verified' ? 'success' : row.original.p.tfStatus === 'rejected' ? 'error' : 'warning'"
+                :icon="row.original.p.tfStatus === 'verified' ? 'i-lucide-check' : row.original.p.tfStatus === 'rejected' ? 'i-lucide-x' : 'i-lucide-hourglass'"
+              >
+                {{ row.original.p.tfStatus === 'verified' ? 'Terverifikasi' : row.original.p.tfStatus === 'rejected' ? 'Ditolak' : 'Belum terverifikasi' }}
+              </AppStatus>
+              <span
+                v-if="row.original.p.tfStatus === 'verified' && row.original.p.tfTanpaData"
+                class="ms-1 text-xs text-muted"
+              >(dari gambar)</span>
+              <span
+                v-if="!row.original.p.tfStatus && row.original.p.tfSource === 'ocr'"
+                class="ms-1 text-xs"
+              >(angka dari mesin)</span>
+              <div
+                v-if="row.original.p.tfNote"
+                class="mt-0.5 text-xs text-muted"
+              >
+                {{ row.original.p.tfNote }}
+              </div>
+            </template>
+            <template #aksi-cell="{ row }">
+              <div class="flex w-[168px] flex-wrap gap-1">
+                <UButton
+                  v-if="txBuktiGambar(row.original) && bolehVerifikasi"
+                  :label="txSudahScan(row.original) ? 'Scan ulang' : 'Scan'"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  @click="pindaiBaris(row.original)"
+                />
+                <UButton
+                  label="Cek / Edit"
+                  icon="i-lucide-pencil"
+                  color="neutral"
+                  variant="outline"
+                  size="xs"
+                  @click="bukaTfEdit(row.original)"
+                />
+                <UButton
+                  v-if="row.original.p.tfStatus !== 'verified' && bolehVerifikasi"
+                  label="Verifikasi"
+                  icon="i-lucide-check"
+                  color="success"
+                  size="xs"
+                  @click="bukaVerifikasi(row.original)"
+                />
+                <UButton
+                  v-if="row.original.p.tfStatus !== 'rejected' && bolehVerifikasi"
+                  label="Tolak"
+                  icon="i-lucide-x"
+                  color="error"
+                  variant="soft"
+                  size="xs"
+                  @click="bukaTolak(row.original)"
+                />
+                <UButton
+                  v-if="bolehHapus"
+                  label="Hapus"
+                  color="error"
+                  variant="ghost"
+                  size="xs"
+                  @click="hapusDp(row.original)"
+                />
+              </div>
+            </template>
+          </UTable>
+        </div>
+
+        <!-- Phone: the same rows, tapped open into Cek / Edit. -->
+        <div class="divide-y divide-default lg:hidden">
+          <button
+            v-for="x in halaman"
+            :key="`${x.r.id}#${x.ke}`"
+            type="button"
+            class="flex w-full items-start justify-between gap-3 px-4 py-3 text-start hover:bg-muted/60"
+            @click="bukaTfEdit(x)"
+          >
+            <span class="min-w-0">
+              <span class="block truncate font-semibold text-highlighted">{{ x.r.name }} · <span class="num">{{ rp(txNominal(x)) }}</span></span>
+              <span class="block text-sm text-muted">{{ txBank(x) || 'tanpa bank' }} · {{ x.p.tfDate ? tglPendek(x.p.tfDate) : tglPendek(x.r.date) }}{{ x.dari > 1 ? ` · DP ${x.ke}/${x.dari}` : '' }}{{ txSelisih(x) ? ' · dana tidak sama' : '' }}{{ x.p.proofData ? '' : ' · tanpa bukti' }}</span>
+            </span>
+            <AppStatus
+              :color="x.p.tfStatus === 'verified' ? 'success' : x.p.tfStatus === 'rejected' ? 'error' : 'warning'"
+              :icon="x.p.tfStatus === 'verified' ? 'i-lucide-check' : x.p.tfStatus === 'rejected' ? 'i-lucide-x' : 'i-lucide-hourglass'"
+            >
+              {{ x.p.tfStatus === 'verified' ? 'Terverifikasi' : x.p.tfStatus === 'rejected' ? 'Ditolak' : 'Belum dicek' }}
+            </AppStatus>
+          </button>
+          <p
+            v-if="!halaman.length"
+            class="px-4 py-6 text-center text-muted"
+          >
+            Tidak ada transaksi pada saringan ini.
+          </p>
+        </div>
+
+        <div class="flex flex-wrap items-center justify-between gap-3 border-t border-default px-4 py-3 text-sm text-muted">
+          <USelect
+            v-model.number="perHal"
+            :items="[{ value: 10, label: '10 / hal' }, { value: 25, label: '25 / hal' }, { value: 50, label: '50 / hal' }]"
+            size="sm"
+            class="w-28"
+          />
+          <div
+            v-if="maxHal > 1"
+            class="flex items-center gap-2"
+          >
             <UButton
-              label="Sebelumnya"
+              icon="i-lucide-chevron-left"
               color="neutral"
-              variant="soft"
+              variant="outline"
               size="sm"
+              aria-label="Halaman sebelumnya"
               :disabled="hal <= 1"
               @click="hal--"
             />
-            <span class="num">Hal {{ hal }} dari {{ maxHal }}</span>
+            <span class="num">Hal {{ hal }} / {{ maxHal }}</span>
             <UButton
-              label="Berikutnya"
+              icon="i-lucide-chevron-right"
               color="neutral"
-              variant="soft"
+              variant="outline"
               size="sm"
+              aria-label="Halaman berikutnya"
               :disabled="hal >= maxHal"
               @click="hal++"
             />
           </div>
         </div>
-      </AppList>
+      </AppPanel>
     </template>
     <template v-else>
       <p class="mb-3 text-sm text-muted">
@@ -1701,7 +1661,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           </div>
         </div>
 
-        <div class="mb-7 hidden overflow-hidden rounded-2xl bg-default lg:block">
+        <div class="mb-7 hidden overflow-hidden rounded-panel border border-default bg-default shadow-panel lg:block">
           <UTable
             :data="barisEv"
             :columns="kolomEv"
