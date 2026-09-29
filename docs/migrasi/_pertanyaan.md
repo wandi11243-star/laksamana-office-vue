@@ -99,3 +99,4 @@ Daftar lengkap + draf issue: [`_gap-api.md`](_gap-api.md). Ringkas:
 | G-13 | hlife, hr, konten, event | endpoint reset/impor/restore whole-document (K-01 = C) | tombol operasi massal |
 | G-11 | hr | retensi/paging audit | tidak memblokir |
 | G-12 | docs | salah tulis `docs/api/event.md:32` & `docs/modules/reservasi.md:7` | tidak memblokir |
+| G-14 | reservasi | Dana Masuk untuk pemegang `cashier`/`finance` tanpa modul `reservasi` (403 `module_not_granted`) | komponen `DanaMasukPanel` di Cashier & Kas Kecil |

@@ -6,6 +6,10 @@ import type { Component } from 'vue'
  * An entry shows when the user holds ANY of its `access` keys.
  * An entry whose page does not exist yet shows as "Segera" (see useModulNav).
  *
+ * Two entries, two keys, even though they share one Backend: `reservasi` and
+ * `service_excellent` are separate cards in the old launcher too
+ * (laksamana-office/deploy/index.html:1133-1141).
+ *
  * Adding a module: add its page under app/pages/<key>/, then (optionally) its
  * home-screen widgets under app/widgets/<key>/ and list them in `widgets`.
  */
@@ -30,6 +34,7 @@ export const MODUL: Modul[] = [
   { key: 'hr', label: 'Staff Performance', desc: 'Human resource', icon: 'i-lucide-users', group: 'Tim & Kru', access: ['hr'] },
   { key: 'stock', label: 'Stock', desc: 'Ordering, purchasing & HPP', icon: 'i-lucide-package', group: 'Operasional', access: ['ordering', 'purchasing', 'tree', 'usage', 'hpp'] },
   { key: 'reservasi', label: 'Reservasi', desc: 'Booking dan tamu', icon: 'i-lucide-coffee', group: 'Operasional', access: ['reservasi'] },
+  { key: 'service_excellent', label: 'Service Excellent', desc: 'Review, feedback, reward', icon: 'i-lucide-star', group: 'Operasional', access: ['service_excellent'] },
   { key: 'cashier', label: 'Cashier', desc: 'Setoran & dana masuk', icon: 'i-lucide-banknote', group: 'Operasional', access: ['cashier'] },
   { key: 'konten', label: 'Konten', desc: 'Content operations', icon: 'i-lucide-pen-line', group: 'Marketing & Event', access: ['konten'] },
   { key: 'event', label: 'Event', desc: 'Event management', icon: 'i-lucide-mic-vocal', group: 'Marketing & Event', access: ['event'] },

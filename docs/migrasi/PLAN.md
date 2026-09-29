@@ -52,7 +52,7 @@ Urutan mempertimbangkan ukuran, risiko, dan **siapa yang membangun komponen bers
 | 5 | bd | 11 layar | — (G-02) | — | ⬜ |
 | 6 | hr | 17 layar | K-01 (G-13), K-05 | `people-score.ts` | ⬜ |
 | 7 | jadwal | jadwal + dw + roster, 20 layar | K-10 (G-03/05) | `pax-harian.ts` (`satukan()`) | ⬜ |
-| 8 | reservasi | reservasi + service_excellent, 12 layar | K-05: OCR `tesseract.js` diizinkan, lazy (G-07/08) | `DanaMasukPanel`, `Denah` + `venue-layouts.ts`, `kwitansi.ts` | ⬜ |
+| 8 | reservasi | reservasi + service_excellent, 12 layar | K-05: OCR `tesseract.js` diizinkan, lazy (G-07/08) | `DanaMasukPanel`, `Denah` + `venue-layouts.ts`, `kwitansi.ts` | 🟡 |
 | 9 | cashier | 11 layar | K-04 | `cocok-bri.ts`, `porsi-pic.ts` | ⬜ |
 | 10 | finance | omset + kas + brankas + rekap, 29 layar | K-04 (G-06) | `performa-bonus.ts` | ⬜ |
 | 11 | stock | 5 panel, 26 layar | K-05 (ekspor CSV), K-06 (Apps Script), K-07 | — | ⬜ |
@@ -65,6 +65,10 @@ Catatan cakupan:
 - **Ticketing publik (toko & sesi Buyer) BUKAN bagian Office Vue.** Office hanya untuk User ber-Sesi
   (`laksamana-api/CONTEXT.md`). Hanya layar staf Event yang dibangun.
 - Modul besar (≥ 20 layar) boleh dipecah jadi beberapa PR per kelompok layar, tetap berurutan.
+- **Urutan §3 bukan urutan kerja.** Reservasi (#8) dikerjakan lebih dulu atas permintaan owner 2026-09-29,
+  jadi `venue-layouts.ts`, `Denah` dan `DanaMasukPanel` tersedia lebih awal untuk marketing, cashier,
+  finance, analytics, dan konten. Modul lain tetap boleh mulai lebih dulu dari modul yang*cuma* tidak
+  butuh aset bersama itu.
 
 ## 4. Logika bersama — pemilik tunggal
 

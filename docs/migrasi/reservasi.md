@@ -469,7 +469,10 @@ HTTP 200 + `APP_LAWAS` (klien terlalu tua) + `conflict:true` (`docs/modules/rese
   `deploy/finance/kas/index.html:6431` menyematkan `../reservasi/?embed=finance`; guard SSO
   menerima modul `cashier`/`finance` lewat pintu itu dan mengunci `navigate()` ke `'finance'`
   (`reservasi/index.html:21-42`,`:3771`). Dengan embed, pemegang `finance` punya hak verifikasi/
-  tolak yang sama dengan kasir.
+  tolak yang sama dengan kasir. **Koreksi build 2026-09-29:** di Vue tidak ada iframe (U5/T-12),
+  jadi permintaannya berubah bentuk: `DanaMasukPanel` memanggil `/reservasi/reservations` dari
+  halaman Cashier/Kas, sedangkan kontrak itu digate `module:reservasi|service_excellent`
+  (`laksamana-api/app/Modules/Reservasi/routes/v1.php:9`) → **G-14**.
 - **Reservasi → Finance (kwitansi):** `mintaKwitansi()` memanggil `invFetch("invMinta"|"invPutus"|
   …)` — Finance yang menerbitkan (`:7048-7253`); kwitansi ditahan sampai DP terverifikasi.
 - **VIP & DP Event → Dana Masuk:** Marketing (Reservasi VIP) dan Event menyerahkan DP ke modul
@@ -611,3 +614,46 @@ HTTP 200 + `APP_LAWAS` (klien terlalu tua) + `conflict:true` (`docs/modules/rese
 - **Reservasi ← Radar & DW:** `deploy/radar/index.html:602` & `deploy/dw/index.html:979` membaca `../reservasi-api-mysql/api.php` (VIP / Kalender Tamu pax).
 - **Service Excellent → HR/Finance?** papan Reward menghitung bonus per kru tapi TIDAK menulis ke HR/Finance — TIDAK DITEMUKAN (dicari: `payroll|gaji|penggajian` di `deploy/service_excellent/index.html`). Perlu keputusan owner.
 ```
+
+## J. Progres build
+
+Branch: `migrasi/fondasi` (fondasi F1–F5) lalu `migrasi/reservasi` · Mulai: 2026-09-29
+LANJUTKAN DARI: Tahap 2 — `venue-layouts.ts` + komponen `Denah*` + Editor Denah + override per tanggal.
+
+Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di kolom terakhir)
+
+| layar (key) | panel | file | status | endpoint dipakai | ditunda karena |
+|---|---|---|---|---|---|
+| dashboard | reservasi | `pages/reservasi/index.vue` (menu) | ⬜ | `GET /reservasi/reservations`, `/master/*` | — |
+| input | reservasi | `pages/reservasi/input.vue` | ⬜ | `POST/PUT/PATCH/DELETE /reservations`, `PUT /files/*` | autofill profil tamu → G-07 |
+| finance | reservasi | `pages/reservasi/finance.vue` | ⬜ | `GET /reservations`, `PATCH /reservations/{id}` | kwitansi via Finance invoices; paging `halDana` → G-08 |
+| riwayat | reservasi | `pages/reservasi/riwayat.vue` | ⬜ | `GET /reservations` | `riwayat`/ekspor server → G-08 |
+| analitik | reservasi | `pages/reservasi/analitik.vue` | ⬜ | `GET /reservations` | — |
+| master | reservasi | `pages/reservasi/master.vue` | ⬜ | `GET/PUT /master/{section}` | baris EKSTRA hapus (F19) ikut dibangun |
+| audit | reservasi | `pages/reservasi/audit.vue` | ⬜ | `GET /reservasi/audit` | pager `halAudit` → G-08 |
+| capaian | service_excellent | `pages/service_excellent/index.vue` (menu) | ⬜ | `GET /master/reviews`, `/master/reviewCfg`, `/master/seCrew` | reward hanya tampilan (T-19) |
+| review | service_excellent | `pages/service_excellent/review.vue` | ⬜ | `GET/PUT/DELETE /master/reviews/{id}`, `/files/rv:*` | — |
+| feedback | service_excellent | `pages/service_excellent/feedback.vue` | ⬜ | `GET/PUT/DELETE /master/feedbacks/{id}`, `/files/fb:*` | — |
+| peran | service_excellent | `pages/service_excellent/peran.vue` | ⬜ | `GET/PUT /master/seCrew`, `/master/sePerms` | — |
+| setelan | service_excellent | `pages/service_excellent/setelan.vue` | ⬜ | `GET/PUT /master/reviewCfg` | — |
+
+Tahap 0 (fondasi) ✅ di branch `migrasi/fondasi`: `app/utils/versi.ts` (F1), `app/composables/useRoster.ts`
+(F2), `app/utils/format.ts` (F3), `app/utils/layar.ts` + `app/components/ModulMenu.vue` (F4),
+`CONTRIBUTING.md` (F5). `tglPendek` pindah dari `useAbsensi.ts` ke `utils/format.ts`.
+
+Tahap 1 ✅ di branch `migrasi/reservasi`: pelacak tabel ini, `useReservasi.ts`, `useServiceExcellent.ts`,
+`app/utils/layar/reservasi.ts` + `app/utils/layar/service_excellent.ts` (matriks role enam peran & tiga
+tingkat), `pages/reservasi/index.vue`, `pages/service_excellent/index.vue`, kartu `service_excellent`
+terpisah di `utils/modul.ts` (`deploy/index.html:1133-1141`), `nuxt.config` `imports.dirs: ['utils/layar']`.
+
+Catatan implementasi:
+- `GET /reservations` tidak mengirim versi per baris (`ReservasiRecords::list` mengembalikan `data` mentah,
+  `ApiResponse::ok($rows, ['total','ver'])`). Versi sebuah baris = `updatedAt`-nya, jadi sebelum menulis
+  baris dari daftar, kirim `updatedAt` itu sebagai `If-Match`; `GET /reservations/{id}` mengembalikan yang
+  otoritatif di `meta.version` (`laksamana-api/app/Modules/Reservasi/Http/V1/ReservasiController.php:34-39`).
+- `OFFICE_TO_RESERVASI_ROLE` (`deploy/reservasi/index.html:3548`) tidak dibangun: sesi Office v3 sudah
+  tidak membawa `role` sama sekali (`deploy/index.html:1435-1436`), jadi peta itu tidak punya input — orang
+  yang belum ada di `master.users` sudah sejak itu menjadi `host` di Office lama juga.
+- `divisi` tidak ada di `GET /account/roster` (hanya `GET /jadwal/roster`, terkunci modul `jadwal`).
+  Papan capaian memakai `DIVISI_REVIEW`; kalau butuh divisi per kru, catat sebagai G baru.
+

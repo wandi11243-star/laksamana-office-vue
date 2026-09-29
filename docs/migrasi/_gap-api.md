@@ -24,6 +24,7 @@ Status: ⬜ belum diajukan · 📨 issue dibuat (tulis nomornya) · ✅ ada di v
 | G-11 | 📨 | [laksamana-api#186](https://github.com/dwipapap/laksamana-api/issues/186) |
 | G-12 | 📨 | [laksamana-api#188](https://github.com/dwipapap/laksamana-api/issues/188) |
 | G-13 | 📨 | [laksamana-api#187](https://github.com/dwipapap/laksamana-api/issues/187) |
+| G-14 | ⬜ | belum diajukan (lihat bawah) |
 
 ---
 
@@ -104,3 +105,25 @@ konfirmasi di body, satu transaksi + lock modul, dan entri audit. Pola yang suda
   yang benar `GET /api/v1/kompas/performa/event` (`app/Modules/Kompas/routes/v1.php:21`).
 - `laksamana-api/docs/modules/reservasi.md:7` menyebut Service Excellent di-embed di cashier & finance/kas;
   di kode hanya Dana Masuk Reservasi yang di-embed.
+
+### G-14 — reservasi: Dana Masuk untuk pemegang `cashier`/`finance` tanpa modul `reservasi`
+Seluruh kontrak Reservasi digate `module:reservasi|service_excellent`
+(`laksamana-api/app/Modules/Reservasi/routes/v1.php:9`). Office lama membuka pintu kedua justru untuk
+pemegang `cashier` dan `finance`: guard SSO menerima `*`, `reservasi`, atau `?embed=finance` milik
+`cashier`/`finance` (`laksamana-office/deploy/reservasi/index.html:21-42`), lalu mengunci navigasinya
+ke halaman Dana Masuk saja. Cashier dan panel Kas Kecil Finance menyematkan halaman itu apa adanya
+(`deploy/cashier/index.html:3945`, `deploy/finance/kas/index.html:6431`), jadi **`finance` masuk dengan
+hak yang sama dengan kasir: ia memverifikasi dan menolak, bukan cuma membaca** (baris 36-40).
+T-12 (U5) sudah memutuskan Dana Masuk jadi satu komponen `DanaMasukPanel` milik modul reservasi, bukan
+iframe — jadi Vue punya masalah yang sama, lebih besar: komponen itu memanggil `/reservasi/reservations`
+dari halaman Cashier/Kas, yang pemegang `cashier`/`finance` tanpa modul `reservasi` akan jawab **403
+`module_not_granted`**.
+
+**Usul:** tambahkan modul `reservasi` otomatis kepada pemegang `cashier`/`finance`, atau longgarkan
+gerbang modul untuk endpoint DP saja (`GET /reservations`, `PATCH /reservations/{id}`,
+`GET/PUT /files/{key}`). Yang kedua lebih sempit dan lebih sesuai perilakunya: Master Data, Audit, dan
+Input tetap tertutup untuk mereka, persis seperti keadaan lama.
+
+**Sampai salah satu ada:** komponen `DanaMasukPanel` menampilkan 403 apa adanya dengan teks
+"Belum punya akses ke Data Reservasi" beserta ID gap **G-14**, dan modul cashier/finance menampilkan
+bagian itu sebagai "Segera" (`text-dimmed`) — bukan halaman kosong.
