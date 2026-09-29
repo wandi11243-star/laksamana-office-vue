@@ -10,7 +10,7 @@
 
 import type { Reservasi } from '~/composables/useReservasi'
 import type { BerkasKwitansi } from '~/composables/useFinance'
-import { dpHitungTerverifikasi, dpJumlahTerverifikasi, dpTotal, dpsOf, txNominal, type TxDanaMasuk } from './dp-reservasi'
+import { dpHitungTerverifikasi, dpJumlahTerverifikasi, dpTotal, dpsOf } from './dp-reservasi'
 import { hariIni } from './format'
 
 /** The venue's own receipt number, used until Finance issues the official one (`:6980`). */
@@ -314,7 +314,3 @@ export const auditMintaKwitansi = (r: Reservasi) =>
 export function auditCetakKwitansi(r: Reservasi, resmi: boolean, no: string): string {
   return `${r.name}, ${rupiahKwitansi(dpTotal(r))} (${no})${resmi ? ' — kwitansi resmi bertanda tangan' : ' — tanpa tanda tangan'}`
 }
-
-/** Re-exported for the per-transfer CSV column. */
-export { txNominal }
-export type { TxDanaMasuk }
