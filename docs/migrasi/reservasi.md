@@ -618,13 +618,13 @@ HTTP 200 + `APP_LAWAS` (klien terlalu tua) + `conflict:true` (`docs/modules/rese
 ## J. Progres build
 
 Branch: `migrasi/fondasi` (fondasi F1–F5) lalu `migrasi/reservasi` · Mulai: 2026-09-29
-LANJUTKAN DARI: Tahap 3 — `dashboard` bagian 4b (override layout per tanggal + `DenahEditor`) lalu 4c (WA Koordinasi).
+LANJUTKAN DARI: Tahap 3 — `dashboard` bagian 4c (WA Koordinasi), lalu tutup Tahap 3 (build + status J).
 
 Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di kolom terakhir)
 
 | layar (key) | panel | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|---|
-| dashboard | reservasi | `pages/reservasi/dashboard.vue` | 🟡 | `GET /reservasi/reservations`, `PATCH/POST /reservations`, `GET/POST /audit`, `/master/{dineEstMin,clashLeadMin,waitlist,layouts,*}` | override layout per tanggal & WA Koordinasi belum · tipe tamu G-07 |
+| dashboard | reservasi | `pages/reservasi/dashboard.vue` | 🟡 | `GET /reservasi/reservations`, `PATCH/POST /reservations`, `GET/POST /audit`, `/master/{dineEstMin,clashLeadMin,waitlist,layouts,*}` | WA Koordinasi belum · tipe tamu G-07 |
 | input | reservasi | `pages/reservasi/input.vue` | ✅ | `GET/POST/PUT/DELETE /reservations`, `GET /reservations/{id}`, `GET /files/*` | autofill profil tamu → G-07 |
 | finance | reservasi | `pages/reservasi/finance.vue` | ⬜ | `GET /reservations`, `PATCH /reservations/{id}` | kwitansi via Finance invoices; paging `halDana` → G-08 |
 | riwayat | reservasi | `pages/reservasi/riwayat.vue` | ⬜ | `GET /reservations` | `riwayat`/ekspor server → G-08 |
@@ -804,6 +804,8 @@ Semua field D.2 ada, dengan pesan validasinya apa adanya. Yang dibangun di layar
 ### J.3 Tahap 3 — `dashboard` (bagian 1 & 2, 2026-09-29)
 
 **Bagian 1** (`feat(reservasi): dashboard bagian 1`) — ringkasan, filter, tab Tabel. Ringkasan = `AppFocus` (jumlah reservasi + pax) + `AppList` (empat barisa angka), bukan grid kartu. Tab Tabel: `UTable` di `lg+` dan `AppList` di HP dari baris yang sama, urut per kolom (Tombol sort, bukan klik header — sorting lewat tombol di bawah tabel, bukan klik header (klik header pada UTable tidak bisa di-style dan tidak konsisten)), paging 10/25/50 di browser dengan catatan **G-08** di layar. "Tipe tamu" **Segera · G-07** (butuh `ringkasTamu`).
+
+**Bagian 4b** (`feat(reservasi): dashboard bagian 4b`) — **override layout per tanggal + `DenahEditor`** (`:5406-5416`, `:5938-6152`, `:6076-6106`): tombol "Layout: …" & "Editor denah: …" di atas denah, hanya untuk `CAN.master` (manager/admin). Sheet Layout offers bawaan hari / template **per lantai** (menawarkan denah Lt.1 sebagai jadwal Lt.2 menggambar meja lantai yang salah seharian penuh, dan gejalanya "meja saya hilang", bukan pesan galat — `:5955-5962`), "Terapkan ke banyak tanggal", daftar tanggal terjadwal (jadwal template + denah digeser digabung dalam satu daftar), dan "Kembalikan ke bawaan" yang membersihkan **kedua** bentuk penyimpangan sekaligus (`:6093-6101`). Semua tulis lewat `putDenah(section, value, versiSection)` — 4 section terpisah, bukan `PUT /master` blob. Jejak penyunting (F23) tampil di layar, di atas kanvas editor, bukan hanya di `title` tombol (`:6222-6229`). Editor memakai komponen `DenahEditor` milik Tahap 2: `simpanTemplat` (semua tanggal yang memakai template itu ikut) dan `simpanTanggal` (hanya tanggal ini, template tidak disentuh) tetap dua tombol terpisah.
 
 **Bagian 4a** (`feat(reservasi): dashboard bagian 4a`) — tab **Waiting List** (`:1921-1996`): antrean tanggal denah (yang paling lama menunggu di atas) + antrean tanggal lain yang redup. Tambah (tanpa nama → "Walkin"), pax wajib, catatan, dan catatan "sudah diberi tahu". **Dudukkan** bikin reservasi walk-in `Datang` (gelombang kedatangan penuh) **lalu** menandai entri antrean `seated` + `table` + `resId` — urut itu disengaja: kalau reservasinya gagal, tamunya tetap menunggu, bukan ditandai duduk tanpa bukti. "Keluarkan" memakai `PUT` dengan `status: 'cancelled'`, bukan `DELETE`, supaya jejaknya tetap ada di section (meniru `:1958-1961`). Semua tulis lewat `putSectionItem('waitlist', …, versi section)`; section dibaca lewat `useSectionVersi()` yang menyimpan amplopnya, karena `useAsyncData` membuang `meta` sehingga versi section tidak terlihat. Peringatan kalau pax melebihi kapasitas meja yang dipilih, tapi tetap boleh didudukkan (`:1996`).
 Helper baru **`app/utils/wa.ts`** (dipakai juga Service Excellent nanti): `waKirim()` membuka `wa.me/<no>?text=` **dan** menyalin teks ke papan klip, `waTautan()`, `teksPanggilAntrean()`. Perbedaan yang disengaja dari Office lama: `waOpen()` membuka `whatsapp://` (aplikasi saja, tanpa cadangan web — `:3285-3290`), dan di browser desktop tombolnya terasa mati. Teks pesan tetap mengikuti teks lama; emoji ada di dalam pesan WhatsApp, bukan di UI.

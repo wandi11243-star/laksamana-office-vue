@@ -20,11 +20,17 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { Reservasi, Waitlist } from '~/composables/useReservasi'
-import { createReservation, patchReservation, postAudit, putSectionItem, useDaftarReservasi, useDenah, useSection, useSectionVersi } from '~/composables/useReservasi'
+import { createReservation, patchReservation, postAudit, putDenah, putSectionItem, useDaftarReservasi, useDenah, useSection, useSectionVersi } from '~/composables/useReservasi'
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
 import { arrivedPax, buatIzinTumpang, fmtMenit, harihOccupancy, isSeated, remainingPax, sedangDialihkan, tablesOf } from '~/utils/kunci-meja'
 import { dpTotal, normPhone, uid } from '~/utils/dp-reservasi'
-import { capMax, cariMeja, dayTypeLayout, dayTypeLayout2, getLayout, lantaiMap, kapasitasTanggal, layoutName } from '~/utils/venue-layouts'
+import type { LayoutDenah } from '~/utils/venue-layouts'
+import {
+  adaDenahTanggal, allLayoutKeys, capDenah, capMax, cariMeja, dayTypeLayout,
+  dayTypeLayout2, defaultDayTypeLt, denahTanggalBaru, getLayout, hasOverrideLt,
+  keyTanggal, lantaiLayout, lantaiMap, layoutTanggal, kapasitasTanggal, layoutName, ltCfg,
+  ovLantai, parseKeyTanggal,
+} from '~/utils/venue-layouts'
 import { angka, hariIni, normTime, rupiah, tglPendek, tambahHari } from '~/utils/format'
 import { teksPanggilAntrean, waKirim } from '~/utils/wa'
 
@@ -32,6 +38,7 @@ definePageMeta({ access: ['reservasi'] })
 
 const me = useMe()
 const toast = useToast()
+const { master, versi: versiDenah, layouts: secLayouts, layoutOverrides: secOv1, layoutOverrides2: secOv2, layoutTanggal: secTgl } = useDenah()
 const namaSaya = computed(() => me.value?.name ?? '')
 const role = computed(() => roleReservasi(me.value))
 const bolehEdit = computed(() => bolehAksi('input', role.value))
@@ -154,7 +161,6 @@ const dpYes = computed(() => basis.value.filter(r => r.dpStatus === 'Sudah').len
  *  has arrived) the host has already spoken to them (`:3871-3876`). */
 const perluFollowUp = computed(() => (semua.value ?? []).filter(r => r.date === hariIni() && r.status === 'Pending').length)
 
-const { master } = useDenah()
 const { data: categories } = useSection<string[]>('categories')
 
 const kap = computed(() => kapasitasTanggal(master.value, tglDenah.value))
@@ -818,6 +824,202 @@ async function simpanWalkin() {
   }
 }
 
+// --- the plan for one date + the editor (`:5406-5416`, `:5938-6152`) ------------
+
+const muatUlangDenah = () => Promise.all([
+  secLayouts.refresh(),
+  secOv1.refresh(),
+  secOv2.refresh(),
+  secTgl.refresh(),
+])
+
+const bolehDenah = computed(() => bolehAksi('master', role.value))
+const adaOverride = computed(() => hasOverrideLt(master.value, tglDenah.value, 1) || hasOverrideLt(master.value, tglDenah.value, 2))
+const jejakPlan = computed(() => jejakDenah(getLayout(master.value, layerMap.value === 2 ? kunciL2.value : kunciL1.value)))
+
+/** Templates offered for a floor, grouped by floor — a second floor's plan here
+ *  would draw the wrong tables for a whole evening, and the symptom is "my table
+ *  disappeared", not an error (`:6205-6218`). */
+const templateLt = computed(() => {
+  const per = new Map<number, { key: string, label: string }[]>()
+  for (const k of allLayoutKeys(master.value)) {
+    const lt = lantaiLayout(master.value, k)
+    per.set(lt, [...(per.get(lt) ?? []), { key: k, label: layoutName(master.value, k) }])
+  }
+  return [...per.entries()].sort((a, b) => a[0] - b[0])
+})
+
+const sheetLayout = ref(false)
+/** The template chosen for the date, '' = follow the day. */
+const pilihTemplate = ref('')
+const tanggalTambah = ref(hariIni())
+
+function bukaLayout() {
+  pilihTemplate.value = (layerMap.value === 2 ? ovLt2.value : ovLt1.value)[tglDenah.value] ?? ''
+  tanggalTambah.value = tglDenah.value
+  sheetLayout.value = true
+}
+
+const ovLt1 = computed(() => ovLantai(master.value, 1))
+const ovLt2 = computed(() => ovLantai(master.value, 2))
+
+async function simpanLayoutTgl() {
+  const lt = layerMap.value
+  const key = lt === 2 ? 'layoutOverrides2' : 'layoutOverrides'
+  const ov = { ...(lt === 2 ? ovLt2.value : ovLt1.value) }
+  if (pilihTemplate.value && getLayout(master.value, pilihTemplate.value)) ov[tglDenah.value] = pilihTemplate.value
+  // A date with no template of its own goes back to the built-in of the day:
+  // the key is removed rather than left pointing at nothing.
+  const bersih = Object.fromEntries(Object.entries(ov).filter(([d]) => d !== tglDenah.value || !!ov[d]))
+  try {
+    await putDenah(key, bersih, versiDenah.value[key])
+    await muatUlangDenah()
+    sheetLayout.value = false
+    await catat(`${ltCfg(lt).nama} · ${tglPendek(tglDenah.value)} → ${pilihTemplate.value ? layoutName(master.value, pilihTemplate.value) : 'bawaan'}`, undefined, pilihTemplate.value ? 'Set Denah Tanggal' : 'Reset Denah Tanggal')
+    toast.add({ title: pilihTemplate.value ? `${ltCfg(lt).nama}: ${layoutName(master.value, pilihTemplate.value)} dipakai untuk ${tglPendek(tglDenah.value)}` : `${ltCfg(lt).nama} dikembalikan ke bawaan hari`, color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, muatUlangDenah))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
+
+/** "Terapkan ke banyak tanggal" — changes that can be planned weeks ahead. */
+async function tambahTanggalLayout() {
+  const d = tanggalTambah.value
+  if (!d) {
+    toast.add({ title: 'Pilih tanggalnya dulu', color: 'error' })
+    return
+  }
+  if (!pilihTemplate.value || !getLayout(master.value, pilihTemplate.value)) {
+    toast.add({ title: 'Pilih denahnya dulu (bukan bawaan hari)', color: 'error' })
+    return
+  }
+  const lt = layerMap.value
+  const key = lt === 2 ? 'layoutOverrides2' : 'layoutOverrides'
+  const ov = { ...(lt === 2 ? ovLt2.value : ovLt1.value), [d]: pilihTemplate.value }
+  try {
+    await putDenah(key, ov, versiDenah.value[key])
+    await muatUlangDenah()
+    await catat(`${ltCfg(lt).nama} · ${tglPendek(d)} → ${pilihTemplate.value}`, undefined, 'Set Denah Tanggal')
+    toast.add({ title: `${tglPanjangLama(d)} memakai ${layoutName(master.value, pilihTemplate.value)}`, color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, muatUlangDenah))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
+
+/** "Kembalikan ke bawaan" clears BOTH forms of deviation — a scheduled template
+ *  AND tables drawn for that date. From the crew's side they are one thing ("this
+ *  day's plan is different"), and clearing only one leaves a flag nothing can
+ *  remove (`:6093-6101`). */
+async function bersihkanTanggal(d: string) {
+  const lt = layerMap.value
+  try {
+    if (adaDenahTanggal(master.value, d, lt)) {
+      const perTanggal = { ...layoutTanggal(master.value) }
+      const { [keyTanggal(d, lt)]: dibuang, ...sisa } = perTanggal
+      void dibuang
+      await putDenah('layoutTanggal', sisa, versiDenah.value.layoutTanggal)
+    }
+    const ov = { ...(lt === 2 ? ovLt2.value : ovLt1.value) }
+    if (ov[d]) {
+      const { [d]: dibuang, ...sisa } = ov
+      void dibuang
+      await putDenah(lt === 2 ? 'layoutOverrides2' : 'layoutOverrides', sisa, versiDenah.value[lt === 2 ? 'layoutOverrides2' : 'layoutOverrides'])
+    }
+    await muatUlangDenah()
+    await catat(`${ltCfg(lt).nama} · ${tglPendek(d)} → bawaan`, undefined, 'Reset Denah Tanggal')
+    toast.add({ title: `${ltCfg(lt).nama} dikembalikan ke bawaan hari`, color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, muatUlangDenah))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
+
+/** Dates from today on that deviate from their built-in plan: a scheduled template
+ *  and tables drawn for that date are listed together, because splitting them
+ *  into two lists only makes people check both before being sure (`:5981-5990`). */
+const tanggalTercetak = computed(() => {
+  const lt = layerMap.value
+  const hariIniStr = hariIni()
+  const keluar: { tgl: string, nama: string, khusus: boolean }[] = []
+  const ov = lt === 2 ? ovLt2.value : ovLt1.value
+  for (const [d, v] of Object.entries(ov)) {
+    if (d >= hariIniStr && getLayout(master.value, v)) keluar.push({ tgl: d, nama: layoutName(master.value, v), khusus: false })
+  }
+  for (const key of Object.keys(secTgl.data.value?.data ?? {})) {
+    const p = parseKeyTanggal(key)
+    if (p && p.lt === lt && p.date >= hariIniStr) keluar.push({ tgl: p.date, nama: 'denah digeser sendiri', khusus: true })
+  }
+  return keluar.sort((a, b) => a.tgl.localeCompare(b.tgl))
+})
+
+// --- the editor (`:6109-6152`, `:6200-6390`) -------------------------------------
+
+const sheetEditor = ref(false)
+/** What the editor is editing: a template key, or a plan stored for this date. */
+const editorKunci = ref('')
+const editorSalinan = ref<LayoutDenah | null>(null)
+
+function bukaEditor() {
+  const lt = layerMap.value
+  editorKunci.value = (lt === 2 ? kunciL2.value : kunciL1.value)
+  editorSalinan.value = structuredClone(toRaw(getLayout(master.value, editorKunci.value) ?? getLayout(master.value, 'weekday')!))
+  sheetLayout.value = false
+  sheetEditor.value = true
+}
+
+const editorTanggal = computed(() => parseKeyTanggal(editorKunci.value))
+/** The template that would cover this date if its own plan were not there. */
+const editorTemplat = computed(() => {
+  const p = editorTanggal.value
+  if (!p) return editorKunci.value
+  const ov = p.lt === 2 ? ovLt2.value : ovLt1.value
+  const terjadwal = ov[p.date]
+  return (terjadwal && getLayout(master.value, terjadwal)) ? terjadwal : defaultDayTypeLt(p.date, p.lt)
+})
+
+/** Save into the covering template: every date that uses it changes. */
+async function simpanKeTemplat(data: LayoutDenah) {
+  const key = editorTemplat.value
+  if (!key || parseKeyTanggal(key)) return
+  const cap = capDenah(data, namaSaya.value)
+  try {
+    await putDenah('layouts', { ...(secLayouts.data.value?.data ?? {}), [key]: cap }, versiDenah.value.layouts)
+    await muatUlangDenah()
+    editorSalinan.value = cap
+    sheetEditor.value = false
+    await catat(`${layoutName(master.value, key)} (${cap.tables.length} meja)`, undefined, 'Simpan Layout')
+    toast.add({ title: `Template ${layoutName(master.value, key)} disimpan — berlaku untuk semua tanggal yang memakainya`, color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, muatUlangDenah))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
+
+/** Save for THIS DATE only: the template is not touched at all, and the next day
+ *  goes back to normal by itself (`:6244-6250`). */
+async function simpanUntukTanggal(data: LayoutDenah) {
+  const key = editorKunci.value
+  const p = editorTanggal.value
+  if (!p) {
+    await simpanKeTemplat(data)
+    return
+  }
+  const cap = capDenah(denahTanggalBaru(data, p.date, p.lt), namaSaya.value)
+  try {
+    await putDenah('layoutTanggal', { ...(secTgl.data.value?.data ?? {}), [key]: cap }, versiDenah.value.layoutTanggal)
+    await muatUlangDenah()
+    editorSalinan.value = cap
+    sheetEditor.value = false
+    await catat(`${tglPendek(p.date)} Lt.${p.lt} (${cap.tables.length} meja)`, undefined, 'Simpan Denah Tanggal')
+    toast.add({ title: `Denah ${tglPendek(p.date)} disimpan — template tidak ikut berubah`, color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, muatUlangDenah))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
+
 // --- the poll (`:3089-3156`) ------------------------------------------------------
 // The map is the only tab that pulls on its own, and only while it is on screen:
 // POLL_JEDA is 15 s and the pull is skipped while the browser tab is hidden, with
@@ -872,6 +1074,7 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
         size="xl"
       />
       <UButton
+        v-if="bolehEdit"
         label="WA koordinasi"
         color="neutral"
         variant="soft"
@@ -884,7 +1087,7 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
         color="neutral"
         variant="soft"
         size="xl"
-        disabled
+        @click="bukaLayout"
       />
     </div>
 
@@ -1381,11 +1584,33 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
           @click="layerMap = l"
         />
         <span class="text-sm text-muted">
-          {{ tglPanjangLama }} · {{ namaDenah }} · {{ ants.length }} di antrean<template
+          {{ tglPanjangLama(tglDenah) }} · {{ namaDenah }} · {{ ants.length }} di antrean<template
             v-if="ants.length"
           >, terlama {{ fmtMenit(tunggu(ants[0]!)) }}</template>
         </span>
+        <template v-if="bolehDenah">
+          <UButton
+            :label="`Layout: ${namaDenah}${adaOverride ? ' (berbeda)' : ''}`"
+            color="neutral"
+            :variant="adaOverride ? 'soft' : 'ghost'"
+            size="sm"
+            @click="bukaLayout"
+          />
+          <UButton
+            :label="`Editor denah: ${namaDenah}`"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            @click="bukaEditor"
+          />
+        </template>
       </div>
+      <p
+        v-if="jejakPlan"
+        class="mb-2 text-sm text-muted"
+      >
+        {{ jejakPlan }}
+      </p>
       <p
         v-if="saringBerlaku"
         class="mb-3 rounded-lg border border-default bg-default p-3 text-sm text-muted"
@@ -1610,6 +1835,168 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
           @click="sheetDudukkan = false"
         />
       </template>
+    </ResponsiveSheet>
+
+    <ResponsiveSheet
+      v-model:open="sheetLayout"
+      :title="`Denah ${ltCfg(layerMap).nama}, ${tglPanjangLama(tglDenah)}`"
+      description="Berlaku hanya tanggal ini — tanggal lain otomatis kembali ke bawaan hari."
+    >
+      <div class="space-y-3">
+        <p class="text-sm text-muted">
+          Pilih denah {{ ltCfg(layerMap).nama }} untuk {{ tglPanjangLama(tglDenah) }}. Lantai 1 dan
+          Lantai 2 dijadwalkan sendiri-sendiri.
+        </p>
+        <label class="flex items-start gap-2.5 text-sm">
+          <input
+            v-model="pilihTemplate"
+            type="radio"
+            value=""
+            class="mt-1"
+          >
+          <span>
+            <b>Bawaan hari</b>
+            <span class="block text-muted">Ikuti aturan hari — {{ defaultDayTypeLt(tglDenah, layerMap) }} — tidak ada perubahan khusus.</span>
+          </span>
+        </label>
+        <label
+          v-for="[lt, templat] in templateLt"
+          v-show="lt === layerMap"
+          :key="`tpl-${lt}`"
+          class="flex items-start gap-2.5 text-sm"
+        >
+          <input
+            v-model="pilihTemplate"
+            type="radio"
+            :value="templat[0]?.key"
+            class="mt-1"
+          >
+          <span v-if="templat.length">
+            <b>Template lantai {{ lt }}</b>
+            <span class="block text-muted">
+              Pilih salah satu:
+            </span>
+            <select
+              v-model="pilihTemplate"
+              class="mt-1 w-full rounded-lg border border-default bg-default p-2 text-sm"
+            >
+              <option
+                v-for="t in templat"
+                :key="t.key"
+                :value="t.key"
+              >
+                {{ t.label }}
+              </option>
+            </select>
+          </span>
+        </label>
+
+        <div class="flex flex-wrap gap-2 border-t border-default pt-3">
+          <UButton
+            label="Ubah denah khusus tanggal ini"
+            color="neutral"
+            variant="soft"
+            size="sm"
+            @click="bukaEditor"
+          />
+        </div>
+
+        <div class="border-t border-default pt-3">
+          <p class="text-sm font-semibold text-highlighted">
+            Terapkan ke banyak tanggal
+          </p>
+          <p class="text-sm text-muted">
+            Untuk perubahan meja yang sudah bisa direncanakan jauh hari.
+          </p>
+          <div class="mt-2 flex flex-wrap items-end gap-2">
+            <UFormField
+              label="Tanggal"
+              class="max-w-44"
+            >
+              <UInput
+                v-model="tanggalTambah"
+                type="date"
+                class="w-full"
+              />
+            </UFormField>
+            <UButton
+              label="Tambahkan tanggal"
+              color="neutral"
+              variant="soft"
+              size="sm"
+              @click="tambahTanggalLayout"
+            />
+          </div>
+        </div>
+
+        <div class="border-t border-default pt-3">
+          <p class="text-sm font-semibold text-highlighted">
+            Tanggal terjadwal {{ ltCfg(layerMap).nama }} (hari ini ke depan)
+          </p>
+          <p
+            v-if="!tanggalTercetak.length"
+            class="text-sm text-muted"
+          >
+            Belum ada jadwal khusus untuk {{ ltCfg(layerMap).nama }}.
+          </p>
+          <div
+            v-for="t in tanggalTercetak"
+            :key="t.tgl"
+            class="flex items-center justify-between gap-2 py-1.5 text-sm"
+          >
+            <span>
+              <b>{{ tglPendek(t.tgl) }}</b> → {{ t.nama }}<template v-if="t.tgl === tglDenah">
+                (dipilih)
+              </template>
+            </span>
+            <UButton
+              label="Kembalikan ke bawaan"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              @click="bersihkanTanggal(t.tgl)"
+            />
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <UButton
+          label="Terapkan"
+          size="xl"
+          @click="simpanLayoutTgl"
+        />
+        <UButton
+          label="Tutup"
+          color="neutral"
+          variant="soft"
+          size="xl"
+          @click="sheetLayout = false"
+        />
+      </template>
+    </ResponsiveSheet>
+
+    <ResponsiveSheet
+      v-model:open="sheetEditor"
+      title="Editor denah"
+      :description="editorKunci ? layoutName(master, editorKunci) : ''"
+    >
+      <p
+        v-if="editorTanggal"
+        class="mb-3 text-sm text-muted"
+      >
+        Menyimpan untuk {{ tglPanjangLama(editorTanggal.date) }} saja tidak mengubah template
+        {{ layoutName(master, editorTemplat) }} — tanggal lain tidak ikut bergeser.
+      </p>
+      <DenahEditor
+        v-if="editorSalinan"
+        :layout="editorSalinan"
+        :konteks="editorTanggal ? tglPanjangLama(editorTanggal.date) : undefined"
+        :template-tanggal="layoutName(master, editorTemplat)"
+        :bisa-ubah="bolehDenah"
+        :jejak="jejakPlan"
+        @simpan-templat="simpanKeTemplat"
+        @simpan-tanggal="simpanUntukTanggal"
+      />
     </ResponsiveSheet>
 
     <ResponsiveSheet
