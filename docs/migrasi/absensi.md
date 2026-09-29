@@ -226,3 +226,21 @@ Catatan: karena ini audit, angka **7 ❌ · 5 ⚠️** bukan gap v1 melainkan **
 - **Terverifikasi** (sudah ada di `_lintas-modul.md:35`): *Absensi membaca jadwal shift & DW (`deploy/index.html:1391`)*. Bukti kode: `laksamana-office/absensi-mysql/lib_absensi_mysql.php:523` (`dw-api-mysql?action=jadwalDW`), `:560` (`jadwal-api-mysql?action=shiftHari`); di v1 jadi service call langsung (`laksamana-api/docs/modules/absensi.md:75-76`). Status di `shift_hari`: array = ada shift (`ROSTER`/`DW`), `null` = tidak dijadwalkan (`NONE`), `false` = jadwal/DW tak menjawab (`TAK_TERBACA`, **tidak** mengantre).
 - **Tambahan:** Absensi → Office/Account: login `masuk` diteruskan server-ke-server (`absensi-mysql/api.php:83-89`, `lib_absensi_mysql.php:431`); v1 `AccountService::login` in-process + wajib modul `absensi` (`laksamana-api/docs/modules/absensi.md:43`). Identitas `siapa{boleh,admin,hr}` juga dari akun Office. Absensi **tidak menulis** ke DB modul lain.
 - **Catatan aset:** Absensi **tidak** memakai `deploy/assets/*.js`; asetnya milik subdomain sendiri (`vendor/face-api.min.js`, `models/`, `vendor/leaflet.*`, `sw.js`) — `absensi/index.html:360`, `:898-906`, `:1056-1058`, `:1875-1879`.
+
+## J. Progres build
+Branch: migrasi/absensi · Mulai: 2026-09-29
+LANJUTKAN DARI: —
+
+| layar (key) | file | status | endpoint dipakai | ditunda karena |
+|---|---|---|---|---|
+| absen | `app/pages/absensi/index.vue` | ⬜ | `GET /absensi/context` | punch kamera+GPS → K-02 (#15) |
+| riwayat | `app/pages/absensi/riwayat.vue` | ⬜ | `GET /absensi/recap` | — |
+| antrean | `app/pages/absensi/antrean.vue` | ⬜ | `GET /absensi/queue`, `POST /absensi/punches/{id}/decision` | — |
+| wajah | `app/pages/absensi/wajah.vue` | ⬜ | `GET /absensi/context`, `GET /absensi/faces` | daftar/hapus wajah → K-02 (#15) |
+| atur | `app/pages/absensi/atur.vue` | ⬜ | `GET/POST/DELETE /absensi/locations`, `GET/PUT /absensi/settings` | peta Leaflet → K-03 (tanpa peta) |
+
+Catatan build: Absensi **tidak punya `version`/ETag/`If-Match`** (kontrak
+`laksamana-api/docs/api/absensi.md:14`), jadi tulisan tidak berversi. Konkurensi ditangani aturan domain —
+keputusan antrean hanya selagi `MENUNGGU`, yang kalah diberi tahu lewat `{berubah:0}`. `tanganiKonflik()`
+tetap dipanggil sebagai pola (untuk Absensi ia selalu mengembalikan `false`, lalu pesan API ditampilkan).
+Deteksi HR memakai `siapa.hr` dari `GET /absensi/context` (T-05), bukan dari isi baris.
