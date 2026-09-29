@@ -63,15 +63,20 @@ const namaSaya = computed(() => me.value?.name ?? '')
 // today, not transfers that happened to move today — a DP is often paid weeks
 // ahead (`:9176-9190`). The default stays 'reservasi' for the same reason.
 
+// Reka UI forbids SelectItem value '' — "Semua bank" is the non-empty
+// sentinel 'semua', mapped back to "no filter" in saringEfektif so the shared
+// formula in dp-reservasi.ts stays untouched.
+const SEMUA = 'semua'
 const saring = reactive<SaringDanaMasuk>({
   basis: 'reservasi',
   dari: hariIni(),
   sampai: hariIni(),
-  bank: '',
-  status: '',
+  bank: SEMUA,
+  status: SEMUA,
   q: '',
   tab: 'perlu',
 })
+const saringEfektif = computed(() => ({ ...saring, bank: saring.bank === SEMUA ? '' : saring.bank }))
 
 const sumber = ref<'reservasi' | 'event'>(props.sumberAwal)
 
@@ -117,9 +122,9 @@ const { data: dpMethods } = useSection<string[]>('dpMethods')
 const tanpaAkses = computed(() => apiErrorCode(galatMuat.value) === 'module_not_granted')
 
 const tx = computed(() => txSemua(semua.value ?? []))
-const daftarSemua = computed(() => saringDanaMasuk(tx.value, saring, false))
+const daftarSemua = computed(() => saringDanaMasuk(tx.value, saringEfektif.value, false))
 const ringkas = computed(() => ringkasDanaMasuk(daftarSemua.value))
-const daftar = computed(() => saringDanaMasuk(tx.value, saring, true))
+const daftar = computed(() => saringDanaMasuk(tx.value, saringEfektif.value, true))
 
 const semuaBank = computed(() => [...new Set(tx.value.map(txBank).filter(Boolean))].sort())
 
@@ -1212,7 +1217,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
         >
           <USelect
             v-model="saring.bank"
-            :items="[{ value: '', label: 'Semua bank' }, ...semuaBank.map(b => ({ value: b, label: b }))]"
+            :items="[{ value: SEMUA, label: 'Semua bank' }, ...semuaBank.map(b => ({ value: b, label: b }))]"
             class="w-full"
           />
         </UFormField>
@@ -1222,7 +1227,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
         >
           <USelect
             v-model="saring.status"
-            :items="[{ value: '', label: 'Semua' }, { value: 'belumScan', label: 'Bukti belum discan' }, { value: 'selisih', label: 'Dana tidak sama' }]"
+            :items="[{ value: SEMUA, label: 'Semua' }, { value: 'belumScan', label: 'Bukti belum discan' }, { value: 'selisih', label: 'Dana tidak sama' }]"
             class="w-full"
           />
         </UFormField>
@@ -2261,7 +2266,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
         <UFormField label="Metode / tujuan transfer">
           <USelect
             v-model="tambah.metode"
-            :items="(dpMethods ?? []).map(m => ({ value: m, label: m }))"
+            :items="(dpMethods ?? []).filter(m => m).map(m => ({ value: m, label: m }))"
             size="xl"
             class="w-full"
           />

@@ -46,6 +46,13 @@ const bolehEdit = computed(() => bolehAksi('input', role.value))
 // --- the window ---------------------------------------------------------------
 // The dashboard always draws the day-of map, so that date has to be inside the
 // loaded window whatever period the table is filtered on.
+/**
+ * Reka UI forbids SelectItem value '' (the page crashes with "A <SelectItem />
+ * must have a value prop that is not an empty string"), so "Semua" is the
+ * non-empty sentinel 'semua'. Every consumer maps it back to "no filter".
+ */
+const SEMUA = 'semua'
+const saringAktif = (v: string) => !!v && v !== SEMUA
 const filter = reactive({
   mode: 'day' as 'day' | 'month' | 'year' | 'range' | 'all',
   date: hariIni(),
@@ -55,12 +62,12 @@ const filter = reactive({
   to: hariIni(),
   fromHour: '',
   toHour: '',
-  status: '',
-  category: '',
-  lantai: '',
+  status: SEMUA,
+  category: SEMUA,
+  lantai: SEMUA,
   kursi: '',
-  dp: '',
-  pic: '',
+  dp: SEMUA,
+  pic: SEMUA,
   q: '',
 })
 const cari = ref('')
@@ -109,10 +116,10 @@ const saringan = computed(() => {
   else if (F.mode === 'range' && F.from && F.to) r = r.filter(x => x.date >= F.from && x.date <= F.to)
   if (F.fromHour) r = r.filter(x => (x.time || '') >= F.fromHour)
   if (F.toHour) r = r.filter(x => (x.time || '') <= F.toHour)
-  if (F.status) r = r.filter(x => x.status === F.status)
-  if (F.category) r = r.filter(x => (x.category || '') === F.category)
-  if (F.dp) r = r.filter(x => x.dpStatus === F.dp)
-  if (F.pic) r = r.filter(x => (x.picName || '') === F.pic)
+  if (saringAktif(F.status)) r = r.filter(x => x.status === F.status)
+  if (saringAktif(F.category)) r = r.filter(x => (x.category || '') === F.category)
+  if (saringAktif(F.dp)) r = r.filter(x => x.dpStatus === F.dp)
+  if (saringAktif(F.pic)) r = r.filter(x => (x.picName || '') === F.pic)
   if (F.q) {
     const q = F.q.toLowerCase()
     r = r.filter(x => x.name.toLowerCase().includes(q) || x.phone.includes(q))
@@ -128,7 +135,7 @@ const saringan = computed(() => {
   // so let the cheap field comparisons drop rows first. A booking with no table
   // (floor unknown) never passes — forcing it into a floor would show it in a
   // place that is not necessarily right.
-  if (F.lantai) {
+  if (saringAktif(F.lantai)) {
     const peta = lantaiMap()
     const mau = Number(F.lantai)
     r = r.filter((x) => {
@@ -195,9 +202,9 @@ function setBulanIni() {
   filter.month = hariIni().slice(0, 7)
 }
 const filterAktif = computed(() => filter.mode !== 'day' || filter.date !== hariIni() || !!filter.fromHour || !!filter.toHour
-  || !!filter.status || !!filter.category || !!filter.lantai || !!filter.kursi || !!filter.dp || !!filter.pic || !!filter.q || !!cari.value)
+  || saringAktif(filter.status) || saringAktif(filter.category) || saringAktif(filter.lantai) || !!filter.kursi || saringAktif(filter.dp) || saringAktif(filter.pic) || !!filter.q || !!cari.value)
 function resetFilter() {
-  Object.assign(filter, { mode: 'day', date: hariIni(), month: hariIni().slice(0, 7), year: new Date().getFullYear(), from: hariIni(), to: hariIni(), fromHour: '', toHour: '', status: '', category: '', lantai: '', kursi: '', dp: '', pic: '', q: '' })
+  Object.assign(filter, { mode: 'day', date: hariIni(), month: hariIni().slice(0, 7), year: new Date().getFullYear(), from: hariIni(), to: hariIni(), fromHour: '', toHour: '', status: SEMUA, category: SEMUA, lantai: SEMUA, kursi: '', dp: SEMUA, pic: SEMUA, q: '' })
   cari.value = ''
 }
 
@@ -267,7 +274,7 @@ function jumlahHariBulan(ym: string): string {
 }
 
 const bulan = ref(hariIni().slice(0, 7))
-const kalenderStatus = ref('')
+const kalenderStatus = ref(SEMUA)
 
 /** Left/right a month, without the Date rollover trap. */
 function geserBulan(n: number) {
@@ -284,7 +291,7 @@ const kalenderPerTanggal = computed(() => {
   const map = new Map<string, Reservasi[]>()
   for (const r of semua.value ?? []) {
     if (!r.date) continue
-    if (kalenderStatus.value) {
+    if (kalenderStatus.value !== SEMUA) {
       if (r.status !== kalenderStatus.value) continue
     }
     else if (r.status === 'Cancelled') continue
@@ -296,7 +303,7 @@ const kalenderPerTanggal = computed(() => {
   return map
 })
 
-const kalenderDibatalkan = computed(() => (kalenderStatus.value ? 0 : (semua.value ?? []).filter(r => r.status === 'Cancelled').length))
+const kalenderDibatalkan = computed(() => (kalenderStatus.value !== SEMUA ? 0 : (semua.value ?? []).filter(r => r.status === 'Cancelled').length))
 
 /** The month's cells, Monday first, with the leading and trailing days of the
  *  neighbouring months greyed out (`:5578-5581`, `:5624-5628`). */
@@ -1023,13 +1030,13 @@ async function simpanUntukTanggal(data: LayoutDenah) {
 // --- WA coordination (`:7640-7712`, `:7762-7770`) --------------------------------
 
 const sheetWA = ref(false)
-const coordDari = ref('')
-const coordSampai = ref('')
+const coordDari = ref(SEMUA)
+const coordSampai = ref(SEMUA)
 const { data: waTargets } = useSection<WaTarget[]>('waTargets')
 
 /** 30-minute steps, the old dropdown's granularity (`:4033-4036`). */
 const opsiJam = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`)
-const jamOpsi = [{ value: '', label: 'Semua jam' }, ...opsiJam.map(j => ({ value: j, label: j }))]
+const jamOpsi = [{ value: SEMUA, label: 'Semua jam' }, ...opsiJam.map(j => ({ value: j, label: j }))]
 
 const menitDari = (jam?: string) => {
   const [h, m] = String(jam || '00:00').split(':').map(Number)
@@ -1039,8 +1046,8 @@ const menitDari = (jam?: string) => {
 /** The day, minus cancelled and no-show, minus the chosen shift (`:7645-7656`).
  *  `semua` is the same list the map draws, so what is coordinated is what is seen. */
 const daftarKoord = computed(() => {
-  const lo = coordDari.value ? menitDari(coordDari.value) : null
-  const hi = coordSampai.value ? menitDari(coordSampai.value) : null
+  const lo = saringAktif(coordDari.value) ? menitDari(coordDari.value) : null
+  const hi = saringAktif(coordSampai.value) ? menitDari(coordSampai.value) : null
   return (semua.value ?? [])
     .filter(r => r.date === tglDenah.value && !['Cancelled', 'No-show'].includes(r.status))
     .filter((r) => {
@@ -1051,9 +1058,9 @@ const daftarKoord = computed(() => {
 })
 
 const labelRentang = computed(() => {
-  if (!coordDari.value && !coordSampai.value) return ''
-  if (coordDari.value && coordSampai.value) return `Jam ${coordDari.value}–${coordSampai.value}`
-  return coordDari.value ? `Jam ${coordDari.value} ke atas` : `Sampai jam ${coordSampai.value}`
+  if (!saringAktif(coordDari.value) && !saringAktif(coordSampai.value)) return ''
+  if (saringAktif(coordDari.value) && saringAktif(coordSampai.value)) return `Jam ${coordDari.value}–${coordSampai.value}`
+  return saringAktif(coordDari.value) ? `Jam ${coordDari.value} ke atas` : `Sampai jam ${coordSampai.value}`
 })
 
 const GARIS = '─────────────────'
@@ -1148,8 +1155,8 @@ onMounted(() => document.addEventListener('visibilitychange', saatKembaliLayar))
 onBeforeUnmount(() => document.removeEventListener('visibilitychange', saatKembaliLayar))
 
 /** A filter that hides part of the rows must not be used to add guests or move tables. */
-const saringBerlaku = computed(() => !!(filter.fromHour || filter.toHour || filter.status || filter.category
-  || filter.lantai || filter.kursi || filter.dp || filter.pic || filter.q || cari.value || filter.mode !== 'day'))
+const saringBerlaku = computed(() => !!(filter.fromHour || filter.toHour || saringAktif(filter.status) || saringAktif(filter.category)
+  || saringAktif(filter.lantai) || filter.kursi || saringAktif(filter.dp) || saringAktif(filter.pic) || filter.q || cari.value || filter.mode !== 'day'))
 
 const tglPanjangLama = (tgl: string) => new Date(`${tgl}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })
 
@@ -1352,35 +1359,35 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
         <UFormField label="Status">
           <USelect
             v-model="filter.status"
-            :items="[{ value: '', label: 'Semua (tanpa cancelled)' }, 'Pending', 'Confirmed', 'Datang', 'Cancelled', 'No-show']"
+            :items="[{ value: SEMUA, label: 'Semua (tanpa cancelled)' }, 'Pending', 'Confirmed', 'Datang', 'Cancelled', 'No-show']"
             class="w-full"
           />
         </UFormField>
         <UFormField label="Jenis reservasi">
           <USelect
             v-model="filter.category"
-            :items="['', ...(categories ?? [])]"
+            :items="[{ value: SEMUA, label: 'Semua' }, ...(categories ?? []).filter(c => c).map(c => ({ value: c, label: c }))]"
             class="w-full"
           />
         </UFormField>
         <UFormField label="Lantai">
           <USelect
             v-model="filter.lantai"
-            :items="[{ value: '', label: 'Semua' }, { value: '1', label: 'Lantai 1' }, { value: '2', label: 'Lantai 2' }]"
+            :items="[{ value: SEMUA, label: 'Semua' }, { value: '1', label: 'Lantai 1' }, { value: '2', label: 'Lantai 2' }]"
             class="w-full"
           />
         </UFormField>
         <UFormField label="DP">
           <USelect
             v-model="filter.dp"
-            :items="[{ value: '', label: 'Semua' }, 'Sudah', 'Belum']"
+            :items="[{ value: SEMUA, label: 'Semua' }, 'Sudah', 'Belum']"
             class="w-full"
           />
         </UFormField>
         <UFormField label="PIC">
           <USelect
             v-model="filter.pic"
-            :items="[{ value: '', label: 'Semua' }, ...namaPIC]"
+            :items="[{ value: SEMUA, label: 'Semua' }, ...namaPIC]"
             class="w-full"
           />
         </UFormField>
@@ -1597,7 +1604,7 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
         />
         <USelect
           v-model="kalenderStatus"
-          :items="[{ value: '', label: 'Semua (kecuali dibatalkan)' }, 'Pending', 'Confirmed', 'Datang', 'Cancelled', 'No-show']"
+          :items="[{ value: SEMUA, label: 'Semua (kecuali dibatalkan)' }, 'Pending', 'Confirmed', 'Datang', 'Cancelled', 'No-show']"
           class="max-w-52"
         />
       </div>
@@ -1964,12 +1971,12 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
             />
           </UFormField>
           <UButton
-            v-if="coordDari || coordSampai"
+            v-if="saringAktif(coordDari) || saringAktif(coordSampai)"
             label="Semua jam"
             color="neutral"
             variant="ghost"
             size="sm"
-            @click="coordDari = ''; coordSampai = ''"
+            @click="coordDari = SEMUA; coordSampai = SEMUA"
           />
         </div>
         <p class="text-sm text-muted">

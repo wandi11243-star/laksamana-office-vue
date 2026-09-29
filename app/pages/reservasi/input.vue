@@ -672,7 +672,7 @@ async function hapus() {
         >
           <USelect
             v-model="form.category"
-            :items="categories?.length ? categories : ['Tamu Umum']"
+            :items="(categories ?? []).filter(c => c).length ? (categories ?? []).filter(c => c) : ['Tamu Umum']"
             size="xl"
             class="w-full"
           />
@@ -680,7 +680,7 @@ async function hapus() {
         <UFormField label="Sumber informasi">
           <USelect
             v-model="form.source"
-            :items="infoSources ?? []"
+            :items="(infoSources ?? []).filter(c => c)"
             placeholder="Tau dari mana"
             size="xl"
             class="w-full"
@@ -909,7 +909,7 @@ async function hapus() {
         <UFormField label="Jenis pembayaran">
           <USelect
             v-model="form.dpMethod"
-            :items="dpMethods ?? []"
+            :items="(dpMethods ?? []).filter(c => c)"
             size="xl"
             class="w-full"
           />

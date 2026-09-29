@@ -27,11 +27,13 @@ const me = useMe()
 const toast = useToast()
 const role = computed(() => roleReservasi(me.value))
 
+// Reka UI forbids SelectItem value '' — "Semua" is the sentinel 'semua'.
+const SEMUA = 'semua'
 const cari = ref('')
 const mode = ref<'all' | 'month' | 'year'>('month')
 const bulan = ref(hariIni().slice(0, 7))
 const tahun = ref(new Date().getFullYear())
-const statusAkhir = ref('')
+const statusAkhir = ref(SEMUA)
 
 const dari = computed(() => {
   if (mode.value === 'month') return `${bulan.value}-01`
@@ -54,7 +56,7 @@ const arsip = computed(() => urutArsip(barisArsip(semua.value ?? [], hariIni()))
 const daftar = computed(() => {
   const q = cari.value.trim().toLowerCase()
   return arsip.value.filter((r) => {
-    if (statusAkhir.value && r.status !== statusAkhir.value) return false
+    if (statusAkhir.value !== SEMUA && r.status !== statusAkhir.value) return false
     if (q && !((r.name || '').toLowerCase().includes(q) || (r.phone || '').includes(q))) return false
     return true
   })
@@ -169,7 +171,7 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
         <UFormField label="Status akhir">
           <USelect
             v-model="statusAkhir"
-            :items="[{ value: '', label: 'Semua' }, 'Datang', 'No-show', 'Cancelled']"
+            :items="[{ value: SEMUA, label: 'Semua' }, 'Datang', 'No-show', 'Cancelled']"
           />
         </UFormField>
         <UButton

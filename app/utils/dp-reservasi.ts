@@ -323,7 +323,8 @@ export interface SaringDanaMasuk {
   dari: string
   sampai: string
   bank: string
-  status: '' | 'belumScan' | 'selisih'
+  /** 'semua' sentinel allowed: anything besides the two filters means "no filter". */
+  status: string
   q: string
   tab: 'perlu' | 'sudah' | 'tolak'
 }
