@@ -778,6 +778,19 @@ Semua field D.2 ada, dengan pesan validasinya apa adanya. Yang dibangun di layar
 - **`tableAsli`** — tanpa ini "pulang ke meja asal" hilang begitu reservasi disunting.
 - **`tfName`** — ditulis Dana Masuk, dihapus form lama (pola sama seperti `izinTumpang` & `log` yang memang dijaga komentar).
 
+**Koreksi build 2026-09-29 — tulisan setelah konflik tidak lagi menimpa data orang lain.** Temuan review owner:
+- Simpan **edit** memakai `PATCH /reservations/{id}` (shallow merge), bukan `PUT` seluruh record. Yang dikirim hanya field milik form **dan hanya yang berubah** dibanding `lama` terbaru: `name`, `phone`, `date`, `time`, `pax`, `table`, `sharing`, `category`, `foodReq`, `drinkReq`, `source`, `member`, `memberNo`, `notes`, `dpStatus`, `dpMethod`, `dpAmount`, `lunas`, `dpProofData`/`dpProofName` (hanya bila ada unggahan baru), `docReqData`/`docReqName` (hanya bila ada unggahan baru), `izinTumpang` (hanya bila ada approval baru), `arrivals`/`actualPax` (hanya dari tombol "Samakan dengan jumlah pax"), dan `dps` — yang dikirim **utuh** (merge dangkal tidak bisa mengganti satu elemen) **hanya bila `dps[0]` benar-benar berubah**, dan dibangun dari `lama.dps` **terbaru** sehingga cicilan lain & status verifikasinya tetap.
+- Field yang **tidak pernah** dikirim dari mode edit: `status`, `checkinAt`, `leftAt`, `datangDiasumsikan`, `log`, `followups`, `cancelReason`, `vip`, `createdBy`, `createdAt`, `tf*`. Konsekuensi yang disengaja: hasil scan (`tf*`) tidak lagi terhapus oleh form Input — field itu milik Dana Masuk.
+- `lama` tidak pernah dimutasi: `fieldDP()` bekerja pada salinan (`{ ...asal, dps: salinDps(asal) }`).
+- `muatUlangReservasi()` memuat ulang **baris yang ditulis** (`refreshIni()` → `watch(ini)` mengisi `lama`, `versi`, dan seluruh isian form) **lalu** jendela di sekitarnya (`refresh()`). Dipakai `simpan()` **dan** `hapus()`; sebelumnya `hapus()` memakai `refresh` saja sehingga `versi` tak pernah diperbarui dan Hapus akan 409 terus.
+- Grep `tanganiKonflik(e, refresh)` di file lain: `dashboard.vue` (`patch()` aksi cepat denah, dan walk-in). Keduanya **benar** — data yang ditulisnya berasal dari daftar yang di-`refresh()` itu juga, dan walk-in memang tidak berversi (POST tanpa `If-Match`).
+
+**Skenario uji manual (dijalankan owner saat cutover, bukan oleh agen)**
+1. Buka `/reservasi/input?id=X` di tab A, lalu di tab B buka Dashboard → Denah meja → klik meja X → **Tandai datang** (atau verifikasi DP di tab Dana Masuk).
+2. Kembali ke tab A, ubah satu field, tekan **Simpan perubahan** → harus muncul toast "Data sudah diubah orang lain" (409), bukan "tersimpan".
+3. Form terisi ulang dari server: status/DP terbaru ikut berubah dan catatan kedatangan guest-B tetap ada.
+4. Tekan **Simpan perubahan** lagi → berhasil, dan **verifikasi/kedatangan tab B masih ada** (lihat di Dashboard), tidak ikut terhapus.
+
 **Pemanggilan fungsi kunci meja** (semua lewat master, tidak ada default 180/10 yang dipakai diam-diam):
 
 | pemanggilan | args dari master |

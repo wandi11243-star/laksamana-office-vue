@@ -18,7 +18,7 @@
 import type { Reservasi, ReservasiArrival } from '~/composables/useReservasi'
 import {
   createReservation, deleteReservation, getReservation, listReservations,
-  updateReservation, useDaftarReservasi, useDenah, useSection,
+  patchReservation, useDaftarReservasi, useDenah, useSection,
 } from '~/composables/useReservasi'
 import type { LayoutDenah } from '~/utils/venue-layouts'
 import { dayTypeLayoutLt, getLayout, parseKeyTanggal } from '~/utils/venue-layouts'
@@ -100,7 +100,7 @@ const dari = computed(() => tambahHari(form.date, -1))
 const sampai = computed(() => tambahHari(form.date, 1))
 const { data: sekitar, refresh } = useDaftarReservasi(dari, sampai, 'reservasi-input')
 
-const { data: ini } = useAsyncData(`reservasi-satu-${id.value}`, () => (id.value ? getReservation(id.value) : Promise.resolve(null)))
+const { data: ini, refresh: refreshIni } = useAsyncData(`reservasi-satu-${id.value}`, () => (id.value ? getReservation(id.value) : Promise.resolve(null)))
 
 const versi = ref<string | number | undefined>()
 const lama = ref<Reservasi | null>(null)
@@ -340,27 +340,28 @@ async function cekMejaServer(): Promise<Reservasi | null> {
   })
 }
 
-/**
- * The record, field by field, exactly as the old builder (`:4850-4890`).
- * Its comment is worth keeping: a field not named here is GONE the moment the
- * booking is edited once, with no error at all — the panel simply stops
- * mentioning it. That is why `tableAsli`, `tfName`, `log` and `izinTumpang` are
- * all copied, and why nothing may be added without naming it here too.
- */
-async function bangunRecord(now: number, recId: string): Promise<Reservasi> {
-  const sebelum = lama.value
-  const dpSudah = form.dpStatus === 'Sudah'
-  const dataBuktiDp = buktiDpBaru.value ? await jadiDataUri(buktiDpBaru.value) : (sebelum?.dpProofData || '')
-  const namaBuktiDp = buktiDpBaru.value ? buktiDpBaru.value.name : (sebelum?.dpProofName || '')
-  const dataBuktiDoc = buktiDocBaru.value ? await jadiDataUri(buktiDocBaru.value) : (sebelum?.docReqData || '')
-  const namaBuktiDoc = buktiDocBaru.value ? buktiDocBaru.value.name : (sebelum?.docReqName || '')
+/** The uploaded proofs, read once per save. A data URI travels inline in the body;
+ *  the server moves it to the file store and leaves an `@f:` reference behind. */
+interface Bukti {
+  dp?: { data: string, name: string }
+  doc?: { data: string, name: string }
+}
 
-  const izin = (dipaksa.value.length && terpilih.value.some(m => dipaksa.value.includes(m)))
-    ? buatIzinTumpang(terpilih.value.join(', '), form.date, normTime(form.time), null, namaSaya.value)
-    : (sebelum?.izinTumpang ?? null)
+const bacaBukti = (): Promise<Bukti> => Promise.all([
+  buktiDpBaru.value ? jadiDataUri(buktiDpBaru.value) : Promise.resolve(undefined),
+  buktiDocBaru.value ? jadiDataUri(buktiDocBaru.value) : Promise.resolve(undefined),
+]).then(([dp, doc]) => ({
+  dp: dp ? { data: dp, name: buktiDpBaru.value!.name } : undefined,
+  doc: doc ? { data: doc, name: buktiDocBaru.value!.name } : undefined,
+}))
 
-  const rec: Reservasi = {
-    id: recId,
+/** Everything the form owns EXCEPT the deposit: who, when, which table, the notes. */
+type FieldForm = Pick<Reservasi,
+  'name' | 'phone' | 'date' | 'time' | 'pax' | 'table' | 'sharing' | 'category'
+  | 'foodReq' | 'drinkReq' | 'source' | 'member' | 'memberNo' | 'notes'>
+
+function fieldForm(): FieldForm {
+  return {
     name: form.name.trim(),
     phone: normPhone(form.phone),
     date: form.date,
@@ -371,27 +372,103 @@ async function bangunRecord(now: number, recId: string): Promise<Reservasi> {
     category: form.category,
     foodReq: form.foodReq,
     drinkReq: form.drinkReq,
-    dpStatus: dpSudah ? 'Sudah' : 'Belum',
-    dpMethod: dpSudah ? form.dpMethod : '',
-    dpAmount: dpSudah ? rupiahVal(form.dpAmount) : 0,
-    // The LUNAS mark only means something when there is a payment; "no deposit
-    // yet" is never paid in full.
-    lunas: dpSudah && form.lunas,
-    dpProofData: dataBuktiDp,
-    dpProofName: namaBuktiDp,
-    dps: sebelum?.dps ?? [],
-    docReqData: dataBuktiDoc,
-    docReqName: namaBuktiDoc,
     source: form.source,
-    picType: picType.value,
-    picName: namaSaya.value,
     member: form.member === 'ya',
     memberNo: form.memberNo,
     notes: form.notes,
+  }
+}
+
+/** The instalments, as a copy: the form owns instalment 0 and must never reach
+ *  into the row the screen is showing. */
+const salinDps = (r?: Reservasi | null): ReservasiDp[] => dpsOf(r).map(d => ({ ...d }))
+
+/**
+ * The deposit, computed exactly as the old `syncDp()` did (`:4915-4924`) but on a
+ * COPY of the row. Instalment 0 is this form's; the later ones and their
+ * verification state are carried over untouched.
+ */
+function fieldDP(asal: Reservasi | null, bukti: Bukti, now: number) {
+  const kerja: Reservasi = { ...(asal ?? {} as Reservasi), dps: salinDps(asal) }
+  pastikanDps(kerja)
+  const dpSudah = form.dpStatus === 'Sudah'
+  if (dpSudah) {
+    const p0 = kerja.dps[0] ?? dpBaru(namaSaya.value, now)
+    p0.amount = rupiahVal(form.dpAmount)
+    p0.method = form.dpMethod
+    if (bukti.dp) {
+      p0.proofData = bukti.dp.data
+      p0.proofName = bukti.dp.name
+      resetDpScan(p0) // a new proof invalidates the old scan of it
+    }
+    if (!kerja.dps.length) kerja.dps.push(p0)
+  }
+  else if (kerja.dps.length <= 1) {
+    kerja.dps = [] // the host says the money has not come in; safe, nothing was instalmented yet
+  }
+  syncDp(kerja)
+  return {
+    dpStatus: kerja.dpStatus,
+    dpMethod: kerja.dpMethod,
+    dpAmount: kerja.dpAmount,
+    // The LUNAS mark only means something when there is a payment; "no deposit
+    // yet" is never paid in full.
+    lunas: dpSudah && form.lunas,
+    dpProofData: bukti.dp ? bukti.dp.data : kerja.dpProofData,
+    dpProofName: bukti.dp ? bukti.dp.name : kerja.dpProofName,
+    dps: kerja.dps,
+  }
+}
+
+/** A fresh approval, or null when this save does not carry one. */
+function izinBaru(): IzinTumpang | null {
+  if (!dipaksa.value.length || !terpilih.value.some(m => dipaksa.value.includes(m))) return null
+  return buatIzinTumpang(terpilih.value.join(', '), form.date, normTime(form.time), null, namaSaya.value)
+}
+
+/** Only what actually changed. PATCH is a SHALLOW merge, so a field that IS sent
+ *  replaces the stored one — sending the whole row back would silently undo
+ *  whatever another screen wrote in between (a cashier verifying a deposit, a
+ *  host checking a guest in), with no error anywhere. */
+function bedakan(baru: Partial<Reservasi>, asal: Reservasi): Partial<Reservasi> {
+  const keluar: Record<string, unknown> = {}
+  for (const [k, v] of Object.entries(baru)) {
+    if (JSON.stringify(v) !== JSON.stringify((asal as unknown as Record<string, unknown>)[k])) keluar[k] = v
+  }
+  return keluar as Partial<Reservasi>
+}
+
+/** Instalment 0 is the form's; the rest of the list belongs to Dana Masuk. The
+ *  whole array travels (a shallow merge cannot replace one element), so it is
+ *  only sent when instalment 0 really changed — and it is built from the freshest
+ *  row, never from a stale copy. */
+const cicilanDepanBerubah = (baru: ReservasiDp[], asal: ReservasiDp[]) =>
+  JSON.stringify(baru[0] ?? null) !== JSON.stringify(asal[0] ?? null)
+
+/**
+ * A NEW reservation: the whole row, field by field, as the old builder wrote it
+ * (`:4850-4890`). Its comment is worth keeping: a field not named here is GONE
+ * the moment the booking is edited once, with no error at all — the panel simply
+ * stops mentioning it. That is why `tableAsli`, `tfName`, `log` and `izinTumpang`
+ * are all written here, and why nothing may be added without naming it too.
+ */
+async function bangunRecord(now: number, recId: string, bukti: Bukti): Promise<Reservasi> {
+  const sebelum = lama.value
+  const dp = fieldDP(sebelum, bukti, now)
+  const dpSudah = dp.dpStatus === 'Sudah'
+
+  const rec: Reservasi = {
+    id: recId,
+    ...fieldForm(),
+    ...dp,
+    docReqData: bukti.doc?.data ?? (sebelum?.docReqData ?? ''),
+    docReqName: bukti.doc?.name ?? (sebelum?.docReqName ?? ''),
+    picType: picType.value,
+    picName: namaSaya.value,
     vip: sebelum?.vip || false,
-    status: sebelum ? sebelum.status : (dpSudah ? 'Confirmed' : 'Pending'),
-    createdBy: sebelum ? sebelum.createdBy : namaSaya.value,
-    createdAt: sebelum ? sebelum.createdAt : now,
+    status: dpSudah ? 'Confirmed' : 'Pending',
+    createdBy: namaSaya.value,
+    createdAt: now,
     updatedAt: now,
     actualPax: sebelum?.actualPax ?? null,
     arrivals: pendingArrivals.value || sebelum?.arrivals || [],
@@ -400,45 +477,67 @@ async function bangunRecord(now: number, recId: string): Promise<Reservasi> {
     datangDiasumsikan: sebelum?.datangDiasumsikan || 0,
     leftAt: sebelum?.leftAt || 0,
     followups: sebelum?.followups ?? [],
-    izinTumpang: izin,
-    log: sebelum?.log ?? [],
-    cancelReason: sebelum?.cancelReason || '',
-    tfDate: sebelum?.tfDate ?? '',
-    tfTime: sebelum?.tfTime ?? '',
-    tfBank: sebelum?.tfBank ?? '',
-    tfName: sebelum?.tfName ?? '',
-    tfAmount: sebelum?.tfAmount ?? 0,
-    tfStatus: sebelum?.tfStatus ?? '',
-    tfNote: sebelum?.tfNote ?? '',
-    tfSource: sebelum?.tfSource ?? '',
-    tfBy: sebelum?.tfBy ?? '',
-    tfAt: sebelum?.tfAt ?? 0,
-    tfOcrAt: sebelum?.tfOcrAt ?? 0,
-    tfOcrText: sebelum?.tfOcrText ?? '',
+    izinTumpang: izinBaru() ?? (sebelum?.izinTumpang ?? null),
+    log: [],
+    cancelReason: '',
+    tfDate: '',
+    tfTime: '',
+    tfBank: '',
+    tfName: '',
+    tfAmount: 0,
+    tfStatus: '',
+    tfNote: '',
+    tfSource: '',
+    tfBy: '',
+    tfAt: 0,
+    tfOcrAt: 0,
+    tfOcrText: '',
   }
 
   // actualPax is DERIVED from the waves, so it is recomputed rather than copied.
   if (pendingArrivals.value) rec.actualPax = paxDatang.value
-
-  // The deposit in this form is the FIRST instalment. Later ones are added from
-  // Dana Masuk, and are NOT overwritten here.
-  pastikanDps(rec)
-  if (dpSudah) {
-    const p0 = rec.dps[0] ?? dpBaru(namaSaya.value, now)
-    p0.amount = rupiahVal(form.dpAmount)
-    p0.method = form.dpMethod
-    if (buktiDpBaru.value) {
-      p0.proofData = dataBuktiDp
-      p0.proofName = namaBuktiDp
-      resetDpScan(p0) // a new proof invalidates the old scan of it
-    }
-    if (!rec.dps.length) rec.dps.push(p0)
-  }
-  else if (rec.dps.length <= 1) {
-    rec.dps = [] // the host says the money has not come in; safe, nothing was instalmented yet
-  }
-  syncDp(rec)
   return rec
+}
+
+/** What an EDIT sends: the form's own fields, and nothing else. */
+function bidangEdit(asal: Reservasi, bukti: Bukti, now: number): Partial<Reservasi> {
+  const dp = fieldDP(asal, bukti, now)
+  const { dps, ...dpLain } = dp
+  const kirim = bedakan({ ...fieldForm(), ...dpLain }, asal)
+  if (bukti.doc) {
+    kirim.docReqData = bukti.doc.data
+    kirim.docReqName = bukti.doc.name
+  }
+  const izin = izinBaru()
+  if (izin) kirim.izinTumpang = izin
+  if (pendingArrivals.value) {
+    kirim.arrivals = pendingArrivals.value
+    kirim.actualPax = paxDatang.value
+  }
+  if (cicilanDepanBerubah(dps, dpsOf(asal))) kirim.dps = dps
+  return kirim
+}
+
+/**
+ * Reload what a write actually touched.
+ *
+ * `refresh()` alone is NOT enough: the row being edited lives in its own
+ * `useAsyncData`, and the form is filled from it. Reloading only the list around
+ * it leaves the form holding a STALE copy — and a second save would then carry
+ * that stale `dps`/`tf*`/`status` back over whatever the cashier or the host
+ * wrote in between, with no error anywhere. This is the same shape of incident as
+ * the old "saveAll menimpa buta" (CLAUDE.md §0, 2 September 2026).
+ *
+ * So: reload the row itself first — which also refills the form and takes the new
+ * version through the `watch(ini)` — and then the window around it. The toast
+ * promises "tampilan dimuat ulang dengan versi terbaru, periksa lalu simpan
+ * lagi"; this is what makes that true.
+ */
+async function muatUlangReservasi() {
+  if (id.value) {
+    await refreshIni()
+  }
+  await refresh()
 }
 
 async function simpan(paksaDP = false) {
@@ -448,7 +547,7 @@ async function simpan(paksaDP = false) {
 
   sibuk.value = true
   galat.value = ''
-  const recId = id.value || uid()
+  const now = Date.now()
   try {
     // Re-check the table against fresh data: two devices can pick the same table.
     const bentrok = await cekMejaServer()
@@ -462,27 +561,29 @@ async function simpan(paksaDP = false) {
       return
     }
 
-    const rec = await bangunRecord(Date.now(), recId)
-    if (modeEdit.value) {
-      await updateReservation(rec.id, rec, versi.value)
+    const bukti = await bacaBukti()
+    const asal = lama.value
+    if (modeEdit.value && asal) {
+      // PATCH, not PUT: only the fields this form owns, and only those that
+      // really changed. The rest of the row (`status`, `arrivals`, `checkinAt`,
+      // `leftAt`, `tf*`, `log`, `followups`, `datangDiasumsikan`) belongs to other
+      // screens and is never sent from here.
+      const kirim = bidangEdit(asal, bukti, now)
+      await patchReservation(asal.id, kirim, versi.value)
       toast.add({ title: 'Reservasi diperbarui', color: 'success' })
     }
     else {
-      await createReservation({ ...rec, _audit: { action: 'Buat Reservasi', detail: `lewat ${form.source || 'input'}` } })
+      const rec = await bangunRecord(now, id.value || uid(), bukti)
+      await createReservation({
+        ...rec,
+        _audit: { action: 'Buat Reservasi', detail: `lewat ${form.source || 'input'}` },
+      } as Partial<Reservasi> & { _audit: { action: string, detail: string } })
       toast.add({ title: 'Reservasi tersimpan', color: 'success' })
     }
     await router.push('/reservasi/dashboard')
   }
   catch (e) {
-    // The reload re-reads the saved row, so a retry carries its real version.
-    const muatUlang = async () => {
-      await refresh()
-      if (id.value) {
-        const { data } = await getReservation(id.value)
-        versi.value = data.updatedAt
-      }
-    }
-    if (!(await tanganiKonflik(e, muatUlang))) galat.value = apiErrorMessage(e)
+    if (!(await tanganiKonflik(e, muatUlangReservasi))) galat.value = apiErrorMessage(e)
   }
   finally {
     sibuk.value = false
@@ -499,7 +600,9 @@ async function hapus() {
     await router.push('/reservasi/dashboard')
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, refresh))) galat.value = apiErrorMessage(e)
+    // Same reload as saving: without the new version the delete would keep
+    // answering 409 for ever.
+    if (!(await tanganiKonflik(e, muatUlangReservasi))) galat.value = apiErrorMessage(e)
   }
   finally {
     sibuk.value = false
