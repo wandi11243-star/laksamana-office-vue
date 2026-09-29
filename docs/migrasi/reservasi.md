@@ -618,13 +618,13 @@ HTTP 200 + `APP_LAWAS` (klien terlalu tua) + `conflict:true` (`docs/modules/rese
 ## J. Progres build
 
 Branch: `migrasi/fondasi` (fondasi F1–F5) lalu `migrasi/reservasi` · Mulai: 2026-09-29
-LANJUTKAN DARI: Tahap 3 — `dashboard` bagian 1 (ringkasan + filter & pills + tab Tabel).
+LANJUTKAN DARI: Tahap 3 — `dashboard` bagian 3 (tab Kalender), lalu bagian 4 (tab Waiting List, override layout per tanggal, WA Koordinasi).
 
 Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di kolom terakhir)
 
 | layar (key) | panel | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|---|
-| dashboard | reservasi | `pages/reservasi/index.vue` (menu) | ⬜ | `GET /reservasi/reservations`, `/master/*` | — |
+| dashboard | reservasi | `pages/reservasi/dashboard.vue` | 🟡 | `GET /reservasi/reservations`, `PATCH/POST /reservations`, `GET/POST /audit`, `/master/{dineEstMin,clashLeadMin,waitlist,layouts,*}` | tab Kalender, Waiting List, override layout & WA Koordinasi belum · tipe tamu G-07 |
 | input | reservasi | `pages/reservasi/input.vue` | ✅ | `GET/POST/PUT/DELETE /reservations`, `GET /reservations/{id}`, `GET /files/*` | autofill profil tamu → G-07 |
 | finance | reservasi | `pages/reservasi/finance.vue` | ⬜ | `GET /reservations`, `PATCH /reservations/{id}` | kwitansi via Finance invoices; paging `halDana` → G-08 |
 | riwayat | reservasi | `pages/reservasi/riwayat.vue` | ⬜ | `GET /reservations` | `riwayat`/ekspor server → G-08 |
@@ -787,6 +787,20 @@ Semua field D.2 ada, dengan pesan validasinya apa adanya. Yang dibangun di layar
 | `perluDialihkan()` (di dalam `statusMeja`) | `clashLeadOf(master)` |
 
 `masterKunci` menggabungkan `useDenah().master` dengan `dineEstMin`/`clashLeadMin` dari section masing-masing, jadi tidak pernah ada jalur yang menghitung kunci dengan default lama.
+
+### J.3 Tahap 3 — `dashboard` (bagian 1 & 2, 2026-09-29)
+
+**Bagian 1** (`feat(reservasi): dashboard bagian 1`) — ringkasan, filter, tab Tabel. Ringkasan = `AppFocus` (jumlah reservasi + pax) + `AppList` (empat barisa angka), bukan grid kartu. Tab Tabel: `UTable` di `lg+` dan `AppList` di HP dari baris yang sama, urut per kolom (Tombol sort, bukan klik header — sorting lewat tombol di bawah tabel, bukan klik header (klik header pada UTable tidak bisa di-style dan tidak konsisten)), paging 10/25/50 di browser dengan catatan **G-08** di layar. "Tipe tamu" **Segera · G-07** (butuh `ringkasTamu`).
+
+**Bagian 2** (`feat(reservasi): dashboard bagian 2`) — tab **Denah Meja**:
+- `DenahPeta mode="tampil"` untuk Lt.1 & Lt.2, timer duduk, jumlah antrean di header, plan yang berlaku dicetak namanya.
+- Saringan aktif mengunci input (walk-in, pindah/tambah meja) dengan pesan yang menjelaskan alasannya — `:2090-2098`.
+- **Aksi cepat** (`:6432-6465`): tandai datang, tamu datang lagi (batas atas 500/gelombang, `:7448-7465`), selesai (tamu pulang), kembali ke meja asli, jadi/batal sharing, pindah meja, tambah meja, batalkan (dengan alasan), buka & sunting.
+- Semua aksi tulis = `PATCH /reservations/{id}` dengan `If-Match(updatedAt baris)` + `tanganiKonflik()`; baris yang berubah di luar `dps`/`arrivals` memakai `shallow merge` seperti kontrak.
+- Gelombang kedatangan: tamu yang sudah pulang lalu ditandai datang lagi memulai **kunjungan baru** (`:7471-7473`) — ini koreksi 26 Sep 2026 yang kalau tidak ikut, mejanya terbaca kosong padahal tamunya duduk.
+- **Walk-in** = `POST /reservations` dengan `source: 'Walk-in'`, `status: 'Datang'`, `arrivals` penuh, `picName` dari sesi.
+- **Polling 15 dtk** (`POLL_JEDA = 15000`) **hanya saat tab Denah terlihat**, dan dilewati saat tab browser disembunyikan; `visibilitychange` menarik segera saat kembali. Tutup otomatis 04:00 **tidak** dibangun (F9, `AUTO_TUTUP_AKTIF=false`).
+- Baris audit untuk aksi yang tidak tercatat di baris reservasi dikirim lewat `POST /audit`; kegagalannya sengaja ditelan (aksinya sendiri sudah berhasil).
 
 
 
