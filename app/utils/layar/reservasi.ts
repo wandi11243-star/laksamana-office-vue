@@ -150,7 +150,7 @@ export const bolehLayar = (key: string) => (me: Me) => bolehBuka(key, roleReserv
 
 /** The screens of the panel, in the order of the old sidebar. */
 export const LAYAR_RESERVASI: Layar[] = [
-  { key: 'dashboard', label: 'Dashboard & recap', desc: 'Data reservasi, denah meja, dan antrean dalam satu halaman.', icon: 'i-lucide-layout-dashboard', to: '/reservasi', grup: 'Operasi', boleh: bolehLayar('dashboard') },
+  { key: 'dashboard', label: 'Dashboard & recap', desc: 'Data reservasi, denah meja, dan antrean dalam satu halaman.', icon: 'i-lucide-layout-dashboard', to: '/reservasi/dashboard', grup: 'Operasi', boleh: bolehLayar('dashboard') },
   { key: 'input', label: 'Input reservasi', desc: 'Isi data tamu. Target: selesai di bawah 2 menit.', icon: 'i-lucide-calendar-plus', to: '/reservasi/input', grup: 'Operasi', boleh: bolehLayar('input') },
   { key: 'finance', label: 'Dana masuk (DP)', desc: 'Cek uang DP yang benar-benar masuk.', icon: 'i-lucide-receipt', to: '/reservasi/finance', grup: 'Keuangan', boleh: bolehLayar('finance') },
   { key: 'riwayat', label: 'Riwayat', desc: 'Arsip reservasi yang sudah lewat, dasar CRM dan evaluasi.', icon: 'i-lucide-history', to: '/reservasi/riwayat', grup: 'Data & analisa', boleh: bolehLayar('riwayat') },

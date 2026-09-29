@@ -17,6 +17,20 @@ muatPeranReservasi()
     title="Reservasi"
     description="Meja, tamu, denah, dan DP"
   >
+    <div class="mb-7 max-w-xl">
+      <AppFocus
+        label="Mulai dari"
+        value="Dashboard & recap"
+        hint="Data reservasi, denah meja, dan antrean dalam satu halaman."
+      >
+        <UButton
+          label="Buka dashboard"
+          to="/reservasi/dashboard"
+          size="xl"
+        />
+      </AppFocus>
+    </div>
+
     <ModulMenu :layar="LAYAR_RESERVASI" />
   </AppPage>
 </template>
