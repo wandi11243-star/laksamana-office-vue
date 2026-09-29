@@ -618,14 +618,14 @@ HTTP 200 + `APP_LAWAS` (klien terlalu tua) + `conflict:true` (`docs/modules/rese
 ## J. Progres build
 
 Branch: `migrasi/fondasi` (fondasi F1–F5) lalu `migrasi/reservasi` · Mulai: 2026-09-29
-LANJUTKAN DARI: Tahap 3 — `dashboard` bagian 4c (WA Koordinasi), lalu tutup Tahap 3 (build + status J).
+LANJUTKAN DARI: Tahap 4 — finance (`DanaMasukPanel`): `pages/reservasi/finance.vue`. Baca D.3 (finance) di bagian H dan kontrak Dana Masuk di `laksamana-api/docs/api/reservasi.md`. Regarkan G-14 dulu kalau belum: `DanaMasukPanel` 403 untuk pemegang peran `cashier`/`finance` tanpa modul `reservasi`, jadi Cashier/Kas perlu menampilkan "Segera" sampai API dilonggarkan.
 
 Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di kolom terakhir)
 
 | layar (key) | panel | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|---|
-| dashboard | reservasi | `pages/reservasi/dashboard.vue` | 🟡 | `GET /reservasi/reservations`, `PATCH/POST /reservations`, `GET/POST /audit`, `/master/{dineEstMin,clashLeadMin,waitlist,layouts,*}` | WA Koordinasi belum · tipe tamu G-07 |
-| input | reservasi | `pages/reservasi/input.vue` | ✅ | `GET/POST/PUT/DELETE /reservations`, `GET /reservations/{id}`, `GET /files/*` | autofill profil tamu → G-07 |
+| dashboard | reservasi | `pages/reservasi/dashboard.vue` | ✅ | `GET /reservasi/reservations`, `GET/PATCH/POST/DELETE /reservations`, `GET/POST /audit`, `GET/PUT/DELETE /master/{dineEstMin,clashLeadMin,waitlist,waTargets,layouts,layoutOverrides,layoutOverrides2,layoutTanggal}` | tipe tamu G-07 · drag ganti bulan tidak dibangun |
+| input | reservasi | `pages/reservasi/input.vue` | ✅ | `GET/POST/PATCH/DELETE /reservations`, `GET /reservations/{id}`, `GET /files/*` | autofill profil tamu → G-07 |
 | finance | reservasi | `pages/reservasi/finance.vue` | ⬜ | `GET /reservations`, `PATCH /reservations/{id}` | kwitansi via Finance invoices; paging `halDana` → G-08 |
 | riwayat | reservasi | `pages/reservasi/riwayat.vue` | ⬜ | `GET /reservations` | `riwayat`/ekspor server → G-08 |
 | analitik | reservasi | `pages/reservasi/analitik.vue` | ⬜ | `GET /reservations` | — |
