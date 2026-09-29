@@ -11,11 +11,11 @@ defineProps<{
 </script>
 
 <template>
-  <div class="rounded-2xl bg-default p-4 lg:p-6">
+  <div class="rounded-panel border border-default bg-default p-4 shadow-panel lg:p-6">
     <p class="text-sm font-semibold text-muted">
       {{ label }}
     </p>
-    <p class="mt-1.5 text-3xl font-extrabold tracking-tight text-highlighted num lg:text-4xl">
+    <p class="mt-1.5 font-display text-3xl font-bold text-highlighted num lg:text-4xl">
       {{ value }}
     </p>
     <p
