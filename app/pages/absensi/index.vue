@@ -90,7 +90,7 @@ const columns = computed<TableColumn<AbsensiHari>[]>(() => [
     </AppList>
 
     <!-- Desktop: table -->
-    <div class="hidden overflow-hidden rounded-2xl bg-default lg:block">
+    <div class="hidden overflow-hidden rounded-panel border border-default bg-default shadow-panel lg:block">
       <UTable
         :data="rows"
         :columns="columns"

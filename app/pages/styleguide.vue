@@ -336,7 +336,7 @@ const columns: TableColumn<Row>[] = [
       <p class="px-1 pb-2 text-sm font-semibold text-muted">
         Tabel (desktop) · di HP, data yang sama tampil sebagai AppList
       </p>
-      <div class="mb-7 overflow-hidden rounded-2xl bg-default">
+      <div class="mb-7 overflow-hidden rounded-panel border border-default bg-default shadow-panel">
         <UTable
           :data="rows"
           :columns="columns"
