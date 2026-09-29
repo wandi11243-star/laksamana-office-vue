@@ -105,6 +105,40 @@ export const BARIS_IZIN_RESERVASI: BarisIzin[] = [
 /** The matrix as stored in `master.perms`: row -> role -> level. */
 export type PeranMatrix = NonNullable<PeranReservasi['perms']>
 
+/**
+ * The matrix seed, mirroring the old DEFAULT_PERMS IIFE (`:1109-1129`):
+ * visibility from ROLE_NAV (through an extra row's parent page), edit level
+ * from the loosest bound action, rows without an action default to edit, and
+ * viewer never rises above view. The master screen resets to this.
+ */
+export function seedPermsReservasi(): PeranMatrix {
+  const seed: PeranMatrix = {}
+  const induk = (row: string) => BARIS_IZIN_RESERVASI.find(b => b.key === row)?.page ?? row
+  const baris: string[] = []
+  for (const l of LAYAR_RESERVASI) {
+    baris.push(l.key)
+    for (const b of BARIS_IZIN_RESERVASI.filter(b => b.afterPage === l.key && b.key !== l.key)) baris.push(b.key)
+  }
+  for (const row of baris) {
+    seed[row] = {}
+    const vis = induk(row)
+    for (const r of ROLE_RESERVASI) {
+      if (!ROLE_NAV[r].includes(vis)) {
+        seed[row]![r] = 0
+        continue
+      }
+      if (r === 'viewer') {
+        seed[row]![r] = 1
+        continue
+      }
+      const aksi = Object.keys(ACTION_PAGE).filter(a => ACTION_PAGE[a] === row)
+      const bolehUbah = aksi.length ? aksi.some(a => CAN_DEFAULT[a]?.(r)) : true
+      seed[row]![r] = bolehUbah ? 2 : 1
+    }
+  }
+  return seed
+}
+
 /** This person's role in this panel (`:3558` plus the Office-admin override in boot(), `:3681`). */
 export function roleReservasi(me: Me | null): RoleReservasi {
   if (!me) return 'viewer'

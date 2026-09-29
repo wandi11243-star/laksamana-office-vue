@@ -44,6 +44,7 @@ agen menunda layar/tombol tersebut dan menandainya di PR.
 | K-08 | event | Matriks izin `EMS_HALAMAN × EMS_PERAN` tidak pernah tersimpan di backend lama (reset tiap muat ulang, `event-mysql/lib_event_mysql.php:430-433`). | A) buang layar izin, cukup modul `event` · B) simpan di settings v1 (gap API) | **A** | **Ikuti lama** — layar matriks dibawa dengan perilaku sama: default dari kode, TIDAK disimpan ke server (reset saat muat ulang). |
 | K-09 | event | "Batalkan check-in" lama MENGHAPUS baris; v1 `checkins` append-only. | A) buang tombol · B) `DELETE /checkins/{id}` (gap API) · C) baris koreksi | **C** bila API mendukung, jika tidak **A** | **C** — baris koreksi (G-10). |
 | K-10 | dw | Fitur di luar paritas: `maksBeruntun`/`jedaMin` bisa disetel, dan snapshot tarif pembayaran DW. | A) backlog (tidak dikerjakan migrasi) · B) kerjakan | **A** | **A** — backlog. |
+| K-11 | reservasi | Master › Data & Backup: "Restore dari Backup" dan "Hapus Semua Data" menimpa/menghapus seluruh data (aturan penghapusan data `laksamana-office/CLAUDE.md` §0 berlaku). | A) tidak dibawa ke Vue · B) dibawa dengan pengaman (siapa boleh, konfirmasi ganda, audit) |  | ⬜ |
 
 ---
 

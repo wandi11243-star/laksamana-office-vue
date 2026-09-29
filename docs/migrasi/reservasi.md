@@ -618,7 +618,7 @@ HTTP 200 + `APP_LAWAS` (klien terlalu tua) + `conflict:true` (`docs/modules/rese
 ## J. Progres build
 
 Branch: `migrasi/fondasi` (fondasi F1–F5) lalu `migrasi/reservasi` · Mulai: 2026-09-29
-LANJUTKAN DARI: Tahap 4b — master, audit (`pages/reservasi/master.vue`, `audit.vue`). Baca D.4–D.7 di bagian H, F19 (baris EKSTRA hapus ikut dibangun di master), dan kontrak `GET /reservations` + `GET /audit` + `PUT /master/{section}`. Regarkan G-08 (paging klien) dan G-14 (Cashier/Kas menampilkan "Segera" sampai API dilonggarkan).
+LANJUTKAN DARI: Tahap 4b — audit (`pages/reservasi/audit.vue`). Baca D.4–D.7 di bagian H, F19 (baris EKSTRA hapus ikut dibangun di master), dan kontrak `GET /reservations` + `GET /audit` + `PUT /master/{section}`. Regarkan G-08 (paging klien) dan G-14 (Cashier/Kas menampilkan "Segera" sampai API dilonggarkan).
 
 Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di kolom terakhir)
 
@@ -629,7 +629,7 @@ Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di 
 | finance | reservasi | `pages/reservasi/finance.vue` + `components/DanaMasukPanel.vue` + `components/KwitansiSlot.vue` | ✅ | `GET /reservations`, `GET/PATCH/DELETE /reservations/{id}`, `GET /files/{key}`, `GET /marketing/dp`, `POST /finance/invoices/requests`, `GET /finance/invoices/status`, `GET /finance/invoices/file/{resId}`, `POST /audit` | paging klien (G-08) · tipe tamu G-07 · DP Event 403 → G-15 · terbit-langsung manajer ditunda (sesi finance) |
 | riwayat | reservasi | `pages/reservasi/riwayat.vue` + `utils/riwayat.ts` | ✅ | `GET /reservations?from&to` (+ tanpa batas untuk mode Semua) | paging + ekspor di browser (G-08) · profil dari data termuat (G-07) · bawaan Bulan ini, bukan Semua |
 | analitik | reservasi | `pages/reservasi/analitik.vue` + `utils/analitik.ts` | ✅ | `GET /reservations` (tanpa batas — keseluruhan butuh semua) | grafik div tanpa lib (K-05 CSV) · ringkasan butuh seluruh tabel (G-08) |
-| master | reservasi | `pages/reservasi/master.vue` | ⬜ | `GET/PUT /master/{section}` | baris EKSTRA hapus (F19) ikut dibangun |
+| master | reservasi | `pages/reservasi/master.vue` | ✅ | `GET/PUT /master/{dineEstMin,categories,dpMethods,infoSources,waTargets,users,perms}` + `GET /reservations` + `GET /master` (backup) | Restore/Hapus Semua → K-11 · waTargets tampil saja (seperti lama) |
 | audit | reservasi | `pages/reservasi/audit.vue` | ⬜ | `GET /reservasi/audit` | pager `halAudit` → G-08 |
 | capaian | service_excellent | `pages/service_excellent/index.vue` (menu) | ⬜ | `GET /master/reviews`, `/master/reviewCfg`, `/master/seCrew` | reward hanya tampilan (T-19) |
 | review | service_excellent | `pages/service_excellent/review.vue` | ⬜ | `GET/PUT/DELETE /master/reviews/{id}`, `/files/rv:*` | — |
@@ -806,6 +806,8 @@ Semua field D.2 ada, dengan pesan validasinya apa adanya. Yang dibangun di layar
 **Bagian 1** (`feat(reservasi): dashboard bagian 1`) — ringkasan, filter, tab Tabel. Ringkasan = `AppFocus` (jumlah reservasi + pax) + `AppList` (empat barisa angka), bukan grid kartu. Tab Tabel: `UTable` di `lg+` dan `AppList` di HP dari baris yang sama, urut per kolom (Tombol sort, bukan klik header — sorting lewat tombol di bawah tabel, bukan klik header (klik header pada UTable tidak bisa di-style dan tidak konsisten)), paging 10/25/50 di browser dengan catatan **G-08** di layar. "Tipe tamu" **Segera · G-07** (butuh `ringkasTamu`).
 
 ## Tahap 4b — riwayat, analitik, master, audit
+
+**Master** (`feat(reservasi): master`) — `app/pages/reservasi/master.vue` (+ `seedPermsReservasi()` di `utils/layar/reservasi.ts`, cermin `DEFAULT_PERMS` `:1109-1129`): estimasi duduk (min 30, pills, contoh jam — put `dineEstMin` + audit), 3 daftar dropdown per section (tulis langsung per tambah/hapus seperti lama, masing-masing versi sectionnya + audit), waTargets tampil saja + hint (seperti lama — tidak ada edit di sana), Role Kru (ganti role, put `users`; tanpa tambah — seperti lama), matriks View/Ubah (klik geser, viewer 2 keadaan, baris ekstra terkunci bila induk tak terlihat, admin terkunci Ubah, Simpan menjepit viewer ≤1 + admin =2, Default = konfirmasi → seed; put `perms` + audit; F19), Backup JSON (`GET /reservations` tanpa batas + `GET /master`, unduh saja — tanpa audit seperti lama), Restore/Hapus = "Segera · K-11" (baru, ⬜). Tiap tulis section: `putSection(key, value, versiDari(sectionYangDimuat))` + `tanganiKonflik(refreshSection)` (§2.7).
 
 **Analitik** (`feat(reservasi): analitik`) — `app/pages/reservasi/analitik.vue` + `app/utils/analitik.ts` (murni, `// Source:`): Performa Harian/Bulanan (`performaPeriode()` — rumus persis `:10364-10403`: hadir/diharapkan, tepat/telat + rata telat, durasi rata, realisasi pax datang/dipesan, no-show, walk-in, hari tersibuk, tren harian, 5 paling telat, 5 duduk terlama) + Ringkasan Keseluruhan (`ringkasKeseluruhan()`: total, pax, rata, rasio no-show, unik, sumber, PIC per ORANG — bukan per peran — peak hour & hari = JUMLAH PAX, tren per bulan). Angka di baris ringkas + satu AppFocus (kehadiran), bukan kartu; grafik = div bar tanpa library (§2.8). Keseluruhan memuat seluruh tabel sekaligus (tanpa paging server tidak ada jalan lain — G-08).
 
