@@ -9,10 +9,14 @@ Hard rules:
 - Session token only through `useToken()` — never `useCookie('lm_token')` directly. Nuxt flushes the cookie write on the
   next tick, so `useToken()` mirrors it in `useState`; a request fired right after `login()` must still see it.
 - Module pages: `definePageMeta({ access: [...] })` with the keys from `app/utils/modul.ts`. Module calls + types in `app/composables/use<Module>.ts`.
-- Design: yellow (primary) only as a fill for the one main action / "now" marker, never as text; one `AppFocus` per screen;
-  content as `AppList`/`AppListRow`; status via `AppStatus`; forms in `ResponsiveSheet`; `UTable` only at `lg+`.
-  No gradients, shadows, hex colours, emoji, uppercase eyebrows or card grids of big numbers. Restyle Nuxt UI in `app/app.config.ts`, don't wrap it.
-- One page serves phone and desktop. Check both widths (390px and 1366px) and dark mode.
+- Design (DESIGN.md): **rebuild each screen in the old Office's layout** — same section order, table columns, stat
+  cards and button positions as `../laksamana-office/deploy/<module>`. Blocks: `AppPage` (+`#actions`), `AppStatGrid`/`AppStat`,
+  `AppPanel`, `AppFilterGrid`, `AppChips`, `AppSeg`, `AppStatus` (colour + icon + word), `AppSectionTitle`, `AppPilihan`, `AppBar`,
+  `UTable` (`lg+`, cards below), `ResponsiveSheet` for forms. Module chrome (sidebar screens, `+`, bell, badges) in `app/utils/modul-shell.ts`.
+  Lucide icons instead of the old emoji (emoji only inside WhatsApp message text). Gold text = `text-primary-700`. No hex colours
+  in components; no gradients. Restyle Nuxt UI in `app/app.config.ts`, don't wrap it.
+- One page serves phone and desktop. Check 390px and 1366px, light and dark, **in a browser** (lint/typecheck do not catch
+  runtime errors). Without a local API, use a read-only mock; never point the dev server at dev or production data.
 - UI copy in Indonesian, sentence case. Code comments in English.
 - No new dependencies without asking. Before finishing: `npm run lint && npm run typecheck`.
 - `../laksamana-office` is the old app: read-only reference (menus, flows). Never edit it.

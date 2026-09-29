@@ -34,26 +34,74 @@ app/
     useApi.ts              SATU-SATUNYA cara memanggil API (Bearer, 401 -> /login, pesan error)
     useMe.ts               user yang login (GET /me), login(), logout(), hasAccess()
     useModulNav.ts         modul yang boleh dibuka user ini
+    useRoster.ts           roster Office: semua User, dan pemegang satu modul
     use<Modul>.ts          panggilan API + tipe data per modul (contoh: useAbsensi.ts)
-  utils/modul.ts           daftar menu modul + kunci akses + widget beranda
+  utils/
+    modul.ts               daftar menu modul + kunci akses + widget beranda
+    format.ts              angka, rupiah, tanggal, jam (satu sumber untuk semua modul)
+    layar.ts               tipe Layar + pengelompokan menu modul
+    versi.ts               ifMatch(), versiDari(), tanganiKonflik() untuk tulisan berversi
   components/App*.vue      blok bangunan design language (lihat DESIGN.md)
+  components/ModulMenu.vue daftar layar sebuah modul
+  utils/layar/<modul>.ts   layar modul itu (label, ikon, matriks role)
   widgets/<modul>/*.vue    widget beranda per modul
   pages/<modul>/           halaman per modul (contoh lengkap: pages/absensi/)
 ```
 
 ## Menambah modul (contoh: Reservasi)
 
-1. **Baca kontraknya:** `laksamana-api/docs/api/reservasi.md`. Menu di Office lama (`NAV_DEF` di `laksamana-office/deploy/reservasi/index.html`) adalah daftar layar yang harus ada.
-2. **Buat composable `app/composables/useReservasi.ts`** berisi tipe dan panggilan API.
+Rencana dan keputusan migrasi ada di [`docs/migrasi/PLAN.md`](docs/migrasi/PLAN.md);
+per modul ada [<modul>.md](docs/migrasi/). Baca `docs/migrasi/<modul>.md` sampai habis
+sebelum menulis kode: itu inventaris layar, field, rumus, dan endpoint-nya.
+
+1. **Baca kontraknya:** `laksamana-api/docs/api/<modul>.md`. Menu di Office lama adalah
+   daftar layar yang harus ada.
+2. **Buat composable `app/composables/use<Modul>.ts`** berisi tipe dan panggilan API.
    - Nama field **sama persis** dengan yang dikirim API. Jangan diganti namanya.
-   - Tiru pola di `useAbsensi.ts`: `useAsyncData` untuk bacaan, fungsi biasa (`await useApi()(...)`) untuk tulisan.
-3. **Buat halaman `app/pages/reservasi/index.vue`:**
-   ```ts
+   - Tiru pola di `useAbsensi.ts`: `useAsyncData` untuk bacaan, fungsi biasa
+     (`await useApi()(...)`) untuk tulisan.
+   - Roster bukan data modul: pakai `useRoster()` (semua User) dan
+     `useModulMembers('<modul>')` (pemegang modul) dari `app/composables/useRoster.ts`.
+3. **Buat halaman sesuai konvensi layar (fondasi F4):**
+   ```
+   app/pages/<modul>/index.vue        beranda modul: AppFocus (opsional) + ModulMenu
+   app/pages/<modul>/<layar>.vue      satu file per layar, kunci NAV_DEF lama tidak diubah
+   app/utils/layar/<modul>.ts         daftar layar: label, desc, icon, to, boleh (matriks role)
+   ```
+   ```vue
+   <script setup lang="ts">
    definePageMeta({ access: ['reservasi'] })   // kunci dari utils/modul.ts
+   </script>
+   <template>
+     <AppPage title="Reservasi" description="…">
+       <ModulMenu :layar="LAYAR_RESERVASI" />   <!-- layar tanpa file -> "Segera" -->
+     </AppPage>
+   </template>
    ```
    Begitu file halaman ada, menu otomatis berubah dari "Segera" menjadi bisa diklik.
-4. **Widget beranda (opsional):** buat `app/widgets/reservasi/NamaWidget.vue` (sebuah `AppList`), lalu daftarkan di `widgets` milik entri Reservasi di `utils/modul.ts`.
-5. **Admin modul:** `isAdminOf(me, 'reservasi')` untuk menyembunyikan aksi admin. API tetap menolak, jadi ini hanya soal tampilan.
+4. **Tulisan berversi** (fondasi F1). Baca `version` dari `meta` (`versiDari()`), kirim
+   kembali dengan `ifMatch()`, dan tangani penolakan dengan `tanganiKonflik()`:
+   ```ts
+   const versi = versiDari(res)
+   try {
+     await useReservasi().updateReservation(id, body, ifMatch(versi!))
+   }
+   catch (e) {
+     if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+   }
+   ```
+   `409 version_conflict` (versi basi, record terbaru ada di `error.details.current`) dan
+   `428 version_required` (versi tidak terkirim) ditangani di situ: muat ulang, jangan menimpa
+   dan jangan mengulang tulisan diam-diam.
+5. **Format angka, uang, tanggal** lewat `app/utils/format.ts` (`rupiah()`, `angka()`,
+   `persen()`, `tglPendek()`, `tglPanjang()`, `jam()`, `hariIni()`), bukan `Intl` sendiri.
+6. **Widget beranda (opsional):** buat `app/widgets/<modul>/NamaWidget.vue` (sebuah `AppList`),
+   lalu daftarkan di `widgets` milik entri modul di `utils/modul.ts`.
+7. **Admin modul:** `isAdminOf(me, '<modul>')` untuk menyembunyikan aksi admin. API tetap menolak,
+   jadi ini hanya soal tampilan.
+8. **Rumus bersama** (`venue-layouts.ts`, `DanaMasukPanel`, `kwitansi.ts`, dst.) diimpor dari
+   `app/utils/` dan `app/components/` milik modul pemiliknya, tidak disalin. Daftar pemiliknya
+   ada di `PLAN.md` §4.
 
 ## Aturan
 

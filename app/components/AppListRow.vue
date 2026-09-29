@@ -1,6 +1,8 @@
 <!--
   One row of an AppList. A link when `to` is set, a button when it has a click
   listener, plain otherwise. Put a value or <AppStatus> in the #trailing slot.
+  `dim` mutes the whole row: a screen that is not built yet, or anything else
+  the reader only needs as background.
 -->
 <script setup lang="ts">
 const props = defineProps<{
@@ -9,6 +11,7 @@ const props = defineProps<{
   icon?: string
   to?: string
   onClick?: () => void
+  dim?: boolean
 }>()
 
 const tag = computed(() => props.to ? resolveComponent('NuxtLink') : props.onClick ? 'button' : 'div')
@@ -27,13 +30,18 @@ const interactive = computed(() => !!(props.to || props.onClick))
     <UIcon
       v-if="icon"
       :name="icon"
-      class="size-5 shrink-0 text-muted"
+      class="size-5 shrink-0"
+      :class="dim ? 'text-dimmed' : 'text-muted'"
     />
     <span class="min-w-0 flex-1">
-      <span class="block truncate font-semibold text-highlighted">{{ title }}</span>
+      <span
+        class="block truncate font-semibold"
+        :class="dim ? 'text-dimmed' : 'text-highlighted'"
+      >{{ title }}</span>
       <span
         v-if="description || $slots.description"
-        class="block text-sm text-muted"
+        class="block text-sm"
+        :class="dim ? 'text-dimmed' : 'text-muted'"
       >
         <slot name="description">{{ description }}</slot>
       </span>

@@ -3,6 +3,11 @@
 export default defineNuxtConfig({
   modules: ['@nuxt/ui', '@nuxt/eslint', '@vite-pwa/nuxt'],
   ssr: false,
+
+  // `app/utils/layar/<modul>.ts` holds each module's screen list (fondasi F4);
+  // auto-imported so a page only writes LAYAR_RESERVASI in its template.
+  imports: { dirs: ['utils/layar'] },
+
   devtools: { enabled: true },
 
   app: {

@@ -27,7 +27,7 @@ defineProps<{
         {{ action.label }}
       </ULink>
     </div>
-    <div class="divide-y divide-default overflow-hidden rounded-2xl bg-default">
+    <div class="divide-y divide-default overflow-hidden rounded-panel border border-default bg-default shadow-panel">
       <slot />
     </div>
   </section>

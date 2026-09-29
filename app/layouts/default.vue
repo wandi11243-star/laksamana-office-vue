@@ -1,116 +1,106 @@
 <!--
-  App shell. Phone (< lg): top bar + bottom tab bar. Desktop (lg+): left sidebar.
-  Same pages in both; only the chrome changes.
+  App shell, laid out like the old Office (DESIGN.md › Shell):
+  a 248px sidebar on the left and a top bar over the content. On a phone the
+  sidebar slides in from the hamburger; on a desktop the hamburger hides it.
+  Inside a module with its own chrome (utils/modul-shell.ts) the top bar carries
+  the module's search, gold "+" and bell.
 -->
 <script setup lang="ts">
-import type { NavigationMenuItem } from '@nuxt/ui'
-
-const me = useMe()
 const route = useRoute()
-const { grouped } = useModulNav()
+const router = useRouter()
+const { key, shell } = useModulShell()
 
-const sidebar = computed<NavigationMenuItem[][]>(() => [
-  [
-    { label: 'Beranda', icon: 'i-lucide-house', to: '/', exact: true },
-    { label: 'Semua modul', icon: 'i-lucide-layout-grid', to: '/modul' },
-  ],
-  ...grouped.value.map(g => [
-    { label: g.group, type: 'label' as const },
-    ...g.items.map(m => m.ready
-      ? { label: m.label, icon: m.icon, to: m.to }
-      : { label: m.label, icon: m.icon, disabled: true, badge: 'Segera' }),
-  ]),
-])
+const laci = ref(false)
+const sembunyi = ref(false)
+function toggleMenu() {
+  if (window.matchMedia('(min-width: 1024px)').matches) sembunyi.value = !sembunyi.value
+  else laci.value = !laci.value
+}
+watch(() => route.fullPath, () => {
+  laci.value = false
+})
 
-// Bottom tabs: the module tab stays lit inside any module page.
-const tabs = computed(() => [
-  { label: 'Beranda', icon: 'i-lucide-house', to: '/', active: route.path === '/' },
-  { label: 'Modul', icon: 'i-lucide-layout-grid', to: '/modul', active: route.path === '/modul' || !!route.meta.access },
-  { label: 'Profil', icon: 'i-lucide-circle-user', to: '/profil', active: route.path === '/profil' },
-])
+const q = ref('')
+watch(() => route.query.q, (v) => {
+  q.value = typeof v === 'string' ? v : ''
+}, { immediate: true })
+function cari() {
+  const c = shell.value?.cari
+  if (!c) return
+  router.push({ path: c.to, query: q.value.trim() ? { q: q.value.trim() } : {} })
+}
 </script>
 
 <template>
-  <div class="min-h-dvh lg:grid lg:grid-cols-[240px_1fr]">
-    <!-- Desktop sidebar -->
-    <aside class="sticky top-0 hidden h-dvh flex-col border-e border-default bg-default px-3 py-5 lg:flex">
-      <NuxtLink
-        to="/"
-        class="mb-5 flex items-center gap-2.5 px-2 font-extrabold tracking-tight text-highlighted"
-      >
-        <img
-          src="/mark.png"
-          alt=""
-          class="size-8"
-        >
-        Laksamana
-      </NuxtLink>
-      <UNavigationMenu
-        :items="sidebar"
-        orientation="vertical"
-        class="-mx-1 flex-1 overflow-y-auto"
-        :ui="{ label: 'pt-4 text-xs font-semibold text-dimmed' }"
-      />
-      <NuxtLink
-        to="/profil"
-        class="mt-3 flex items-center gap-2.5 border-t border-default px-2 pt-3 text-sm font-semibold text-highlighted"
-      >
-        <UAvatar
-          :alt="me?.name"
-          size="sm"
-        />
-        <span class="truncate">{{ me?.name }}</span>
-      </NuxtLink>
+  <div
+    class="min-h-dvh lg:grid"
+    :class="sembunyi ? 'lg:grid-cols-[0_1fr]' : 'lg:grid-cols-[248px_1fr]'"
+  >
+    <aside
+      class="sticky top-0 hidden h-dvh overflow-hidden border-e border-default lg:block"
+      :class="sembunyi && 'invisible'"
+    >
+      <AppSidebar :key="key" />
     </aside>
 
+    <USlideover
+      v-model:open="laci"
+      side="left"
+      :ui="{ content: 'max-w-[280px]' }"
+      title="Menu"
+    >
+      <template #content>
+        <AppSidebar
+          :key="key"
+          @pilih="laci = false"
+        />
+      </template>
+    </USlideover>
+
     <div class="min-w-0">
-      <!-- Phone top bar -->
-      <header class="sticky top-0 z-10 flex items-center justify-between bg-muted px-4 pb-1.5 pt-[max(0.75rem,env(safe-area-inset-top))] lg:hidden">
+      <header class="sticky top-0 z-10 flex items-center gap-2.5 border-b border-default bg-default/95 px-3 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur-sm lg:gap-3 lg:px-5">
+        <UButton
+          icon="i-lucide-menu"
+          color="neutral"
+          variant="outline"
+          size="lg"
+          aria-label="Tampilkan atau sembunyikan menu"
+          @click="toggleMenu"
+        />
+        <form
+          v-if="shell?.cari"
+          class="min-w-0 max-w-[520px] flex-1"
+          role="search"
+          @submit.prevent="cari"
+        >
+          <UInput
+            v-model="q"
+            icon="i-lucide-search"
+            :placeholder="shell.cari.placeholder"
+            size="lg"
+            class="w-full"
+            :ui="{ base: 'rounded-full bg-muted focus:bg-default' }"
+          />
+        </form>
         <NuxtLink
+          v-else
           to="/"
+          class="flex items-center gap-2 lg:hidden"
           aria-label="Beranda"
         >
           <img
             src="/mark.png"
-            alt="Laksamana Muda"
+            alt=""
             class="size-8"
           >
         </NuxtLink>
-        <NuxtLink
-          to="/profil"
-          aria-label="Profil"
-        >
-          <UAvatar
-            :alt="me?.name"
-            size="md"
-          />
-        </NuxtLink>
+        <div class="flex-1" />
+        <AppTopAksi :key="key" />
       </header>
 
-      <main class="px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-2 lg:px-10 lg:pb-12 lg:pt-8">
+      <main class="px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-5 lg:px-6 lg:pb-12 lg:pt-7 2xl:px-10">
         <slot />
       </main>
     </div>
-
-    <!-- Phone tab bar -->
-    <nav
-      class="fixed inset-x-0 bottom-0 z-20 grid grid-cols-3 border-t border-default bg-default px-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] pt-2 lg:hidden"
-      aria-label="Navigasi utama"
-    >
-      <NuxtLink
-        v-for="t in tabs"
-        :key="t.to"
-        :to="t.to"
-        class="flex flex-col items-center gap-0.5 py-1 text-[11px]"
-        :class="t.active ? 'font-bold text-highlighted' : 'font-medium text-dimmed'"
-        :aria-current="t.active ? 'page' : undefined"
-      >
-        <UIcon
-          :name="t.icon"
-          class="size-6"
-        />
-        {{ t.label }}
-      </NuxtLink>
-    </nav>
   </div>
 </template>

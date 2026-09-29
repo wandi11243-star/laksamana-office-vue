@@ -7,7 +7,7 @@ const Link = resolveComponent('NuxtLink')
   <AppPage title="Modul">
     <p
       v-if="!grouped.length"
-      class="rounded-2xl bg-default p-6 text-center text-muted"
+      class="rounded-panel border border-default bg-default shadow-panel p-6 text-center text-muted"
     >
       Anda belum punya akses ke modul apa pun. Minta admin membukanya di Kelola Akses.
     </p>
@@ -30,7 +30,7 @@ const Link = resolveComponent('NuxtLink')
           :aria-disabled="!m.ready || undefined"
         >
           <span
-            class="grid size-14 place-items-center rounded-2xl bg-default"
+            class="grid size-14 place-items-center rounded-panel border border-default bg-default shadow-panel"
             :class="!m.ready && 'opacity-50'"
           >
             <UIcon
