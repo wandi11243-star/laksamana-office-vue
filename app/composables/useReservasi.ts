@@ -267,6 +267,18 @@ export const getMaster = () => useApi()<Envelope<Master>>('/reservasi/master')
 /** GET /master/{section} — one independently versioned section, with `meta.version` + `ETag`. */
 export const getSection = <T = unknown>(section: string) => useApi()<Envelope<T>>(`/reservasi/master/${section}`)
 
+/** A WhatsApp target from the master section `waTargets`. `includeDP` is the same
+ *  flag the old coordination screen encoded in its two hard-coded cards. */
+export interface WaTarget {
+  id: string
+  name: string
+  /** 'group' has no number: the text is copied and the coordinator pastes it. */
+  type: 'group' | 'contact'
+  detail: string
+  includeDP: boolean
+  fields: string[]
+}
+
 /** The reactive read of one master section. */
 export const useSection = <T = unknown>(section: string) =>
   useAsyncData(`reservasi-section-${section}`, () => getSection<T>(section).then(r => r.data), { default: () => undefined })

@@ -38,6 +38,18 @@ export async function waKirim(phone: string | null | undefined, teks: string): P
   return url
 }
 
+/** Copy only — for the "salin" button next to "buka WhatsApp". Returns whether the
+ *  clipboard took it, so the caller can say so instead of claiming success. */
+export async function waSalin(teks: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(teks)
+    return true
+  }
+  catch {
+    return false
+  }
+}
+
 /** Just the link, for a button that offers to copy it. */
 export const waTautan = (phone: string | null | undefined, teks: string) => {
   const p = nomorWa(phone)

@@ -19,7 +19,7 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { Reservasi, Waitlist } from '~/composables/useReservasi'
+import type { Reservasi, Waitlist, WaTarget } from '~/composables/useReservasi'
 import { createReservation, patchReservation, postAudit, putDenah, putSectionItem, useDaftarReservasi, useDenah, useSection, useSectionVersi } from '~/composables/useReservasi'
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
 import { arrivedPax, buatIzinTumpang, fmtMenit, harihOccupancy, isSeated, remainingPax, sedangDialihkan, tablesOf } from '~/utils/kunci-meja'
@@ -31,8 +31,8 @@ import {
   keyTanggal, lantaiLayout, lantaiMap, layoutTanggal, kapasitasTanggal, layoutName, ltCfg,
   ovLantai, parseKeyTanggal,
 } from '~/utils/venue-layouts'
-import { angka, hariIni, normTime, rupiah, tglPendek, tambahHari } from '~/utils/format'
-import { teksPanggilAntrean, waKirim } from '~/utils/wa'
+import { angka, fmtRupiah, hariIni, normTime, rupiah, tglPendek, tambahHari } from '~/utils/format'
+import { teksPanggilAntrean, waKirim, waSalin } from '~/utils/wa'
 
 definePageMeta({ access: ['reservasi'] })
 
@@ -1020,6 +1020,105 @@ async function simpanUntukTanggal(data: LayoutDenah) {
   }
 }
 
+// --- WA coordination (`:7640-7712`, `:7762-7770`) --------------------------------
+
+const sheetWA = ref(false)
+const coordDari = ref('')
+const coordSampai = ref('')
+const { data: waTargets } = useSection<WaTarget[]>('waTargets')
+
+/** 30-minute steps, the old dropdown's granularity (`:4033-4036`). */
+const opsiJam = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`)
+const jamOpsi = [{ value: '', label: 'Semua jam' }, ...opsiJam.map(j => ({ value: j, label: j }))]
+
+const menitDari = (jam?: string) => {
+  const [h, m] = String(jam || '00:00').split(':').map(Number)
+  return (h || 0) * 60 + (m || 0)
+}
+
+/** The day, minus cancelled and no-show, minus the chosen shift (`:7645-7656`).
+ *  `semua` is the same list the map draws, so what is coordinated is what is seen. */
+const daftarKoord = computed(() => {
+  const lo = coordDari.value ? menitDari(coordDari.value) : null
+  const hi = coordSampai.value ? menitDari(coordSampai.value) : null
+  return (semua.value ?? [])
+    .filter(r => r.date === tglDenah.value && !['Cancelled', 'No-show'].includes(r.status))
+    .filter((r) => {
+      const t = menitDari(r.time)
+      return (lo === null || t >= lo) && (hi === null || t <= hi)
+    })
+    .sort((a, b) => (a.time || '').localeCompare(b.time || ''))
+})
+
+const labelRentang = computed(() => {
+  if (!coordDari.value && !coordSampai.value) return ''
+  if (coordDari.value && coordSampai.value) return `Jam ${coordDari.value}–${coordSampai.value}`
+  return coordDari.value ? `Jam ${coordDari.value} ke atas` : `Sampai jam ${coordSampai.value}`
+})
+
+const GARIS = '─────────────────'
+const mejaTeks = (r: Reservasi) => (r.table && String(r.table).trim() ? String(r.table).trim() : 'belum diatur')
+
+/**
+ * One guest per LINE, not a three-line block, so a broadcast is not full of
+ * gaps; the totals sit at the TOP, not below (`:7669-7671`).
+ */
+const teksKoordinasi = computed(() => {
+  const list = daftarKoord.value
+  const pax = list.reduce((a, r) => a + (Number(r.pax) || 0), 0)
+  const meja = list.reduce((a, r) => a + tablesOf(r).length, 0)
+  const baris = list.map((r, i) => {
+    const dp = r.dpStatus === 'Sudah' && Number(r.dpAmount) > 0 ? `💰${fmtRupiah(Number(r.dpAmount))}` : '⭕ Belum DP'
+    return `${i + 1}. *${(r.name || '-').toUpperCase()}* · ${r.time || '-'} · 🪑${mejaTeks(r)} · 👥${Number(r.pax) || 0} · ${dp}`
+  })
+  return [
+    '⚓ *KOORDINASI KEDATANGAN*',
+    `Laksamana Muda · ${tglPanjangLama(tglDenah.value)}${labelRentang.value ? ` · ${labelRentang.value}` : ''}`,
+    `👥 Total: ${pax} pax · 📋 ${list.length} reservasi · 🪑 ${meja} meja`,
+    GARIS,
+    baris.length ? baris.join('\n') : '_(tidak ada reservasi)_',
+  ].join('\n')
+})
+
+const teksKasir = computed(() => {
+  const list = daftarKoord.value
+  const bayar = list.filter(r => r.dpStatus === 'Sudah' && Number(r.dpAmount) > 0)
+  const totalDP = bayar.reduce((a, r) => a + (Number(r.dpAmount) || 0), 0)
+  const pax = list.reduce((a, r) => a + (Number(r.pax) || 0), 0)
+  const baris = list.map((r, i) => {
+    const dp = r.dpStatus === 'Sudah' && Number(r.dpAmount) > 0
+      ? `💳 ${fmtRupiah(Number(r.dpAmount))}${dpMethodPendek(r) !== '-' ? ` (${dpMethodPendek(r)})` : ''}`
+      : '⭕ Belum DP'
+    return `${i + 1}. *${(r.name || '-').toUpperCase()}* · ${r.time || '-'} · 🪑${mejaTeks(r)} · 👥${Number(r.pax) || 0} · ${dp}`
+  })
+  return [
+    '💰 *REKAP DP — KASIR*',
+    `⚓ Laksamana Muda · ${tglPanjangLama(tglDenah.value)}${labelRentang.value ? ` · ${labelRentang.value}` : ''}`,
+    `💰 Total DP: *${fmtRupiah(totalDP)}*  ·  ✅ ${bayar.length}  ⭕ ${list.length - bayar.length}  ·  👥 ${pax} pax (${list.length})`,
+    GARIS,
+    baris.length ? baris.join('\n') : '_(tidak ada reservasi)_',
+  ].join('\n')
+})
+
+/** "Transfer UOB BRI" reads as "UOB BRI" in a 1-line message (`:7636-7639`). */
+const dpMethodPendek = (r: Reservasi) =>
+  (r.dpStatus !== 'Sudah' || !r.dpMethod ? '-' : r.dpMethod.replace(/^Transfer\s+/i, ''))
+
+/** A target from `master.waTargets`: the DP flag decides which of the two
+ *  formats the group receives — the old screen hard-coded both cards, the flag
+ *  on the target said the same thing. */
+const teksUntuk = (t: WaTarget) => (t.includeDP ? teksKasir.value : teksKoordinasi.value)
+
+const tujuanKoord = computed(() => (waTargets.value ?? []).filter(t => t.type === 'group'))
+
+async function kirimKoord(t: WaTarget) {
+  await catat(`${t.name}${labelRentang.value ? `, ${labelRentang.value}` : ''}`, undefined, 'Kirim Koordinasi')
+  // A group has no number: the text goes to the clipboard and wa.me opens so the
+  // coordinator picks the group and pastes — the same limitation the old client
+  // worked around with saved invite links (:7762-7770).
+  await waKirim(t.type === 'group' ? null : t.detail, teksUntuk(t))
+}
+
 // --- the poll (`:3089-3156`) ------------------------------------------------------
 // The map is the only tab that pulls on its own, and only while it is on screen:
 // POLL_JEDA is 15 s and the pull is skipped while the browser tab is hidden, with
@@ -1079,7 +1178,7 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
         color="neutral"
         variant="soft"
         size="xl"
-        disabled
+        @click="sheetWA = true"
       />
       <UButton
         v-if="bolehAksi('master', role)"
@@ -1833,6 +1932,109 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
           variant="soft"
           size="xl"
           @click="sheetDudukkan = false"
+        />
+      </template>
+    </ResponsiveSheet>
+
+    <ResponsiveSheet
+      v-model:open="sheetWA"
+      title="Kirim koordinasi kedatangan"
+      :description="`${tglPanjangLama(tglDenah)} · ${daftarKoord.length} reservasi · ${angka(daftarKoord.reduce((a, r) => a + (Number(r.pax) || 0), 0))} pax`"
+    >
+      <div class="space-y-3">
+        <div class="flex flex-wrap items-end gap-2 rounded-lg border border-default p-3">
+          <UFormField
+            label="Dari"
+            class="max-w-28"
+          >
+            <USelect
+              v-model="coordDari"
+              :items="jamOpsi"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField
+            label="Sampai"
+            class="max-w-28"
+          >
+            <USelect
+              v-model="coordSampai"
+              :items="jamOpsi"
+              class="w-full"
+            />
+          </UFormField>
+          <UButton
+            v-if="coordDari || coordSampai"
+            label="Semua jam"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            @click="coordDari = ''; coordSampai = ''"
+          />
+        </div>
+        <p class="text-sm text-muted">
+          Kosongkan rentang untuk merekap seluruh hari. Pakai rentang kalau hanya mau rekap satu
+          shift, misalnya 18:00–23:30.
+        </p>
+        <p
+          v-if="!daftarKoord.length"
+          class="rounded-lg border border-default bg-default p-3 text-sm text-muted"
+        >
+          Tidak ada reservasi pada rentang jam ini — longgarkan rentangnya.
+        </p>
+        <div
+          v-for="t in tujuanKoord"
+          :key="t.id"
+          class="rounded-lg border border-default p-3"
+        >
+          <p class="font-semibold text-highlighted">
+            {{ t.name }}
+            <AppStatus
+              class="ms-1"
+              :color="t.includeDP ? 'success' : 'neutral'"
+            >
+              {{ t.includeDP ? 'fokus DP' : 'tanpa DP' }}
+            </AppStatus>
+          </p>
+          <p class="text-sm text-muted">
+            {{ t.type === 'group' ? 'Grup — salin pesan lalu tempel di grupnya' : `Nomor: ${t.detail || 'belum diisi'}` }}
+          </p>
+          <pre class="my-2 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-2 text-xs">{{ teksUntuk(t) }}</pre>
+          <div class="flex flex-wrap gap-2">
+            <UButton
+              label="Salin pesan"
+              color="neutral"
+              variant="soft"
+              size="sm"
+              @click="(async () => {
+                const ok = await waSalin(teksUntuk(t))
+                toast.add({ title: ok ? 'Pesan disalin' : 'Gagal menyalin — pakai “Buka WhatsApp”', color: ok ? 'success' : 'error' })
+              })()"
+            />
+            <UButton
+              label="Buka WhatsApp"
+              color="neutral"
+              variant="soft"
+              size="sm"
+              :disabled="!daftarKoord.length"
+              @click="kirimKoord(t)"
+            />
+          </div>
+        </div>
+        <p
+          v-if="!tujuanKoord.length"
+          class="text-sm text-muted"
+        >
+          <code>master.waTargets</code> kosong — grup tidak ada yang bisa dituju. Pesannya tetap bisa disalin di bawah.
+        </p>
+      </div>
+      <template #footer>
+        <UButton
+          label="Tutup"
+          color="neutral"
+          variant="soft"
+          size="xl"
+          @click="sheetWA = false"
         />
       </template>
     </ResponsiveSheet>
