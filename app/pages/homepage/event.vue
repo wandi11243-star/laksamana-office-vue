@@ -15,8 +15,12 @@ definePageMeta({ access: ['homepage'] })
 
 const toast = useToast()
 const me = useMe()
+const router = useRouter()
 const office = useEventWebOffice()
-const bolehEvent = computed(() => !!me.value?.modules.includes('event'))
+// The Event module screen may not exist yet in this app: only offer the link
+// when there really is a route for it (an unreachable link is worse than none).
+const punyaLayarEvent = computed(() => router.getRoutes().some(r => r.path === '/event'))
+const bolehEvent = computed(() => punyaLayarEvent.value && !!me.value?.modules.includes('event'))
 
 const { data, status: muat, error, refresh } = useEventWeb()
 

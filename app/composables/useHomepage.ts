@@ -319,7 +319,10 @@ export const useEventWeb = () =>
  */
 export async function eventPosterUrl(path: string | null | undefined): Promise<string | null> {
   if (!path) return null
-  const blob = await useApi()<Blob>(path, { responseType: 'blob' })
+  // The API hands back the full path (`/api/v1/homepage/office/events/{id}/poster`),
+  // but useApi() already prepends the `/api/v1` base: strip it before calling.
+  const rel = path.replace(/^\/api\/v1/, '')
+  const blob = await useApi()<Blob>(rel, { responseType: 'blob' })
   return URL.createObjectURL(blob)
 }
 
