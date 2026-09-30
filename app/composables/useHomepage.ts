@@ -1,7 +1,9 @@
-// Homepage module: the website's menu catalogue (module key `menu`) and its news
-// (module key `news`). Field names exactly as laksamana-api sends them:
-//   laksamana-api/docs/api/menu.md  (Office: /menu/office/*)
-//   laksamana-api/docs/api/news.md  (Office: /news/office/*)
+// Homepage module: the website's menu catalogue (module key `menu`), its news
+// (module key `news`) and its event switch (module key `homepage`). Field names
+// exactly as laksamana-api sends them:
+//   laksamana-api/docs/api/menu.md      (Office: /menu/office/*)
+//   laksamana-api/docs/api/news.md      (Office: /news/office/*)
+//   laksamana-api/docs/api/homepage.md  (Office: /homepage/office/*)
 //
 // Versioned writes: PATCH/DELETE of kategori/item/artikel carry If-Match. The
 // fast toggles (tersedia, tampil) and PUT /urutan do not, but they still bump
@@ -276,4 +278,60 @@ export function hargaRingkas(varian: MenuVarian[]): string {
   if (!varian.length) return 'Belum ada harga'
   const rb = (n: number) => (n % 1000 === 0 ? `${n / 1000}rb` : new Intl.NumberFormat('id-ID').format(n))
   return varian.map(v => (v.label ? `${v.label} ${rb(v.harga)}` : rb(v.harga))).join(' · ')
+}
+
+// ─────────────────────────── event website ──
+
+/**
+ * One candidate row of the website Event switch (GET /homepage/office/events).
+ * The event data itself lives in the Event (EMS) module; this module only owns
+ * the `tampil` switch. `eligible` is the "boleh tampil" rule and `alasan` says
+ * why not; `version` is the `homepage_event` row version (0 when none exists).
+ */
+export interface EventWeb {
+  id: string
+  title: string
+  category: string
+  status: string
+  /** ISO-8601 WIB. */
+  start: string
+  /** ISO-8601 WIB, or null when EMS has no end. */
+  end: string | null
+  venue: string
+  /** A path (`/api/v1/homepage/office/events/{id}/poster`) or null. */
+  poster: string | null
+  price_from: number
+  is_ticketed: boolean
+  tampil: boolean
+  eligible: boolean
+  alasan: 'belum_upcoming' | 'sudah_lewat' | null
+  version: number
+}
+
+/** GET /homepage/office/events: every event that can be put on the website. */
+export const useEventWeb = () =>
+  useAsyncData('homepage-event-web', () => useApi()<Envelope<EventWeb[]>>('/homepage/office/events').then(r => r.data))
+
+/**
+ * The office poster route needs the Bearer token, so a plain `<img src>` cannot
+ * fetch it: pull the bytes through the API and hand the view an object URL.
+ * Callers revoke the URL once they are done with it.
+ */
+export async function eventPosterUrl(path: string | null | undefined): Promise<string | null> {
+  if (!path) return null
+  // The API hands back the full path (`/api/v1/homepage/office/events/{id}/poster`),
+  // but useApi() already prepends the `/api/v1` base: strip it before calling.
+  const rel = path.replace(/^\/api\/v1/, '')
+  const blob = await useApi()<Blob>(rel, { responseType: 'blob' })
+  return URL.createObjectURL(blob)
+}
+
+export function useEventWebOffice() {
+  const api = useApi()
+  const base = '/homepage/office'
+  return {
+    /** PATCH /events/{id}/tampil. No If-Match: a boolean, last writer wins. */
+    setTampilEvent: (id: string, tampil: boolean) =>
+      api<Envelope<EventWeb>>(`${base}/events/${id}/tampil`, { method: 'PATCH', body: { tampil } }).then(r => r.data),
+  }
 }
