@@ -47,20 +47,29 @@ function ganti(row: PromoWeb) {
 // ─────────────────────────── thumbnails ──
 // The office image route is behind Sanctum, so an <img src> cannot fetch it:
 // pull the bytes through the API and show a blob URL. A missing image is fine.
+// Keyed by the API's `gambar` URL, which carries `v=<hash>`: a replaced image is
+// a new URL, so it is fetched again instead of showing the old blob.
 
 const gambar = ref<Record<string, string>>({})
 
 async function muatGambar(row: PromoWeb) {
-  const k = promoGambarKey(row)
-  if (!row.gambar || gambar.value[k]) return
+  if (!row.gambar || gambar.value[row.gambar]) return
   try {
     const url = await officeGambarUrl(row.gambar)
-    if (url) gambar.value[k] = url
+    if (url) gambar.value[row.gambar] = url
   }
   catch { /* the thumbnail is optional; a failure just leaves the placeholder */ }
 }
 
 watch(items, (list) => {
+  // Release the blobs of images no row points at any more (replaced or deleted).
+  const dipakai = new Set(list.map(row => row.gambar).filter(Boolean))
+  const tetap: Record<string, string> = {}
+  for (const [src, blob] of Object.entries(gambar.value)) {
+    if (dipakai.has(src)) tetap[src] = blob
+    else URL.revokeObjectURL(blob)
+  }
+  gambar.value = tetap
   list.forEach(muatGambar)
 }, { immediate: true })
 
@@ -254,7 +263,7 @@ function buka(row: PromoWeb | null) {
   form.selesai = row?.selesai ?? ''
   form.tampil = row ? row.tampil : true
   // An upload row's stored image is already a blob URL in the list.
-  pratinjauAsli.value = row?.sumber === 'unggah' ? gambar.value[promoGambarKey(row)] ?? null : null
+  pratinjauAsli.value = row?.sumber === 'unggah' ? (row.gambar ? gambar.value[row.gambar] : undefined) ?? null : null
   sheet.value = true
 }
 
@@ -523,8 +532,8 @@ async function hapus() {
           >
             <div class="aspect-video w-28 shrink-0 overflow-hidden rounded-field bg-muted sm:w-36 lg:w-44">
               <img
-                v-if="gambar[promoGambarKey(p)]"
-                :src="gambar[promoGambarKey(p)]"
+                v-if="p.gambar && gambar[p.gambar]"
+                :src="gambar[p.gambar]"
                 alt=""
                 loading="lazy"
                 class="size-full object-cover"
