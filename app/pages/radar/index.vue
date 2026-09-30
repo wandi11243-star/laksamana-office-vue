@@ -17,15 +17,15 @@
 <script setup lang="ts">
 import type { RadarAgenda, RadarPilihan } from '~/composables/useRadar'
 import {
-  TANPA_FB, agendaTgl, cocokFb, dDay, dalamPeriode, fTgl, fbOpsi, iris, labelPeriode, paxOf, paxRes,
-  periodeBaru, rentangPeriode, resHidup, resAktif, resTgl,
+  SEMUA, TANPA_FB, agendaTgl, cocokFb, dDay, dalamPeriode, fTgl, fbOpsi, iris, labelPeriode, paxOf, paxRes,
+  periodeBaru, rentangPeriode, resHidup, resAktif, resTgl, saringAktif,
 } from '~/utils/radar'
 import { hariIni, tambahHari } from '~/utils/format'
 
 definePageMeta({ access: ['radar'] })
 
 const p = useState('radar-fRd', () => periodeBaru('hari'))
-const fb = useState('radar-fRd-fb', () => '')
+const fb = useState('radar-fRd-fb', () => SEMUA)
 
 const hari = hariIni()
 // One request covers the picked period, today, and the 14 days ahead.
@@ -54,7 +54,7 @@ const resHariIni = computed(() => resTgl(res.value, hari))
 const agHariIni = computed(() => agendaTgl(agenda.value, hari))
 
 const opsiFb = computed(() => [
-  { value: '', label: 'Semua format F&B' },
+  { value: SEMUA, label: 'Semua format F&B' },
   ...fbOpsi(agenda.value, board.value?.fbFormats).map(f => ({ value: f, label: f })),
   // Event-module events never have a format; without this option picking any format hides them unexplained.
   { value: TANPA_FB, label: '(tanpa format F&B)' },
@@ -139,7 +139,7 @@ useSegarSenyap(refresh, () => buka.value)
           title="Agenda 14 hari"
           icon="i-lucide-calendar-days"
           :count="dua.length"
-          :description="fb ? labelFb : undefined"
+          :description="saringAktif(fb) ? labelFb : undefined"
         >
           <p
             v-if="status === 'pending' && !board"

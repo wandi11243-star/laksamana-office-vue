@@ -15,7 +15,7 @@
 <script setup lang="ts">
 import type { RadarPilihan, RadarReservasi } from '~/composables/useRadar'
 import {
-  agendaTgl, dalamPeriode, dpTeks, fTgl, fTglP, iris, labelPeriode, paxRes, periodeBaru, rentangPeriode, resHidup,
+  SEMUA, agendaTgl, dalamPeriode, dpTeks, fTgl, fTglP, iris, labelPeriode, paxRes, periodeBaru, rentangPeriode, resHidup, saringAktif,
   urutJam, waResHarian, warnaStatusRes,
 } from '~/utils/radar'
 
@@ -24,7 +24,7 @@ definePageMeta({ access: ['radar'] })
 const route = useRoute()
 const me = useMe()
 const p = useState('radar-fRs', () => periodeBaru('minggu'))
-const f = useState('radar-fRs-f', () => ({ q: '', status: '', kategori: '', view: 'tabel' as 'grid' | 'tabel' }))
+const f = useState('radar-fRs-f', () => ({ q: '', status: SEMUA, kategori: SEMUA, view: 'tabel' as 'grid' | 'tabel' }))
 
 const qTgl = typeof route.query.tgl === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(route.query.tgl) ? route.query.tgl : ''
 if (qTgl) p.value = { ...p.value, mode: 'hari', tgl: qTgl }
@@ -37,16 +37,16 @@ const agenda = computed(() => board.value?.agenda ?? [])
 
 const list = computed(() => {
   const q = f.value.q.trim().toLowerCase()
-  return urutJam(semua.value.filter(r => (f.value.status ? String(r.status || '') === f.value.status : resHidup(r))
+  return urutJam(semua.value.filter(r => (saringAktif(f.value.status) ? String(r.status || '') === f.value.status : resHidup(r))
     && dalamPeriode(r.date, p.value)
-    && (!f.value.kategori || String(r.category || '') === f.value.kategori)
+    && (!saringAktif(f.value.kategori) || String(r.category || '') === f.value.kategori)
     && (!q || `${r.name || ''} ${r.phone || ''} ${r.table || ''}`.toLowerCase().includes(q))))
 })
 const hari = computed(() => (p.value.mode === 'hari' ? p.value.tgl : ''))
 
-const opsiStatus = computed(() => [{ value: '', label: 'Hanya yang hidup' },
+const opsiStatus = computed(() => [{ value: SEMUA, label: 'Hanya yang hidup' },
   ...[...new Set(semua.value.map(r => String(r.status || '')).filter(Boolean))].sort().map(s => ({ value: s, label: s }))])
-const opsiKat = computed(() => [{ value: '', label: 'Semua kategori' },
+const opsiKat = computed(() => [{ value: SEMUA, label: 'Semua kategori' },
   ...[...new Set(semua.value.map(r => String(r.category || '')).filter(Boolean))].sort().map(s => ({ value: s, label: s }))])
 const OPSI_VIEW = [
   { value: 'grid' as const, label: 'Grid', icon: 'i-lucide-layout-grid' },

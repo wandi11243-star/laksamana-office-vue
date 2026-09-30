@@ -15,14 +15,14 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { RadarAgenda, RadarPilihan, SumberAgenda } from '~/composables/useRadar'
 import {
-  IKON_SUMBER, SUMBER_PENDEK, TANPA_FB, WARNA_SUMBER, agSelesai, agSudahLewat, cocokFb, dDay, dLabel,
-  dalamPeriode, fTglP, fbOpsi, iris, labelPeriode, paxOf, periodeBaru, rentangPeriode, statusPasti,
+  IKON_SUMBER, SEMUA, SUMBER_PENDEK, TANPA_FB, WARNA_SUMBER, agSelesai, agSudahLewat, cocokFb, dDay, dLabel,
+  dalamPeriode, fTglP, fbOpsi, iris, labelPeriode, paxOf, periodeBaru, rentangPeriode, saringAktif, statusPasti,
 } from '~/utils/radar'
 
 definePageMeta({ access: ['radar'] })
 
 const p = useState('radar-fAg', () => periodeBaru('minggu'))
-const f = useState('radar-fAg-f', () => ({ q: '', sumber: '' as '' | SumberAgenda, status: '', fb: '', waktu: 'akan' as 'akan' | 'lewat', view: 'grid' as 'grid' | 'tabel' }))
+const f = useState('radar-fAg-f', () => ({ q: '', sumber: SEMUA as string, status: SEMUA, fb: SEMUA, waktu: 'akan' as 'akan' | 'lewat', view: 'grid' as 'grid' | 'tabel' }))
 
 const dari = computed(() => rentangPeriode(p.value).dari)
 const sampai = computed(() => rentangPeriode(p.value).sampai)
@@ -32,8 +32,8 @@ const agenda = computed(() => board.value?.agenda ?? [])
 const dasar = computed(() => {
   const q = f.value.q.trim().toLowerCase()
   return agenda.value.filter(a => dalamPeriode(a.tgl, p.value)
-    && (!f.value.sumber || a.sumber === f.value.sumber)
-    && (!f.value.status || a.status === f.value.status)
+    && (!saringAktif(f.value.sumber) || a.sumber === f.value.sumber)
+    && (!saringAktif(f.value.status) || a.status === f.value.status)
     && cocokFb(a, f.value.fb)
     && (!q || `${a.judul} ${a.tempat} ${a.jenis}`.toLowerCase().includes(q)))
 })
@@ -65,14 +65,14 @@ const OPSI_VIEW = [
   { value: 'tabel' as const, label: 'Tabel', icon: 'i-lucide-table' },
 ]
 const opsiSumber = [
-  { value: '', label: 'Semua sumber' },
+  { value: SEMUA, label: 'Semua sumber' },
   { value: 'mkt', label: 'Marketing' },
   { value: 'evt', label: 'Event' },
   { value: 'vip', label: 'Reservasi VIP' },
 ]
-const opsiStatus = computed(() => [{ value: '', label: 'Semua status' }, ...statusPasti(agenda.value).map(s => ({ value: s, label: s }))])
+const opsiStatus = computed(() => [{ value: SEMUA, label: 'Semua status' }, ...statusPasti(agenda.value).map(s => ({ value: s, label: s }))])
 const opsiFb = computed(() => [
-  { value: '', label: 'Semua format F&B' },
+  { value: SEMUA, label: 'Semua format F&B' },
   ...fbOpsi(agenda.value, board.value?.fbFormats).map(x => ({ value: x, label: x })),
   { value: TANPA_FB, label: '(tanpa format F&B)' },
 ])

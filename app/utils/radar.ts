@@ -154,8 +154,11 @@ export function fbOpsi(agenda: RadarAgenda[], fbFormats: string[] | null | undef
 }
 /** '__none' = events without an F&B format (Event-module events never have one). */
 export const TANPA_FB = '__none'
+/** Reka UI forbids a SelectItem value of '' — "Semua" in every Radar filter is this sentinel. */
+export const SEMUA = '__semua'
+export const saringAktif = (v: string) => !!v && v !== SEMUA
 export function cocokFb(a: RadarAgenda, nilai: string): boolean {
-  if (!nilai) return true
+  if (!saringAktif(nilai)) return true
   if (nilai === TANPA_FB) return !a.fb
   return a.fb === nilai
 }

@@ -11,18 +11,18 @@
 -->
 <script setup lang="ts">
 import type { RadarPromo } from '~/composables/useRadar'
-import { PROMO_TIPE, promoHariTeks, promoKat, promoSisa, promoTglPendek, promoTipe } from '~/utils/radar'
+import { PROMO_TIPE, SEMUA, saringAktif, promoHariTeks, promoKat, promoSisa, promoTglPendek, promoTipe } from '~/utils/radar'
 
 definePageMeta({ access: ['radar'] })
 
 const { data, status, error, refresh } = useRadarPromos()
-const f = useState('radar-fPromo', () => ({ q: '', tipe: '' }))
+const f = useState('radar-fPromo', () => ({ q: '', tipe: SEMUA }))
 
 const aktif = computed(() => data.value?.promos ?? [])
 const list = computed(() => {
   const q = f.value.q.trim().toLowerCase()
   return aktif.value
-    .filter(p => (!f.value.tipe || (p.tipe || '') === f.value.tipe)
+    .filter(p => (!saringAktif(f.value.tipe) || (p.tipe || '') === f.value.tipe)
       && (!q || [p.nama, p.benefit, p.partner, p.kode, p.ketentuan, p.outlet].join(' ').toLowerCase().includes(q)))
     .sort((a, b) => {
       const sa = a.status === 'running' ? 0 : 1
@@ -32,7 +32,7 @@ const list = computed(() => {
 })
 const nRun = computed(() => aktif.value.filter(p => p.status === 'running').length)
 const nTipe = computed(() => new Set(aktif.value.map(p => p.tipe || '?')).size)
-const opsiTipe = [{ value: '', label: 'Semua tipe' }, ...Object.entries(PROMO_TIPE).map(([k, v]) => ({ value: k, label: v.l }))]
+const opsiTipe = [{ value: SEMUA, label: 'Semua tipe' }, ...Object.entries(PROMO_TIPE).map(([k, v]) => ({ value: k, label: v.l }))]
 
 const jamTeks = (p: RadarPromo) =>
   (p.jamMulai || p.jamSelesai ? `${p.jamMulai || '—'}–${p.jamSelesai || '—'}` : 'Sepanjang jam buka')
