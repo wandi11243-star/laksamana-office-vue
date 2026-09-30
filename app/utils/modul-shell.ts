@@ -40,6 +40,11 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     lencana: () => useLencanaReservasi(),
     siapkan: () => muatPeranReservasi(),
   },
+  homepage: {
+    subjudul: 'Homepage',
+    layar: LAYAR_HOMEPAGE,
+    peran: me => [me?.modules.includes('menu') && 'Menu', me?.modules.includes('news') && 'Berita'].filter(Boolean).join(' · '),
+  },
   service_excellent: {
     subjudul: 'Service Excellent',
     layar: LAYAR_SERVICE_EXCELLENT,
