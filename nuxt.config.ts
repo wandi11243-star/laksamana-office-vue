@@ -22,7 +22,11 @@ export default defineNuxtConfig({
 
   // Baked in at BUILD time (static output): set NUXT_PUBLIC_API_BASE before `npm run build`.
   runtimeConfig: {
-    public: { apiBase: 'https://dev-api.laksamanamuda.id/api/v1' },
+    public: {
+      apiBase: 'https://dev-api.laksamanamuda.id/api/v1',
+      // The public website, for "Lihat di website" links (NUXT_PUBLIC_HOMEPAGE_BASE).
+      homepageBase: 'https://laksamanamuda.id',
+    },
   },
   devServer: { port: 3000 },
   compatibilityDate: '2026-09-01',
