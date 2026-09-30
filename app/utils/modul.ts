@@ -45,9 +45,10 @@ export const MODUL: Modul[] = [
   { key: 'cashier', label: 'Cashier', desc: 'Setoran & dana masuk', icon: 'i-lucide-banknote', group: 'Operasional', access: ['cashier'] },
   { key: 'konten', label: 'Konten', desc: 'Content operations', icon: 'i-lucide-pen-line', group: 'Marketing & Event', access: ['konten'] },
   { key: 'event', label: 'Event', desc: 'Event management', icon: 'i-lucide-mic-vocal', group: 'Marketing & Event', access: ['event'] },
-  // Greenfield (no old Office screen): the website's menu catalogue and news.
-  // Two access keys so F&B can own the menu and marketing the news.
-  { key: 'homepage', label: 'Homepage', desc: 'Menu & berita website', icon: 'i-lucide-globe', group: 'Marketing & Event', access: ['menu', 'news'] },
+  // Greenfield (no old Office screen): the website's menu catalogue, news and
+  // event switch. Three access keys so F&B can own the menu, marketing the news
+  // and whoever runs Event the "tampil di website" switch.
+  { key: 'homepage', label: 'Homepage', desc: 'Menu, berita & event website', icon: 'i-lucide-globe', group: 'Marketing & Event', access: ['menu', 'news', 'homepage'] },
   { key: 'marketing', label: 'Marketing', desc: 'CRM dan event', icon: 'i-lucide-megaphone', group: 'Marketing & Event', access: ['marketing'] },
   { key: 'finance', label: 'Finance', desc: 'Omset, kas kecil, brankas', icon: 'i-lucide-wallet', group: 'Bisnis & Target', access: ['kompas', 'finance', 'brankas'] },
   { key: 'bd', label: 'BD OS', desc: 'Bizdev, project & purchasing', icon: 'i-lucide-briefcase', group: 'Bisnis & Target', access: ['bd'] },
