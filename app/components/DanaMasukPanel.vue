@@ -9,6 +9,8 @@
     bolehHapus       — delete one money record, System Admin alone
                        (old CAN.deleteDp, row `financeDelete`).
     bolehHapusDemo   — delete the built-in demo rows (admin; same gate).
+                       Ignored for a caller without reservasi|service_excellent:
+                       the API door for cashier/finance has no DELETE (G-14).
     sumberAwal       — which source tab opens first (default 'reservasi').
 
   No emits: the panel toasts and audits by itself.
@@ -57,6 +59,16 @@ const { bolehVerifikasi, bolehHapus, bolehHapusDemo, bolehKwitansiLangsung } = p
 const me = useMe()
 const toast = useToast()
 const namaSaya = computed(() => me.value?.name ?? '')
+
+/**
+ * G-14: a cashier/finance holder without reservasi|service_excellent reaches this
+ * panel through the API's narrow Dana Masuk door (laksamana-api
+ * docs/api/reservasi.md): DP and transfer fields only, no DELETE. Deleting the
+ * demo rows is a reservation DELETE, so the button would only ever answer 403 —
+ * it is hidden instead, whatever the host page passes.
+ */
+const lewatPintuDanaMasuk = computed(() => !hasAccess(me.value, ['reservasi', 'service_excellent']))
+const bolehHapusDemoEfektif = computed(() => bolehHapusDemo && !lewatPintuDanaMasuk.value)
 
 // --- filters -----------------------------------------------------------------
 // Default: TODAY on the booking date. "Hari Ini" means reservations scheduled
@@ -118,7 +130,10 @@ const { data: semua, refresh, error: galatMuat, status } = useAsyncData(
 
 const { data: dpMethods } = useSection<string[]>('dpMethods')
 
-/** 403 module_not_granted (G-14): the caller's account has no reservasi module. */
+/**
+ * 403 module_not_granted: the account holds none of reservasi, service_excellent,
+ * cashier, finance — the four Modules the API opens Dana Masuk to (G-14).
+ */
 const tanpaAkses = computed(() => apiErrorCode(galatMuat.value) === 'module_not_granted')
 
 const tx = computed(() => txSemua(semua.value ?? []))
@@ -736,7 +751,7 @@ function hapusDp(x: TxDanaMasuk) {
 // --- Hapus Data Demo (admin) -----------------------------------------------------------
 
 async function hapusDemo() {
-  if (!props.bolehHapusDemo) return
+  if (!bolehHapusDemoEfektif.value) return
   if (!demo.value.length) {
     toast.add({ title: 'Tidak ada data demo yang tersisa' })
     return
@@ -1022,7 +1037,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           />{{ pindai.sudah }} / {{ pindai.total }} bukti dibaca…
         </p>
         <UButton
-          v-if="demo.length && bolehHapusDemo"
+          v-if="demo.length && bolehHapusDemoEfektif"
           :label="`Hapus data demo (${demo.length})`"
           icon="i-lucide-trash-2"
           color="error"
@@ -1057,8 +1072,8 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           name="i-lucide-lock"
           class="mt-0.5 size-4 shrink-0 text-warning"
         />
-        <span><b>Belum punya akses ke Data Reservasi · G-14.</b>
-          Akun ini tidak memegang modul reservasi. Minta aksesnya, atau buka halaman ini dari modul Reservasi.</span>
+        <span><b>Belum punya akses ke Dana Masuk.</b>
+          Halaman ini terbuka untuk pemegang modul Reservasi, Cashier, atau Finance, dan akun ini tidak memegang satu pun. Minta aksesnya ke Admin Sistem.</span>
       </p>
       <p
         v-else-if="galatMuat"
@@ -1151,7 +1166,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
         Ada <b>{{ angka(demo.length) }} reservasi contoh/demo</b> bawaan sistem yang ikut terhitung di sini
         ({{ demo.slice(0, 3).map(r => r.name).join(', ') }}{{ demo.length > 3 ? ', dll' : '' }}).
         Angka dana masuk belum bersih sampai data ini dihapus.
-        {{ bolehHapusDemo ? 'Tekan “Hapus data demo” di atas.' : 'Minta Admin Sistem menghapusnya.' }}
+        {{ bolehHapusDemoEfektif ? 'Tekan “Hapus data demo” di atas.' : 'Minta Admin Sistem menghapusnya.' }}
       </p>
 
       <p
@@ -1522,8 +1537,8 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
         v-else-if="dpev.tanpaAkses"
         class="rounded-lg border border-default p-3 text-sm"
       >
-        <b>Belum punya akses · G-15.</b>
-        Tab ini dibaca dari modul Marketing, dan akun ini tidak memegangnya. DP reservasi di tab sebelah tetap bisa dipakai.
+        <b>Belum punya akses.</b>
+        Tab ini terbuka untuk pemegang modul Marketing, Reservasi, Cashier, atau Finance, dan akun ini tidak memegang satu pun. DP reservasi di tab sebelah tetap bisa dipakai.
       </div>
       <div
         v-else-if="dpev.galat"

@@ -24,8 +24,8 @@ Status: ⬜ belum diajukan · 📨 issue dibuat (tulis nomornya) · ✅ ada di v
 | G-11 | 📨 | [laksamana-api#186](https://github.com/dwipapap/laksamana-api/issues/186) |
 | G-12 | 📨 | [laksamana-api#188](https://github.com/dwipapap/laksamana-api/issues/188) |
 | G-13 | 📨 | [laksamana-api#187](https://github.com/dwipapap/laksamana-api/issues/187) |
-| G-14 | 📨 | [laksamana-api#189](https://github.com/dwipapap/laksamana-api/issues/189) |
-| G-15 | ⬜ | — |
+| G-14 | ✅ | [laksamana-api#189](https://github.com/dwipapap/laksamana-api/issues/189) → [PR #193](https://github.com/dwipapap/laksamana-api/pull/193) |
+| G-15 | ✅ | tanpa issue → [laksamana-api PR #193](https://github.com/dwipapap/laksamana-api/pull/193) |
 
 ---
 
@@ -125,9 +125,14 @@ gerbang modul untuk endpoint DP saja (`GET /reservations`, `PATCH /reservations/
 `GET/PUT /files/{key}`). Yang kedua lebih sempit dan lebih sesuai perilakunya: Master Data, Audit, dan
 Input tetap tertutup untuk mereka, persis seperti keadaan lama.
 
-**Sampai salah satu ada:** komponen `DanaMasukPanel` menampilkan 403 apa adanya dengan teks
-"Belum punya akses ke Data Reservasi" beserta ID gap **G-14**, dan modul cashier/finance menampilkan
-bagian itu sebagai "Segera" (`text-dimmed`) — bukan halaman kosong.
+**✅ Selesai (laksamana-api PR #193, 2026-09-30) — jalan yang kedua.** Endpoint yang dipakai Dana Masuk
+(`GET /reservations`, `GET`/`PATCH /reservations/{id}`, `GET /master/{section}`, `POST /audit`,
+`GET /files/{key}`) terbuka juga untuk `cashier|finance`. Untuk yang tidak memegang `reservasi` maupun
+`service_excellent`, API mempersempitnya: PATCH hanya field DP (`dps`, `dp*`) dan transfer (`tf*`) plus
+`status` Pending → Confirmed (selain itu 403 `forbidden` + `details.fields`); master hanya `dpMethods`;
+tanpa DELETE, tanpa Input, Master Data, maupun Audit Log. Karena itu `DanaMasukPanel` menyembunyikan
+**Hapus Data Demo** untuk mereka, apa pun yang dikirim halaman induknya. Kontrak:
+`laksamana-api/docs/api/reservasi.md` ("Dana Masuk door").
 
 ### G-15 — marketing: tab DP Event untuk pemegang `reservasi`/`cashier`/`finance` tanpa modul `marketing`
 Tab "DP Event (Marketing)" di Dana Masuk dibaca Office lama lewat `GET marketing-api-mysql/api.php?action=dpMasuk`
@@ -140,5 +145,5 @@ marketing. v1 `GET /api/v1/marketing/dp` digate `module:marketing`
 **Usul:** longgarkan gate untuk `GET /marketing/dp` saja (read-only, tanpa CRM/pipeline — alasan endpoint
 sempit ini lahir), atau sertakan modul `marketing` pada pemegang `cashier`/`finance`.
 
-**Sampai salah satu ada:** tab DP Event di `DanaMasukPanel` menampilkan "Belum punya akses · G-15",
-DP reservasi di tab sebelah tetap bisa dipakai.
+**✅ Selesai (laksamana-api PR #193, 2026-09-30) — jalan yang pertama.** `GET /marketing/dp` terbuka untuk
+`marketing|reservasi|cashier|finance`; endpoint Marketing lainnya tetap `marketing` saja.
