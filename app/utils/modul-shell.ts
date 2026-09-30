@@ -45,6 +45,12 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     layar: LAYAR_HOMEPAGE,
     peran: me => [me?.modules.includes('menu') && 'Menu', me?.modules.includes('news') && 'Berita'].filter(Boolean).join(' · '),
   },
+  radar: {
+    subjudul: 'Pusat Koordinasi',
+    layar: LAYAR_RADAR,
+    // The old footer: the Tim column, or "Kru" (deploy/radar render()).
+    peran: me => me?.keterangan || 'Kru',
+  },
   service_excellent: {
     subjudul: 'Service Excellent',
     layar: LAYAR_SERVICE_EXCELLENT,

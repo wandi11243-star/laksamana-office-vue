@@ -25,7 +25,7 @@ Status: ⬜ belum · 🟡 sedang dikerjakan · ✅ selesai · ⚠️ selesai den
 | event | [event.md](event.md) | ⚠️ selesai dengan celah | 28 (17 EMS, 2 tersembunyi + 11 publik ticketing) | 4 ❌ · 7 ⚠️ | 7 | event + ticketing; matriks izin tak tersimpan |
 | marketing | [marketing.md](marketing.md) | ⚠️ selesai dengan celah | 23 (3 tersembunyi) + detail event | 3 ❌ · 8 ⚠️ | 5 | 20.365 baris; CRM+Event+VIP+Design+PO |
 | analytics | [analytics.md](analytics.md) | ✅ selesai (ringkas) | 18 | 0 ❌ · 3 ⚠️ | 0 | inventaris ringkas (belum ada di Vue); KOREKSI: pakai backend+CK Kompas |
-| radar | [radar.md](radar.md) | ✅ selesai (ringkas) | 6 (5 rail + 1 detail) | 0 ❌ · 2 ⚠️ | 0 | inventaris ringkas; read-only Marketing/Event/Reservasi/BD |
+| radar | [radar.md](radar.md) | ✅ selesai (ringkas) | 6 (5 rail + 1 detail) | 0 ❌ · 2 ⚠️ | 0 | dibangun di Vue 2026-09-30 lewat `/radar/*` API; read-only |
 | help | [help.md](help.md) | ✅ selesai (ringkas) | 3 jenis (beranda + 25 bab + cari) | 0 | 0 | inventaris ringkas (statis, tanpa backend) |
 | investor | [investor.md](investor.md) | ✅ selesai (ringkas) | 6 (1 masuk + 5 tab) | 0 ❌ · 1 ⚠️ | 0 | KOREKSI: pakai backend Kompas+Account |
 

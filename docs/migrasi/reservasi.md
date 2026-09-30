@@ -472,7 +472,8 @@ HTTP 200 + `APP_LAWAS` (klien terlalu tua) + `conflict:true` (`docs/modules/rese
   tolak yang sama dengan kasir. **Koreksi build 2026-09-29:** di Vue tidak ada iframe (U5/T-12),
   jadi permintaannya berubah bentuk: `DanaMasukPanel` memanggil `/reservasi/reservations` dari
   halaman Cashier/Kas, sedangkan kontrak itu digate `module:reservasi|service_excellent`
-  (`laksamana-api/app/Modules/Reservasi/routes/v1.php:9`) → **G-14**.
+  (`laksamana-api/app/Modules/Reservasi/routes/v1.php:9`) → **G-14** (✅ laksamana-api PR #193: pintu
+  sempit untuk `cashier|finance` — field DP/transfer saja, tanpa DELETE).
 - **Reservasi → Finance (kwitansi):** `mintaKwitansi()` memanggil `invFetch("invMinta"|"invPutus"|
   …)` — Finance yang menerbitkan (`:7048-7253`); kwitansi ditahan sampai DP terverifikasi.
 - **VIP & DP Event → Dana Masuk:** Marketing (Reservasi VIP) dan Event menyerahkan DP ke modul
@@ -621,7 +622,7 @@ HTTP 200 + `APP_LAWAS` (klien terlalu tua) + `conflict:true` (`docs/modules/rese
 |---|---|---|---|
 | Denah + venue | `components/DenahPeta.vue`, `DenahEditor.vue`, `utils/venue-layouts.ts` | props `layout`, `reservasi`, `tanggal`, `mode`, `master` | marketing (VIP), analytics, konten |
 | Kunci meja | `utils/kunci-meja.ts` | `statusMeja`, `occupiedMap`, `conflictCheck`, `dineEstOf`, `clashLeadOf` | selalu beri `dineEstOf(master)`/`clashLeadOf(master)`, jangan default diam-diam |
-| DanaMasukPanel | `components/DanaMasukPanel.vue` | props `bolehVerifikasi`, `bolehHapus`, `bolehHapusDemo`, `bolehKwitansiLangsung`, `sumberAwal` | cashier & finance/kas pasang ini (bukan iframe); 403 → pesan G-14 |
+| DanaMasukPanel | `components/DanaMasukPanel.vue` | props `bolehVerifikasi`, `bolehHapus`, `bolehHapusDemo`, `bolehKwitansiLangsung`, `sumberAwal` | cashier & finance/kas pasang ini (bukan iframe); pemegang cashier/finance tanpa `reservasi` lewat pintu sempit API (G-14 ✅): Hapus Data Demo disembunyikan |
 | Kwitansi | `utils/kwitansi.ts`, `components/KwitansiSlot.vue` | `kwiTertahan(+Teks)`, `kwitansiData/Html`, `tulisLembar` | marketing pakai untuk VIP; terbit-langsung manajer menunggu sesi finance |
 | OCR | `utils/ocr.ts`, `utils/ocr-transfer.ts` | `ocrBaca`, `terapkanOcr`, `saranOcr`, `parseTeksTransfer` | lazy (chunk terpisah); hasil hanya saran |
 | DP | `utils/dp-reservasi.ts` | `dpsOf`, `dpTotal`, `tx*`, `ringkasDanaMasuk`, `saringDanaMasuk`, `rekeningDp` | satu sumber rumus uang |
@@ -642,7 +643,7 @@ Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di 
 |---|---|---|---|---|---|
 | dashboard | reservasi | `pages/reservasi/dashboard.vue` | ✅ | `GET /reservasi/reservations`, `GET/PATCH/POST/DELETE /reservations`, `GET/POST /audit`, `GET/PUT/DELETE /master/{dineEstMin,clashLeadMin,waitlist,waTargets,layouts,layoutOverrides,layoutOverrides2,layoutTanggal}` | tipe tamu G-07 · drag ganti bulan tidak dibangun |
 | input | reservasi | `pages/reservasi/input.vue` | ✅ | `GET/POST/PATCH/DELETE /reservations`, `GET /reservations/{id}`, `GET /files/*` | autofill profil tamu → G-07 |
-| finance | reservasi | `pages/reservasi/finance.vue` + `components/DanaMasukPanel.vue` + `components/KwitansiSlot.vue` | ✅ | `GET /reservations`, `GET/PATCH/DELETE /reservations/{id}`, `GET /files/{key}`, `GET /marketing/dp`, `POST /finance/invoices/requests`, `GET /finance/invoices/status`, `GET /finance/invoices/file/{resId}`, `POST /audit` | paging klien (G-08) · tipe tamu G-07 · DP Event 403 → G-15 · terbit-langsung manajer ditunda (sesi finance) |
+| finance | reservasi | `pages/reservasi/finance.vue` + `components/DanaMasukPanel.vue` + `components/KwitansiSlot.vue` | ✅ | `GET /reservations`, `GET/PATCH/DELETE /reservations/{id}`, `GET /files/{key}`, `GET /marketing/dp`, `POST /finance/invoices/requests`, `GET /finance/invoices/status`, `GET /finance/invoices/file/{resId}`, `POST /audit` | paging klien (G-08) · tipe tamu G-07 · DP Event dibuka untuk reservasi/cashier/finance (G-15 ✅) · terbit-langsung manajer ditunda (sesi finance) |
 | riwayat | reservasi | `pages/reservasi/riwayat.vue` + `utils/riwayat.ts` | ✅ | `GET /reservations?from&to` (+ tanpa batas untuk mode Semua) | paging + ekspor di browser (G-08) · profil dari data termuat (G-07) · bawaan Bulan ini, bukan Semua |
 | analitik | reservasi | `pages/reservasi/analitik.vue` + `utils/analitik.ts` | ✅ | `GET /reservations` (tanpa batas — keseluruhan butuh semua) | grafik div tanpa lib (K-05 CSV) · ringkasan butuh seluruh tabel (G-08) |
 | master | reservasi | `pages/reservasi/master.vue` | ✅ | `GET/PUT /master/{dineEstMin,categories,dpMethods,infoSources,waTargets,users,perms}` + `GET /reservations` + `GET /master` (backup) | Restore/Hapus Semua → K-11 · waTargets tampil saja (seperti lama) |
@@ -850,7 +851,7 @@ Semua field D.2 ada, dengan pesan validasinya apa adanya. Yang dibangun di layar
 **Kwitansi** (`feat(reservasi): kwitansi`) — `app/utils/kwitansi.ts` (milik reservasi, dipakai Marketing nanti) + `app/components/KwitansiSlot.vue` + `app/composables/useFinance.ts` (3 call invoice; milik modul finance, reservasi hanya meminjam). Port `kwitansiData()` + `kwitansi-sheet.js` (`kwitansiHtml()`, `tulisLembar()` — jendela dibuka pemanggil sinkron, jeda 400ms; gaya cetak lembar dipertahankan supaya tak bisa dibedakan dari sebelumnya) + `kwiTertahan()`/`kwiTertahanTeks()` (F10: SEMUA transfer, rejected ikut menahan) + `kwitansiNo()` + `invRingkas()`. Alur: request → `POST /finance/invoices/requests` (`resId`, `jenis: 'KWITANSI'`); status → `GET /finance/invoices/status?res=` (tiga keadaan undefined/null/isi — gagal jaringan bukan null); cetak → `GET /finance/invoices/file/{resId}` (404 `not_issued` → pesan "belum terbit", bukan lembar tanpa tanda tangan). Tombol di detail reservasi (slot DP + kaki modal `:7879`,`:7913`), BUKAN tabel Dana Masuk — di Vue dipasang di sheet Cek/Edit (`KwitansiSlot`, prop `bolehKwitansiLangsung` dari matriks role). Logo base64 lama tidak ikut di-port (inline besar; lembar tetap tercetak tanpanya). DITUNDA ke sesi finance: penerbitan langsung manager/admin (old invMinta+invPutus) — memanggil endpoint decision + pilihan penanda milik modul finance; dari sini manajer tanpa modul finance mencetak lembar tanpa tanda tangan (perilaku jatuh yang sama dengan kode lama).
 
 **DanaMasukPanel** (`feat(reservasi): DanaMasukPanel`) — `app/components/DanaMasukPanel.vue` (2200+ baris) + `app/composables/useMarketing.ts` (`GET /marketing/dp`). Props: `bolehVerifikasi`, `bolehHapus` (`financeDelete`, admin), `bolehHapusDemo` (admin), `sumberAwal`. Tanpa emits; tanpa asumsi halaman. Memuat datanya sendiri (jendela = filter, `listReservations`; `dpMethods`; DP Event manual dengan cache kunci + galat).
-- Saklar sumber di kedua tab + catatan "tidak bisa dijumlahkan". DP Event read-only: ringkasan (total, event unik, 2 jenis terbesar), pita tanpaTanggal & vipTerkunci ("jangan dihitung dua kali"), catatan luar-rentang + tombol "Tampilkan", saring tanggal acara + cari, tabel `lg+` / daftar HP. `receiptUrl` warisan (`?action=receipt&key=`) tidak dibuka dari sini — hanya tautan http yang keluar. 403 → "Belum punya akses · G-15" (baru, ⬜).
+- Saklar sumber di kedua tab + catatan "tidak bisa dijumlahkan". DP Event read-only: ringkasan (total, event unik, 2 jenis terbesar), pita tanpaTanggal & vipTerkunci ("jangan dihitung dua kali"), catatan luar-rentang + tombol "Tampilkan", saring tanggal acara + cari, tabel `lg+` / daftar HP. `receiptUrl` warisan (`?action=receipt&key=`) tidak dibuka dari sini — hanya tautan http yang keluar. 403 (hanya bila akun tidak memegang marketing/reservasi/cashier/finance) → "Belum punya akses" (G-15 ✅).
 - DP Reservasi: 6 baris ringkas (AppList, bukan kartu) + rekap per bank, pita demo & tgl-cadangan, filter basis/Dari/Sampai/Bank/Saring/Cari/pills (bawaan HARI INI basis reservasi), 3 tab verifikasi, tabel `lg+` / daftar HP (ketuk → Cek/Edit), paging browser (G-08), Export CSV browser (basis ikut di nama berkas).
 - Aksi tulis — SETIAP tulis memakai versi YANG DILIHAT orangnya (koreksi build 2026-09-30; Office lama menolak simpanan basi lewat penjaga `baseVer`). Tiap sheet memotret barisnya saat dibuka (`dasarDari`: salinan + `updatedAt` tampilan); `dps` dibangun dari salinan itu, bukan objek daftar; kirim HANYA field DP (`tulisTransfer`: `dps` utuh + `cerminDp` + `cerminTfUtama` bila cicilan-0, + `status: Confirmed` hanya bila potret masih Pending saat Tambah). Perubahan di antara → 409 → `tanganiKonflik` → daftar muat ulang DAN sheet isi-ulang dari baris terbaru (pola `muatUlangReservasi` input.vue). Versi per aksi:
   - Cek/Edit: versi potret sheet (`tfDasar`, ditangkap `bukaTfEdit`); konflik → `muatUlangTf` (daftar + buka-ulang sheet dari baris terbaru).
@@ -867,7 +868,8 @@ Semua field D.2 ada, dengan pesan validasinya apa adanya. Yang dibangun di layar
   3. Kembali ke tab A, tekan Simpan/Verifikasi → harus 409 + toast "Data sudah diubah orang lain", daftar + sheet termuat-ulang menampilkan nominal/bukti baru dari tab B.
   4. Periksa ulang, tekan lagi → tersimpan; perubahan tab B tetap ada (tidak tertimpa).
 - Scan: manual per baris (+audit rinci + buka edit), borongan "Ulangi Scan (n)" + autoscan 60ms saat dibuka (yang sudah discan tidak diulang, gagal tidak dicoba lagi sesi itu, satu audit ringkas). Penampil bukti di sheet (img/PDF inline, "memuat" dulu).
-- 403 `module_not_granted` → "Belum punya akses ke Data Reservasi · G-14", bukan error mentah.
+- 403 `module_not_granted` (akun tanpa reservasi/service_excellent/cashier/finance) → "Belum punya akses ke Dana Masuk", bukan error mentah (G-14 ✅).
+- Pemegang cashier/finance tanpa `reservasi`: tombol Hapus Data Demo disembunyikan (`lewatPintuDanaMasuk`), karena pintu API untuk mereka tanpa DELETE.
 - Keterbatasan jendela (catat, bukan G baru — G-08): basis 'masuk' menemukan transfer lewat tanggal reservasinya; DP hari ini untuk reservasi bulan depan butuh rentang lebar/"Semua" (tanpa batas = seluruh tabel).
 
 **OCR bukti lazy** (`feat(reservasi): OCR bukti lazy (tesseract.js)`) — `app/utils/ocr.ts`: worker tunggal `createWorker('eng')`, `siapkanGambarOcr()` (skala ≤1700px, grayscale + gamma 1.6, tanpa contrast stretch), `ocrBaca()`, `terapkanOcr()` (saran + `tfOcrAt` + `tfOcrText` ≤1200 char), `saranOcr()` per kolom (hanya bila ada isi & berbeda; tanggal = stempel Ref tidak digambar dua kali), `saranTampil()`. `tesseract.js@5.1.1` (sama dengan CDN lama) via dynamic import — tidak di bundle awal. Model bahasa tetap dari jaringan saat worker dibuat, seperti dulu: scan butuh internet.
@@ -917,7 +919,7 @@ Bahasa user. Setiap aksi tulis diuji juga **silang**: ubah di Vue → terlihat d
 12. Master: tambah/hapus dropdown sebagai manager; ubah matriks sebagai admin; viewer tetap Lihat; backup JSON terunduh.
 13. Audit: cari nama → jejak ketemu; klik aksi ber-`res` → detail reservasi terbuka.
 14. Peran: host tidak melihat Hapus DP / Master / Audit; viewer hanya Lihat (tombol ubah disembunyikan, bukan ditolak saat ditekan).
-15. G-14/G-15: pemegang cashier/finance tanpa `reservasi`, dan tanpa `marketing`, melihat pesan "Belum punya akses · G-14/G-15", bukan error mentah.
+15. G-14/G-15 (✅ API PR #193): pemegang cashier/finance tanpa `reservasi` dan tanpa `marketing` bisa memakai Dana Masuk dan tab DP Event — verifikasi, tolak, tambah DP, scan — tetapi tidak melihat Hapus Data Demo; akun tanpa keempat modul melihat "Belum punya akses", bukan error mentah.
 
 ### Panel Service Excellent
 16. Minta review ke tamu datang → WA terkirim + catatan `diminta`; matikan saklar WA → tombol hilang (bukan abu-abu).
@@ -929,7 +931,7 @@ Bahasa user. Setiap aksi tulis diuji juga **silang**: ubah di Vue → terlihat d
 
 ## L. Definition of Done (PLAN.md §5)
 
-- [x] Setiap layar bagian C punya halaman: 7 Reservasi + 5 SE ✅. "Segera" ber-ID: Restore/Hapus Semua (K-11), DP Event 403 (G-15). `hariH` alias + `review` hantu tidak dibangun (tercatat di C). ⚠️ Terbit-langsung kwitansi manajer jatuh ke lembar tanpa tanda tangan (menunggu sesi finance, tercatat di J).
+- [x] Setiap layar bagian C punya halaman: 7 Reservasi + 5 SE ✅. "Segera" ber-ID: Restore/Hapus Semua (K-11), (G-15 sudah ✅ di API). `hariH` alias + `review` hantu tidak dibangun (tercatat di C). ⚠️ Terbit-langsung kwitansi manajer jatuh ke lembar tanpa tanda tangan (menunggu sesi finance, tercatat di J).
 - [x] Setiap baris tabel E dipakai lewat `useReservasi.ts` / `useServiceExcellent.ts`; tanpa URL legacy ✅ (grep `api-mysql` di `app/` → 0).
 - [x] Aturan F1–F24 diterapkan: F1–F5 fondasi; F5–F8 kunci meja; F10 kwitansi; F11 pisah DP; F12–F18 SE; F19 matriks + ekstra; F20 darurat admin; F22 audit server; F23 jejak denah; F24 default master. F9 tutup-otomatis mati (tidak dibawa, sesuai sumber). F21 PIN = modul auth, bukan layar ini.
 - [x] Rumus bersama diimpor dari `app/utils/`, bukan disalin ✅ (tabel Logika bersama di atas).

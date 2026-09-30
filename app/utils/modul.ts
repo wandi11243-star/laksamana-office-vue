@@ -39,6 +39,9 @@ export const MODUL: Modul[] = [
       defineAsyncComponent(() => import('~/widgets/reservasi/DpPerluVerifikasi.vue')),
     ] },
   { key: 'service_excellent', label: 'Service Excellent', desc: 'Review, feedback, reward', icon: 'i-lucide-star', group: 'Operasional', access: ['service_excellent'] },
+  // Read-only board over Marketing, Event, Reservasi and BD. Built in for every
+  // account since 27 Sep 2026 (laksamana-api OfficeAccess::builtinModules).
+  { key: 'radar', label: 'Radar', desc: 'Pusat koordinasi', icon: 'i-lucide-radar', group: 'Operasional', access: ['radar'] },
   { key: 'cashier', label: 'Cashier', desc: 'Setoran & dana masuk', icon: 'i-lucide-banknote', group: 'Operasional', access: ['cashier'] },
   { key: 'konten', label: 'Konten', desc: 'Content operations', icon: 'i-lucide-pen-line', group: 'Marketing & Event', access: ['konten'] },
   { key: 'event', label: 'Event', desc: 'Event management', icon: 'i-lucide-mic-vocal', group: 'Marketing & Event', access: ['event'] },
