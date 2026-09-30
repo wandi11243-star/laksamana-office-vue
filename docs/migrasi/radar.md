@@ -1,13 +1,13 @@
 # Radar — inventaris migrasi
 
 Status: ✅ selesai (inventaris ringkas — lihat §4.14 & §6: hanya bagian A, B, C, H)
-Terakhir diperbarui: 2026-09-29
+Terakhir diperbarui: 2026-09-30
 
 ## Ringkasan
 - Jumlah layar: 6 (5 di rail + 1 halaman Detail internal; 0 tersembunyi) · Aksi backend lama: 0 tulis, 5 pembacaan lintas modul · Gap v1: 0 ❌ (2 ⚠️, lihat catatan)
 - Radar adalah **papan koordinasi lintas modul**: menyatukan agenda Marketing, Event dan Reservasi ke satu kalender + daftar, plus daftar Promo dari BD OS. Ia **hanya membaca** — `nav-foot` secara eksplisit berbunyi "Radar hanya membaca. Perubahan dilakukan di modul asalnya." (`deploy/radar/index.html:2524`).
 - Penggunanya kru operasional/floor & manajemen pemegang kunci `radar`. Risiko migrasi terbesar: **penyatuan tiga bentuk data berbeda** (Marketing `events[]`, Event `events[]`, Reservasi `reservations[]`) dan **konversi zona waktu** (Event menyimpan instant UTC berakhiran `Z`, Marketing menyimpan tanggal lokal polos) (`index.html:739-768`); salah geser = acara muncul di jam/hari yang keliru.
-- **Sejak 27 Sep 2026 `radar` modul bawaan SEMUA akun** (Office lama `modul_bawaan_untuk`, commit `c84d826`; di laksamana-api `OfficeAccess::builtinModules`, 2026-09-30). Pencabutan per orang (grant access=0) tetap berlaku. Yang bukan Head (kata utuh "Head" di Tim/Keterangan) dan bukan admin modul Radar **tidak melihat nominal** (harga/deal, DP, pelunasan, biaya) — dijaga di layarnya (`radarBolehUang`), bukan di server. Catatan untuk build: endpoint sumber (marketing/event/reservasi/bd) tetap digate modul masing-masing, jadi pemegang Radar tanpa modul itu akan kena 403 — perlu endpoint gabungan Radar (belum ada, terkait G-05).
+- **Sejak 27 Sep 2026 `radar` modul bawaan SEMUA akun** (Office lama `modul_bawaan_untuk`, commit `c84d826`; di laksamana-api `OfficeAccess::builtinModules`, 2026-09-30). Pencabutan per orang (grant access=0) tetap berlaku. Yang bukan Head (kata utuh "Head" di Tim/Keterangan) dan bukan admin modul Radar **tidak melihat nominal** (harga/deal, DP, pelunasan, biaya) — di Office lama dijaga di layar (`radarBolehUang`); **di laksamana-api dijaga di SERVER** (kunci uang tidak pernah dikirim ke yang bukan Head). Endpoint gabungan Radar sudah ada: `GET /api/v1/radar/board|agenda/{sumber}/{id}|promos|files/{key}` (`module:radar`, `laksamana-api/docs/api/radar.md`), jadi pemegang Radar tidak butuh modul sumbernya.
 - Radar tidak punya DB/backend sendiri, tetapi tetap **wajib** terdaftar di Kelola Akses (kartu `key:'radar'`, `deploy/index.html:1159-1165`). Tidak ada gap kontrak v1 karena setiap sumber sudah punya endpoint state/reservations sendiri.
 
 ## A. Sumber
@@ -53,12 +53,13 @@ Fungsi render: `vRadar` (`:1309`), `vKalender` (`:1468`), `vDetailEvent` (`:1549
 
 ## H. Catatan untuk implementasi Vue
 - Halaman: `app/pages/radar/index.vue` (Pusat Koordinasi) + `radar/kalender.vue`, `radar/agenda.vue`, `radar/reservasi.vue`, `radar/promo.vue`, `radar/detail/[sumber]/[id].vue`. Semua `definePageMeta({ access: ['radar'] })`.
-- Composable `useRadar.ts` (fungsi → endpoint):
-  - `getMarketingState()`, `getEventState()`, `getBdState()` → `GET /api/v1/{marketing|event|bd}/state`.
-  - `getReservations({from,to})` → `GET /api/v1/reservasi/reservations`; ⚠️ bentuk per-record, bukan blob — penyatuan dilakukan client-side seperti lama.
-  - `getMarketingFile(key)` → `GET /api/v1/marketing/files/{key}` untuk lampiran gambar.
+- Composable `useRadar.ts` (fungsi → endpoint) — **dibangun 2026-09-30**:
+  - `useRadarBoard(key, from, to)` → `GET /api/v1/radar/board?from&to` (agenda Marketing+VIP+Event yang pasti jalan, reservasi semua status, format F&B, status per sumber, `bolehUang`).
+  - `getRadarDetail(sumber, id)` → `GET /api/v1/radar/agenda/{mkt|evt|vip}/{id}` (panel detail & Detail Lengkap).
+  - `useRadarPromos()` → `GET /api/v1/radar/promos` (running/upcoming + jumlah arsip).
+  - `getRadarFileUrl(key)` → `GET /api/v1/radar/files/{key}` (hanya lampiran event Marketing yang tampil di papan).
   - **Tidak ada tulis** — jangan sediakan satu pun mutasi di modul ini.
-- Penyatuan wajib di satu tempat (satu util, mis. `useRadarAgenda`): pemetaan Marketing `events[]→{tgl,nama,jenis,pax,status}`, Event `events[]→{start_datetime,title,category,venue,capacity}`, Reservasi `reservations[]→{date,name,time,pax,table}` (`index.html:739-768`); nilai rupiah Marketing **sengaja tidak dihitung** (`:780-788`).
+- ~~Penyatuan di klien~~ — sekarang di server (`RadarRules::agenda`). Aturan aslinya untuk rujukan: penyatuan wajib di satu tempat: pemetaan Marketing `events[]→{tgl,nama,jenis,pax,status}`, Event `events[]→{start_datetime,title,category,venue,capacity}`, Reservasi `reservations[]→{date,name,time,pax,table}` (`index.html:739-768`); nilai rupiah Marketing **sengaja tidak dihitung** (`:780-788`).
 - Konversi waktu: ada penanda zona (`Z`/`±hh:mm`) → geser ke WIB; tanpa zona → pakai apa adanya (`pecahWaktu()`, `index.html:756-768`).
 - Pemuatan & kegagalan (harus dibawa): sumber yang gagal ditampilkan sebagai pita merah menyebut namanya, bukan disembunyikan (`index.html:718-734`, `:2549-2552`); auto-refresh senyap tiap **5 menit** (`SEGAR_MS=5*60*1000`, `:2561`), ditunda saat panel detail terbuka (`segarSenyap()`, `:2562-2566`), posisi gulir dikembalikan sesudah render (`:2566`); tombol "Segarkan" & jam dinding sudah dibuang (`:533`).
 - Pakai "Hari ini" memanggil pintasan yang membuka Reservasi mode Harian tanggal hari ini (`APP.resHariIni`, `:2612`); ada juga WA harian `waResHarian` yang membuka `https://wa.me/?text=…` (`:2666-2680`).
@@ -73,10 +74,16 @@ Fungsi render: `vRadar` (`:1309`), `vKalender` (`:1468`), `vDetailEvent` (`:1549
 
 ## Konsolidasi untuk README & berkas bersama
 Baris README:
-`| radar | [radar.md](radar.md) | ✅ selesai (ringkas) | 6 (5 rail + 1 detail) | 0 ❌ · 2 ⚠️ | 0 | inventaris ringkas (belum ada di Vue); read-only lintas Marketing/Event/Reservasi/BD |`
+`| radar | [radar.md](radar.md) | ✅ selesai (ringkas) | 6 (5 rail + 1 detail) | 0 ❌ · 2 ⚠️ | 0 | dibangun di Vue 2026-09-30 (visual belum dicek dengan data asli); read-only lintas Marketing/Event/Reservasi/BD |`
 
 Baris `_lintas-modul.md` (tambahkan/dipertahankan; baris lama `_lintas-modul.md:37` masih benar):
 - **Radar ← Marketing, Event, Reservasi, BD** (VERIFIED, read-only): `getAll` keempat modul (`radar/index.html:598-613,722`) → v1 `GET /marketing/state`, `/event/state`, `/reservasi/reservations`, `/bd/state`; lampiran event lewat `GET /marketing/files/{key}` (`:2026-2037`). BD dipakai **hanya** untuk tab Promo (BD tidak punya acara bertanggal, `:603-609`). Auto-refresh 5 menit (`:2561,2687`). v1 ⚠️: Reservasi tidak punya blob `getAll` setara (per-record), jadi penyatuan tetap client-side.
 - **Radar ↔ DW (berkas kembar):** `satukan()`/penjumlahan pax kembar dengan Kalender Tamu di DW (sudah tercatat di `_lintas-modul.md:55`).
 
 Pertanyaan terbuka: **tidak ada** (kedua ⚠️ bersifat bentuk endpoint yang sudah dipahami, bukan keputusan yang menunggu owner).
+
+## J. Progres build (2026-09-30)
+- API: `app/Modules/Radar` di laksamana-api (RadarRules murni + RadarBoard + RadarController), Unit test `RadarRulesTest`; Feature test `tests/Feature/Radar` **belum dijalankan** (butuh dump lokal).
+- Vue: `useRadar.ts`, `utils/radar.ts`, `utils/layar/radar.ts`, komponen `components/radar/*`, enam halaman di `pages/radar/`. Kartu Radar di `utils/modul.ts` (grup Operasional) + shell di `modul-shell.ts`.
+- Dicek di browser headless dengan API tiruan (390px & 1366px): semua halaman merender tanpa galat. **Belum dicek dengan data dev sungguhan.**
+- Beda sengaja dari Office lama: Kalender Terpadu tetap kisi 7 kolom yang bisa digulir mendatar di HP (bukan AppList) — bentuk bulanannya yang dicari orang; Tabel di Daftar Event jatuh ke kartu di bawah `lg`.

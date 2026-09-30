@@ -58,7 +58,7 @@ kontraknya saja yang belum menyebut kunci itu (masuk G-12).
 Kalender Tamu DW menjumlahkan pax Marketing + Event + Reservasi (`laksamana-office/deploy/dw/index.html:971-979`,
 fungsi `satukan()` kembar dengan `deploy/radar/`). Tiga endpoint sumbernya digate modul masing-masing,
 padahal pemegang `dw` belum tentu punya ketiganya. **Usul:** `GET /api/v1/dw/guests?from&to` →
-`[{tgl, sumber, pax}]`, dipakai juga oleh Radar.
+`[{tgl, sumber, pax}]`. (Radar TIDAK lagi menunggu ini: ia punya `GET /api/v1/radar/board` sendiri sejak 2026-09-30.)
 
 ### G-06 — finance: saldo wallet untuk Kas Kecil
 Planning Pembayaran menghitung saldo wallet (`laksamana-office/deploy/finance/kas/index.html:7057-7070`), tetapi
