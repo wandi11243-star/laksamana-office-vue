@@ -123,6 +123,11 @@ const ALASAN: Record<string, { label: string, icon: string, color: Tone }> = {
 }
 
 function alasanMeta(p: PromoWeb) {
+  // With BD unreachable every BD row loses its `bd` payload, so `bd_hilang`
+  // there only means "cannot read it right now", not "deleted in BD".
+  if (bdGagal.value && p.sumber === 'bd' && !p.bd) {
+    return { label: 'BD OS tidak terhubung', icon: 'i-lucide-unplug', color: 'warning' as Tone }
+  }
   // A missing upload file is the one "not eligible" the API reports without a
   // reason (the file vanished from disk).
   const dasar = ALASAN[p.alasan ?? ''] ?? (p.sumber === 'unggah'
@@ -187,6 +192,9 @@ async function geser(p: PromoWeb, arah: -1 | 1) {
   sibukUrut.value = true
   try {
     await office.urutan(list.map((row, n) => ({ id: row.id!, urutan: (n + 1) * 10 })))
+    // PUT /urutan bumps every row's version, so the local copies would 409 on
+    // the next edit/delete. Reload and let the fresh list be the final order.
+    await refresh()
   }
   catch (e) {
     items.value = semula
