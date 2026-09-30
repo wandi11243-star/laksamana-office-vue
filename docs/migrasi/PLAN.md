@@ -63,7 +63,7 @@ Urutan mempertimbangkan ukuran, risiko, dan **siapa yang membangun komponen bers
 | 13 | marketing | 23 layar + detail event | K-05 (G-09) | `hpp-mesin.ts` | ⬜ |
 | 14 | analytics, radar, investor, help | modul yang belum ada di `utils/modul.ts` | — | — | 🟡 radar ✅ (visual belum dicek dengan data asli); analytics, investor, help ⬜ |
 | 15 | absensi (punch) | punch kamera wajah + GPS, daftar wajah (K-02). Paling akhir; face-api diizinkan untuk tugas ini | K-02 | — | ⬜ |
-| 16 | homepage (greenfield) | 4 layar: Ringkasan, Menu, Berita, Event — panel website (katalog menu, berita, saklar event tampil) | — | — | 🟡 Menu & Berita ✅; Event baru 2026-09-30 (visual belum dicek) |
+| 16 | homepage (greenfield) | 5 layar: Ringkasan, Menu, Berita, Event, Promo — panel website (katalog menu, berita, saklar event & slider promo) | — | — | 🟡 Menu & Berita ✅; Event baru 2026-09-30, Promo baru 2026-09-30 (visual belum dicek) |
 
 Catatan cakupan:
 - **Ticketing publik (toko & sesi Buyer) BUKAN bagian Office Vue.** Office hanya untuk User ber-Sesi

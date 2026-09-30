@@ -40,7 +40,7 @@ const poster = ref<Record<string, string>>({})
 async function muatPoster(e: EventWeb) {
   if (!e.poster || poster.value[e.id]) return
   try {
-    const url = await eventPosterUrl(e.poster)
+    const url = await officeGambarUrl(e.poster)
     if (url) poster.value[e.id] = url
   }
   catch { /* the thumbnail is optional; a failure just leaves the placeholder */ }

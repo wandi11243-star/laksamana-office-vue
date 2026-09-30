@@ -43,7 +43,7 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
   homepage: {
     subjudul: 'Homepage',
     layar: LAYAR_HOMEPAGE,
-    peran: me => [me?.modules.includes('menu') && 'Menu', me?.modules.includes('news') && 'Berita', me?.modules.includes('homepage') && 'Event'].filter(Boolean).join(' · '),
+    peran: me => [me?.modules.includes('menu') && 'Menu', me?.modules.includes('news') && 'Berita', me?.modules.includes('homepage') && 'Event & promo'].filter(Boolean).join(' · '),
   },
   radar: {
     subjudul: 'Pusat Koordinasi',
