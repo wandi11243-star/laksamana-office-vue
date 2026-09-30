@@ -61,7 +61,7 @@ Urutan mempertimbangkan ukuran, risiko, dan **siapa yang membangun komponen bers
 | 11 | stock | 5 panel, 26 layar | K-05 (ekspor CSV), K-06 (Apps Script), K-07 | — | ⬜ |
 | 12 | event | 17 layar staf | K-01 (G-13), K-08, K-09 (G-10) | — | ⬜ |
 | 13 | marketing | 23 layar + detail event | K-05 (G-09) | `hpp-mesin.ts` | ⬜ |
-| 14 | analytics, radar, investor, help | modul yang belum ada di `utils/modul.ts` | — | — | ⬜ |
+| 14 | analytics, radar, investor, help | modul yang belum ada di `utils/modul.ts` | — | — | 🟡 radar ✅ (visual belum dicek dengan data asli); analytics, investor, help ⬜ |
 | 15 | absensi (punch) | punch kamera wajah + GPS, daftar wajah (K-02). Paling akhir; face-api diizinkan untuk tugas ini | K-02 | — | ⬜ |
 
 Catatan cakupan:
