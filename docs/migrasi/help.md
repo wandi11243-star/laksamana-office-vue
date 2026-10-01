@@ -73,3 +73,40 @@ Baris `_lintas-modul.md` (tambahkan):
 - **Aset bersama:** Help memakai tema `deploy/assets/laksamana.css` tanpa blok `:root` sendiri (`help/index.html:29`; `CLAUDE.md:11124-11127`).
 
 Pertanyaan terbuka: **tidak ada** (modul statis; satu-satunya keputusan desain — panduan sebagai data terstruktur — sudah ditetapkan owner di `CLAUDE.md:11025-11033`).
+
+## J. Progres build
+
+Status: ✅ dibangun (2026-10-01) · **belum dicek visual** (lihat di bawah)
+
+### Layar yang dibangun
+| layar | file | catatan |
+|---|---|---|
+| Beranda + hasil cari | `app/pages/help/index.vue` | kartu bab digrup seperti portal lama; kartu tanpa berkas panduan ditandai **Sedang disusun**; hasil cari menyebut jumlah bagian dan menyorot kata yang dicari |
+| Artikel satu bab | `app/pages/help/[kunci].vue` | judul, "Dipakai oleh", daftar isi, bagian-bagian; kunci tak dikenal **dan** kunci yang tidak boleh dibaca sama-sama dipulangkan ke beranda dengan pesan sama (`app/middleware/help-bab.ts`) |
+| Renderer blok | `app/components/PanduanBlok.vue` + `PanduanTeks.vue` | `teks`·`langkah`·`daftar`·`tabel`·`catatan`·`tanya`·`gambar`, **tanpa `v-html`**; blok tak dikenal disebut di layar |
+| Registri bab | `app/utils/help/registry.ts` | `HELP_GRUP` + 25 `HELP_BAB`; kunci **menyalin** `MODUL[].access` di `app/utils/modul.ts` |
+| Pemuat + cari | `app/utils/help/muat.ts`, `cari.ts`, `app/composables/useHelp.ts` | impor malas per bab; **dua penjaga**: pemuat hanya menarik `babSaya`, penyisir hanya menyusuri `babSaya` |
+| Isi 25 bab | `app/utils/help/panduan/<kunci>.ts` | port apa adanya dari `panduan/*.js`; nama berkas = kunci di dalam berkas |
+| Daftar layar sidebar | `app/utils/layar/help.ts` | dibangun dari registri, bukan daftar ketiga |
+| Uji/penjaga | `tools/uji-help.mjs` (`npm run uji:help`) | registri ↔ `modul.ts`, kunci berkas, markup terlarang, jalur & berkas yatim gambar, lebar/ukuran gambar, `v-html` |
+| Gambar | `public/help/gambar/**` | 11 tangkapan layar disalin (1400px, <300 KB); slot kosong menyebut `public/help/gambar/<berkas>` |
+
+### Keputusan
+- **Grup baru `'Lainnya'`.** Kartu Help ditempatkan di grup `Lainnya` seperti launcher lama (`deploy/index.html:1412`) supaya kru menemukannya di tempat yang sama (U1). Grup ini untuk sementara hanya berisi Help Center; Howandi Life OS dibiarkan di `Bisnis & Target` seperti sebelumnya.
+- **Chrome sendiri.** Help masuk `app/utils/modul-shell.ts`: sidebar berisi bab digrup, kotak cari top bar menyala **langsung** dengan jeda **180 ms** (opsi baru `cari.realtime`), bagian **"Belum ada di Help"** untuk kunci yang dipegang tapi belum punya bab (opsi baru `navEkstra`), dan tombol kaki **"Keluar ke Office"** (opsi baru `kaki`) yang menuju `/` **tanpa** menghapus sesi — bukan `logout()`.
+- **Registri menyalin kunci, bukan menduplikasinya.** `periksaRegistryHelp()` dan `tools/uji-help.mjs` membandingkan kedua arah; arah yang paling berbahaya (modul baru di `modul.ts` tanpa bab) membuat uji merah.
+- **Dua penjaga pencarian** ada di satu tempat (`useHelp`): `siapkan()` mengimpor hanya bab dari `babSaya`, dan `cari()` menyisir hanya `babSaya`. Keduanya ditulis dari satu pintu `babBoleh`.
+- **Penekanan `*tebal*`** dijalankan sebagai elemen `<strong>` sungguhan setelah Vue meng-escape teks; tidak ada string HTML yang dibangun.
+
+### Penyimpangan yang disengaja (dan alasannya)
+- **`greenfield` pada modul Homepage.** Uji registri menuntut setiap kunci modul punya bab (aturan lama), tetapi Homepage tidak punya bab di Office lama. Modulnya ditandai `greenfield: true` di `modul.ts` supaya uji tidak menuntut bab untuk modul yang memang belum pernah didokumentasikan; modul baru biasa tetap membuat uji merah.
+- **Bab `analytics` & `investor` ditandai `menunggu`.** Keduanya modul PLAN.md §3 #14 yang belum ada di `modul.ts`. Babnya tetap bisa tampil kalau API memberi kuncinya; tanda `menunggu` hanya memberi tahu uji bahwa kuncinya belum ada di `modul.ts` (bukan salah ketik).
+- **Tidak ada bab ber-`Segera` di dataset** karena 25/25 panduan ada. Keadaannya tetap didukung: lencana "Segera" di sidebar, "Sedang disusun" di kartu beranda, dan pesan di layar artikel.
+- **Lebar konten** dibatasi 900px (beranda) / 860px (artikel), meniru `.hc-wrap` lama yang memang sempit supaya enak dibaca.
+- **Tombol "Kembali ke Office" di top bar lama** tidak dibuat terpisah: link **"Beranda Office"** milik shell bersama sudah menuju `/` (dua jalan ke tempat yang sama di halaman yang sama tidak menambah apa pun). Yang dipertahankan justru tombol kaki "Keluar ke Office" karena ikon dayanya sudah jadi tempat yang dicari di modul lain.
+
+### Belum dicek / perlu owner
+- **Belum dicek visual** di 390px/1366px, terang/gelap: halaman butuh sesi Office dan API hidup; belum dijalankan di peramban.
+- **`npm run build` gagal di lingkungan ini untuk SEMUA route** (bukan hanya Help): nitro prerender melempar `Only URLs with a scheme in: file, data, and node are supported… Received protocol 'd:'` untuk `/login`, `/styleguide`, `/` dan seterusnya — masalah path Windows/nitro, bukan dari Help. `npm run lint` dan `npm run typecheck` hijau; `npm run uji:help` 196 hijau.
+- **Langkah di luar repo tetap sama**: kunci `help` harus didaftarkan lewat `syncModules` lalu dicentangkan (di DATABASE, bukan di git).
+
