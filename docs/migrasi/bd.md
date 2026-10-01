@@ -348,3 +348,42 @@ Kode error yang wajib ditangani UI (`docs/api/bd.md:77-86`): `401 unauthenticate
 - **Marketing → BD:** Marketing mengirim PO ke BD lewat `addPo` (`deploy/marketing/index.html:13842-13847`,`:13939`; v1 `POST /api/v1/bd/purchase-orders/batch`), lalu membaca balik status dari papan BD.
 - **Finance → Kas Kecil → BD:** `setRealisasi` (finance/kas/index.html:5391`,`:5603`; v1 `PUT /api/v1/bd/purchase-orders/{id}/realisasi`) menulis `realisasi` + penanda proses ke baris PO.
 - **BD → Radar:** Radar membaca daftar promo BD (`radar/index.html:603-609`,`:2346-2362`,`:2415`); **BD → Kompas:** Kompas membaca `getAll` server-side (`docs/modules/bd.md:24`,`:67`). **BD TIDAK membaca Marketing/Konten/Event** (hanya teks koordinasi & agenda internal).
+
+## J. Progres build
+Branch: migrasi/bd · Mulai: 2026-10-01
+LANJUTKAN DARI: —
+
+| layar (key) | file | status | endpoint dipakai | ditunda karena |
+|---|---|---|---|---|
+| dashboard | `app/pages/bd/dashboard.vue` | ✅ | `GET /bd/state`, `GET/PUT /bd/settings/focus` | — |
+| tasks | `app/pages/bd/tasks.vue` | ✅ | `GET /bd/state`, `POST/PUT/PATCH/DELETE /bd/tasks` | — |
+| projects | `app/pages/bd/projects.vue` | ✅ | `GET /bd/state`, `POST/PUT/PATCH /bd/projects`, `PATCH /bd/tasks` | — |
+| projectDetail | `app/pages/bd/projects/[id].vue` | ✅ | `GET /bd/state`, `PATCH /bd/projects`, `/bd/tasks`, `/bd/coord-requests`, `/bd/purchase-orders` | — |
+| calendar | `app/pages/bd/calendar.vue` | ✅ | `GET /bd/state`, `POST/PUT/DELETE /bd/agenda`, `PATCH /bd/tasks` | — |
+| coord | `app/pages/bd/coord.vue` | ✅ | `GET /bd/state`, `POST/PUT/PATCH/DELETE /bd/coord-requests` | — |
+| routine | `app/pages/bd/routine.vue` | ✅ | `GET /bd/state`, `POST/PUT/DELETE /bd/routines` | — |
+| promo | `app/pages/bd/promo.vue` | ✅ | `GET/PUT /bd/settings/promos` | CSV ekspor/impor di browser, sesuai K-05 (1) |
+| purchasing | `app/pages/bd/purchasing/index.vue` | ✅ | `GET /bd/state`, `POST /bd/purchase-orders/batch`, `PATCH/DELETE /bd/purchase-orders`, `POST /bd/purchase-requests`, `GET/PUT /bd/settings/approverSets` | saran master vendor PO **"Segera" (G-02)** — endpoint Stock digate modul Stock |
+| prDetail | `app/pages/bd/purchasing/pr-[id].vue` | ✅ | `GET /bd/state`, `PATCH /bd/purchase-requests`, `PATCH /bd/purchase-orders`, `PUT /bd/purchase-orders/{id}/realisasi` | — |
+| tim | `app/pages/bd/tim.vue` | ✅ | `GET /bd/state`, `POST/PATCH/DELETE /bd/people`, `GET /account/modules/bd/members` | — |
+
+Catatan build (2026-10-01):
+- **Tulisan per-record (T-25).** Tidak ada `saveAll`; tiap mutasi lewat `POST/PUT/PATCH/DELETE /bd/{resource}` dengan `If-Match` dari `versiBaris(row)` (`data.updatedAt`) + `tanganiKonflik`. Dokumen `settings` (`focus`, `approverSets`, `promos`) lewat `PUT /bd/settings/{key}` dengan versi dari `meta.versions`.
+- **Rumus browser dipindah persis** ke `app/utils/bd-rumus.ts` (kuadran, `sisaHari`/tanggal, `projProgress`, `overbudget`/`realisasiNum`, kepatuhan routine, `prBeres`/`prTotal`/`prNoBerikut`, `poBeres`, `fRp`/`rzFormat`) dan `app/utils/bd-promo.ts` (`promoStatus`/`promoSisa`/urutan, CSV impor/ekspor). Warna/ikon status di `app/utils/status-bd.ts`.
+- **Roster (T-01).** "Segarkan dari Office" membandingkan `GET /api/v1/account/modules/bd/members` dengan `/people` dan `POST /people` yang belum ada; tidak pernah menghapus (`tanpaAkses`). Tidak ada endpoint `bd` roster. `ping`/`stats` tidak dibawa (T-02/U3).
+- **Ditunda:** saran master vendor pada form PO `Segera (G-02)`; kolom Vendor tetap teks bebas (nama tak dikenal boleh).
+- **Perlu ditindak lead:** entri `bd` di `app/utils/modul-shell.ts` (layar sidebar, tombol `+`, lonceng, `siapkan`) belum ditambahkan — di luar kepemilikan berkas agen `bd`. Halaman tetap dapat dibuka lewat rute `/bd/...`.
+
+## K. Daftar uji cutover
+- **dashboard:** 5 angka cocok dengan Tasks/Projects/Coord/PO; fokus harian tersimpan bersama tanggalnya (besok kosong lagi); tombol "Task baru" menyimpan satu task.
+- **tasks:** matrix DO/SCHEDULE/DELEGATE/DELETE turunan `important`+`urgent`; geser kartu mengubah kuadran; hapus task berkonfirmasi; filter lingkup/divisi/project/tipe/PIC sama dengan Projects.
+- **projects:** geser ke Completed menutup semua task (status Done, progress 100) HANYA saat pindah; hapus project melepas task/PO/koordinasi (`project=null`), tidak menghapusnya.
+- **projectDetail:** centang milestone mengubah project; task di project ikut tersaring.
+- **calendar:** grid desktop/daftar HP; geser deadline task mengubah tanggal saja; item lain tidak bisa diseret.
+- **coord:** geser kolom mengubah status; PIC tujuan teks bebas; hapus berkonfirmasi.
+- **routine:** kepatuhan rata-rata dari routine aktif; baris tanpa `total` = 100%.
+- **promo:** status dihitung dari tanggal (paused menang); tanggal selesai < mulai ditolak di form & impor; jeda/aktifkan tidak mengubah field lain; ekspor→impor bolak-balik.
+- **purchasing:** baris kosong request diabaikan, semua masuk "Diajukan"; "Sudah diproses" → status Diterima + `statusSebelum`, batal mengembalikan; nomor PR = tertinggi+1, ganda ditolak; lembar kosong tidak dianggap selesai; set penyetuju tersimpan di `settings/approverSets`.
+- **prDetail:** realisasi kosong ≠ 0; overbudget dihitung; total realisasi hanya baris terisi; setujui hanya signer/admin (jejak, bukan otorisasi).
+- **tim:** Segarkan membuat yang belum ada tanpa menghapus; atasan melingkar ditolak; hapus hanya bila akses dicabut & tanpa pekerjaan.
+- **Silang Vue ↔ Office lama:** promo yang ditambah di Vue muncul di Radar; request Marketing masuk sebagai PO "Diajukan"; realisasi Finance menggerakkan status PO.
