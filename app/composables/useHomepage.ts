@@ -1,7 +1,9 @@
-// Homepage module: the website's menu catalogue (module key `menu`) and its news
-// (module key `news`). Field names exactly as laksamana-api sends them:
-//   laksamana-api/docs/api/menu.md  (Office: /menu/office/*)
-//   laksamana-api/docs/api/news.md  (Office: /news/office/*)
+// Homepage module: the website's menu catalogue (module key `menu`), its news
+// (module key `news`) and its event switch (module key `homepage`). Field names
+// exactly as laksamana-api sends them:
+//   laksamana-api/docs/api/menu.md      (Office: /menu/office/*)
+//   laksamana-api/docs/api/news.md      (Office: /news/office/*)
+//   laksamana-api/docs/api/homepage.md  (Office: /homepage/office/*)
 //
 // Versioned writes: PATCH/DELETE of kategori/item/artikel carry If-Match. The
 // fast toggles (tersedia, tampil) and PUT /urutan do not, but they still bump
@@ -26,7 +28,8 @@ export function websiteUrl(path = '/'): string {
 
 export interface UploadHasil {
   key: string
-  url: string
+  /** The public URL when the module has one; null when a file is only served by row id (promos). */
+  url: string | null
 }
 
 async function upload(path: string, file: File): Promise<UploadHasil> {
@@ -276,4 +279,164 @@ export function hargaRingkas(varian: MenuVarian[]): string {
   if (!varian.length) return 'Belum ada harga'
   const rb = (n: number) => (n % 1000 === 0 ? `${n / 1000}rb` : new Intl.NumberFormat('id-ID').format(n))
   return varian.map(v => (v.label ? `${v.label} ${rb(v.harga)}` : rb(v.harga))).join(' · ')
+}
+
+// ─────────────────────────── event website ──
+
+/**
+ * One candidate row of the website Event switch (GET /homepage/office/events).
+ * The event data itself lives in the Event (EMS) module; this module only owns
+ * the `tampil` switch. `eligible` is the "boleh tampil" rule and `alasan` says
+ * why not; `version` is the `homepage_event` row version (0 when none exists).
+ */
+export interface EventWeb {
+  id: string
+  title: string
+  category: string
+  status: string
+  /** ISO-8601 WIB. */
+  start: string
+  /** ISO-8601 WIB, or null when EMS has no end. */
+  end: string | null
+  venue: string
+  /** A path (`/api/v1/homepage/office/events/{id}/poster`) or null. */
+  poster: string | null
+  price_from: number
+  is_ticketed: boolean
+  tampil: boolean
+  eligible: boolean
+  alasan: 'belum_upcoming' | 'sudah_lewat' | null
+  version: number
+}
+
+/** GET /homepage/office/events: every event that can be put on the website. */
+export const useEventWeb = () =>
+  useAsyncData('homepage-event-web', () => useApi()<Envelope<EventWeb[]>>('/homepage/office/events').then(r => r.data))
+
+/**
+ * An office image route sits behind the Bearer token, so a plain `<img src>`
+ * cannot fetch it: pull the bytes through the API and hand the view an object
+ * URL. Callers revoke the URL once they are done with it. Used by the Event
+ * poster and the promo banner preview.
+ */
+export async function officeGambarUrl(path: string | null | undefined): Promise<string | null> {
+  if (!path) return null
+  // The API hands back the full path (`/api/v1/homepage/office/…`), but useApi()
+  // already prepends the `/api/v1` base: strip it before calling.
+  const rel = path.replace(/^\/api\/v1/, '')
+  const blob = await useApi()<Blob>(rel, { responseType: 'blob' })
+  return URL.createObjectURL(blob)
+}
+
+export function useEventWebOffice() {
+  const api = useApi()
+  const base = '/homepage/office'
+  return {
+    /** PATCH /events/{id}/tampil. No If-Match: a boolean, last writer wins. */
+    setTampilEvent: (id: string, tampil: boolean) =>
+      api<Envelope<EventWeb>>(`${base}/events/${id}/tampil`, { method: 'PATCH', body: { tampil } }).then(r => r.data),
+  }
+}
+
+// ─────────────────────────── promo website ──
+
+/** Why a promo row may not appear on the website right now (API `alasan`). */
+export type PromoAlasan = 'bd_belum_mulai' | 'bd_berakhir' | 'bd_dijeda' | 'bd_tanpa_poster' | 'bd_hilang' | 'di_luar_periode'
+
+export type PromoStatusBd = 'paused' | 'upcoming' | 'ended' | 'running'
+
+/**
+ * The slice of a BD promo the Homepage panel may see. `kode`, `partner`,
+ * `kuota`, `lmPIC`, `ketentuan` and `outlet` are never sent.
+ */
+export interface PromoBd {
+  nama: string
+  tipe: string
+  kategori: string
+  benefit: string
+  /** YYYY-MM-DD (WIB), or "" when BD has none. */
+  mulai: string
+  selesai: string
+  status: PromoStatusBd
+}
+
+/**
+ * One slide of the website promo slider (GET /homepage/office/promos): a stored
+ * `homepage_banner` row (`sumber` `bd`/`unggah`), or a BD promo that has no row
+ * yet — a candidate with `id: null`. A BD row only owns the switch, the alt
+ * override and the link; poster and period always stay in BD
+ * (docs/api/homepage.md › The promo rule).
+ */
+export interface PromoWeb {
+  /** null for a BD candidate that has no row yet. */
+  id: string | null
+  sumber: 'bd' | 'unggah'
+  promo_id: string | null
+  alt: string | null
+  href: string | null
+  /** YYYY-MM-DD (WIB); the row's own window (uploads only). */
+  mulai: string | null
+  selesai: string | null
+  tampil: boolean
+  urutan: number
+  version: number
+  eligible: boolean
+  alasan: PromoAlasan | null
+  /** A path behind the Bearer token, or null when the row has no image. */
+  gambar: string | null
+  /** The BD promo it points at; null when that promo is gone (`bd_hilang`). */
+  bd: PromoBd | null
+}
+
+export interface PromoOfficeState {
+  items: PromoWeb[]
+  /** true: BD could not be read; only uploaded banners can appear. */
+  bd_gagal: boolean
+}
+
+/** GET /homepage/office/promos: stored rows plus BD candidates without a row. */
+export const usePromoWeb = () =>
+  useAsyncData('homepage-promo-web', () => useApi()<Envelope<PromoOfficeState>>('/homepage/office/promos').then(r => r.data))
+
+/** POST /promos and PATCH /promos/{id} body. `gambar_key` is upload-only. */
+export interface PromoBody {
+  gambar_key?: string
+  alt?: string | null
+  href?: string | null
+  mulai?: string | null
+  selesai?: string | null
+  tampil?: boolean
+}
+
+export function usePromoOffice() {
+  const api = useApi()
+  const base = '/homepage/office/promos'
+  return {
+    uploadFoto: (file: File) => upload(`${base}/foto`, file),
+    create: (body: PromoBody) =>
+      api<Envelope<PromoWeb>>(base, { method: 'POST', body }).then(r => r.data),
+    /**
+     * PATCH /promos/{id} (If-Match required: 428/409). Upload rows take
+     * `alt, href, mulai, selesai, gambar_key`; BD rows only `alt, href`.
+     */
+    update: (id: string, body: PromoBody, headers: Record<string, string>) =>
+      api<Envelope<PromoWeb>>(`${base}/${id}`, { method: 'PATCH', body, headers }).then(r => r.data),
+    /** DELETE /promos/{id} (If-Match): uploads only; a BD row answers 422 pakai_saklar. */
+    remove: (id: string, headers: Record<string, string>) =>
+      api(`${base}/${id}`, { method: 'DELETE', headers }),
+    /** PATCH /tampil of a stored row. No If-Match: a boolean, last writer wins. */
+    setTampil: (id: string, tampil: boolean) =>
+      api<Envelope<PromoWeb>>(`${base}/${id}/tampil`, { method: 'PATCH', body: { tampil } }).then(r => r.data),
+    /** PATCH /bd/{promoId}/tampil: upserts the row of a BD promo. */
+    setTampilBd: (promoId: string, tampil: boolean) =>
+      api<Envelope<PromoWeb>>(`${base}/bd/${promoId}/tampil`, { method: 'PATCH', body: { tampil } }).then(r => r.data),
+    /** PUT /urutan: one manual order for both kinds (10, 20, 30 …). No If-Match. */
+    urutan: (items: { id: string, urutan: number }[]) =>
+      api(`${base}/urutan`, { method: 'PUT', body: { items } }),
+  }
+}
+
+/** The list key of a row: its id, or `promo:<id>` while it is still a candidate. */
+export function promoGambarKey(p: Pick<PromoWeb, 'id' | 'promo_id'>): string {
+  return p.id ?? `promo:${p.promo_id}`
 }

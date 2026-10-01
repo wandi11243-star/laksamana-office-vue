@@ -7,14 +7,25 @@
 <script setup lang="ts">
 import type { MenuItem } from '~/composables/useHomepage'
 
-definePageMeta({ access: ['menu', 'news'] })
+definePageMeta({ access: ['menu', 'news', 'homepage'] })
 
 const me = useMe()
 const bolehMenu = computed(() => !!me.value?.modules.includes('menu'))
 const bolehBerita = computed(() => !!me.value?.modules.includes('news'))
+const bolehHomepage = computed(() => !!me.value?.modules.includes('homepage'))
 
 const menu = bolehMenu.value ? useMenuState() : null
 const berita = bolehBerita.value ? useBeritaState() : null
+const eventWeb = bolehHomepage.value ? useEventWeb() : null
+const promoWeb = bolehHomepage.value ? usePromoWeb() : null
+
+// The public feed rule: switched on AND eligible. `alasan`/`version` are for the
+// Event screen; the count only needs to match what the website shows.
+const eventTampil = computed(() => (eventWeb?.data.value ?? []).filter(e => e.tampil && e.eligible).length)
+
+// The promo slider: stored rows plus BD candidates, counted like the public feed.
+const promoItems = computed(() => promoWeb?.data.value?.items ?? [])
+const promoTampil = computed(() => promoItems.value.filter(p => p.tampil && p.eligible).length)
 
 // The public GET /menu/unggulan order: shown items in active categories,
 // by category order, then item order, then name.
@@ -59,7 +70,8 @@ const cek = computed<Cek[]>(() => {
   return out
 })
 
-const memuat = computed(() => menu?.status.value === 'pending' || berita?.status.value === 'pending')
+const memuat = computed(() => menu?.status.value === 'pending' || berita?.status.value === 'pending'
+  || eventWeb?.status.value === 'pending' || promoWeb?.status.value === 'pending')
 </script>
 
 <template>
@@ -77,6 +89,33 @@ const memuat = computed(() => menu?.status.value === 'pending' || berita?.status
         target="_blank"
       />
     </template>
+
+    <AppStatGrid v-if="eventWeb || promoWeb">
+      <NuxtLink
+        v-if="eventWeb"
+        to="/homepage/event"
+        class="block"
+      >
+        <AppStat
+          label="Event di website"
+          icon="i-lucide-mic-vocal"
+          :value="eventWeb.status.value === 'pending' ? '—' : eventTampil"
+          :sub="`dari ${eventWeb.data.value?.length ?? 0} kandidat event`"
+        />
+      </NuxtLink>
+      <NuxtLink
+        v-if="promoWeb"
+        to="/homepage/promo"
+        class="block"
+      >
+        <AppStat
+          label="Promo di website"
+          icon="i-lucide-images"
+          :value="promoWeb.status.value === 'pending' ? '—' : promoTampil"
+          :sub="`dari ${promoItems.length} promo & banner`"
+        />
+      </NuxtLink>
+    </AppStatGrid>
 
     <div class="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
       <div class="min-w-0 space-y-6">

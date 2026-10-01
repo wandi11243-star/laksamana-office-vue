@@ -28,6 +28,7 @@ Status: ⬜ belum · 🟡 sedang dikerjakan · ✅ selesai · ⚠️ selesai den
 | radar | [radar.md](radar.md) | ✅ selesai (ringkas) | 6 (5 rail + 1 detail) | 0 ❌ · 2 ⚠️ | 0 | dibangun di Vue 2026-09-30 lewat `/radar/*` API; read-only |
 | help | [help.md](help.md) | ✅ selesai (ringkas) | 3 jenis (beranda + 25 bab + cari) | 0 | 0 | inventaris ringkas (statis, tanpa backend) |
 | investor | [investor.md](investor.md) | ✅ selesai (ringkas) | 6 (1 masuk + 5 tab) | 0 ❌ · 1 ⚠️ | 0 | KOREKSI: pakai backend Kompas+Account |
+| homepage | — (greenfield) | 🟡 sedang dikerjakan | 5 (Ringkasan, Menu, Berita, Event, Promo) | 0 | 0 | modul baru untuk website: menu, berita, saklar event & slider promo (Event & Promo baru 2026-09-30, visual belum dicek) |
 
 Berkas lintas modul: [_lintas-modul.md](_lintas-modul.md) · [_pertanyaan.md](_pertanyaan.md)
 
@@ -55,6 +56,7 @@ Sumber menu launcher lama: `laksamana-office/deploy/index.html`, `BRANCHES` (`:1
 | — | `deploy/radar/` | `radar` | baca marketing, reservasi, event, bd | — |
 | — | `deploy/help/` | `help` | statis (`panduan/`, `gambar/`), tanpa backend | — |
 | — | `investor/` (di luar `deploy/`, domain sendiri) | `investor` | **Kompas** (omset/laporan) + **Account** (SSO) | `kompas.md` (`/kompas/investor/*`) |
+| homepage | — (greenfield: Office lama tidak punya panel website) | `menu`, `news`, `homepage` | — (modul baru di `laksamana-api`) | `menu.md`, `news.md`, `homepage.md` |
 
 ### Koreksi terhadap peta awal (dari kode, bukan dari tabel tugas)
 
