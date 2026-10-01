@@ -24,6 +24,8 @@ export interface Layar {
   to: string
   /** Optional section heading in the menu. */
   grup?: string
+  /** A small pill on the menu row, e.g. "Segera" (Help chapter not written yet). */
+  badge?: string
   /** In-module check (role matrix, admin). Omit = everyone with the module. */
   boleh?: (me: Me) => boolean
 }

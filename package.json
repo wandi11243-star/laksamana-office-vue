@@ -8,7 +8,8 @@
     "preview": "npx serve .output/public -s -l 3000",
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
-    "typecheck": "nuxt typecheck"
+    "typecheck": "nuxt typecheck",
+    "uji:help": "node tools/uji-help.mjs"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.137",
