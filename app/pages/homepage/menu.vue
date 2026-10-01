@@ -197,7 +197,7 @@ const kategoriApi = {
     </div>
 
     <template v-else>
-      <dl class="mb-6 grid grid-cols-2 overflow-hidden rounded-panel border border-default bg-default sm:grid-cols-4">
+      <div class="mb-6 grid grid-cols-2 overflow-hidden rounded-panel border border-default bg-default sm:grid-cols-4">
         <button
           v-for="(s, i) in ringkas"
           :key="s.key"
@@ -211,17 +211,17 @@ const kategoriApi = {
           ]"
           @click="status = s.key"
         >
-          <dt class="text-xs font-semibold text-muted">
+          <span class="block text-xs font-semibold text-muted">
             {{ s.label }}
-          </dt>
-          <dd
-            class="mt-0.5 font-display text-2xl font-bold num"
+          </span>
+          <span
+            class="mt-0.5 block font-display text-2xl font-bold num"
             :class="s.alert ? 'text-error' : 'text-highlighted'"
           >
             {{ muat === 'pending' && !items.length ? '—' : s.value }}
-          </dd>
+          </span>
         </button>
-      </dl>
+      </div>
 
       <div class="mb-3 flex flex-wrap items-center gap-2">
         <AppSeg
