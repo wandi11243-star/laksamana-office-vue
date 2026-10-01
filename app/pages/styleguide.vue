@@ -1,6 +1,6 @@
 <!--
   Living style guide (dev only: `npm run dev`, then /styleguide). Every building
-  block in the Laksamana look, light and dark, plus the shared helpers every
+  block in the Laksamana look (light only), plus the shared helpers every
   module starts from (fondasi F1 version & conflict, F3 format, F4 ModulMenu).
   If it is not here, check DESIGN.md before inventing it.
 -->
@@ -10,7 +10,6 @@ import type { TableColumn } from '@nuxt/ui'
 definePageMeta({ public: true, layout: false })
 if (!import.meta.dev) throw createError({ statusCode: 404, statusMessage: 'Halaman tidak ditemukan.' })
 
-const colorMode = useColorMode()
 const sheet = ref(false)
 const toast = useToast()
 
@@ -156,21 +155,6 @@ const columns: TableColumn<Row>[] = [
       title="Style guide"
       description="Blok bangunan Laksamana Office. Aturan dan alasannya: DESIGN.md."
     >
-      <div class="mb-8 flex flex-wrap gap-2">
-        <UButton
-          label="Terang"
-          color="neutral"
-          :variant="colorMode.value === 'light' ? 'solid' : 'soft'"
-          @click="colorMode.preference = 'light'"
-        />
-        <UButton
-          label="Gelap"
-          color="neutral"
-          :variant="colorMode.value === 'dark' ? 'solid' : 'soft'"
-          @click="colorMode.preference = 'dark'"
-        />
-      </div>
-
       <AppList title="Warna · kuning (primary) hanya untuk isian: tombol utama, penanda aktif">
         <div class="grid grid-cols-11">
           <div

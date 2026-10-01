@@ -1,14 +1,7 @@
 <script setup lang="ts">
 const me = useMe()
 const { mine } = useModulNav()
-const colorMode = useColorMode()
 const toast = useToast()
-
-const themes = [
-  { label: 'Ikuti perangkat', value: 'system' },
-  { label: 'Terang', value: 'light' },
-  { label: 'Gelap', value: 'dark' },
-]
 
 // Change PIN: PUT /me/pin {currentPin, newPin}
 const pinOpen = ref(false)
@@ -64,21 +57,6 @@ async function savePin() {
             icon="i-lucide-log-out"
             @click="logout"
           />
-        </AppList>
-
-        <AppList title="Tampilan">
-          <div class="flex items-center gap-3.5 px-4 py-3">
-            <UIcon
-              name="i-lucide-sun-moon"
-              class="size-5 text-muted"
-            />
-            <span class="flex-1 font-semibold text-highlighted">Tema</span>
-            <USelect
-              v-model="colorMode.preference"
-              :items="themes"
-              class="w-44"
-            />
-          </div>
         </AppList>
 
         <AppList title="Pasang di HP">

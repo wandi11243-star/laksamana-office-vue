@@ -14,11 +14,20 @@ export default defineNuxtConfig({
     head: {
       htmlAttrs: { lang: 'id' },
       title: 'Laksamana Office',
-      meta: [{ name: 'theme-color', content: '#0A0A09' }],
+      meta: [{ name: 'theme-color', content: '#F3F3F1' }],
       link: [{ rel: 'icon', type: 'image/png', href: '/mark.png' }],
     },
   },
   css: ['~/assets/css/main.css'],
+
+  // Light only: the Office never runs dark. `preference` + `fallback` pin the
+  // light theme for everyone; the new storageKey ignores any dark value a device
+  // stored under the old key, and the theme picker is gone from Profil.
+  colorMode: {
+    preference: 'light',
+    fallback: 'light',
+    storageKey: 'lm-color-mode',
+  },
 
   // Baked in at BUILD time (static output): set NUXT_PUBLIC_API_BASE before `npm run build`.
   runtimeConfig: {
@@ -46,7 +55,7 @@ export default defineNuxtConfig({
       start_url: '/',
       display: 'standalone',
       background_color: '#F3F3F1',
-      theme_color: '#0A0A09',
+      theme_color: '#F3F3F1',
       icons: [
         { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
         { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
