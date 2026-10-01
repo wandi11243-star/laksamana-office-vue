@@ -15,8 +15,9 @@ Hard rules:
   `UTable` (`lg+`, cards below), `ResponsiveSheet` for forms. Module chrome (sidebar screens, `+`, bell, badges) in `app/utils/modul-shell.ts`.
   Lucide icons instead of the old emoji (emoji only inside WhatsApp message text). Gold text = `text-primary-700`. No hex colours
   in components; no gradients. Restyle Nuxt UI in `app/app.config.ts`, don't wrap it.
-- One page serves phone and desktop. Check 390px and 1366px, light and dark, **in a browser** (lint/typecheck do not catch
-  runtime errors). Without a local API, use a read-only mock; never point the dev server at dev or production data.
+- One page serves phone and desktop. Check 390px and 1366px **in a browser** (lint/typecheck do not catch runtime errors). The
+  app is light-only: color mode is pinned to light in `nuxt.config.ts` and there is no theme picker — do not add `dark:` styles
+  or a toggle. Without a local API, use a read-only mock; never point the dev server at dev or production data.
 - UI copy in Indonesian, sentence case. Code comments in English.
 - No new dependencies without asking. Before finishing: `npm run lint && npm run typecheck`.
 - `../laksamana-office` is the old app: read-only reference (menus, flows). Never edit it.
