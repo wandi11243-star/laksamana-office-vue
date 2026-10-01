@@ -22,9 +22,17 @@ export interface Modul {
   access: string[]
   /** Home-screen widgets, in order. Shown when the user holds the module. */
   widgets?: Component[]
+  /**
+   * No old Office screen (homepage). The Help chapter guard does not demand a
+   * guide for a module the old Office never documented.
+   */
+  greenfield?: boolean
 }
 
-export type ModulGroup = 'Operasional' | 'Tim & Kru' | 'Marketing & Event' | 'Bisnis & Target'
+// 'Lainnya' exists only to match the old launcher's GRUP list: the old Help
+// card lived in group `lainnya` (deploy/index.html:1412), and U1 keeps the card
+// where the crew expects it. It currently holds only Help Center.
+export type ModulGroup = 'Operasional' | 'Tim & Kru' | 'Marketing & Event' | 'Bisnis & Target' | 'Lainnya'
 
 export const MODUL: Modul[] = [
   { key: 'absensi', label: 'Absensi', desc: 'Absen masuk & pulang', icon: 'i-lucide-clock', group: 'Tim & Kru', access: ['absensi'],
@@ -48,11 +56,15 @@ export const MODUL: Modul[] = [
   // Greenfield (no old Office screen): the website's menu catalogue, news and
   // event switch. Three access keys so F&B can own the menu, marketing the news
   // and whoever runs Event the "tampil di website" switch.
-  { key: 'homepage', label: 'Homepage', desc: 'Menu, berita & event website', icon: 'i-lucide-globe', group: 'Marketing & Event', access: ['menu', 'news', 'homepage'] },
+  { key: 'homepage', label: 'Homepage', desc: 'Menu, berita & event website', icon: 'i-lucide-globe', group: 'Marketing & Event', access: ['menu', 'news', 'homepage'], greenfield: true },
   { key: 'marketing', label: 'Marketing', desc: 'CRM dan event', icon: 'i-lucide-megaphone', group: 'Marketing & Event', access: ['marketing'] },
   { key: 'finance', label: 'Finance', desc: 'Omset, kas kecil, brankas', icon: 'i-lucide-wallet', group: 'Bisnis & Target', access: ['kompas', 'finance', 'brankas'] },
   { key: 'bd', label: 'BD OS', desc: 'Bizdev, project & purchasing', icon: 'i-lucide-briefcase', group: 'Bisnis & Target', access: ['bd'] },
   { key: 'hlife', label: 'Howandi Life OS', desc: 'Akses Nahkoda', icon: 'i-lucide-compass', group: 'Bisnis & Target', access: ['howandi_life'] },
+  // Static: no backend, no data table, no endpoint (help.md). It carries its own
+  // access key so its chapters can be filtered by the key of the module they
+  // document (deploy/index.html:1394-1415).
+  { key: 'help', label: 'Help Center', desc: 'Panduan pemakaian tiap modul', icon: 'i-lucide-book-open', group: 'Lainnya', access: ['help'] },
 ]
 
-export const MODUL_GROUPS: ModulGroup[] = ['Operasional', 'Tim & Kru', 'Marketing & Event', 'Bisnis & Target']
+export const MODUL_GROUPS: ModulGroup[] = ['Operasional', 'Tim & Kru', 'Marketing & Event', 'Bisnis & Target', 'Lainnya']

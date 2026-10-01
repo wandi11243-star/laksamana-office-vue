@@ -29,6 +29,23 @@ function cari() {
   if (!c) return
   router.push({ path: c.to, query: q.value.trim() ? { q: q.value.trim() } : {} })
 }
+
+// Live search for shells that ask for it (Help): the old page searched as you
+// typed with a 180 ms debounce, updating the results in place.
+let tundaCari: ReturnType<typeof setTimeout> | null = null
+watch(q, (v) => {
+  const c = shell.value?.cari
+  if (!c?.realtime) return
+  const kata = v.trim()
+  if (route.path === c.to && String(route.query.q ?? '') === kata) return
+  if (tundaCari) clearTimeout(tundaCari)
+  tundaCari = setTimeout(() => {
+    router.replace({ path: c.to, query: kata ? { q: kata } : {} })
+  }, 180)
+})
+onBeforeUnmount(() => {
+  if (tundaCari) clearTimeout(tundaCari)
+})
 </script>
 
 <template>

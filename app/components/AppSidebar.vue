@@ -30,10 +30,20 @@ const menu = computed<NavigationMenuItem[][]>(() => {
       const n = lencana?.value[key] ?? 0
       return n > 0 ? { label: String(n), color: 'error' as const, variant: 'solid' as const, size: 'sm' as const } : undefined
     }
-    return groupLayar(bisa).map(([grup, items]) => [
+    const grup = groupLayar(bisa).map(([grup, items]) => [
       ...(grup ? [{ label: grup, type: 'label' as const }] : []),
-      ...items.map(l => ({ label: l.label, icon: l.icon, to: l.to, exact: true, badge: badge(l.key), onSelect: () => emit('pilih') })),
+      ...items.map(l => ({
+        label: l.label,
+        icon: l.icon,
+        to: l.to,
+        exact: true,
+        badge: badge(l.key) ?? (l.badge
+          ? { label: l.badge, color: 'neutral' as const, variant: 'soft' as const, size: 'sm' as const }
+          : undefined),
+        onSelect: () => emit('pilih'),
+      })),
     ])
+    return [...grup, ...(s.navEkstra?.() ?? [])]
   }
   return [
     [
@@ -112,6 +122,17 @@ const peran = computed(() => shell.value?.peran?.(me.value) ?? me.value?.keteran
         </span>
       </NuxtLink>
       <UButton
+        v-if="shell?.kaki"
+        :to="shell.kaki.to"
+        :icon="shell.kaki.icon ?? 'i-lucide-power'"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        :aria-label="shell.kaki.label"
+        :title="shell.kaki.label"
+      />
+      <UButton
+        v-else
         icon="i-lucide-power"
         color="neutral"
         variant="outline"
