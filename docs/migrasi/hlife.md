@@ -285,3 +285,29 @@ Konkurensi: legacy **tanpa** penjaga bentrok, last-write-wins (`howandi-life-mys
 
 ## I. Pertanyaan terbuka
 - [ ] **hlife / settings — Reset data** — v1 tidak punya endpoint pengosongan massal; haruskah UI menyediakan "Reset data" (DELETE per record) atau tombol itu dibuang saja? Konteks: legacy `resetAll` (`index.html:829`) mengosongkan 13 koleksi sekaligus, mempertahankan `auth`. Bukti: `index.html:829`, `docs/api/hlife.md` (tak menyebut reset). Opsi: A) buang tombolnya; B) implementasi loop DELETE per record; C) minta endpoint khusus di API. (juga disalin ke `_pertanyaan.md`)
+  → Dijawab K-01 = C: tombol tampil **"Segera"** sampai `POST /hlife/admin/reset` (G-13) ada.
+
+## J. Progres build
+Branch: migrasi/hlife · Mulai: 2026-10-01
+LANJUTKAN DARI: —
+
+Catatan integrasi: `app/utils/modul-shell.ts` TIDAK ikut diedit (bukan milik agen hlife). Selama pemilik
+file itu belum mendaftarkan entri `hlife`, sidebar tetap sidebar Office; karena itu Command Center
+menampilkan daftar layar sebagai jalan masuk semua halaman.
+
+| layar (key) | file | status | endpoint dipakai | ditunda karena |
+|---|---|---|---|---|
+| home | `app/pages/hlife/home.vue` | ✅ | `GET /state`, `GET /settings`, `PUT /settings/{mood,energy,focus,weeklyTarget,dump}`, `PUT /habits/{id}` | — |
+| calendar | `app/pages/hlife/calendar.vue` | ✅ | `GET /events`, `GET /tasks`, `GET /content`, `POST/PUT/DELETE /events/{id}` | — |
+| tasks | `app/pages/hlife/tasks.vue` | ✅ | `GET/POST/PUT/PATCH/DELETE /tasks`, `GET /businesses`, `GET /projects` | — |
+| projects | `app/pages/hlife/projects.vue` | ✅ | `GET/POST/PUT/DELETE /projects`, `GET /tasks`, `GET /businesses` | — |
+| projectDetail | `app/pages/hlife/projects/[id].vue` | ✅ | `GET /projects/{id}`, `GET /tasks`, `GET /businesses`, `POST/PUT/DELETE /tasks` | — |
+| content | `app/pages/hlife/content.vue` | ✅ | `GET/POST/PUT/DELETE /content`, `GET/PUT /settings/channels` | — |
+| goals | `app/pages/hlife/goals.vue` | ✅ | `GET/POST/PUT/DELETE /goals`, `GET /roadmap` | — |
+| roadmap | `app/pages/hlife/roadmap.vue` | ✅ | `GET/POST/PUT/DELETE /roadmap`, `GET/POST/PUT/PATCH/DELETE /dreams`, `GET /goals` | — |
+| learning | `app/pages/hlife/learning.vue` | ✅ | `GET/POST/PUT/DELETE /learning` | — |
+| reviews | `app/pages/hlife/reviews.vue` | ✅ | `GET/POST/PUT/DELETE /reviews` | — |
+| finance | `app/pages/hlife/finance.vue` | ✅ | `GET/POST/PUT/DELETE /assets`, `GET/POST/PUT/DELETE /ledger`, `GET /businesses` | — |
+| business | `app/pages/hlife/business.vue` | ✅ | `GET/POST/PUT/DELETE /businesses`, `GET /tasks`, `GET /projects` | — |
+| bizDetail | `app/pages/hlife/business/[id].vue` | ✅ | `GET /businesses/{id}`, `GET /tasks`, `GET /projects` | — |
+| settings | `app/pages/hlife/settings.vue` | ✅ | `GET /state` (backup JSON & .ics) | Reset data: **K-01 / G-13** (tombol "Segera") |
