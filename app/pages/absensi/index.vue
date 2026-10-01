@@ -1,56 +1,107 @@
 <!--
-  Example module page: Absensi > Riwayat. Shows the three patterns every module reuses:
-  1. AppFocus  - the one loud block (today)
-  2. list on phone, UTable on desktop, from the same rows
-  3. module API calls live in composables/useAbsensi.ts
-  Punching in (face + GPS) stays in the Absensi PWA for now.
+  Absen — the module's first screen (absensi/index.html viewAbsen, :1226-1252).
+  Today's shift, server time, punches and status come from GET /absensi/context.
+  The punch buttons themselves stay in the Absensi PWA until task #15 (K-02),
+  so this screen tells the crew where they stand and opens that PWA.
+
+  GPS and face are NOT checked here: the browser only shows what the API says,
+  the server is the judge (absensi.md F.10/F.15).
 -->
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
+import { PWA_ABSENSI } from '~/utils/layar/absensi'
+import { durasi } from '~/utils/absensi'
+import { lencanaHari } from '~/utils/status-absensi'
+import { jam } from '~/utils/format'
 
 definePageMeta({ access: ['absensi'] })
 
-const iso = (d: Date) => d.toLocaleDateString('sv-SE') // YYYY-MM-DD, local
-const to = ref(iso(new Date()))
-const from = ref(iso(new Date(Date.now() - 13 * 864e5)))
+const PWA = PWA_ABSENSI
 
-const { data: ctx } = useAbsensiContext()
-const { data: hari, status, error } = useAbsensiRecap(from, to)
-const me = useMe()
-const rows = computed(() => [...hari.value].reverse())
-// HR sees everyone's rows (the API decides); crew only their own.
-const others = computed(() => rows.value.some(h => h.uid !== me.value?.id))
+const { data: ctx, status, error } = useAbsensiContext()
+const hari = computed(() => ctx.value?.hariIni ?? null)
 
-const today = computed(() => {
-  const h = ctx.value?.hariIni
-  if (!h?.masuk) return { value: 'Belum absen', hint: 'Absen masuk lewat aplikasi Absensi.' }
-  if (!h.pulang) return { value: `Masuk ${h.masuk.jam}`, hint: `Shift ${h.shift || '—'}` }
-  return { value: `${h.masuk.jam} – ${h.pulang.jam}`, hint: `Durasi ${menit(h.hitung.durasi)}` }
+const shift = computed(() => {
+  const s = ctx.value?.shift
+  if (s === false) return { value: 'Jadwal tak terbaca', sub: 'Jadwal shift tidak menjawab; ketukan tetap dicatat.', tone: 'warning' as const }
+  if (!s || !s.length) return { value: 'Tidak dijadwalkan', sub: 'Absen tetap bisa, tapi masuk antrean pengajuan HR.', tone: 'warning' as const }
+  const first = s[0]!
+  if (first.libur) return { value: `Libur (${first.kode})`, sub: 'Kalau tetap bekerja, absennya masuk antrean pengajuan.', tone: 'info' as const }
+  return {
+    value: `${first.mulai || '--:--'} – ${first.selesai || '--:--'}`,
+    sub: `Shift ${first.kode}${first.sumber === 'DW' ? ' · pekerja harian' : ''}`,
+    tone: 'gold' as const,
+  }
 })
 
-const columns = computed<TableColumn<AbsensiHari>[]>(() => [
-  { accessorKey: 'tgl', header: 'Tanggal', cell: ({ row }) => tglPendek(row.original.tgl) },
-  ...(others.value ? [{ accessorKey: 'nama', header: 'Nama' }] : []),
-  { accessorKey: 'shift', header: 'Shift', cell: ({ row }) => row.original.shift || '—' },
-  { id: 'masuk', header: 'Masuk', cell: ({ row }) => row.original.masuk?.jam ?? '—' },
-  { id: 'pulang', header: 'Pulang', cell: ({ row }) => row.original.pulang?.jam ?? '—' },
-  { id: 'durasi', header: 'Durasi', cell: ({ row }) => menit(row.original.hitung.durasi) },
-  { id: 'status', header: 'Status' },
-])
+const jamServer = computed(() => (ctx.value?.waktuServer ? jam(new Date(ctx.value.waktuServer).toISOString()) : '—'))
+
+const masukJam = computed(() => hari.value?.masuk?.jam ?? '—')
+const pulangJam = computed(() => hari.value?.pulang?.jam ?? '—')
+const durasiTampil = computed(() => (hari.value?.hitung?.lengkap ? durasi(hari.value.hitung.durasi) : '—'))
+
+const masukSub = computed(() => (!hari.value?.masuk ? 'Belum absen' : hari.value.masuk.status === 'MENUNGGU' ? 'Menunggu HR' : 'Tercatat'))
+const pulangSub = computed(() => (!hari.value?.pulang ? 'Belum absen' : hari.value.pulang.status === 'MENUNGGU' ? 'Menunggu HR' : 'Tercatat'))
+const durasiSub = computed(() => (hari.value?.hitung?.lengkap ? 'Masuk sampai pulang' : 'Butuh masuk & pulang'))
+
+/** The old summary badges, minus "Belum pulang" (the recap-only badge). */
+const lencana = computed(() => {
+  const h = hari.value
+  if (!h || (!h.masuk && !h.pulang)) return []
+  return lencanaHari(h).filter(l => l.label !== 'Belum pulang')
+})
+
+const lokasiStatus = computed(() => (ctx.value?.lokasi?.length
+  ? {
+      label: `${ctx.value.lokasi.length} titik kerja`,
+      color: 'success' as const,
+      icon: 'i-lucide-map-pin',
+      desc: ctx.value.lokasi.map(l => l.nama).join(', '),
+    }
+  : {
+      label: 'Belum disetel',
+      color: 'warning' as const,
+      icon: 'i-lucide-map-pin-off',
+      desc: 'Admin belum menandai titik kerja. Sementara ini semua absen dianggap di dalam area.',
+    }))
+
+const terdaftar = computed(() => ctx.value?.wajahTerdaftar === 1)
+const wajib = computed(() => ctx.value?.setting?.wajahWajib === true)
+const wajahStatus = computed(() => (terdaftar.value
+  ? {
+      label: 'Wajah terdaftar',
+      color: 'success' as const,
+      icon: 'i-lucide-scan-face',
+      desc: 'Pencocokan dikerjakan server. Wajah yang tidak cocok tetap terekam, tapi masuk antrean HR.',
+    }
+  : wajib.value
+    ? {
+        label: 'Wajah wajib',
+        color: 'error' as const,
+        icon: 'i-lucide-scan-face',
+        desc: 'Wajah belum didaftarkan — wajib sebelum bisa absen. Daftarkan di aplikasi Absensi.',
+      }
+    : {
+        label: 'Belum didaftarkan',
+        color: 'neutral' as const,
+        icon: 'i-lucide-scan-face',
+        desc: 'Belum wajib. Daftarkan supaya absenmu lebih kuat buktinya.',
+      }))
 </script>
 
 <template>
   <AppPage
-    title="Absensi"
-    description="Riwayat 14 hari terakhir"
+    title="Absen"
+    description="Ringkasan absensi hari ini. Ketukan masuk & pulang lewat aplikasi Absensi."
   >
-    <div class="mb-7 max-w-xl">
-      <AppFocus
-        label="Hari ini"
-        :value="today.value"
-        :hint="today.hint"
+    <template #actions>
+      <UButton
+        :to="PWA"
+        target="_blank"
+        rel="noopener"
+        icon="i-lucide-external-link"
+        label="Buka aplikasi absen"
       />
-    </div>
+    </template>
 
     <p
       v-if="error"
@@ -60,49 +111,131 @@ const columns = computed<TableColumn<AbsensiHari>[]>(() => [
       {{ apiErrorMessage(error) }}
     </p>
 
-    <!-- Phone: grouped list -->
-    <AppList
-      title="Riwayat"
-      class="lg:hidden"
+    <AppStatGrid>
+      <AppStat
+        label="Shift"
+        icon="i-lucide-calendar-clock"
+        :value="shift.value"
+        :sub="shift.sub"
+        :tone="shift.tone"
+      />
+      <AppStat
+        label="Jam server"
+        icon="i-lucide-clock"
+        :value="jamServer"
+        sub="Waktu server, bukan jam HP"
+      />
+      <AppStat
+        label="Masuk"
+        icon="i-lucide-log-in"
+        :value="masukJam"
+        :sub="masukSub"
+        :tone="hari?.masuk ? 'success' : 'gold'"
+      />
+      <AppStat
+        label="Pulang"
+        icon="i-lucide-log-out"
+        :value="pulangJam"
+        :sub="pulangSub"
+        :tone="hari?.pulang ? 'info' : 'gold'"
+      />
+      <AppStat
+        label="Durasi"
+        icon="i-lucide-timer"
+        :value="durasiTampil"
+        :sub="durasiSub"
+        :tone="hari?.hitung?.lengkap ? 'info' : 'gold'"
+      />
+    </AppStatGrid>
+
+    <AppPanel
+      title="Status hari ini"
+      icon="i-lucide-badge-check"
     >
       <USkeleton
         v-if="status === 'pending'"
-        class="m-4 h-10"
+        class="h-6 w-40"
       />
+      <div
+        v-else-if="lencana.length"
+        class="flex flex-wrap gap-2"
+      >
+        <AppStatus
+          v-for="l in lencana"
+          :key="l.label"
+          :color="l.color"
+          :icon="l.icon"
+        >
+          {{ l.label }}
+        </AppStatus>
+      </div>
+      <p
+        v-else
+        class="text-muted"
+      >
+        Belum ada absen hari ini. Absen masuk dulu di aplikasi Absensi.
+      </p>
+      <p class="mt-3 text-sm text-muted">
+        Telat, lembur, dan durasi dihitung server dari ketukan dan shift — tidak disimpan, jadi ikut
+        berubah bila pengajuanmu baru disetujui.
+      </p>
+    </AppPanel>
+
+    <AppList title="Syarat absen">
       <AppListRow
-        v-for="h in rows"
-        :key="h.uid + h.tgl"
-        :title="others ? `${tglPendek(h.tgl)} · ${h.nama}` : tglPendek(h.tgl)"
-        :description="`${h.masuk?.jam ?? '—'} – ${h.pulang?.jam ?? '—'} · ${menit(h.hitung.durasi)}`"
+        title="Lokasi kerja"
+        :description="lokasiStatus.desc"
+        icon="i-lucide-map-pin"
       >
         <template #trailing>
-          <AppStatus :color="statusHari(h).color">
-            {{ statusHari(h).label }}
+          <AppStatus
+            :color="lokasiStatus.color"
+            :icon="lokasiStatus.icon"
+          >
+            {{ lokasiStatus.label }}
           </AppStatus>
         </template>
       </AppListRow>
-      <p
-        v-if="status === 'success' && !rows.length"
-        class="px-4 py-3 text-muted"
+      <AppListRow
+        title="Wajah"
+        :description="wajahStatus.desc"
+        icon="i-lucide-scan-face"
       >
-        Belum ada absen di rentang ini.
-      </p>
-    </AppList>
-
-    <!-- Desktop: table -->
-    <div class="hidden overflow-hidden rounded-panel border border-default bg-default shadow-panel lg:block">
-      <UTable
-        :data="rows"
-        :columns="columns"
-        :loading="status === 'pending'"
-        empty="Belum ada absen di rentang ini."
-      >
-        <template #status-cell="{ row }">
-          <AppStatus :color="statusHari(row.original).color">
-            {{ statusHari(row.original).label }}
+        <template #trailing>
+          <AppStatus
+            :color="wajahStatus.color"
+            :icon="wajahStatus.icon"
+          >
+            {{ wajahStatus.label }}
           </AppStatus>
         </template>
-      </UTable>
-    </div>
+      </AppListRow>
+      <AppListRow
+        title="Absen di Office Vue"
+        description="Tombol masuk & pulang dengan kamera wajah + GPS menyusul di tugas terakhir."
+        icon="i-lucide-camera"
+        dim
+      >
+        <template #trailing>
+          <span class="text-dimmed">Segera · K-02</span>
+        </template>
+      </AppListRow>
+    </AppList>
+
+    <AppPanel
+      title="Aplikasi Absensi"
+      icon="i-lucide-smartphone"
+    >
+      <p class="text-sm text-muted">
+        Ketukan absen memakai kamera wajah dan GPS, dan hanya tersedia di
+        <a
+          :href="PWA"
+          target="_blank"
+          rel="noopener"
+          class="font-semibold text-primary-700 underline-offset-4 hover:underline dark:text-primary-300"
+        >absensi.laksamanamuda.id</a>.
+        Masuk dengan akun Office yang sama.
+      </p>
+    </AppPanel>
   </AppPage>
 </template>
