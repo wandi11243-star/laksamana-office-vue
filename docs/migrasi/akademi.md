@@ -208,6 +208,8 @@ Konkurensi: legacy memakai `baseUpdatedAt` per baris; baris yang lebih tua dari 
 ## J. Progres build
 Branch: migrasi/akademi · Mulai: 2026-10-01
 LANJUTKAN DARI: — (semua layar bagian C punya halaman)
+Status layar: **dibangun, belum dicek visual** — ✅ di kolom status berarti halamannya
+sudah dibangun, **bukan** sudah dirender/dicek di browser (1366px/390px, tugas manusia).
 
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
@@ -242,17 +244,38 @@ Catatan build:
 - Helpers murni: `app/utils/akademi-hitung.ts` (userStats/isDone/program), `app/utils/akademi-konstanta.ts` (TYPES/CATS/divisi/peran), `app/utils/status-akademi.ts` (peta status).
 
 ## K. Daftar uji cutover
-- dashboard: angka keempat kartu = `userStats` (uji silang `GET /training-stats/{me}`); program bulan berjalan tampil; materi wajib belum selesai → 6 kartu; selesai → panel "Semua materi wajib selesai".
-- materi: chip tipe & kategori menyaring; buka modul/video/SOP/menu/kuis; SOP baru bisa dikonfirmasi setelah semua langkah dicentang.
-- perpus: cari judul; materi luar divisi = "Mode Baca" tanpa tombol selesai; kuis mode latihan tidak menyimpan skor.
-- program: item refresher ditandai dan bisa dikerjakan ulang; status Tuntas/Lewat deadline/Berjalan/Arsip.
-- struktur: admin tambah/edit/hapus divisi; divisi berisi kru/materi menolak dihapus.
-- sertifikat: tersertifikasi → sertifikat + cetak; belum → panel progress + tabel materi wajib.
-- tim: admin lihat semua kru, manager hanya divisinya; Detail menampilkan materi/skor/waktu.
-- anjungan: 4 angka, progress per divisi, kru <50%, hasil kuis per materi.
-- kelolaMateri: tambah tiap tipe; hapus menghapus progress (uji: progress kru hilang setelah hapus).
-- kelolaProgram: buat/edit, duplikat ke bulan berikut, kepatuhan, hapus menghapus program-progress.
-- kelolaKru: sinkron roster menambah/mengaktifkan; edit jabatan/divisi/peran.
-- log: 120 entri terbaru, nama kru dari `users`.
-- sync: unduh `.json` cocok dengan `GET /state`; tiga tombol push/pull/restore "Segera".
-- lintas Vue ↔ Office lama: v1 menulis `updated_at`, terbaca sebagai `baseUpdatedAt` lama; tab lama dan Vue tidak saling menimpa.
+
+Daftar untuk **manusia** (agen tidak menjalankan app). Setiap butir **layar**: dibuka di
+**1366px** dan **390px**, tanpa error runtime, susunan/kolom/kartu sama dengan Office lama
+(rujukan D.x di atas), tabel muat di 1366px dan menjadi kartu di 390px. Setiap butir
+**aksi tulis**: berhasil, dan versi basi memicu muat-ulang konflik (bukan menimpa
+diam-diam). Tanda **[G-xx]** menandai butir yang menyentuh bagian "Segera"/gap.
+
+### Layar (1366px & 390px)
+- [ ] **dashboard** — Beranda (D.1): 4 kartu (`userStats`, silang `GET /training-stats/{me}`), program bulan berjalan, materi wajib belum selesai, materi terbaru.
+- [ ] **materi** — Materi Saya (D.2): chip tipe & kategori menyaring, kartu materi tampil.
+- [ ] **program** — Program Bulanan (D.5): status Tuntas/Lewat deadline/Berjalan/Arsip, item refresher ditandai.
+- [ ] **perpus** — Perpustakaan (D.6): cari judul, chip divisi+tipe, "N materi ditemukan", penanda Mode Baca.
+- [ ] **struktur** — Struktur Organisasi (D.7): kartu manajemen + per divisi (PIC/kru/persen wajib).
+- [ ] **sertifikat** — Progress & Sertifikat (D.8): tersertifikasi → sertifikat + tombol cetak; belum → panel progress + tabel materi wajib.
+- [ ] **tim** — Progress Tim (D.9): admin lihat semua kru, manager hanya divisinya; Detail menampilkan materi/skor/waktu.
+- [ ] **anjungan** — Anjungan (D.10): 4 statistik, progress per divisi, kru <50%, hasil kuis per materi.
+- [ ] **kelolaMateri** — Kelola Materi (D.11): tombol "+ <Tipe>", tabel Materi/Tipe/Divisi/Kategori/Wajib/Status/aksi.
+- [ ] **kelolaProgram** — Kelola Program (D.12): tabel Bulan/Program/Item/Deadline/Kepatuhan/aksi + kartu panduan.
+- [ ] **kelolaKru** — Kelola Kru (D.13): tabel kru aktif Nama/Jabatan/Divisi/Peran/Atur. **[G-18]**
+- [ ] **log** — Log Aktivitas (D.14): tabel Waktu/Kru/Aksi/Detail, 120 entri terbaru dari `activity`.
+- [ ] **sync** — Sinkronisasi & Backup (D.15): status sync, kartu Database, tombol unduh backup. **[G-16]**
+
+### Aksi tulis (berhasil + konflik versi)
+- [ ] Buka materi (D.3) modul/video/SOP/menu/kuis; tombol selesai hanya aktif sesuai aturan (SOP semua langkah dicentang) → `PUT /progress/{user}/{material}`.
+- [ ] Kerjakan item program (D.5) → `PUT /program-progress/{user}/{program}/{material}`; refresher tetap bisa dikerjakan ulang; Mode Baca tidak menyimpan.
+- [ ] Kuis (D.4): skor & lulus disimpan, Mode Baca = mode latihan (tidak disimpan).
+- [ ] struktur: tambah/edit divisi (`POST`/`PUT /divisions/{id}`); hapus divisi berisi kru/materi ditolak dengan pesan.
+- [ ] kelolaMateri: simpan materi tiap tipe (`POST`/`PUT /materials`); **hapus materi** = progress kru ikut terhapus dulu, materi terakhir. **[G-17]**
+- [ ] kelolaProgram: simpan/edit program; duplikat ke bulan berikut; **hapus program** = program-progress ikut terhapus dulu, program terakhir. **[G-17]**
+- [ ] kelolaKru: "Sinkron dari Office"/roster (`POST /users`) menambah/mengaktifkan tanpa menghapus; edit jabatan/divisi/peran (`PUT /users/{id}`). **[G-18]**
+- [ ] log: setiap aksi menulis baris `POST /activity`; nama kru diambil dari `users`.
+- [ ] sync: "Unduh Backup (.json)" cocok dengan `GET /state`. **"Segera" [G-16]:** "Kirim Sekarang", "Ambil Ulang dari Server", "Pulihkan dari Backup" (butuh endpoint whole-state).
+
+### Silang Vue ↔ Office lama
+- [ ] Tulis progress/versi di Vue, buka tab Office lama: `updated_at` v1 terbaca sebagai `baseUpdatedAt` lama; sunting dari kedua sisi tidak saling menimpa (yang kalah → konflik, bukan kehilangan data).

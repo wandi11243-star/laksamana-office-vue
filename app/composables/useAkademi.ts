@@ -261,6 +261,11 @@ export async function simpanDokumenAkademi<T = unknown>(doc: string, value: T): 
  * Delete every progress cell of one material (F8: deleting a material deletes
  * its progress). The API has no cascade, so the cells are removed one by one —
  * each with the version the list returned.
+ *
+ * G-17: the caller MUST delete the progress cells first and the material last,
+ * and stop at the first refusal. The sequential `await` in this loop does that:
+ * a failed cell throws before `deleteAkademiRecord('materials', …)` runs, so the
+ * screen is not left half-deleted. `kelola-materi.vue` relies on this order.
  */
 export async function hapusProgresMateri(material: string): Promise<void> {
   const { data } = await useApi()<Envelope<{ userId: string, materialId: string, version: Versi }[]>>('/akademi/progress', { query: { material } })
@@ -269,7 +274,11 @@ export async function hapusProgresMateri(material: string): Promise<void> {
   }
 }
 
-/** Delete every program-progress cell of one program (F8: same rule as materials). */
+/**
+ * Delete every program-progress cell of one program (F8: same rule as materials).
+ * G-17: progress first, program last, stop on the first refusal — the caller
+ * (`kelola-program.vue`) deletes the record only after this resolves.
+ */
 export async function hapusProgProgProgram(program: string): Promise<void> {
   const { data } = await useApi()<Envelope<{ userId: string, programId: string, materialId: string, version: Versi }[]>>('/akademi/program-progress', { query: { program } })
   for (const row of data ?? []) {
