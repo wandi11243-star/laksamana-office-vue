@@ -95,6 +95,10 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     // other modules, so it must not end the session here either.
     kaki: { label: 'Keluar ke Office', to: '/', icon: 'i-lucide-power' },
   },
+  bd: {
+    subjudul: 'BD OS',
+    layar: LAYAR_BD,
+  },
 }
 
 /** The module the current route belongs to, when it has its own chrome. */

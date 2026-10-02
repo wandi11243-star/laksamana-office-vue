@@ -52,7 +52,7 @@ Urutan mempertimbangkan ukuran, risiko, dan **siapa yang membangun komponen bers
 | 2 | akademi | 13 layar | — | — | ⬜ |
 | 3 | hlife | 14 layar | K-01 (G-13) | — | ⬜ |
 | 4 | konten | 20 layar | K-01 (G-13), K-05 | `performa-konten.ts`, `xlsx-baca.ts` | ⬜ |
-| 5 | bd | 11 layar | — (G-02) | — | ⬜ |
+| 5 | bd | 11 layar | — (G-02) | — | ⚠️ (gelombang 1, 2026-10-01; dibangun, belum dicek visual; saran master vendor "Segera" G-02) |
 | 6 | hr | 17 layar | K-01 (G-13), K-05 | `people-score.ts` | ⬜ |
 | 7 | jadwal | jadwal + dw + roster, 20 layar | K-10 (G-03/05) | `pax-harian.ts` (`satukan()`) | ⬜ |
 | 8 | reservasi | reservasi + service_excellent, 12 layar | K-05: OCR `tesseract.js` diizinkan, lazy (G-07/08) | `DanaMasukPanel`, `Denah` + `venue-layouts.ts`, `kwitansi.ts` | ✅ (visual belum dicek) |
