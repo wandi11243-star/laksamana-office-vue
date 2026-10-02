@@ -13,8 +13,8 @@ import {
   createHlifeRecord, deleteHlifeRecord, updateHlifeRecord,
   useHlifeResource,
 } from '~/composables/useHlife'
-import type { Kuadran } from '~/utils/hlife'
-import { kuadran, tautanGcal, terlambat } from '~/utils/hlife'
+import type { KuadranHlife } from '~/utils/hlife'
+import { kuadranHlife, tautanGcal, terlambat } from '~/utils/hlife'
 import { KUADRAN_META, lencanaTugas } from '~/utils/status-hlife'
 import { angka, hariIni, tambahHari } from '~/utils/format'
 
@@ -52,7 +52,7 @@ const tersaring = computed(() => tasks.value.filter(t =>
 interface Grup {
   judul: string
   desc?: string
-  kuadran?: Kuadran
+  kuadran?: KuadranHlife
   items: HlifeTask[]
 }
 
@@ -60,10 +60,10 @@ interface Grup {
 const grup = computed<Grup[]>(() => {
   const dasar = tersaring.value
   if (tampilan.value === 'matrix') {
-    const pesan: Kuadran[] = ['do', 'schedule', 'delegate', 'delete']
+    const pesan: KuadranHlife[] = ['do', 'schedule', 'delegate', 'delete']
     return pesan.map((k) => {
       const meta = KUADRAN_META[k]
-      return { judul: meta.label, desc: meta.desc, kuadran: k, items: dasar.filter(t => !t.done && kuadran(t) === k) }
+      return { judul: meta.label, desc: meta.desc, kuadran: k, items: dasar.filter(t => !t.done && kuadranHlife(t) === k) }
     })
   }
   if (tampilan.value === 'today') {
@@ -126,7 +126,7 @@ const opsiProyekForm = computed(() => [
     .map(p => ({ value: p.id, label: `${p.name}${p.stage === 'Done' ? ' · selesai' : ''}` })),
 ])
 
-const metaForm = computed(() => KUADRAN_META[kuadran({ important: form.important, urgent: form.urgent })])
+const metaForm = computed(() => KUADRAN_META[kuadranHlife({ important: form.important, urgent: form.urgent })])
 
 function buka(t?: HlifeTask, prefill: { biz?: string, project?: string } = {}) {
   Object.assign(form, t

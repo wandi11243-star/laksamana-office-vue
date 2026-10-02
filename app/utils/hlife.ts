@@ -55,10 +55,10 @@ export const EVENT_TYPES: { value: string, label: string, icon: string, tone: Wa
 
 // ---------------------------------------------------------------- formulas
 
-export type Kuadran = 'do' | 'schedule' | 'delegate' | 'delete'
+export type KuadranHlife = 'do' | 'schedule' | 'delegate' | 'delete'
 
 /** `quadrant()` (`:553`). */
-export function kuadran(t: Pick<HlifeTask, 'important' | 'urgent'>): Kuadran {
+export function kuadranHlife(t: Pick<HlifeTask, 'important' | 'urgent'>): KuadranHlife {
   if (t.important && t.urgent) return 'do'
   if (t.important && !t.urgent) return 'schedule'
   if (!t.important && t.urgent) return 'delegate'
@@ -175,7 +175,7 @@ export function labelScope(scope: string, businesses: Pick<HlifeBusiness, 'id' |
 // ---------------------------------------------------------------- weeks
 
 /** `weekStart()` (`:717`): the Monday of that week, midnight. */
-export function awalMinggu(d: Date | string): Date {
+export function awalMingguHlife(d: Date | string): Date {
   const x = typeof d === 'string' ? new Date(`${d}T00:00:00`) : new Date(d)
   const day = (x.getDay() + 6) % 7
   x.setDate(x.getDate() - day)
@@ -185,7 +185,7 @@ export function awalMinggu(d: Date | string): Date {
 
 /** `weekKey()` (`:718`): the Monday as "YYYY-MM-DD" (local, never UTC). */
 export const kunciMinggu = (d: Date | string) => {
-  const x = awalMinggu(d)
+  const x = awalMingguHlife(d)
   const p = (n: number) => String(n).padStart(2, '0')
   return `${x.getFullYear()}-${p(x.getMonth() + 1)}-${p(x.getDate())}`
 }

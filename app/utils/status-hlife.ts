@@ -8,8 +8,8 @@
 //
 // Source: laksamana-office/deploy/howandi_life/index.html (lines inline).
 import type { HlifeTask } from '~/composables/useHlife'
-import type { Kuadran, WarnaHlife } from '~/utils/hlife'
-import { fmtDue, kuadran, terlambat } from '~/utils/hlife'
+import type { KuadranHlife, WarnaHlife } from '~/utils/hlife'
+import { fmtDue, kuadranHlife, terlambat } from '~/utils/hlife'
 
 export interface LencanaHlife {
   label: string
@@ -18,7 +18,7 @@ export interface LencanaHlife {
 }
 
 /** The Eisenhower cells (`:633`). */
-export const KUADRAN_META: Record<Kuadran, { label: string, desc: string, tone: WarnaHlife, icon: string }> = {
+export const KUADRAN_META: Record<KuadranHlife, { label: string, desc: string, tone: WarnaHlife, icon: string }> = {
   do: { label: 'DO', desc: 'Penting + mendesak', tone: 'error', icon: 'i-lucide-flame' },
   schedule: { label: 'SCHEDULE', desc: 'Penting + tidak mendesak', tone: 'info', icon: 'i-lucide-calendar-clock' },
   delegate: { label: 'DELEGATE', desc: 'Tidak penting + mendesak', tone: 'warning', icon: 'i-lucide-users' },
@@ -64,7 +64,7 @@ export function lencanaMimpi(status: string): LencanaHlife {
 
 /** The tags under a task name (`taskRow`, `:590`), in the old order. */
 export function lencanaTugas(t: HlifeTask, opts: { hideProject?: boolean, projects?: { id: string, name: string }[] } = {}): LencanaHlife[] {
-  const q = kuadran(t)
+  const q = kuadranHlife(t)
   const meta = KUADRAN_META[q]
   const out: LencanaHlife[] = [{ label: meta.label, color: meta.tone, icon: meta.icon }]
   if (t.biz) out.push({ label: t.biz, color: 'gold', icon: 'i-lucide-building-2' })

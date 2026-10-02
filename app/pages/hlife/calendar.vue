@@ -11,7 +11,7 @@ import {
   useHlifeResource,
 } from '~/composables/useHlife'
 import type { CalItem } from '~/utils/hlife'
-import { EVENT_TYPES, awalMinggu, calItems, icsDari, tautanGcal } from '~/utils/hlife'
+import { EVENT_TYPES, awalMingguHlife, calItems, icsDari, tautanGcal } from '~/utils/hlife'
 import { hariIni } from '~/utils/format'
 
 definePageMeta({ access: ['howandi_life'] })
@@ -57,7 +57,7 @@ function geser(dir: number) {
 const label = computed(() => {
   if (mode.value === 'month') return acuan.value.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
   if (mode.value === 'day') return acuan.value.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
-  const mulai = mode.value === 'week' ? awalMinggu(acuan.value) : acuan.value
+  const mulai = mode.value === 'week' ? awalMingguHlife(acuan.value) : acuan.value
   const akhir = new Date(mulai)
   akhir.setDate(akhir.getDate() + (mode.value === 'week' ? 6 : 3))
   return `${mulai.getDate()} ${mulai.toLocaleDateString('id-ID', { month: 'short' })} – ${akhir.getDate()} ${akhir.toLocaleDateString('id-ID', { month: 'short', year: 'numeric' })}`
@@ -100,7 +100,7 @@ const selBulan = computed(() => {
 /** The columns for day/4-day/week (`calColumns`, `:728`). */
 const kolomHari = computed(() => {
   const n = mode.value === 'week' ? 7 : mode.value === 'few' ? 4 : 1
-  const start = mode.value === 'week' ? awalMinggu(acuan.value) : acuan.value
+  const start = mode.value === 'week' ? awalMingguHlife(acuan.value) : acuan.value
   const out: { iso: string, dow: string, dn: number }[] = []
   for (let i = 0; i < n; i++) {
     const d = new Date(start)
