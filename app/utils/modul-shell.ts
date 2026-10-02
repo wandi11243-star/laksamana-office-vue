@@ -36,6 +36,14 @@ export interface ModulShell {
 }
 
 export const MODUL_SHELL: Record<string, ModulShell> = {
+  akademi: {
+    subjudul: 'Akademi',
+    layar: LAYAR_AKADEMI,
+    // The old footer showed the crew member's Office title; "Kru" while the row
+    // is not in the local crew list yet (roster sync is admin-only, see gap G-18).
+    peran: me => kruSaya(me)?.title || 'Kru',
+    siapkan: () => muatAkademiKru(),
+  },
   absensi: {
     subjudul: 'Absensi',
     layar: LAYAR_ABSENSI,

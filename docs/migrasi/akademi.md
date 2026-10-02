@@ -204,3 +204,78 @@ Konkurensi: legacy memakai `baseUpdatedAt` per baris; baris yang lebih tua dari 
 
 ## I. Pertanyaan terbuka
 - _(tidak ada)_
+
+## J. Progres build
+Branch: migrasi/akademi · Mulai: 2026-10-01
+LANJUTKAN DARI: — (semua layar bagian C punya halaman)
+Status layar: **dibangun, belum dicek visual** — ✅ di kolom status berarti halamannya
+sudah dibangun, **bukan** sudah dirender/dicek di browser (1366px/390px, tugas manusia).
+
+| layar (key) | file | status | endpoint dipakai | ditunda karena |
+|---|---|---|---|---|
+| dashboard | `app/pages/akademi/dashboard.vue` | ✅ | `GET /state`, `POST /users` (roster), `POST /activity`, `PUT /progress`, `PUT /program-progress` | — |
+| materi | `app/pages/akademi/materi.vue` | ✅ | `GET /state`, `PUT /progress`, `PUT /program-progress`, `POST /activity` | — |
+| program | `app/pages/akademi/program.vue` | ✅ | `GET /state`, `PUT /progress`, `PUT /program-progress`, `POST /activity` | — |
+| perpus | `app/pages/akademi/perpus.vue` | ✅ | `GET /state`, `PUT /progress`, `PUT /program-progress`, `POST /activity` | — |
+| struktur | `app/pages/akademi/struktur.vue` | ✅ | `GET /state`, `POST /divisions`, `PUT /divisions/{id}`, `DELETE /divisions/{id}` | — |
+| sertifikat | `app/pages/akademi/sertifikat.vue` | ✅ | `GET /state` | — |
+| tim | `app/pages/akademi/tim.vue` | ✅ | `GET /state` | — |
+| anjungan | `app/pages/akademi/anjungan.vue` | ✅ | `GET /state` | — |
+| kelolaMateri | `app/pages/akademi/kelola-materi.vue` | ✅ | `POST/PUT/DELETE /materials`, `GET /progress`, `DELETE /progress/{user}/{material}` (cascade F8) | — |
+| kelolaProgram | `app/pages/akademi/kelola-program.vue` | ✅ | `POST/PUT/DELETE /programs`, `GET /program-progress`, `DELETE /program-progress/{user}/{program}/{material}` (cascade F8) | — |
+| kelolaKru | `app/pages/akademi/kelola-kru.vue` | ✅ | `GET /state`, `PUT /users/{id}`, `GET /account/modules/akademi/members`, `POST /users` | — |
+| log | `app/pages/akademi/log.vue` | ✅ | `GET /state` | — |
+| sync | `app/pages/akademi/sync.vue` | ✅ (sebagian ⏸) | `GET /state` (unduh backup) | **"Segera"**: "Kirim Sekarang" (`pushToServer`), "Ambil Ulang dari Server" (`ambilDariServer`), "Pulihkan dari Backup" (`importJSON`/`doImportJSON`) — v1 tidak punya whole-state write. Kandidat G baru (pola K-01/G-13). |
+
+Catatan build:
+- **Registrasi chrome belum ada.** `app/utils/modul-shell.ts` milik lead; entri `akademi` harus ditambahkan di sana agar sidebar modul aktif:
+  ```ts
+  akademi: {
+    subjudul: 'Akademi',
+    layar: LAYAR_AKADEMI,
+    peran: me => kruSaya(me)?.title || 'Kru',
+    siapkan: () => muatAkademiKru(),
+  },
+  ```
+  Tanpa entri itu halaman tetap bisa dibuka lewat URL, tetapi sidebar jatuh ke daftar modul Office.
+- **Sinkron roster hanya jalan untuk admin.** `POST /users` butuh hak admin modul, jadi `sinkronRosterAkademi()` hanya dipanggil dari layar admin (Beranda & Kelola Kru). Kru baru yang belum pernah dibuka admin belum punya baris; layar memakai baris sementara `division:'all'` seperti `resolveAkademiUser` lama. Kandidat gap (roster sync non-admin).
+- **Cascade hapus F8 dikerjakan klien.** API `DELETE /materials/{id}` / `DELETE /programs/{id}` tidak menghapus progress terkait; klien menghapus sel per sel lewat `GET /progress?material=` / `GET /program-progress?program=` lalu `DELETE`, sesuai F8. Bisa jadi gap kalau pemanggil lain lupa.
+- **`GET /state` tidak membawa versi per baris.** Helper tulis (`updateAkademiRecord`, `simpanProgres`, `simpanProgProg`) membaca ulang baris/sel untuk mendapat `meta.version` sebelum menulis; konflik tetap ditangani `tanganiKonflik`.
+- Helpers murni: `app/utils/akademi-hitung.ts` (userStats/isDone/program), `app/utils/akademi-konstanta.ts` (TYPES/CATS/divisi/peran), `app/utils/status-akademi.ts` (peta status).
+
+## K. Daftar uji cutover
+
+Daftar untuk **manusia** (agen tidak menjalankan app). Setiap butir **layar**: dibuka di
+**1366px** dan **390px**, tanpa error runtime, susunan/kolom/kartu sama dengan Office lama
+(rujukan D.x di atas), tabel muat di 1366px dan menjadi kartu di 390px. Setiap butir
+**aksi tulis**: berhasil, dan versi basi memicu muat-ulang konflik (bukan menimpa
+diam-diam). Tanda **[G-xx]** menandai butir yang menyentuh bagian "Segera"/gap.
+
+### Layar (1366px & 390px)
+- [ ] **dashboard** — Beranda (D.1): 4 kartu (`userStats`, silang `GET /training-stats/{me}`), program bulan berjalan, materi wajib belum selesai, materi terbaru.
+- [ ] **materi** — Materi Saya (D.2): chip tipe & kategori menyaring, kartu materi tampil.
+- [ ] **program** — Program Bulanan (D.5): status Tuntas/Lewat deadline/Berjalan/Arsip, item refresher ditandai.
+- [ ] **perpus** — Perpustakaan (D.6): cari judul, chip divisi+tipe, "N materi ditemukan", penanda Mode Baca.
+- [ ] **struktur** — Struktur Organisasi (D.7): kartu manajemen + per divisi (PIC/kru/persen wajib).
+- [ ] **sertifikat** — Progress & Sertifikat (D.8): tersertifikasi → sertifikat + tombol cetak; belum → panel progress + tabel materi wajib.
+- [ ] **tim** — Progress Tim (D.9): admin lihat semua kru, manager hanya divisinya; Detail menampilkan materi/skor/waktu.
+- [ ] **anjungan** — Anjungan (D.10): 4 statistik, progress per divisi, kru <50%, hasil kuis per materi.
+- [ ] **kelolaMateri** — Kelola Materi (D.11): tombol "+ <Tipe>", tabel Materi/Tipe/Divisi/Kategori/Wajib/Status/aksi.
+- [ ] **kelolaProgram** — Kelola Program (D.12): tabel Bulan/Program/Item/Deadline/Kepatuhan/aksi + kartu panduan.
+- [ ] **kelolaKru** — Kelola Kru (D.13): tabel kru aktif Nama/Jabatan/Divisi/Peran/Atur. **[G-18]**
+- [ ] **log** — Log Aktivitas (D.14): tabel Waktu/Kru/Aksi/Detail, 120 entri terbaru dari `activity`.
+- [ ] **sync** — Sinkronisasi & Backup (D.15): status sync, kartu Database, tombol unduh backup. **[G-16]**
+
+### Aksi tulis (berhasil + konflik versi)
+- [ ] Buka materi (D.3) modul/video/SOP/menu/kuis; tombol selesai hanya aktif sesuai aturan (SOP semua langkah dicentang) → `PUT /progress/{user}/{material}`.
+- [ ] Kerjakan item program (D.5) → `PUT /program-progress/{user}/{program}/{material}`; refresher tetap bisa dikerjakan ulang; Mode Baca tidak menyimpan.
+- [ ] Kuis (D.4): skor & lulus disimpan, Mode Baca = mode latihan (tidak disimpan).
+- [ ] struktur: tambah/edit divisi (`POST`/`PUT /divisions/{id}`); hapus divisi berisi kru/materi ditolak dengan pesan.
+- [ ] kelolaMateri: simpan materi tiap tipe (`POST`/`PUT /materials`); **hapus materi** = progress kru ikut terhapus dulu, materi terakhir. **[G-17]**
+- [ ] kelolaProgram: simpan/edit program; duplikat ke bulan berikut; **hapus program** = program-progress ikut terhapus dulu, program terakhir. **[G-17]**
+- [ ] kelolaKru: "Sinkron dari Office"/roster (`POST /users`) menambah/mengaktifkan tanpa menghapus; edit jabatan/divisi/peran (`PUT /users/{id}`). **[G-18]**
+- [ ] log: setiap aksi menulis baris `POST /activity`; nama kru diambil dari `users`.
+- [ ] sync: "Unduh Backup (.json)" cocok dengan `GET /state`. **"Segera" [G-16]:** "Kirim Sekarang", "Ambil Ulang dari Server", "Pulihkan dari Backup" (butuh endpoint whole-state).
+
+### Silang Vue ↔ Office lama
+- [ ] Tulis progress/versi di Vue, buka tab Office lama: `updated_at` v1 terbaca sebagai `baseUpdatedAt` lama; sunting dari kedua sisi tidak saling menimpa (yang kalah → konflik, bukan kehilangan data).
