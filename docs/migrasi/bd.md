@@ -352,6 +352,8 @@ Kode error yang wajib ditangani UI (`docs/api/bd.md:77-86`): `401 unauthenticate
 ## J. Progres build
 Branch: migrasi/bd · Mulai: 2026-10-01
 LANJUTKAN DARI: —
+Status layar: **dibangun, belum dicek visual** — ✅ di kolom status berarti halamannya
+sudah dibangun, **bukan** sudah dirender/dicek di browser (1366px/390px, tugas manusia).
 
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
@@ -375,15 +377,38 @@ Catatan build (2026-10-01):
 - **Perlu ditindak lead:** entri `bd` di `app/utils/modul-shell.ts` (layar sidebar, tombol `+`, lonceng, `siapkan`) belum ditambahkan — di luar kepemilikan berkas agen `bd`. Halaman tetap dapat dibuka lewat rute `/bd/...`.
 
 ## K. Daftar uji cutover
-- **dashboard:** 5 angka cocok dengan Tasks/Projects/Coord/PO; fokus harian tersimpan bersama tanggalnya (besok kosong lagi); tombol "Task baru" menyimpan satu task.
-- **tasks:** matrix DO/SCHEDULE/DELEGATE/DELETE turunan `important`+`urgent`; geser kartu mengubah kuadran; hapus task berkonfirmasi; filter lingkup/divisi/project/tipe/PIC sama dengan Projects.
-- **projects:** geser ke Completed menutup semua task (status Done, progress 100) HANYA saat pindah; hapus project melepas task/PO/koordinasi (`project=null`), tidak menghapusnya.
-- **projectDetail:** centang milestone mengubah project; task di project ikut tersaring.
-- **calendar:** grid desktop/daftar HP; geser deadline task mengubah tanggal saja; item lain tidak bisa diseret.
-- **coord:** geser kolom mengubah status; PIC tujuan teks bebas; hapus berkonfirmasi.
-- **routine:** kepatuhan rata-rata dari routine aktif; baris tanpa `total` = 100%.
-- **promo:** status dihitung dari tanggal (paused menang); tanggal selesai < mulai ditolak di form & impor; jeda/aktifkan tidak mengubah field lain; ekspor→impor bolak-balik.
-- **purchasing:** baris kosong request diabaikan, semua masuk "Diajukan"; "Sudah diproses" → status Diterima + `statusSebelum`, batal mengembalikan; nomor PR = tertinggi+1, ganda ditolak; lembar kosong tidak dianggap selesai; set penyetuju tersimpan di `settings/approverSets`.
-- **prDetail:** realisasi kosong ≠ 0; overbudget dihitung; total realisasi hanya baris terisi; setujui hanya signer/admin (jejak, bukan otorisasi).
-- **tim:** Segarkan membuat yang belum ada tanpa menghapus; atasan melingkar ditolak; hapus hanya bila akses dicabut & tanpa pekerjaan.
-- **Silang Vue ↔ Office lama:** promo yang ditambah di Vue muncul di Radar; request Marketing masuk sebagai PO "Diajukan"; realisasi Finance menggerakkan status PO.
+
+Daftar untuk **manusia** (agen tidak menjalankan app). Setiap butir **layar**: dibuka di
+**1366px** dan **390px**, tanpa error runtime, susunan/kolom/kartu sama dengan Office lama
+(rujukan D.x di atas), tabel/kanban muat di 1366px dan menjadi kartu/daftar di 390px.
+Setiap butir **aksi tulis**: berhasil, dan versi basi memicu muat-ulang konflik (bukan
+menimpa diam-diam). Tanda **[G-xx]** menandai butir yang menyentuh bagian "Segera"/gap.
+
+### Layar (1366px & 390px)
+- [ ] **dashboard** — Dashboard (D.1): 5 angka (Task aktif/Overdue/Project jalan/Koordinasi pending/PO berjalan), fokus harian, Prioritas teratas, Overdue, Kesehatan project, Agenda hari ini; pita roster bila ada.
+- [ ] **tasks** — Tasks (D.2): 4 mode Matrix/Hari ini/Minggu ini/Per Divisi, filter lingkup/divisi/project/tipe/PIC, baris task + avStack PIC.
+- [ ] **projects** — Projects (D.3): kanban 5 kolom (`Idea…Completed`), kartu dengan health/budget/PIC/progress.
+- [ ] **projectDetail** — Project/route `[id]` (D.4): 4 kartu Health/Progress/Budget/PIC, milestone, task, koordinasi, PO terkait.
+- [ ] **calendar** — Calendar (D.5): grid Senin-pertama, navigasi bulan, legenda 5 warna.
+- [ ] **coord** — Koordinasi (D.6): mode Board (kanban `Diminta…Selesai`) & Tabel, pita penjelasan.
+- [ ] **routine** — Routine (D.7): 3 kartu (aktif/kepatuhan/terlewat) + tabel routine.
+- [ ] **promo** — Promotion (D.8): 4 kartu status, filter status/tipe, kotak cari, tabel promo, detail + poster.
+- [ ] **purchasing** — Purchasing (D.9): 3 sub-tab (PR & Rekap Mingguan / Semua Item / Penyetuju), 3 kartu ringkasan. **[G-02]**
+- [ ] **prDetail** — Purchase Request/route `pr-[id]` (D.10): lembar siap cetak, kolom Harga/Realisasi/Overbudget/Proses, blok APPROVE BY.
+- [ ] **tim** — Kru BD (D.12): hierarki atasan→anak buah, tabel Nama/Jabatan/Divisi/Atasan/Task/Akses, penanda kamu/dicabut/nonaktif.
+
+### Aksi tulis (berhasil + konflik versi)
+- [ ] dashboard: fokus harian (`PUT /settings/focus`, disimpan bersama tanggal), "Task baru" (`POST /tasks`), "Segarkan" roster (`POST /people` untuk kru baru).
+- [ ] tasks: `POST/PUT/PATCH/DELETE /tasks`, toggle done, drag antar kuadran; hapus berkonfirmasi; `pic` & `pics` selalu bersama.
+- [ ] projects: `POST/PUT/DELETE /projects`, drag stage; pindah ke `Completed` menutup semua task **hanya saat pindah**; hapus melepas task/PO/koordinasi (`project=null`).
+- [ ] projectDetail: `PUT /projects/{id}`, centang milestone, task dari project.
+- [ ] calendar: agenda `POST/PUT/DELETE /agenda`; geser deadline task hanya mengubah tanggal task.
+- [ ] coord: `POST/PUT/PATCH/DELETE /coord-requests`, drag status; PIC tujuan teks bebas.
+- [ ] routine: `POST/PUT/DELETE /routines`; kepatuhan dihitung, baris tanpa `total` = 100%.
+- [ ] promo: `PUT /settings/promos` (tambah/ubah/jeda/hapus); tanggal selesai < mulai ditolak; status dihitung dari tanggal (paused menang); ekspor→impor CSV bolak-balik.
+- [ ] purchasing: `POST /purchase-orders/batch` (baris kosong diabaikan, semua "Diajukan"); `PATCH`/`DELETE /purchase-orders`; "Sudah diproses" → Diterima + `statusSebelum`, batal mengembalikan; `POST /purchase-requests` + `PATCH` PO `prId`; `PUT /settings/approverSets` (admin). **"Segera" [G-02]:** saran master vendor PO (endpoint Stock digate modul Stock).
+- [ ] prDetail: `PUT`/`PATCH /purchase-requests`; setujui hanya signer/admin (jejak, bukan otorisasi); `PUT /purchase-orders/{id}/realisasi` (realisasi kosong ≠ 0, overbudget dihitung); masukkan/keluarkan PO dari lembar.
+- [ ] tim: "Segarkan dari Office" (`POST /people` yang belum ada, tidak pernah menghapus); edit `role/div/boss` (`PATCH /people/{id}`, tolak atasan melingkar); hapus hanya bila akses dicabut & tanpa pekerjaan.
+
+### Silang Vue ↔ Office lama
+- [ ] Promo yang ditambah di Vue muncul di Radar; request Marketing masuk sebagai PO "Diajukan"; realisasi Finance menggerakkan status PO; sunting dari kedua sisi tidak menimpa diam-diam (versi basi → konflik).
