@@ -285,3 +285,73 @@ Konkurensi: legacy **tanpa** penjaga bentrok, last-write-wins (`howandi-life-mys
 
 ## I. Pertanyaan terbuka
 - [ ] **hlife / settings — Reset data** — v1 tidak punya endpoint pengosongan massal; haruskah UI menyediakan "Reset data" (DELETE per record) atau tombol itu dibuang saja? Konteks: legacy `resetAll` (`index.html:829`) mengosongkan 13 koleksi sekaligus, mempertahankan `auth`. Bukti: `index.html:829`, `docs/api/hlife.md` (tak menyebut reset). Opsi: A) buang tombolnya; B) implementasi loop DELETE per record; C) minta endpoint khusus di API. (juga disalin ke `_pertanyaan.md`)
+  → Dijawab K-01 = C: tombol tampil **"Segera"** sampai `POST /hlife/admin/reset` (G-13) ada.
+
+## J. Progres build
+Branch: migrasi/hlife · Mulai: 2026-10-01
+LANJUTKAN DARI: —
+Status layar: **dibangun, belum dicek visual** — ✅ di kolom status berarti halamannya
+sudah dibangun, **bukan** sudah dirender/dicek di browser (1366px/390px, tugas manusia).
+
+Catatan integrasi: `app/utils/modul-shell.ts` TIDAK ikut diedit (bukan milik agen hlife). Selama pemilik
+file itu belum mendaftarkan entri `hlife`, sidebar tetap sidebar Office; karena itu Command Center
+menampilkan daftar layar sebagai jalan masuk semua halaman.
+
+| layar (key) | file | status | endpoint dipakai | ditunda karena |
+|---|---|---|---|---|
+| home | `app/pages/hlife/home.vue` | ✅ | `GET /state`, `GET /settings`, `PUT /settings/{mood,energy,focus,weeklyTarget,dump}`, `PUT /habits/{id}` | — |
+| calendar | `app/pages/hlife/calendar.vue` | ✅ | `GET /events`, `GET /tasks`, `GET /content`, `POST/PUT/DELETE /events/{id}` | — |
+| tasks | `app/pages/hlife/tasks.vue` | ✅ | `GET/POST/PUT/PATCH/DELETE /tasks`, `GET /businesses`, `GET /projects` | — |
+| projects | `app/pages/hlife/projects.vue` | ✅ | `GET/POST/PUT/DELETE /projects`, `GET /tasks`, `GET /businesses` | — |
+| projectDetail | `app/pages/hlife/projects/[id].vue` | ✅ | `GET /projects/{id}`, `GET /tasks`, `GET /businesses`, `POST/PUT/DELETE /tasks` | — |
+| content | `app/pages/hlife/content.vue` | ✅ | `GET/POST/PUT/DELETE /content`, `GET/PUT /settings/channels` | — |
+| goals | `app/pages/hlife/goals.vue` | ✅ | `GET/POST/PUT/DELETE /goals`, `GET /roadmap` | — |
+| roadmap | `app/pages/hlife/roadmap.vue` | ✅ | `GET/POST/PUT/DELETE /roadmap`, `GET/POST/PUT/PATCH/DELETE /dreams`, `GET /goals` | — |
+| learning | `app/pages/hlife/learning.vue` | ✅ | `GET/POST/PUT/DELETE /learning` | — |
+| reviews | `app/pages/hlife/reviews.vue` | ✅ | `GET/POST/PUT/DELETE /reviews` | — |
+| finance | `app/pages/hlife/finance.vue` | ✅ | `GET/POST/PUT/DELETE /assets`, `GET/POST/PUT/DELETE /ledger`, `GET /businesses` | — |
+| business | `app/pages/hlife/business.vue` | ✅ | `GET/POST/PUT/DELETE /businesses`, `GET /tasks`, `GET /projects` | — |
+| bizDetail | `app/pages/hlife/business/[id].vue` | ✅ | `GET /businesses/{id}`, `GET /tasks`, `GET /projects` | — |
+| settings | `app/pages/hlife/settings.vue` | ✅ | `GET /state` (backup JSON & .ics) | Reset data: **K-01 / G-13** (tombol "Segera") |
+
+## K. Daftar uji cutover
+
+Daftar untuk **manusia** (agen tidak menjalankan app). Setiap butir **layar**: dibuka di
+**1366px** dan **390px**, tanpa error runtime, susunan/kolom/kartu sama dengan Office lama
+(rujukan D.x di atas), tabel/kanban muat di 1366px dan menjadi kartu/daftar di 390px.
+Setiap butir **aksi tulis**: berhasil, dan versi basi memicu muat-ulang konflik (bukan
+menimpa diam-diam). Tanda **[G-xx]** menandai butir yang menyentuh bagian "Segera"/gap.
+
+### Layar (1366px & 390px)
+- [ ] **home** — Command Center (D.1): tanggal, fokus, dial mood/energi, Wealth Snapshot, kalender hari ini, target minggu, Top 5 task, overdue, goal, brain dump, habit, roadmap.
+- [ ] **calendar** — Calendar (D.2): banner GCal + Export .ics, navigasi, mode 1/4/Minggu/Bulan, grid bulan / kolom hari.
+- [ ] **tasks** — Tasks (D.3): 4 sub-view Matrix/Hari ini/Minggu ini/Per Bisnis + filter bisnis/project.
+- [ ] **projects** — Project Center (D.4): kanban 8 stage (`Idea…Done`), kartu dengan bisnis/priority/due/PIC/progress.
+- [ ] **projectDetail** — detail project/route `[id]` (D.5): deskripsi, PIC/Tim, progress, deadline, daftar task project.
+- [ ] **content** — Content Pipeline (D.6): chip akun, kanban `Idea…Posted`, kartu platform/tanggal/channel.
+- [ ] **goals** — Goals (D.7): kartu goal (area, persen, gauge, Sekarang vs Target, Update/hapus).
+- [ ] **roadmap** — Roadmap & Dreams (D.8): toggle timeline per tahun / Dreams per kategori.
+- [ ] **learning** — Learning & Refleksi (D.9): banner "N selesai · N total", kartu catatan + bintang.
+- [ ] **reviews** — Evaluasi Diri (D.10): toggle Mingguan / Recap Bulanan, 4 skor + wins/improve.
+- [ ] **finance** — Finance & Aset (D.11): toggle Ringkasan / Bulanan / Aset & Utang; Net Worth, ledger, daftar aset.
+- [ ] **business** — Businesses (D.12): kartu per bisnis (bidang, tahun, Avg Rev/thn, task & project, umur).
+- [ ] **bizDetail** — detail bisnis/route `[id]` (D.13): deskripsi, Avg Revenue, project + task.
+- [ ] **settings** — Data, Sync & Login (D.14): panel Login & Password, Penyimpanan & Backup, penjelasan GCal. **[G-13]**
+
+### Aksi tulis (berhasil + konflik versi)
+- [ ] home: fokus & target minggu (`PUT /settings/focus`,`weeklyTarget`), dial mood/energi (`PUT /settings/{mood,energy}`), tambah/hapus brain dump (`PUT /settings/dump`, urutan newest-first), habit (`PUT /habits/{id}`).
+- [ ] calendar: `POST`/`PUT`/`DELETE /events`; simpan baru → tawaran tambah ke Google Calendar.
+- [ ] tasks: `POST/PUT/PATCH/DELETE /tasks`, toggle done, drag antar kuadran; form menyembunyikan project 'Done' kecuali yang sedang terpasang.
+- [ ] projects: `POST/PUT/DELETE /projects`, drag stage; pindah ke 'Done' → progress 100.
+- [ ] projectDetail: task dari project ini (`POST/PUT/DELETE /tasks`), toggle/edit/hapus.
+- [ ] content: `POST/PUT/DELETE /content`; "Kelola akun" (`PUT /settings/channels`, satu akun per baris).
+- [ ] goals: `POST/PUT/DELETE /goals`; `goalPct` (termasuk `invert`) dihitung, bukan disimpan.
+- [ ] roadmap: milestone (`POST/PUT/DELETE /roadmap`, toggle done) & mimpi (`POST/PUT/DELETE /dreams`, toggle Planning↔Done).
+- [ ] learning: `POST/PUT/DELETE /learning`; rating diklem 0–5.
+- [ ] reviews: simpan minggu yang sama **menimpa** baris, bukan menambah; skor diklem 1–5.
+- [ ] finance: aset `POST/PUT/DELETE /assets` (pilih Utang memaksa kategori "Utang"); ledger `POST/PUT/DELETE /ledger` (baris 0/0 tanpa catatan dihapus); angka dalam **juta rupiah**.
+- [ ] business: `POST/PUT/DELETE /businesses`; hapus bisnis tidak menghapus task/project.
+- [ ] settings: "Backup JSON" (`GET /state`), ganti/nonaktifkan login (`PUT /settings/auth`). **"Segera" [G-13]:** "Reset data" (butuh `POST /hlife/admin/reset`).
+
+### Silang Vue ↔ Office lama
+- [ ] Tulis dari Vue lalu buka layar lama: v1 memakai version-check (legacy last-write-wins), jadi sunting dari kedua sisi tidak menimpa diam-diam — yang kalah menerima konflik dan memuat ulang.
