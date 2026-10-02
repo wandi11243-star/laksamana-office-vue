@@ -107,6 +107,10 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     subjudul: 'Howandi Life OS',
     layar: LAYAR_HLIFE,
   },
+  bd: {
+    subjudul: 'BD OS',
+    layar: LAYAR_BD,
+  },
 }
 
 /** The module the current route belongs to, when it has its own chrome. */

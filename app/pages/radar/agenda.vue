@@ -15,9 +15,11 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { RadarAgenda, RadarPilihan, SumberAgenda } from '~/composables/useRadar'
 import {
-  IKON_SUMBER, SEMUA, SUMBER_PENDEK, TANPA_FB, WARNA_SUMBER, agSelesai, agSudahLewat, cocokFb, dDay, dLabel,
-  dalamPeriode, fTglP, fbOpsi, iris, labelPeriode, paxOf, periodeBaru, rentangPeriode, saringAktif, statusPasti,
+  IKON_SUMBER, SEMUA, SUMBER_PENDEK, TANPA_FB, WARNA_SUMBER, agSelesai, agSudahLewat, cocokFb, dDay,
+  dLabel, dalamPeriode, fbOpsi, iris, labelPeriode, paxOf, periodeBaru, rentangPeriode, saringAktif,
+  statusPasti,
 } from '~/utils/radar'
+import { fTglP } from '~/utils/format'
 
 definePageMeta({ access: ['radar'] })
 

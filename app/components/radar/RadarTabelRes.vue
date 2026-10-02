@@ -7,7 +7,8 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { RadarReservasi } from '~/composables/useRadar'
-import { dpTeks, fTglP, iris, warnaStatusRes } from '~/utils/radar'
+import { dpTeks, iris, warnaStatusRes } from '~/utils/radar'
+import { fTglP } from '~/utils/format'
 
 const props = defineProps<{
   list: RadarReservasi[]

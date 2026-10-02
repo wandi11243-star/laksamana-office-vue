@@ -45,6 +45,7 @@ agen menunda layar/tombol tersebut dan menandainya di PR.
 | K-09 | event | "Batalkan check-in" lama MENGHAPUS baris; v1 `checkins` append-only. | A) buang tombol · B) `DELETE /checkins/{id}` (gap API) · C) baris koreksi | **C** bila API mendukung, jika tidak **A** | **C** — baris koreksi (G-10). |
 | K-10 | dw | Fitur di luar paritas: `maksBeruntun`/`jedaMin` bisa disetel, dan snapshot tarif pembayaran DW. | A) backlog (tidak dikerjakan migrasi) · B) kerjakan | **A** | **A** — backlog. |
 | K-11 | reservasi | Master › Data & Backup: "Restore dari Backup" dan "Hapus Semua Data" menimpa/menghapus seluruh data (aturan penghapusan data `laksamana-office/CLAUDE.md` §0 berlaku). | A) tidak dibawa ke Vue · B) dibawa dengan pengaman (siapa boleh, konfirmasi ganda, audit) |  | ⬜ |
+| K-12 | bd, radar | Teks sisa waktu promo. Office lama punya dua versi: Radar "Mulai besok", BD "Mulai dalam 1 hari"; BD juga menulis "Sudah berakhir" / "Sementara dijeda" (Radar tidak pernah menerima promo itu). Vue kini memakai satu fungsi (`app/utils/promo.ts`). | A) gabungan: "Mulai besok" + label berakhir/dijeda · B) versi BD · C) versi Radar | **A** (dipakai sementara di Vue) | ⬜ |
 
 ---
 

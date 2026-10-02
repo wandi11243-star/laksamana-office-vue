@@ -348,3 +348,67 @@ Kode error yang wajib ditangani UI (`docs/api/bd.md:77-86`): `401 unauthenticate
 - **Marketing → BD:** Marketing mengirim PO ke BD lewat `addPo` (`deploy/marketing/index.html:13842-13847`,`:13939`; v1 `POST /api/v1/bd/purchase-orders/batch`), lalu membaca balik status dari papan BD.
 - **Finance → Kas Kecil → BD:** `setRealisasi` (finance/kas/index.html:5391`,`:5603`; v1 `PUT /api/v1/bd/purchase-orders/{id}/realisasi`) menulis `realisasi` + penanda proses ke baris PO.
 - **BD → Radar:** Radar membaca daftar promo BD (`radar/index.html:603-609`,`:2346-2362`,`:2415`); **BD → Kompas:** Kompas membaca `getAll` server-side (`docs/modules/bd.md:24`,`:67`). **BD TIDAK membaca Marketing/Konten/Event** (hanya teks koordinasi & agenda internal).
+
+## J. Progres build
+Branch: migrasi/bd · Mulai: 2026-10-01
+LANJUTKAN DARI: —
+Status layar: **dibangun, belum dicek visual** — ✅ di kolom status berarti halamannya
+sudah dibangun, **bukan** sudah dirender/dicek di browser (1366px/390px, tugas manusia).
+
+| layar (key) | file | status | endpoint dipakai | ditunda karena |
+|---|---|---|---|---|
+| dashboard | `app/pages/bd/dashboard.vue` | ✅ | `GET /bd/state`, `GET/PUT /bd/settings/focus` | — |
+| tasks | `app/pages/bd/tasks.vue` | ✅ | `GET /bd/state`, `POST/PUT/PATCH/DELETE /bd/tasks` | — |
+| projects | `app/pages/bd/projects.vue` | ✅ | `GET /bd/state`, `POST/PUT/PATCH /bd/projects`, `PATCH /bd/tasks` | — |
+| projectDetail | `app/pages/bd/projects/[id].vue` | ✅ | `GET /bd/state`, `PATCH /bd/projects`, `/bd/tasks`, `/bd/coord-requests`, `/bd/purchase-orders` | — |
+| calendar | `app/pages/bd/calendar.vue` | ✅ | `GET /bd/state`, `POST/PUT/DELETE /bd/agenda`, `PATCH /bd/tasks` | — |
+| coord | `app/pages/bd/coord.vue` | ✅ | `GET /bd/state`, `POST/PUT/PATCH/DELETE /bd/coord-requests` | — |
+| routine | `app/pages/bd/routine.vue` | ✅ | `GET /bd/state`, `POST/PUT/DELETE /bd/routines` | — |
+| promo | `app/pages/bd/promo.vue` | ✅ | `GET/PUT /bd/settings/promos` | CSV ekspor/impor di browser, sesuai K-05 (1) |
+| purchasing | `app/pages/bd/purchasing/index.vue` | ✅ | `GET /bd/state`, `POST /bd/purchase-orders/batch`, `PATCH/DELETE /bd/purchase-orders`, `POST /bd/purchase-requests`, `GET/PUT /bd/settings/approverSets` | saran master vendor PO **"Segera" (G-02)** — endpoint Stock digate modul Stock |
+| prDetail | `app/pages/bd/purchasing/pr-[id].vue` | ✅ | `GET /bd/state`, `PATCH /bd/purchase-requests`, `PATCH /bd/purchase-orders`, `PUT /bd/purchase-orders/{id}/realisasi` | — |
+| tim | `app/pages/bd/tim.vue` | ✅ | `GET /bd/state`, `POST/PATCH/DELETE /bd/people`, `GET /account/modules/bd/members` | — |
+
+Catatan build (2026-10-01):
+- **Tulisan per-record (T-25).** Tidak ada `saveAll`; tiap mutasi lewat `POST/PUT/PATCH/DELETE /bd/{resource}` dengan `If-Match` dari `versiBaris(row)` (`data.updatedAt`) + `tanganiKonflik`. Dokumen `settings` (`focus`, `approverSets`, `promos`) lewat `PUT /bd/settings/{key}` dengan versi dari `meta.versions`.
+- **Rumus browser dipindah persis** ke `app/utils/bd-rumus.ts` (kuadran, `sisaHari`/tanggal, `projProgress`, `overbudget`/`realisasiNum`, kepatuhan routine, `prBeres`/`prTotal`/`prNoBerikut`, `poBeres`, `fRp`/`rzFormat`) dan `app/utils/bd-promo.ts` (`promoStatus`/`promoSisa`/urutan, CSV impor/ekspor). Warna/ikon status di `app/utils/status-bd.ts`.
+- **Roster (T-01).** "Segarkan dari Office" membandingkan `GET /api/v1/account/modules/bd/members` dengan `/people` dan `POST /people` yang belum ada; tidak pernah menghapus (`tanpaAkses`). Tidak ada endpoint `bd` roster. `ping`/`stats` tidak dibawa (T-02/U3).
+- **Ditunda:** saran master vendor pada form PO `Segera (G-02)`; kolom Vendor tetap teks bebas (nama tak dikenal boleh).
+- **Perlu ditindak lead:** entri `bd` di `app/utils/modul-shell.ts` (layar sidebar, tombol `+`, lonceng, `siapkan`) belum ditambahkan — di luar kepemilikan berkas agen `bd`. Halaman tetap dapat dibuka lewat rute `/bd/...`.
+
+## K. Daftar uji cutover
+
+Daftar untuk **manusia** (agen tidak menjalankan app). Setiap butir **layar**: dibuka di
+**1366px** dan **390px**, tanpa error runtime, susunan/kolom/kartu sama dengan Office lama
+(rujukan D.x di atas), tabel/kanban muat di 1366px dan menjadi kartu/daftar di 390px.
+Setiap butir **aksi tulis**: berhasil, dan versi basi memicu muat-ulang konflik (bukan
+menimpa diam-diam). Tanda **[G-xx]** menandai butir yang menyentuh bagian "Segera"/gap.
+
+### Layar (1366px & 390px)
+- [ ] **dashboard** — Dashboard (D.1): 5 angka (Task aktif/Overdue/Project jalan/Koordinasi pending/PO berjalan), fokus harian, Prioritas teratas, Overdue, Kesehatan project, Agenda hari ini; pita roster bila ada.
+- [ ] **tasks** — Tasks (D.2): 4 mode Matrix/Hari ini/Minggu ini/Per Divisi, filter lingkup/divisi/project/tipe/PIC, baris task + avStack PIC.
+- [ ] **projects** — Projects (D.3): kanban 5 kolom (`Idea…Completed`), kartu dengan health/budget/PIC/progress.
+- [ ] **projectDetail** — Project/route `[id]` (D.4): 4 kartu Health/Progress/Budget/PIC, milestone, task, koordinasi, PO terkait.
+- [ ] **calendar** — Calendar (D.5): grid Senin-pertama, navigasi bulan, legenda 5 warna.
+- [ ] **coord** — Koordinasi (D.6): mode Board (kanban `Diminta…Selesai`) & Tabel, pita penjelasan.
+- [ ] **routine** — Routine (D.7): 3 kartu (aktif/kepatuhan/terlewat) + tabel routine.
+- [ ] **promo** — Promotion (D.8): 4 kartu status, filter status/tipe, kotak cari, tabel promo, detail + poster.
+- [ ] **purchasing** — Purchasing (D.9): 3 sub-tab (PR & Rekap Mingguan / Semua Item / Penyetuju), 3 kartu ringkasan. **[G-02]**
+- [ ] **prDetail** — Purchase Request/route `pr-[id]` (D.10): lembar siap cetak, kolom Harga/Realisasi/Overbudget/Proses, blok APPROVE BY.
+- [ ] **tim** — Kru BD (D.12): hierarki atasan→anak buah, tabel Nama/Jabatan/Divisi/Atasan/Task/Akses, penanda kamu/dicabut/nonaktif.
+
+### Aksi tulis (berhasil + konflik versi)
+- [ ] dashboard: fokus harian (`PUT /settings/focus`, disimpan bersama tanggal), "Task baru" (`POST /tasks`), "Segarkan" roster (`POST /people` untuk kru baru).
+- [ ] tasks: `POST/PUT/PATCH/DELETE /tasks`, toggle done, drag antar kuadran; hapus berkonfirmasi; `pic` & `pics` selalu bersama.
+- [ ] projects: `POST/PUT/DELETE /projects`, drag stage; pindah ke `Completed` menutup semua task **hanya saat pindah**; hapus melepas task/PO/koordinasi (`project=null`).
+- [ ] projectDetail: `PUT /projects/{id}`, centang milestone, task dari project.
+- [ ] calendar: agenda `POST/PUT/DELETE /agenda`; geser deadline task hanya mengubah tanggal task.
+- [ ] coord: `POST/PUT/PATCH/DELETE /coord-requests`, drag status; PIC tujuan teks bebas.
+- [ ] routine: `POST/PUT/DELETE /routines`; kepatuhan dihitung, baris tanpa `total` = 100%.
+- [ ] promo: `PUT /settings/promos` (tambah/ubah/jeda/hapus); tanggal selesai < mulai ditolak; status dihitung dari tanggal (paused menang); ekspor→impor CSV bolak-balik.
+- [ ] purchasing: `POST /purchase-orders/batch` (baris kosong diabaikan, semua "Diajukan"); `PATCH`/`DELETE /purchase-orders`; "Sudah diproses" → Diterima + `statusSebelum`, batal mengembalikan; `POST /purchase-requests` + `PATCH` PO `prId`; `PUT /settings/approverSets` (admin). **"Segera" [G-02]:** saran master vendor PO (endpoint Stock digate modul Stock).
+- [ ] prDetail: `PUT`/`PATCH /purchase-requests`; setujui hanya signer/admin (jejak, bukan otorisasi); `PUT /purchase-orders/{id}/realisasi` (realisasi kosong ≠ 0, overbudget dihitung); masukkan/keluarkan PO dari lembar.
+- [ ] tim: "Segarkan dari Office" (`POST /people` yang belum ada, tidak pernah menghapus); edit `role/div/boss` (`PATCH /people/{id}`, tolak atasan melingkar); hapus hanya bila akses dicabut & tanpa pekerjaan.
+
+### Silang Vue ↔ Office lama
+- [ ] Promo yang ditambah di Vue muncul di Radar; request Marketing masuk sebagai PO "Diajukan"; realisasi Finance menggerakkan status PO; sunting dari kedua sisi tidak menimpa diam-diam (versi basi → konflik).

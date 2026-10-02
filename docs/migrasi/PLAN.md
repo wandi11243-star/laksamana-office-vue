@@ -52,7 +52,7 @@ Urutan mempertimbangkan ukuran, risiko, dan **siapa yang membangun komponen bers
 | 2 | akademi | 13 layar | — | — | ⚠️ (gelombang 1, 2026-10-01; dibangun, belum dicek visual; 3 tombol sync/restore "Segera", lihat G-16/G-17/G-18) |
 | 3 | hlife | 14 layar | K-01 (G-13) | — | ⚠️ (gelombang 1, 2026-10-01; dibangun, belum dicek visual; Reset data "Segera" K-01/G-13) |
 | 4 | konten | 20 layar | K-01 (G-13), K-05 | `performa-konten.ts`, `xlsx-baca.ts` | ⬜ |
-| 5 | bd | 11 layar | — (G-02) | — | ⬜ |
+| 5 | bd | 11 layar | — (G-02) | — | ⚠️ (gelombang 1, 2026-10-01; dibangun, belum dicek visual; saran master vendor "Segera" G-02) |
 | 6 | hr | 17 layar | K-01 (G-13), K-05 | `people-score.ts` | ⬜ |
 | 7 | jadwal | jadwal + dw + roster, 20 layar | K-10 (G-03/05) | `pax-harian.ts` (`satukan()`) | ⬜ |
 | 8 | reservasi | reservasi + service_excellent, 12 layar | K-05: OCR `tesseract.js` diizinkan, lazy (G-07/08) | `DanaMasukPanel`, `Denah` + `venue-layouts.ts`, `kwitansi.ts` | ✅ (visual belum dicek) |
@@ -93,6 +93,8 @@ tertinggal" di Office lama (`laksamana-office/CLAUDE.md:2611-2637`) persis karen
 | `porsi-pic.ts` | `porsiPic`/`potonganHari`/`obTotal` (cashier, omset, kas) | cashier | finance. **K-04: dua rumus SENGAJA berbeda** — ekspor `porsiPicCashier` (versi cashier) dan `porsiPicKompas` (versi omset/kas) dari file yang sama, dengan komentar yang menyebut K-04. Jangan disatukan. |
 | `performa-bonus.ts` | `deploy/assets/performa-bonus.js` | finance | event, marketing |
 | `hpp-mesin.ts` | `deploy/assets/hpp-mesin.js` | marketing | — |
+| `promo.ts` | `promoTipe`/`promoKat`/`promoHariTeks`/`promoStatus`/`promoSisa` (kembar di `deploy/bd` & `deploy/radar`) | bd | radar. Teks sisa waktu: K-12 |
+| `format.ts` (`HARI`, `BULAN`, `BLN`, `fTgl`, `fTglP`) | nama hari/bulan & format tanggal (kembar di bd, radar) | fondasi | semua modul. `BLN` sengaja "Ags", bukan "Agu" dari Intl |
 
 ## 5. Definition of Done — satu modul
 

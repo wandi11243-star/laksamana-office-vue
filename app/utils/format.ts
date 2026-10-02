@@ -39,6 +39,29 @@ export function persen(n: number | null | undefined, digit = 1): string {
   }).format(n)
 }
 
+export const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+export const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+/** Short months as the old Office wrote them ("Ags", not Intl's "Agu"). */
+export const BLN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des']
+
+/** "YYYY-MM-DD" as a local Date, never UTC. */
+const tglLokal = (iso: string) => {
+  const [y, m, d] = String(iso || '').split('-').map(Number)
+  return new Date(y || 1970, (m || 1) - 1, d || 1)
+}
+/** "2026-09-27" -> "Sabtu, 27 September 2026" (Radar fTgl, BD fTglPanjang). */
+export function fTgl(iso?: string): string {
+  if (!iso) return '—'
+  const d = tglLokal(iso)
+  return `${HARI[d.getDay()]}, ${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}`
+}
+/** "2026-09-27" -> "27 Sep" (Radar fTglP, BD fTgl). */
+export function fTglP(iso?: string): string {
+  if (!iso) return '—'
+  const d = tglLokal(iso)
+  return `${d.getDate()} ${BLN[d.getMonth()]}`
+}
+
 /** "2026-09-27" -> "Sab, 27 Sep". */
 export const tglPendek = (tgl: string) =>
   new Date(`${tgl}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })

@@ -2,12 +2,8 @@
 // laksamana-office deploy/radar/index.html; the server-side half (joining the
 // sources, "only what will happen", the money filter) lives in laksamana-api
 // RadarRules. Each rule here names the old function it comes from.
-import type { RadarAgenda, RadarPromo, RadarReservasi, SumberAgenda } from '~/composables/useRadar'
-import { hariIni, rupiah, tambahHari } from '~/utils/format'
-
-export const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
-export const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
-export const BLN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des']
+import type { RadarAgenda, RadarReservasi, SumberAgenda } from '~/composables/useRadar'
+import { BLN, BULAN, fTgl, fTglP, hariIni, rupiah, tambahHari } from '~/utils/format'
 
 /** Seed only; Marketing sends the live list with the board (fbFormats). */
 export const FB_FORMATS_DEFAULT = ['Prasmanan', 'Set Menu', 'Coffee Break', 'Nasi Kotak']
@@ -15,19 +11,6 @@ export const FB_FORMATS_DEFAULT = ['Prasmanan', 'Set Menu', 'Coffee Break', 'Nas
 const tanggal = (iso: string) => {
   const [y, m, d] = String(iso || '').split('-').map(Number)
   return new Date(y || 1970, (m || 1) - 1, d || 1)
-}
-
-/** "Sabtu, 27 September 2026" (fTgl). */
-export const fTgl = (iso: string) => {
-  if (!iso) return '—'
-  const d = tanggal(iso)
-  return `${HARI[d.getDay()]}, ${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}`
-}
-/** "27 Sep" (fTglP). */
-export const fTglP = (iso: string) => {
-  if (!iso) return '—'
-  const d = tanggal(iso)
-  return `${d.getDate()} ${BLN[d.getMonth()]}`
 }
 
 /** Days from today (dDay): 0 = today, negative = past. */
@@ -482,45 +465,8 @@ export function sorotanEvent(detail: Obj): { label: string, icon: string, teks: 
 }
 
 // ─────────────────────────── promo (from BD) ──
+// Types, days, status and remaining time: app/utils/promo.ts (shared with BD).
 
-/** Must match PROMO_TIPE in deploy/bd; an unknown type still shows with its raw key. */
-export const PROMO_TIPE: Record<string, { l: string, icon: string }> = {
-  partner_kartu: { l: 'Kartu / Komunitas', icon: 'i-lucide-credit-card' },
-  partner_sekolah: { l: 'Sekolah / Organisasi', icon: 'i-lucide-graduation-cap' },
-  tiktok: { l: 'TikTok / Voucher', icon: 'i-lucide-music' },
-  in_house: { l: 'Promo Laksamana', icon: 'i-lucide-utensils' },
-  happy_hour: { l: 'Happy Hour', icon: 'i-lucide-clock' },
-  event: { l: 'Event / Musiman', icon: 'i-lucide-party-popper' },
-}
-export const promoTipe = (k?: string) => PROMO_TIPE[k || ''] || { l: String(k || 'Lainnya'), icon: 'i-lucide-tag' }
-const PROMO_KAT: Record<string, { l: string, icon: string }> = {
-  diskon: { l: 'Diskon', icon: 'i-lucide-tag' },
-  free_item: { l: 'Free Item', icon: 'i-lucide-gift' },
-}
-export const promoKat = (k?: string) => (k ? PROMO_KAT[k] || { l: String(k), icon: 'i-lucide-tag' } : null)
-const PROMO_HARI = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
-/** `hari` is an array of 0–6 now; the first version stored free text, which still shows as is. */
-export function promoHariTeks(h: RadarPromo['hari']): string {
-  if (Array.isArray(h)) {
-    const a = h.map(Number).filter(n => n >= 0 && n <= 6)
-    if (!a.length || a.length === 7) return 'Setiap hari'
-    return [...a].sort((x, y) => x - y).map(i => PROMO_HARI[i]).join(', ')
-  }
-  return String(h || '') || 'Setiap hari'
-}
-export function promoSisa(p: RadarPromo): string {
-  const hari = hariIni()
-  const antara = (a: string, b: string) => Math.ceil((+tanggal(b) - +tanggal(a)) / 86400000)
-  if (p.status === 'upcoming' && p.mulai) {
-    const n = antara(hari, p.mulai)
-    return n <= 1 ? 'Mulai besok' : `Mulai dalam ${n} hari`
-  }
-  if (p.status === 'running' && p.selesai) {
-    const m = antara(hari, p.selesai)
-    return m <= 0 ? 'Berakhir hari ini' : `Sisa ${m} hari`
-  }
-  return ''
-}
 export const promoTglPendek = (s?: string) => (s ? fTglP(s) : '—')
 
 // ─────────────────────────── WhatsApp daily sheet ──
