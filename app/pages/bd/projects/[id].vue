@@ -6,7 +6,9 @@
 <script setup lang="ts">
 import type { BdCoord, BdPo, BdProject, BdTask } from '~/composables/useBd'
 import { bdSimpan, bdTulisDiam, hapusBd, tambalBd, useBdState, versiBaris } from '~/composables/useBd'
-import { cariAku, fDue, fRp, fTgl, inisial, pics, projProgress, projTasks, selesai, todayISO } from '~/utils/bd-rumus'
+import {
+  cariAku, fDue, fRp, inisial, pics, projProgress, projTasks, selesai, todayISO,
+} from '~/utils/bd-rumus'
 import { IKON_HEALTH, LABEL_HEALTH, WARNA_PO } from '~/utils/status-bd'
 import BdCoordSheet from '~/widgets/bd/BdCoordSheet.vue'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
@@ -14,6 +16,7 @@ import BdPoSheet from '~/widgets/bd/BdPoSheet.vue'
 import BdProjectSheet from '~/widgets/bd/BdProjectSheet.vue'
 import BdTaskRow from '~/widgets/bd/BdTaskRow.vue'
 import BdTaskSheet from '~/widgets/bd/BdTaskSheet.vue'
+import { fTglP } from '~/utils/format'
 
 definePageMeta({ access: ['bd'] })
 
@@ -123,7 +126,7 @@ function bukaPoSheet(o: BdPo) {
           :icon="IKON_HEALTH[p.health]"
           :tone="p.health === 'at-risk' ? 'warning' : p.health === 'off-track' ? 'error' : 'success'"
           :value="LABEL_HEALTH[p.health] || 'On track'"
-          :sub="`${fTgl(p.start)} — ${fTgl(p.end)}`"
+          :sub="`${fTglP(p.start)} — ${fTglP(p.end)}`"
         />
         <AppStat
           label="Progress"
@@ -285,7 +288,7 @@ function bukaPoSheet(o: BdPo) {
                 </span>
                 <span>
                   <span class="block font-semibold text-highlighted">{{ m.t }}</span>
-                  <span class="text-xs text-muted">{{ fTgl(m.date) }}</span>
+                  <span class="text-xs text-muted">{{ fTglP(m.date) }}</span>
                 </span>
               </button>
               <p

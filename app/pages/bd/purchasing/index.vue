@@ -13,15 +13,16 @@ import {
   versiBaris, versiSetelan,
 } from '~/composables/useBd'
 import {
-  PENYETUJU_BIBIT, PO_FLOW, awalMinggu, cariAku, fieldsProses, fRp, fRpPenuh, fTgl, geserMinggu,
-  jabatanOrang, labelMinggu, poBeres, poRequester, prBeres, prItems, prNoBerikut,
-  prTotal, penyetujuPr, todayISO, uidBd,
+  PENYETUJU_BIBIT, PO_FLOW, awalMinggu, cariAku, fieldsProses, fRp, fRpPenuh, geserMinggu,
+  jabatanOrang, labelMinggu, poBeres, poRequester, prBeres, prItems, prNoBerikut, prTotal,
+  penyetujuPr, todayISO, uidBd,
 } from '~/utils/bd-rumus'
 import { WARNA_PO } from '~/utils/status-bd'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdPoSheet from '~/widgets/bd/BdPoSheet.vue'
 import BdPoTabel from '~/widgets/bd/BdPoTabel.vue'
 import BdRequestSheet from '~/widgets/bd/BdRequestSheet.vue'
+import { fTglP } from '~/utils/format'
 
 definePageMeta({ access: ['bd'] })
 
@@ -375,7 +376,7 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
                   >belum diisi</span>
                 </td>
                 <td class="px-2 py-2 whitespace-nowrap text-muted">
-                  {{ p.needBy ? fTgl(p.needBy) : '—' }}
+                  {{ p.needBy ? fTglP(p.needBy) : '—' }}
                 </td>
                 <td class="px-2 py-2">
                   <div class="flex justify-end gap-1">
@@ -470,7 +471,7 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
                   PR-{{ x.no || '?' }}
                 </td>
                 <td class="px-3 py-2 whitespace-nowrap text-muted">
-                  {{ fTgl(x.tanggal) }}
+                  {{ fTglP(x.tanggal) }}
                 </td>
                 <td class="px-3 py-2 text-muted">
                   {{ x.nama || '—' }}

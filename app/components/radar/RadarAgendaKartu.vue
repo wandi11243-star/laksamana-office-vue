@@ -6,7 +6,8 @@
 -->
 <script setup lang="ts">
 import type { RadarAgenda } from '~/composables/useRadar'
-import { BLN, HARI, IKON_SUMBER, SUMBER_PENDEK, WARNA_SUMBER, dDay, dLabel, dWarna } from '~/utils/radar'
+import { IKON_SUMBER, SUMBER_PENDEK, WARNA_SUMBER, dDay, dLabel, dWarna } from '~/utils/radar'
+import { BLN, HARI } from '~/utils/format'
 
 const props = defineProps<{ a: RadarAgenda }>()
 defineEmits<{ buka: [a: RadarAgenda] }>()

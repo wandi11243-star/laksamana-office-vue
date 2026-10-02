@@ -1,63 +1,12 @@
-// BD OS promotion rules — pure functions, no Vue, no API.
-//
-// The promo status is COMPUTED from the dates on every read, never stored: a
-// stored status goes stale every midnight and nothing on this hosting could be
-// trusted to refresh it (`deploy/bd/index.html:2356-2371`). The order
-// running→upcoming→paused→ended is shared with Radar, so the two boards never
-// show the same data in a different order.
-//
-// BD owns this logic; the copy in `app/utils/radar.ts` predates the migration
-// and reads the server-computed status. Keep the two orders identical.
+// BD OS promotion rules specific to BD's own screens (outlet list, hours, sort,
+// CSV export/import) — pure functions, no Vue, no API. The rules Radar also
+// shows (types, categories, days, status, remaining time) live in
+// app/utils/promo.ts, the single source for both boards.
 import type { BdPromo } from '~/composables/useBd'
+import { PROMO_ST, PROMO_URUT, promoHariTeks, promoKat, promoStatus, promoTipe } from '~/utils/promo'
 
-export interface PromoTipeMeta { l: string, icon: string }
-
-/** `PROMO_TIPE` — an unknown type still shows its raw key. */
-export const PROMO_TIPE: Record<string, PromoTipeMeta> = {
-  partner_kartu: { l: 'Kartu / Komunitas', icon: 'i-lucide-credit-card' },
-  partner_sekolah: { l: 'Sekolah / Organisasi', icon: 'i-lucide-graduation-cap' },
-  tiktok: { l: 'TikTok / Voucher', icon: 'i-lucide-music' },
-  in_house: { l: 'Promo Laksamana', icon: 'i-lucide-utensils' },
-  happy_hour: { l: 'Happy Hour', icon: 'i-lucide-clock' },
-  event: { l: 'Event / Musiman', icon: 'i-lucide-party-popper' },
-}
-export const promoTipe = (k?: string): PromoTipeMeta => PROMO_TIPE[k || ''] || { l: String(k || 'Lainnya'), icon: 'i-lucide-tag' }
-
-/** `PROMO_KAT` — what the guest gets, separate from the type (where it comes from). */
-export const PROMO_KAT: Record<string, PromoTipeMeta> = {
-  diskon: { l: 'Diskon', icon: 'i-lucide-tag' },
-  free_item: { l: 'Free Item', icon: 'i-lucide-gift' },
-}
-export const promoKat = (k?: string): PromoTipeMeta | null => (k ? PROMO_KAT[k] || { l: String(k), icon: 'i-lucide-tag' } : null)
-
-export const PROMO_HARI = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
-export const PROMO_HARI_PANJANG = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
 /** `PROMO_OUTLET_BAWAAN`. */
 export const PROMO_OUTLET_BAWAAN = 'Laksamana Muda'
-/** `PROMO_ST` — status label + tone. */
-export const PROMO_ST: Record<string, { l: string, tone: 'success' | 'info' | 'warning' | 'neutral' }> = {
-  running: { l: 'Berlangsung', tone: 'success' },
-  upcoming: { l: 'Akan Datang', tone: 'info' },
-  ended: { l: 'Selesai', tone: 'neutral' },
-  paused: { l: 'Dijeda', tone: 'warning' },
-}
-/** `PROMO_URUT`. */
-export const PROMO_URUT: Record<string, number> = { running: 0, upcoming: 1, paused: 2, ended: 3 }
-
-/** `promoHariArr` — the `hari` array as 0–6 indices, legacy free text ignored. */
-export function promoHariArr(h: BdPromo['hari']): number[] {
-  return Array.isArray(h) ? h.map(Number).filter(n => n >= 0 && n <= 6) : []
-}
-/** `promoHariTeks` — legacy free text still drawn as is, never guessed. */
-export function promoHariTeks(h: BdPromo['hari']): string {
-  if (Array.isArray(h)) {
-    const a = promoHariArr(h)
-    if (!a.length) return ''
-    if (a.length === 7) return 'Setiap hari'
-    return [...a].sort((x, y) => x - y).map(i => PROMO_HARI[i]).join(', ')
-  }
-  return String(h || '')
-}
 /** `promoOutletOpsi` — the default plus every outlet already used, plus the one being edited. */
 export function promoOutletOpsi(promos: BdPromo[], terpilih?: string): string[] {
   const ada = [PROMO_OUTLET_BAWAAN]
@@ -73,34 +22,6 @@ export function promoOutletOpsi(promos: BdPromo[], terpilih?: string): string[] 
 export const promoJam = (p: BdPromo) =>
   (p.jamMulai || p.jamSelesai ? `${p.jamMulai || '—'} — ${p.jamSelesai || '—'}` : '')
 
-/** `promoStatus` — computed from the dates, never stored. */
-export function promoStatus(p: Pick<BdPromo, 'paused' | 'mulai' | 'selesai'>): 'running' | 'upcoming' | 'paused' | 'ended' {
-  if (p.paused) return 'paused'
-  const t = new Date()
-  t.setHours(0, 0, 0, 0)
-  const a = p.mulai ? new Date(`${p.mulai}T00:00:00`) : null
-  const b = p.selesai ? new Date(`${p.selesai}T00:00:00`) : null
-  if (a && !Number.isNaN(+a) && t < a) return 'upcoming'
-  if (b && !Number.isNaN(+b) && t > b) return 'ended'
-  return 'running'
-}
-/** `promoSisa`. */
-export function promoSisa(p: Pick<BdPromo, 'paused' | 'mulai' | 'selesai'>): string {
-  const t = new Date()
-  t.setHours(0, 0, 0, 0)
-  const a = p.mulai ? new Date(`${p.mulai}T00:00:00`) : null
-  const b = p.selesai ? new Date(`${p.selesai}T00:00:00`) : null
-  const st = promoStatus(p)
-  const H = 86400000
-  if (st === 'upcoming' && a) return `Mulai dalam ${Math.ceil((+a - +t) / H)} hari`
-  if (st === 'running' && b) {
-    const n = Math.ceil((+b - +t) / H)
-    return n <= 0 ? 'Berakhir hari ini' : `Sisa ${n} hari`
-  }
-  if (st === 'ended') return 'Sudah berakhir'
-  if (st === 'paused') return 'Sementara dijeda'
-  return ''
-}
 /** `promoSort` — running, then nearest upcoming, then paused, then ended. */
 export function promoSort(a: BdPromo, b: BdPromo): number {
   const sa = PROMO_URUT[promoStatus(a)] ?? 9

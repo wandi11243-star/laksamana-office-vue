@@ -14,9 +14,10 @@
 import type { RadarDetail, SumberAgenda } from '~/composables/useRadar'
 import type { Lampiran } from '~/utils/radar'
 import {
-  IKON_SUMBER, LABEL_SUMBER, SUMBER_PENDEK, WARNA_SUMBER, dDay, dLabel, dWarna, detailFields, fTgl,
+  IKON_SUMBER, LABEL_SUMBER, SUMBER_PENDEK, WARNA_SUMBER, dDay, dLabel, dWarna, detailFields,
   lampiranGambar, paxVipTeks, tanpaTag,
 } from '~/utils/radar'
+import { fTgl } from '~/utils/format'
 
 definePageMeta({ access: ['radar'] })
 

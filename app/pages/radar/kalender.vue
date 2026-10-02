@@ -16,8 +16,8 @@
 -->
 <script setup lang="ts">
 import type { RadarAgenda, RadarPilihan, SumberAgenda } from '~/composables/useRadar'
-import { BULAN, SUMBER_PENDEK, agendaTgl, paxOf, paxRes, resAktif, resTgl } from '~/utils/radar'
-import { hariIni } from '~/utils/format'
+import { SUMBER_PENDEK, agendaTgl, paxOf, paxRes, resAktif, resTgl } from '~/utils/radar'
+import { BULAN, hariIni } from '~/utils/format'
 
 definePageMeta({ access: ['radar'] })
 

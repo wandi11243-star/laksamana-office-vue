@@ -16,12 +16,13 @@ import {
   versiBaris,
 } from '~/composables/useBd'
 import {
-  PENYETUJU_BIBIT, cariAku, fRpPenuh, fTglPanjang, fieldsProses, labelMinggu, penyetujuPr,
-  poBeres, poRequester, prBeres, prItems, prTotal, realisasiNum, rzFormat, todayISO,
+  PENYETUJU_BIBIT, cariAku, fRpPenuh, fieldsProses, labelMinggu, penyetujuPr, poBeres, poRequester,
+  prBeres, prItems, prTotal, realisasiNum, rzFormat, todayISO,
 } from '~/utils/bd-rumus'
 import { WARNA_PO } from '~/utils/status-bd'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdPrSheet from '~/widgets/bd/BdPrSheet.vue'
+import { fTgl } from '~/utils/format'
 
 definePageMeta({ access: ['bd'] })
 
@@ -294,7 +295,7 @@ const toast = useToast()
               Request Date
             </p>
             <p class="text-highlighted">
-              {{ fTglPanjang(pr.tanggal) }}
+              {{ fTgl(pr.tanggal) }}
             </p>
           </div>
         </div>
@@ -514,7 +515,7 @@ const toast = useToast()
                   v-if="(pr.approvals?.[s.k] || {}).at"
                   class="text-sm font-semibold text-success"
                 >
-                  Disetujui<br>{{ fTglPanjang((pr.approvals?.[s.k] || {}).at) }}
+                  Disetujui<br>{{ fTgl((pr.approvals?.[s.k] || {}).at) }}
                 </span>
                 <UButton
                   v-else-if="bolehSetuju(s.k)"

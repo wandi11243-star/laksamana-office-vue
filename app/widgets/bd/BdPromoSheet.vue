@@ -8,11 +8,9 @@
 import type { BdPromo } from '~/composables/useBd'
 import { bdSimpan, putSetelan } from '~/composables/useBd'
 import type { Versi } from '~/utils/versi'
-import {
-  PROMO_HARI, PROMO_HARI_PANJANG, PROMO_KAT, PROMO_OUTLET_BAWAAN, PROMO_TIPE, promoHariArr,
-  promoOutletOpsi,
-} from '~/utils/bd-promo'
+import { PROMO_OUTLET_BAWAAN, promoOutletOpsi } from '~/utils/bd-promo'
 import { uidBd } from '~/utils/bd-rumus'
+import { PROMO_HARI, PROMO_HARI_PANJANG, PROMO_KAT, PROMO_TIPE, promoHariArr } from '~/utils/promo'
 
 const props = defineProps<{
   promo?: BdPromo | null

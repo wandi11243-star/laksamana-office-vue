@@ -15,9 +15,10 @@
 <script setup lang="ts">
 import type { RadarPilihan, RadarReservasi } from '~/composables/useRadar'
 import {
-  SEMUA, agendaTgl, dalamPeriode, dpTeks, fTgl, fTglP, iris, labelPeriode, paxRes, periodeBaru, rentangPeriode, resHidup, saringAktif,
-  urutJam, waResHarian, warnaStatusRes,
+  SEMUA, agendaTgl, dalamPeriode, dpTeks, iris, labelPeriode, paxRes, periodeBaru, rentangPeriode,
+  resHidup, saringAktif, urutJam, waResHarian, warnaStatusRes,
 } from '~/utils/radar'
+import { fTgl, fTglP } from '~/utils/format'
 
 definePageMeta({ access: ['radar'] })
 

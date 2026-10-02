@@ -14,9 +14,10 @@
 <script setup lang="ts">
 import type { RadarAgenda, RadarDetail, RadarPilihan } from '~/composables/useRadar'
 import {
-  IKON_SUMBER, LABEL_SUMBER, SUMBER_PENDEK, WARNA_SUMBER, dDay, dLabel, dWarna, dpTeks, fTgl,
-  paxVipTeks, sorotanEvent, tanpaTag, warnaStatusRes,
+  IKON_SUMBER, LABEL_SUMBER, SUMBER_PENDEK, WARNA_SUMBER, dDay, dLabel, dWarna, dpTeks, paxVipTeks,
+  sorotanEvent, tanpaTag, warnaStatusRes,
 } from '~/utils/radar'
+import { fTgl } from '~/utils/format'
 
 const props = defineProps<{ pilih: RadarPilihan, bolehUang?: boolean }>()
 const open = defineModel<boolean>('open', { default: false })

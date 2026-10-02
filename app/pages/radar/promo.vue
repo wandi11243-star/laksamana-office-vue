@@ -11,7 +11,8 @@
 -->
 <script setup lang="ts">
 import type { RadarPromo } from '~/composables/useRadar'
-import { PROMO_TIPE, SEMUA, saringAktif, promoHariTeks, promoKat, promoSisa, promoTglPendek, promoTipe } from '~/utils/radar'
+import { SEMUA, saringAktif, promoTglPendek } from '~/utils/radar'
+import { PROMO_TIPE, promoHariTeks, promoKat, promoSisa, promoTipe } from '~/utils/promo'
 
 definePageMeta({ access: ['radar'] })
 
@@ -38,7 +39,7 @@ const jamTeks = (p: RadarPromo) =>
   (p.jamMulai || p.jamSelesai ? `${p.jamMulai || '—'}–${p.jamSelesai || '—'}` : 'Sepanjang jam buka')
 const baris = (p: RadarPromo) => ([
   ['i-lucide-tag', promoTipe(p.tipe).l],
-  ['i-lucide-calendar', promoHariTeks(p.hari)],
+  ['i-lucide-calendar', promoHariTeks(p.hari) || 'Setiap hari'],
   ['i-lucide-clock', jamTeks(p)],
   ['i-lucide-map-pin', p.outlet],
   ['i-lucide-handshake', p.partner],

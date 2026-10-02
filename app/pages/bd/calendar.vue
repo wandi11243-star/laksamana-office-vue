@@ -10,9 +10,12 @@
 <script setup lang="ts">
 import type { BdAgenda, BdTask } from '~/composables/useBd'
 import { bdTulisDiam, tambalBd, useBdState, versiBaris } from '~/composables/useBd'
-import { BULAN, OWNER_DIVS, cariAku, isoOf, lingkupIds, pics, poBeres, saringLingkup, selesai, todayISO } from '~/utils/bd-rumus'
+import {
+  OWNER_DIVS, cariAku, isoOf, lingkupIds, pics, poBeres, saringLingkup, selesai, todayISO,
+} from '~/utils/bd-rumus'
 import BdAgendaSheet from '~/widgets/bd/BdAgendaSheet.vue'
 import BdPicFilter from '~/widgets/bd/BdPicFilter.vue'
+import { BULAN } from '~/utils/format'
 
 definePageMeta({ access: ['bd'] })
 

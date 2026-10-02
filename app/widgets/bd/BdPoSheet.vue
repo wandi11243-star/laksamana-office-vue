@@ -10,8 +10,11 @@
 <script setup lang="ts">
 import type { BdPerson, BdPo, BdProject } from '~/composables/useBd'
 import { bdSimpan, buatBd, hapusBd, ubahBd, versiBaris } from '~/composables/useBd'
-import { OWNER_DIVS, PO_FLOW, fTglPanjang, inDays, opsiProject as opsiProjectBd, orangById, sisaHari } from '~/utils/bd-rumus'
+import {
+  OWNER_DIVS, PO_FLOW, inDays, opsiProject as opsiProjectBd, orangById, sisaHari,
+} from '~/utils/bd-rumus'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
+import { fTgl } from '~/utils/format'
 
 const props = defineProps<{
   po?: BdPo | null
@@ -50,7 +53,7 @@ const sejak = computed(() => {
   const p = props.po
   if (!p || !p.at) return ''
   const n = Math.max(0, -sisaHari(String(p.at).split(' ')[0]))
-  return `pada ${fTglPanjang(String(p.at).split(' ')[0])} · ${n} hari lalu`
+  return `pada ${fTgl(String(p.at).split(' ')[0])} · ${n} hari lalu`
 })
 
 watch(open, (o) => {

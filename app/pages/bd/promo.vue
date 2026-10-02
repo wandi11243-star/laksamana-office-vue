@@ -7,13 +7,16 @@
 <script setup lang="ts">
 import type { BdPromo } from '~/composables/useBd'
 import { bdSimpan, putSetelan, useBdSettings, versiSetelan } from '~/composables/useBd'
-import { fTgl, todayISO } from '~/utils/bd-rumus'
+import { todayISO } from '~/utils/bd-rumus'
 import {
-  PROMO_OUTLET_BAWAAN, PROMO_ST, PROMO_TIPE, promoBuatBarisCsv, promoHariTeks, promoImporRencana,
-  promoJam, promoKat, promoSisa, promoSort, promoStatus, promoTipe,
+  PROMO_OUTLET_BAWAAN, promoBuatBarisCsv, promoImporRencana, promoJam, promoSort,
 } from '~/utils/bd-promo'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdPromoSheet from '~/widgets/bd/BdPromoSheet.vue'
+import { fTglP } from '~/utils/format'
+import {
+  PROMO_ST, PROMO_TIPE, promoHariTeks, promoKat, promoSisa, promoStatus, promoTipe,
+} from '~/utils/promo'
 
 definePageMeta({ access: ['bd'] })
 
@@ -184,7 +187,7 @@ async function hapus() {
 const toast = useToast()
 const toastOk = (title: string) => toast.add({ title, color: 'success' })
 const toastErr = (title: string) => toast.add({ title, color: 'error' })
-const tgl = (s?: string) => fTgl(s)
+const tgl = (s?: string) => fTglP(s)
 
 const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
 </script>

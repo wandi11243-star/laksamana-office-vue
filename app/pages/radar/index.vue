@@ -17,10 +17,10 @@
 <script setup lang="ts">
 import type { RadarAgenda, RadarPilihan } from '~/composables/useRadar'
 import {
-  SEMUA, TANPA_FB, agendaTgl, cocokFb, dDay, dalamPeriode, fTgl, fbOpsi, iris, labelPeriode, paxOf, paxRes,
-  periodeBaru, rentangPeriode, resHidup, resAktif, resTgl, saringAktif,
+  SEMUA, TANPA_FB, agendaTgl, cocokFb, dDay, dalamPeriode, fbOpsi, iris, labelPeriode, paxOf,
+  paxRes, periodeBaru, rentangPeriode, resHidup, resAktif, resTgl, saringAktif,
 } from '~/utils/radar'
-import { hariIni, tambahHari } from '~/utils/format'
+import { fTgl, hariIni, tambahHari } from '~/utils/format'
 
 definePageMeta({ access: ['radar'] })
 

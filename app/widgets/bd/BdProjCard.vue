@@ -4,8 +4,9 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdProject, BdTask } from '~/composables/useBd'
-import { fTgl, inisial, pics, projProgress, sisaHari } from '~/utils/bd-rumus'
+import { inisial, pics, projProgress, sisaHari } from '~/utils/bd-rumus'
 import { IKON_HEALTH, LABEL_HEALTH, WARNA_HEALTH, divTone } from '~/utils/status-bd'
+import { fTglP } from '~/utils/format'
 
 const props = defineProps<{
   project: BdProject
@@ -52,7 +53,7 @@ const dpakai = computed(() => pics(props.project).map(id => props.people.find(p 
         <AppStatus
           size="sm"
           :color="dl < 0 ? 'error' : 'neutral'"
-        >{{ dl < 0 ? `${Math.abs(dl)}h lewat` : fTgl(project.end) }}</AppStatus>
+        >{{ dl < 0 ? `${Math.abs(dl)}h lewat` : fTglP(project.end) }}</AppStatus>
       </span>
       <span class="mt-2 flex items-center gap-2">
         <span class="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">

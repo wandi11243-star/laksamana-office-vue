@@ -9,11 +9,7 @@
 // that is UTC and in WIB anything before 07:00 is reported as yesterday, which
 // would mark tasks overdue every morning (deploy/bd/index.html:767-772).
 import type { BdApproverSet, BdPo, BdPerson, BdPr, BdProject, BdTask } from '~/composables/useBd'
-import { hariIni } from '~/utils/format'
-
-export const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
-export const BULAN = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
-export const BLN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des']
+import { BLN, fTglP, hariIni } from '~/utils/format'
 
 // ─────────────────────────── organisation (deploy/bd/index.html:708-755) ──
 /** `OWNER_DIVS` — the divisions whose work BD OS manages. */
@@ -71,18 +67,6 @@ export function sisaHari(iso?: string): number {
   b.setHours(0, 0, 0, 0)
   return Math.round((+a - +b) / 86400000)
 }
-/** `fTgl` — "27 Sep". */
-export function fTgl(iso?: string): string {
-  if (!iso) return '—'
-  const d = pDate(iso)
-  return `${d.getDate()} ${BLN[d.getMonth()]}`
-}
-/** `fTglPanjang` — "Sabtu, 27 September 2026". */
-export function fTglPanjang(iso?: string): string {
-  if (!iso) return '—'
-  const d = pDate(iso)
-  return `${HARI[d.getDay()]}, ${d.getDate()} ${BULAN[d.getMonth()]} ${d.getFullYear()}`
-}
 /** `fDue` — "Hari ini", "Besok", "3h lewat", "5h lagi". */
 export function fDue(iso?: string): string {
   if (!iso) return ''
@@ -92,7 +76,7 @@ export function fDue(iso?: string): string {
   if (n === -1) return 'Kemarin'
   if (n < 0) return `${Math.abs(n)}h lewat`
   if (n <= 7) return `${n}h lagi`
-  return fTgl(iso)
+  return fTglP(iso)
 }
 
 /** `ribuan` — a plain number with id-ID thousand separators. */
@@ -124,7 +108,7 @@ export function fWaktu(s?: string): string {
   const t = String(s || '')
   if (!t) return '—'
   const p = t.split(' ')
-  return fTgl(p[0]) + (p[1] ? ` · ${p[1]}` : '')
+  return fTglP(p[0]) + (p[1] ? ` · ${p[1]}` : '')
 }
 /** `inisial` — up to two initials. */
 export const inisial = (n?: string) => String(n || '?').trim().split(/\s+/).slice(0, 2).map(w => w[0] || '').join('').toUpperCase()

@@ -7,12 +7,15 @@
 -->
 <script setup lang="ts">
 import type { BdTask } from '~/composables/useBd'
-import { bdTulisDiam, hapusBd, putSetelan, tambalBd, useBdSettings, useBdState, versiBaris, versiSetelan } from '~/composables/useBd'
-import { catIniAku, cariAku, dalamLingkup, fRp, fTglPanjang, lewat, lingkupIds, selesai, todayISO } from '~/utils/bd-rumus'
+import {
+  bdTulisDiam, hapusBd, putSetelan, tambalBd, useBdSettings, useBdState, versiBaris, versiSetelan,
+} from '~/composables/useBd'
+import { catIniAku, cariAku, dalamLingkup, fRp, lewat, lingkupIds, selesai, todayISO } from '~/utils/bd-rumus'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdProjMini from '~/widgets/bd/BdProjMini.vue'
 import BdTaskRow from '~/widgets/bd/BdTaskRow.vue'
 import BdTaskSheet from '~/widgets/bd/BdTaskSheet.vue'
+import { fTgl } from '~/utils/format'
 
 definePageMeta({ access: ['bd'] })
 
@@ -297,7 +300,7 @@ async function hapus() {
           title="Agenda hari ini"
           icon="i-lucide-calendar-check"
           :count="agHariIni.length + dueHariIni.length"
-          :description="fTglPanjang(hari)"
+          :description="fTgl(hari)"
         >
           <div class="divide-y divide-default">
             <div
