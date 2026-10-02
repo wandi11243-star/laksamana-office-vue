@@ -50,7 +50,7 @@ Urutan mempertimbangkan ukuran, risiko, dan **siapa yang membangun komponen bers
 |---|---|---|---|---|---|
 | 1 | absensi | lengkapi: Riwayat penuh (T-06), Antrean, Atur (K-03). Punch & wajah BELUM (lihat #15) | — | — | ✅ (K-02 punch & daftar wajah menyusul di #15) |
 | 2 | akademi | 13 layar | — | — | ⬜ |
-| 3 | hlife | 14 layar | K-01 (G-13) | — | ⬜ |
+| 3 | hlife | 14 layar | K-01 (G-13) | — | ⚠️ (gelombang 1, 2026-10-01; dibangun, belum dicek visual; Reset data "Segera" K-01/G-13) |
 | 4 | konten | 20 layar | K-01 (G-13), K-05 | `performa-konten.ts`, `xlsx-baca.ts` | ⬜ |
 | 5 | bd | 11 layar | — (G-02) | — | ⬜ |
 | 6 | hr | 17 layar | K-01 (G-13), K-05 | `people-score.ts` | ⬜ |
