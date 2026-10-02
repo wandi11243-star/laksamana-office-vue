@@ -164,7 +164,12 @@ async function konfirmasiHapus() {
     toast.add({ title: 'Program dihapus', color: 'success' })
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+    // G-17: the cascade stopped partway. Show why, then reload so the screen
+    // reflects the cells that were already deleted instead of a stale list.
+    if (!(await tanganiKonflik(e, refresh))) {
+      toast.add({ title: apiErrorMessage(e), color: 'error' })
+      await refresh()
+    }
   }
   finally {
     hapusSibuk.value = false
