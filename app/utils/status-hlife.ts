@@ -11,9 +11,7 @@ import type { HlifeTask } from '~/composables/useHlife'
 import type { Kuadran, WarnaHlife } from '~/utils/hlife'
 import { fmtDue, kuadran, terlambat } from '~/utils/hlife'
 
-export type { WarnaHlife } from '~/utils/hlife'
-
-export interface Lencana {
+export interface LencanaHlife {
   label: string
   color: WarnaHlife
   icon: string
@@ -52,23 +50,23 @@ export const tonePrioritas = (p: string): WarnaHlife => PRIORITY_META[p]?.tone ?
 export const ikonPrioritas = (p: string) => PRIORITY_META[p]?.icon ?? 'i-lucide-equal'
 
 /** Learning status → badge (`:702`). */
-export const lencanaBelajar = (status: string): Lencana =>
+export const lencanaBelajar = (status: string): LencanaHlife =>
   status === 'Selesai'
     ? { label: 'Selesai', color: 'success', icon: 'i-lucide-circle-check' }
     : { label: status || 'Sedang', color: 'warning', icon: 'i-lucide-book-open' }
 
 /** Dream status → badge (`:696`). */
-export function lencanaMimpi(status: string): Lencana {
+export function lencanaMimpi(status: string): LencanaHlife {
   if (status === 'Done') return { label: 'Done', color: 'success', icon: 'i-lucide-circle-check' }
   if (status === 'Planning') return { label: 'Planning', color: 'info', icon: 'i-lucide-calendar-clock' }
   return { label: status || 'Someday', color: 'neutral', icon: 'i-lucide-cloud' }
 }
 
 /** The tags under a task name (`taskRow`, `:590`), in the old order. */
-export function lencanaTugas(t: HlifeTask, opts: { hideProject?: boolean, projects?: { id: string, name: string }[] } = {}): Lencana[] {
+export function lencanaTugas(t: HlifeTask, opts: { hideProject?: boolean, projects?: { id: string, name: string }[] } = {}): LencanaHlife[] {
   const q = kuadran(t)
   const meta = KUADRAN_META[q]
-  const out: Lencana[] = [{ label: meta.label, color: meta.tone, icon: meta.icon }]
+  const out: LencanaHlife[] = [{ label: meta.label, color: meta.tone, icon: meta.icon }]
   if (t.biz) out.push({ label: t.biz, color: 'gold', icon: 'i-lucide-building-2' })
   const proj = t.project ? opts.projects?.find(p => p.id === t.project) : undefined
   if (proj && !opts.hideProject) out.push({ label: proj.name, color: 'vip', icon: 'i-lucide-folder' })
