@@ -26,6 +26,9 @@ Status: ⬜ belum diajukan · 📨 issue dibuat (tulis nomornya) · ✅ ada di v
 | G-13 | 📨 | [laksamana-api#187](https://github.com/dwipapap/laksamana-api/issues/187) |
 | G-14 | ✅ | [laksamana-api#189](https://github.com/dwipapap/laksamana-api/issues/189) → [PR #193](https://github.com/dwipapap/laksamana-api/pull/193) |
 | G-15 | ✅ | tanpa issue → [laksamana-api PR #193](https://github.com/dwipapap/laksamana-api/pull/193) |
+| G-16 | ⬜ | — (ditemukan gelombang 1, 2026-10-01) |
+| G-17 | ⬜ | — (ditemukan gelombang 1, 2026-10-01) |
+| G-18 | ⬜ | — (ditemukan gelombang 1, 2026-10-01) |
 
 ---
 
@@ -147,3 +150,25 @@ sempit ini lahir), atau sertakan modul `marketing` pada pemegang `cashier`/`fina
 
 **✅ Selesai (laksamana-api PR #193, 2026-09-30) — jalan yang pertama.** `GET /marketing/dp` terbuka untuk
 `marketing|reservasi|cashier|finance`; endpoint Marketing lainnya tetap `marketing` saja.
+
+### G-16 — akademi: operasi whole-state (kirim / ambil / pulihkan dari backup)
+Layar `sync` lama punya `pushToServer` (`deploy/akademi/index.html:1662-1690`), `ambilDariServer`
+(`:1736-1742`), dan `importJSON`/`doImportJSON` (`:1785-1799`) yang mengganti/menimpa SELURUH database.
+v1 hanya punya `GET /state`; tidak ada tulis whole-state.
+**Usul:** endpoint `POST /akademi/admin/import` (pola K-01/G-13) atau nyatakan tombol itu tidak dibawa.
+Gelombang 1: tiga tombol tampil **"Segera"**.
+
+### G-17 — akademi: hapus materi/program tidak menghapus progress terkait
+F8 (`docs/migrasi/akademi.md:179`) mewajibkan hapus materi/program ikut menghapus progress-nya, tetapi
+`DELETE /akademi/materials/{id}` / `/programs/{id}` tidak melakukannya (`AkademiRecords::delete`,
+`laksamana-api/app/Modules/Akademi/Services/AkademiRecords.php:220-235`).
+Gelombang 1 mengerjakannya di klien: `GET /progress?material=` / `GET /program-progress?program=` lalu
+`DELETE` per sel (`hapusProgresMateri` / `hapusProgProgProgram`).
+**Usul:** cascade di server, atau dokumentasikan aturan klien.
+
+### G-18 — akademi: sinkron roster Office hanya jalan untuk admin
+Legacy menjalankan `autoSyncOfficeRoster()` untuk SETIAP klien (`deploy/akademi/index.html:657-727`, T-01/F5),
+tetapi v1 menulis record hanya untuk **admin modul** (`laksamana-api/app/Modules/Akademi/routes/v1.php:41-46`).
+Akibatnya kru baru tidak punya baris `users` sampai seorang admin membuka modul.
+**Usul:** izinkan pembuatan baris `users` dari roster Office bagi pemegang modul (bukan hanya admin), atau
+sinkronkan di server saat roster Office berubah.
