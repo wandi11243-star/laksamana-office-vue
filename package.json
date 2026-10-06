@@ -9,7 +9,8 @@
     "postinstall": "nuxt prepare",
     "lint": "eslint .",
     "typecheck": "nuxt typecheck",
-    "uji:help": "node tools/uji-help.mjs"
+    "uji:help": "node tools/uji-help.mjs",
+    "uji:bonus": "node tools/uji-performa-bonus.mjs"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.137",
