@@ -2,7 +2,7 @@
 
 > Cara pakai: ganti **setiap** `{{MODUL}}` dengan key Vue dari `PLAN.md` §3 (mis. `akademi`),
 > `{{Modul}}` dengan versi PascalCase-nya (mis. `Akademi`), dan `{{CAKUPAN}}` dengan kolom "cakupan" baris itu. Salin semua di bawah garis ke agen.
-> Satu modul per sesi. Modul ≥ 20 layar boleh diminta per kelompok layar: tulis kelompoknya di `{{CAKUPAN}}`.
+> Ganti juga `{{ISSUE}}` dengan nomor issue GitHub modul itu (`TIM-A.md`). Satu modul per sesi. Modul ≥ 20 layar boleh diminta per kelompok layar: tulis kelompoknya di `{{CAKUPAN}}`.
 
 ---
 
@@ -49,7 +49,8 @@ lewat `grep -n` lalu `sed -n` potongan ≤ 300 baris. Jangan membaca file lama d
 7. **Tulisan berversi**: selalu `ifMatch(versi)` + `tanganiKonflik(e, refresh)` (fondasi F1).
 8. **Tanpa dependensi npm baru** kecuali yang diizinkan di `PLAN.md` §6 (`tesseract.js` untuk reservasi, face-api untuk absensi #15).
 9. **Git**: branch `migrasi/{{MODUL}}` dari `main` terbaru. Commit per layar (atau per 2–3 layar kecil),
-   pesan `feat({{MODUL}}): <layar>`. Jangan push, jangan merge.
+   pesan `feat({{MODUL}}): <layar>`. Issue: **#{{ISSUE}}**; ikuti `docs/migrasi/TIM-A.md` (kepemilikan file §4).
+   Push branch sendiri + draft PR `Closes #{{ISSUE}}` boleh; jangan merge.
 
 ## 3. Struktur yang harus dihasilkan
 
@@ -102,7 +103,7 @@ LANJUTKAN DARI: —
 |---|---|---|---|---|
 ```
 
-Isi satu baris per layar dari bagian C (status ⬜). Ubah status modul di `PLAN.md` §3 jadi 🟡. Commit.
+Isi satu baris per layar dari bagian C (status ⬜). Komentar `mulai` di issue #{{ISSUE}} (jangan ubah `PLAN.md` §3). Commit.
 
 **Langkah 1 — Composable.** Tulis `use{{Modul}}.ts` dari tabel E: semua endpoint ✅/⚠️ yang dipakai cakupan
 ini, dengan tipe dari kontrak. Endpoint ❌ tidak ditulis. `npm run typecheck`.
@@ -120,17 +121,18 @@ berubah dari "Segera" menjadi bisa dibuka.
 Kalau sesi hampir habis: isi `LANJUTKAN DARI: <layar>, <apa yang sudah/ belum>` di J, commit, lalu laporkan.
 
 **Langkah 4 — Bila menemukan hal baru.**
-- API kurang dan belum ada di `_gap-api.md` → tambahkan butir G baru (format sama, dengan bukti), bangun sisanya.
+- API kurang dan belum ada di `_gap-api.md` → tulis draf issue untuk `laksamana-api` (label `tim-a`, dengan bukti)
+  di laporan; jangan ubah `_gap-api.md` (TIM-A.md §4). Bangun sisanya.
 - Inventaris `{{MODUL}}.md` salah → perbaiki di file itu dengan catatan `(koreksi build <tanggal>)`.
-- Butuh keputusan produk → tambahkan baris K baru di `_pertanyaan.md` dengan Keputusan ⬜, tunda bagian itu.
+- Butuh keputusan produk → tulis draf issue berlabel `owner` di laporan (jangan ubah `_pertanyaan.md`), tunda bagian itu.
 
 **Langkah 5 — Daftar uji cutover.** Tambahkan `## K. Daftar uji cutover` di `{{MODUL}}.md`
 (format di `cutover.md` §"Daftar uji per modul"): satu butir per layar dan per aksi tulis, termasuk uji silang
 Vue ↔ Office lama.
 
 **Langkah 6 — Tutup.** `npm run lint && npm run typecheck && npm run build`. Centang Definition of Done
-(`PLAN.md` §5) satu per satu di laporan. Status di `PLAN.md` §3 → ✅ (atau ⚠️ bila ada layar ditunda),
-kolom C0 di `cutover.md` → ✅ hanya bila semua DoD terpenuhi. Commit.
+(`PLAN.md` §5) satu per satu di laporan dan di badan PR. Status `PLAN.md` §3 dan `cutover.md` diperbarui
+koordinator setelah merge, bukan di branch ini. Commit, push, tandai PR *Ready for review*.
 
 ## 6. Laporan akhir (di chat, singkat)
 

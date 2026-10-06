@@ -111,6 +111,30 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     subjudul: 'BD OS',
     layar: LAYAR_BD,
   },
+
+  // Slots for modules built in parallel (docs/migrasi/TIM-A.md §4): each module
+  // adds its entry directly under its own marker, so branches never touch the
+  // same lines. Keep the blank lines between markers.
+
+  // ── jadwal ──
+
+  // ── hr ──
+
+  // ── cashier ──
+
+  // ── finance ──
+
+  // ── konten ──
+
+  // ── marketing ──
+
+  // ── stock ──
+
+  // ── event ──
+
+  // ── analytics ──
+
+  // ── investor ──
 }
 
 /** The module the current route belongs to, when it has its own chrome. */

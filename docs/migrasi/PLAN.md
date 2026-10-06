@@ -13,6 +13,7 @@ Semua file lain di folder ini adalah rinciannya.
 | [00-fondasi.md](00-fondasi.md) | Fase 1: kode bersama sebelum modul |
 | [cutover.md](cutover.md) | Fase 3: memindahkan user per modul |
 | [PROMPT-fondasi.md](PROMPT-fondasi.md) · [PROMPT-modul.md](PROMPT-modul.md) | prompt siap-kirim untuk agen |
+| [TIM-A.md](TIM-A.md) | **kerja paralel Tim A**: issue, branch, jalur, kepemilikan file |
 
 ## 1. Prinsip
 
@@ -26,7 +27,8 @@ Semua file lain di folder ini adalah rinciannya.
 3. **Office lama tetap hidup selama migrasi.** Menurut ADR-0005 laksamana-api (production)
    melayani v1 dari database legacy yang SAMA, dengan lock yang sama. Jadi user bisa memakai
    modul lama dan Vue bersamaan tanpa data terbelah.
-4. **Satu modul = satu branch = satu PR.** Modul berikutnya baru dimulai setelah PR sebelumnya di-merge.
+4. **Satu issue = satu branch = satu PR.** Sejak 2026-10-06 modul dikerjakan paralel per jalur oleh Tim A;
+   aturan klaim issue, branch, dan kepemilikan file ada di [TIM-A.md](TIM-A.md).
 5. **Tidak menunggu gap API.** Bagian yang terblokir tampil "Segera" dan dicatat di PR (lihat `_gap-api.md`).
 6. **Keputusan owner (K) yang masih kosong = bagian itu ditunda**, bukan ditebak.
 
@@ -83,7 +85,7 @@ tertinggal" di Office lama (`laksamana-office/CLAUDE.md:2611-2637`) persis karen
 | file Vue | sumber lama | pemilik | pemakai lain |
 |---|---|---|---|
 | `performa-konten.ts` | `deploy/assets/performa-konten.js` | konten | analytics |
-| `xlsx-baca.ts` | `deploy/assets/xlsx-baca.js` (bergantung K-05) | konten | jadwal, cashier, finance, analytics |
+| `xlsx-baca.ts` | `deploy/assets/xlsx-baca.js` (bergantung K-05) | jalur fondasi (dulu konten, TIM-A.md §3) | jadwal, cashier, finance, analytics |
 | `people-score.ts` | mesin skor di `deploy/hr/index.html` | hr | — |
 | `pax-harian.ts` | `satukan()` di `deploy/dw/` & `deploy/radar/` | jadwal | radar |
 | `venue-layouts.ts` + komponen `Denah` | `deploy/assets/venue-layouts.js` + Editor Denah | reservasi | marketing (VIP), analytics, konten |
@@ -91,7 +93,7 @@ tertinggal" di Office lama (`laksamana-office/CLAUDE.md:2611-2637`) persis karen
 | `kwitansi.ts` | `deploy/assets/kwitansi-sheet.js` | reservasi | marketing |
 | `cocok-bri.ts` | `deploy/assets/cocok-bri.js` | cashier | finance |
 | `porsi-pic.ts` | `porsiPic`/`potonganHari`/`obTotal` (cashier, omset, kas) | cashier | finance. **K-04: dua rumus SENGAJA berbeda** — ekspor `porsiPicCashier` (versi cashier) dan `porsiPicKompas` (versi omset/kas) dari file yang sama, dengan komentar yang menyebut K-04. Jangan disatukan. |
-| `performa-bonus.ts` | `deploy/assets/performa-bonus.js` | finance | event, marketing |
+| `performa-bonus.ts` | `deploy/assets/performa-bonus.js` | jalur fondasi (dulu finance, TIM-A.md §3) | event, marketing |
 | `hpp-mesin.ts` | `deploy/assets/hpp-mesin.js` | marketing | — |
 | `promo.ts` | `promoTipe`/`promoKat`/`promoHariTeks`/`promoStatus`/`promoSisa` (kembar di `deploy/bd` & `deploy/radar`) | bd | radar. Teks sisa waktu: K-12 |
 | `format.ts` (`HARI`, `BULAN`, `BLN`, `fTgl`, `fTglP`) | nama hari/bulan & format tanggal (kembar di bd, radar) | fondasi | semua modul. `BLN` sengaja "Ags", bukan "Agu" dari Intl |
@@ -114,4 +116,5 @@ tertinggal" di Office lama (`laksamana-office/CLAUDE.md:2611-2637`) persis karen
   Gap API diajukan sebagai issue oleh owner dari `_gap-api.md`.
 - Melakukan tulisan (POST/PUT/PATCH/DELETE) ke API dev atau production.
 - Menambah dependensi npm selain yang diizinkan: `tesseract.js` (reservasi, K-05) dan face-api (absensi #15, K-02).
-- Push, merge, atau deploy. Agen berhenti di commit pada branch; owner yang mereview.
+- Merge atau deploy. Agen boleh push branch issue-nya sendiri dan membuka draft PR (TIM-A.md §2);
+  owner/reviewer yang me-merge.
