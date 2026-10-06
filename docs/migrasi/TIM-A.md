@@ -63,23 +63,24 @@ git fetch origin && git rebase origin/main   # lalu: git push --force-with-lease
 ## 3. Jalur kerja
 
 Satu jalur = satu orang (boleh dua orang di jalur yang sama bila tidak mengerjakan modul yang sama).
-Isi kolom PJ saat pembagian; assignee di issue tetap yang mengikat.
+Isi kolom PJ saat pembagian; assignee di issue tetap yang mengikat. Keputusan owner yang masih
+terbuka (K-11, K-12): #23.
 
 | jalur | urutan issue | rumus bersama yang ia miliki (`PLAN.md` §4) | menunggu | PJ |
 |---|---|---|---|---|
-| **fondasi** | `xlsx-baca.ts` → `performa-bonus.ts` | `xlsx-baca.ts`, `performa-bonus.ts` | — | |
-| **sdm** | jadwal (+dw +roster) → hr | `pax-harian.ts`, `people-score.ts` | `xlsx-baca` | |
-| **uang** | cashier → finance | `cocok-bri.ts`, `porsi-pic.ts` | `xlsx-baca`, `performa-bonus` (finance) | |
-| **konten-marketing** | konten → marketing | `performa-konten.ts`, `hpp-mesin.ts` | `xlsx-baca` (konten), `performa-bonus` (marketing) | |
-| **operasional** | stock → event | — | `performa-bonus` (event) | |
-| **penyelesaian** | cek visual modul gelombang 1 · analytics · investor · issue gap G-16..G-18 · siapkan cutover | — | analytics menunggu konten (`performa-konten`) | |
+| **fondasi** | #9 `xlsx-baca.ts` → #10 `performa-bonus.ts` | `xlsx-baca.ts`, `performa-bonus.ts` | — | |
+| **sdm** | #11 jadwal (+dw +roster) → #12 hr | `pax-harian.ts`, `people-score.ts` | `xlsx-baca` | |
+| **uang** | #13 cashier → #14 finance | `cocok-bri.ts`, `porsi-pic.ts` | `xlsx-baca`, `performa-bonus` (finance) | |
+| **konten-marketing** | #15 konten → #16 marketing | `performa-konten.ts`, `hpp-mesin.ts` | `xlsx-baca` (konten), `performa-bonus` (marketing) | |
+| **operasional** | #17 stock → #18 event | — | `performa-bonus` (event) | |
+| **penyelesaian** | #19 cek visual gelombang 1 · #20 analytics · #21 investor · #22 prasyarat cutover · gap G-16..G-18 (laksamana-api#228) | — | analytics menunggu konten (`performa-konten`) | |
 
 Perubahan dari `PLAN.md` §4: **`xlsx-baca.ts` dan `performa-bonus.ts` dipindah ke jalur fondasi**, supaya
 jalur sdm, uang, konten-marketing dan operasional tidak saling menunggu. Pemakai tetap mengimpor, tidak menyalin.
 
 Jalur fondasi kecil: setelah dua issue itu selesai, PJ-nya pindah membantu jalur lain (ambil sub-issue).
 
-Absensi punch (#15) tetap paling akhir (K-02), tidak masuk jalur mana pun sampai semua modul selesai.
+Absensi punch (`PLAN.md` §3 baris 15) tetap paling akhir (K-02), tidak masuk jalur mana pun sampai semua modul selesai.
 
 ## 4. Peta kepemilikan file
 

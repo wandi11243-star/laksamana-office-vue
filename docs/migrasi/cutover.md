@@ -61,7 +61,7 @@ ubah di Vue → terlihat di Office lama, dan sebaliknya.
 
 | modul | C0 | C1 | C2 | C3 | C4 | catatan |
 |---|---|---|---|---|---|---|
-| absensi | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | C4 baru setelah punch & wajah pindah (PLAN #15); sampai itu PWA tetap dipakai |
+| absensi | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | C4 baru setelah punch & wajah pindah (PLAN.md §3 baris 15); sampai itu PWA tetap dipakai |
 | akademi | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | |
 | hlife | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | |
 | konten | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | |

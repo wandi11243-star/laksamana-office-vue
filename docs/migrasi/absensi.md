@@ -233,10 +233,10 @@ LANJUTKAN DARI: —
 
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
-| absen | `app/pages/absensi/index.vue` | ✅ | `GET /absensi/context` (+ `POST /absensi/session` di PWA) | punch kamera+GPS → K-02 (#15) |
+| absen | `app/pages/absensi/index.vue` | ✅ | `GET /absensi/context` (+ `POST /absensi/session` di PWA) | punch kamera+GPS → K-02 (PLAN.md §3 baris 15) |
 | riwayat | `app/pages/absensi/riwayat.vue` | ✅ | `GET /absensi/recap` | — |
 | antrean | `app/pages/absensi/antrean.vue` | ✅ | `GET /absensi/queue`, `POST /absensi/punches/{id}/decision` | — |
-| wajah | `app/pages/absensi/wajah.vue` | ✅ | `GET /absensi/context`, `GET /absensi/faces` | daftar/hapus wajah → K-02 (#15) |
+| wajah | `app/pages/absensi/wajah.vue` | ✅ | `GET /absensi/context`, `GET /absensi/faces` | daftar/hapus wajah → K-02 (PLAN.md §3 baris 15) |
 | atur | `app/pages/absensi/atur.vue` | ✅ | `GET/POST/DELETE /absensi/locations`, `GET/PUT /absensi/settings` | peta Leaflet → K-03 (tanpa peta) |
 
 Catatan build: Absensi **tidak punya `version`/ETag/`If-Match`** (kontrak

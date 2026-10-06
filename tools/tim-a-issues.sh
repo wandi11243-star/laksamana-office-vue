@@ -51,7 +51,8 @@ EOF
 }
 
 echo "== label" >&2
-for r in $VUE $API; do label $r tim-a 1d76db "Tim A — migrasi ke laksamana-office-vue"; done
+# laksamana-api already has tim-a and mod:* labels; only the Vue repo gets new ones.
+label $VUE tim-a 1d76db "Tim A — migrasi ke laksamana-office-vue"
 label $VUE jalur:fondasi 5319e7 "Jalur fondasi (TIM-A.md §3)"
 label $VUE jalur:sdm 0e8a16 "Jalur SDM: jadwal, hr"
 label $VUE jalur:uang fbca04 "Jalur uang: cashier, finance"
@@ -79,21 +80,21 @@ EOF
 
 echo "== modul" >&2
 J=$(issue $VUE "migrasi: jadwal (+dw +roster)" "tim-a,jalur:sdm,blocked" \
-  "$(modul_body jadwal "jadwal + dw + roster, 20 layar; membangun \`pax-harian.ts\` (\`satukan()\`, dipakai radar). K-10: backlog." "$(blk $F1)")")
+  "$(modul_body jadwal "jadwal + dw + roster, 20 layar; membangun \`pax-harian.ts\` (\`satukan()\`, dipakai radar). K-10: backlog. Gap API: dwipapap/laksamana-api#179, dwipapap/laksamana-api#180." "$(blk $F1)")")
 issue $VUE "migrasi: hr" "tim-a,jalur:sdm,blocked" \
-  "$(modul_body hr "17 layar; membangun \`people-score.ts\`. K-01 (G-13): tombol massal \"Segera\". Dikerjakan setelah jadwal (jalur yang sama)." "$(blk $F1)")" >/dev/null
+  "$(modul_body hr "17 layar; membangun \`people-score.ts\`. K-01 (G-13): tombol massal \"Segera\". Dikerjakan setelah jadwal (jalur yang sama). Gap API: dwipapap/laksamana-api#186, dwipapap/laksamana-api#187." "$(blk $F1)")" >/dev/null
 C=$(issue $VUE "migrasi: cashier" "tim-a,jalur:uang,blocked" \
   "$(modul_body cashier "11 layar; membangun \`cocok-bri.ts\` dan \`porsi-pic.ts\` (K-04: dua rumus SENGAJA berbeda). Pakai \`DanaMasukPanel\` dari reservasi." "$(blk $F1)")")
 issue $VUE "migrasi: finance" "tim-a,jalur:uang,blocked" \
-  "$(modul_body finance "omset + kas + brankas + rekap, 29 layar; G-06. Impor \`cocok-bri\`/\`porsi-pic\` dari cashier, \`performa-bonus\` dari fondasi." "$(blk $F1 $F2 $C)")" >/dev/null
+  "$(modul_body finance "omset + kas + brankas + rekap, 29 layar; G-06 (dwipapap/laksamana-api#181). Impor \`cocok-bri\`/\`porsi-pic\` dari cashier, \`performa-bonus\` dari fondasi." "$(blk $F1 $F2 $C)")" >/dev/null
 K=$(issue $VUE "migrasi: konten" "tim-a,jalur:konten-marketing,blocked" \
-  "$(modul_body konten "20 layar; membangun \`performa-konten.ts\` (dipakai analytics). K-01 (G-13)." "$(blk $F1)")")
+  "$(modul_body konten "20 layar; membangun \`performa-konten.ts\` (dipakai analytics). K-01 (G-13). Gap API: dwipapap/laksamana-api#177, dwipapap/laksamana-api#187, dwipapap/laksamana-api#190." "$(blk $F1)")")
 issue $VUE "migrasi: marketing" "tim-a,jalur:konten-marketing,blocked" \
-  "$(modul_body marketing "23 layar + detail event; membangun \`hpp-mesin.ts\`. G-09. Impor \`venue-layouts\`/\`kwitansi\` dari reservasi." "$(blk $F2)")" >/dev/null
+  "$(modul_body marketing "23 layar + detail event; membangun \`hpp-mesin.ts\`. G-09. Gap API: dwipapap/laksamana-api#184, dwipapap/laksamana-api#190. Impor \`venue-layouts\`/\`kwitansi\` dari reservasi." "$(blk $F2)")" >/dev/null
 issue $VUE "migrasi: stock" "tim-a,jalur:operasional" \
-  "$(modul_body stock "5 panel, 26 layar. K-05 (ekspor CSV), K-06 (Apps Script seperti lama), K-07 (izinkan usage-only)." "Tidak diblokir: boleh langsung mulai.")" >/dev/null
+  "$(modul_body stock "5 panel, 26 layar. K-05 (ekspor CSV), K-06 (Apps Script seperti lama), K-07 (izinkan usage-only). Gap API: dwipapap/laksamana-api#178." "Tidak diblokir: boleh langsung mulai.")" >/dev/null
 issue $VUE "migrasi: event" "tim-a,jalur:operasional,blocked" \
-  "$(modul_body event "17 layar staf (ticketing publik BUKAN Office). K-01 (G-13), K-08 (matriks izin tidak disimpan), K-09 (G-10)." "$(blk $F2)")" >/dev/null
+  "$(modul_body event "17 layar staf (ticketing publik BUKAN Office). K-01 (G-13), K-08 (matriks izin tidak disimpan), K-09 (G-10). Gap API: dwipapap/laksamana-api#185, dwipapap/laksamana-api#187, dwipapap/laksamana-api#103." "$(blk $F2)")" >/dev/null
 
 echo "== penyelesaian" >&2
 issue $VUE "cek visual modul gelombang 1" "tim-a,jalur:penyelesaian" "$(cat <<EOF
@@ -119,15 +120,13 @@ EOF
 )" >/dev/null
 
 echo "== gap API (laksamana-api)" >&2
-issue $API "akademi v1: gap G-16, G-17, G-18 dari Vue" "tim-a" "$(cat <<EOF
-Ditemukan saat membangun akademi di laksamana-office-vue (gelombang 1, 2026-10-01). Rincian dan bukti:
+issue $API "akademi: whole-state import, cascade delete and roster sync for non-admins (Vue gaps G-16..G-18)" "tim-a,mod:akademi,enhancement,needs-triage" "$(cat <<EOF
+Found while building akademi in laksamana-office-vue (wave 1, 2026-10-01). Details and evidence:
 \`laksamana-office-vue/docs/migrasi/_gap-api.md\` §G-16..G-18.
 
-- **G-16** whole-state (kirim/ambil/pulihkan backup): v1 hanya \`GET /state\`. Usul: \`POST /akademi/admin/import\` (pola G-13), atau nyatakan tidak dibawa.
-- **G-17** \`DELETE /akademi/materials/{id}\` dan \`/programs/{id}\` tidak menghapus progress terkait (\`AkademiRecords::delete\`). Usul: cascade di server.
-- **G-18** sinkron roster Office hanya untuk admin modul (\`routes/v1.php:41-46\`). Usul: izinkan pemegang modul, atau sinkron di server.
-
-Setelah issue ini ada, koordinator memperbarui tabel status di \`_gap-api.md\`.
+- **G-16** whole-state push / pull / restore from backup: v1 only has \`GET /state\`. Proposal: \`POST /akademi/admin/import\` (same pattern as #187), or declare the buttons dropped.
+- **G-17** \`DELETE /akademi/materials/{id}\` and \`/programs/{id}\` leave the related progress rows (\`AkademiRecords::delete\`, \`app/Modules/Akademi/Services/AkademiRecords.php:220-235\`). Vue deletes them client-side for now. Proposal: cascade on the server.
+- **G-18** the Office roster sync only writes \`users\` rows for module admins (\`app/Modules/Akademi/routes/v1.php:41-46\`), while legacy ran it for every client. New crew have no row until an admin opens the module. Proposal: allow module holders, or sync server-side.
 EOF
 )" >/dev/null
 

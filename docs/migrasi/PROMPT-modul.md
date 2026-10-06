@@ -47,7 +47,7 @@ lewat `grep -n` lalu `sed -n` potongan ≤ 300 baris. Jangan membaca file lama d
    murni yang setia pada rumus lama (sertakan komentar `// Source: laksamana-office/<path>:<baris>`). Kalau
    bukan pemilik, IMPOR — jangan salin. Kalau pemiliknya belum dibangun, berhenti dan laporkan.
 7. **Tulisan berversi**: selalu `ifMatch(versi)` + `tanganiKonflik(e, refresh)` (fondasi F1).
-8. **Tanpa dependensi npm baru** kecuali yang diizinkan di `PLAN.md` §6 (`tesseract.js` untuk reservasi, face-api untuk absensi #15).
+8. **Tanpa dependensi npm baru** kecuali yang diizinkan di `PLAN.md` §6 (`tesseract.js` untuk reservasi, face-api untuk absensi, §3 baris 15).
 9. **Git**: branch `migrasi/{{MODUL}}` dari `main` terbaru. Commit per layar (atau per 2–3 layar kecil),
    pesan `feat({{MODUL}}): <layar>`. Issue: **#{{ISSUE}}**; ikuti `docs/migrasi/TIM-A.md` (kepemilikan file §4).
    Push branch sendiri + draft PR `Closes #{{ISSUE}}` boleh; jangan merge.
