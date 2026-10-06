@@ -63,17 +63,21 @@ git fetch origin && git rebase origin/main   # lalu: git push --force-with-lease
 ## 3. Jalur kerja
 
 Satu jalur = satu orang (boleh dua orang di jalur yang sama bila tidak mengerjakan modul yang sama).
-Isi kolom PJ saat pembagian; assignee di issue tetap yang mengikat. Keputusan owner yang masih
-terbuka (K-11, K-12): #23.
+Pembagian 2026-10-06: dua anggota, tiga jalur masing-masing. Assignee di issue tetap yang mengikat;
+bila pembagian berubah, ubah assignee dan tabel ini bersamaan.
+
+**Koordinator: @dwipapap**: me-review dan me-merge PR, melepas label `blocked`, memperbarui
+`PLAN.md` §3, `_gap-api.md`, dan `_pertanyaan.md` (§4, §5). Keputusan owner yang masih terbuka
+(K-11, K-12): #23.
 
 | jalur | urutan issue | rumus bersama yang ia miliki (`PLAN.md` §4) | menunggu | PJ |
 |---|---|---|---|---|
-| **fondasi** | #9 `xlsx-baca.ts` → #10 `performa-bonus.ts` | `xlsx-baca.ts`, `performa-bonus.ts` | — | |
-| **sdm** | #11 jadwal (+dw +roster) → #12 hr | `pax-harian.ts`, `people-score.ts` | `xlsx-baca` | |
-| **uang** | #13 cashier → #14 finance | `cocok-bri.ts`, `porsi-pic.ts` | `xlsx-baca`, `performa-bonus` (finance) | |
-| **konten-marketing** | #15 konten → #16 marketing | `performa-konten.ts`, `hpp-mesin.ts` | `xlsx-baca` (konten), `performa-bonus` (marketing) | |
-| **operasional** | #17 stock → #18 event | — | `performa-bonus` (event) | |
-| **penyelesaian** | #19 cek visual gelombang 1 · #20 analytics · #21 investor · #22 prasyarat cutover · gap G-16..G-18 (laksamana-api#228) | — | analytics menunggu konten (`performa-konten`) | |
+| **fondasi** | #9 `xlsx-baca.ts` → #10 `performa-bonus.ts` | `xlsx-baca.ts`, `performa-bonus.ts` | — | @wandi11243-star |
+| **sdm** | #11 jadwal (+dw +roster) → #12 hr | `pax-harian.ts`, `people-score.ts` | `xlsx-baca` | @dwipapap |
+| **uang** | #13 cashier → #14 finance | `cocok-bri.ts`, `porsi-pic.ts` | `xlsx-baca`, `performa-bonus` (finance) | @wandi11243-star |
+| **konten-marketing** | #15 konten → #16 marketing | `performa-konten.ts`, `hpp-mesin.ts` | `xlsx-baca` (konten), `performa-bonus` (marketing) | @wandi11243-star |
+| **operasional** | #17 stock → #18 event | — | `performa-bonus` (event) | @dwipapap |
+| **penyelesaian** | #19 cek visual gelombang 1 · #20 analytics · #21 investor · #22 prasyarat cutover · gap G-16..G-18 (laksamana-api#228) | — | analytics menunggu konten (`performa-konten`) | @dwipapap |
 
 Perubahan dari `PLAN.md` §4: **`xlsx-baca.ts` dan `performa-bonus.ts` dipindah ke jalur fondasi**, supaya
 jalur sdm, uang, konten-marketing dan operasional tidak saling menunggu. Pemakai tetap mengimpor, tidak menyalin.
