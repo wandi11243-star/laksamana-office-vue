@@ -288,6 +288,6 @@ Catatan build:
 - **Kinerja/atribusi**: laporan skor/kehadiran dari server apa adanya; simpan per resource/peta (`PUT /kpi-actuals/{div}/{bulan}/{item}`, `PUT /monthly-inputs/{emp}/{bulan}`, `PUT /settings/{kunci}`, `PUT /attendance/{bulan}`).
 - **Sinkron roster** (pertanyaan §I) dilakukan aman: hanya membuat baris yang hilang dan menyegarkan nama/talentaId/role/status; TIDAK menghapus baris "yatim" maupun mengklaim id secara otomatis karena API v1 tulis per-record (tanpa whole-document); sisa baris dilaporkan ke HRD.
 - **Ekspor backup JSON** jalan; **Impor & Reset** tampil "Segera (G-13)" sesuai K-01.
-- **Belum dicek visual**; mock read-only `/hr/*` (pola `mock-api-reservasi.mjs`) dan cek 390/1366 menyusul sebelum PR #12 ditandai siap review.
+- **Dicek visual** 2026-10-07 lewat `mock-api-hr.mjs` (root workspace, port 4012, semua tulisan 403): 17 halaman di 1366px & 390px, overflow horizontal 0, console bersih; sebagai HRD dan sebagai kru (menu admin tersembunyi, halaman admin terkunci). Tema gelap tidak ada (mode terkunci terang).
 - `npm run lint && npm run typecheck && npm run build`: hijau 2026-10-07.
-- `LANJUTKAN DARI`: mock `/hr/*` + cek visual, lalu draft PR (ditumpuk di `migrasi/jadwal` sampai PR #33 merge).
+- `LANJUTKAN DARI`: draft PR #12 (base `migrasi/jadwal` sampai PR #33 merge, lalu pindah `main`) + review owner.
