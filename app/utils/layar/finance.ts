@@ -5,7 +5,7 @@
 // screen declares the key it needs via `boleh`, and keys are prefixed with the
 // panel because the three old documents reused the same view keys.
 import { hasAccess, type Me } from '~/composables/useMe'
-import { getKk } from '~/composables/useFinance'
+import { getKk, getVaultAkses } from '~/composables/useFinance'
 
 const omset = (me: Me) => hasAccess(me, ['kompas'])
 /** Visible when the module key is held AND the page matrix allows at least view. */
@@ -96,6 +96,81 @@ export function useKasIzin() {
   }
 }
 
+// ── The Brankas page matrix (old `aksTingkat`, deploy/finance/brankas/index.html:770-830) ──
+// Same shape as Kas, different defaults: `pending` and `ringkasan` are
+// information pages (never above Lihat), `pengaturan` is closed to manajemen
+// and viewer entirely. The module admin is `*`/`brankas`/`finance` here.
+const BRANKAS_HAL_ISI = ['saldo', 'mutasi', 'modal', 'pengaturan', 'akses']
+const DEFAULT_PERMS_BRANKAS: Record<string, Record<string, number>> = {
+  ringkasan: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_VIEW },
+  saldo: { staf: PERM_EDIT, manajemen: PERM_VIEW, viewer: PERM_VIEW },
+  mutasi: { staf: PERM_EDIT, manajemen: PERM_VIEW, viewer: PERM_VIEW },
+  pending: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_VIEW },
+  modal: { staf: PERM_EDIT, manajemen: PERM_VIEW, viewer: PERM_VIEW },
+  pengaturan: { staf: PERM_EDIT, manajemen: PERM_NONE, viewer: PERM_NONE },
+  akses: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_VIEW },
+}
+
+export const useBrankasAksesSiap = () => useState<{ matriks: Record<string, Record<string, number>>, peran: Record<string, string> } | null>('brankas-akses', () => null)
+
+/** Pages that HAVE input; outside this list "Ubah" is clamped to Lihat. */
+export const AKS_HAL_ISI_BRANKAS = BRANKAS_HAL_ISI
+
+/** Default level of one page for one role (before stored overrides). */
+export const tingkatBawaanBrankas = (page: string, role: string): number =>
+  DEFAULT_PERMS_BRANKAS[page]?.[role] ?? PERM_VIEW
+
+function roleSayaBrankas(me: Me | null, s: { peran: Record<string, string> } | null): string {
+  if (!me) return ROLE_BAWAAN
+  if (me.adminModules.includes('*') || me.adminModules.includes('brankas') || me.adminModules.includes('finance')) return 'admin'
+  const byId = me.id ? s?.peran[`#${me.id}`] : undefined
+  const byName = me.name ? s?.peran[`@${String(me.name).trim().toLowerCase()}`] : undefined
+  const r = byId ?? byName ?? ''
+  return ROLE_KEYS.includes(r) ? r : ROLE_BAWAAN
+}
+
+/** Load the matrix + roles once from the module chrome (`siapkan`). */
+export function muatPeranBrankas() {
+  const s = useBrankasAksesSiap()
+  if (s.value) return
+  getVaultAkses()
+    .then((r) => {
+      s.value = { matriks: r.akses.matrix ?? {}, peran: r.akses.roles ?? {} }
+    })
+    .catch(() => {
+      s.value = { matriks: {}, peran: {} }
+    })
+}
+
+/** Effective level of one page for this user (0 none, 1 view, 2 edit). */
+export function tingkatBrankas(me: Me | null, page: string, s: { matriks: Record<string, Record<string, number>>, peran: Record<string, string> } | null): number {
+  const role = roleSayaBrankas(me, s)
+  if (role === 'admin') return BRANKAS_HAL_ISI.includes(page) ? PERM_EDIT : PERM_VIEW
+  const baris = s?.matriks?.[role]
+  let t = baris && baris[page] !== undefined ? Number(baris[page]) : (DEFAULT_PERMS_BRANKAS[page]?.[role] ?? PERM_VIEW)
+  if (!Number.isFinite(t)) t = DEFAULT_PERMS_BRANKAS[page]?.[role] ?? PERM_VIEW
+  t = Math.max(PERM_NONE, Math.min(PERM_EDIT, t))
+  if (!BRANKAS_HAL_ISI.includes(page) && t > PERM_VIEW) t = PERM_VIEW
+  if (role === 'viewer' && t > PERM_VIEW) t = PERM_VIEW
+  return t
+}
+
+/** Per-page guard for the Brankas screens. */
+export function useBrankasIzin() {
+  const me = useMe()
+  const s = useBrankasAksesSiap()
+  const tingkat = (page: string) => tingkatBrankas(me.value, page, s.value)
+  return {
+    tingkat,
+    lihat: (page: string) => tingkat(page) >= PERM_VIEW,
+    ubah: (page: string) => tingkat(page) >= PERM_EDIT,
+  }
+}
+
+/** Visible when the module key is held AND the page matrix allows at least view. */
+const brankasHal = (page: string) => (me: Me) =>
+  hasAccess(me, ['brankas']) && tingkatBrankas(me, page, useBrankasAksesSiap().value) >= PERM_VIEW
+
 export const LAYAR_FINANCE: Layar[] = [
   // ── Omset (kunci kompas; bekas modul Kompas) ──
   { key: 'omset_input', label: 'Input Omset Harian', desc: 'Catat pendapatan, diskon, tax & service, dan trafik harian', icon: 'i-lucide-pencil-line', to: '/finance/omset/input', grup: 'Panel Omset', boleh: omset },
@@ -121,6 +196,15 @@ export const LAYAR_FINANCE: Layar[] = [
   { key: 'kas_event', label: 'Performa Event', desc: 'Kontribusi omset per PIC event', icon: 'i-lucide-party-popper', to: '/finance/kas/event', grup: 'Kas Kecil', boleh: kasHal('event') },
   { key: 'kas_kasir', label: 'Performa Kasir', desc: 'Omset yang diakui tiap kasir — angka final', icon: 'i-lucide-chart-column', to: '/finance/kas/kasir', grup: 'Kas Kecil', boleh: kasHal('kasir') },
   { key: 'kas_akses', label: 'Kelola Kru', desc: 'Siapa saja yang bisa membuka modul Finance', icon: 'i-lucide-key-round', to: '/finance/kas/akses', grup: 'Kas Kecil', boleh: kasHal('akses') },
+
+  // ── Brankas (kunci brankas) ──
+  { key: 'brankas_ringkasan', label: 'Ringkasan Brankas', desc: 'Posisi kas perusahaan dan keputusan terdekat', icon: 'i-lucide-vault', to: '/finance/brankas', grup: 'Brankas', boleh: brankasHal('ringkasan') },
+  { key: 'brankas_saldo', label: 'Saldo & Rekening', desc: 'Dihitung dari Aktual Masuk di Rekap Penjualan', icon: 'i-lucide-landmark', to: '/finance/brankas/saldo', grup: 'Brankas', boleh: brankasHal('saldo') },
+  { key: 'brankas_mutasi', label: 'Mutasi & Transfer', desc: 'Setor, tarik, dan pindah uang antar wallet', icon: 'i-lucide-arrow-left-right', to: '/finance/brankas/mutasi', grup: 'Brankas', boleh: brankasHal('mutasi') },
+  { key: 'brankas_pending', label: 'Uang Pending / Piutang', desc: 'Bon yang dicatat kasir dan belum dibayar tamu', icon: 'i-lucide-hourglass', to: '/finance/brankas/pending', grup: 'Brankas', boleh: brankasHal('pending') },
+  { key: 'brankas_modal', label: 'Pengembalian Modal', desc: 'Progres pengembalian modal per investor', icon: 'i-lucide-hand-coins', to: '/finance/brankas/modal', grup: 'Brankas', boleh: brankasHal('modal') },
+  { key: 'brankas_pengaturan', label: 'Pengaturan', desc: 'Saldo awal, pemetaan metode pembayaran, dan biaya bulanan', icon: 'i-lucide-settings-2', to: '/finance/brankas/pengaturan', grup: 'Brankas', boleh: brankasHal('pengaturan') },
+  { key: 'brankas_akses', label: 'Kelola Akses', desc: 'Siapa boleh membuka dan mengubah halaman mana', icon: 'i-lucide-key-round', to: '/finance/brankas/akses', grup: 'Brankas', boleh: brankasHal('akses') },
 ]
 
 /** The line under the user's name in the module chrome. */
