@@ -29,6 +29,7 @@ import {
   PER_HAL_MKT, SETTING_MKT_BAWAAN, TENGGANG_TUTUP_MKT, bolehAksiMkt, bolehBukaMkt, hariAntaraMkt, normRoleAccMkt, normUserMkt, urutAwalMkt, urutMkt,
 } from '~/utils/marketing'
 import { normEventMkt } from '~/utils/marketing-uang'
+import { UButton } from '#components'
 import type { Versi } from '~/utils/versi'
 import { ifMatch, tanganiKonflik } from '~/utils/versi'
 
@@ -312,16 +313,16 @@ export function useTabelMkt<T>(key: string, kolom: KolomMkt<T>[], sidik?: () => 
     urut.value = urut.value?.k === k ? { k, arah: urut.value.arah === 1 ? -1 : 1 } : { k, arah: 1 }
     hal.value = 1
   }
-  const UButton = resolveComponent('UButton')
+
   /** A UTable `header` for a sortable column. */
   const kepala = (k: string, t: string) => () => h(UButton, {
-    label: t,
-    color: 'neutral',
-    variant: 'link',
-    class: '-mx-1 px-1 font-semibold',
-    trailingIcon: urut.value?.k === k ? (urut.value.arah === 1 ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down') : 'i-lucide-arrow-up-down',
+    'label': t,
+    'color': 'neutral',
+    'variant': 'link',
+    'class': '-mx-1 px-1 text-xs font-semibold tracking-wide text-table-head-text uppercase',
+    'trailingIcon': urut.value?.k === k ? (urut.value.arah === 1 ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down') : 'i-lucide-arrow-up-down',
     'aria-label': `Urutkan menurut ${t}`,
-    onClick: () => klik(k),
+    'onClick': () => klik(k),
   })
   const susun = (rows: T[]) => urutMkt(rows, kolom, urut.value)
   const potong = (rows: T[]) => {

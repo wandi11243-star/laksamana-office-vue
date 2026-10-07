@@ -324,7 +324,7 @@ export function jenisEvent(e?: EventMkt | null): string {
 
 /** Typed-name confirmation for permanent deletes: spaces/nbsp folded, case-insensitive (:6459-6462, F.7). */
 export function namaCocok(a: unknown, b: unknown): boolean {
-  const n = (x: unknown) => String(x ?? '').replace(/[\s ]+/g, ' ').trim().toLowerCase()
+  const n = (x: unknown) => String(x ?? '').replace(/[\s\u00A0]+/g, ' ').trim().toLowerCase()
   return n(a) === n(b)
 }
 
@@ -567,7 +567,7 @@ export const csvTeksMkt = (baris: unknown[][]) =>
 
 /** Quote-aware CSV reader; separator from `sep=` or guessed from the header (:5751-5791). */
 export function bacaCsvMkt(teks: string): string[][] {
-  let t = String(teks || '').replace(/^﻿/, '')
+  let t = String(teks || '').replace(/^\uFEFF/, '')
   let pisah = ''
   const m = /^sep=(.)\r?\n/i.exec(t)
   if (m) {

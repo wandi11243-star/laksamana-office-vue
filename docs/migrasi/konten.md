@@ -514,7 +514,7 @@ LANJUTKAN DARI: #48 — antrian produksi (shooting, design, editing) + assets. #
 | dashboard | `app/pages/konten/dashboard.vue` | ✅ | `GET /konten/state` | #47 — Top Konten masih `metrics.reach` (F.4), pindah ke `perf` di #49; `autoUpdateStatuses` (tulis status iklan) ikut #50 |
 | planning | `app/pages/konten/planning.vue` | ✅ | `GET /konten/state` | #47 |
 | pipeline | `app/pages/konten/pipeline.vue` | ✅ | `PATCH /konten/content/{id}` (status), `POST /konten/notifications` | #47 — HP: daftar per status (drag tak dibawa ke sentuh) |
-| calendar | `app/pages/konten/calendar.vue` | ✅ | `PATCH /konten/content`, `/prod-tasks`, `/shootings`, `/visits` (geser tanggal) | #47 — (koreksi build 2026-10-07) tanggal sel | calendar | — | ⬜ | | #47 | "hari ini" lokal; lama memakai toISOString sehingga sel WIB menampilkan acara sehari sebelumnya |
+| calendar | `app/pages/konten/calendar.vue` | ✅ | `PATCH /konten/content`, `/prod-tasks`, `/shootings`, `/visits` (geser tanggal) | #47 — (koreksi build 2026-10-07) tanggal sel & "hari ini" lokal; lama memakai toISOString sehingga sel WIB menampilkan acara sehari sebelumnya |
 | panel detail + form konten (D.21) | `app/pages/konten/detail/[id].vue`, `app/components/KontenForm.vue` | ✅ | `POST/PUT/PATCH/DELETE /konten/content`, `DELETE /konten/shootings/{id}` (syncProdTasks), `POST /konten/notifications`, `POST /konten/logs` | #47 — blok performa (`renderPerfBlock`) ikut #49 |
 | shooting | — | ⬜ | | #48 |
 | design | — | ⬜ | | #48 |

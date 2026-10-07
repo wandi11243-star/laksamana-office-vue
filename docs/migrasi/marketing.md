@@ -1,6 +1,6 @@
 # Marketing — inventaris migrasi
 
-Status: ⚠️ selesai dengan celah
+Status: ⚠️ selesai dengan celah · build Vue berjalan (J)
 Terakhir diperbarui: 2026-09-29
 
 > **Triase 2026-09-29** — status di tabel E yang bertentangan dengan catatan ini: catatan ini yang berlaku.
@@ -371,3 +371,52 @@ Kode error yang wajib ditangani UI: `already_exists` (409 saat POST id duplikat)
 - **Aset bersama `deploy/assets/hpp-mesin.js`**: dipakai modul Marketing (Menu Kalkulator) — rumus modal HPP dibangkitkan dari modul HPP (`deploy/marketing/index.html:12`,`:18939-18970`).
 - **Aset bersama `deploy/assets/venue-layouts.js` & `kwitansi-sheet.js`**: venue-layouts (denah meja VIP/event) dan kwitansi-sheet (lembar kwitansi/bukti) dipakai Marketing (`deploy/marketing/index.html:6`,`:9`,`:16774`). Marketing TIDAK memuat `performa-konten.js`, `cocok-bri.js`, atau `xlsx-baca.js`.
 ```
+
+## J. Progres build
+Issue: #16, dipecah #58–#63 · Branch saat ini: `migrasi/marketing-inti` (#58, PR #64) · Mulai: 2026-10-07
+LANJUTKAN DARI: #59 — detail event (4 tab, D.1–D.11), finance & Catat Pembayaran, Surat Penawaran, brief. #58 selesai.
+
+| layar (key) | file | status | endpoint dipakai | sub-issue |
+|---|---|---|---|---|
+| dashboard | `app/pages/marketing/dashboard.vue` | ✅ | `GET /marketing/state`, `POST /marketing/clients` (Lead Baru) | #58 — (koreksi build) Pendapatan Bulan Ini membandingkan bulan+tahun; lama hanya bulan, jadi Oktober tahun-tahun lalu ikut terjumlah |
+| crm | `app/pages/marketing/crm.vue` (+ `MarketingClientForm`, `MarketingClientDetail`, `MarketingFollowUp`) | ✅ | `POST/PATCH/DELETE /marketing/clients`, `DELETE /marketing/followups/{id}`, `POST /marketing/followups`, `PATCH /marketing/events/{id}`, `POST /marketing/activities` | #58 — ekspor/impor CSV sama kolom & aturan; hapus ditolak bila masih memegang event |
+| pipeline (+ events) | `app/pages/marketing/pipeline.vue` (+ `MarketingEventBaru`) | ✅ | `POST /marketing/events` (+ `POST /clients` isi cepat), `PATCH /marketing/events/{id}` (tahap) | #58 — (koreksi build) seret kartu kini butuh `edit_event`; lama tidak memeriksa izin. HP: kolom ditumpuk + "Pindah tahap". "Ajukan Revisi" & tombol Internal/Client/Draft = Segera (#59) |
+| calendar | `app/pages/marketing/calendar.vue` | ✅ | `GET /marketing/state`, `GET /event/events?from&to`, `GET /reservasi/reservations?from&to` | #58 — (koreksi build) tanggal acara EMS = tanggal lokal `start_datetime`; lama memotong string UTC |
+| event (detail) | `app/pages/marketing/event/[id].vue` | 🟡 | `GET /marketing/state` | #58 halaman sementara (ringkasan + uang + Catat FU); form detailing penuh #59 |
+| brief | — | ⬜ | | #59 |
+| invoices | — | ⬜ | | #60 |
+| approvals | — | ⬜ | | #60 |
+| reports | — | ⬜ | | #60 |
+| notifications | — | ⬜ | | #60 (+ lonceng shell) |
+| timeline | — | ⬜ | | #60 |
+| vip | — | ⬜ | | #61 |
+| designreq | — | ⬜ | | #61 (403 laksamana-api#190 tak boleh memblokir) |
+| tasks | — | ⬜ | | #62 |
+| templates | — | ⬜ | | #62 |
+| katalog | — | ⬜ | | #62 |
+| purchasing | — | ⬜ | | #62 |
+| kalkulator | — | ⬜ | | #63 (`hpp-mesin.ts`; riwayat G-09 = Segera) |
+| perfomset | — | ⬜ | | #63 (impor `performa-bonus.ts`) |
+| staff (+ users) | — | ⬜ | | #63 (roster U2) |
+| settings | — | ⬜ | | #63 |
+
+Catatan build:
+- Fondasi #58: `app/utils/marketing.ts` (konstanta, tipe, matriks izin `ACTION_VIEW`/`legacyEditRules`/`roleAcc`/`u.acc`, pipeline, CRM & CSV, mesin tabel), `app/utils/marketing-uang.ts` (port apa adanya `eventFinance`, `eventFbCost`, `rinciTotalBayar`, `rincianPenawaran`, `invStatus`, `pendapatanPerBulan`, `papanClosing`), `app/utils/status-marketing.ts`, `app/composables/useMarketing.ts` (satu `GET /state` bersama, CRUD per record dengan If-Match = `updatedAt`; tab DP Event tetap di sini), `app/utils/layar/marketing.ts`, entri shell. Uji: `node tools/uji-marketing.mjs` (55 cek; 13 mutasi tertangkap).
+- `normalizeState` lama dijalankan di memori saat membaca (`normEventMkt`, `normRoleAccMkt`, `staff` → `users`): event yang belum pernah disimpan ulang sejak migrasi lama tetap memberi Grand Total yang sama dengan Office lama. Server tidak disentuh sampai baris itu disimpan.
+- `autoCloseEvents` (Deal/Confirmed H+2 → Event Done) dijalankan sekali per sesi saat modul dibuka, satu PATCH berversi per event; penolakan diam seperti simpan latar lama.
+- Identitas: baris `users` dengan id Office lalu nama; belum ada → `marketing` di memori. Admin modul Office = Super Admin (seperti hasil sinkron roster lama). Sinkron roster → `POST /users` ikut Pegawai & Akses (#63).
+- (koreksi build) Follow up dicap jam lokal; lama memakai `toISOString()` sehingga follow up sebelum 07:00 WIB tercatat kemarin dan tidak terhitung "Follow Up Hari Ini".
+- (koreksi build) Client baru: Marketing PIC bawaan = diri sendiri bila termasuk daftar; lama mengambil nama pertama di daftar.
+- Layar tanpa izin: `MarketingGerbang` menampilkan "Akses belum aktif" / "Akses ditolak" seperti `go()` lama.
+
+## K. Daftar uji cutover
+Uji silang Vue ↔ Office lama pada data yang sama (dev). Bagian #58:
+
+- [ ] **uang** — ambil 10 event nyata (Rincian, kotak lama, fbDeal, pajak termasuk, DP nominal & %, centang DP, pembayaran melebihi DP): Grand Total, DP, Terbayar, Sisa, status invoice sama persis dengan Office lama.
+- [ ] **dashboard** — 4 kartu, ubin status, Upcoming 7 hari, Pendapatan 6 bulan, Closing bulan ini sama angkanya (kecuali koreksi tahun di atas).
+- [ ] **crm** — tiap saringan (cari, relasi, source) memberi baris yang sama; bintang VIP; ekspor CSV terbuka rapi di Excel id-ID; impor berkas hasil ekspor yang disunting → pratinjau benar, Terapkan tersimpan & tampil di Office lama; hapus client berevent ditolak, tanpa event butuh ketik nama.
+- [ ] **follow up** — tiga tujuan (event terbuka, peluang baru, umum): tahap event bergerak sesuai hasil, Deal membuat task kategori, Deal/Lost mengosongkan next FU, client lastContact/nextFU benar.
+- [ ] **pipeline** — PIC, ringkasan, seret kartu + konfirmasi; Quotation Terkirim ditolak bila penawaran belum disetujui; pengingat data dasar muncul tanpa menahan; Daftar Event: periode/bulan, status bawaan, cari, Reset, hitungan "x dari y".
+- [ ] **event baru** — Pengakuan Omset kosong ditolak SEBELUM client cepat dibuat; client cepat masuk CRM sebagai Lead; PIC mengikuti aturan marketing/non-marketing.
+- [ ] **kalender** — event lintas hari di semua harinya, saringan status (bawaan tanpa Lost), pax bulan ini, pita EMS & Reservasi; tanpa modul Event/Reservasi muncul peringatan + Coba lagi, event Marketing tetap tergambar.
+- [ ] **akses** — role operational/finance/manager/marketing melihat menu sama dengan lama; override per orang berlaku; konflik versi (dua tab) memunculkan "Data sudah diubah orang lain".
