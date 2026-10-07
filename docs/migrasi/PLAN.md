@@ -59,7 +59,7 @@ Urutan mempertimbangkan ukuran, risiko, dan **siapa yang membangun komponen bers
 | 7 | jadwal | jadwal + dw + roster, 20 layar | K-10 (G-03/05) | `pax-harian.ts` (`satukan()`) | ✅ (dibangun 2026-10-07; cek visual mock 1366/390 untuk bagian 1, 4–5; bagian 2–3 Jadwal Shift dilewati atas persetujuan owner; blok DW menunggu G-03, pax tamu "Segera" G-05) |
 | 8 | reservasi | reservasi + service_excellent, 12 layar | K-05: OCR `tesseract.js` diizinkan, lazy (G-07/08) | `DanaMasukPanel`, `Denah` + `venue-layouts.ts`, `kwitansi.ts` | ✅ (visual belum dicek) |
 | 9 | cashier | 11 layar | K-04 | `cocok-bri.ts`, `porsi-pic.ts` | ✅ (11/11 layar digabung ke main 2026-10-07; sisa gap G-19 di `laksamana-api#233`) |
-| 10 | finance | omset + kas + brankas + rekap, 29 layar | K-04 (G-06) | `performa-bonus.ts` | ⚠️ (3/4 sub-issue selesai: #38, #39, #40 ✅ 15/15 layar kas — PR menunggu review; sisa #41 brankas 7 layar) |
+| 10 | finance | omset + kas + brankas + rekap, 29 layar | K-04 (G-06) | `performa-bonus.ts` | ✅ (4/4 sub-issue digabung ke main 2026-10-07: #38, #39, #40 kas 15/15, #41 brankas 7/7; cek visual mock 1366/390; G-06 & vendor stock ditunda & dicatat) |
 | 11 | stock | 5 panel, 26 layar | K-05 (ekspor CSV), K-06 (Apps Script), K-07 | — | ⬜ |
 | 12 | event | 17 layar staf | K-01 (G-13), K-08, K-09 (G-10) | — | ⬜ |
 | 13 | marketing | 23 layar + detail event | K-05 (G-09) | `hpp-mesin.ts` | ⬜ |
