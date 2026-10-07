@@ -151,6 +151,11 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
   },
 
   // ── finance ──
+  finance: {
+    subjudul: 'Finance',
+    layar: LAYAR_FINANCE,
+    peran: me => peranFinance(me),
+  },
 
   // ── konten ──
 
