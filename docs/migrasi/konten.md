@@ -507,11 +507,11 @@ Konkurensi: legacy menstempel `updatedAt=sekarang` + `baseUpdatedAt=versi server
 
 ## J. Progres build
 Issue: #15, dipecah #47–#51 · Branch saat ini: `migrasi/konten-perencanaan` (#47) · Mulai: 2026-10-07
-LANJUTKAN DARI: #47 — `useKonten.ts`, layar, shell, lalu dashboard.
+LANJUTKAN DARI: #47 — layar planning (D.2), lalu panel detail + form konten (D.21, `/konten/detail/[id]`), pipeline, calendar.
 
 | layar (key) | file | status | endpoint dipakai | sub-issue |
 |---|---|---|---|---|
-| dashboard | — | ⬜ | | #47 |
+| dashboard | `app/pages/konten/dashboard.vue` | ✅ | `GET /konten/state` | #47 — Top Konten masih `metrics.reach` (F.4), pindah ke `perf` di #49; `autoUpdateStatuses` (tulis status iklan) ikut #50 |
 | planning | — | ⬜ | | #47 |
 | pipeline | — | ⬜ | | #47 |
 | calendar | — | ⬜ | | #47 |
@@ -532,3 +532,8 @@ LANJUTKAN DARI: #47 — `useKonten.ts`, layar, shell, lalu dashboard.
 | activity | — | ⬜ | | #51 |
 | settings | — | ⬜ | | #51 (Restore JSON: K-01/G-13) |
 | profile | — | ⬜ | | #51 |
+
+Catatan build:
+- Fondasi #47: `app/utils/konten.ts` (konstanta & rumus murni), `app/utils/status-konten.ts`, `app/composables/useKonten.ts` (satu `GET /state` bersama, CRUD per record dengan If-Match = `updatedAt`), `app/utils/layar/konten.ts`, entri shell. Uji: `node tools/uji-konten.mjs` (28 cek; 10 mutasi tertangkap).
+- Kru tanpa baris `users` dikenali di memori sebagai planner (super_admin bila admin modul Office), seperti `resolveKontenUser` lama; sinkron roster → `POST /users` ikut Kelola Kru (#51).
+- Halaman detail konten di `/konten/detail/[id]` (lama: drawer).
