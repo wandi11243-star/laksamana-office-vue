@@ -179,6 +179,36 @@ export function potonganHari(d: HariKompas, kasirId: string): number {
 }
 
 /**
+ * KOMPAS twin of the deduction: the FULL `amount` column (omset :2861,
+ * kas `potongKasir`). The tiket halving is the CASHIER variant only (K-04) —
+ * the two modules deliberately answer differently for the same free-entry row,
+ * and this file keeps both so nobody "fixes" one into the other.
+ */
+export function potongKasirKompas(r?: BarisPotong | null): number {
+  return potongKasirAktif(r) ? ppNum(r?.amount) : 0
+}
+
+/** `potonganBaris` for Finance › Omset / Kas: same split per shift, full amount. */
+export function potonganBarisKompas(r: BarisPotong): { per: number, ids: string[], dw: number, pembagi: number, total: number } {
+  const total = potongKasirKompas(r)
+  const ids = Array.isArray(r.shift) ? r.shift.filter(Boolean).map(String) : []
+  const dw = Math.max(0, ppNum(r.dw))
+  const pembagi = ids.length
+  if (total <= 0 || pembagi <= 0) return { per: 0, ids: [], dw, pembagi, total: Math.max(total, 0) }
+  return { per: Math.round(total / pembagi), ids, dw, pembagi, total }
+}
+
+/** Finance › Omset / Kas: total marketing deduction for one cashier on one day. */
+export function potonganHariKompas(d: HariKompas, kasirId: string): number {
+  let s = 0
+  for (const r of d.bd?.marketing ?? []) {
+    const b = potonganBarisKompas(r)
+    if (b.ids.includes(kasirId)) s += b.per
+  }
+  return s
+}
+
+/**
  * Rows that carry an amount but whose shift is still undecided (:2358-2365).
  * The `potongKasirAktif` filter comes FIRST: rows that never deduct are not
  * "unset", and flagging them sends people to fix nothing.

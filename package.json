@@ -14,7 +14,8 @@
     "uji:xlsx": "node tools/uji-xlsx-baca.mjs",
     "uji:cashier": "node tools/uji-cashier.mjs",
     "uji:porsi-pic": "node tools/uji-porsi-pic.mjs",
-    "uji:bri": "node tools/uji-cocok-bri.mjs"
+    "uji:bri": "node tools/uji-cocok-bri.mjs",
+    "uji:kompas": "node tools/uji-kompas.mjs"
   },
   "dependencies": {
     "@iconify-json/lucide": "^1.2.137",

@@ -5,7 +5,8 @@
 //
 // Contract: laksamana-api/docs/api/kompas.md "Granular parts of the blob".
 import type { Bon, ComplimentKasir, DailyReport, RokokHari, RokokItem, VoidBaris, VoidSetting } from '~/utils/cashier'
-import type { EmployeesKompas, HariKompas } from '~/utils/porsi-pic'
+import type { EmployeesKompas } from '~/utils/porsi-pic'
+import type { BarisHarian } from '~/utils/kompas'
 import type { AbaiBri, BarisBri } from '~/utils/cocok-bri'
 import type { RosterUser } from '~/composables/useRoster'
 import { ifMatch, versiDari, type Versi } from '~/utils/versi'
@@ -59,7 +60,7 @@ export const hapusRokokItems = (version: Versi) => tulis<null>('/kompas/sections
 // blob read is the correct source here (kompas.md "Endpoints", module cashier).
 
 export interface KompasState {
-  daily?: HariKompas[]
+  daily?: BarisHarian[]
   employees?: EmployeesKompas
   compliments?: ComplimentKasir[]
   owners?: string[]
@@ -70,6 +71,11 @@ export interface KompasState {
 export const getKompasState = () => baca<KompasState>('/kompas/state', {})
 export const putEmployees = (v: EmployeesKompas, version: Versi) =>
   putBagianKompas<EmployeesKompas>('employees', v, version)
+
+/** `GET /kompas/days/{date}` — all daily rows of one date, replaced together. */
+export const getDay = (date: string) => baca<{ rows: BarisHarian[] }>(`/kompas/days/${date}`, { rows: [] })
+export const putDay = (date: string, rows: BarisHarian[], version: Versi) =>
+  tulis<{ rows: BarisHarian[] }>(`/kompas/days/${date}`, { rows }, version)
 
 /** `GET /account/roster` — raw Tim/Keterangan, open to every signed-in user. */
 export const getRoster = async (): Promise<RosterUser[]> =>

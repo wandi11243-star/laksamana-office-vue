@@ -65,6 +65,12 @@ const day = {
   },
 }
 cek('potonganHari: hanya baris marketing, per shift', P.potonganHari(day, 'k1') === 50 && P.potonganHari(day, 'k2') === 50)
+// K-04 di sisi potongan: versi Kompas memotong kolom Omset PENUH; versi Cashier
+// membelah baris free-entry. Dua jawaban berbeda untuk baris yang sama —
+// disengaja, dan keduanya diuji supaya tidak ada yang "merapikan" salah satunya.
+const dayTiket = { date: '2026-10-02', bd: { marketing: [{ amount: 100, tiket: true, shift: ['k1'] }] } }
+cek('Kompas potong amount penuh; cashier membelah free-entry', P.potonganHariKompas(dayTiket, 'k1') === 100 && P.potonganHari(dayTiket, 'k1') === 50 && P.potonganBarisKompas({ amount: 100, tiket: true, shift: ['k1'] }).per === 100)
+cek('Kompas: baris non-potong = nol juga', P.potonganBarisKompas({ amount: 100, shift: ['k1'], menuFix: 'ditempat' }).total === 0 && P.potonganBarisKompas({ amount: 100, shift: ['k1', 'k2'] }).per === 50)
 const tanpa = P.barisTanpaShift({
   date: '2026-10-03',
   bd: { marketing: [{ amount: 10 }, { amount: 10, shift: ['k1'] }, { amount: 10, menuFix: 'ditempat' }, { amount: 10, payGroup: false }, { amount: 0 }] },
@@ -109,6 +115,8 @@ else {
   const cekK = /function porsiPic\(r\)\{\s*const a=num\(r\.amount\);\s*return r\.tiket \? Math\.round\(a\*PORSI_PIC_TIKET\) : a;\s*\}/.test(srcK)
   const cekO = /function porsiPic\(r, divi\)\{[\s\S]{0,220}?event'\) return Math\.round\(num\(r\.amount\)\/2\)\+obTotal\(r\);\s*return num\(r\.amount\)\+num\(r\.tax\)\+num\(r\.service\)\+obTotal\(r\);/.test(srcO)
   cek('rumus cashier & Kompas persis seperti berkas lama', cekK && cekO, `cashier=${cekK} kompas=${cekO}`)
+  const cekPotO = /function potongKasir\(r\)\{ return potongKasirAktif\(r\) \? num\(r\.amount\) : 0; \}/.test(srcO)
+  cek('potongan Kompas = kolom amount penuh (tanpa belah tiket)', cekPotO)
   const mB = srcK.match(/const BONUS_KASIR=\[([\s\S]*?)\];/)
   const pB = mB ? [...mB[1].matchAll(/min:\s*(\d+),\s*bonus:\s*(\d+),\s*label:'([^']+)'/g)].map(x => ({ min: Number(x[1]), bonus: Number(x[2]), label: x[3] })) : null
   cek('BONUS_KASIR sama persis dengan Office lama', pB && sama(pB, P.BONUS_KASIR.map(x => ({ ...x }))), pB ? JSON.stringify(pB) : 'tidak ketemu')
