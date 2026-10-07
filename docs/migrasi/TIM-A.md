@@ -74,7 +74,7 @@ bila pembagian berubah, ubah assignee dan tabel ini bersamaan.
 |---|---|---|---|---|
 | **fondasi** | #9 `xlsx-baca.ts` → #10 `performa-bonus.ts` | `xlsx-baca.ts`, `performa-bonus.ts` | — | @wandi11243-star |
 | **sdm** | #11 jadwal (+dw +roster) → #12 hr | `pax-harian.ts`, `people-score.ts` | `xlsx-baca` | @dwipapap |
-| **uang** | #13 cashier → #14 finance | `cocok-bri.ts`, `porsi-pic.ts` | `xlsx-baca`, `performa-bonus` (finance) | @wandi11243-star |
+| **uang** | #13 cashier → #14 finance | `cocok-bri.ts`, `porsi-pic.ts` | `xlsx-baca`, `performa-bonus` (finance) | @dwipapap (dialihkan 2026-10-07, sisa sub-issue #28–#30) |
 | **konten-marketing** | #15 konten → #16 marketing | `performa-konten.ts`, `hpp-mesin.ts` | `xlsx-baca` (konten), `performa-bonus` (marketing) | @wandi11243-star |
 | **operasional** | #17 stock → #18 event | — | `performa-bonus` (event) | @dwipapap |
 | **penyelesaian** | #19 cek visual gelombang 1 · #20 analytics · #21 investor · #22 prasyarat cutover · gap G-16..G-18 (laksamana-api#228) | — | analytics menunggu konten (`performa-konten`) | @dwipapap |
