@@ -11,6 +11,12 @@ const panel = (kunci: string) => (me: Me) => hasAccess(me, [kunci])
 export const LAYAR_STOCK: Layar[] = [
   // ── Pohon Resep (kunci tree; read-only, tanpa role internal) ──
   { key: 'tree_pohon', label: 'Pohon Resep', desc: 'Rincian tiap menu sampai bahan mentah', icon: 'i-lucide-tree-deciduous', to: '/stock/tree', grup: 'Pohon Resep', boleh: panel('tree') },
+
+  // ── Pemakaian Bahan Baku (kunci usage; K-07: usage-only boleh masuk) ──
+  { key: 'opname', label: 'Daily SO', desc: 'Buku stok harian: awal + masuk − keluar, lalu stok fisik', icon: 'i-lucide-clipboard-check', to: '/stock/usage/opname', grup: 'Pemakaian Bahan Baku', boleh: panel('usage') },
+  { key: 'pemakaian', label: 'Pemakaian Bahan', desc: 'Bahan untuk prasmanan, training & RND', icon: 'i-lucide-utensils', to: '/stock/usage/pemakaian', grup: 'Pemakaian Bahan Baku', boleh: panel('usage') },
+  { key: 'waste', label: 'Waste Produk', desc: 'Produk & bahan terbuang beserta sebabnya', icon: 'i-lucide-trash-2', to: '/stock/usage/waste', grup: 'Pemakaian Bahan Baku', boleh: panel('usage') },
+  { key: 'serah', label: 'Serah Terima', desc: 'Stok keluar ke Kitchen/Bar, wajib berfoto', icon: 'i-lucide-handshake', to: '/stock/usage/serah', grup: 'Pemakaian Bahan Baku', boleh: panel('usage') },
 ]
 
 /** The line under the user's name in the module chrome. */

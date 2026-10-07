@@ -648,13 +648,17 @@ dengan `details.current`. Legacy tidak punya ini (last-write-wins lewat `text/pl
   hanya menyebut namanya di komentar, tidak memuatnya).
 
 ## J. Progres build
-Branch: migrasi/stock-pohon (bagian 1/5) · Mulai: 2026-10-07
-LANJUTKAN DARI: panel usage (Daily SO, Pemakaian, Waste) — butuh sub-issue + izin user; lalu ordering, purchasing, hpp.
+Branch: migrasi/stock-pohon (bagian 1/5) · migrasi/stock-usage (bagian 2/5, bertumpuk di atas pohon) · Mulai: 2026-10-07
+LANJUTKAN DARI: `ordering` (bagian 3/5) — sub-issue #54; lalu purchasing (#55), hpp (#56).
 
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
 | pemilih | `app/pages/stock/index.vue` | ✅ | — (kartu panel; auto-redirect bila satu panel jadi) | — |
 | tree/pohon | `app/pages/stock/tree/index.vue` + `app/utils/pohon-resep.ts` | ✅ | `GET /stock/hpp/ingredients`, `GET /stock/hpp/recipes` (modul `tree`, read-only) | — |
+| usage/opname | `app/pages/stock/usage/opname.vue` (+ `usage/index.vue` pengalih ke layar pertama) | ✅ | `GET/POST /stock/opname`, `PATCH/DELETE /stock/opname/{id}`; `GET /stock/usage`, `/stock/waste`, `/stock/handovers` (tanggal terpilih, hitung Keluar); `GET /stock/products`; `POST /stock/products` (hanya pemegang purchasing/hpp) | — |
+| usage/pemakaian | `app/pages/stock/usage/pemakaian.vue` | ✅ | `GET/POST /stock/usage`, `PATCH/DELETE /stock/usage/{id}` | — |
+| usage/waste | `app/pages/stock/usage/waste.vue` | ✅ | `GET/POST /stock/waste`, `PATCH/DELETE /stock/waste/{id}`, `GET /stock/waste/{id}/photo` | — |
+| usage/serah | `app/pages/stock/usage/serah.vue` | ✅ | `GET/POST /stock/handovers`, `PATCH/DELETE /stock/handovers/{id}`, `GET /stock/handovers/{id}/photo` | — |
 
 Catatan build stock-pohon (pemilih + tree):
 - **K-07**: sesi usage-only dibiarkan masuk (gate lama menolaknya — bug). Launcher memfilter 5 kartu per kunci; auto-redirect hanya bila satu panel DAN halamannya sudah ada.
@@ -662,4 +666,19 @@ Catatan build stock-pohon (pemilih + tree):
 - `useStock.ts` dimulai (tree dulu; panel lain menyusul di branch-nya). `LAYAR_STOCK` + shell `// ── stock ──` + `peranStock`.
 - Cek visual 2026-10-07 (mock `/tmp/mock-api-stock.mjs` 4015, tulis 403) sebagai `gudang` (5 kunci, admin) & `koki` (ordering+usage): pemilih 5 kartu (1 Buka + 4 Segera), tree (4 menu, flag, WIP lipat-buka, laci where-used, saring flag, cari bahan) di 1366 & 390 overflow 0, console bersih; `koki` ke `/stock/tree` → "Belum ada akses".
 - Insiden: login sempat macet — ternyata sisa state HMR dari `git stash -u` di tengah sesi (`Failed to reload .../stock/*.vue`); dev restart bersih + tab baru = 0 error. Kode tidak bersalah.
+
+Catatan build stock-usage (Daily SO, Pemakaian, Waste, Serah Terima):
+- **K-07 (terbukti)**: user ber-kunci `usage` saja (`bar` di mock) membuka `/stock` → otomatis diarahkan ke `/stock/usage/opname`; koki/gudang/floor juga masuk. Kartu pemilih Usage kini "Buka panel" (`to: '/stock/usage'`, redirect ke layar pertama).
+- **Rumus murni** di `app/utils/stock-catat.ts` (buku stok `soHitung`, konversi Kg↔Gram/Liter↔ML + ukuran per barang, keluar harian, rekap keluarga/disktrit, kelompok area/kategori, CSV, pengecilan foto 1280 px/0.72). Dijaga `tools/uji-stock-catat.mjs` (`npm run uji:stock-catat`, 56 cek) — 0 ≠ kosong, hitungan pertama tanpa `seharusnya/selisih`, `selisih` tidak disimpan, Floor-murni dipisah, kategori asing di urutan belakang.
+- **K-05**: ekspor CSV (BOM, satu baris bahan per baris) di keempat layar; tanpa SheetJS/xlsx. Scope ekspor = data yang sedang tampil (lengkap, bukan hanya halaman `Muat 20 lagi`).
+- **Versi (F1)**: daftar menyimpan `meta.versions`; PATCH/DELETE mengirim `If-Match`; 409/428 lewat `tanganiKonflik` (muat ulang, tidak menimpa). `PATCH /usage` juga dipakai tombol "tandai sudah dipakai/kembalikan ke rencana".
+- **Serah terima**: tujuan diturunkan dari tim (Bar→Kitchen, Kitchen→Bar; tim lain bebas), foto wajib untuk catatan baru, dua pintu foto (kamera + berkas), foto lama dipertahankan bila tidak diganti; `GET /{waste|handovers}/{id}/photo` ditampilkan lewat sheet (`data:` diblokir bila dibuka sebagai tab).
+- **Tim**: form mengikuti `keterangan` akun (satu tim → terkunci; banyak → boleh pilih di antara miliknya; tanpa tim/admin → bebas). Server tetap penentu scope; pesan "Tim belum diisi" disiapkan untuk kru tanpa tim.
+- **"Tambah item baru"** (Daily SO) hanya tampil untuk pemegang `purchasing`/`hpp`: `POST /products` memang modul mereka, usage-only akan ditolak 403 (stock.md D.17). Lainnya melihat arahan ke Purchasing.
+- `AppStat` diberi prop aditif `wrap` untuk kartu total multi-satuan ("3,25 Kg · 2 Liter · …") supaya tidak terpotong `whitespace-nowrap`.
+- **Insiden (ditemukan cek visual, bukan lint/typecheck)**: `resetForm()` dipanggil di top-level setup sebelum `fotoBaru`/`formFotoAda` dideklarasikan → TDZ (`Cannot access 'fotoBaru' before initialization`), halaman Waste & Serah mati. Percobaan pertama mengira residu HMR (dev restart tidak menyembuhkan); ditelusuri lewat `app.config.errorHandler` + file hasil transform Vite. Perbaikan: panggilan `resetForm()` dipindah setelah semua ref ada. Pelajaran: halaman yang lolos `lint`/`typecheck`/`build` masih bisa gagal runtime.
+- Urutan daftar mengikuti urutan server (tanggal + waktu menurun) — paritas lama; paginasi "Muat 20 lagi" bukan pager angka.
+- Cek visual 2026-10-07 (`/tmp/mock-api-stock.mjs` 4015, tulis 403, `NUXT_PUBLIC_API_BASE` dibuktikan ke mock dari HTML dev + log mock): `koki` (Kitchen), `bar` (usage-only, K-07), `floor` (group FLOOR · OPERATIONAL, Tisu/Air Mineral tampil, Beras tidak), `gudang` (admin; pemilih tim 3 pilihan; serah admin tanpa pecah keluar/masuk) — 1366 & 390 overflow 0, console bersih; Daily SO mengisi fisik 9 → selisih −1/Seharusnya 10; Waste `POST` 403 mock membuktikan body `{tanggal,item,qty,unit,sebab,tim,catatan}` tanpa `pic`/`foto`.
+- LANJUTKAN: bagian 3/5 `ordering` (#54), lalu purchasing (#55), hpp (#56).
+
 
