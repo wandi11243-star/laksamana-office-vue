@@ -8,22 +8,22 @@
   rows there. The name search appears from 8 crew and FILTERS rows rather than
   highlighting one (:2760).
 
-  The sheet tools (Salin bulan lalu, Impor dari Excel, Excel/PNG/Teks WA) come
-  with Input Mingguan in the next part of #11; Print works now.
+  Sheet tools: Salin bulan lalu and Impor only for one Divisi this person may
+  write; Excel (CSV, K-05) for the whole sheet; Teks WA per Divisi. PNG is not
+  built (it needs a drawing library).
 -->
 <script setup lang="ts">
 import type { GrupLembar } from '~/components/JadwalLembar.vue'
 import type { SelJadwal } from '~/utils/jadwal'
-import {
+import { kunciSel, labelBulanJadwal, sumberBulanLalu, teksWA,
   DIVISI, adaHead, akhirBulan, awalBulan, bebanKru, bolehUbah, bulanDari, daftarShift, geserBulan,
-  hariSebulan, kruDivisi, namaDivisiJadwal, petaSel, rekapBulan, shiftDef,
-} from '~/utils/jadwal'
-import { useJadwalCells, useJadwalDasar, useJadwalDw } from '~/composables/useJadwal'
+  hariSebulan, kruDivisi, namaDivisiJadwal, petaSel, rekapBulan, shiftDef } from '~/utils/jadwal'
+import { useJadwalCells, useJadwalDasar, useJadwalDw, useJadwalMassal, useJadwalRequests } from '~/composables/useJadwal'
 import { BULAN, hariIni } from '~/utils/format'
 
 definePageMeta({ access: ['jadwal'] })
 
-const { set, kru, peran, error, refresh: refreshDasar } = useJadwalDasar()
+const { set, kru, peran, kruById, error, refresh: refreshDasar } = useJadwalDasar()
 
 const mk = useState('jadwal-bulan', () => bulanDari(hariIni()))
 const div = useState<string>('jadwal-bulan-div', () => 'ALL')
@@ -76,6 +76,59 @@ function buka(u: { id: string, name: string }, tgl: string) {
 }
 const muatUlang = () => Promise.all([refreshDasar(), refreshSel()])
 const cetak = () => window.print()
+
+// ---- sheet tools (one Divisi; deploy/jadwal/index.html :2905-2935)
+const toast = useToast()
+const { data: aju } = useJadwalRequests()
+const kruDiv = computed(() => (modeAll.value ? [] : kruDivisi(peran.value, kru.value, div.value)))
+// "Salin bulan lalu" reads the previous month too (35 days back at most).
+const dariLalu = computed(() => awalBulan(geserBulan(mk.value, -1)))
+const { data: cellsLalu } = useJadwalCells('jadwal-cells-bulan-lalu', dariLalu, sampai)
+const petaLalu = computed(() => petaSel(cellsLalu.value ?? []))
+const massal = useJadwalMassal({ peta, nama: uid => kruById(uid)?.name ?? '—', aju: computed(() => aju.value ?? []), sesudah: muatUlang })
+
+const salinOpen = ref(false)
+function salinBulan(mode: 'hari' | 'tanggal') {
+  salinOpen.value = false
+  const rows: SelJadwal[] = []
+  for (const u of kruDiv.value) {
+    for (const d of hari.value) {
+      const src = sumberBulanLalu(d, mk.value, mode)
+      const c = src ? petaLalu.value.get(kunciSel(u.id, src)) : null
+      if (c) rows.push({ ...c, d })
+    }
+  }
+  if (!rows.length) {
+    toast.add({ title: `Bulan sebelumnya masih kosong untuk divisi ${namaDivisiJadwal(div.value)}`, color: 'warning' })
+    return
+  }
+  massal.minta({
+    rows,
+    judul: 'Salin bulan lalu?',
+    judulBentrok: n => `Salin bulan lalu — ${n} sel akan tertimpa`,
+    pesan: `${rows.length} sel akan diisi di ${labelBulanJadwal(mk.value)}.`,
+    ya: 'Ya, salin',
+    yaBentrok: n => `Ya, timpa ${n} sel`,
+    bolehLewati: true,
+    selaluTanya: true,
+    selesai: 'Sel disalin dari bulan sebelumnya',
+  })
+}
+const imporOpen = ref(false)
+function sesudahImpor(rows: SelJadwal[]) {
+  massal.minta({
+    rows,
+    judul: '',
+    judulBentrok: n => `Timpa ${n} sel yang sudah terisi?`,
+    pesan: `${rows.length} sel dari berkas akan ditulis.`,
+    ya: '',
+    yaBentrok: n => `Ya, timpa ${n} sel`,
+    selesai: `${rows.length} sel diimpor dari Excel`,
+  })
+}
+const eksporOpen = ref(false)
+const waOpen = ref(false)
+const waTeks = computed(() => teksWA(set.value, peta.value, kruDiv.value, div.value, hari.value, labelBulanJadwal(mk.value), false, dwRows.value ?? []))
 </script>
 
 <template>
@@ -84,6 +137,42 @@ const cetak = () => window.print()
     description="Lembar sebulan penuh per divisi."
   >
     <template #actions>
+      <template v-if="bisa">
+        <UButton
+          label="Salin bulan lalu"
+          icon="i-lucide-copy"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          @click="salinOpen = true"
+        />
+        <UButton
+          label="Impor dari Excel"
+          icon="i-lucide-file-up"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          @click="imporOpen = true"
+        />
+      </template>
+      <UButton
+        label="Excel sebulan"
+        icon="i-lucide-file-spreadsheet"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        :disabled="!emps.length"
+        @click="eksporOpen = true"
+      />
+      <UButton
+        v-if="!modeAll"
+        label="Teks WA"
+        icon="i-lucide-message-circle"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        @click="waOpen = true"
+      />
       <UButton
         label="Print / PDF"
         icon="i-lucide-printer"
@@ -280,6 +369,70 @@ const cetak = () => window.print()
       :set="set"
       :target="target"
       @saved="muatUlang"
+    />
+    <ResponsiveSheet
+      v-model:open="salinOpen"
+      :title="`Salin bulan lalu ke ${labelBulanJadwal(mk)}`"
+    >
+      <div class="space-y-2 text-sm">
+        <p>Pilih cara mengambilnya:</p>
+        <p><b>Ikut hari</b> — Senin mengambil dari Senin, Sabtu dari Sabtu. Ini yang menjaga pola shift & hari libur tetap di tempatnya.</p>
+        <p><b>Ikut tanggal</b> — tanggal 1 mengambil dari tanggal 1 bulan lalu. Harinya bergeser dua-tiga hari.</p>
+      </div>
+      <template #footer>
+        <UButton
+          label="Ikut hari (Senin↔Senin)"
+          @click="salinBulan('hari')"
+        />
+        <UButton
+          label="Ikut tanggal (1↔1)"
+          color="neutral"
+          variant="outline"
+          @click="salinBulan('tanggal')"
+        />
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="ghost"
+          @click="salinOpen = false"
+        />
+      </template>
+    </ResponsiveSheet>
+    <JadwalImpor
+      v-model:open="imporOpen"
+      :set="set"
+      :peta="peta"
+      :kru="kruDiv"
+      :div="div"
+      :acuan="`${mk}-15`"
+      @simpan="sesudahImpor"
+    />
+    <JadwalTimpa
+      v-model:open="massal.open.value"
+      :set="set"
+      :title="massal.judul.value"
+      :bentrok="massal.bentrok.value"
+      :dari-aju="massal.dariAju.value"
+      :ya="massal.ya.value"
+      :alt="massal.alt.value"
+      :sibuk="massal.sibuk.value"
+      @ya="massal.jalan"
+      @alt="massal.jalanAman"
+    >
+      <p>{{ massal.pesan.value }}</p>
+    </JadwalTimpa>
+    <JadwalEkspor
+      v-model:open="eksporOpen"
+      :set="set"
+      :peta="peta"
+      :kru="emps"
+      :hari="hari"
+      judul="jadwal sebulan"
+      :nama-berkas="`jadwal-${modeAll ? 'semua' : div}-${mk}.csv`"
+    />
+    <JadwalTeksWA
+      v-model:open="waOpen"
+      :teks="waTeks"
     />
   </AppPage>
 </template>

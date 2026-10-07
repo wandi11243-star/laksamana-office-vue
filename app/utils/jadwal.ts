@@ -403,3 +403,346 @@ export function shiftKruBawaan(set: SettingJadwal, sel: PetaSel, uid: string, tg
   const urut = daftarShift(set)
   return urut.find(k => !shiftDef(set, k).libur) ?? urut[0] ?? 'PAGI'
 }
+
+/** Divisions whose sheet this person may SEE on the per-Divisi screens (`divisiLihat`, `:1349`). */
+export function divisiLihat(p: PeranJadwal, divSaya: string): string[] {
+  if (bisaLihatSemua(p) || !adaHead(p)) return DIVISI.map(d => d.k)
+  const k = divisiKuasa(p)
+  if (k.length) return k
+  return DIVISI.some(d => d.k === divSaya) ? [divSaya] : []
+}
+
+// ------------------------------------------------------------- weeks
+
+export const seninDari = (s: string) => tambahHari(s, -idxHari(s))
+export const tujuhHari = (senin: string) => Array.from({ length: 7 }, (_, i) => tambahHari(senin, i))
+const BLN_JADWAL = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+const tglManusia = (s: string) => {
+  const d = parseD(s)
+  return `${d.getDate()} ${BLN_JADWAL[d.getMonth()]}`
+}
+/** "28 Sep – 4 Okt 2026" (`rentangMinggu`, `:1196`). */
+export function rentangMinggu(senin: string): string {
+  const a = parseD(senin)
+  const b = parseD(tambahHari(senin, 6))
+  return `${a.getDate()} ${BLN_JADWAL[a.getMonth()]} – ${b.getDate()} ${BLN_JADWAL[b.getMonth()]} ${b.getFullYear()}`
+}
+const BULAN_JADWAL = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember']
+export const labelBulanJadwal = (mk: string) => `${BULAN_JADWAL[Number(mk.slice(5, 7)) - 1]} ${mk.slice(0, 4)}`
+
+// ------------------------------------------------------------- bulk writes
+
+/** An overwrite the bulk tools must name before writing (`daftarTimpa`, `:3570`). */
+export interface Timpa {
+  nama: string
+  tgl: string
+  lama: SelJadwal
+  baru: SelJadwal
+}
+
+/** Writing the identical value is not a clash (`samaSel`, `:3566`). */
+export const samaSel = (a: SelJadwal, b: SelJadwal) =>
+  a.t === b.t && (a.m || '') === (b.m || '') && (a.s || '') === (b.s || '') && (a.n || '') === (b.n || '')
+
+export function daftarTimpa(sel: PetaSel, rows: SelJadwal[], nama: (uid: string) => string): Timpa[] {
+  const out: Timpa[] = []
+  for (const r of rows) {
+    const lama = sel.get(kunciSel(r.u, r.d))
+    if (!lama || samaSel(lama, r)) continue
+    out.push({ nama: nama(r.u), tgl: r.d, lama, baru: r })
+  }
+  return out.sort((a, b) => (a.tgl === b.tgl ? a.nama.localeCompare(b.nama) : a.tgl < b.tgl ? -1 : 1))
+}
+
+/** Rows that sit on an approved request: overwriting them breaks a promise (`selDariPengajuan`, `:4316`). */
+export function selDariPengajuan<R extends { u: string, d: string }>(rows: R[], aju: { userId: string, dari: string, sampai: string, status: string }[]): R[] {
+  const ok = aju.filter(a => a.status === 'DISETUJUI')
+  if (!ok.length) return []
+  return rows.filter(r => ok.some(a => a.userId === r.u && r.d >= a.dari && r.d <= a.sampai))
+}
+
+/** A cell row with the shift's default hours, empty on a day-off shift. */
+export function barisShift(set: SettingJadwal, u: string, d: string, t: string): SelJadwal {
+  const def = shiftDef(set, t)
+  return { u, d, t, m: def.libur ? '' : def.m, s: def.libur ? '' : def.s, n: '' }
+}
+
+/**
+ * Source date for "Salin bulan lalu" (`sumberBulanLalu`, `:2997`): `hari` keeps
+ * the weekday (28 days back, 35 for the 29th–31st so it lands in the previous
+ * month); `tanggal` keeps the date and skips days the previous month lacks.
+ */
+export function sumberBulanLalu(d: string, mk: string, mode: 'hari' | 'tanggal'): string {
+  if (mode === 'tanggal') {
+    const lalu = geserBulan(mk, -1)
+    const akhir = Number(akhirBulan(lalu).slice(-2))
+    if (Number(d.slice(8)) > akhir) return ''
+    return `${lalu}-${d.slice(8)}`
+  }
+  let s = tambahHari(d, -28)
+  if (s >= awalBulan(mk)) s = tambahHari(d, -35)
+  return s
+}
+
+// ------------------------------------------------------------- Excel import
+
+const IMP_BULAN: Record<string, number> = {
+  jan: 0, januari: 0, january: 0, feb: 1, februari: 1, february: 1, mar: 2, maret: 2, march: 2,
+  apr: 3, april: 3, mei: 4, may: 4, jun: 5, juni: 5, june: 5, jul: 6, juli: 6, july: 6,
+  agu: 7, agt: 7, ags: 7, agustus: 7, aug: 7, august: 7, sep: 8, sept: 8, september: 8,
+  okt: 9, oct: 9, oktober: 9, october: 9, nov: 10, november: 10, des: 11, dec: 11, desember: 11, december: 11,
+}
+const impISO = (y: number, mo: number, d: number) => (mo >= 1 && mo <= 12 && d >= 1 && d <= 31 ? `${y}-${pad(mo)}-${pad(d)}` : null)
+
+/**
+ * A date cell of a pasted/uploaded sheet (`impTgl`, `:3873`): ISO, dd/mm/yyyy,
+ * dd/mm, "1 Sep [2026]", or an Excel serial. More than ~18 months from `ref`
+ * is refused, so a misread number never writes into 2125.
+ */
+export function impTgl(raw: unknown, ref: string): string | null {
+  const s = String(raw ?? '').trim()
+  if (!s) return null
+  let iso: string | null = null
+  let m: RegExpMatchArray | null
+  if (/^\d{4}-\d{1,2}-\d{1,2}$/.test(s)) {
+    const p = s.split('-')
+    iso = impISO(Number(p[0]), Number(p[1]), Number(p[2]))
+  }
+  else if ((m = s.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2,4})$/))) {
+    let d = Number(m[1])
+    let mo = Number(m[2])
+    let y = Number(m[3])
+    if (mo > 12 && d <= 12) [d, mo] = [mo, d]
+    if (y < 100) y += 2000
+    iso = impISO(y, mo, d)
+  }
+  else if ((m = s.match(/^(\d{1,2})[/\-.](\d{1,2})$/))) {
+    let d = Number(m[1])
+    let mo = Number(m[2])
+    if (mo > 12 && d <= 12) [d, mo] = [mo, d]
+    iso = impISO(Number(String(ref).slice(0, 4)), mo, d)
+  }
+  else if ((m = s.match(/^(\d{1,2})[ -]([A-Z]{3,})\.?(?:[ -](\d{2,4}))?$/i))) {
+    const mo = IMP_BULAN[m[2]!.toLowerCase()]
+    if (mo === undefined) return null
+    let y = m[3] ? Number(m[3]) : Number(String(ref).slice(0, 4))
+    if (y < 100) y += 2000
+    iso = impISO(y, mo + 1, Number(m[1]))
+  }
+  else if (/^\d{5}(?:\.\d+)?$/.test(s)) {
+    const dt = new Date(Date.UTC(1899, 11, 30) + Math.floor(Number(s)) * 86400000)
+    iso = `${dt.getUTCFullYear()}-${pad(dt.getUTCMonth() + 1)}-${pad(dt.getUTCDate())}`
+  }
+  if (!iso) return null
+  const beda = Math.abs(parseD(iso).getTime() - parseD(ref).getTime()) / 86400000
+  return beda > 560 ? null : iso
+}
+
+const impNorm = (s: string) => String(s || '').toUpperCase().replace(/[^A-Z\s]/g, ' ').replace(/\s+/g, ' ').trim()
+
+/** One name token against the Divisi roster: one hit, several (never guessed), or none (`impCocokNama`, `:3910`). */
+export function impCocokNama(token: string, emps: { id: string, name: string }[]): { id: string, name: string } | { ganda: string[] } | null {
+  const t = impNorm(token)
+  if (t.length < 3) return null
+  const kena = emps.filter(u => impNorm(u.name).split(' ').some(w => w === t || (t.length >= 4 && w.includes(t)) || (w.length >= 4 && t.includes(w))))
+  if (kena.length === 1) return { id: kena[0]!.id, name: kena[0]!.name }
+  if (kena.length > 1) return { ganda: kena.map(u => u.name) }
+  return null
+}
+
+export interface HasilImpor {
+  rows: SelJadwal[]
+  cocok: { token: string, ke: string }[]
+  lewat: string[]
+  ganda: { token: string, kandidat: string[] }[]
+  bebas: string[]
+  adaTgl: boolean
+}
+
+/**
+ * Parse a pasted or uploaded schedule (`imporParse`, `:3925`). Dates come only
+ * from the sheet, never from the open week; names outside the Divisi roster
+ * are skipped, not guessed; a code that is no shift becomes LAIN + cell note.
+ */
+export function imporParse(teks: string, opts: { emps: { id: string, name: string }[], shifts: Record<string, ShiftDef>, ref: string }): HasilImpor {
+  const { emps, shifts, ref } = opts
+  const KUNCI: Record<string, string> = {}
+  for (const k of Object.keys(shifts)) {
+    KUNCI[impNorm(k)] = k
+    if (shifts[k]?.n) KUNCI[impNorm(shifts[k].n)] = k
+  }
+  const KODE_BEBAS = shifts.LAIN ? 'LAIN' : shifts.OFF ? 'OFF' : (Object.keys(shifts)[0] ?? 'LAIN')
+  const LEWAT_KATA = new Set(['NO', 'NO.', 'NAMA', 'TGL', 'HARI', 'JABATAN', 'ROLE', 'SENIN', 'SELASA', 'RABU', 'KAMIS', 'JUMAT', 'SABTU', 'MINGGU', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'])
+  let kolTgl: Record<number, string> | null = null
+  const rows: SelJadwal[] = []
+  const cocok: HasilImpor['cocok'] = []
+  const lewat: string[] = []
+  const ganda: HasilImpor['ganda'] = []
+  const bebas: string[] = []
+  const seen = new Map<string, number>()
+  const sudah = { token: new Set<string>(), lewat: new Set<string>(), bebas: new Set<string>(), ganda: new Set<string>() }
+  for (const ln of String(teks || '').replace(/\r/g, '').split('\n')) {
+    const sel = ln.split('\t').map(x => x.trim())
+    const tg: Record<number, string> = {}
+    let nTg = 0
+    sel.forEach((c, i) => {
+      const d = impTgl(c, ref)
+      if (d) {
+        tg[i] = d
+        nTg++
+      }
+    })
+    if (nTg >= 2) {
+      kolTgl = tg
+      continue
+    }
+    if (!kolTgl) continue
+    let orang: { id: string, name: string } | null = null
+    let token = ''
+    for (let i = 0; i < sel.length && i < 4; i++) {
+      const c = sel[i]!
+      if (!c || LEWAT_KATA.has(c.toUpperCase()) || /^\d+$/.test(c) || KUNCI[impNorm(c)] || impTgl(c, ref)) continue
+      if (/\d/.test(c) || c.length > 24) continue
+      const hit = impCocokNama(c, emps)
+      if (hit && 'id' in hit) {
+        orang = hit
+        token = c
+        break
+      }
+      if (hit && 'ganda' in hit) {
+        if (!sudah.ganda.has(c)) {
+          sudah.ganda.add(c)
+          ganda.push({ token: c, kandidat: hit.ganda })
+        }
+        break
+      }
+      if (/[A-Z]{3,}/i.test(c)) {
+        if (!sudah.lewat.has(c)) {
+          sudah.lewat.add(c)
+          lewat.push(c)
+        }
+        break
+      }
+    }
+    if (!orang) continue
+    if (!sudah.token.has(token)) {
+      sudah.token.add(token)
+      cocok.push({ token, ke: orang.name })
+    }
+    for (const [iStr, tgl] of Object.entries(kolTgl as Record<number, string>)) {
+      const raw = (sel[Number(iStr)] || '').trim()
+      if (!raw) continue
+      const kode = KUNCI[impNorm(raw)]
+      let t = kode ?? KODE_BEBAS
+      let n = ''
+      if (!kode) {
+        t = KODE_BEBAS
+        n = raw.slice(0, 20)
+        if (!sudah.bebas.has(raw)) {
+          sudah.bebas.add(raw)
+          bebas.push(raw)
+        }
+      }
+      const def = shifts[t] ?? { m: '', s: '', libur: 1 }
+      const row: SelJadwal = { u: orang.id, d: tgl, t, m: def.libur ? '' : (def.m || ''), s: def.libur ? '' : (def.s || ''), n }
+      const key = `${orang.id}|${tgl}`
+      if (seen.has(key)) rows[seen.get(key)!] = row
+      else {
+        seen.set(key, rows.length)
+        rows.push(row)
+      }
+    }
+  }
+  return { rows, cocok, lewat, ganda, bebas, adaTgl: !!kolTgl }
+}
+
+// ------------------------------------------------------------- exports
+
+/**
+ * The Talenta import file (`exportExcel`, `:5913`): Employee ID | Employee
+ * Name | one column per date. The SHIFT NAME is written (never the cell note),
+ * an empty cell stays empty. CSV per K-05 (1).
+ */
+export function csvJadwal(set: SettingJadwal, sel: PetaSel, kru: KruJadwal[], hari: string[]): string {
+  const q = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const head = ['Employee ID', 'Employee Name', ...hari]
+  const body = kru.map(u => [u.talentaId || '', u.name, ...hari.map((d) => {
+    const c = sel.get(kunciSel(u.id, d))
+    return c ? shiftDef(set, c.t).n : ''
+  })])
+  return [head, ...body].map(r => r.map(q).join(',')).join('\n')
+}
+
+const HARI_PJG = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu']
+
+/**
+ * WhatsApp text of one Divisi for a week or a month (`exportWA`, `:5502`).
+ * Emoji are allowed here: this is message text (DESIGN.md rule 2).
+ */
+export function teksWA(set: SettingJadwal, sel: PetaSel, kru: KruJadwal[], div: string, hari: string[], judul: string, mingguan: boolean, dw: { divisi: string, tgl: string, nama: string, posisi: string, m: string, s: string }[] = []): string {
+  const garis = '━━━━━━━━━━━━━━━'
+  let txt = `*JADWAL SHIFT — ${namaDivisiJadwal(div).toUpperCase()}*\n_${judul}_\n${garis}\n`
+  const dipakai = new Set<string>()
+  let totalKosong = 0
+  let adaDW = false
+  for (const d of hari) {
+    const per: Record<string, string[]> = {}
+    let kosong = 0
+    for (const u of kru) {
+      const c = sel.get(kunciSel(u.id, d))
+      if (!c) {
+        kosong++
+        continue
+      }
+      ;(per[c.t] ??= []).push(u.name)
+    }
+    totalKosong += kosong
+    const urut = Object.keys(per).sort((a, b) => (shiftDef(set, a).urut || 99) - (shiftDef(set, b).urut || 99))
+    urut.forEach(k => dipakai.add(k))
+    const dwHari = dw.filter(x => x.divisi === div && x.tgl === d)
+    if (dwHari.length) adaDW = true
+    const kepala = `${mingguan ? HARI_PJG[idxHari(d)] : HARI_PJG[idxHari(d)]!.slice(0, 3)} · ${tglManusia(d)}${idxHari(d) >= 5 ? ' 🔴' : ''}`
+    if (!urut.length && !dwHari.length) {
+      txt += mingguan ? `\n*${kepala}*\n_belum diatur_\n` : `*${kepala}* _belum diatur_\n`
+      continue
+    }
+    if (mingguan) {
+      txt += `\n*${kepala}*\n`
+      for (const k of urut) {
+        const sd = shiftDef(set, k)
+        txt += `▪ ${sd.n}${sd.libur ? '' : ` _${sd.m}–${sd.s}_`}\n`
+        for (const n of per[k]!) txt += `   • ${n}\n`
+      }
+      if (dwHari.length) {
+        txt += '▪ Daily Worker\n'
+        for (const x of dwHari) txt += `   • ${x.nama} _(${x.posisi || 'DW'}${x.m && x.s ? ` · ${x.m}–${x.s}` : ''})_\n`
+      }
+    }
+    else {
+      const bagian = urut.slice()
+        .sort((x, y) => (shiftDef(set, x).libur ? 1 : 0) - (shiftDef(set, y).libur ? 1 : 0))
+        .map(k => `${shiftDef(set, k).n}: ${per[k]!.join(', ')}`)
+      if (dwHari.length) bagian.push(`DW: ${dwHari.map(x => x.nama).join(', ')}`)
+      txt += `*${kepala}* ${bagian.join(' · ')}\n`
+    }
+  }
+  txt += `\n${garis}\n`
+  const legenda = [...dipakai]
+    .sort((x, y) => (shiftDef(set, x).urut || 99) - (shiftDef(set, y).urut || 99))
+    .filter(k => !shiftDef(set, k).libur)
+    .map(k => `${shiftDef(set, k).n} ${shiftDef(set, k).m}–${shiftDef(set, k).s}`)
+  if (legenda.length) txt += `_${legenda.join('  ·  ')}_\n`
+  if (adaDW) txt += '_DW = daily worker (pekerja harian)_\n'
+  if (totalKosong) txt += `_⚠️ ${totalKosong} sel belum diatur_\n`
+  return `${txt}_Laksamana Muda_`
+}
+
+/** Download text as a UTF-8 CSV with BOM, for Excel. */
+export function unduhCsvJadwal(nama: string, csv: string) {
+  const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = nama
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+}
