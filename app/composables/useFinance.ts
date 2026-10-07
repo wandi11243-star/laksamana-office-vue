@@ -77,8 +77,10 @@ export interface KkState {
   pos: KkItem[]
   kategori: KkItem[]
   trx: KkTrx[]
-  akses: KkAkses
-  peran: unknown
+  /** role → page → tingkat (the stored matrix; absent = default). */
+  akses: Record<string, Record<string, number>>
+  /** '#<userId>' or '@<lower name>' → role. */
+  peran: Record<string, string>
 }
 
 const VERSIONS = (m?: Record<string, unknown>) => (m?.versions ?? {}) as Record<string, Versi>

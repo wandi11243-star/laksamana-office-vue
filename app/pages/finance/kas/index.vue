@@ -16,6 +16,7 @@ import { tanganiKonflik } from '~/utils/versi'
 
 definePageMeta({ access: ['finance'] })
 
+const izin = useKasIzin()
 const toast = useToast()
 const route = useRoute()
 const periode = ref(typeof route.query.bulan === 'string' && route.query.bulan ? route.query.bulan : hariIni().slice(0, 7))
@@ -121,6 +122,7 @@ async function jalanHapus() {
   >
     <template #actions>
       <UButton
+        v-if="izin.ubah('kk_buku')"
         label="+ Input transaksi"
         icon="i-lucide-plus"
         size="sm"
@@ -134,6 +136,15 @@ async function jalanHapus() {
       />
     </template>
 
+    <UAlert
+      v-if="!izin.lihat('kk_buku')"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-lock"
+      title="Halaman ini tidak dibuka untuk peranmu."
+      description="Hubungi admin modul Finance kalau memang perlu."
+      class="mb-4"
+    />
     <UAlert
       v-if="error"
       color="error"
@@ -150,6 +161,7 @@ async function jalanHapus() {
     </p>
 
     <AppPanel
+      v-if="izin.lihat('kk_buku')"
       title="Saldo tiap pos"
       description="Dihitung dari SELURUH riwayat, bukan hanya bulan yang sedang dibuka."
     >
@@ -169,6 +181,7 @@ async function jalanHapus() {
     </AppPanel>
 
     <AppPanel
+      v-if="izin.lihat('kk_buku')"
       title="Transaksi"
       :description="`${tampil.length} transaksi ditampilkan untuk ${periode}. Satu baris = satu transaksi dengan pecahan posnya.`"
       flush
@@ -272,20 +285,39 @@ async function jalanHapus() {
             </td>
             <td class="px-3 py-2 text-center">
               <UCheckbox
+                v-if="izin.ubah('kk_buku')"
                 :model-value="!!t.input"
                 :disabled="sibuk"
                 @update:model-value="() => tandai(t, 'input')"
               />
+              <AppStatus
+                v-else
+                :color="t.input ? 'success' : 'warning'"
+                size="sm"
+              >
+                {{ t.input ? 'Sudah' : 'Belum' }}
+              </AppStatus>
             </td>
             <td class="px-3 py-2 text-center">
               <UCheckbox
+                v-if="izin.ubah('kk_buku')"
                 :model-value="!!t.bon"
                 :disabled="sibuk"
                 @update:model-value="() => tandai(t, 'bon')"
               />
+              <AppStatus
+                v-else
+                :color="t.bon ? 'success' : 'warning'"
+                size="sm"
+              >
+                {{ t.bon ? 'Ada' : 'Belum' }}
+              </AppStatus>
             </td>
             <td class="px-3 py-2">
-              <div class="flex justify-end gap-1">
+              <div
+                v-if="izin.ubah('kk_buku')"
+                class="flex justify-end gap-1"
+              >
                 <UButton
                   label="Ubah"
                   color="neutral"
@@ -340,30 +372,46 @@ async function jalanHapus() {
             <span class="num">{{ Number(b.debet) ? fmtRp(Number(b.debet)) : `−${fmtRp(Number(b.kredit))}` }}</span>
           </p>
           <div class="flex flex-wrap items-center gap-3 pt-1">
-            <UCheckbox
-              :model-value="!!t.input"
-              label="Input"
-              @update:model-value="() => tandai(t, 'input')"
-            />
-            <UCheckbox
-              :model-value="!!t.bon"
-              label="Bon"
-              @update:model-value="() => tandai(t, 'bon')"
-            />
-            <UButton
-              label="Ubah"
-              color="neutral"
-              variant="outline"
-              size="xs"
-              :to="`/finance/kas/input?ubah=${t.id}`"
-            />
-            <UButton
-              label="Hapus"
-              color="error"
-              variant="ghost"
-              size="xs"
-              @click="hapusTarget = t; hapusOpen = true"
-            />
+            <template v-if="izin.ubah('kk_buku')">
+              <UCheckbox
+                :model-value="!!t.input"
+                label="Input"
+                @update:model-value="() => tandai(t, 'input')"
+              />
+              <UCheckbox
+                :model-value="!!t.bon"
+                label="Bon"
+                @update:model-value="() => tandai(t, 'bon')"
+              />
+              <UButton
+                label="Ubah"
+                color="neutral"
+                variant="outline"
+                size="xs"
+                :to="`/finance/kas/input?ubah=${t.id}`"
+              />
+              <UButton
+                label="Hapus"
+                color="error"
+                variant="ghost"
+                size="xs"
+                @click="hapusTarget = t; hapusOpen = true"
+              />
+            </template>
+            <template v-else>
+              <AppStatus
+                :color="t.input ? 'success' : 'warning'"
+                size="sm"
+              >
+                Input {{ t.input ? 'sudah' : 'belum' }}
+              </AppStatus>
+              <AppStatus
+                :color="t.bon ? 'success' : 'warning'"
+                size="sm"
+              >
+                Bon {{ t.bon ? 'ada' : 'belum' }}
+              </AppStatus>
+            </template>
           </div>
         </article>
         <p

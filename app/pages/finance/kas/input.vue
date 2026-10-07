@@ -19,6 +19,7 @@ import { tanganiKonflik } from '~/utils/versi'
 
 definePageMeta({ access: ['finance'] })
 
+const izin = useKasIzin()
 const toast = useToast()
 const route = useRoute()
 
@@ -94,6 +95,7 @@ function validasi(d: Draft): string[] {
 }
 
 async function simpanSemua() {
+  if (!izin.ubah('kk_input')) return
   if (sibuk.value || !draft.value.length) {
     if (!draft.value.length) toast.add({ title: 'Belum ada baris yang bisa disimpan — semuanya masih kosong.', color: 'error' })
     return
@@ -163,6 +165,15 @@ async function simpanSemua() {
     </template>
 
     <UAlert
+      v-if="!izin.ubah('kk_input')"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-lock"
+      title="Halaman ini hanya bisa dilihat."
+      description="Peranmu tidak boleh mengubah transaksi Kas Kecil. Hubungi admin modul Finance kalau memang perlu."
+      class="mb-4"
+    />
+    <UAlert
       v-if="error"
       color="error"
       variant="subtle"
@@ -181,6 +192,7 @@ async function simpanSemua() {
     />
 
     <AppPanel
+      v-if="izin.ubah('kk_input')"
       :title="draft.some(d => d.id) ? 'Ubah transaksi' : 'Transaksi baru'"
       description="Debet menambah saldo pos, kredit mengurangi. Isi nominal hanya di pos yang dipakai baris ini."
     >

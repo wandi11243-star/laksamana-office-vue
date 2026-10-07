@@ -14,6 +14,7 @@ import { tanganiKonflik } from '~/utils/versi'
 
 definePageMeta({ access: ['finance'] })
 
+const izin = useKasIzin()
 const toast = useToast()
 
 const { data, error, refresh } = useAsyncData('kas-kk-pos', async () => {
@@ -47,7 +48,7 @@ const kotor = (k: KkList, it: KkItem) => {
 
 const sibuk = ref(false)
 async function jalankan(fn: () => Promise<unknown>, pesan: string) {
-  if (sibuk.value) return
+  if (!izin.ubah('kk_pos') || sibuk.value) return
   sibuk.value = true
   try {
     await fn()
@@ -113,6 +114,14 @@ const ket = (k: KkList) => (k === 'sources' ? 'Pos adalah sumber uang: kas, reke
     description="Daftar pos pembayaran dan kategori belanja."
   >
     <UAlert
+      v-if="!izin.lihat('kk_pos')"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-lock"
+      title="Halaman ini tidak dibuka untuk peranmu."
+      class="mb-4"
+    />
+    <UAlert
       v-if="error"
       color="error"
       variant="subtle"
@@ -123,6 +132,7 @@ const ket = (k: KkList) => (k === 'sources' ? 'Pos adalah sumber uang: kas, reke
 
     <AppPanel
       v-for="k in (['sources', 'categories'] as KkList[])"
+      v-show="izin.lihat('kk_pos')"
       :key="k"
       :title="judul(k)"
       :description="ket(k)"
@@ -155,27 +165,29 @@ const ket = (k: KkList) => (k === 'sources' ? 'Pos adalah sumber uang: kas, reke
             {{ it.aktif === false ? 'Nonaktif' : 'Aktif' }}
           </AppStatus>
           <div class="flex gap-1">
-            <UButton
-              v-if="kotor(k, it)"
-              label="Simpan"
-              size="xs"
-              :loading="sibuk"
-              @click="simpanItem(k, it)"
-            />
-            <UButton
-              :label="it.aktif === false ? 'Aktifkan' : 'Nonaktifkan'"
-              color="neutral"
-              variant="outline"
-              size="xs"
-              @click="toggleAktif(k, it)"
-            />
-            <UButton
-              label="Hapus"
-              color="error"
-              variant="ghost"
-              size="xs"
-              @click="tanyaHapus(k, it)"
-            />
+            <template v-if="izin.ubah('kk_pos')">
+              <UButton
+                v-if="kotor(k, it)"
+                label="Simpan"
+                size="xs"
+                :loading="sibuk"
+                @click="simpanItem(k, it)"
+              />
+              <UButton
+                :label="it.aktif === false ? 'Aktifkan' : 'Nonaktifkan'"
+                color="neutral"
+                variant="outline"
+                size="xs"
+                @click="toggleAktif(k, it)"
+              />
+              <UButton
+                label="Hapus"
+                color="error"
+                variant="ghost"
+                size="xs"
+                @click="tanyaHapus(k, it)"
+              />
+            </template>
           </div>
         </div>
         <p
@@ -185,7 +197,10 @@ const ket = (k: KkList) => (k === 'sources' ? 'Pos adalah sumber uang: kas, reke
           Belum ada {{ judul(k).toLowerCase() }}.
         </p>
       </div>
-      <div class="mt-3 flex flex-wrap gap-2">
+      <div
+        v-if="izin.ubah('kk_pos')"
+        class="mt-3 flex flex-wrap gap-2"
+      >
         <UInput
           v-model="namaBaru[k]"
           :placeholder="`${judul(k)} baru…`"

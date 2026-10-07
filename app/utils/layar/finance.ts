@@ -5,9 +5,89 @@
 // screen declares the key it needs via `boleh`, and keys are prefixed with the
 // panel because the three old documents reused the same view keys.
 import { hasAccess, type Me } from '~/composables/useMe'
+import { getKk } from '~/composables/useFinance'
 
 const omset = (me: Me) => hasAccess(me, ['kompas'])
-const kas = (me: Me) => hasAccess(me, ['finance'])
+/** Visible when the module key is held AND the page matrix allows at least view. */
+const kasHal = (page: string) => (me: Me) =>
+  hasAccess(me, ['finance']) && tingkatKas(me, page, useKasAksesSiap().value) >= PERM_VIEW
+
+// ── The Kas Kecil page matrix (old `aksTingkat`, deploy/finance/kas/index.html:974-1110) ──
+// The module key already gates entry; this matrix only NARROWS what a holder
+// may reach. Stored rows are overrides of DEFAULT_PERMS; the module admin is
+// always full and cannot be lowered (that is the way back from a bad setting).
+const PERM_NONE = 0
+const PERM_VIEW = 1
+const PERM_EDIT = 2
+const AKS_HAL_ISI = ['kk_input', 'kk_buku', 'kk_pos', 'bayar', 'rekap', 'bri', 'invoice', 'akses']
+const ROLE_KEYS = ['staf', 'manajemen', 'viewer']
+const ROLE_BAWAAN = 'staf'
+const DEFAULT_PERMS: Record<string, Record<string, number>> = {
+  kk_input: { staf: PERM_EDIT, manajemen: PERM_NONE, viewer: PERM_NONE },
+  kk_buku: { staf: PERM_EDIT, manajemen: PERM_VIEW, viewer: PERM_VIEW },
+  kk_pos: { staf: PERM_EDIT, manajemen: PERM_NONE, viewer: PERM_NONE },
+  bayar: { staf: PERM_EDIT, manajemen: PERM_VIEW, viewer: PERM_VIEW },
+  rekap: { staf: PERM_EDIT, manajemen: PERM_VIEW, viewer: PERM_VIEW },
+  dp: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_NONE },
+  bri: { staf: PERM_EDIT, manajemen: PERM_EDIT, viewer: PERM_VIEW },
+  invoice: { staf: PERM_EDIT, manajemen: PERM_VIEW, viewer: PERM_NONE },
+  voidb: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_VIEW },
+  bulanan: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_VIEW },
+  analytics: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_VIEW },
+  marketing: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_VIEW },
+  event: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_VIEW },
+  kasir: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_VIEW },
+  akses: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_VIEW },
+}
+
+export const useKasAksesSiap = () => useState<{ matriks: Record<string, Record<string, number>>, peran: Record<string, string> } | null>('kas-akses', () => null)
+
+/** Load the matrix + roles once from the module chrome (`siapkan`). */
+export function muatPeranKas() {
+  const s = useKasAksesSiap()
+  if (s.value) return
+  getKk()
+    .then((r) => {
+      s.value = { matriks: r.data.akses ?? {}, peran: r.data.peran ?? {} }
+    })
+    .catch(() => {
+      s.value = { matriks: {}, peran: {} }
+    })
+}
+
+function roleSaya(me: Me | null, s: { peran: Record<string, string> } | null): string {
+  if (!me) return ROLE_BAWAAN
+  if (me.adminModules.includes('*') || me.adminModules.includes('finance')) return 'admin'
+  const byId = me.id ? s?.peran[`#${me.id}`] : undefined
+  const byName = me.name ? s?.peran[`@${String(me.name).trim().toLowerCase()}`] : undefined
+  const r = byId ?? byName ?? ''
+  return ROLE_KEYS.includes(r) ? r : ROLE_BAWAAN
+}
+
+/** Effective level of one page for this user (0 none, 1 view, 2 edit). */
+export function tingkatKas(me: Me | null, page: string, s: { matriks: Record<string, Record<string, number>>, peran: Record<string, string> } | null): number {
+  const role = roleSaya(me, s)
+  if (role === 'admin') return AKS_HAL_ISI.includes(page) ? PERM_EDIT : PERM_VIEW
+  const baris = s?.matriks?.[role]
+  let t = baris && baris[page] !== undefined ? Number(baris[page]) : (DEFAULT_PERMS[page]?.[role] ?? PERM_VIEW)
+  if (!Number.isFinite(t)) t = DEFAULT_PERMS[page]?.[role] ?? PERM_VIEW
+  t = Math.max(PERM_NONE, Math.min(PERM_EDIT, t))
+  if (!AKS_HAL_ISI.includes(page) && t > PERM_VIEW) t = PERM_VIEW
+  if (role === 'viewer' && t > PERM_VIEW) t = PERM_VIEW
+  return t
+}
+
+/** Per-page guard for the Kas Kecil screens. */
+export function useKasIzin() {
+  const me = useMe()
+  const s = useKasAksesSiap()
+  const tingkat = (page: string) => tingkatKas(me.value, page, s.value)
+  return {
+    tingkat,
+    lihat: (page: string) => tingkat(page) >= PERM_VIEW,
+    ubah: (page: string) => tingkat(page) >= PERM_EDIT,
+  }
+}
 
 export const LAYAR_FINANCE: Layar[] = [
   // ── Omset (kunci kompas; bekas modul Kompas) ──
@@ -19,10 +99,12 @@ export const LAYAR_FINANCE: Layar[] = [
   { key: 'omset_akses', label: 'Kelola Akses Kru', desc: 'Siapa saja yang bisa membuka modul Kompas', icon: 'i-lucide-key-round', to: '/finance/omset/akses', grup: 'Panel Omset', boleh: omset },
 
   // ── Kas Kecil (kunci finance) ──
-  { key: 'kas_kk_buku', label: 'Buku Kas Kecil', desc: 'Semua transaksi berikut saldo berjalan tiap pos', icon: 'i-lucide-book-open', to: '/finance/kas', grup: 'Kas Kecil', boleh: kas },
-  { key: 'kas_kk_input', label: 'Input Transaksi Kas Kecil', desc: 'Satu baris = satu transaksi; tambah baris sebanyak yang perlu lalu simpan sekaligus', icon: 'i-lucide-pencil-line', to: '/finance/kas/input', grup: 'Kas Kecil', boleh: kas },
-  { key: 'kas_kk_pos', label: 'Pos & Kategori', desc: 'Daftar pos pembayaran dan kategori belanja', icon: 'i-lucide-tags', to: '/finance/kas/pos', grup: 'Kas Kecil', boleh: kas },
-  { key: 'kas_dp', label: 'Dana Masuk (DP)', desc: 'DP reservasi yang sudah masuk — halaman milik modul Reservasi', icon: 'i-lucide-wallet', to: '/finance/kas/dp', grup: 'Kas Kecil', boleh: kas },
+  { key: 'kas_kk_buku', label: 'Buku Kas Kecil', desc: 'Semua transaksi berikut saldo berjalan tiap pos', icon: 'i-lucide-book-open', to: '/finance/kas', grup: 'Kas Kecil', boleh: kasHal('kk_buku') },
+  { key: 'kas_kk_input', label: 'Input Transaksi Kas Kecil', desc: 'Satu baris = satu transaksi; tambah baris sebanyak yang perlu lalu simpan sekaligus', icon: 'i-lucide-pencil-line', to: '/finance/kas/input', grup: 'Kas Kecil', boleh: kasHal('kk_input') },
+  { key: 'kas_kk_pos', label: 'Pos & Kategori', desc: 'Daftar pos pembayaran dan kategori belanja', icon: 'i-lucide-tags', to: '/finance/kas/pos', grup: 'Kas Kecil', boleh: kasHal('kk_pos') },
+  { key: 'kas_dp', label: 'Dana Masuk (DP)', desc: 'DP reservasi yang sudah masuk — halaman milik modul Reservasi', icon: 'i-lucide-wallet', to: '/finance/kas/dp', grup: 'Kas Kecil', boleh: kasHal('dp') },
+  { key: 'kas_bri', label: 'Pencocokan QRIS BRI', desc: 'Mutasi masuk rekening BRI dicocokkan ke DP reservasi', icon: 'i-lucide-scan-line', to: '/finance/kas/bri', grup: 'Kas Kecil', boleh: kasHal('bri') },
+  { key: 'kas_kasir', label: 'Performa Kasir', desc: 'Omset yang diakui tiap kasir — angka final', icon: 'i-lucide-chart-column', to: '/finance/kas/kasir', grup: 'Kas Kecil', boleh: kasHal('kasir') },
 ]
 
 /** The line under the user's name in the module chrome. */
