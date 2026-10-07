@@ -7,6 +7,7 @@
 import { hasAccess, type Me } from '~/composables/useMe'
 
 const omset = (me: Me) => hasAccess(me, ['kompas'])
+const kas = (me: Me) => hasAccess(me, ['finance'])
 
 export const LAYAR_FINANCE: Layar[] = [
   // ── Omset (kunci kompas; bekas modul Kompas) ──
@@ -16,6 +17,12 @@ export const LAYAR_FINANCE: Layar[] = [
   { key: 'omset_piutang', label: 'Piutang / Bon', desc: 'Bill yang belum dibayar tamu & owner — beserta metode POS sementaranya', icon: 'i-lucide-receipt-text', to: '/finance/omset/piutang', grup: 'Panel Omset', boleh: omset },
   { key: 'omset_compliment', label: 'Compliment', desc: 'Catatan compliment beserta alasan & PIC penanggungnya', icon: 'i-lucide-gift', to: '/finance/omset/compliment', grup: 'Panel Omset', boleh: omset },
   { key: 'omset_akses', label: 'Kelola Akses Kru', desc: 'Siapa saja yang bisa membuka modul Kompas', icon: 'i-lucide-key-round', to: '/finance/omset/akses', grup: 'Panel Omset', boleh: omset },
+
+  // ── Kas Kecil (kunci finance) ──
+  { key: 'kas_kk_buku', label: 'Buku Kas Kecil', desc: 'Semua transaksi berikut saldo berjalan tiap pos', icon: 'i-lucide-book-open', to: '/finance/kas', grup: 'Kas Kecil', boleh: kas },
+  { key: 'kas_kk_input', label: 'Input Transaksi Kas Kecil', desc: 'Satu baris = satu transaksi; tambah baris sebanyak yang perlu lalu simpan sekaligus', icon: 'i-lucide-pencil-line', to: '/finance/kas/input', grup: 'Kas Kecil', boleh: kas },
+  { key: 'kas_kk_pos', label: 'Pos & Kategori', desc: 'Daftar pos pembayaran dan kategori belanja', icon: 'i-lucide-tags', to: '/finance/kas/pos', grup: 'Kas Kecil', boleh: kas },
+  { key: 'kas_dp', label: 'Dana Masuk (DP)', desc: 'DP reservasi yang sudah masuk — halaman milik modul Reservasi', icon: 'i-lucide-wallet', to: '/finance/kas/dp', grup: 'Kas Kecil', boleh: kas },
 ]
 
 /** The line under the user's name in the module chrome. */
