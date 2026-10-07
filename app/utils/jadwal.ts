@@ -798,3 +798,31 @@ export function jabatanSetara(jab: string, div: string): boolean {
   const j = rapi(jab)
   return !j || j === rapi(namaDivisiJadwal(div))
 }
+
+// ------------------------------------------------------------- Data Pegawai
+
+/** Picklists of the HR columns (deploy/jadwal/index.html:1961-1964). */
+export const HR_BRANCH = ['PT Laksamana Indonesia Nusantara']
+export const HR_ORG = ['Office', 'FOH', 'Cashier', 'Kitchen', 'Bar']
+export const HR_LEVEL = ['Staff', 'Karyawan']
+export const HR_STATUS = ['Contract', 'Probation', 'Permanent']
+
+/**
+ * Display-only hint of which sheet a Tim value lands on (`hintDivisiForm`).
+ * The SERVER resolves the real Divisi (GET /jadwal/roster); this copy of the
+ * synonyms (`DIV_SINONIM`, :796) only explains the form while typing.
+ */
+const DIV_SINONIM: Record<string, string[]> = {
+  bar: ['bar', 'bartender'],
+  kitchen: ['kitchen', 'dapur'],
+  floor: ['floor', 'service', 'waiter', 'waitress', 'host', 'hostess', 'foh'],
+  cashier: ['cashier', 'kasir'],
+}
+export function divisiDariTim(keterangan: string): string {
+  if (stafKantor(keterangan)) return DIV_NONSHIFT
+  const kata = String(keterangan || '').toLowerCase().split(/[^a-z]+/).filter(Boolean)
+  for (const d of DIVISI) {
+    if ((DIV_SINONIM[d.k] ?? [d.k]).some(x => kata.includes(x))) return d.k
+  }
+  return DIV_NONSHIFT
+}

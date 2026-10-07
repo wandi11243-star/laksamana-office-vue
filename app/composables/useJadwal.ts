@@ -232,3 +232,59 @@ export function useJadwalMassal(o: {
   const jalanAman = () => tulis(aman, [], selesai)
   return { open, sibuk, judul, pesan, ya, alt, bentrok, dariAju, minta, jalan, jalanAman, tulis }
 }
+
+// ---------------------------------------------------------------- Data Pegawai (Pengelola Roster)
+
+/** The identity columns Data Pegawai may write (docs/api/account.md "Rosters"); never PIN, username or grants. */
+export interface DataDiri {
+  name: string
+  keterangan: string
+  noHp: string
+  talentaId: string
+  branch: string
+  organization: string
+  jobPosition: string
+  jobLevel: string
+  employmentStatus: string
+  joinDate: string
+}
+
+/** POST /account/roster (new, PIN 1111) or PATCH /account/roster/{id} (keeps the PIN). Admin of `jadwal`. */
+export const saveDataDiri = (id: string, body: DataDiri) => (id
+  ? useApi()<Envelope<{ id: string }>>(`/account/roster/${id}`, { method: 'PATCH', body })
+  : useApi()<Envelope<{ id: string }>>('/account/roster', { method: 'POST', body }))
+
+/** PUT /account/roster/{id}/active. */
+export const setAktifKru = (id: string, active: boolean) =>
+  useApi()<Envelope<{ id: string, active: boolean }>>(`/account/roster/${id}/active`, { method: 'PUT', body: { active } })
+
+/** DELETE /account/roster/{id} — only a deactivated, non-self, non-Superadmin row. */
+export const hapusKru = (id: string) =>
+  useApi()<Envelope<{ id: string, nama: string }>>(`/account/roster/${id}`, { method: 'DELETE' })
+
+/** The old `pesanGagalRoster` (deploy/jadwal/index.html:1999): roster refusals in plain words. */
+export function pesanGagalRoster(e: unknown): string {
+  const peta: Record<string, string> = {
+    forbidden: 'tidak berhak — atau sesi Office sudah berakhir. Masuk lagi lalu coba ulang.',
+    missing_fields: 'nama wajib diisi',
+    name_taken: 'nama itu sudah dipakai akun lain',
+    talenta_taken: 'Employee ID Talenta itu sudah dipakai akun lain',
+    not_found: 'datanya tidak ada lagi di Office — muat ulang halaman',
+    cannot_deactivate_self: 'akun Anda sendiri tidak bisa dinonaktifkan dari sini',
+    cannot_deactivate_admin: 'akun superadmin tidak bisa dinonaktifkan dari sini',
+    cannot_delete_self: 'akun Anda sendiri tidak bisa dihapus dari sini',
+    cannot_delete_admin: 'akun superadmin tidak bisa dihapus dari sini',
+    must_deactivate_first: 'nonaktifkan dulu sebelum bisa dihapus permanen',
+    is_kepala_divisi: 'orang ini masih tercatat sebagai head divisi — lepaskan dulu di Pengaturan',
+  }
+  const code = apiErrorCode(e)
+  return (code && peta[code]) || apiErrorMessage(e)
+}
+
+/** PUT /jadwal/settings — the whole blob (admin of `jadwal`). */
+export const saveJadwalSettings = (data: SettingJadwal) =>
+  useApi()<Envelope<unknown>>('/jadwal/settings', { method: 'PUT', body: data })
+
+/** DELETE /jadwal/cells — wipe every cell and request (admin), confirmation word required. */
+export const kosongkanJadwal = () =>
+  useApi()<Envelope<{ cleared: boolean, sel: number, pengajuan: number }>>('/jadwal/cells', { method: 'DELETE', body: { konfirmasi: 'HAPUS SEMUA' } })

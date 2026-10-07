@@ -337,13 +337,13 @@ Dipecah per kelompok layar (issue induk #11):
 | bagian | layar | status |
 |---|---|---|
 | 1/5 | shell + pemilih Roster (D.1), Dashboard (D.2), Jadwal Bulanan (D.3), Jadwal Saya (D.6), Pengajuan (D.7) | ✅ dibangun 2026-10-07, dicek di mock read-only 390px & 1366px (HRD dan head Kitchen) |
-| 2/5 | Input Mingguan (D.4: editor sel, alat massal, impor Excel lewat `xlsx-baca.ts`), Rekap Pegawai (D.5), ekspor lembar (Salin bulan lalu, Excel/PNG/Teks WA) | ⬜ |
-| 3/5 | Data Pegawai (D.8), Pengaturan (D.9) | ⬜ |
+| 2/5 | Input Mingguan (D.4: editor sel, alat massal, impor Excel lewat `xlsx-baca.ts`), Rekap Pegawai (D.5), ekspor lembar (Salin bulan lalu, Excel/Teks WA) | ✅ dibangun 2026-10-07, lint+typecheck hijau, **belum dicek visual**. PNG belum (butuh pustaka gambar) |
+| 3/5 | Data Pegawai (D.8), Pengaturan (D.9) | ✅ dibangun 2026-10-07, lint+typecheck hijau, **belum dicek visual** |
 | 4/5 | DW: Dashboard, Hadir, Kalender, Permintaan, Antrean (D.10, D.11, D.13–D.15) | ⬜ |
 | 5/5 | DW: Tamu + `pax-harian.ts` (D.12, G-05), Rekap, Bayar, Pekerja, Pengaturan, Akses (D.16–D.20) | ⬜ |
 
 Catatan bagian 1:
-- `LANJUTKAN DARI`: Input Mingguan. `JadwalLembar.vue` (lembar) dan `JadwalSelEditor.vue` (editor sel) sudah siap dipakai ulang.
+- `LANJUTKAN DARI`: bagian 4/5 (Daily Worker). Jadwal Shift (8 layar) lengkap; bagian 2–3 belum dicek visual.
 - Divisi kru dibaca dari `GET /jadwal/roster` (`divisi` sudah diselesaikan server, F.1), tidak dihitung ulang di Vue.
 - Pengesahan HRD menulis sel lewat `PUT /jadwal/cells` sesudah `POST /requests/{id}/decision`, sama dengan `kirimPutusan` lama; endpoint putusan tidak menyentuh sel.
 - Blok DAILY WORKER hanya tampil untuk pemegang `dw` sampai G-03 (laksamana-api#179); yang lain melihat keterangan.
