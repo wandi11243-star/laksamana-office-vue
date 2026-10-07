@@ -409,7 +409,9 @@ LANJUTKAN DARI: #40 kas (15 layar), lalu #41 brankas (7 layar).
 | kas/kk_input | `app/pages/finance/kas/input.vue` | ✅ | `POST/PUT /petty-cash/transactions`, `GET /petty-cash/transactions/{id}` (versi) | panel PO BD (`poTulisRealisasi`) ditunda — baris diketik tangan |
 | kas/kk_pos | `app/pages/finance/kas/pos.vue` | ✅ | `GET/POST/PATCH/DELETE /petty-cash/sources` + `/categories` | — |
 | kas/dp | `app/pages/finance/kas/dp.vue` | ✅ | `DanaMasukPanel` (kontrak reservasi, pintu G-14) | — |
-| kas/* sisa (11) | — | ⬜ | | bayar, rekap, bri, voidb, bulanan, analytics, marketing, event, kasir, invoice, akses |
+| kas/bri | `app/pages/finance/kas/bri.vue` + `app/components/KompasBri.vue` | ✅ | `GET /kompas/bri?from&to`, `POST /kompas/bri`, `/bri/match`, `POST /bri/{id}/cancel`, `POST/DELETE /bri/ignored[/{dpId}]`; DP lewat pintu G-14 | — |
+| kas/kasir | `app/pages/finance/kas/kasir.vue` + `app/components/PerformaKasir.vue` | ✅ | `GET /kompas/state` (daily+bd, employees, compliments), `GET /account/roster` | — |
+| kas/* sisa (9) | — | ⬜ | | bayar, rekap, voidb, bulanan, analytics, marketing, event, invoice, akses |
 | brankas/* (7 layar) | — | ⬜ | | #41 |
 
 Catatan build #38:
@@ -444,7 +446,13 @@ Catatan build #40 (Kas Kecil — BAGIAN PERTAMA, 4/15 layar):
 - `kas/kk_pos`: dua daftar (pos & kategori), sunting inline + simpan per baris, nonaktif/aktifkan, hapus (ditolak server bila terpakai — pesan apa adanya).
 - `kas/dp`: memakai ulang `DanaMasukPanel` (T-12/U5) dengan hak verifikasi seperti kasir (G-14).
 - Cek visual 2026-10-07 (mock 4013, tulis 403): keempat layar di 1366 & 390 overflow 0, console bersih; saldo pos Rp2.120.000/BRI Rp2.000.000/UOB −Rp120.000 benar dari mock; ubah transaksi memuat isian dari baris; `GET` versi lalu `PUT` ditolak 403 tanpa crash.
-- SISA #40 (11 layar): bayar, rekap, bri (pakai ulang `cocok-bri.ts`), voidb (baca saja, T-14), bulanan, analytics, marketing, event, kasir (pakai ulang mesin Performa Kasir), invoice, akses.
+- SISA #40 (9 layar): bayar, rekap, voidb (baca saja, T-14), bulanan, analytics, marketing, event, invoice, akses.
+
+Catatan build #40 bagian kedua (8/15 layar):
+- **Matriks peran Kas** (`app/utils/layar/finance.ts`): `tingkatKas()` port `aksTingkat` (DEFAULT_PERMS + selisih tersimpan, admin modul selalu penuh & tidak bisa diturunkan, `viewer` dijepit ≤ Lihat, halaman non-isian ≤ Lihat); `useKasIzin()` dipakai sidebar (`boleh` per halaman) dan tiap layar (tombol sembunyi + penjaga di fungsi). Matriks dimuat sekali lewat `siapkan` shell finance.
+- **Ekstraksi panel bersama**: `KompasBri.vue` (dari Cashier) + prop `kunci`/`bolehUbah`, dan `PerformaKasir.vue` + prop `kunci`/`bolehSemua` (kas: semua nama terlihat — batasan "hanya dirimu" memang khas Cashier). Halaman Cashier menjadi pembungkus tipis; halaman Kas memakai komponen yang sama.
+- Gate peran juga dipasang di empat layar kas sebelumnya (kk_buku/kk_input/kk_pos/dp): tombol & checkbox disembunyikan untuk Lihat-saja, fungsi menolak menulis, halaman ber-PERM_NONE menampilkan pemberitahuan.
+- Cek visual 2026-10-07 (mock 4013, tulis 403) sebagai `finance` (admin, 3 kunci) & `kasir`: `finance/kas/bri`, `finance/kas/kasir`, `finance/kas` + regresi `cashier/bri`, `cashier/kasir`, `cashier/report` di 1366 & 390 overflow 0, console bersih; `PUT /kompas/sections/employees` (sinkron PIC T-01 U2) tetap jalan dan ditolak mock tanpa crash.
 
 ## Konsolidasi untuk README & berkas bersama
 - Baris README: `| finance | [finance.md](finance.md) | ⚠️ selesai dengan celah | 29 (1 pemilih + 6 omset + 15 kas + 7 brankas) + 2 pengalih | 2 ❌ · 5 ⚠️ | 6 | omset/kas/brankas/rekap + kompas |`
