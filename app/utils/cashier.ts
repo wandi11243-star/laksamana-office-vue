@@ -295,7 +295,7 @@ export function divPemberi(u: { div?: string, divs?: string[] } | null | undefin
   return d.includes('marketing') ? 'marketing' : d.includes('event') ? 'event' : d.includes('office') ? 'office' : ''
 }
 
-export interface Compliment {
+export interface ComplimentKasir {
   id: string
   date: string
   nama: string
@@ -320,7 +320,7 @@ export interface Compliment {
 }
 
 /** The giver's cut is decided in Performa Marketing/Event; here it is only read. (:1942-1945) */
-export function compStatusPemberi(c?: Compliment | null): 'potong' | 'tidak' | 'menunggu' {
+export function compStatusPemberi(c?: ComplimentKasir | null): 'potong' | 'tidak' | 'menunggu' {
   const s = String(c?.pemberiStatus || 'menunggu')
   return s === 'potong' || s === 'tidak' ? s : 'menunggu'
 }
@@ -343,7 +343,7 @@ export function angkaRD(rec: DailyReport | null | undefined, totalComp: number) 
  * Edit keeps id, recorder and time, and the giver's decision — unless the giver
  * changed: that decision was taken on someone else's behalf (:2129-2139).
  */
-export function gantiPemberi(lama: Compliment, baru: Pick<Compliment, 'pemberiOfficeId' | 'pemberiName'>): boolean {
+export function gantiPemberi(lama: ComplimentKasir, baru: Pick<ComplimentKasir, 'pemberiOfficeId' | 'pemberiName'>): boolean {
   return String(lama.pemberiOfficeId || '') !== String(baru.pemberiOfficeId || '')
     || String(lama.pemberiName || '') !== String(baru.pemberiName || '')
 }

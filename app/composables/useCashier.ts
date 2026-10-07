@@ -4,7 +4,7 @@
 // different days or sections never conflict.
 //
 // Contract: laksamana-api/docs/api/kompas.md "Granular parts of the blob".
-import type { Bon, Compliment, DailyReport } from '~/utils/cashier'
+import type { Bon, ComplimentKasir, DailyReport } from '~/utils/cashier'
 import { ifMatch, versiDari, type Versi } from '~/utils/versi'
 
 export interface Part<T> {
@@ -23,17 +23,17 @@ async function tulis<T>(path: string, body: Record<string, unknown>, version: Ve
 }
 
 /** One top-level key of the blob (`piutang`, `owners`, `compliments`, …). */
-export const getSection = <T>(key: string, kosong: T) => baca<T>(`/kompas/sections/${key}`, kosong)
-export const putSection = <T>(key: string, value: T, version: Versi) => tulis<T>(`/kompas/sections/${key}`, { value }, version)
+export const getBagianKompas = <T>(key: string, kosong: T) => baca<T>(`/kompas/sections/${key}`, kosong)
+export const putBagianKompas = <T>(key: string, value: T, version: Versi) => tulis<T>(`/kompas/sections/${key}`, { value }, version)
 
 /** One Daily Report (`reports[date]`). Null = not submitted yet. */
 export const getReport = (date: string) => baca<DailyReport | null>(`/kompas/reports/${date}`, null)
 export const putReport = (date: string, value: DailyReport, version: Versi) =>
   tulis<DailyReport>(`/kompas/reports/${date}`, { value }, version)
 
-export const getPiutang = () => getSection<Bon[]>('piutang', [])
-export const putPiutang = (v: Bon[], version: Versi) => putSection<Bon[]>('piutang', v, version)
-export const getOwners = () => getSection<string[]>('owners', [])
-export const putOwners = (v: string[], version: Versi) => putSection<string[]>('owners', v, version)
-export const getCompliments = () => getSection<Compliment[]>('compliments', [])
-export const putCompliments = (v: Compliment[], version: Versi) => putSection<Compliment[]>('compliments', v, version)
+export const getPiutang = () => getBagianKompas<Bon[]>('piutang', [])
+export const putPiutang = (v: Bon[], version: Versi) => putBagianKompas<Bon[]>('piutang', v, version)
+export const getOwners = () => getBagianKompas<string[]>('owners', [])
+export const putOwners = (v: string[], version: Versi) => putBagianKompas<string[]>('owners', v, version)
+export const getCompliments = () => getBagianKompas<ComplimentKasir[]>('compliments', [])
+export const putCompliments = (v: ComplimentKasir[], version: Versi) => putBagianKompas<ComplimentKasir[]>('compliments', v, version)

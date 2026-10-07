@@ -10,7 +10,7 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { Compliment } from '~/utils/cashier'
+import type { ComplimentKasir } from '~/utils/cashier'
 import {
   PIC_TAMU, angkaRD, compStatusPemberi, divPemberi, fmtRp, fmtSel, gantiPemberi, idBaru, num, rosterComp,
 } from '~/utils/cashier'
@@ -36,7 +36,7 @@ const { data, error, refresh } = useAsyncData(
 )
 const { data: roster, status: statusRoster, error: errRoster } = useRoster()
 
-const semua = computed<Compliment[]>(() => data.value?.comps.value ?? [])
+const semua = computed<ComplimentKasir[]>(() => data.value?.comps.value ?? [])
 const list = computed(() => semua.value.filter(c => c.date === tanggal.value))
 const total = computed(() => list.value.reduce((s, c) => s + num(c.nominal), 0))
 const rd = computed(() => angkaRD(data.value?.rep.value ?? null, total.value))
@@ -60,7 +60,7 @@ function kosongkan() {
   Object.assign(f, { nama: '', subTotal: 0, tax: 0, service: 0, pic: PIC_TAMU, pemberi: PIC_TAMU })
   salah.value = ''
 }
-function ubah(c: Compliment) {
+function ubah(c: ComplimentKasir) {
   editId.value = c.id
   tanggal.value = c.date
   Object.assign(f, {
@@ -80,7 +80,7 @@ watch(semua, () => {
 })
 
 const menyimpan = ref(false)
-async function tulis(baru: Compliment[], pesan: string) {
+async function tulis(baru: ComplimentKasir[], pesan: string) {
   if (!data.value) return false
   menyimpan.value = true
   try {
@@ -116,13 +116,13 @@ async function simpan() {
     pemberiName: pv ? pv.name : 'Tamu', pemberiOfficeId: pv ? pv.id : '', pemberiDiv: pv ? divPemberi(pv) : 'tamu',
   }
   const nama_ = me.value?.name ?? ''
-  let baru: Compliment[]
+  let baru: ComplimentKasir[]
   const lama = editId.value ? semua.value.find(c => c.id === editId.value) : undefined
   if (lama) {
     // Kept: id, who recorded it, when, and `alasan`. The giver's decision is
     // kept unless the giver changed (it was taken on someone else's behalf).
     const reset = gantiPemberi(lama, isi)
-    const rec: Compliment = { ...lama, ...isi, ubahOleh: nama_, ubahAt: Date.now() }
+    const rec: ComplimentKasir = { ...lama, ...isi, ubahOleh: nama_, ubahAt: Date.now() }
     if (reset) Object.assign(rec, { pemberiStatus: 'menunggu', putusOleh: '', putusAt: 0 })
     baru = semua.value.map(c => (c.id === lama.id ? rec : c))
   }
@@ -135,7 +135,7 @@ async function simpan() {
   if (await tulis(baru, lama ? 'Perubahan compliment tersimpan' : 'Compliment tersimpan')) kosongkan()
 }
 
-const hapusTarget = ref<Compliment | null>(null)
+const hapusTarget = ref<ComplimentKasir | null>(null)
 const hapusBuka = computed({
   get: () => !!hapusTarget.value,
   set: (v) => {
@@ -151,19 +151,19 @@ async function hapus() {
   }
 }
 
-const statusPemberi = (c: Compliment) => {
+const statusPemberi = (c: ComplimentKasir) => {
   const s = compStatusPemberi(c)
   return s === 'potong'
     ? { color: 'error' as const, l: 'Dipotong' }
     : s === 'tidak' ? { color: 'success' as const, l: 'Tidak dipotong' } : { color: 'neutral' as const, l: 'Menunggu keputusan' }
 }
-const pemberiTamu = (c: Compliment) => !c.pemberiName || c.pemberiDiv === 'tamu'
-const kasirTamu = (c: Compliment) => c.picDiv === 'tamu' || !c.picName
+const pemberiTamu = (c: ComplimentKasir) => !c.pemberiName || c.pemberiDiv === 'tamu'
+const kasirTamu = (c: ComplimentKasir) => c.picDiv === 'tamu' || !c.picName
 
-const kolom = computed<TableColumn<Compliment>[]>(() => [
+const kolom = computed<TableColumn<ComplimentKasir>[]>(() => [
   { accessorKey: 'nama', header: 'Nama' },
   ...(adaRincian.value
-    ? [{ id: 'sub', header: 'Sub total' }, { id: 'tax', header: 'Tax' }, { id: 'svc', header: 'Service' }] as TableColumn<Compliment>[]
+    ? [{ id: 'sub', header: 'Sub total' }, { id: 'tax', header: 'Tax' }, { id: 'svc', header: 'Service' }] as TableColumn<ComplimentKasir>[]
     : []),
   { id: 'total', header: 'Total' },
   { id: 'pic', header: 'PIC kasir' },
