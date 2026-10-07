@@ -647,3 +647,19 @@ dengan `details.current`. Legacy tidak punya ini (last-write-wins lewat `text/pl
   bersama stock = `deploy/stock/catat-common.js` (dimuat `usage/index.html:860`; `hpp/index.html:340,1734`
   hanya menyebut namanya di komentar, tidak memuatnya).
 
+## J. Progres build
+Branch: migrasi/stock-pohon (bagian 1/5) · Mulai: 2026-10-07
+LANJUTKAN DARI: panel usage (Daily SO, Pemakaian, Waste) — butuh sub-issue + izin user; lalu ordering, purchasing, hpp.
+
+| layar (key) | file | status | endpoint dipakai | ditunda karena |
+|---|---|---|---|---|
+| pemilih | `app/pages/stock/index.vue` | ✅ | — (kartu panel; auto-redirect bila satu panel jadi) | — |
+| tree/pohon | `app/pages/stock/tree/index.vue` + `app/utils/pohon-resep.ts` | ✅ | `GET /stock/hpp/ingredients`, `GET /stock/hpp/recipes` (modul `tree`, read-only) | — |
+
+Catatan build stock-pohon (pemilih + tree):
+- **K-07**: sesi usage-only dibiarkan masuk (gate lama menolaknya — bug). Launcher memfilter 5 kartu per kunci; auto-redirect hanya bila satu panel DAN halamannya sudah ada.
+- **T-18**: pohon dibangun ulang live dari API (menu = resep `dish` aktif; base hanya sebagai anak WIP), bukan snapshot 20 Juli 2026. Flag gap (`wip_noyield`/`mismatch`/`unmapped`/`implausible`) diturunkan di klien (`pohon-resep.ts`, terdokumentasi di komentar) — API tidak mengembalikannya.
+- `useStock.ts` dimulai (tree dulu; panel lain menyusul di branch-nya). `LAYAR_STOCK` + shell `// ── stock ──` + `peranStock`.
+- Cek visual 2026-10-07 (mock `/tmp/mock-api-stock.mjs` 4015, tulis 403) sebagai `gudang` (5 kunci, admin) & `koki` (ordering+usage): pemilih 5 kartu (1 Buka + 4 Segera), tree (4 menu, flag, WIP lipat-buka, laci where-used, saring flag, cari bahan) di 1366 & 390 overflow 0, console bersih; `koki` ke `/stock/tree` → "Belum ada akses".
+- Insiden: login sempat macet — ternyata sisa state HMR dari `git stash -u` di tengah sesi (`Failed to reload .../stock/*.vue`); dev restart bersih + tab baru = 0 error. Kode tidak bersalah.
+
