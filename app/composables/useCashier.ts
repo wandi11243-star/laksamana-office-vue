@@ -6,6 +6,7 @@
 // Contract: laksamana-api/docs/api/kompas.md "Granular parts of the blob".
 import type { Bon, ComplimentKasir, DailyReport, RokokHari, RokokItem, VoidBaris, VoidSetting } from '~/utils/cashier'
 import type { EmployeesKompas, HariKompas } from '~/utils/porsi-pic'
+import type { AbaiBri, BarisBri } from '~/utils/cocok-bri'
 import type { RosterUser } from '~/composables/useRoster'
 import { ifMatch, versiDari, type Versi } from '~/utils/versi'
 
@@ -73,6 +74,65 @@ export const putEmployees = (v: EmployeesKompas, version: Versi) =>
 /** `GET /account/roster` — raw Tim/Keterangan, open to every signed-in user. */
 export const getRoster = async (): Promise<RosterUser[]> =>
   (await useApi()<Envelope<RosterUser[]>>('/account/roster')).data ?? []
+
+// ---- Pencocokan QRIS BRI (module cashier or finance, kompas.md "QRIS BRI") ----
+
+export interface BriList {
+  baris: BarisBri[]
+  total: number
+  maks: number
+  abai: AbaiBri[]
+  /** dpId held by a live row ANYWHERE (older backends only) — v1 does not return it. */
+  dipakai?: string[]
+}
+
+export async function getBri(from: string, to: string): Promise<BriList> {
+  const res = await useApi()<Envelope<Partial<BriList>>>(`/kompas/bri?from=${from}&to=${to}`)
+  const d = res.data ?? {}
+  return { baris: d.baris ?? [], total: d.total ?? 0, maks: d.maks ?? 2000, abai: d.abai ?? [], dipakai: d.dipakai }
+}
+
+export type BriCara = 'cocok' | 'bukan' | 'lepas'
+
+export interface BriMatchItem {
+  id: string
+  cara: BriCara
+  resId?: string
+  dpId?: string
+  resNama?: string
+  resTgl?: string
+  catatan?: string
+}
+
+export interface BriHasil {
+  saved: boolean
+  n: number
+  gagal: { id: string, sebab: string }[]
+}
+
+/** One row, or `{items}` for a bulk apply — each row stands alone on the server. */
+export function matchBri(body: BriMatchItem | { items: BriMatchItem[] }) {
+  return useApi()<Envelope<BriHasil>>('/kompas/bri/match', { method: 'POST', body })
+}
+
+/** A manual incoming fund that is not a reservation DP; `ket` is required. */
+export function addBriManual(body: { tgl: string, jam?: string, nominal: number, ket: string }) {
+  return useApi()<Envelope<{ id: string }>>('/kompas/bri', { method: 'POST', body })
+}
+
+/** Cancel a mutation row (never deletes); If-Match = the row's `diubah`. */
+export function cancelBri(id: string, alasan: string, version: Versi) {
+  return useApi()<Envelope<{ saved: boolean }>>(`/kompas/bri/${id}/cancel`, { method: 'POST', body: { alasan }, headers: ifMatch(version) })
+}
+
+/** Mark a reservation DP as not a valid BRI fund; the DP itself is untouched. */
+export function ignoreBriDp(body: { dpId: string, resId?: string, nama?: string, tgl?: string, nominal?: number, alasan: string }) {
+  return useApi()<Envelope<{ saved: boolean }>>('/kompas/bri/ignored', { method: 'POST', body })
+}
+
+export function unignoreBriDp(dpId: string) {
+  return useApi()<Envelope<{ saved: boolean }>>(`/kompas/bri/ignored/${encodeURIComponent(dpId)}`, { method: 'DELETE' })
+}
 
 // ---- Catatan Void (own table void_log, NOT the blob: granular rows) ----
 // `diubah` of each row (ms) is its version; the setting carries its own.

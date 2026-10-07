@@ -1,7 +1,7 @@
 # Cashier — inventaris migrasi
 
-Status: ⚠️ selesai dengan celah
-Terakhir diperbarui: 2026-09-29
+Status: ✅ 11/11 layar dibangun 2026-10-07 — PR #35–#37 menunggu review/merge
+Terakhir diperbarui: 2026-10-07
 
 > **Triase 2026-09-29** — status di tabel E yang bertentangan dengan catatan ini: catatan ini yang berlaku.
 > Rincian: [`_pertanyaan.md`](_pertanyaan.md), [`_gap-api.md`](_gap-api.md).
@@ -325,8 +325,8 @@ Konkurensi: legacy memakai **`baseTs`** pada `saveAll` (`:819-852`, penjaga `:80
 - **Cashier ↔ Kompas: berkas kembar wajib serempak** — Report Daily & Compliment menulis objek yang SAMA (`DB.reports[tgl].pay`, `DB.compliments[]`); `PAYS`, `compFilterPic`, `porsiPic`, `potonganHari`/`potongKasirAktif`, `obAktif`/`obTotal`/`openBillList` adalah kembar dengan `deploy/kompas/index.html` & `deploy/finance/omset/` (`cashier/index.html:460-469,585-610,2315-2364`; `CLAUDE.md:2880-2902`). Cashier pernah tertinggal dua perbaikan berturut-turut (`CLAUDE.md:2611-2637`).
 
 ## J. Progres build
-Branch: migrasi/cashier-inti (#26) · migrasi/cashier-void (#27) · migrasi/cashier-stock (#28) · migrasi/cashier-kasir (#29) · Mulai: 2026-10-06
-LANJUTKAN DARI: #30 bri (`cocok-bri.ts`, mesin dari `deploy/assets/cocok-bri.js`).
+Branch: migrasi/cashier-inti (#26) · migrasi/cashier-void (#27) · migrasi/cashier-stock (#28) · migrasi/cashier-kasir (#29) · migrasi/cashier-bri (#30) · Mulai: 2026-10-06
+LANJUTKAN DARI: review PR #35–#37 (stock rokok, performa kasir, pencocokan BRI) berurutan; base #36 menunggu #35, base #37 menunggu #36. Setelah ketiganya merge, #13 tuntas dari sisi build.
 
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
@@ -338,7 +338,7 @@ LANJUTKAN DARI: #30 bri (`cocok-bri.ts`, mesin dari `deploy/assets/cocok-bri.js`
 | rokokrekap | `app/pages/cashier/rokokrekap.vue` | ✅ | `GET /kompas/sections/rokok`, `/sections/rokok_items` | — |
 | kasir | `app/pages/cashier/kasir.vue` | ✅ | `GET /kompas/state` (`daily[]` + `bd`, `employees`, `compliments` — `/daily?from&to` tidak membawa `bd`), `GET /account/roster`, sinkron PIC `PUT /kompas/sections/employees` (T-01 U2, hanya menambah) | — |
 | dp | `app/pages/cashier/dp.vue` | ✅ | `DanaMasukPanel` (kontrak reservasi, pintu G-14) | — |
-| bri | — | ⬜ | | #30 (`cocok-bri.ts`) |
+| bri | `app/pages/cashier/bri.vue` | ✅ | `GET /kompas/bri?from&to`, `POST /kompas/bri`, `POST /kompas/bri/match`, `POST /kompas/bri/{id}/cancel`, `POST /kompas/bri/ignored` + `DELETE /bri/ignored/{dpId}`; DP lewat pintu G-14: `GET /reservasi/reservations`, `GET /reservasi/master/dpMethods`, `GET /reservasi/files/{key}`, `PATCH /reservasi/reservations/{id}` | — |
 | rokokset | `app/pages/cashier/rokokset.vue` | ✅ | `GET/PUT /kompas/sections/rokok_items` (`null` = kembali ke bawaan) | — |
 | akses | `app/pages/cashier/akses.vue` | ✅ | `GET /account/modules/cashier/members` | — |
 
@@ -385,6 +385,30 @@ Catatan build #29 (performa kasir):
   390px overflow 0, console bersih; angka tab `Semua` Rp11.160.000 dan tab Sari Rp9.160.000 cocok hitungan tangan
   (termasuk potongan tiket 50%, `ditempat` tidak memotong, compliment 25rb+15rb, OFF d3, open bill 60rb pengakuan),
   peringatan "belum ditentukan" menyebut 2026-10-02 saja, mode Harian "Senin, 5 Oktober 2026" → Rp1.400.000.
+
+Catatan build #30 (pencocokan QRIS BRI):
+- Mesin pindahan di `app/utils/cocok-bri.ts` (milik jalur cashier; finance #14 mengimpor): `cbNum`, `cbJamWIB`,
+  `cbTglID`, empat `BABAK` + `cbUsulan` (sapuan GLOBAL, bukan serakah per baris), `cbNamaCocok` (nama pendek WAJIB
+  persis), `dpKeBri` (menentukan lewat METODE DP, bukan bank pengirim di struk), `dpTerpakai`, `dpsBulan`,
+  `barisGabungan`, `statistikBri`, `dpBelumDicatat`/`dpLuarBri`/`dpBernisan`, `filterBarisGab`, `cbBuktiRef`/
+  `cbBuktiGambar`/`cbBlobUrl`.
+- `tools/uji-cocok-bri.mjs` (`npm run uji:bri`): 25 pemeriksaan. Fungsi yang diekspor dibandingkan FUNGSI-PER-FUNGSI
+  dengan mesin lama yang dijalankan lewat `new Function('window',…)` (`cbJamWIB`, `cbNamaCocok`, `cbNamaDari`,
+  `cbTglID`, dan `cbUsulan` termasuk kasus perebutan DP) — bukan sekadar disalin.
+- **Gap ditemukan & dicatat:** v1 `GET /kompas/bri` belum memulangkan `dipakai[]` (dpId yang dipegang lintas bulan,
+  perilaku 23 Sep 2026 di mesin lama). Vue memakai fallback baris bulan berjalan; dicatat sebagai **G-19** di
+  `_gap-api.md` dan issue `dwipapap/laksamana-api#233`.
+- Yang sengaja tidak dibawa: unggah mutasi bank dari Excel (sudah DICABUT 21 Sep 2026 di Office lama; baris lama
+  tetap dibaca & bisa dicocokkan). Paginasi per-tabel lama (25/50/100 baris) disederhanakan: satu pager 25 baris
+  untuk tabel utama; kartu DP dan kartu luar tampil utuh.
+- Bukti transfer diunduh SATU per klik (cache selama halaman hidup; penanda `@f:<key>` lewat `GET /reservasi/files`),
+  gambar tampil di sheet, PDF lewat blob URL (Chrome memblokir navigasi ke `data:`).
+- Ubah metode DP menulis LANGSUNG ke modul Reservasi lewat pintu G-14 (`PATCH /reservasi/reservations/{id}` dengan
+  `dps[]` + `dpMethod` + `If-Match`), plus `POST /reservasi/audit`; gagal audit tidak membatalkan perubahan.
+- Cek visual 2026-10-07 (mock `mock-api-cashier.mjs` 4013, tulis 403): 1366px & 390px overflow 0, console bersih;
+  angka cocok hitungan tangan (Dana Masuk Rp2.099.000/5 transaksi/1 batal, Dari Reservasi Rp500.000, Di Luar
+  Rp250.000, Belum Rp1.349.000, 1 tanpa tanggal, usulan pasti 1 → Zhafira), panel kandidat menawarkan 3 DP yang
+  benar, bukti `@f:img1` termuat, `POST /bri/match` ditolak 403 tanpa crash.
 
 ## K. Daftar uji cutover (layar #26)
 Setiap aksi tulis diuji SILANG: ubah di Vue → terlihat di Office lama (Cashier & Finance › Omset), dan sebaliknya.
