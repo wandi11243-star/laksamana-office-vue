@@ -10,6 +10,7 @@
     "lint": "eslint .",
     "typecheck": "nuxt typecheck",
     "uji:help": "node tools/uji-help.mjs",
+    "uji:bonus": "node tools/uji-performa-bonus.mjs",
     "uji:xlsx": "node tools/uji-xlsx-baca.mjs"
   },
   "dependencies": {
