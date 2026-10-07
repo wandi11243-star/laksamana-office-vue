@@ -350,3 +350,162 @@ export function gantiPemberi(lama: ComplimentKasir, baru: Pick<ComplimentKasir, 
 
 /** New id in the old shape ('pt…' bon, 'c…' compliment). */
 export const idBaru = (awalan: string) => `${awalan}${Date.now().toString(36)}${Math.floor(Math.random() * 1e4)}`
+
+// ---------------------------------------------------------------- Void Menu
+// Old `viewVoid` & helpers, deploy/cashier/index.html:2380-3014; contract
+// laksamana-api/docs/api/kompas.md "Catatan Void". One bill, many items: the
+// shared fields are typed once, service & tax are typed ONCE for the whole bill
+// (base = sum of the subtotals of NAMED items) and the server splits them over
+// the items cumulatively and computes `nominal`. The total is never sent.
+
+/** Required fields, in the order the old screen named them (VOID_WAJIB, :2399-2403). */
+export const VOID_WAJIB = [
+  ['bill', 'Nomor Bill'],
+  ['item', 'Nama Item'],
+  ['penginput', 'Siapa yang Menginput'],
+  ['salah', 'Kesalahan dari Siapa'],
+  ['alasan', 'Alasan / Kronologi'],
+] as const
+export type VoidKunci = typeof VOID_WAJIB[number][0]
+
+/** Datalist of "Kesalahan dari Siapa" — free text stays allowed (:2980). */
+export const VOID_SALAH_OPSI = ['Kasir', 'Floor', 'Kitchen', 'Bar', 'Tamu', 'Sistem / POS'] as const
+
+export interface VoidBaris {
+  id: string
+  tgl: string
+  bill: string
+  item: string
+  penginput: string
+  salah: string
+  alasan: string
+  nominal: number
+  subtotal: number
+  service: number
+  tax: number
+  /** False for rows from before subtotal/service/tax existed: 0 ≠ "no service". */
+  rinci: boolean
+  oleh: string
+  olehId?: string
+  dibuat: number
+  /** Row version: If-Match for PUT and cancel. */
+  diubah: number
+  diubahOleh: string
+  batalAt: number
+  batalOleh: string
+  batalAlasan: string
+}
+
+export interface VoidSetting { tax: number, service: number, diubah: number, oleh: string }
+export const VOID_SETTING_BAWAAN: VoidSetting = { tax: 10, service: 5, diubah: 0, oleh: '' }
+
+export interface VoidItemForm { item: string, sub: number }
+
+/**
+ * A percentage may be fractional (DECIMAL(6,3) on the server), with a comma.
+ * Outside 0..100 or unreadable → 0: a negative percentage would LOWER a void.
+ */
+export function voidPct(v: unknown): number {
+  const n = Number.parseFloat(String(v ?? '').replace(',', '.').replace(/[^0-9.]/g, ''))
+  return Number.isFinite(n) && n >= 0 && n <= 100 ? n : 0
+}
+
+/** Service or tax of a bill: round(base × pct / 100). Tax is on the SUBTOTAL, not subtotal+service (71/74 POS rows). */
+export const voidPersenDari = (sub: number, pct: unknown) => Math.round(num(sub) * voidPct(pct) / 100)
+
+/** Item rows that carry a name; nameless rows are dropped, not refused (the server does the same). */
+export const voidItemTerisi = (items: VoidItemForm[]) => items.filter(x => String(x.item || '').trim())
+
+/** Base of service & tax: subtotals of NAMED items only — those are the only ones sent. */
+export const voidSubtotal = (items: VoidItemForm[]) => voidItemTerisi(items).reduce((s, x) => s + num(x.sub), 0)
+
+/** A cancelled row stays visible, struck through, and is never summed. */
+export const voidAktif = (r: Pick<VoidBaris, 'batalAt'> | null | undefined) => !!r && !(num(r.batalAt) > 0)
+
+export interface VoidFormIsi { bill: string, penginput: string, salah: string, alasan: string, items: VoidItemForm[] }
+
+/** Keys still empty, in VOID_WAJIB order. `item` = not a single named item. */
+export function voidKurang(f: VoidFormIsi): VoidKunci[] {
+  const out: VoidKunci[] = []
+  for (const [k] of VOID_WAJIB) {
+    if (k === 'item') {
+      if (!voidItemTerisi(f.items).length) out.push('item')
+    }
+    else if (!String(f[k] || '').trim()) {
+      out.push(k)
+    }
+  }
+  return out
+}
+export const voidLabel = (k: string) => VOID_WAJIB.find(([x]) => x === k)?.[1] ?? k
+
+/**
+ * The server's `details.kurang` holds LABELS; map them back to our keys so the
+ * same boxes turn red. One list for both sides — a mismatch shows as a box
+ * that is named in the message but never marked.
+ */
+export const voidKunciDariLabel = (labels: unknown): VoidKunci[] =>
+  Array.isArray(labels) ? VOID_WAJIB.filter(([, l]) => labels.includes(l)).map(([k]) => k) : []
+
+export interface GrupBill { kunci: string, bill: string, baris: VoidBaris[], hidup: VoidBaris[], total: number }
+
+/**
+ * Grouped per bill number WHEN DRAWN, keeping the server order. The key is
+ * trimmed + upper-cased: bill numbers are typed, so "slmcl001 " and "SLMCL001"
+ * are one bill — not two incidents.
+ */
+export function voidGrupBill(list: VoidBaris[]): GrupBill[] {
+  const out: GrupBill[] = []
+  const idx = new Map<string, number>()
+  for (const r of list) {
+    const k = String(r.bill || '').trim().toUpperCase() || '(tanpa bill)'
+    let i = idx.get(k)
+    if (i === undefined) {
+      i = out.length
+      idx.set(k, i)
+      out.push({ kunci: k, bill: r.bill || '—', baris: [], hidup: [], total: 0 })
+    }
+    const g = out[i]!
+    g.baris.push(r)
+    if (voidAktif(r)) {
+      g.hidup.push(r)
+      g.total += num(r.nominal)
+    }
+  }
+  return out
+}
+
+/** Live rows only: total, items, and DISTINCT bills (rows ≠ bills — 84 rows came from 17 bills). */
+export function voidRingkas(list: VoidBaris[]) {
+  const hidup = list.filter(voidAktif)
+  return {
+    total: hidup.reduce((s, r) => s + num(r.nominal), 0),
+    item: hidup.length,
+    bill: voidGrupBill(hidup).length,
+    batal: list.length - hidup.length,
+  }
+}
+
+/** First and last day of a month `YYYY-MM`. */
+export function voidRentang(ym: string) {
+  const [y, m] = ym.split('-').map(Number)
+  const akhir = new Date(y!, m!, 0).getDate()
+  return { dari: `${ym}-01`, sampai: `${ym}-${String(akhir).padStart(2, '0')}` }
+}
+
+/**
+ * Editing a saved row: the "overridden" flag is DERIVED from its numbers. A row
+ * whose service equals what the formula gives from its subtotal was formula-
+ * made; old rows (no breakdown) read as overridden — editing their item name
+ * must not silently add 15 %.
+ */
+export function voidManualDari(r: VoidBaris, set: Pick<VoidSetting, 'tax' | 'service'>) {
+  const sub = num(r.rinci ? r.subtotal : r.nominal)
+  return {
+    sub,
+    svc: num(r.service),
+    tax: num(r.tax),
+    svcManual: num(r.service) !== voidPersenDari(sub, set.service),
+    taxManual: num(r.tax) !== voidPersenDari(sub, set.tax),
+  }
+}

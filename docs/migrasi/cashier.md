@@ -320,14 +320,14 @@ Konkurensi: legacy memakai **`baseTs`** pada `saveAll` (`:819-852`, penjaga `:80
 
 ## J. Progres build
 Branch: migrasi/cashier-inti (#26, bagian 1 dari #13) · Mulai: 2026-10-06
-LANJUTKAN DARI: #27 voidb → #28 rokok → #29 kasir → #30 bri.
+LANJUTKAN DARI: #28 rokok → #29 kasir → #30 bri.
 
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
 | report | `app/pages/cashier/report.vue` | ✅ | `GET/PUT /kompas/reports/{date}`, `GET /kompas/sections/piutang` | — |
 | piutang | `app/pages/cashier/piutang.vue` | ✅ | `GET/PUT /kompas/sections/piutang`, `/sections/owners`, `GET /account/roster` | — |
 | compliment | `app/pages/cashier/compliment.vue` | ✅ | `GET/PUT /kompas/sections/compliments`, `GET /kompas/reports/{date}`, `GET /account/roster` | — |
-| voidb | — | ⬜ | | #27 |
+| voidb | `app/pages/cashier/voidb.vue` | ✅ | `GET/POST /kompas/voids`, `PUT /kompas/voids/{id}`, `POST /kompas/voids/{id}/cancel`, `PUT /kompas/voids/settings` | — |
 | rokok | — | ⬜ | | #28 |
 | rokokrekap | — | ⬜ | | #28 |
 | kasir | — | ⬜ | | #29 (`porsi-pic.ts`, K-04) |
