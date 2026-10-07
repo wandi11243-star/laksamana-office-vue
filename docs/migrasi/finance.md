@@ -392,6 +392,39 @@ Kode error yang wajib ditangani UI (`docs/api/finance.md:136-145`, `docs/api/kom
 - [ ] **finance / diagnostics `ping`/`stats`** — legacy finance & kompas punya `ping`/`stats`; v1 tidak merutekannya. Perlukah? Bukti: `laksamana-api/docs/modules/finance.md:43`, `laksamana-api/docs/modules/kompas.md:98`. Opsi: A) pakai `GET /stats` bila ada; B) tambah endpoint; C) tidak perlu.
 - [ ] **finance / kas — `dp` embed** — legacy memuat halaman Reservasi dalam `<iframe>`; di Vue Nuxt SPA, apakah halaman DP dipindah menjadi halaman Reservasi asli (bukan embed) dan dibuka lintas modul? Bukti: `kas:6429-6440`, `CLAUDE.md:10872-10886`. Opsi: A) route Reservasi asli di Nuxt; B) iframe tetap; C) composable DP khusus.
 
+## J. Progres build
+Branch: migrasi/finance-omset (#38, sub-issue 1/4 dari #14) · Mulai: 2026-10-07
+LANJUTKAN DARI: #39 (input + breakdown), lalu #40 kas (15 layar), #41 brankas (7 layar).
+
+| layar (key) | file | status | endpoint dipakai | ditunda karena |
+|---|---|---|---|---|
+| pemilih panel | `app/pages/finance/index.vue` | ✅ | — (kartu panel; auto-redirect bila satu panel) | — |
+| omset/report | `app/pages/finance/omset/report.vue` + `app/components/KompasReport.vue` | ✅ | `GET/PUT /kompas/reports/{date}`, `GET /kompas/sections/piutang` | — |
+| omset/piutang | `app/pages/finance/omset/piutang.vue` + `KompasPiutang.vue` | ✅ | `GET/PUT /kompas/sections/piutang`, `/owners`, `GET /account/roster` | — |
+| omset/compliment | `app/pages/finance/omset/compliment.vue` + `KompasCompliment.vue` | ✅ | `GET/PUT /kompas/sections/compliments`, `GET /kompas/reports/{date}`, roster | — |
+| omset/input | — | ⬜ | | #39 |
+| omset/breakdown | — | ⬜ | | #39 |
+| omset/akses | `app/pages/finance/omset/akses.vue` | ✅ | `GET /account/modules/kompas/members` | — |
+| kas/* (15 layar) | — | ⬜ | | #40 |
+| brankas/* (7 layar) | — | ⬜ | | #41 |
+
+Catatan build #38:
+- **Ekstraksi panel bersama.** Report Daily, Piutang, dan Compliment sekarang komponen `KompasReport`/`KompasPiutang`/
+  `KompasCompliment` (`app/components/`), dipakai Cashier DAN Finance › Omset; halaman Cashier menjadi pembungkus tipis.
+  Objek blob-nya memang satu (`reports[date]`, `piutang`, `compliments`) — dua salinan pasti menyimpang (F.19). Tiap
+  halaman memberi kunci `useAsyncData` sendiri lewat prop `kunci`, jadi cache dua halaman tidak saling bocor.
+- Launcher `finance/index.vue`: hanya panel yang berhak tampil; panel yang belum dibangun ditandai **"Segera"** (tidak
+  redirect ke halaman kosong). Auto-redirect hanya bila user punya SATU panel dan halamannya sudah ada.
+- Shell `// ── finance ──` + `app/utils/layar/finance.ts`; tiap layar menyatakan kuncinya lewat `boleh`
+  (`kompas`/`finance`/`brankas`), jadi pemegang satu panel tidak melihat menu panel lain. Kunci layar diberi awalan
+  `omset_` karena tiga dokumen lama memakai kunci view yang sama.
+- Halaman pengalih URL lama (`kompas/`, `finance/rekap/`) TIDAK dibawa di SPA — URL lamanya tetap berlaku selama
+  aplikasi lama hidup; dicatat di komentar #14.
+- Cek visual 2026-10-07 (mock `mock-api-cashier.mjs` 4013, tulis 403) sebagai `finance` (3 kunci) & `kasir`:
+  omset report/piutang/compliment/akses dan cashier report/piutang/compliment di 1366px & 390px overflow 0, console
+  bersih; launcher menampilkan 3 kartu (2 "Segera"), sidebar hanya memuat menu panel yang berhak.
+- `npm run lint && npm run typecheck && npm run build` hijau; uji mesin (cashier/porsi-pic/bri) tidak tersentuh.
+
 ## Konsolidasi untuk README & berkas bersama
 - Baris README: `| finance | [finance.md](finance.md) | ⚠️ selesai dengan celah | 29 (1 pemilih + 6 omset + 15 kas + 7 brankas) + 2 pengalih | 2 ❌ · 5 ⚠️ | 6 | omset/kas/brankas/rekap + kompas |`
 - `_pertanyaan.md` (bullet, format baku):
