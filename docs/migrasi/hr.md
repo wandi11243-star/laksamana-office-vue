@@ -270,3 +270,24 @@ Kode error yang wajib ditangani UI: `unauthenticated`, `module_not_granted`, `no
 - [ ] **hr / settings — Impor & Reset massal** — v1 tidak punya endpoint "ganti seluruh dokumen" maupun "kosongkan semua". Legacy `importJson` (`:2668`) dan `resetAll` (`:2682`) menimpa/mengosongkan seluruh `S` lalu `saveAll`. Konteks: keduanya operasi whole-document. Opsi: A) buang kedua tombol (paling aman; data PII/SP hilang massal memang berbahaya); B) implementasi loop PUT/DELETE per record; C) minta endpoint khusus. Bukti: `:2668-2688`, `docs/api/hr.md` (tak menyebut impor/reset). (juga disalin ke `_pertanyaan.md`)
 - [ ] **hr / autoSyncOfficeRoster** — legacy menarik roster ber-grant `hr` dari `account-api-mysql?action=listModuleRoster` (`:391`). Kontrak v1 `hr` tidak punya padanannya, dan v1 tidak menyebut siapa yang membuat record `employees` saat kru baru masuk lewat Office. Apakah Vue cukup memakai `employees` yang sudah ada (dibuat oleh sinkron Office lain), atau butuh endpoint roster? Opsi: A) Vue hanya CRUD `employees`; B) sediakan endpoint roster di modul Office/Account. Bukti: `:378-427`. (juga disalin ke `_pertanyaan.md`)
 - [ ] **hr / audit — cap 800 baris** — legacy membatasi `S.audit` di klien (`.length > 800` → potong, `:692`), UI tampilkan 200. v1 `audit` append-only tanpa batas yang terdokumentasi; apakah UI perlu batas/paginasi sendiri? Bukti: `:692`, `docs/api/hr.md:82-87`. [DUGAAN] tak berbahaya, tapi perlu keputusan retensi.
+
+## J. Progres build (#12)
+
+| bagian | layar | status |
+|---|---|---|
+| Fondasi + Utama | `hr.ts` (tipe/seed/izin/roster), `people-score.ts` (mesin skor), `useHr.ts` (± rev `If-Match`), shell, Anjungan, People Score | ✅ dibangun 2026-10-07 |
+| Kinerja | Kehadiran + impor report Talenta (parser `xlsx-baca.ts`), KPI Divisi, OKR & Target, Performance Review | ✅ dibangun 2026-10-07 |
+| Pengembangan | Training Center (sertifikat `nextCertNo` + poin), Competency Matrix, Coaching Log, Career & Succession | ✅ dibangun 2026-10-07 |
+| Budaya | Reward & Recognition, Disiplin (saran SP), Engagement (mood + saran anonim) | ✅ dibangun 2026-10-07 |
+| Admin (`manageOps`) | Kru (+sinkron roster), Kalender HR, Pengaturan, Audit Log | ✅ dibangun 2026-10-07 |
+
+Catatan build:
+- **Mesin skor pindah apa adanya** ke `app/utils/people-score.ts` (peopleScore, attendanceDetail/cumulative termasuk `noData`, KPI item/div/emp, training (Akademi menang), feedback, discipline, review berlapis, grade + kelengkapan <40, `activeSP`/`suggestSP`, `nextCertNo`, `calendarItems`, `buildInsights`). Tidak ada angka skor yang disimpan.
+- **Parser Talenta** memakai `app/utils/xlsx-baca.ts` fondasi (K-05): kolom dicari lewat judul, baris "TOTAL FOR EMPLOYEE" dilewati, pencocokan HANYA via `talentaId` (F.3), baris `resigned` dibuang, bulan dari tanggal terbanyak.
+- **Konkurensi**: satu rev untuk seluruh dokumen; setiap tulis mengirim `If-Match` (`useHr.ts`) dan `409/428` ditangani helper fondasi. Tulis besar (impor/Reset) tidak dibawa — G-13.
+- **Kinerja/atribusi**: laporan skor/kehadiran dari server apa adanya; simpan per resource/peta (`PUT /kpi-actuals/{div}/{bulan}/{item}`, `PUT /monthly-inputs/{emp}/{bulan}`, `PUT /settings/{kunci}`, `PUT /attendance/{bulan}`).
+- **Sinkron roster** (pertanyaan §I) dilakukan aman: hanya membuat baris yang hilang dan menyegarkan nama/talentaId/role/status; TIDAK menghapus baris "yatim" maupun mengklaim id secara otomatis karena API v1 tulis per-record (tanpa whole-document); sisa baris dilaporkan ke HRD.
+- **Ekspor backup JSON** jalan; **Impor & Reset** tampil "Segera (G-13)" sesuai K-01.
+- **Dicek visual** 2026-10-07 lewat `mock-api-hr.mjs` (root workspace, port 4012, semua tulisan 403): 17 halaman di 1366px & 390px, overflow horizontal 0, console bersih; sebagai HRD dan sebagai kru (menu admin tersembunyi, halaman admin terkunci). Tema gelap tidak ada (mode terkunci terang).
+- `npm run lint && npm run typecheck && npm run build`: hijau 2026-10-07.
+- `LANJUTKAN DARI`: draft PR #12 (base `migrasi/jadwal` sampai PR #33 merge, lalu pindah `main`) + review owner.
