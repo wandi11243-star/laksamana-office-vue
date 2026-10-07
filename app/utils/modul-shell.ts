@@ -135,6 +135,12 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
   },
 
   // ── hr ──
+  hr: {
+    subjudul: 'Staff Performance',
+    layar: LAYAR_HR,
+    peran: me => peranHrLabel(me),
+    siapkan: () => muatPeranHr(),
+  },
 
   // ── cashier ──
 
