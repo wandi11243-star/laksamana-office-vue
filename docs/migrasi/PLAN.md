@@ -59,7 +59,7 @@ Urutan mempertimbangkan ukuran, risiko, dan **siapa yang membangun komponen bers
 | 7 | jadwal | jadwal + dw + roster, 20 layar | K-10 (G-03/05) | `pax-harian.ts` (`satukan()`) | ✅ (dibangun 2026-10-07; cek visual mock 1366/390 untuk bagian 1, 4–5; bagian 2–3 Jadwal Shift dilewati atas persetujuan owner; blok DW menunggu G-03, pax tamu "Segera" G-05) |
 | 8 | reservasi | reservasi + service_excellent, 12 layar | K-05: OCR `tesseract.js` diizinkan, lazy (G-07/08) | `DanaMasukPanel`, `Denah` + `venue-layouts.ts`, `kwitansi.ts` | ✅ (visual belum dicek) |
 | 9 | cashier | 11 layar | K-04 | `cocok-bri.ts`, `porsi-pic.ts` | ✅ (11/11 layar digabung ke main 2026-10-07; sisa gap G-19 di `laksamana-api#233`) |
-| 10 | finance | omset + kas + brankas + rekap, 29 layar | K-04 (G-06) | `performa-bonus.ts` | ⚠️ (1/4 sub-issue: #38 pemilih + panel bersama omset + akses — PR menunggu review; sisa #39 input/breakdown, #40 kas, #41 brankas) |
+| 10 | finance | omset + kas + brankas + rekap, 29 layar | K-04 (G-06) | `performa-bonus.ts` | ⚠️ (2/4 sub-issue: #38 pemilih+panel bersama, #39 input+breakdown — PR menunggu review; sisa #40 kas, #41 brankas) |
 | 11 | stock | 5 panel, 26 layar | K-05 (ekspor CSV), K-06 (Apps Script), K-07 | — | ⬜ |
 | 12 | event | 17 layar staf | K-01 (G-13), K-08, K-09 (G-10) | — | ⬜ |
 | 13 | marketing | 23 layar + detail event | K-05 (G-09) | `hpp-mesin.ts` | ⬜ |
@@ -92,6 +92,7 @@ tertinggal" di Office lama (`laksamana-office/CLAUDE.md:2611-2637`) persis karen
 | komponen `DanaMasukPanel` | `deploy/reservasi` mode `?embed=finance` | reservasi | cashier, finance |
 | `kwitansi.ts` | `deploy/assets/kwitansi-sheet.js` | reservasi | marketing |
 | `cocok-bri.ts` | `deploy/assets/cocok-bri.js` | cashier | finance |
+| `kompas.ts` | turunan baris harian `grossOf`/`netOf`/`tagihanOf`/`avgSpendOf`/`itemsOf` + `validasiHarian` | finance (omset) | kas, brankas, dashboard — satu rumus untuk satu angka |
 | `porsi-pic.ts` | `porsiPic`/`potonganHari`/`obTotal` (cashier, omset, kas) | cashier | finance. **K-04: dua rumus SENGAJA berbeda** — ekspor `porsiPicCashier` (versi cashier) dan `porsiPicKompas` (versi omset/kas) dari file yang sama, dengan komentar yang menyebut K-04. Jangan disatukan. |
 | `performa-bonus.ts` | `deploy/assets/performa-bonus.js` | jalur fondasi (dulu finance, TIM-A.md §3) | event, marketing |
 | `hpp-mesin.ts` | `deploy/assets/hpp-mesin.js` | marketing | — |

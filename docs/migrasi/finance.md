@@ -393,8 +393,8 @@ Kode error yang wajib ditangani UI (`docs/api/finance.md:136-145`, `docs/api/kom
 - [ ] **finance / kas — `dp` embed** — legacy memuat halaman Reservasi dalam `<iframe>`; di Vue Nuxt SPA, apakah halaman DP dipindah menjadi halaman Reservasi asli (bukan embed) dan dibuka lintas modul? Bukti: `kas:6429-6440`, `CLAUDE.md:10872-10886`. Opsi: A) route Reservasi asli di Nuxt; B) iframe tetap; C) composable DP khusus.
 
 ## J. Progres build
-Branch: migrasi/finance-omset (#38, sub-issue 1/4 dari #14) · Mulai: 2026-10-07
-LANJUTKAN DARI: #39 (input + breakdown), lalu #40 kas (15 layar), #41 brankas (7 layar).
+Branch: migrasi/finance-omset (#38) · migrasi/finance-input (#39, sub-issue 2/4) · Mulai: 2026-10-07
+LANJUTKAN DARI: #40 kas (15 layar), lalu #41 brankas (7 layar).
 
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
@@ -402,8 +402,8 @@ LANJUTKAN DARI: #39 (input + breakdown), lalu #40 kas (15 layar), #41 brankas (7
 | omset/report | `app/pages/finance/omset/report.vue` + `app/components/KompasReport.vue` | ✅ | `GET/PUT /kompas/reports/{date}`, `GET /kompas/sections/piutang` | — |
 | omset/piutang | `app/pages/finance/omset/piutang.vue` + `KompasPiutang.vue` | ✅ | `GET/PUT /kompas/sections/piutang`, `/owners`, `GET /account/roster` | — |
 | omset/compliment | `app/pages/finance/omset/compliment.vue` + `KompasCompliment.vue` | ✅ | `GET/PUT /kompas/sections/compliments`, `GET /kompas/reports/{date}`, roster | — |
-| omset/input | — | ⬜ | | #39 |
-| omset/breakdown | — | ⬜ | | #39 |
+| omset/input | `app/pages/finance/omset/input.vue` | ✅ | `GET/PUT /kompas/days/{date}`, `GET /kompas/reports/{date}`, `/sections/piutang`, `GET /kompas/state` (pencapaian bulan) | — |
+| omset/breakdown | `app/pages/finance/omset/breakdown.vue` | ✅ | `GET/PUT /kompas/days/{date}`, `GET /kompas/state` (`employees`, `compliments`) | baris otomatis dari modul Marketing/Event (deal, VIP Assisted, event internal) menyusul saat modulnya ada; ditambah manual |
 | omset/akses | `app/pages/finance/omset/akses.vue` | ✅ | `GET /account/modules/kompas/members` | — |
 | kas/* (15 layar) | — | ⬜ | | #40 |
 | brankas/* (7 layar) | — | ⬜ | | #41 |
@@ -424,6 +424,14 @@ Catatan build #38:
   omset report/piutang/compliment/akses dan cashier report/piutang/compliment di 1366px & 390px overflow 0, console
   bersih; launcher menampilkan 3 kartu (2 "Segera"), sidebar hanya memuat menu panel yang berhak.
 - `npm run lint && npm run typecheck && npm run build` hijau; uji mesin (cashier/porsi-pic/bri) tidak tersentuh.
+
+Catatan build #39 (input + breakdown):
+- `app/utils/kompas.ts` — **satu sumber** turunan baris harian: `grossOf`/`netOf`/`taxSvcOf`/`tagihanOf`/`avgSpendOf`/`itemsOf` + validasi `saveDaily` (`validasiHarian`). Dipakai Omset sekarang, Kas/Brankas menyusul; dijaga `npm run uji:kompas` (13 pemeriksaan; rumus lama dicek di sumber Office lama).
+- **K-04 di sisi potongan**: `porsi-pic.ts` kini juga mengekspor `potongKasirKompas`/`potonganBarisKompas`/`potonganHariKompas` — versi Omset/Kas memotong kolom **Omset penuh**, sedangkan Cashier membelah baris free-entry. Dua jawaban berbeda untuk baris yang sama, keduanya diuji (`uji:porsi-pic` 29 OK) supaya tidak ada yang menyatukan.
+- `omset/input.vue`: hari lahir di sini; validasi lama (negatif, pendapatan kosong, diskon > gross, traffic ≥ bill); **gerbang selisih Report Daily tidak ada** (dihapus 4 Agu 2026 di Office lama) — selisih ditampilkan berikut koreksi bon; "Pencapaian bulan berjalan" memakai dasar **tagihan** (kembar Dashboard Omset), hari yang diketik menggantikan salinan tersimpan; hapus hari ikut menghapus breakdown (dengan konfirmasi).
+- `omset/breakdown.vue`: Section A kasir (bruto − diskon), Self Order, Section B marketing (potong kasir shift, `menuFix`/`payGroup`/Open Bill), Section C event (50% + OB penuh, kasir tidak dipotong); gate simpan = balance && baris marketing bernominal punya shift; peringatan diskon & PIC kosong; kartu Efek ke Realisasi; konfirmasi simpan + jejak `bdLog`. Baris `abaikan` dibawa apa adanya.
+- **Ditunda (dicatat):** baris otomatis dari modul Marketing/Event (deal, Reservasi VIP Assisted, event internal) + suntingan `abaikan`-nya — modul asalnya belum bermigrasi; baris ditambah manual dengan pita pemberitahuan di layar. Disunting ulang saat modul Marketing/Event dibangun.
+- Cek visual 2026-10-07 (mock `mock-api-cashier.mjs` 4013, tulis 403): `finance/omset/input?tgl=2026-10-01` (net Rp4.900.000, service+tax Rp210.000, setoran & selisih) dan `breakdown?tgl=2026-10-01` (total diakui = net, potongan GIG Rp200.000 ke shift, efek Sari Rp4.700.000, peringatan PIC, "Valid, siap disimpan") di 1366 & 390 overflow 0, console bersih; `PUT /kompas/days/2026-10-01` ditolak 403 tanpa crash.
 
 ## Konsolidasi untuk README & berkas bersama
 - Baris README: `| finance | [finance.md](finance.md) | ⚠️ selesai dengan celah | 29 (1 pemilih + 6 omset + 15 kas + 7 brankas) + 2 pengalih | 2 ❌ · 5 ⚠️ | 6 | omset/kas/brankas/rekap + kompas |`
