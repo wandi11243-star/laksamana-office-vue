@@ -17,19 +17,18 @@
   slow venue network does not create a twin request.
 -->
 <script setup lang="ts">
-import type { KruJadwal, PeranJadwal, PetaSel, SettingJadwal } from '~/utils/jadwal'
+import type { KruJadwal, PeranJadwal, SettingJadwal } from '~/utils/jadwal'
 import {
   AJU_KE_SHIFT, JENIS_AJU, JENIS_AJU_PILIH, daftarShift, divisiKuasa, jamSel, kelasTeksShift, kunciSel, namaDivisiJadwal,
-  shiftDef, shiftKruBawaan,
+  petaSel, shiftDef, shiftKruBawaan,
 } from '~/utils/jadwal'
-import { createRequest } from '~/composables/useJadwal'
-import { fTgl, hariIni } from '~/utils/format'
+import { createRequest, useJadwalCells } from '~/composables/useJadwal'
+import { fTgl, hariIni, tambahHari } from '~/utils/format'
 
 const props = defineProps<{
   set: SettingJadwal
   kru: KruJadwal[]
   peran: PeranJadwal
-  sel: PetaSel
   /** The date clicked on the calendar, if any. */
   tglAwal?: string
 }>()
@@ -52,6 +51,17 @@ const tgl = ref('')
 const alasan = ref('')
 const shiftMinta = ref('')
 const sibuk = ref(false)
+const dipilih = ref(false)
+
+// The cells this form needs: the chosen date and the two weeks before it
+// (current shift, and last week's pattern for the default TUKAR shift).
+const cDari = computed(() => tambahHari(tgl.value || hariIni(), -14))
+const cSampai = computed(() => tgl.value || hariIni())
+const { data: cells } = useJadwalCells('jadwal-cells-ajukan', cDari, cSampai)
+const sel = computed(() => petaSel(cells.value ?? []))
+watch([sel, uid], () => {
+  if (!dipilih.value) shiftMinta.value = shiftKruBawaan(props.set, sel.value, uid.value, tgl.value)
+})
 
 watch(open, (v) => {
   if (!v) return
@@ -59,14 +69,15 @@ watch(open, (v) => {
   jenis.value = 'OFF'
   tgl.value = props.tglAwal && /^\d{4}-\d{2}-\d{2}$/.test(props.tglAwal) ? props.tglAwal : hariIni()
   alasan.value = ''
-  shiftMinta.value = shiftKruBawaan(props.set, props.sel, uid.value, tgl.value)
+  dipilih.value = false
+  shiftMinta.value = shiftKruBawaan(props.set, sel.value, uid.value, tgl.value)
 }, { immediate: true })
 
 const opsiKru = computed(() => pool.value.map(u => ({ value: u.id, label: `${u.name} — ${namaDivisiJadwal(u.divisi)}` })))
 const opsiJenis = JENIS_AJU_PILIH.map(k => ({ value: k, label: JENIS_AJU[k]! }))
 
 const tetap = computed(() => AJU_KE_SHIFT[jenis.value] ?? '')
-const sekarang = computed(() => (uid.value && tgl.value ? props.sel.get(kunciSel(uid.value, tgl.value)) ?? null : null))
+const sekarang = computed(() => (uid.value && tgl.value ? sel.value.get(kunciSel(uid.value, tgl.value)) ?? null : null))
 const jamSekarang = computed(() => jamSel(props.set, sekarang.value))
 const shiftKerja = computed(() => daftarShift(props.set).filter(k => !shiftDef(props.set, k).libur))
 
@@ -169,7 +180,7 @@ async function kirim() {
             :class="[kelasTeksShift(shiftDef(set, k).w), shiftMinta === k ? 'border-ink-900 ring-2 ring-primary-400' : 'border-transparent']"
             :style="{ backgroundColor: shiftDef(set, k).w }"
             :aria-pressed="shiftMinta === k"
-            @click="shiftMinta = k"
+            @click="shiftMinta = k; dipilih = true"
           >
             {{ shiftDef(set, k).n }}
             <small class="font-medium opacity-90">{{ shiftDef(set, k).m }}–{{ shiftDef(set, k).s }}</small>
