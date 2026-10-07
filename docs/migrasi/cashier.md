@@ -1,6 +1,6 @@
 # Cashier — inventaris migrasi
 
-Status: ✅ 11/11 layar dibangun 2026-10-07 — PR #35–#37 menunggu review/merge
+Status: ✅ 11/11 layar digabung ke main 2026-10-07 (PR #35–#37)
 Terakhir diperbarui: 2026-10-07
 
 > **Triase 2026-09-29** — status di tabel E yang bertentangan dengan catatan ini: catatan ini yang berlaku.
@@ -326,7 +326,7 @@ Konkurensi: legacy memakai **`baseTs`** pada `saveAll` (`:819-852`, penjaga `:80
 
 ## J. Progres build
 Branch: migrasi/cashier-inti (#26) · migrasi/cashier-void (#27) · migrasi/cashier-stock (#28) · migrasi/cashier-kasir (#29) · migrasi/cashier-bri (#30) · Mulai: 2026-10-06
-LANJUTKAN DARI: review PR #35–#37 (stock rokok, performa kasir, pencocokan BRI) berurutan; base #36 menunggu #35, base #37 menunggu #36. Setelah ketiganya merge, #13 tuntas dari sisi build.
+LANJUTKAN DARI: tidak ada — 11/11 layar ✅ digabung ke main. Gap terbuka: G-19 (`dipakai[]` di `GET /kompas/bri`, `laksamana-api#233`).
 
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
