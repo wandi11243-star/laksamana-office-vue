@@ -93,5 +93,24 @@ cek('kebutuhan produksi selesai ditandai done', ev.find(e => e.type === 'shoot' 
 cek('kunjungan: nama undangan pertama + jumlah', ev.find(e => e.vid === 'v').title === 'Rina - 2 undangan')
 cek('saringan jenis dihormati', K.acaraKalender({ content: [{ id: 'p', publishDate: '2026-10-07' }], prodTasks: [], shootings: [], visits: [] }, { publish: false, shoot: true, design: true, edit: true, visit: true }).length === 0)
 
+console.log('\nkonten: content planning')
+const pl = [
+  { id: '1', title: 'Reel kopi', status: 'Design', platforms: ['IG'], pillar: 'Promotion', pic: 'me', deadline: '2026-10-09' },
+  { id: '2', title: 'Tayang lama', status: 'Posted', platforms: ['TT'], pic: 'me', deadline: '2026-10-01' },
+  { id: '3', title: 'Batal', status: 'Cancelled', platform: 'Instagram', deadline: '2026-10-02' },
+  { id: '4', title: 'Tanpa tenggat', status: 'Idea', detail: 'caption tentang KOPI susu', platforms: ['IG'] },
+  { id: '5', title: 'Lebih awal', status: 'Script', platforms: ['FB'], pic: 'x', deadline: '2026-10-03' },
+]
+const fp = o => ({ ...K.filterPlanningBawaan(), ...o })
+cek('bawaan = aktif: arsip disembunyikan, urut deadline, tanpa deadline di akhir', sama(K.saringPlanning(pl, fp({})).map(c => c.id), ['5', '1', '4']))
+cek('reset kembali ke AKTIF, bukan semua', K.filterPlanningBawaan().arsip === 'aktif')
+cek('status arsip yang dipilih MENANG atas saringan aktif', sama(K.saringPlanning(pl, fp({ status: 'Posted' })).map(c => c.id), ['2']))
+cek('arsip = tayang + batal', sama(K.saringPlanning(pl, fp({ arsip: 'arsip' })).map(c => c.id), ['2', '3']))
+cek('platform dibaca dari nama lama juga', sama(K.saringPlanning(pl, fp({ arsip: '', platform: 'IG' })).map(c => c.id), ['3', '1', '4']))
+cek('cari judul + detailing, tanpa beda huruf', sama(K.saringPlanning(pl, fp({ q: 'kopi' })).map(c => c.id), ['1', '4']))
+cek('PIC __none__ = tanpa PIC; tanpaPic mengabaikan saringan PIC', sama(K.saringPlanning(pl, fp({ pic: K.PIC_KOSONG })).map(c => c.id), ['4']) && K.saringPlanning(pl, fp({ pic: 'me' }), true).length === 3)
+const op = K.opsiPicKonten([{ id: 'me', name: 'Saya' }, { id: 'x', name: 'Xena' }, { id: 'z', name: 'Kosong' }], id => (id == null ? 3 : id === K.PIC_KOSONG ? 1 : id === 'me' ? 1 : id === 'x' ? 1 : 0), 'me')
+cek('opsi PIC: semua, punya saya di atas, hanya yang memegang, belum ada PIC di akhir', sama(op.map(o => o.value), ['', 'me', 'me', 'x', K.PIC_KOSONG]) && op[0].label === 'Semua PIC (3)')
+
 console.log(`\n${ok} OK, ${gagal} GAGAL\n`)
 process.exit(gagal ? 1 : 0)

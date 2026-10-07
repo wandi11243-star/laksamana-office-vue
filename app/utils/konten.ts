@@ -451,3 +451,47 @@ export function acaraKalender(s: SumberKalender, f: FilterKalender): AcaraKalend
   }
   return ev
 }
+
+// ---------------------------------------------------------------- Content Planning
+
+export interface FilterPlanning { arsip: 'aktif' | 'arsip' | '', status: string, platform: string, pillar: string, pic: string, q: string }
+/** Reset goes back to ACTIVE, not to everything (F.3, :1924 planReset). */
+export const filterPlanningBawaan = (): FilterPlanning => ({ arsip: 'aktif', status: '', platform: '', pillar: '', pic: '', q: '' })
+
+/**
+ * Planning list (:1936-1953 filteredContent). The archive filter is SKIPPED
+ * when the chosen status is itself an archive status (F.2) — otherwise picking
+ * "Posted" returns an empty table that reads as "nothing published yet".
+ * Search covers title + detailing; sorted by deadline, undated last.
+ * `tanpaPic` = every filter except the PIC one, for the PIC option counts (F.13).
+ */
+export function saringPlanning(list: KontenItem[], f: FilterPlanning, tanpaPic = false): KontenItem[] {
+  let out = list
+  if (f.arsip && !(f.status && STATUS_ARSIP.includes(f.status))) {
+    out = f.arsip === 'arsip' ? out.filter(sudahArsip) : out.filter(c => !sudahArsip(c))
+  }
+  if (f.status) out = out.filter(c => c.status === f.status)
+  if (f.platform) out = out.filter(c => contentPlatforms(c).includes(f.platform))
+  if (f.pillar) out = out.filter(c => c.pillar === f.pillar)
+  if (f.pic && !tanpaPic) out = out.filter(c => picCocok(f.pic, c.pic))
+  if (f.q) {
+    const q = f.q.toLowerCase()
+    out = out.filter(c => `${c.title} ${contentDetail(c)}`.toLowerCase().includes(q))
+  }
+  return [...out].sort((a, b) => (a.deadline || '2099').localeCompare(b.deadline || '2099'))
+}
+
+/**
+ * PIC choices with counts (:2499-2516 picOptions): "Semua PIC", then "Punya
+ * saya" on top when I hold something, then only the people who hold anything,
+ * then "Belum ada PIC" (__none__) when some rows have none. `hitung(id)` counts
+ * rows under every OTHER filter; null = all.
+ */
+export function opsiPicKonten(users: { id: string, name: string }[], hitung: (id: string | null) => number, saya?: string) {
+  const n = (v: number) => (v ? ` (${v})` : '')
+  const out: { label: string, value: string }[] = [{ label: `Semua PIC${n(hitung(null))}`, value: '' }]
+  if (saya && hitung(saya)) out.push({ label: `Punya saya${n(hitung(saya))}`, value: saya })
+  for (const u of users) if (hitung(u.id) > 0) out.push({ label: `${u.name}${n(hitung(u.id))}`, value: u.id })
+  if (hitung(PIC_KOSONG)) out.push({ label: `Belum ada PIC${n(hitung(PIC_KOSONG))}`, value: PIC_KOSONG })
+  return out
+}

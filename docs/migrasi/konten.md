@@ -507,12 +507,12 @@ Konkurensi: legacy menstempel `updatedAt=sekarang` + `baseUpdatedAt=versi server
 
 ## J. Progres build
 Issue: #15, dipecah #47–#51 · Branch saat ini: `migrasi/konten-perencanaan` (#47) · Mulai: 2026-10-07
-LANJUTKAN DARI: #47 — layar planning (D.2), lalu panel detail + form konten (D.21, `/konten/detail/[id]`), pipeline, calendar.
+LANJUTKAN DARI: #47 — panel detail + form konten (D.21, `/konten/detail/[id]`), pipeline, calendar.
 
 | layar (key) | file | status | endpoint dipakai | sub-issue |
 |---|---|---|---|---|
 | dashboard | `app/pages/konten/dashboard.vue` | ✅ | `GET /konten/state` | #47 — Top Konten masih `metrics.reach` (F.4), pindah ke `perf` di #49; `autoUpdateStatuses` (tulis status iklan) ikut #50 |
-| planning | — | ⬜ | | #47 |
+| planning | `app/pages/konten/planning.vue` | ✅ | `GET /konten/state` | #47 |
 | pipeline | — | ⬜ | | #47 |
 | calendar | — | ⬜ | | #47 |
 | panel detail + form konten (D.21) | — | ⬜ | | #47 |
