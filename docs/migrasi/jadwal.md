@@ -339,13 +339,26 @@ Dipecah per kelompok layar (issue induk #11):
 | 1/5 | shell + pemilih Roster (D.1), Dashboard (D.2), Jadwal Bulanan (D.3), Jadwal Saya (D.6), Pengajuan (D.7) | ✅ dibangun 2026-10-07, dicek di mock read-only 390px & 1366px (HRD dan head Kitchen) |
 | 2/5 | Input Mingguan (D.4: editor sel, alat massal, impor Excel lewat `xlsx-baca.ts`), Rekap Pegawai (D.5), ekspor lembar (Salin bulan lalu, Excel/Teks WA) | ✅ dibangun 2026-10-07, lint+typecheck hijau, **belum dicek visual**. PNG belum (butuh pustaka gambar) |
 | 3/5 | Data Pegawai (D.8), Pengaturan (D.9) | ✅ dibangun 2026-10-07, lint+typecheck hijau, **belum dicek visual** |
-| 4/5 | DW: Dashboard, Hadir, Kalender, Permintaan, Antrean (D.10, D.11, D.13–D.15) | ⬜ |
-| 5/5 | DW: Tamu + `pax-harian.ts` (D.12, G-05), Rekap, Bayar, Pekerja, Pengaturan, Akses (D.16–D.20) | ⬜ |
+| 4/5 | DW: Dashboard, Hadir, Kalender, Permintaan, Antrean (D.10, D.11, D.13–D.15) | ✅ dibangun 2026-10-07, dicek visual mock read-only 1366px & 390px (HRD, head Kitchen, kru) |
+| 5/5 | DW: Tamu + `pax-harian.ts` (D.12, G-05), Rekap, Bayar, Pekerja, Pengaturan, Akses (D.16–D.20) | ✅ dibangun 2026-10-07, dicek visual mock 1366px & 390px (HRD, head, kru); bagian pax "Segera (G-05)" |
 
 Catatan bagian 1:
-- `LANJUTKAN DARI`: bagian 4/5 (Daily Worker). Jadwal Shift (8 layar) lengkap; bagian 2–3 belum dicek visual.
+- `LANJUTKAN DARI`: seluruh 5 bagian sudah dibangun. Sisa: cek visual bagian 2–3 Jadwal Shift (belum), lalu review/merge owner. PR ditandai siap review setelah `npm run lint && npm run typecheck && npm run build` hijau.
 - Divisi kru dibaca dari `GET /jadwal/roster` (`divisi` sudah diselesaikan server, F.1), tidak dihitung ulang di Vue.
 - Pengesahan HRD menulis sel lewat `PUT /jadwal/cells` sesudah `POST /requests/{id}/decision`, sama dengan `kirimPutusan` lama; endpoint putusan tidak menyentuh sel.
 - Blok DAILY WORKER hanya tampil untuk pemegang `dw` sampai G-03 (laksamana-api#179); yang lain melihat keterangan.
 - Warna shift = data setting (`w`, bisa diubah admin), digambar lewat `JadwalShiftPil` dengan teks terang/gelap dari kecerahannya; tidak ada hex di komponen.
 - Lembar bulanan (31 kolom) bergulir di dalam kotaknya sendiri dengan kolom nama dibekukan, seperti `.tablewrap` lama; halaman tidak bergeser ke samping di 390px.
+
+Catatan bagian 4–5 (Daily Worker):
+- Struktur mengikuti perintah #11: halaman `app/pages/dw/*.vue` (`access: ['dw']`), layar di `app/utils/layar/dw.ts` (kunci NAV_DEF lama), aturan murni di `app/utils/dw.ts`, panggilan/tipe di `app/composables/useDw.ts`, shell `dw` di `app/utils/modul-shell.ts` tepat di bawah blok `jadwal`. Kartu "Daily Worker" di `/jadwal` otomatis aktif begitu route `/dw` ada.
+- Kode divisi `bar|kitchen|floor|cashier` diimpor dari `utils/jadwal.ts` (F.2); tidak ada salinan daftar di modul DW.
+- Head tidak melihat angka uang (F.12): kolom *Est. biaya* di Dashboard, *Upah* di Rekap/Antrean, dan seluruh nominal di Pembayaran **hilang** (bukan "—") untuk bukan HRD; Perkiraan biaya di form Minta juga tidak digambar.
+- Pemisah Antrian↔Riwayat memakai `entriPerluDikerjakan`/`mintaBelumTuntas` (F.18), bukan status; lencana sidebar memakai aturan yang sama.
+- Keterangan wajib di ketiga pintu (Minta, sel Kalender, Ajukan dari Tamu/Rekap serta baris mingguan) untuk non-HRD (F.22); ditahan, bukan diperingatkan.
+- Ganti orang memakai `POST /assignments/{id}/replace`: baris lama → ALFA "Digantikan", baris baru DISETUJUI+HADIR (F.21, dijelaskan di sheet).
+- Pembayaran: tarif + tambahan shift panjang, `hadirDibayar` satu tempat (ALFA tak dibayar; kosong tetap dibayar), pengelompokan per tujuan + penanda `bayarLunas` lewat `POST /payments/marks`. Snapshot tarif **tidak** dibangun (K-10).
+- Matriks Hak Akses UI-only (T-10) dengan penyimpanan selisih; halaman `akses` terkunci; daftar HRD kosong = semua pemegang modul berhak. Kolom head memanggil `GET /jadwal/heads` (T-11) dan gagal dengan manis kalau pemegangnya tidak punya modul `jadwal`.
+- Kalender Tamu (D.12): pax tiga sumber belum ada endpointnya (G-05, laksamana-api#180), jadi bagian pax tampil "Segera (G-05)". `app/utils/pax-harian.ts` sudah memuat port `satukan()` (milik modul jadwal, PLAN §4) sehingga tinggal memanggil endpoint saat tersedia; konteks DW (disetujui/menunggu per hari) dibangun dari `/dw/overview` + `/dw/schedule`.
+- Cek visual: `node mock-api-dw.mjs` (root workspace, port 4011, semua tulisan 403) → `NUXT_PUBLIC_API_BASE=http://127.0.0.1:4011/api/v1 npm run dev`. Login mock: `hrd`/`1111`, `head`/`1111`, `kru`/`1111`. Semua halaman `dw/*` dicek 1366px dan 390px (overflow horizontal 0, console tanpa error), termasuk tampilan head (tanpa uang, hanya Kitchen) dan kru (tanpa keputusan, tanpa divisi).
+- `npm run lint && npm run typecheck && npm run build`: hijau 2026-10-07.
