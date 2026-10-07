@@ -5,6 +5,8 @@
 //
 // Contract: laksamana-api/docs/api/kompas.md "Granular parts of the blob".
 import type { Bon, ComplimentKasir, DailyReport, RokokHari, RokokItem, VoidBaris, VoidSetting } from '~/utils/cashier'
+import type { EmployeesKompas, HariKompas } from '~/utils/porsi-pic'
+import type { RosterUser } from '~/composables/useRoster'
 import { ifMatch, versiDari, type Versi } from '~/utils/versi'
 
 export interface Part<T> {
@@ -48,6 +50,29 @@ export const getRokokItems = () => getBagianKompas<RokokItem[]>('rokok_items', [
 export const putRokokItems = (v: RokokItem[], version: Versi) => putBagianKompas<RokokItem[]>('rokok_items', v, version)
 /** Back to the built-in list: `PUT /sections/{key}` with `value: null` removes the part. */
 export const hapusRokokItems = (version: Versi) => tulis<null>('/kompas/sections/rokok_items', { value: null }, version)
+
+// ---- Performa Kasir (read-only, one whole-blob read) ----
+// The screen needs every daily row of the range INCLUDING `bd` (the event
+// deductions), `employees` (also written by Kompas, synced from the roster per
+// T-01 U2) and `compliments`. `/daily?from&to` deliberately drops `bd`, so the
+// blob read is the correct source here (kompas.md "Endpoints", module cashier).
+
+export interface KompasState {
+  daily?: HariKompas[]
+  employees?: EmployeesKompas
+  compliments?: ComplimentKasir[]
+  owners?: string[]
+  reports?: Record<string, DailyReport>
+  [k: string]: unknown
+}
+
+export const getKompasState = () => baca<KompasState>('/kompas/state', {})
+export const putEmployees = (v: EmployeesKompas, version: Versi) =>
+  putBagianKompas<EmployeesKompas>('employees', v, version)
+
+/** `GET /account/roster` — raw Tim/Keterangan, open to every signed-in user. */
+export const getRoster = async (): Promise<RosterUser[]> =>
+  (await useApi()<Envelope<RosterUser[]>>('/account/roster')).data ?? []
 
 // ---- Catatan Void (own table void_log, NOT the blob: granular rows) ----
 // `diubah` of each row (ms) is its version; the setting carries its own.

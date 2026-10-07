@@ -255,7 +255,7 @@ Konkurensi: legacy memakai **`baseTs`** pada `saveAll` (`:819-852`, penjaga `:80
 9. **Compliment punya dua PIC**: PIC Kasir (selalu dipotong `subTotal`) & PIC Pemberi (menunggu putusan di Performa Marketing/Event); pemberi "Tamu" tidak memotong siapa pun; ganti pemberi → putusan direset — bukti: `:1946-1954`, `:2113-2141`, `:2181`.
 10. **Rokok: semua item selalu tampil (0 = diperiksa, bukan kosong); sisa dihitung dari akumulasi seluruh tanggal sebelumnya; kunci item permanen & data item terhapus dipertahankan** — bukti: `:3062-3095`, `:3143-3154`, `:3226-3236`, `:3255-3259`.
 11. **Performa Kasir hanya menilai akun ber-Keterangan persis "kasir"** (bukan rangkap); rincian per-kasir hanya diri sendiri / admin; gerbang di `draw()` bukan tombol — bukti: `:3592-3635`, `:3643-3661`, `:3774-3783`.
-12. **Berkas kembar `porsiPic()` — di Cashier masih versi LAMA (`r.tiket ? amount×0.5 : amount`), dan itu MENUNGGU KEPUTUSAN**; di omset/kas sudah `amount + tax + service + obTotal`. Jangan disamakan sendiri — mengubahnya mengubah uang berjalan; nilainya dikunci di `tools/uji-openbill-performa.js` — bukti: `CLAUDE.md:2638-2670`, `cashier/index.html:2248-2252`.
+12. **Berkas kembar `porsiPic()` — di Cashier versi LAMA (`r.tiket ? amount×0.5 : amount`), di omset/kas `amount + tax + service + obTotal`**; → **diputuskan K-04: pertahankan versi Cashier**. Vue mengekspor KEDUANYA dari `app/utils/porsi-pic.ts` (`porsiPicCashier`/`porsiPicKompas`) dan tidak menyatukannya — mengubahnya mengubah uang berjalan; nilainya dikunci di `tools/uji-porsi-pic.mjs` — bukti: `CLAUDE.md:2638-2670`, `cashier/index.html:2248-2252`.
 13. **Section event berhenti memotong kasir (7 Agu 2026); baris tanpa potongan disaring `potongKasirAktif` (5 Sep 2026)** — Cashier pernah tertinggal dua perbaikan ini; efek perbaikannya berlaku surut — bukti: `CLAUDE.md:2611-2637`, `cashier/index.html:2315-2364`.
 14. **Open Bill TIDAK dipotong dari kasir** (diakui dua kali, penuh kasir & penuh PIC); `real` tidak ditambah; hanya kartu pengakuan — bukti: `:2253-2266`, `CLAUDE.md:2880-2902`.
 15. **DW tidak ikut membagi potongan event**; baris tanpa shift → pembagi 0, potongan tidak dibebankan & halaman menandainya — bukti: `:2288-2301`, `:2358-2365`.
@@ -293,10 +293,16 @@ Konkurensi: legacy memakai **`baseTs`** pada `saveAll` (`:819-852`, penjaga `:80
   - Teks kuning/gold sebagai teks: `.nav a.active{color:var(--gold-dim)}` (`:146`) → kuning hanya sebagai fill.
 
 ## I. Pertanyaan terbuka
-- [ ] **cashier / semua layar** — `saveAll` (blob utuh) harus dipecah ke endpoint granular v1 mana per layar, dan bagaimana peta `baseTs` → `If-Match`? Konteks: legacy menyimpan seluruh blob, v1 per part. Bukti: `cashier/index.html:834`, `laksamana-api/docs/api/kompas.md:41-49`.
-- [ ] **cashier / kasir + compliment + piutang** — `porsiPic()` di Cashier masih versi LAMA (`r.tiket ? amount×0.5 : amount`) sementara omset/kas sudah `amount+tax+service+obTotal`; ini **keputusan uang** yang ditunda. Vue harus ikut yang mana? Bukti: `CLAUDE.md:2638-2670`, `cashier/index.html:2248-2252`.
-- [ ] **cashier / dp** — Dana Masuk (DP) lama adalah iframe Reservasi `?embed=finance`. Di Vue, bangun panel Dana Masuk di modul cashier atau tautkan ke modul reservasi? Bukti: `cashier/index.html:3945`, `laksamana-api/docs/api/reservasi.md:46`.
-- [ ] **cashier / kasir** — `syncPicOffice()` menulis `DB.employees` (milik Kompas) dari roster Office; apakah Vue cashier tetap menyinkron otomatis saat halaman dibuka? Bukti: `cashier/index.html:3883-3904`.
+- [x] **cashier / semua layar** — `saveAll` harus dipecah ke endpoint granular v1. → **Dijawab T-03 (U4)**: part endpoint
+  per layar + `If-Match`; sudah diterapkan sejak #26 (Report/Piutang/Compliment/Rokok) dan #29 (baca `GET /kompas/state`).
+- [x] **cashier / kasir + compliment + piutang** — `porsiPic()` Cashier versi LAMA vs omset/kas. → **Dijawab K-04 (opsi B)**:
+  pertahankan versi Cashier; dua rumus diekspor terpisah dari `app/utils/porsi-pic.ts` (`porsiPicCashier`/`porsiPicKompas`),
+  jangan disatukan — dikunci `tools/uji-porsi-pic.mjs`.
+- [x] **cashier / dp** — Dana Masuk (DP) iframe Reservasi. → **Dijawab T-12 (U5)**: satu komponen `DanaMasukPanel` di modul
+  reservasi, dipakai ulang cashier & finance; sudah terpasang di `app/pages/cashier/dp.vue` (#26).
+- [x] **cashier / kasir** — `syncPicOffice()` menulis `DB.employees` dari roster Office. → **Dijawab T-01 (U2)**: sinkron tetap
+  di klien, non-destruktif (hanya menambah, `officeUserId` dulu lalu nama); diterapkan di `app/pages/cashier/kasir.vue` (#29)
+  dan gagal-tulis tidak pernah menampilkan baris yang tidak tersimpan.
 
 ## Konsolidasi untuk README & berkas bersama
 
@@ -319,8 +325,8 @@ Konkurensi: legacy memakai **`baseTs`** pada `saveAll` (`:819-852`, penjaga `:80
 - **Cashier ↔ Kompas: berkas kembar wajib serempak** — Report Daily & Compliment menulis objek yang SAMA (`DB.reports[tgl].pay`, `DB.compliments[]`); `PAYS`, `compFilterPic`, `porsiPic`, `potonganHari`/`potongKasirAktif`, `obAktif`/`obTotal`/`openBillList` adalah kembar dengan `deploy/kompas/index.html` & `deploy/finance/omset/` (`cashier/index.html:460-469,585-610,2315-2364`; `CLAUDE.md:2880-2902`). Cashier pernah tertinggal dua perbaikan berturut-turut (`CLAUDE.md:2611-2637`).
 
 ## J. Progres build
-Branch: migrasi/cashier-inti (#26, bagian 1 dari #13) · migrasi/cashier-void (#27) · migrasi/cashier-stock (#28) · Mulai: 2026-10-06
-LANJUTKAN DARI: #29 kasir (`porsi-pic.ts`, K-04) → #30 bri (`cocok-bri.ts`).
+Branch: migrasi/cashier-inti (#26) · migrasi/cashier-void (#27) · migrasi/cashier-stock (#28) · migrasi/cashier-kasir (#29) · Mulai: 2026-10-06
+LANJUTKAN DARI: #30 bri (`cocok-bri.ts`, mesin dari `deploy/assets/cocok-bri.js`).
 
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
@@ -330,7 +336,7 @@ LANJUTKAN DARI: #29 kasir (`porsi-pic.ts`, K-04) → #30 bri (`cocok-bri.ts`).
 | voidb | `app/pages/cashier/voidb.vue` | ✅ | `GET/POST /kompas/voids`, `PUT /kompas/voids/{id}`, `POST /kompas/voids/{id}/cancel`, `PUT /kompas/voids/settings` | — |
 | rokok | `app/pages/cashier/rokok.vue` | ✅ | `GET/PUT /kompas/sections/rokok` | — |
 | rokokrekap | `app/pages/cashier/rokokrekap.vue` | ✅ | `GET /kompas/sections/rokok`, `/sections/rokok_items` | — |
-| kasir | — | ⬜ | | #29 (`porsi-pic.ts`, K-04) |
+| kasir | `app/pages/cashier/kasir.vue` | ✅ | `GET /kompas/state` (`daily[]` + `bd`, `employees`, `compliments` — `/daily?from&to` tidak membawa `bd`), `GET /account/roster`, sinkron PIC `PUT /kompas/sections/employees` (T-01 U2, hanya menambah) | — |
 | dp | `app/pages/cashier/dp.vue` | ✅ | `DanaMasukPanel` (kontrak reservasi, pintu G-14) | — |
 | bri | — | ⬜ | | #30 (`cocok-bri.ts`) |
 | rokokset | `app/pages/cashier/rokokset.vue` | ✅ | `GET/PUT /kompas/sections/rokok_items` (`null` = kembali ke bawaan) | — |
@@ -356,6 +362,29 @@ Catatan build #28 (rokok):
   tersimpan dan kembali utuh bila nama yang sama ditambahkan lagi. `null` pada `rokok_items` = kembali ke bawaan.
 - Cek visual 2026-10-07 (mock `mock-api-cashier.mjs`, port 4013, tulis 403): 3 layar di 1366px & 390px, overflow 0,
   angka rekap & peringatan minus cocok dengan data mock, PUT ditolak 403 (toast).
+
+Catatan build #29 (performa kasir):
+- Mesin pindahan di `app/utils/porsi-pic.ts` (milik jalur cashier; finance mengimpor, tidak menyalin):
+  `porsiPicCashier` dan `porsiPicKompas` SENGAJA dua rumus (K-04); `potonganBaris`/`potonganHari` (bagi per shift,
+  DW tidak ikut membagi, hanya section marketing), `potongKasirAktif`, `barisTanpaShift`, `openBillList`/`obTotal`,
+  `omsetKasir`/`diskonKasir`, `BONUS_KASIR`/`bonusKasir`, `ketKasir`/`kasirMurni`/`kasirSaya`, `compPotong`/`compFilterPic`.
+- Dua perbaikan yang dulu berhenti di berkas kembar (§F.13, 5 Sep 2026) kini ikut: `potonganBaris` menolkan baris
+  `ditempat`/`payGroup=false` walau shift-nya terlanjur tersimpan; hanya section marketing yang memotong.
+- Angka final = bruto − diskon bill − potongan event (per shift) − compliment (subTotal saja). Compliment di hari
+  tanpa baris omset tampil sebagai baris minus tersendiri: tidak ikut tabel, tetap ikut total, dan disebut di card-sub
+  Riwayat supaya jumlah kolom vs Omset Diakui tidak tampak seperti salah hitung.
+- Grafik Chart.js lama diganti daftar `AppBar` per tanggal (maks `max-h-80`, bisa digulir); riwayat tetap tabel +
+  pager 12 baris. Mode Harian/Bulanan dipertahankan seperti topbar lama.
+- Sinkron PIC Office (T-01 U2) tetap di klien dan NON-destruktif (cocok `officeUserId` dulu, lalu nama); bila tulis
+  ditolak, daftar tersimpan yang dipakai — baris hasil sinkron yang gagal disimpan tidak pernah ikut tampil.
+- Gerbang akses ADA DI VIEW, bukan cuma tombol: non-admin hanya bisa membuka `Semua` + namanya sendiri; tab `Semua`
+  tetap terbuka sebagai angka gabungan (persis keputusan 7 Sep 2026).
+- `npm run uji:porsi-pic`: 26 pemeriksaan — PORSI_PIC_TIKET & BONUS_KASIR dibandingkan dengan `deploy/cashier`, dan
+  kedua rumus `porsiPic` (cashier + omset/kas) dicek persis di berkas kembarnya; 15 mutasi dicoba, semua tertangkap.
+- Cek visual 2026-10-07 (mock `mock-api-cashier.mjs`, port 4013, tulis 403) sebagai kasir & admin modul: 1366px &
+  390px overflow 0, console bersih; angka tab `Semua` Rp11.160.000 dan tab Sari Rp9.160.000 cocok hitungan tangan
+  (termasuk potongan tiket 50%, `ditempat` tidak memotong, compliment 25rb+15rb, OFF d3, open bill 60rb pengakuan),
+  peringatan "belum ditentukan" menyebut 2026-10-02 saja, mode Harian "Senin, 5 Oktober 2026" → Rp1.400.000.
 
 ## K. Daftar uji cutover (layar #26)
 Setiap aksi tulis diuji SILANG: ubah di Vue → terlihat di Office lama (Cashier & Finance › Omset), dan sebaliknya.
