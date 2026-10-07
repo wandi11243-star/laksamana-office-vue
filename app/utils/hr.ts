@@ -43,8 +43,9 @@ export interface HrEmployee {
 export interface HrKpiItem { id: string, name: string, weight: number, target: number, unit: string, dir: 'up' | 'down' }
 export interface HrKpiTemplate { id: string, divId: string, items: HrKpiItem[] }
 
-export interface HrKeyResult { id: string, name: string, target: number, unit: string, progress: number }
-export interface HrOkr { id: string, ownerType: string, ownerId: string, period: string, objective: string, keyResults: HrKeyResult[] }
+export interface HrKeyResult { id?: string, name: string, target: number, unit: string, progress: number }
+/** Fields follow the CODE (ownerType/ownerId/period/krs), not the seed comment (D.5). */
+export interface HrOkr { id: string, ownerType: string, ownerId: string, period: string, objective: string, krs: HrKeyResult[] }
 
 export interface HrReviewLayer { aspects?: Record<string, number | string>, comment?: string }
 export interface HrReview { id: string, empId: string, month: string, layers: Record<string, HrReviewLayer>, status?: string }
@@ -325,6 +326,17 @@ export function scopeEmps(s: HrState, cu: HrEmployee | null, officeHrAdmin = fal
 
 export const isOfficeHrAdmin = (me: Me | null) => !!me && (me.adminModules.includes('hr') || me.adminModules.includes('*'))
 
+/**
+ * Who is visible on the Kehadiran page: same permission gate as scopeEmps,
+ * but INCLUDING Nonaktif crew — attendance is history, and someone who is
+ * inactive today really worked in the month being viewed (F.10, :1657).
+ */
+export function scopeKehadiran(s: HrState, cu: HrEmployee | null, officeHrAdmin = false): HrEmployee[] {
+  if (!cu) return []
+  if (canHr('seeAll', cu, officeHrAdmin)) return s.employees.filter(e => e.appRole !== 'ceo')
+  return s.employees.filter(e => e.id === cu.id)
+}
+
 // ---------------------------------------------------------------- roster matching (F.14/F.15)
 
 export const normName = (n: unknown) => String(n || '').toLowerCase().replace(/[^a-z\s]/g, '').replace(/\s+/g, ' ').trim()
@@ -435,6 +447,25 @@ export function klaimKruSesi(s: HrState, cu: HrEmployee, userId: string): boolea
   if (cu.id === userId) return false
   pindahIdKru(s, cu.id, userId)
   return true
+}
+
+// ---------------------------------------------------------------- review layer
+
+/** Which layer this viewer fills for this employee (`myLayer`, :1994). */
+export function lapisanReview(cu: HrEmployee | null, emp: HrEmployee | null): 'ceo' | 'hr' | 'manager' | 'self' | null {
+  if (!cu || !emp) return null
+  if (cu.appRole === 'ceo') return 'ceo'
+  if (cu.appRole === 'hr') return 'hr'
+  if (cu.appRole === 'manager' && emp.divId === cu.divId && cu.id !== emp.id) return 'manager'
+  if (cu.id === emp.id) return 'self'
+  return null
+}
+
+export const LABEL_LAPISAN: Record<string, string> = {
+  self: 'Self Assessment',
+  manager: 'Atasan Langsung',
+  hr: 'HRD',
+  ceo: 'CEO',
 }
 
 // ---------------------------------------------------------------- audit
