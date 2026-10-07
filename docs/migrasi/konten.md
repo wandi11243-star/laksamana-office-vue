@@ -507,13 +507,13 @@ Konkurensi: legacy menstempel `updatedAt=sekarang` + `baseUpdatedAt=versi server
 
 ## J. Progres build
 Issue: #15, dipecah #47–#51 · Branch saat ini: `migrasi/konten-perencanaan` (#47) · Mulai: 2026-10-07
-LANJUTKAN DARI: #47 — pipeline (D.3), lalu calendar (D.4).
+LANJUTKAN DARI: #47 — calendar (D.4).
 
 | layar (key) | file | status | endpoint dipakai | sub-issue |
 |---|---|---|---|---|
 | dashboard | `app/pages/konten/dashboard.vue` | ✅ | `GET /konten/state` | #47 — Top Konten masih `metrics.reach` (F.4), pindah ke `perf` di #49; `autoUpdateStatuses` (tulis status iklan) ikut #50 |
 | planning | `app/pages/konten/planning.vue` | ✅ | `GET /konten/state` | #47 |
-| pipeline | — | ⬜ | | #47 |
+| pipeline | `app/pages/konten/pipeline.vue` | ✅ | `PATCH /konten/content/{id}` (status), `POST /konten/notifications` | #47 — HP: daftar per status (drag tak dibawa ke sentuh) |
 | calendar | — | ⬜ | | #47 |
 | panel detail + form konten (D.21) | `app/pages/konten/detail/[id].vue`, `app/components/KontenForm.vue` | ✅ | `POST/PUT/PATCH/DELETE /konten/content`, `DELETE /konten/shootings/{id}` (syncProdTasks), `POST /konten/notifications`, `POST /konten/logs` | #47 — blok performa (`renderPerfBlock`) ikut #49 |
 | shooting | — | ⬜ | | #48 |
