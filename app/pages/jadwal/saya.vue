@@ -11,8 +11,8 @@
 <script setup lang="ts">
 import type { PengajuanJadwal } from '~/composables/useJadwal'
 import {
-  HARI_SENIN, JENIS_AJU, LABEL_STATUS_AJU, ajuBerjalan, akhirBulan, awalBulan, bulanDari, daftarShift, durasiJam,
-  geserBulan, idxHari, jamSel, kunciSel, labelSel, namaDivisiJadwal, petaSel, shiftDef,
+  JENIS_AJU, LABEL_STATUS_AJU, ajuBerjalan, akhirBulan, awalBulan, bulanDari, daftarShift, durasiJam,
+  geserBulan, jamSel, kunciSel, namaDivisiJadwal, petaSel, shiftDef,
 } from '~/utils/jadwal'
 import { useJadwalCells, useJadwalDasar, useJadwalRequests } from '~/composables/useJadwal'
 import { STATUS_AJU_IKON, STATUS_AJU_WARNA } from '~/utils/status-jadwal'
@@ -70,13 +70,6 @@ const hitung = computed(() => {
   return { masuk, libur, jam: Math.round(jam * 10) / 10 }
 })
 
-/** Leading blanks so Monday stays under "Sen". */
-const kosongAwal = computed(() => idxHari(dari.value))
-const tanggal = computed(() => {
-  const out: string[] = []
-  for (let d = dari.value; d <= sampai.value; d = tambahHari(d, 1)) out.push(d)
-  return out
-})
 const legenda = computed(() => daftarShift(set.value).map(k => ({ k, def: shiftDef(set.value, k) })))
 
 const form = ref(false)
@@ -214,57 +207,16 @@ const sesudahKirim = () => Promise.all([refreshAju(), refreshSel()])
             <b>tukar shift</b> pada hari itu — atau pakai tombol <b>Ajukan off / izin</b> di atas.</span>
         </p>
 
-        <div class="grid grid-cols-7 gap-1 sm:gap-1.5">
-          <div
-            v-for="(h, i) in HARI_SENIN"
-            :key="h"
-            class="pb-1 text-center text-[11px] font-bold uppercase"
-            :class="i >= 5 ? 'text-primary-700' : 'text-muted'"
-          >
-            {{ h.slice(0, 3) }}
-          </div>
-          <div
-            v-for="n in kosongAwal"
-            :key="`k${n}`"
-          />
-          <button
-            v-for="d in tanggal"
-            :key="d"
-            type="button"
-            class="flex min-h-16 flex-col items-stretch gap-0.5 rounded-field border p-1 text-start focus-visible:outline-2 focus-visible:outline-primary sm:min-h-20 sm:p-1.5"
-            :class="[
-              d === hariIni() ? 'border-primary-500 ring-1 ring-primary-400' : 'border-default',
-              peta.get(kunciSel(peran.id, d)) ? 'bg-default' : 'bg-muted',
-            ]"
-            :title="`${fTgl(d)} — ${peta.get(kunciSel(peran.id, d)) ? 'klik untuk mengajukan off, izin, atau tukar shift' : 'belum diatur head. Klik untuk mengajukan.'}`"
-            @click="ajukan(d)"
-          >
-            <span class="flex items-center gap-1 text-xs font-bold text-highlighted num">
-              {{ Number(d.slice(8)) }}
-              <span
-                v-if="ajuPeta[d] === 'MENUNGGU'"
-                class="size-1.5 rounded-full bg-warning"
-                title="pengajuan menunggu"
-              />
-            </span>
-            <template v-if="peta.get(kunciSel(peran.id, d))">
-              <JadwalShiftPil
-                :def="shiftDef(set, peta.get(kunciSel(peran.id, d))!.t)"
-                :label="labelSel(set, peta.get(kunciSel(peran.id, d)))"
-                size="sm"
-                class="justify-center truncate"
-              />
-              <span
-                v-if="jamSel(set, peta.get(kunciSel(peran.id, d)))"
-                class="hidden text-center text-[10px] text-muted num sm:block"
-              >{{ jamSel(set, peta.get(kunciSel(peran.id, d)))!.m }}–{{ jamSel(set, peta.get(kunciSel(peran.id, d)))!.s }}</span>
-            </template>
-            <span
-              v-else
-              class="text-[10px] italic text-dimmed"
-            >belum diatur</span>
-          </button>
-        </div>
+        <JadwalKalender
+          :set="set"
+          :peta="peta"
+          :uid="peran.id"
+          :mk="mk"
+          bisa
+          judul-klik="klik untuk mengajukan off, izin, atau tukar shift"
+          :tanda="ajuPeta"
+          @pilih="ajukan"
+        />
 
         <div class="mt-4 flex flex-wrap items-center justify-between gap-2">
           <div class="flex flex-wrap gap-1.5">

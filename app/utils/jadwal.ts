@@ -746,3 +746,55 @@ export function unduhCsvJadwal(nama: string, csv: string) {
   a.click()
   setTimeout(() => URL.revokeObjectURL(a.href), 1000)
 }
+
+// ------------------------------------------------------------- Rekap Pegawai
+
+/** Hours between today's shift end and tomorrow's start; null when either is off/empty (`jedaKeBesok`, `:3084`). */
+export function jedaKeBesok(set: SettingJadwal, sel: PetaSel, uid: string, tgl: string): number | null {
+  const c1 = sel.get(kunciSel(uid, tgl))
+  const c2 = sel.get(kunciSel(uid, tambahHari(tgl, 1)))
+  if (!c1 || !c2 || shiftDef(set, c1.t).libur || shiftDef(set, c2.t).libur) return null
+  const j1 = jamSel(set, c1)
+  const j2 = jamSel(set, c2)
+  if (!j1 || !j2) return null
+  const men = (t: string) => {
+    const q = t.split(':')
+    return Number(q[0]) * 60 + Number(q[1])
+  }
+  let selesai = men(j1.s)
+  if (selesai <= men(j1.m)) selesai += 1440
+  return Math.round((1440 + men(j2.m) - selesai) / 60 * 10) / 10
+}
+
+/** Weekend days worked and the shortest rest between shifts (`rekapDetail`, `:3166`). */
+export function rekapDetail(set: SettingJadwal, sel: PetaSel, uid: string, mk: string) {
+  const z = akhirBulan(mk)
+  let wknd = 0
+  let jedaMin: number | null = null
+  for (let d = awalBulan(mk); d <= z; d = tambahHari(d, 1)) {
+    const c = sel.get(kunciSel(uid, d))
+    if (c && !shiftDef(set, c.t).libur && idxHari(d) >= 5) wknd++
+    if (d < z) {
+      const j = jedaKeBesok(set, sel, uid, d)
+      if (j !== null && (jedaMin === null || j < jedaMin)) jedaMin = j
+    }
+  }
+  return { wknd, jedaMin }
+}
+
+/** How often each shift code was used in the month (`rincianShift`, `:3157`). */
+export function rincianShift(sel: PetaSel, uid: string, mk: string): Record<string, number> {
+  const n: Record<string, number> = {}
+  for (let d = awalBulan(mk); d <= akhirBulan(mk); d = tambahHari(d, 1)) {
+    const c = sel.get(kunciSel(uid, d))
+    if (c) n[c.t] = (n[c.t] ?? 0) + 1
+  }
+  return n
+}
+
+/** A job title that only repeats the Divisi name is not shown twice (`jabatanSetara`). */
+export function jabatanSetara(jab: string, div: string): boolean {
+  const rapi = (s: string) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '')
+  const j = rapi(jab)
+  return !j || j === rapi(namaDivisiJadwal(div))
+}
