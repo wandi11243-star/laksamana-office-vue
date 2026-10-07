@@ -317,3 +317,51 @@ Konkurensi: legacy memakai **`baseTs`** pada `saveAll` (`:819-852`, penjaga `:80
 - **Cashier TIDAK memanggil Finance/Account sebagai data uang**: backend-nya = **Kompas** (`../kompas-api-mysql/api.php`, blob `daily/reports/compliments/piutang/rokok/employees`, `cashier/index.html:484`,`:834`) dan **Office/Account** hanya untuk identitas (`account-api-mysql?action=listDivisiRoster` & `listModuleRoster{module:'cashier'}`, `:1896`,`:3886`,`:4016-4018`). Cashier juga menulis balik DP **Reservasi** saat mencocokkan QRIS BRI (`reservasi-api-mysql?action=saveAll`, `cocok-bri.js:432`).
 - **Aset bersama `deploy/assets/cocok-bri.js`** (mesin QRIS BRI, 2.240 baris) dipakai `deploy/cashier/`, `deploy/finance/kas/`, dan `deploy/reservasi/` — rumus pencocokan & pembagian DP wajib dipindah ke satu sumber di Vue; v1: `GET/POST /api/v1/kompas/bri*` (`cashier/index.html:39`, `cocok-bri.js:259,1682,1714,1970,2052`; `docs/api/kompas.md:94-104`).
 - **Cashier ↔ Kompas: berkas kembar wajib serempak** — Report Daily & Compliment menulis objek yang SAMA (`DB.reports[tgl].pay`, `DB.compliments[]`); `PAYS`, `compFilterPic`, `porsiPic`, `potonganHari`/`potongKasirAktif`, `obAktif`/`obTotal`/`openBillList` adalah kembar dengan `deploy/kompas/index.html` & `deploy/finance/omset/` (`cashier/index.html:460-469,585-610,2315-2364`; `CLAUDE.md:2880-2902`). Cashier pernah tertinggal dua perbaikan berturut-turut (`CLAUDE.md:2611-2637`).
+
+## J. Progres build
+Branch: migrasi/cashier-inti (#26, bagian 1 dari #13) · Mulai: 2026-10-06
+LANJUTKAN DARI: #27 voidb → #28 rokok → #29 kasir → #30 bri.
+
+| layar (key) | file | status | endpoint dipakai | ditunda karena |
+|---|---|---|---|---|
+| report | `app/pages/cashier/report.vue` | ✅ | `GET/PUT /kompas/reports/{date}`, `GET /kompas/sections/piutang` | — |
+| piutang | `app/pages/cashier/piutang.vue` | ✅ | `GET/PUT /kompas/sections/piutang`, `/sections/owners`, `GET /account/roster` | — |
+| compliment | `app/pages/cashier/compliment.vue` | ✅ | `GET/PUT /kompas/sections/compliments`, `GET /kompas/reports/{date}`, `GET /account/roster` | — |
+| voidb | — | ⬜ | | #27 |
+| rokok | — | ⬜ | | #28 |
+| rokokrekap | — | ⬜ | | #28 |
+| kasir | — | ⬜ | | #29 (`porsi-pic.ts`, K-04) |
+| dp | `app/pages/cashier/dp.vue` | ✅ | `DanaMasukPanel` (kontrak reservasi, pintu G-14) | — |
+| bri | — | ⬜ | | #30 (`cocok-bri.ts`) |
+| rokokset | — | ⬜ | | #28 |
+| akses | `app/pages/cashier/akses.vue` | ✅ | `GET /account/modules/cashier/members` | — |
+
+Catatan build:
+- **Satu perilaku sengaja berbeda dari lama:** submit Report Daily mempertahankan tanda lain di report yang sama
+  (`mdr`, `aktual`, `setor`, … dari Finance › Rekap Penjualan). Layar lama mengganti seluruh objek dan membuangnya.
+- Konflik versi (409/428) tidak membuang isian Report Daily: isian tetap di layar, pita "Belum tersimpan" muncul.
+- Rumus murni di `app/utils/cashier.ts`, dijaga `npm run uji:cashier` (28 pemeriksaan; PAYS dibandingkan dengan
+  `deploy/cashier` dan `deploy/finance/omset`; 8 mutasi dicoba, semua tertangkap).
+- Nama auto-import dijaga unik: tipe `ComplimentKasir` (bukan `Compliment`, sudah dipakai `performa-bonus.ts`),
+  `getBagianKompas`/`putBagianKompas` (bukan `getSection`, sudah dipakai `useReservasi.ts`).
+- Cek visual 2026-10-07 dengan API tiruan baca-saja (tulis = 403): 1366px terang, kelima layar + validasi bon,
+  konfirmasi lunasi, mode ubah compliment, penolakan simpan tampil sebagai toast; 390px tanpa geser samping.
+
+## K. Daftar uji cutover (layar #26)
+Setiap aksi tulis diuji SILANG: ubah di Vue → terlihat di Office lama (Cashier & Finance › Omset), dan sebaliknya.
+
+1. **Report Daily** — pilih tanggal hari ini, isi POS & Actual beberapa metode, tekan Submit. Pastikan angka sama di
+   Report Daily Office lama dan di Finance › Rekap Penjualan. Isi MDR di Rekap Penjualan, lalu Update dari Vue:
+   MDR **tidak hilang**.
+2. **Report Daily, toleransi** — buat selisih total Rp5.000 (pita hijau) lalu Rp5.001 (pita merah); submit tetap bisa.
+3. **Report Daily, bon** — catat bon Cash di Piutang tanggal yang sama: kolom Sisa Selisih & kartu Penjelasan muncul,
+   selisih Cash terjelaskan.
+4. **Report Daily, konflik** — buka tanggal yang sama di dua tab, simpan di tab A lalu tab B: tab B menolak, isian tab B
+   tetap di layar.
+5. **Piutang** — tambah bon tamu (PIC wajib), owner baru (masuk daftar owner), ubah nominal, hapus. Cek di Office lama.
+6. **Piutang, lunasi** — lunasi 2 bon satu orang dengan tanggal uang diterima & metode lain; muncul di Riwayat dan sebagai
+   pelunasan di Report Daily tanggal itu. Batal lunas mengembalikannya.
+7. **Compliment** — tambah dengan PIC Kasir & Pemberi, ubah pemberinya (status kembali "Menunggu keputusan"), hapus.
+   Total harus cocok dengan POS Compliment + Member Deposit Report Daily.
+8. **Dana Masuk** — pemegang `cashier` tanpa modul reservasi bisa melihat dan memverifikasi DP; tidak ada tombol hapus.
+9. **Kelola Akses** — daftar sama dengan pemegang modul `cashier` di Kelola Akses Office.

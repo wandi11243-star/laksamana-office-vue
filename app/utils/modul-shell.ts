@@ -121,6 +121,12 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
   // ── hr ──
 
   // ── cashier ──
+  cashier: {
+    subjudul: 'Cashier',
+    layar: LAYAR_CASHIER,
+    tambah: { label: 'Report Daily', to: '/cashier/report' },
+    peran: me => (isAdminOf(me, 'cashier') ? 'Admin modul' : 'Kasir'),
+  },
 
   // ── finance ──
 
