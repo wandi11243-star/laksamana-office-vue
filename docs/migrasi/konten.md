@@ -504,3 +504,31 @@ Konkurensi: legacy menstempel `updatedAt=sekarang` + `baseUpdatedAt=versi server
 - **Analytics ← Konten**: modul `deploy/analytics/` TIDAK punya DB sendiri; membaca blob Konten lewat `konten-api?action=getAll` dan memakai aset yang sama `deploy/assets/performa-konten.js` untuk halaman Performa Konten & Performa Desain (`laksamana-office/CLAUDE.md:6646-6663,6799-6806`). **YA, konten memasok Analytics** (reach/engagement/virality/CTA + `prod.design`).
 - **Aset bersama**: `deploy/assets/performa-konten.js` dipakai `deploy/konten/` (perfinput/analytics/designperf) DAN `deploy/analytics/` — rumus ER/Virality Index/CTA Click Rate/pillar WAJIB dipindah apa adanya ke Vue (satu sumber) (`laksamana-office/deploy/konten/index.html:4174-4208`; `CLAUDE.md:6638-6649`).
 - **Office/Account → Konten**: sesi `lm_session` + roster ber-grant `konten` (`account-api-mysql?action=listModuleRoster{module:'konten'}`, cadangan Apps Script) — v1 dari `/api/v1/account/*` (`laksamana-office/deploy/konten/index.html:1303-1363`).
+
+## J. Progres build
+Issue: #15, dipecah #47–#51 · Branch saat ini: `migrasi/konten-perencanaan` (#47) · Mulai: 2026-10-07
+LANJUTKAN DARI: #47 — `useKonten.ts`, layar, shell, lalu dashboard.
+
+| layar (key) | file | status | endpoint dipakai | sub-issue |
+|---|---|---|---|---|
+| dashboard | — | ⬜ | | #47 |
+| planning | — | ⬜ | | #47 |
+| pipeline | — | ⬜ | | #47 |
+| calendar | — | ⬜ | | #47 |
+| panel detail + form konten (D.21) | — | ⬜ | | #47 |
+| shooting | — | ⬜ | | #48 |
+| design | — | ⬜ | | #48 |
+| editing | — | ⬜ | | #48 |
+| assets | — | ⬜ | | #48 |
+| approval | — | ⬜ | | #49 |
+| publishing | — | ⬜ | | #49 |
+| perfinput | — | ⬜ | | #49 (hapus 1 platform: G-01) |
+| analytics | — | ⬜ | | #49 (`performa-konten.ts`) |
+| designperf | — | ⬜ | | #49 |
+| kol | — | ⬜ | | #50 |
+| ads | — | ⬜ | | #50 |
+| chats | — | ⬜ | | #50 |
+| brands | — | ⬜ | | #51 |
+| activity | — | ⬜ | | #51 |
+| settings | — | ⬜ | | #51 (Restore JSON: K-01/G-13) |
+| profile | — | ⬜ | | #51 |
