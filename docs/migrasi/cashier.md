@@ -1,7 +1,7 @@
 # Cashier — inventaris migrasi
 
-Status: ⚠️ selesai dengan celah
-Terakhir diperbarui: 2026-09-29
+Status: ✅ 11/11 layar dibangun 2026-10-07 — PR #35–#37 menunggu review/merge
+Terakhir diperbarui: 2026-10-07
 
 > **Triase 2026-09-29** — status di tabel E yang bertentangan dengan catatan ini: catatan ini yang berlaku.
 > Rincian: [`_pertanyaan.md`](_pertanyaan.md), [`_gap-api.md`](_gap-api.md).
