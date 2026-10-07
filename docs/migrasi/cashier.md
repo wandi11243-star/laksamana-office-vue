@@ -319,8 +319,8 @@ Konkurensi: legacy memakai **`baseTs`** pada `saveAll` (`:819-852`, penjaga `:80
 - **Cashier ↔ Kompas: berkas kembar wajib serempak** — Report Daily & Compliment menulis objek yang SAMA (`DB.reports[tgl].pay`, `DB.compliments[]`); `PAYS`, `compFilterPic`, `porsiPic`, `potonganHari`/`potongKasirAktif`, `obAktif`/`obTotal`/`openBillList` adalah kembar dengan `deploy/kompas/index.html` & `deploy/finance/omset/` (`cashier/index.html:460-469,585-610,2315-2364`; `CLAUDE.md:2880-2902`). Cashier pernah tertinggal dua perbaikan berturut-turut (`CLAUDE.md:2611-2637`).
 
 ## J. Progres build
-Branch: migrasi/cashier-inti (#26, bagian 1 dari #13) · Mulai: 2026-10-06
-LANJUTKAN DARI: #28 rokok → #29 kasir → #30 bri.
+Branch: migrasi/cashier-inti (#26, bagian 1 dari #13) · migrasi/cashier-void (#27) · migrasi/cashier-stock (#28) · Mulai: 2026-10-06
+LANJUTKAN DARI: #29 kasir (`porsi-pic.ts`, K-04) → #30 bri (`cocok-bri.ts`).
 
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
@@ -328,12 +328,12 @@ LANJUTKAN DARI: #28 rokok → #29 kasir → #30 bri.
 | piutang | `app/pages/cashier/piutang.vue` | ✅ | `GET/PUT /kompas/sections/piutang`, `/sections/owners`, `GET /account/roster` | — |
 | compliment | `app/pages/cashier/compliment.vue` | ✅ | `GET/PUT /kompas/sections/compliments`, `GET /kompas/reports/{date}`, `GET /account/roster` | — |
 | voidb | `app/pages/cashier/voidb.vue` | ✅ | `GET/POST /kompas/voids`, `PUT /kompas/voids/{id}`, `POST /kompas/voids/{id}/cancel`, `PUT /kompas/voids/settings` | — |
-| rokok | — | ⬜ | | #28 |
-| rokokrekap | — | ⬜ | | #28 |
+| rokok | `app/pages/cashier/rokok.vue` | ✅ | `GET/PUT /kompas/sections/rokok` | — |
+| rokokrekap | `app/pages/cashier/rokokrekap.vue` | ✅ | `GET /kompas/sections/rokok`, `/sections/rokok_items` | — |
 | kasir | — | ⬜ | | #29 (`porsi-pic.ts`, K-04) |
 | dp | `app/pages/cashier/dp.vue` | ✅ | `DanaMasukPanel` (kontrak reservasi, pintu G-14) | — |
 | bri | — | ⬜ | | #30 (`cocok-bri.ts`) |
-| rokokset | — | ⬜ | | #28 |
+| rokokset | `app/pages/cashier/rokokset.vue` | ✅ | `GET/PUT /kompas/sections/rokok_items` (`null` = kembali ke bawaan) | — |
 | akses | `app/pages/cashier/akses.vue` | ✅ | `GET /account/modules/cashier/members` | — |
 
 Catatan build:
@@ -346,6 +346,16 @@ Catatan build:
   `getBagianKompas`/`putBagianKompas` (bukan `getSection`, sudah dipakai `useReservasi.ts`).
 - Cek visual 2026-10-07 dengan API tiruan baca-saja (tulis = 403): 1366px terang, kelima layar + validasi bon,
   konfirmasi lunasi, mode ubah compliment, penolakan simpan tampil sebagai toast; 390px tanpa geser samping.
+
+Catatan build #28 (rokok):
+- `ROKOK_BAWAAN` (18 item, dua `lain`) dibandingkan per-isi dengan `deploy/cashier` lewat `npm run uji:cashier`
+  (kini 50 pemeriksaan: `rksKunci`, sisa awal lintas tanggal, rekap bulan, kunci lama yang dipertahankan saat
+  simpan, jumlah hari per item, jumlah item `lain`).
+- Sisa Awal dihitung dari SELURUH tanggal sebelumnya, bukan kemarin; hari bolong tidak mengembalikan 0.
+- Kunci item permanen: ubah nama tidak mengubah kunci; buang item hanya melepas dari lembar, angkanya tetap
+  tersimpan dan kembali utuh bila nama yang sama ditambahkan lagi. `null` pada `rokok_items` = kembali ke bawaan.
+- Cek visual 2026-10-07 (mock `mock-api-cashier.mjs`, port 4013, tulis 403): 3 layar di 1366px & 390px, overflow 0,
+  angka rekap & peringatan minus cocok dengan data mock, PUT ditolak 403 (toast).
 
 ## K. Daftar uji cutover (layar #26)
 Setiap aksi tulis diuji SILANG: ubah di Vue → terlihat di Office lama (Cashier & Finance › Omset), dan sebaliknya.
