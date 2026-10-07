@@ -507,14 +507,14 @@ Konkurensi: legacy menstempel `updatedAt=sekarang` + `baseUpdatedAt=versi server
 
 ## J. Progres build
 Issue: #15, dipecah #47–#51 · Branch saat ini: `migrasi/konten-perencanaan` (#47) · Mulai: 2026-10-07
-LANJUTKAN DARI: #47 — calendar (D.4).
+LANJUTKAN DARI: #48 — antrian produksi (shooting, design, editing) + assets. #47 selesai.
 
 | layar (key) | file | status | endpoint dipakai | sub-issue |
 |---|---|---|---|---|
 | dashboard | `app/pages/konten/dashboard.vue` | ✅ | `GET /konten/state` | #47 — Top Konten masih `metrics.reach` (F.4), pindah ke `perf` di #49; `autoUpdateStatuses` (tulis status iklan) ikut #50 |
 | planning | `app/pages/konten/planning.vue` | ✅ | `GET /konten/state` | #47 |
 | pipeline | `app/pages/konten/pipeline.vue` | ✅ | `PATCH /konten/content/{id}` (status), `POST /konten/notifications` | #47 — HP: daftar per status (drag tak dibawa ke sentuh) |
-| calendar | — | ⬜ | | #47 |
+| calendar | `app/pages/konten/calendar.vue` | ✅ | `PATCH /konten/content`, `/prod-tasks`, `/shootings`, `/visits` (geser tanggal) | #47 — (koreksi build 2026-10-07) tanggal sel | calendar | — | ⬜ | | #47 | "hari ini" lokal; lama memakai toISOString sehingga sel WIB menampilkan acara sehari sebelumnya |
 | panel detail + form konten (D.21) | `app/pages/konten/detail/[id].vue`, `app/components/KontenForm.vue` | ✅ | `POST/PUT/PATCH/DELETE /konten/content`, `DELETE /konten/shootings/{id}` (syncProdTasks), `POST /konten/notifications`, `POST /konten/logs` | #47 — blok performa (`renderPerfBlock`) ikut #49 |
 | shooting | — | ⬜ | | #48 |
 | design | — | ⬜ | | #48 |
@@ -537,3 +537,13 @@ Catatan build:
 - Fondasi #47: `app/utils/konten.ts` (konstanta & rumus murni), `app/utils/status-konten.ts`, `app/composables/useKonten.ts` (satu `GET /state` bersama, CRUD per record dengan If-Match = `updatedAt`), `app/utils/layar/konten.ts`, entri shell. Uji: `node tools/uji-konten.mjs` (28 cek; 10 mutasi tertangkap).
 - Kru tanpa baris `users` dikenali di memori sebagai planner (super_admin bila admin modul Office), seperti `resolveKontenUser` lama; sinkron roster → `POST /users` ikut Kelola Kru (#51).
 - Halaman detail konten di `/konten/detail/[id]` (lama: drawer).
+
+## K. Daftar uji cutover
+Uji silang Vue ↔ Office lama pada data yang sama (dev). Bagian #47:
+
+- [ ] **dashboard** — 4 kartu sama angkanya dengan lama; Today's Schedule, Menunggu Approval, Tugas Saya (3 sumber, terlambat di atas), Top Konten.
+- [ ] **planning** — tiap saringan (arsip, status, platform, pillar, PIC + hitungan, cari judul+detailing) memberi baris yang sama; status Posted saat saringan Aktif tetap menampilkan baris (F.2); Reset → Aktif.
+- [ ] **pipeline** — seret kartu → status berubah dan terlihat di Office lama; masuk Approval membuat notifikasi.
+- [ ] **calendar** — acara jatuh di tanggal yang benar (bandingkan dengan tanggal di data, bukan dengan sel lama yang bergeser sehari); geser tayang/produksi/tugas/kunjungan tersimpan.
+- [ ] **detail** — mundur/lanjut status, minta revisi, batalkan, hapus, toggle kebutuhan produksi (doneAt), checklist, komentar + @mention (notifikasi ke yang disebut), tandai tayang (publishRecord); tiap aksi tampil sama di Office lama.
+- [ ] **form konten** — buat & edit: platform/content type/print type multi, field tunggal lama ikut tertulis, keyword/caption/script lama tidak terhapus, referensi link+foto, rekomendasi tanggal produksi; konflik versi (dua tab) memunculkan pesan "Data sudah diubah orang lain".
