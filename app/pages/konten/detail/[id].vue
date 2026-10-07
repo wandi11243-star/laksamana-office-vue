@@ -9,8 +9,8 @@
 
   Every action is a PATCH of the changed fields with the row's version
   (`updatedAt`), plus the old activity line (logAct) and, where the old client
-  notified, a notification row. Performance figures (renderPerfBlock) arrive
-  with performa-konten.ts in #49.
+  notified, a notification row. Performance figures: KontenPerfBlok
+  (renderPerfBlock, from performa-konten.ts).
 -->
 <script setup lang="ts">
 import type { KontenItem, ProdKind } from '~/utils/konten'
@@ -66,23 +66,8 @@ async function geser(arah: 1 | -1) {
   if (await tambal(fields, `Status → ${s}`, `mengubah status → ${s}`) && s === 'Approval') notifKonten('approval', `Menunggu approval: ${c.value.title}`)
 }
 
-// ---- revision (:2462-2468) ----
+// ---- revision (:2462-2468): KontenRevisiSheet ----
 const revisiBuka = ref(false)
-const catatanRevisi = ref('')
-const revisiSalah = ref(false)
-async function kirimRevisi() {
-  const note = catatanRevisi.value.trim()
-  if (!note) {
-    revisiSalah.value = true
-    return
-  }
-  const rev = [{ by: saya.value?.user.id, at: Date.now(), note }, ...(c.value?.revisions ?? [])]
-  if (await tambal({ revisions: rev, status: 'Revision' }, 'Revisi dikirim', 'meminta revisi')) {
-    notifKonten('revision', `Revisi diminta: ${c.value!.title}`)
-    revisiBuka.value = false
-    catatanRevisi.value = ''
-  }
-}
 
 // ---- cancel / delete (:2469, :2478) ----
 const batalBuka = ref(false)
@@ -139,28 +124,8 @@ const sebut = (nama: string) => {
   komentar.value = `${komentar.value}${komentar.value && !komentar.value.endsWith(' ') ? ' ' : ''}@${nama} `
 }
 
-// ---- publish (:2470-2477) ----
+// ---- publish (:2470-2477): KontenTayangSheet ----
 const tayangBuka = ref(false)
-const pubUrl = ref('')
-const pubAt = ref('')
-function bukaTayang() {
-  const d = new Date()
-  d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
-  pubAt.value = d.toISOString().slice(0, 16)
-  pubUrl.value = ''
-  tayangBuka.value = true
-}
-async function simpanTayang() {
-  if (!c.value) return
-  const rec = {
-    platform: c.value.platform, platforms: contentPlatforms(c.value), url: pubUrl.value.trim() || '-',
-    at: pubAt.value ? new Date(pubAt.value).toISOString() : new Date().toISOString(), pic: saya.value?.user.id,
-  }
-  if (await tambal({ publishRecord: rec as unknown as KontenItem['publishRecord'], status: 'Posted' }, 'Konten ditandai tayang', 'mempublikasikan')) {
-    notifKonten('publish', `Konten tayang: ${c.value.title}`)
-    tayangBuka.value = false
-  }
-}
 
 async function salin() {
   try {
@@ -305,7 +270,7 @@ const setelahSimpan = (nid: string) => router.replace(`/konten/detail/${nid}`)
           color="warning"
           variant="outline"
           size="sm"
-          @click="revisiSalah = false; revisiBuka = true"
+          @click="revisiBuka = true"
         />
         <UButton
           label="Batalkan"
@@ -471,6 +436,8 @@ const setelahSimpan = (nid: string) => router.replace(`/konten/detail/${nid}`)
       </div>
     </AppPanel>
 
+    <KontenPerfBlok :item="c" />
+
     <AppPanel
       v-if="c.publishRecord"
       title="Publishing record"
@@ -494,7 +461,7 @@ const setelahSimpan = (nid: string) => router.replace(`/konten/detail/${nid}`)
       label="Tandai sudah tayang"
       icon="i-lucide-circle-check"
       block
-      @click="bukaTayang"
+      @click="tayangBuka = true"
     />
 
     <AppPanel
@@ -631,69 +598,14 @@ const setelahSimpan = (nid: string) => router.replace(`/konten/detail/${nid}`)
       />
     </div>
 
-    <ResponsiveSheet
+    <KontenRevisiSheet
       v-model:open="revisiBuka"
-      title="Minta revisi"
-    >
-      <UFormField
-        :label="`Catatan revisi untuk &quot;${c.title}&quot;`"
-        :error="revisiSalah ? 'Tulis catatan revisi' : false"
-      >
-        <UTextarea
-          v-model="catatanRevisi"
-          placeholder="Apa yang perlu diperbaiki?"
-          class="w-full"
-          @update:model-value="revisiSalah = false"
-        />
-      </UFormField>
-      <template #footer>
-        <UButton
-          label="Kirim revisi"
-          @click="kirimRevisi"
-        />
-        <UButton
-          label="Batal"
-          color="neutral"
-          variant="outline"
-          @click="revisiBuka = false"
-        />
-      </template>
-    </ResponsiveSheet>
-
-    <ResponsiveSheet
+      :item="c"
+    />
+    <KontenTayangSheet
       v-model:open="tayangBuka"
-      title="Tandai sudah tayang"
-    >
-      <div class="space-y-3">
-        <UFormField label="URL konten">
-          <UInput
-            v-model="pubUrl"
-            placeholder="https://…"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Waktu tayang aktual">
-          <UInput
-            v-model="pubAt"
-            type="datetime-local"
-            class="w-full"
-          />
-        </UFormField>
-      </div>
-      <template #footer>
-        <UButton
-          label="Sudah tayang"
-          icon="i-lucide-circle-check"
-          @click="simpanTayang"
-        />
-        <UButton
-          label="Batal"
-          color="neutral"
-          variant="outline"
-          @click="tayangBuka = false"
-        />
-      </template>
-    </ResponsiveSheet>
+      :item="c"
+    />
 
     <KontenKonfirmasi
       v-model:open="batalBuka"

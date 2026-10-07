@@ -187,7 +187,7 @@ export const VISIT_STATUS: Record<string, { label: string }> = {
 
 export interface ProdNeed { date?: string, status?: string, doneAt?: number }
 export interface RefKonten { t: 'link' | 'img', v: string, n?: string }
-export interface Approval { stage?: string, by?: string, at?: number }
+export interface Approval { stage?: string, by?: string, ok?: boolean, at?: number }
 export interface Komentar { by?: string, at?: number, text?: string, mentions?: string[] }
 
 export interface KontenItem {
@@ -585,6 +585,9 @@ export interface ReqDesainMkt {
   picId?: string
   nRef?: number
   status?: string
+  /** who finished it and when (ISO UTC) — read by Performa Desain */
+  pic?: string
+  doneAt?: string
 }
 
 /** One row of a queue: a content's production need, a standalone task, or a Marketing request. */
