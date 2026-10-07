@@ -187,8 +187,8 @@ export const VISIT_STATUS: Record<string, { label: string }> = {
 
 export interface ProdNeed { date?: string, status?: string, doneAt?: number }
 export interface RefKonten { t: 'link' | 'img', v: string, n?: string }
-export interface Approval { by?: string, at?: number, step?: string, note?: string }
-export interface Komentar { by?: string, at?: number, text?: string }
+export interface Approval { stage?: string, by?: string, at?: number }
+export interface Komentar { by?: string, at?: number, text?: string, mentions?: string[] }
 
 export interface KontenItem {
   id: string
@@ -216,7 +216,7 @@ export interface KontenItem {
   publishDate?: string
   publishTime?: string
   prod?: Partial<Record<ProdKind, ProdNeed>>
-  checklist?: { t: string, d?: boolean }[]
+  checklist?: { t: string, done?: boolean }[]
   approvals?: Approval[]
   comments?: Komentar[]
   revisions?: { at?: number, by?: string, note?: string }[]
@@ -493,5 +493,72 @@ export function opsiPicKonten(users: { id: string, name: string }[], hitung: (id
   if (saya && hitung(saya)) out.push({ label: `Punya saya${n(hitung(saya))}`, value: saya })
   for (const u of users) if (hitung(u.id) > 0) out.push({ label: `${u.name}${n(hitung(u.id))}`, value: u.id })
   if (hitung(PIC_KOSONG)) out.push({ label: `Belum ada PIC${n(hitung(PIC_KOSONG))}`, value: PIC_KOSONG })
+  return out
+}
+
+// ---------------------------------------------------------------- detail & form
+
+/** Crew mentioned in a comment: "@<full name>" (:2370 mentionedUsers). */
+export const kruDisebut = <T extends { id: string, name?: string }>(users: T[], text: string) =>
+  users.filter(u => u.name && text.includes(`@${u.name}`))
+
+/** Split a comment into text and @mentions, longest name first so "Budi Santoso" beats "Budi" (:2372-2383). */
+export function potongMention(text: string, names: string[]): { t: string, mention: boolean }[] {
+  const urut = [...new Set(names.filter(Boolean))].sort((a, b) => b.length - a.length)
+  if (!urut.length) return [{ t: text, mention: false }]
+  const rx = new RegExp(`@(${urut.map(n => n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})`, 'g')
+  const out: { t: string, mention: boolean }[] = []
+  let last = 0
+  for (let m = rx.exec(text); m; m = rx.exec(text)) {
+    if (m.index > last) out.push({ t: text.slice(last, m.index), mention: false })
+    out.push({ t: m[0], mention: true })
+    last = m.index + m[0].length
+  }
+  if (last < text.length) out.push({ t: text.slice(last), mention: false })
+  return out
+}
+
+/** Local date + n days as YYYY-MM-DD (no UTC shift). */
+export function geserTanggal(tgl: string, n: number): string {
+  const d = new Date(`${tgl}T00:00:00`)
+  d.setDate(d.getDate() + n)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/**
+ * Recommended due date of a production need (:2181-2188): publish date minus
+ * the need's offset; without a publish date, today + (7 - offset).
+ */
+export const rekomTglProduksi = (k: ProdKind, publishDate: string, hariIni: string) =>
+  (publishDate ? geserTanggal(publishDate, -PROD_OFFSET[k]) : geserTanggal(hariIni, 7 - PROD_OFFSET[k]))
+
+/** Print size note for the ticked print types (:2069-2073 printHintText). */
+export const catatanCetak = (list: string[]) =>
+  (list.length ? list.map(r => `${r}: ${PRINT_TYPES[r] ?? 'ukuran belum tercatat'}`).join('  •  ') : 'Centang jenis cetakan bila konten ini perlu dicetak.')
+
+/** A link reference gets https:// when it has no scheme, else href reads it as a relative path (:2091-2095). */
+export function rapikanLink(v: string): string {
+  const s = v.trim()
+  if (!s) return ''
+  return /^https?:\/\//i.test(s) || /^mailto:/i.test(s) ? s : `https://${s.replace(/^\/+/, '')}`
+}
+
+/** Next/previous pipeline status; null at the ends or for a status outside the pipeline (:2445 moveStatus). */
+export function statusGeser(status: string | undefined, arah: 1 | -1): string | null {
+  const i = PIPELINE_KONTEN.indexOf(status as typeof PIPELINE_KONTEN[number])
+  if (i < 0) return null
+  return PIPELINE_KONTEN[i + arah] ?? null
+}
+
+/**
+ * Production needs to store on save (:2202-2236): the ticked ones with their
+ * date, keeping the existing todo/done state so editing never resets work.
+ */
+export function prodSimpan(dicentang: Partial<Record<ProdKind, string>>, lama?: KontenItem['prod']): KontenItem['prod'] {
+  const out: NonNullable<KontenItem['prod']> = {}
+  for (const k of PROD_KINDS) {
+    if (dicentang[k] === undefined) continue
+    out[k] = { date: dicentang[k] ?? '', status: lama?.[k]?.status || 'todo' }
+  }
   return out
 }

@@ -507,7 +507,7 @@ Konkurensi: legacy menstempel `updatedAt=sekarang` + `baseUpdatedAt=versi server
 
 ## J. Progres build
 Issue: #15, dipecah #47–#51 · Branch saat ini: `migrasi/konten-perencanaan` (#47) · Mulai: 2026-10-07
-LANJUTKAN DARI: #47 — panel detail + form konten (D.21, `/konten/detail/[id]`), pipeline, calendar.
+LANJUTKAN DARI: #47 — pipeline (D.3), lalu calendar (D.4).
 
 | layar (key) | file | status | endpoint dipakai | sub-issue |
 |---|---|---|---|---|
@@ -515,7 +515,7 @@ LANJUTKAN DARI: #47 — panel detail + form konten (D.21, `/konten/detail/[id]`)
 | planning | `app/pages/konten/planning.vue` | ✅ | `GET /konten/state` | #47 |
 | pipeline | — | ⬜ | | #47 |
 | calendar | — | ⬜ | | #47 |
-| panel detail + form konten (D.21) | — | ⬜ | | #47 |
+| panel detail + form konten (D.21) | `app/pages/konten/detail/[id].vue`, `app/components/KontenForm.vue` | ✅ | `POST/PUT/PATCH/DELETE /konten/content`, `DELETE /konten/shootings/{id}` (syncProdTasks), `POST /konten/notifications`, `POST /konten/logs` | #47 — blok performa (`renderPerfBlock`) ikut #49 |
 | shooting | — | ⬜ | | #48 |
 | design | — | ⬜ | | #48 |
 | editing | — | ⬜ | | #48 |

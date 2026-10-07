@@ -112,5 +112,16 @@ cek('PIC __none__ = tanpa PIC; tanpaPic mengabaikan saringan PIC', sama(K.saring
 const op = K.opsiPicKonten([{ id: 'me', name: 'Saya' }, { id: 'x', name: 'Xena' }, { id: 'z', name: 'Kosong' }], id => (id == null ? 3 : id === K.PIC_KOSONG ? 1 : id === 'me' ? 1 : id === 'x' ? 1 : 0), 'me')
 cek('opsi PIC: semua, punya saya di atas, hanya yang memegang, belum ada PIC di akhir', sama(op.map(o => o.value), ['', 'me', 'me', 'x', K.PIC_KOSONG]) && op[0].label === 'Semua PIC (3)')
 
+console.log('\nkonten: detail & form')
+cek('status maju/mundur di pipeline, null di ujung & di luar pipeline', K.statusGeser('Idea', 1) === 'Research' && K.statusGeser('Idea', -1) === null && K.statusGeser('Posted', 1) === null && K.statusGeser('Cancelled', 1) === null)
+cek('rekomendasi produksi: tayang − offset (shoot 5, design 4, edit 2)', K.rekomTglProduksi('shoot', '2026-10-20', '2026-10-07') === '2026-10-15' && K.rekomTglProduksi('edit', '2026-10-20', '2026-10-07') === '2026-10-18')
+cek('rekomendasi tanpa tanggal tayang: hari ini + (7 − offset)', K.rekomTglProduksi('design', '', '2026-10-07') === '2026-10-10')
+cek('geser tanggal lintas bulan tanpa geser UTC', K.geserTanggal('2026-11-01', -1) === '2026-10-31')
+cek('kebutuhan produksi: status todo/done dipertahankan saat diedit', sama(K.prodSimpan({ design: '2026-10-05', shoot: '' }, { design: { status: 'done', date: 'x' } }), { shoot: { date: '', status: 'todo' }, design: { date: '2026-10-05', status: 'done' } }))
+cek('link tanpa skema diberi https://, yang sudah benar tidak disentuh', K.rapikanLink(' ig.com/x ') === 'https://ig.com/x' && K.rapikanLink('mailto:a@b') === 'mailto:a@b' && K.rapikanLink('//x') === 'https://x')
+cek('mention: nama terpanjang menang, nama ber-tanda-regex aman', sama(K.potongMention('@Budi Santoso & @Budi (x.y)', ['Budi', 'Budi Santoso', '(x.y)']).filter(b => b.mention).map(b => b.t), ['@Budi Santoso', '@Budi']))
+cek('kru disebut = "@nama lengkap"', sama(K.kruDisebut([{ id: 'a', name: 'Ani' }, { id: 'b', name: 'Budi' }], 'hai @Budi').map(u => u.id), ['b']))
+cek('catatan cetak menyebut SETIAP ukuran yang dicentang', K.catatanCetak(['A4', 'Zz']) === 'A4: 21 × 29,7 cm (210 × 297 mm)  •  Zz: ukuran belum tercatat')
+
 console.log(`\n${ok} OK, ${gagal} GAGAL\n`)
 process.exit(gagal ? 1 : 0)

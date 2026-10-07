@@ -214,3 +214,59 @@ export async function kontenSimpan<T>(aksi: () => Promise<T>, sukses?: string, j
     return false
   }
 }
+
+/**
+ * The old notify() (:1577): a notification row `{type, text, at, read, to}`.
+ * Fire-and-forget like the old client — a failed notification never fails
+ * the action that triggered it.
+ */
+export const notifKonten = (type: string, text: string, to = 'all') =>
+  buatKonten('notifications', { type, text, at: Date.now(), read: false, to }).catch(() => {})
+
+/** Reference photos: shrunk before storing (max side 1280px, JPEG ≤ ~700 KB of base64), :1978-1979. */
+export const REF_IMG_MB = 3
+export const REF_TOTAL_MB = 9
+
+/**
+ * Shrink an image in the browser (old kecilkanGambar, :2101-2130). White
+ * background first: JPEG has no transparency and a transparent PNG would turn
+ * black. Any failure is returned as a message — an image that silently fails
+ * to save is only discovered when someone else opens the content.
+ */
+export function kecilkanGambarKonten(file: File, maksPx = 1280, batas = 700 * 1024): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const fr = new FileReader()
+    fr.onerror = () => reject(new Error('berkasnya gagal dibaca'))
+    fr.onload = () => {
+      const img = new Image()
+      img.onerror = () => reject(new Error('gambarnya tidak bisa dibaca — pakai JPG atau PNG'))
+      img.onload = () => {
+        let w = img.naturalWidth || img.width
+        let h = img.naturalHeight || img.height
+        if (!w || !h) return reject(new Error('ukuran gambarnya tidak terbaca'))
+        if (w > maksPx || h > maksPx) {
+          const s = Math.min(maksPx / w, maksPx / h)
+          w = Math.round(w * s)
+          h = Math.round(h * s)
+        }
+        const c = document.createElement('canvas')
+        c.width = w
+        c.height = h
+        const g = c.getContext('2d')
+        if (!g) return reject(new Error('gagal memproses gambar'))
+        g.fillStyle = '#fff'
+        g.fillRect(0, 0, w, h)
+        g.drawImage(img, 0, 0, w, h)
+        let hasil = ''
+        for (const mutu of [0.8, 0.65, 0.5]) {
+          hasil = c.toDataURL('image/jpeg', mutu)
+          if (hasil.length <= batas) break
+        }
+        if (!hasil) return reject(new Error('gagal memproses gambar'))
+        resolve(hasil)
+      }
+      img.src = String(fr.result)
+    }
+    fr.readAsDataURL(file)
+  })
+}
