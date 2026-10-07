@@ -1,4 +1,5 @@
 import { ifMatch, versiDari, type Versi } from '~/utils/versi'
+import type { InvestorBrankas, MutasiBrankas, SettingBrankas } from '~/utils/brankas'
 
 // Finance invoice calls used by reservasi's kwitansi flow.
 //
@@ -163,6 +164,78 @@ export async function getBayar() {
 }
 export function putBayar(bayar: RencanaBayar[], versi: Versi) {
   return useApi()<Envelope<unknown>>('/finance/petty-cash/payment-plan', { method: 'PUT', body: { bayar }, headers: ifMatch(versi) })
+}
+
+// ---------------------------------------------------------------- Brankas (`/finance/vault`, module `brankas`)
+//
+// The vault blob holds the `rekening`, `piutang`, `bayar`, `investor` and
+// `mutasi` lists plus `setting`, with ONE version for the whole blob
+// (`meta.version` = `updated_at` ms). Legacy `brankasSave` wrote the blob in
+// one go; v1 splits it per list, so this panel writes per record and the Kas
+// panel writes the payment plan narrowly (`bayarSave`, above) — two panels
+// sharing one whole-blob write would overwrite each other without an error.
+// Record shapes: laksamana-office/deploy/finance/brankas/index.html.
+
+export type VaultList = 'rekening' | 'piutang' | 'bayar' | 'investor' | 'mutasi'
+
+export interface VaultData {
+  rekening?: unknown[]
+  piutang?: unknown[]
+  bayar?: RencanaBayar[]
+  investor?: InvestorBrankas[]
+  mutasi?: MutasiBrankas[]
+  setting?: SettingBrankas
+}
+
+export interface VaultAkses {
+  matrix: Record<string, Record<string, number>>
+  roles: Record<string, string>
+}
+
+/** Bootstrap (`brankasGet`): every list + access + roles + the blob version. */
+export async function getVault() {
+  const r = await useApi()<Envelope<{ data?: VaultData, akses?: VaultAkses['matrix'], peran?: Record<string, string> }> & { meta?: Record<string, unknown> }>('/finance/vault')
+  return {
+    vault: r.data.data ?? {},
+    akses: { matrix: r.data.akses ?? {}, roles: r.data.peran ?? {} },
+    version: versiDari(r),
+  }
+}
+
+/** One list (`rekening`/`piutang`/`bayar`/`investor`/`mutasi`). */
+export async function getVaultList<T = Record<string, unknown>>(list: VaultList) {
+  const r = await useApi()<Envelope<T[]> & { meta?: Record<string, unknown> }>(`/finance/vault/${list}`)
+  return { rows: r.data ?? [], version: versiDari(r) }
+}
+export function createVaultRec<T = Record<string, unknown>>(list: VaultList, body: Partial<T>) {
+  return useApi()<Envelope<T>>(`/finance/vault/${list}`, { method: 'POST', body })
+}
+/** PUT replaces, PATCH shallow-merges. Both need the whole-blob version. */
+export function updateVaultRec<T = Record<string, unknown>>(list: VaultList, id: string, body: Partial<T>, versi: Versi, method: 'PUT' | 'PATCH' = 'PUT') {
+  return useApi()<Envelope<T>>(`/finance/vault/${list}/${encodeURIComponent(id)}`, { method, body, headers: ifMatch(versi) })
+}
+export function deleteVaultRec(list: VaultList, id: string, versi: Versi) {
+  return useApi()<{ deleted: boolean }>(`/finance/vault/${list}/${encodeURIComponent(id)}`, { method: 'DELETE', headers: ifMatch(versi) })
+}
+
+/** The settings map (`PUT /setting {value: {...}}`), needs the blob version. */
+export async function getVaultSetting() {
+  const r = await useApi()<Envelope<SettingBrankas>>('/finance/vault/setting')
+  return { setting: r.data ?? {}, version: versiDari(r) }
+}
+export function putVaultSetting(value: SettingBrankas, versi: Versi) {
+  return useApi()<Envelope<SettingBrankas>>('/finance/vault/setting', { method: 'PUT', body: { value }, headers: ifMatch(versi) })
+}
+
+export async function getVaultAkses() {
+  const r = await useApi()<Envelope<VaultAkses> & { meta?: Record<string, unknown> }>('/finance/vault/access')
+  return { akses: r.data, version: versiDari(r) }
+}
+export function putVaultMatrix(matrix: Record<string, Record<string, number>>, versi: Versi) {
+  return useApi()<Envelope<VaultAkses>>('/finance/vault/access/matrix', { method: 'PUT', body: { matrix }, headers: ifMatch(versi) })
+}
+export function putVaultRole(userId: string, role: string, versi: Versi | undefined) {
+  return useApi()<Envelope<unknown>>(`/finance/vault/access/roles/${encodeURIComponent(userId)}`, { method: 'PUT', body: { role }, headers: versi === undefined ? undefined : ifMatch(versi) })
 }
 
 // ---------------------------------------------------------------- Invoices (panel Finance)
