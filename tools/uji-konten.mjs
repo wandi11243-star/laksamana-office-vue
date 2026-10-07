@@ -123,5 +123,38 @@ cek('mention: nama terpanjang menang, nama ber-tanda-regex aman', sama(K.potongM
 cek('kru disebut = "@nama lengkap"', sama(K.kruDisebut([{ id: 'a', name: 'Ani' }, { id: 'b', name: 'Budi' }], 'hai @Budi').map(u => u.id), ['b']))
 cek('catatan cetak menyebut SETIAP ukuran yang dicentang', K.catatanCetak(['A4', 'Zz']) === 'A4: 21 × 29,7 cm (210 × 297 mm)  •  Zz: ukuran belum tercatat')
 
+console.log('\nkonten: antrian produksi (#48)')
+const brandsQ = [{ id: 'b1', name: 'LM' }]
+const usersQ = [{ id: 'me', name: 'Saya', roles: ['designer'] }, { id: 'p', name: 'Planner', roles: ['content_planner'] }, { id: 'off', name: 'Lama', roles: ['designer'], active: false }, { id: 'a', name: 'Ana', roles: ['analyst'] }]
+const reqQ = [
+  { id: 'r1', jenis: 'design', judul: 'Banner', brand: 'b1', picId: 'x', picMinta: 'X', brandNama: 'LM', prioritas: 'wow', platforms: ['Instagram'], deadline: '2026-10-09', nRef: 2, pemohon: 'Sari', acara: 'Gala' },
+  { id: 'r2', jenis: 'edit', judul: 'Video' },
+  { id: 'r3', jenis: 'design', brand: 'bx', brandNama: 'Brand Lain', picId: 'me' },
+]
+const mq = K.reqMktUntuk('design', reqQ, brandsQ, usersQ)
+cek('request Marketing: hanya jenisnya, brand/PIC yang tak dikenal dikosongkan & disebut', mq.length === 2 && mq[0].brand === 'b1' && mq[0].pic === '' && mq[1].brand === '' && mq[1].pic === 'me' && mq[1].sub.includes('Brand Lain') && !mq[0].sub.includes('LM'))
+cek('request Marketing: prioritas asing → medium, platform dinormalkan, judul kosong diberi tanda', mq[0].priority === 'medium' && sama(mq[0].platforms, ['IG']) && mq[1].title === '(tanpa judul)' && mq[0].sub === 'Request Marketing · Gala · diminta: X · oleh Sari · 2 referensi')
+cek('request Marketing tidak muncul di Shooting, apa pun jenisnya', K.reqMktUntuk('shoot', [...reqQ, { id: 'rs', jenis: 'shoot' }], brandsQ, usersQ).length === 0)
+const contQ = [
+  { id: 'c1', title: 'Reel', brand: 'b1', priority: 'high', prod: { design: { date: '2026-10-10', status: 'todo' } }, contentTypes: ['Reel'], printTypes: ['A4'] },
+  { id: 'c2', title: 'Selesai', brand: 'b1', prod: { design: { date: '2026-10-01', status: 'done' } } },
+  { id: 'c3', title: 'Shoot saja', prod: { shoot: { date: '2026-10-02' } } },
+]
+const taskQ = [{ id: 't1', kind: 'design', title: 'Poster', status: 'todo', date: '' }, { id: 't2', kind: 'edit', title: 'Lain' }]
+const rq = K.barisAntrian('design', contQ, taskQ, mq)
+cek('antrian = kebutuhan konten + tugas mandiri + request', sama(rq.map(r => r.src + ':' + r.id), ['content:c1', 'content:c2', 'task:t1', 'mkt:r1', 'mkt:r3']) && rq[0].sub === 'Reel - cetak A4' && rq[2].sub === 'Tugas mandiri')
+const fq = o => ({ ...K.filterAntrianBawaan(), ...o })
+const nb = id => (id === 'b1' ? 'LM' : '')
+const nu = id => (id === 'me' ? 'Saya' : '')
+cek('bawaan: arsip tersembunyi, urut deadline, tanpa tanggal di akhir (urutan asal dipertahankan)', sama(K.saringAntrian(rq, fq({}), nb, nu).map(r => r.id), ['r1', 'c1', 't1', 'r3']))
+cek('arsip & semua', sama(K.saringAntrian(rq, fq({ status: 'done' }), nb, nu).map(r => r.id), ['c2']) && K.saringAntrian(rq, fq({ status: '' }), nb, nu).length === 5)
+cek('urut prioritas menurun, seri → prioritas lalu tanggal', sama(K.saringAntrian(rq, fq({ sort: 'priority', dir: -1 }), nb, nu).map(r => r.id), ['c1', 'r1', 't1', 'r3']))
+cek('cari judul + sub', sama(K.saringAntrian(rq, fq({ q: 'gala' }), nb, nu).map(r => r.id), ['r1']))
+cek('tanggal sama → prioritas tinggi dulu', sama(K.saringAntrian([{ id: 'x', title: '', sub: '', platforms: [], priority: 'low', date: '2026-10-05', done: false }, { id: 'y', title: '', sub: '', platforms: [], priority: 'urgent', date: '2026-10-05', done: false }], fq({}), nb, nu).map(r => r.id), ['y', 'x']))
+const opsiQ = K.opsiDesainMkt(brandsQ, usersQ)
+cek('opsi untuk Marketing: kru produksi di atas, kru nonaktif tak ikut', sama(opsiQ.pics.map(x => x.id), ['p', 'me', 'a']) && opsiQ.pics[1].prod === 1 && opsiQ.pics[2].prod === 0 && opsiQ.platforms.includes('IG'))
+cek('waktu relatif', K.lamaKonten(1000, 1000 + 30e3) === 'baru saja' && K.lamaKonten(1, 1 + 3 * 3600e3) === '3j lalu' && K.lamaKonten(0) === '')
+cek('tags pisah koma', sama(K.pisahKoma(' a, b ,, c'), ['a', 'b', 'c']))
+
 console.log(`\n${ok} OK, ${gagal} GAGAL\n`)
 process.exit(gagal ? 1 : 0)
