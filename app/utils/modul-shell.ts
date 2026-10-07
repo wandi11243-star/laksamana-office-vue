@@ -117,6 +117,14 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
   // same lines. Keep the blank lines between markers.
 
   // ── jadwal ──
+  jadwal: {
+    subjudul: 'Jadwal Shift',
+    layar: LAYAR_JADWAL,
+    tambah: { label: 'Ajukan off / izin', to: '/jadwal/saya?ajukan=1' },
+    peran: me => peranJadwalLabel(me),
+    lencana: () => useLencanaJadwal(),
+    siapkan: () => muatPeranJadwal(),
+  },
 
   // ── hr ──
 
