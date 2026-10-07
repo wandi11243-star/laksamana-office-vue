@@ -51,7 +51,7 @@ cek('content type lama tunggal dibaca', sama(K.contentTypes({ contentType: 'Reel
 cek('print type daftar menang atas tunggal', sama(K.printTypes({ printTypes: ['A4', 'A4', 'Menu'], printType: 'A5' }), ['A4', 'Menu']))
 cek('detailing: field baru apa adanya', K.contentDetail({ detail: 'X', caption: 'Y' }) === 'X')
 cek('detailing: 4 field lama disusun ulang dengan judul', K.contentDetail({ keyword: 'kopi', caption: 'Halo', hashtags: ['#a', '#b'], script: 'S1' })
-  === 'Keyword: kopi\n\nCaption:\nHalo\n\nHashtag: #a #b\n\nScript / Storyboard:\nS1')
+=== 'Keyword: kopi\n\nCaption:\nHalo\n\nHashtag: #a #b\n\nScript / Storyboard:\nS1')
 
 console.log('\nkonten: tanggal & arsip')
 cek('sisa hari: kemarin -1, hari ini 0, kosong null', K.sisaHariKonten('2026-10-06', kini) === -1 && K.sisaHariKonten('2026-10-07', kini) === 0 && K.sisaHariKonten('', kini) === null)
