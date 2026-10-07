@@ -10,6 +10,8 @@ const omset = (me: Me) => hasAccess(me, ['kompas'])
 
 export const LAYAR_FINANCE: Layar[] = [
   // ── Omset (kunci kompas; bekas modul Kompas) ──
+  { key: 'omset_input', label: 'Input Omset Harian', desc: 'Catat pendapatan, diskon, tax & service, dan trafik harian', icon: 'i-lucide-pencil-line', to: '/finance/omset/input', grup: 'Panel Omset', boleh: omset },
+  { key: 'omset_breakdown', label: 'Breakdown Sumber Omset', desc: 'Isi omset per kasir, lalu potong untuk event marketing, Reservasi VIP & event internal', icon: 'i-lucide-git-branch', to: '/finance/omset/breakdown', grup: 'Panel Omset', boleh: omset },
   { key: 'omset_report', label: 'Report Daily', desc: 'Setoran per metode pembayaran: POS vs Actual', icon: 'i-lucide-clipboard-list', to: '/finance/omset/report', grup: 'Panel Omset', boleh: omset },
   { key: 'omset_piutang', label: 'Piutang / Bon', desc: 'Bill yang belum dibayar tamu & owner — beserta metode POS sementaranya', icon: 'i-lucide-receipt-text', to: '/finance/omset/piutang', grup: 'Panel Omset', boleh: omset },
   { key: 'omset_compliment', label: 'Compliment', desc: 'Catatan compliment beserta alasan & PIC penanggungnya', icon: 'i-lucide-gift', to: '/finance/omset/compliment', grup: 'Panel Omset', boleh: omset },
