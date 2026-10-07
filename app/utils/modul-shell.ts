@@ -125,6 +125,14 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     lencana: () => useLencanaJadwal(),
     siapkan: () => muatPeranJadwal(),
   },
+  dw: {
+    subjudul: 'Daily Worker',
+    layar: LAYAR_DW,
+    tambah: { label: 'Minta DW', to: '/dw/permintaan?minta=1' },
+    peran: me => peranDwLabel(me),
+    lencana: () => useLencanaDw(),
+    siapkan: () => muatPeranDw(),
+  },
 
   // ── hr ──
 

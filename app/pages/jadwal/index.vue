@@ -9,8 +9,8 @@
   picker still shows and the Jadwal Shift card is locked, naming the missing
   tick (:257-267).
 
-  The Daily Worker screens are built in a later part of #11; until then the
-  card shows "Segera".
+  `/dw` exists, so the Daily Worker card is live; the `dwSiap` check below keeps
+  the old "Segera" behaviour for any future move of the pages.
 -->
 <script setup lang="ts">
 definePageMeta({ access: ['jadwal', 'dw'] })
@@ -25,6 +25,7 @@ if (punyaJadwal.value && !punyaDw.value) await navigateTo('/jadwal/dashboard', {
 const descJadwal = computed(() => punyaJadwal.value
   ? 'Lembar shift kru tetap per divisi'
   : 'Belum diberi akses — minta admin mencentang "Roster · Jadwal Shift" di Kelola Akses Office')
+/** The card unlocks itself the moment the `/dw` page exists (useModulNav does the same). */
 const dwSiap = computed(() => router.getRoutes().some(r => r.path === '/dw'))
 </script>
 
