@@ -449,6 +449,9 @@ export function klaimKruSesi(s: HrState, cu: HrEmployee, userId: string): boolea
   return true
 }
 
+/** A crew row that only has a name/id yet (`needsSetup`, :2426). */
+export const needsSetup = (e: HrEmployee) => !e.divId || !e.role || !e.joinDate
+
 // ---------------------------------------------------------------- review layer
 
 /** Which layer this viewer fills for this employee (`myLayer`, :1994). */
