@@ -393,8 +393,8 @@ Kode error yang wajib ditangani UI (`docs/api/finance.md:136-145`, `docs/api/kom
 - [ ] **finance / kas — `dp` embed** — legacy memuat halaman Reservasi dalam `<iframe>`; di Vue Nuxt SPA, apakah halaman DP dipindah menjadi halaman Reservasi asli (bukan embed) dan dibuka lintas modul? Bukti: `kas:6429-6440`, `CLAUDE.md:10872-10886`. Opsi: A) route Reservasi asli di Nuxt; B) iframe tetap; C) composable DP khusus.
 
 ## J. Progres build
-Branch: migrasi/finance-omset (#38) · migrasi/finance-input (#39) · migrasi/finance-kas (#40, sub-issue 3/4) · Mulai: 2026-10-07
-LANJUTKAN DARI: #41 brankas (7 layar) — akan memakai `RK_GRUP`/`hitungRekapHari` dari `kompas.ts` untuk saldo (kembar `aktGrup`).
+Branch: migrasi/finance-omset (#38) · migrasi/finance-input (#39) · migrasi/finance-kas (#40, sub-issue 3/4) · migrasi/finance-brankas (#41, sub-issue 4/4) · Mulai: 2026-10-07
+LANJUTKAN DARI: #41 cek visual 7 layar brankas (kode selesai, lint/typecheck/build hijau) → dorong: push branch, draft PR ber-base migrasi/finance-kas, komentar issue.
 
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
@@ -420,7 +420,14 @@ LANJUTKAN DARI: #41 brankas (7 layar) — akan memakai `RK_GRUP`/`hitungRekapHar
 | kas/invoice | `app/pages/finance/kas/invoice.vue` | ✅ | `/finance/invoices` (queue, decision, settings, signatories) | unggah gambar ttd/cap (di luar layar ini) |
 | kas/akses | `app/pages/finance/kas/akses.vue` | ✅ | `GET/PUT /petty-cash/access`, `PUT /petty-cash/access/roles/{userId}`, `GET /account/modules/finance/members` | — |
 | kas/* sisa | — | ✅ 15/15 | | — |
-| brankas/* (7 layar) | — | ⬜ | | #41 |
+| brankas/ringkasan | `app/pages/finance/brankas/index.vue` | ✅ | `GET /finance/vault` (bayar, investor, mutasi, setting) + `GET /kompas/state` (reports, daily, piutang, rekap_setoran) | — |
+| brankas/saldo | `app/pages/finance/brankas/saldo.vue` | ✅ | sama + `aktualPerGrup` (cocok baris demi baris dengan Rekap) | — |
+| brankas/mutasi | `app/pages/finance/brankas/mutasi.vue` | ✅ | `GET/POST/PUT/DELETE /finance/vault/mutasi` (versi satu blob) + setoran cash dibaca dari Rekap | — |
+| brankas/pending | `app/pages/finance/brankas/pending.vue` | ✅ | `GET /kompas/state` (piutang; read-only) | — |
+| brankas/modal | `app/pages/finance/brankas/modal.vue` | ✅ | `GET/POST/PUT/DELETE /finance/vault/investor` (+ tambahan modal, versi satu blob) | — |
+| brankas/pengaturan | `app/pages/finance/brankas/pengaturan.vue` | ✅ | `GET/PUT /finance/vault/setting` | — |
+| brankas/akses | `app/pages/finance/brankas/akses.vue` | ✅ | `GET /finance/vault/access`, `PUT /vault/access/matrix`, `PUT /vault/access/roles/{userId}`, `GET /account/modules/brankas/members` | — |
+| brankas/* sisa | — | ✅ 7/7 | | — |
 
 Catatan build #38:
 - **Ekstraksi panel bersama.** Report Daily, Piutang, dan Compliment sekarang komponen `KompasReport`/`KompasPiutang`/
@@ -472,6 +479,16 @@ Catatan build #40 bagian ketiga (9 layar; Kas Kecil 15/15):
 - **akses**: matriks 15 halaman × 3 role (siklus klik; viewer & halaman tanpa isian dijepit Lihat; kolom Admin Modul terkunci penuh) + role per kru (`#userId`), simpan matriks sebagai SELISIH dari bawaan; muat ulang cache izin setelah simpan.
 - **Temuan ulang**: `USelect` Reka UI menolak `value: ''` — semua pilihan kosong memakai sentinel (`__kosong`, `__bawaan`, `__semua`, `__all__`); satu halaman sempat error dan sudah diperbaiki.
 - Cek visual 2026-10-07 (mock 4013, tulis 403): 9 layar baru di 1366 overflow 0, console bersih; endpoint yang dipanggil cocok dengan kontrak (lihat log mock); `lint`/`typecheck`/`build` hijau; `uji:kompas` 21 OK.
+
+Catatan build #41 (Brankas, 7/7 layar; branch `migrasi/finance-brankas` menumpuk di atas `migrasi/finance-kas`):
+- **Mesin saldo** (`app/utils/brankas.ts`, milik finance): `WADAH`/`MAP_BAWAAN`/`namaWallet`/`bankDariTujuan` port komentar lama; `saldoSemua`/`aktualPerGrup`/`petaGrupWallet`/`grupBelumDipetakan`/`modalTotal`/`modalTanpaWadah`/`selisihHari`. Per-grup `akt` dari `hitungRekapHari` (`kompas.ts`) — satu rumus untuk satu angka (F.20); grup `error` dilewati (bukan uang masuk, seperti legacy); kunci MDR lama (`RK_MDR_LAMA`) tidak dibaca-balik (kas juga tidak).
+- **`useFinance.ts` di-EXTEND lagi**: permukaan vault (`getVault`, CRUD per-list `mutasi`/`investor`, `getVaultSetting`/`putVaultSetting`, akses vault) di bawah bagian Kas; invoice & kwitansi milik reservasi tetap apa adanya.
+- **Matriks peran Brankas** (`layar/finance.ts`): `DEFAULT_PERMS` brankas (`pengaturan` tertutup untuk manajemen/viewer; `ringkasan`/`pending` baca saja), admin modul = `*`/`brankas`/`finance`; `useBrankasIzin()` + 7 entri `LAYAR_FINANCE` grup Brankas. `siapkan` shell finance memuat kedua matriks.
+- Layar: **ringkasan** (4 kartu + posisi per wadah + jatuh tempo ≤6), **saldo** (notice + peringatan belum-dipetakan + saldo per wadah + aktual per metode + setoran), **mutasi** (5 kartu wadah + form catat/ubah + riwayat manual+otomatis; baris otomatis tak bisa dihapus/diubah), **pending** (baca saja: 3 kartu + per orang + rincian), **modal** (3 kartu + peringatan gantung + form investor + kartu per investor: tambahan modal, pengembalian, riwayat, hapus), **pengaturan** (awal/peta/burn, satu simpan), **akses** (matriks 7 halaman × 3 role + role per kru).
+- Launcher: panel Kas & Brankas kini punya `to` (sebelumnya hanya Omset) — pemegang satu panel langsung diarahkan.
+- **Ditunda (dicatat):** daftar vendor Stock untuk nama penerima (G-02, modul Stock belum ada); unggah bukti/ttd (di luar layar ini, seperti kas).
+- Mock cek visual `/tmp/mock-api-brankas.mjs` (port 4014, di luar repo): vault + kompas/state dengan angka yang bisa dihitung tangan (BRI 9.694.000, UOB 23.700.000, Cash −1.500.000, likuid 34.894.000, piutang 650.000, kewajiban30 8.000.000, runway 2,3 bulan, gantung 5.000.000, 1 setoran tak dikenal, tiktokgo belum dipetakan).
+- Cek visual 2026-10-07 (mock 4014, tulis 403) sebagai `finance` (admin, 3 kunci) & `bos` (brankas saja): 7 layar di 1366 & 390 overflow 0, console bersih; angka cocok hitungan tangan; PUT setting ditolak 403 → toast tanpa crash; launcher 3 kartu "Buka panel"; pemegang 1 panel auto-redirect; sidebar hanya menu panel yang berhak. Insiden: dev sempat menunjuk dev-api (mock mati + env inline tak terbaca) — dihentikan, `.env` per-device dipakai, login diulang ke mock.
 
 ## Konsolidasi untuk README & berkas bersama
 - Baris README: `| finance | [finance.md](finance.md) | ⚠️ selesai dengan celah | 29 (1 pemilih + 6 omset + 15 kas + 7 brankas) + 2 pengalih | 2 ❌ · 5 ⚠️ | 6 | omset/kas/brankas/rekap + kompas |`

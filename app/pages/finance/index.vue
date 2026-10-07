@@ -17,8 +17,8 @@ interface Panel { key: string, label: string, sub: string, icon: string, to?: st
 
 const semua: Panel[] = [
   { key: 'omset', label: 'Input Omset Harian', sub: 'Omset, report daily, piutang, compliment & breakdown', icon: 'i-lucide-trending-up', to: '/finance/omset/input', kunci: ['kompas'] },
-  { key: 'kas', label: 'Kas Kecil, Performa & Rekap', sub: 'Buku kas, rekap penjualan, dashboard omset, analytics, ranking & performa', icon: 'i-lucide-wallet', kunci: ['finance'] },
-  { key: 'brankas', label: 'Brankas', sub: 'Posisi kas per bank, piutang, rencana pembayaran & pengembalian modal', icon: 'i-lucide-vault', kunci: ['brankas'] },
+  { key: 'kas', label: 'Kas Kecil, Performa & Rekap', sub: 'Buku kas, rekap penjualan, dashboard omset, analytics, ranking & performa', icon: 'i-lucide-wallet', to: '/finance/kas', kunci: ['finance'] },
+  { key: 'brankas', label: 'Brankas', sub: 'Posisi kas per bank, piutang, rencana pembayaran & pengembalian modal', icon: 'i-lucide-vault', to: '/finance/brankas', kunci: ['brankas'] },
 ]
 
 const panels = computed(() => semua.filter(p => hasAccess(me.value, p.kunci)))
