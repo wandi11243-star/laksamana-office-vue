@@ -102,6 +102,35 @@ cek('tanpa report: tidak pernah cocok', !C.angkaRD(null, 0).cocok && C.angkaRD(n
 cek('ganti pemberi terdeteksi', C.gantiPemberi({ pemberiOfficeId: '2', pemberiName: 'B' }, { pemberiOfficeId: '5', pemberiName: 'E' }) && !C.gantiPemberi({ pemberiOfficeId: '2', pemberiName: 'B' }, { pemberiOfficeId: '2', pemberiName: 'B' }))
 cek('status pemberi tak dikenal = menunggu', C.compStatusPemberi({ pemberiStatus: 'aneh' }) === 'menunggu' && C.compStatusPemberi({ pemberiStatus: 'potong' }) === 'potong')
 
+console.log('\ncashier: void menu')
+cek('voidPct: koma, pecahan, di luar 0..100 jadi 0', C.voidPct('12,5') === 12.5 && C.voidPct(150) === 0 && C.voidPct('x') === 0 && C.voidPct(0) === 0)
+cek('tax dari SUBTOTAL, bukan subtotal+service', C.voidPersenDari(200000, 10) === 20000 && C.voidPersenDari(200000, 5) === 10000)
+const vItems = [{ item: 'Kopi', sub: 30000 }, { item: '  ', sub: 99999 }, { item: 'Teh', sub: 20000 }]
+cek('dasar = item BERNAMA saja; baris tanpa nama dibuang', C.voidSubtotal(vItems) === 50000 && C.voidItemTerisi(vItems).length === 2)
+const fKosong = { bill: '', penginput: 'Ani', salah: ' ', alasan: 'x', items: [{ item: '', sub: 5 }] }
+cek('voidKurang urut VOID_WAJIB, spasi bukan isian', sama(C.voidKurang(fKosong), ['bill', 'item', 'salah']), JSON.stringify(C.voidKurang(fKosong)))
+cek('label server dipetakan balik ke kunci', sama(C.voidKunciDariLabel(['Alasan / Kronologi', 'Nomor Bill', 'asing']), ['bill', 'alasan']) && C.voidKunciDariLabel(null).length === 0)
+const vb = o => ({ id: 'x', tgl: '2026-10-07', bill: 'B1', item: 'i', penginput: 'p', salah: 's', alasan: 'a', nominal: 0, subtotal: 0, service: 0, tax: 0, rinci: true, oleh: 'o', dibuat: 1, diubah: 1, diubahOleh: '', batalAt: 0, batalOleh: '', batalAlasan: '', ...o })
+const vList = [
+  vb({ id: '1', bill: 'SLMCL001', nominal: 100000 }),
+  vb({ id: '2', bill: ' slmcl001 ', nominal: 50000 }),
+  vb({ id: '3', bill: 'SLMCL002', nominal: 70000, batalAt: 5 }),
+  vb({ id: '4', bill: 'SLMCL002', nominal: 30000 }),
+]
+const vg = C.voidGrupBill(vList)
+cek('grup per bill: huruf besar + dipangkas, urutan dipertahankan', vg.length === 2 && vg[0].baris.length === 2 && vg[0].kunci === 'SLMCL001')
+cek('yang dibatalkan tetap di grup, tidak ikut total', vg[1].baris.length === 2 && vg[1].hidup.length === 1 && vg[1].total === 30000)
+const vr = C.voidRingkas(vList)
+cek('ringkas: item ≠ bill, batal terpisah', vr.total === 180000 && vr.item === 3 && vr.bill === 2 && vr.batal === 1, JSON.stringify(vr))
+cek('rentang bulan: Februari kabisat & 31 hari', sama(C.voidRentang('2028-02'), { dari: '2028-02-01', sampai: '2028-02-29' }) && C.voidRentang('2026-10').sampai === '2026-10-31')
+const vSet = { tax: 10, service: 5 }
+const mRumus = C.voidManualDari(vb({ subtotal: 100000, service: 5000, tax: 10000 }), vSet)
+cek('sunting baris hasil rumus: tidak ditandai ditimpa', !mRumus.svcManual && !mRumus.taxManual && mRumus.sub === 100000)
+const mTimpa = C.voidManualDari(vb({ subtotal: 100000, service: 0, tax: 10000 }), vSet)
+cek('service nol (compliment) terbaca ditimpa', mTimpa.svcManual && !mTimpa.taxManual)
+const mLama = C.voidManualDari(vb({ rinci: false, nominal: 80000 }), vSet)
+cek('baris lama tanpa rincian: subtotal = nominal, terbaca ditimpa (tidak diam-diam +15%)', mLama.sub === 80000 && mLama.svcManual && mLama.taxManual)
+
 console.log('\ncashier: PAYS kembar dengan Office lama')
 const LAMA = path.resolve(import.meta.dirname, '../../laksamana-office/deploy')
 const ambilPays = (f) => {
