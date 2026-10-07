@@ -55,8 +55,8 @@ Urutan mempertimbangkan ukuran, risiko, dan **siapa yang membangun komponen bers
 | 3 | hlife | 14 layar | K-01 (G-13) | — | ⚠️ (gelombang 1, 2026-10-01; dibangun, belum dicek visual; Reset data "Segera" K-01/G-13) |
 | 4 | konten | 20 layar | K-01 (G-13), K-05 | `performa-konten.ts`, `xlsx-baca.ts` | ⬜ |
 | 5 | bd | 11 layar | — (G-02) | — | ⚠️ (gelombang 1, 2026-10-01; dibangun, belum dicek visual; saran master vendor "Segera" G-02) |
-| 6 | hr | 17 layar | K-01 (G-13), K-05 | `people-score.ts` | ⬜ |
-| 7 | jadwal | jadwal + dw + roster, 20 layar | K-10 (G-03/05) | `pax-harian.ts` (`satukan()`) | ⬜ |
+| 6 | hr | 17 layar | K-01 (G-13), K-05 | `people-score.ts` | ✅ (dibangun 2026-10-07 + cek visual mock 1366/390 sebagai HRD & kru; impor/reset massal "Segera" G-13; sinkron roster subset aman) |
+| 7 | jadwal | jadwal + dw + roster, 20 layar | K-10 (G-03/05) | `pax-harian.ts` (`satukan()`) | ✅ (dibangun 2026-10-07; cek visual mock 1366/390 untuk bagian 1, 4–5; bagian 2–3 Jadwal Shift dilewati atas persetujuan owner; blok DW menunggu G-03, pax tamu "Segera" G-05) |
 | 8 | reservasi | reservasi + service_excellent, 12 layar | K-05: OCR `tesseract.js` diizinkan, lazy (G-07/08) | `DanaMasukPanel`, `Denah` + `venue-layouts.ts`, `kwitansi.ts` | ✅ (visual belum dicek) |
 | 9 | cashier | 11 layar | K-04 | `cocok-bri.ts`, `porsi-pic.ts` | ⚠️ (2/5 sub-issue: inti & void ✅ 2026-10-07; sisa #28 stock rokok, #29 performa kasir + `porsi-pic.ts`, #30 `cocok-bri.ts`) |
 | 10 | finance | omset + kas + brankas + rekap, 29 layar | K-04 (G-06) | `performa-bonus.ts` | ⬜ |
