@@ -15,6 +15,8 @@ const props = withDefaults(defineProps<{
   satuan?: string
   sub?: string
   tone?: 'gold' | 'success' | 'warning' | 'error' | 'info' | 'vip'
+  /** Let a long multi-unit value (stock totals) wrap instead of being clipped. */
+  wrap?: boolean
 }>(), { tone: 'gold' })
 
 /** Long values (money) step down a size so they stay on one line. */
@@ -56,8 +58,8 @@ const ink = {
       <span>{{ label }}</span>
     </p>
     <p
-      class="mt-2 whitespace-nowrap font-display font-bold leading-none text-highlighted num"
-      :class="ukuran"
+      class="mt-2 font-display font-bold leading-none text-highlighted num"
+      :class="[ukuran, wrap ? 'whitespace-normal' : 'whitespace-nowrap']"
     >
       {{ value }}<span
         v-if="satuan"

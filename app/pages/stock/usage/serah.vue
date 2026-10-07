@@ -103,7 +103,6 @@ function resetForm() {
   if (fotoCam.value) fotoCam.value.value = ''
   if (fotoFile.value) fotoFile.value.value = ''
 }
-resetForm()
 
 function bacaBaris() {
   return baris.value
@@ -141,6 +140,8 @@ function lihatFoto(id: string, judul: string) {
   fotoJudul.value = judul
   fotoSheet.value = true
 }
+// Call it only after every ref it touches exists (the photo refs above).
+resetForm()
 
 // --- period (report) ----------------------------------------------------------
 
@@ -600,6 +601,7 @@ async function segarkan() {
             :value="teksTotal(ringkas.totQty)"
             :sub="`${ringkas.totalItem} baris · ${ringkas.rekap.length} jenis barang`"
             tone="info"
+            wrap
           />
           <AppStat
             label="Berfoto"

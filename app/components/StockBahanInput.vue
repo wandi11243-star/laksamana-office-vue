@@ -56,6 +56,7 @@ function tutupNanti() {
         type="button"
         class="block w-full px-3 py-1.5 text-start text-[13px] font-medium text-highlighted hover:bg-elevated/60"
         @mousedown.prevent="pilih(n)"
+        @click="pilih(n)"
       >
         {{ n }}
       </button>

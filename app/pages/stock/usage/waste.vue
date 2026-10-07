@@ -114,7 +114,6 @@ function resetForm() {
   formFotoAda.value = false
   if (fotoInput.value) fotoInput.value.value = ''
 }
-resetForm()
 
 const fotoSheet = ref(false)
 const fotoId = ref('')
@@ -125,6 +124,8 @@ function lihatFoto(id: string, judul: string) {
   fotoJudul.value = judul
   fotoSheet.value = true
 }
+// Call it only after every ref it touches exists (the photo refs above).
+resetForm()
 
 function edit(r: WasteCatatan) {
   form.value = {
@@ -540,6 +541,7 @@ async function segarkan() {
             :value="teksTotal(ringkas.totQty)"
             :sub="`${ringkas.rekap.length} jenis barang`"
             tone="error"
+            wrap
           />
           <AppStat
             label="Sebab terbanyak"

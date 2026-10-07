@@ -555,6 +555,7 @@ async function segarkan() {
             :value="teksTotal(ringkas.totQty)"
             :sub="ringkas.rencana ? `${ringkas.totalItem} baris bahan · rencana belum dihitung` : `${ringkas.totalItem} baris bahan`"
             tone="info"
+            wrap
           />
           <AppStat
             label="Total catatan"
