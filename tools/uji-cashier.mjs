@@ -131,6 +131,28 @@ cek('service nol (compliment) terbaca ditimpa', mTimpa.svcManual && !mTimpa.taxM
 const mLama = C.voidManualDari(vb({ rinci: false, nominal: 80000 }), vSet)
 cek('baris lama tanpa rincian: subtotal = nominal, terbaca ditimpa (tidak diam-diam +15%)', mLama.sub === 80000 && mLama.svcManual && mLama.taxManual)
 
+console.log('\ncashier: stock rokok')
+cek('daftar bawaan dipakai selama belum disetel; 18 item, Coin & Eskrim bukan rokok', C.rokokItems(null).length === 18 && C.rokokItems([]).length === 18 && C.rokokItems(null).filter(x => x.lain).map(x => x.k).join() === 'coin,eskrim')
+cek('daftar disetel menang', sama(C.rokokItems([{ k: 'x', n: 'X' }]), [{ k: 'x', n: 'X' }]))
+const rkItems = [{ k: 'a', n: 'A' }, { k: 'b', n: 'B' }]
+const rkData = {
+  '2026-09-28': { items: { a: { in: 20, out: 3 } } },
+  '2026-10-01': { items: { a: { in: 0, out: 5 }, b: { in: 10, out: 0 }, lama: { in: 7, out: 1 } } },
+  // 2026-10-02 sengaja kosong: sisa awal tanggal 3 tetap dari SELURUH tanggal sebelumnya
+  '2026-10-03': { items: { a: { in: '2', out: '4' }, b: { out: 12 } } },
+}
+cek('sisa awal = seluruh tanggal sebelumnya, bukan cuma kemarin', sama(C.rokokSisaAwal(rkData, rkItems, '2026-10-03'), { a: 12, b: 10 }), JSON.stringify(C.rokokSisaAwal(rkData, rkItems, '2026-10-03')))
+cek('tanggal itu sendiri tidak ikut sisa awal', sama(C.rokokSisaAwal(rkData, rkItems, '2026-10-01'), { a: 17, b: 0 }))
+const rkSimpan = C.rokokItemsSimpan(rkData['2026-10-01'], rkItems, { a: { in: 1, out: 2 } })
+cek('kunci di luar daftar DIPERTAHANKAN saat simpan', sama(rkSimpan, { lama: { in: 7, out: 1 }, a: { in: 1, out: 2 }, b: { in: 0, out: 0 } }), JSON.stringify(rkSimpan))
+const rkR = C.rokokRekapBulan(rkData, rkItems, '2026-10')
+const rkA = rkR.baris.find(x => x.k === 'a'), rkB = rkR.baris.find(x => x.k === 'b')
+cek('rekap: awal dari September, masuk/keluar Oktober', rkA.awal === 17 && rkA.masuk === 2 && rkA.keluar === 9 && rkA.akhir === 10 && rkA.hariGerak === 2)
+cek('rekap: sisa minus tetap ditulis apa adanya', rkB.akhir === -2 && rkR.tKeluar === 21 && rkR.tgl.length === 2)
+cek('bulan tanpa catatan: tgl kosong', C.rokokRekapBulan(rkData, rkItems, '2026-11').tgl.length === 0)
+cek('kunci: huruf kecil, non-alfanumerik jadi _, dipangkas', C.rokokKunci('  Djarum  Mild! ') === 'djarum_mild' && C.rokokKunci('!!!') === '' && C.rokokKunci('x'.repeat(50)).length === 40)
+cek('hari bergerak per item', C.rokokHariBergerak(rkData, 'a') === 3 && C.rokokHariBergerak(rkData, 'lama') === 1)
+
 console.log('\ncashier: PAYS kembar dengan Office lama')
 const LAMA = path.resolve(import.meta.dirname, '../../laksamana-office/deploy')
 const ambilPays = (f) => {

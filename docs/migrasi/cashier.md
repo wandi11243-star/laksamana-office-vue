@@ -320,7 +320,7 @@ Konkurensi: legacy memakai **`baseTs`** pada `saveAll` (`:819-852`, penjaga `:80
 
 ## J. Progres build
 Branch: migrasi/cashier-inti (#26, bagian 1 dari #13) · Mulai: 2026-10-06
-LANJUTKAN DARI: #28 rokok → #29 kasir → #30 bri.
+LANJUTKAN DARI: #29 kasir → #30 bri.
 
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
@@ -328,12 +328,12 @@ LANJUTKAN DARI: #28 rokok → #29 kasir → #30 bri.
 | piutang | `app/pages/cashier/piutang.vue` | ✅ | `GET/PUT /kompas/sections/piutang`, `/sections/owners`, `GET /account/roster` | — |
 | compliment | `app/pages/cashier/compliment.vue` | ✅ | `GET/PUT /kompas/sections/compliments`, `GET /kompas/reports/{date}`, `GET /account/roster` | — |
 | voidb | `app/pages/cashier/voidb.vue` | ✅ | `GET/POST /kompas/voids`, `PUT /kompas/voids/{id}`, `POST /kompas/voids/{id}/cancel`, `PUT /kompas/voids/settings` | — |
-| rokok | — | ⬜ | | #28 |
-| rokokrekap | — | ⬜ | | #28 |
+| rokok | `app/pages/cashier/rokok.vue` | ✅ | `GET/PUT /kompas/sections/rokok`, `GET /kompas/sections/rokok_items` | — |
+| rokokrekap | `app/pages/cashier/rokokrekap.vue` | ✅ | `GET /kompas/sections/rokok`, `/sections/rokok_items` (baca saja) | — |
 | kasir | — | ⬜ | | #29 (`porsi-pic.ts`, K-04) |
 | dp | `app/pages/cashier/dp.vue` | ✅ | `DanaMasukPanel` (kontrak reservasi, pintu G-14) | — |
 | bri | — | ⬜ | | #30 (`cocok-bri.ts`) |
-| rokokset | — | ⬜ | | #28 |
+| rokokset | `app/pages/cashier/rokokset.vue` | ✅ | `GET/PUT /kompas/sections/rokok_items` (`null` = bawaan), `GET /kompas/sections/rokok` | — |
 | akses | `app/pages/cashier/akses.vue` | ✅ | `GET /account/modules/cashier/members` | — |
 
 Catatan build:

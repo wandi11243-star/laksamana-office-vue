@@ -4,7 +4,7 @@
 // different days or sections never conflict.
 //
 // Contract: laksamana-api/docs/api/kompas.md "Granular parts of the blob".
-import type { Bon, ComplimentKasir, DailyReport, VoidBaris, VoidSetting } from '~/utils/cashier'
+import type { Bon, ComplimentKasir, DailyReport, RokokData, RokokItem, VoidBaris, VoidSetting } from '~/utils/cashier'
 import { ifMatch, versiDari, type Versi } from '~/utils/versi'
 
 export interface Part<T> {
@@ -69,3 +69,11 @@ export function batalVoidKasir(id: string, alasan: string, version: Versi) {
 export function putVoidSettingKasir(body: { tax: number, service: number }, version: Versi) {
   return useApi()<Envelope<{ setting?: VoidSetting }>>('/kompas/voids/settings', { method: 'PUT', body, headers: ifMatch(version) })
 }
+
+// ---- Stock Rokok: two parts of the blob ----
+export const getRokok = () => getBagianKompas<RokokData>('rokok', {})
+export const putRokok = (v: RokokData, version: Versi) => putBagianKompas<RokokData>('rokok', v, version)
+/** Null = never set: the built-in list applies (see `rokokItems`). */
+export const getRokokItems = () => getBagianKompas<RokokItem[] | null>('rokok_items', null)
+/** `null` removes the part — "Kembalikan ke bawaan" goes back to following the built-in list. */
+export const putRokokItems = (v: RokokItem[] | null, version: Versi) => putBagianKompas<RokokItem[] | null>('rokok_items', v, version)

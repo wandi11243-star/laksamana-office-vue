@@ -509,3 +509,120 @@ export function voidManualDari(r: VoidBaris, set: Pick<VoidSetting, 'tax' | 'ser
     taxManual: num(r.tax) !== voidPersenDari(sub, set.tax),
   }
 }
+
+// ---------------------------------------------------------------- Stock Rokok
+// Old Daily Stock / Rekap / Pengaturan Item, deploy/cashier/index.html:3090-3510.
+// Two blob parts: `rokok` = {date: {items: {key: {in, out}}, by, at, log}} and
+// `rokok_items` = [{k, n, lain}] (absent = the built-in list below).
+
+export interface RokokItem { k: string, n: string, lain?: boolean }
+export interface RokokHari { items?: Record<string, { in?: unknown, out?: unknown }>, by?: string, at?: number, log?: JejakEntri[] }
+export type RokokData = Record<string, RokokHari>
+
+/** Built-in list (:3096-3119). Used while the team never set its own. */
+export const ROKOK_BAWAAN: readonly RokokItem[] = [
+  { k: 'la_purple', n: 'LA Purple' },
+  { k: 'la_mango', n: 'LA Mango' },
+  { k: 'la_bold', n: 'LA Bold' },
+  { k: 'la_ice', n: 'LA Ice' },
+  { k: 'la_light', n: 'LA Light' },
+  { k: 'djarum_super', n: 'Djarum Super' },
+  { k: 'djarum_mild', n: 'Djarum Mild' },
+  { k: 'insta', n: 'Insta' },
+  { k: 'korek', n: 'Korek' },
+  { k: 'dos_hermanos', n: 'Dos Hermanos' },
+  { k: 'dos_h_rojo', n: 'Dos H. Rojo' },
+  { k: 'dos_h_maduro', n: 'Dos H. Maduro' },
+  { k: 'dos_h_corona', n: 'Dos H. Corona' },
+  { k: 'dos_h_torito', n: 'Dos H. Torito' },
+  { k: 'gold_seal_petit', n: 'Gold Seal Petit' },
+  { k: 'gold_seal_senor', n: 'Gold Seal Senor' },
+  { k: 'coin', n: 'Coin', lain: true },
+  { k: 'eskrim', n: 'Eskrim', lain: true },
+]
+
+/**
+ * The list in force: the team's own once set, otherwise the built-in one.
+ * Never copied into the blob on open — while unset, new built-in items keep
+ * arriving; once set, the list belongs to the team.
+ */
+export const rokokItems = (diset: RokokItem[] | null | undefined): RokokItem[] =>
+  Array.isArray(diset) && diset.length ? diset : [...ROKOK_BAWAAN]
+
+/** in/out of one item on one day; missing = 0. */
+export function rokokNilai(rec: RokokHari | null | undefined, k: string) {
+  const x = rec?.items?.[k] ?? {}
+  return { in: num(x.in), out: num(x.out) }
+}
+
+/**
+ * Stock before `date`: the sum of EVERY earlier date, not just yesterday —
+ * entries have gaps, and "yesterday only" returns 0 after an empty day.
+ */
+export function rokokSisaAwal(data: RokokData, items: RokokItem[], date: string): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const it of items) out[it.k] = 0
+  for (const d of Object.keys(data)) {
+    if (d >= date) continue
+    for (const it of items) {
+      const v = rokokNilai(data[d], it.k)
+      out[it.k]! += v.in - v.out
+    }
+  }
+  return out
+}
+
+/**
+ * The `items` map to store for a day. Keys NOT in the current list are kept
+ * as they were: an item removed from the list left numbers on older days, and
+ * rebuilding from scratch would silently erase them when an old date is re-saved.
+ */
+export function rokokItemsSimpan(lama: RokokHari | null | undefined, items: RokokItem[], isi: Record<string, { in: number, out: number }>) {
+  const out: Record<string, { in: number, out: number }> = {}
+  const dikenal = new Set(items.map(it => it.k))
+  for (const [k, v] of Object.entries(lama?.items ?? {})) {
+    if (!dikenal.has(k)) out[k] = { in: num(v.in), out: num(v.out) }
+  }
+  for (const it of items) out[it.k] = { in: num(isi[it.k]?.in), out: num(isi[it.k]?.out) }
+  return out
+}
+
+export interface RekapRokokBaris extends RokokItem { awal: number, masuk: number, keluar: number, akhir: number, hariGerak: number }
+
+/** Month recap (:3429-3446): opening from every earlier date, totals over the month's recorded days. */
+export function rokokRekapBulan(data: RokokData, items: RokokItem[], ym: string) {
+  const tgl = Object.keys(data).filter(d => d.slice(0, 7) === ym).sort()
+  const awal = rokokSisaAwal(data, items, `${ym}-01`)
+  const baris: RekapRokokBaris[] = items.map((it) => {
+    let masuk = 0
+    let keluar = 0
+    let hariGerak = 0
+    for (const d of tgl) {
+      const v = rokokNilai(data[d], it.k)
+      masuk += v.in
+      keluar += v.out
+      if (v.in || v.out) hariGerak++
+    }
+    const a = awal[it.k] ?? 0
+    return { k: it.k, n: it.n, lain: !!it.lain, awal: a, masuk, keluar, akhir: a + masuk - keluar, hariGerak }
+  })
+  return {
+    tgl,
+    baris,
+    tAwal: baris.reduce((s, b) => s + b.awal, 0),
+    tMasuk: baris.reduce((s, b) => s + b.masuk, 0),
+    tKeluar: baris.reduce((s, b) => s + b.keluar, 0),
+    tAkhir: baris.reduce((s, b) => s + b.akhir, 0),
+  }
+}
+
+/** Data key from a name: lower-case, non-alphanumerics → `_`, trimmed, max 40. Permanent once made. */
+export const rokokKunci = (nama: string) =>
+  String(nama || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40)
+
+/** Days on which an item moved — named in the remove confirmation. */
+export const rokokHariBergerak = (data: RokokData, k: string) =>
+  Object.values(data).filter((rec) => {
+    const v = rokokNilai(rec, k)
+    return v.in || v.out
+  }).length
