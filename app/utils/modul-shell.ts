@@ -166,6 +166,11 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
   // ── marketing ──
 
   // ── stock ──
+  stock: {
+    subjudul: 'Stock',
+    layar: LAYAR_STOCK,
+    peran: me => peranStock(me),
+  },
 
   // ── event ──
 
