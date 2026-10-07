@@ -131,6 +131,25 @@ cek('service nol (compliment) terbaca ditimpa', mTimpa.svcManual && !mTimpa.taxM
 const mLama = C.voidManualDari(vb({ rinci: false, nominal: 80000 }), vSet)
 cek('baris lama tanpa rincian: subtotal = nominal, terbaca ditimpa (tidak diam-diam +15%)', mLama.sub === 80000 && mLama.svcManual && mLama.taxManual)
 
+console.log('\ncashier: rokok')
+cek('rksKunci: huruf kecil, non-alfanumerik jadi _, maks 40', C.rksKunci('LA Menthol') === 'la_menthol' && C.rksKunci('  Djarum  Mild ') === 'djarum_mild' && C.rksKunci('!!!') === '' && C.rksKunci('x'.repeat(60)).length === 40)
+cek('daftar bawaan 18 item; fallback saat kosong/terisi', C.ROKOK_BAWAAN.length === 18 && C.daftarRokok(null).length === 18 && C.daftarRokok([])[0].k === 'la_purple' && C.daftarRokok([{ k: 'x', n: 'X' }]).length === 1)
+const rk = {
+  '2026-10-01': { items: { la_purple: { in: 10, out: 2 }, korek: { in: 0, out: 1 } } },
+  '2026-10-03': { items: { la_purple: { in: 0, out: 3 } } },
+}
+const its = C.daftarRokok(null)
+const aw = C.rokokSisaAwal(rk, its, '2026-10-03')
+cek('sisa awal = SEMUA tanggal sebelumnya, bukan cuma kemarin', aw.la_purple === 8 && aw.korek === -1, JSON.stringify({ purple: aw.la_purple, korek: aw.korek }))
+cek('hari yang bolong tetap ikut dijumlah', C.rokokSisaAwal(rk, its, '2026-10-04').la_purple === 5)
+const rp = C.rokokRekapBulan(rk, its, '2026-10')
+const b1 = rp.baris.find(x => x.k === 'la_purple')
+cek('rekap: awal + masuk − keluar, hari gerak', b1.awal === 0 && b1.masuk === 10 && b1.keluar === 5 && b1.akhir === 5 && b1.hariGerak === 2, JSON.stringify(b1))
+cek('total bulan', rp.tMasuk === 10 && rp.tKeluar === 6 && rp.tAkhir === 4 && rp.tgl.length === 2, JSON.stringify({ m: rp.tMasuk, k: rp.tKeluar, a: rp.tAkhir, t: rp.tgl.length }))
+const merged = C.rokokSimpanItems([{ k: 'la_purple', n: 'X' }], { items: { la_purple: { in: 1, out: 1 }, la_menthol: { in: 7, out: 2 } } }, { la_purple: { in: 3, out: 0 } })
+cek('kunci lama yang tak ada di daftar dipertahankan apa adanya', merged.la_menthol.in === 7 && merged.la_menthol.out === 2 && merged.la_purple.in === 3)
+cek('hari item untuk konfirmasi buang', C.rokokHariItem(rk, 'la_purple') === 2 && C.rokokHariItem(rk, 'korek') === 1 && C.rokokHariItem(rk, 'eskrim') === 0)
+
 console.log('\ncashier: PAYS kembar dengan Office lama')
 const LAMA = path.resolve(import.meta.dirname, '../../laksamana-office/deploy')
 const ambilPays = (f) => {
@@ -147,6 +166,22 @@ for (const rel of ['cashier/index.html', 'finance/omset/index.html']) {
   }
   const p = ambilPays(f)
   cek(`PAYS sama persis dengan ${rel}`, p && sama(p, C.PAYS.map(x => ({ k: x.k, n: x.n }))), p ? JSON.stringify(p.map(x => x.k)) : 'PAYS tidak ketemu')
+}
+
+console.log('\ncashier: daftar rokok kembar dengan Office lama')
+const fRk = path.join(LAMA, 'cashier/index.html')
+if (!fs.existsSync(fRk)) {
+  lewat++
+  console.log('  LEWAT cashier/index.html tidak ada')
+}
+else {
+  const src = fs.readFileSync(fRk, 'utf8')
+  const mRk = src.match(/const ROKOK_BAWAAN=\[([\s\S]*?)\];/)
+  const pRk = mRk ? [...mRk[1].matchAll(/\{\s*k:\s*'([^']+)'\s*,\s*n:\s*'([^']+)'/g)].map(x => ({ k: x[1], n: x[2] })) : null
+  const lainLama = mRk ? (mRk[1].match(/lain:true/g) || []).length : -1
+  const lainKita = C.ROKOK_BAWAAN.filter(x => x.lain).length
+  cek('ROKOK_BAWAAN sama persis dengan Office lama', pRk && sama(pRk, C.ROKOK_BAWAAN.map(x => ({ k: x.k, n: x.n }))), pRk ? JSON.stringify(pRk.map(x => x.k)) : 'ROKOK_BAWAAN tidak ketemu')
+  cek('jumlah item "lain" sama', lainLama === lainKita, `lama=${lainLama} kita=${lainKita}`)
 }
 
 console.log(`\n${ok} OK, ${gagal} GAGAL${lewat ? `, ${lewat} LEWAT` : ''}\n`)

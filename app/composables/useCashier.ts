@@ -4,7 +4,7 @@
 // different days or sections never conflict.
 //
 // Contract: laksamana-api/docs/api/kompas.md "Granular parts of the blob".
-import type { Bon, ComplimentKasir, DailyReport, VoidBaris, VoidSetting } from '~/utils/cashier'
+import type { Bon, ComplimentKasir, DailyReport, RokokHari, RokokItem, VoidBaris, VoidSetting } from '~/utils/cashier'
 import { ifMatch, versiDari, type Versi } from '~/utils/versi'
 
 export interface Part<T> {
@@ -37,6 +37,17 @@ export const getOwners = () => getBagianKompas<string[]>('owners', [])
 export const putOwners = (v: string[], version: Versi) => putBagianKompas<string[]>('owners', v, version)
 export const getCompliments = () => getBagianKompas<ComplimentKasir[]>('compliments', [])
 export const putCompliments = (v: ComplimentKasir[], version: Versi) => putBagianKompas<ComplimentKasir[]>('compliments', v, version)
+
+// ---- Rokok (Daily Stock, rekap, setelan item) ----
+// One date map (`rokok`) and one item list (`rokok_items`), each its own part
+// with its own version (kompas.md "Granular parts of the blob").
+
+export const getRokok = () => getBagianKompas<Record<string, RokokHari>>('rokok', {})
+export const putRokok = (v: Record<string, RokokHari>, version: Versi) => putBagianKompas<Record<string, RokokHari>>('rokok', v, version)
+export const getRokokItems = () => getBagianKompas<RokokItem[]>('rokok_items', [])
+export const putRokokItems = (v: RokokItem[], version: Versi) => putBagianKompas<RokokItem[]>('rokok_items', v, version)
+/** Back to the built-in list: `PUT /sections/{key}` with `value: null` removes the part. */
+export const hapusRokokItems = (version: Versi) => tulis<null>('/kompas/sections/rokok_items', { value: null }, version)
 
 // ---- Catatan Void (own table void_log, NOT the blob: granular rows) ----
 // `diubah` of each row (ms) is its version; the setting carries its own.

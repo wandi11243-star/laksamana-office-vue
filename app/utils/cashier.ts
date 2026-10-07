@@ -509,3 +509,153 @@ export function voidManualDari(r: VoidBaris, set: Pick<VoidSetting, 'tax' | 'ser
     taxManual: num(r.tax) !== voidPersenDari(sub, set.tax),
   }
 }
+
+// ---------------------------------------------------------------- Rokok (Stock)
+// Old viewRokok / viewRokokRekap / viewRokokSet, deploy/cashier/index.html
+// :3096-3409. `DB.rokok[date] = {items:{kunci:{in,out}}, by, at, log}` and
+// `DB.rokok_items = [{k,n,lain}]`; both are sections of the kompas blob.
+
+export interface RokokItem { k: string, n: string, lain?: boolean }
+
+/**
+ * Default item list (`ROKOK_BAWAAN`, :3096-3119). Only a STARTING POINT: once
+ * the team ever saves the list, their list rules — later additions to this
+ * default never sneak back in and change a sheet they already arranged.
+ */
+export const ROKOK_BAWAAN: readonly RokokItem[] = [
+  { k: 'la_purple', n: 'LA Purple' },
+  { k: 'la_mango', n: 'LA Mango' },
+  { k: 'la_bold', n: 'LA Bold' },
+  { k: 'la_ice', n: 'LA Ice' },
+  { k: 'la_light', n: 'LA Light' },
+  { k: 'djarum_super', n: 'Djarum Super' },
+  { k: 'djarum_mild', n: 'Djarum Mild' },
+  { k: 'insta', n: 'Insta' },
+  { k: 'korek', n: 'Korek' },
+  { k: 'dos_hermanos', n: 'Dos Hermanos' },
+  { k: 'dos_h_rojo', n: 'Dos H. Rojo' },
+  { k: 'dos_h_maduro', n: 'Dos H. Maduro' },
+  { k: 'dos_h_corona', n: 'Dos H. Corona' },
+  { k: 'dos_h_torito', n: 'Dos H. Torito' },
+  { k: 'gold_seal_petit', n: 'Gold Seal Petit' },
+  { k: 'gold_seal_senor', n: 'Gold Seal Senor' },
+  { k: 'coin', n: 'Coin', lain: true },
+  { k: 'eskrim', n: 'Eskrim', lain: true },
+]
+
+/** The list in force: stored when ever set, the default otherwise (`rokokItems`, :3132). */
+export const daftarRokok = (items?: RokokItem[] | null): RokokItem[] =>
+  (Array.isArray(items) && items.length ? items : ROKOK_BAWAAN.map(x => ({ ...x })))
+
+/**
+ * Key from a name (`rksKunci`, :3270): lowercase, non-alphanumeric → `_`, max
+ * 40. Deliberately the same shape as the default keys, so a home-made list and
+ * the default cannot be told apart by their keys.
+ */
+export function rksKunci(nama: unknown): string {
+  return String(nama || '').toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 40)
+}
+
+export interface NilaiRokok { in: number, out: number }
+export interface RokokHari {
+  items?: Record<string, { in?: unknown, out?: unknown }>
+  by?: string
+  at?: number
+  log?: JejakEntri[]
+  [k: string]: unknown
+}
+
+/** `in`/`out` of one item, missing → 0 (`rokokItem`, :3142). */
+export function rokokItem(rec: RokokHari | null | undefined, k: string): NilaiRokok {
+  const x = rec?.items?.[k] || {}
+  return { in: num(x.in), out: num(x.out) }
+}
+
+/**
+ * Remaining stock BEFORE the chosen date (`rokokSisaAwal`, :3147): sums EVERY
+ * earlier date, not just yesterday — recording is often skipped, and taking
+ * only yesterday would read 0 after a blank day, as if stock ran out.
+ */
+export function rokokSisaAwal(rokok: Record<string, RokokHari> | null | undefined, items: RokokItem[], date: string): Record<string, number> {
+  const out: Record<string, number> = {}
+  for (const it of items) out[it.k] = 0
+  for (const d of Object.keys(rokok || {}).filter(d => d < date)) {
+    for (const it of items) {
+      const v = rokokItem(rokok![d]!, it.k)
+      out[it.k] = (out[it.k] ?? 0) + v.in - v.out
+    }
+  }
+  return out
+}
+
+/**
+ * Merge the sheet's inputs with what the day already holds (`:3233-3236`):
+ * item keys that are NO LONGER in the list are kept as they are — a removed
+ * item leaves numbers on earlier days, and building from scratch would erase
+ * them silently the next time someone opens and saves that old date.
+ */
+export function rokokSimpanItems(items: RokokItem[], lama: RokokHari | null | undefined, nilai: Record<string, NilaiRokok>): Record<string, NilaiRokok> {
+  const out: Record<string, NilaiRokok> = {}
+  for (const k of Object.keys(lama?.items || {})) {
+    if (!items.some(it => it.k === k)) out[k] = rokokItem(lama!, k)
+  }
+  for (const it of items) out[it.k] = nilai[it.k] ? { ...nilai[it.k]! } : { in: 0, out: 0 }
+  return out
+}
+
+export interface BarisRekapRokok {
+  k: string
+  n: string
+  lain: boolean
+  awal: number
+  masuk: number
+  keluar: number
+  akhir: number
+  hariGerak: number
+}
+
+export interface RekapRokok {
+  tgl: string[]
+  baris: BarisRekapRokok[]
+  tMasuk: number
+  tKeluar: number
+  tAkhir: number
+  tAwal: number
+}
+
+/** One month per item (`rokokRekapBulan`, :3429-3445); `awal` reuses rokokSisaAwal. */
+export function rokokRekapBulan(rokok: Record<string, RokokHari> | null | undefined, items: RokokItem[], mk: string): RekapRokok {
+  const tgl = Object.keys(rokok || {}).filter(d => d.slice(0, 7) === mk).sort()
+  const awal = rokokSisaAwal(rokok, items, `${mk}-01`)
+  const baris: BarisRekapRokok[] = items.map((it) => {
+    let masuk = 0
+    let keluar = 0
+    let hariGerak = 0
+    for (const d of tgl) {
+      const v = rokokItem(rokok![d]!, it.k)
+      masuk += v.in
+      keluar += v.out
+      if (v.in || v.out) hariGerak++
+    }
+    return { k: it.k, n: it.n, lain: !!it.lain, awal: awal[it.k] ?? 0, masuk, keluar, akhir: (awal[it.k] ?? 0) + masuk - keluar, hariGerak }
+  })
+  return {
+    tgl,
+    baris,
+    tMasuk: baris.reduce((s, b) => s + b.masuk, 0),
+    tKeluar: baris.reduce((s, b) => s + b.keluar, 0),
+    tAkhir: baris.reduce((s, b) => s + b.akhir, 0),
+    tAwal: baris.reduce((s, b) => s + b.awal, 0),
+  }
+}
+
+/** Days that hold a number for one item — for the "Buang" confirmation (:3307-3310). */
+export function rokokHariItem(rokok: Record<string, RokokHari> | null | undefined, k: string): number {
+  let hari = 0
+  for (const d of Object.keys(rokok || {})) {
+    const v = rokokItem(rokok![d]!, k)
+    if (v.in || v.out) hari++
+  }
+  return hari
+}
