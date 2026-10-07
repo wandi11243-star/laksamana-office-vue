@@ -372,7 +372,7 @@ export function soSelisihTeks(h: SoHitungan): { teks: string, tone: 'neutral' | 
 
 // ---------------------------------------------------------------------- recap
 
-export interface BarisBahan { item: string, qty: number, unit: string, rencana?: boolean }
+export interface BarisBahanCatat { item: string, qty: number, unit: string, rencana?: boolean }
 export interface RekapBahan { item: string, unit: string, selesai: number, rencana: number, dipakai: number, total: number }
 
 const REKAP_FAM_BASE: Record<string, string> = { berat: 'Kg', volume: 'Liter' }
@@ -402,7 +402,7 @@ export function bariskan(info: InfoBahan, nama: string, qty: unknown, unit?: str
 }
 
 /** Recap per item from {item, qty, unit, rencana?} lines (old `rekapBaris` :3144). */
-export function rekapBaris(info: InfoBahan, baris: BarisBahan[]): RekapBahan[] {
+export function rekapBaris(info: InfoBahan, baris: BarisBahanCatat[]): RekapBahan[] {
   const peta = new Map<string, RekapBahan>()
   baris.forEach((b) => {
     const nama = String(b.item || '').trim()
@@ -421,15 +421,15 @@ export function rekapBaris(info: InfoBahan, baris: BarisBahan[]): RekapBahan[] {
 }
 
 /** Harvest lines; usage not "Selesai" counts as a plan (old `barisPemakaian`). */
-export function barisPemakaian(list: { status?: string, items?: BarisItemRingkas[] }[]): BarisBahan[] {
-  const out: BarisBahan[] = []
+export function barisPemakaian(list: { status?: string, items?: BarisItemRingkas[] }[]): BarisBahanCatat[] {
+  const out: BarisBahanCatat[] = []
   list.forEach(r => (r.items || []).forEach(i => out.push({ item: String(i.item || ''), qty: Number(i.qty) || 0, unit: String(i.unit || ''), rencana: r.status !== 'Selesai' })))
   return out
 }
-export const barisWaste = (list: WasteRingkas[]): BarisBahan[] =>
+export const barisWaste = (list: WasteRingkas[]): BarisBahanCatat[] =>
   list.map(r => ({ item: String(r.item || ''), qty: Number(r.qty) || 0, unit: String(r.unit || '') }))
-export function barisSerah(list: HandoverRingkas[]): BarisBahan[] {
-  const out: BarisBahan[] = []
+export function barisSerah(list: HandoverRingkas[]): BarisBahanCatat[] {
+  const out: BarisBahanCatat[] = []
   list.forEach(s => (s.items || []).forEach(i => out.push({ item: String(i.item || ''), qty: Number(i.qty) || 0, unit: String(i.unit || '') })))
   return out
 }
@@ -530,7 +530,7 @@ export const bulanIni = (): string => {
 }
 
 /** First to last day of YYYY-MM — last day, not today: a past month comes whole. */
-export function rentangBulan(ym: string): { dari: string, ke: string } {
+export function rentangBulanCatat(ym: string): { dari: string, ke: string } {
   const [th, bl] = String(ym).split('-').map(Number)
   const akhir = new Date(th || 1970, bl || 1, 0).getDate()
   return { dari: `${ym}-01`, ke: `${ym}-${String(akhir).padStart(2, '0')}` }

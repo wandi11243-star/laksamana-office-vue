@@ -166,8 +166,8 @@ console.log('\nstock-catat: CSV')
 
 console.log('\nstock-catat: rentang bulan')
 {
-  samakan('Februari pendek', S.rentangBulan('2026-02'), { dari: '2026-02-01', ke: '2026-02-28' })
-  samakan('kabisat', S.rentangBulan('2024-02'), { dari: '2024-02-01', ke: '2024-02-29' })
+  samakan('Februari pendek', S.rentangBulanCatat('2026-02'), { dari: '2026-02-01', ke: '2026-02-28' })
+  samakan('kabisat', S.rentangBulanCatat('2024-02'), { dari: '2024-02-01', ke: '2024-02-29' })
   cek('24 bulan pilihan, terbaru dulu', S.daftarBulanPilih().length === 24 && S.daftarBulanPilih()[0].value === S.bulanIni())
 }
 

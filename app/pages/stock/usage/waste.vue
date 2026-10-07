@@ -18,7 +18,7 @@ import { hariIni, tglPendek, tambahHari } from '~/utils/format'
 import { tanganiKonflik, type Versi } from '~/utils/versi'
 import {
   barisWaste, bulanIni, csvWaste, daftarBulanPilih, dataBar, dataBarQty, fmtQty, fotoKeData, opsiSatuanWaste,
-  opsiTimCatat, pesanTimKosong, rekapBaris, rentangBulan, SATUAN_TERSEDIA, SEBAB_OPSI, subBarQty, teksTotal,
+  opsiTimCatat, pesanTimKosong, rekapBaris, rentangBulanCatat, SATUAN_TERSEDIA, SEBAB_OPSI, subBarQty, teksTotal,
   timBawaanCatat, timBelumDiisi, timCatatTerkunci, totalPerSatuan, unduhCsvStock, type InfoBahan, type RekapBahan,
 } from '~/utils/stock-catat'
 
@@ -162,7 +162,7 @@ const pilihanBulan = daftarBulanPilih()
 const rentang = computed(() => {
   const hari = hariIni()
   if (periode.value === 'minggu') return { dari: tambahHari(hari, -6), ke: hari }
-  if (periode.value === 'pilih') return rentangBulan(bulanPilih.value)
+  if (periode.value === 'pilih') return rentangBulanCatat(bulanPilih.value)
   if (periode.value === 'semua') return {} as { dari?: string, ke?: string }
   return { dari: `${bulanIni()}-01`, ke: hari }
 })

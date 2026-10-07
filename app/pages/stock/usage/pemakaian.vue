@@ -18,7 +18,7 @@ import { hariIni, tglPendek, tambahHari } from '~/utils/format'
 import { tanganiKonflik, type Versi } from '~/utils/versi'
 import {
   barisPemakaian, bulanIni, csvPemakaian, daftarBulanPilih, dataBar, fmtQty, JENIS_OPSI, opsiSatuanBahan,
-  opsiTimCatat, pesanTimKosong, rekapBaris, rentangBulan, teksTotal, timBawaanCatat, timBelumDiisi, timCatatTerkunci,
+  opsiTimCatat, pesanTimKosong, rekapBaris, rentangBulanCatat, teksTotal, timBawaanCatat, timBelumDiisi, timCatatTerkunci,
   totalPerSatuan, unduhCsvStock, type InfoBahan, type RekapBahan,
 } from '~/utils/stock-catat'
 
@@ -103,7 +103,7 @@ const rentang = computed(() => {
   const hari = hariIni()
   if (periode.value === 'hari') return { dari: hari, ke: hari }
   if (periode.value === 'minggu') return { dari: tambahHari(hari, -6), ke: hari }
-  if (periode.value === 'pilih') return rentangBulan(bulanPilih.value)
+  if (periode.value === 'pilih') return rentangBulanCatat(bulanPilih.value)
   if (periode.value === 'semua') return {} as { dari?: string, ke?: string }
   const d = new Date()
   return { dari: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`, ke: hari }

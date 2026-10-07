@@ -6,7 +6,7 @@
 // Versions are content hashes: a list read carries `meta.versions` keyed by
 // name/id, a single read carries `meta.version`. Writes send it as If-Match.
 import type { BahanHpp, ResepHpp } from '~/utils/pohon-resep'
-import type { OpnameRingkas, ProdukCatat, UsageRingkas } from '~/utils/stock-catat'
+import type { OpnameRingkas, ProdukCatat } from '~/utils/stock-catat'
 import { ifMatch, type Versi } from '~/utils/versi'
 
 // ---------------------------------------------------------------- Pohon Resep (read-only panel, module `tree`)
@@ -171,6 +171,3 @@ export async function getFotoEntri(kind: 'waste' | 'handovers', id: string) {
 /** Convenience aliases so callers read naturally. */
 export const getWastePhoto = (id: string) => getFotoEntri('waste', id)
 export const getHandoverPhoto = (id: string) => getFotoEntri('handovers', id)
-
-/** Re-export for pages that build KELUAR from the three lists (Daily SO). */
-export type { UsageRingkas }
