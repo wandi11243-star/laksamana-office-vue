@@ -117,3 +117,163 @@ export function validasiHarian(rec: Pick<BarisHarian, typeof KOLOM_INPUT[number]
   if (kNum(rec.traffic) < kNum(rec.bill)) errs.push('Traffic harus ≥ jumlah Bill.')
   return [...new Set(errs)]
 }
+
+// ---------------------------------------------------------------- Rekap Penjualan
+// The payment groups and the day formula (`rkHitung`, kas :1868-2174). ONE
+// source: Rekap Penjualan (Kas) and the Brankas balances both need it — the old
+// Office had two copies (`RK_GRUP`, `aktGrup` ≡ `rkHitung`).
+
+export interface GrupRekap { k: string, n: string, pos: string[], akt: string[], mdr?: string }
+
+export const RK_GRUP: readonly GrupRekap[] = [
+  { k: 'cash', n: 'Cash', pos: ['cash'], akt: ['cash'] },
+  { k: 'qr_order', n: 'QR Order', pos: ['qris_esb'], akt: ['qris_esb'], mdr: 'qr_order' },
+  { k: 'edc_bri', n: 'EDC BRI', pos: ['edc_bri'], akt: ['edc_bri'], mdr: 'edc_bri' },
+  { k: 'qris_bri', n: 'QRIS BRI', pos: ['qris_bri'], akt: ['qris_bri'], mdr: 'qris_bri' },
+  { k: 'edc_mandiri', n: 'EDC Mandiri', pos: ['edc_mandiri'], akt: ['edc_mandiri'], mdr: 'edc_mandiri' },
+  { k: 'qris_mandiri', n: 'QRIS Mandiri', pos: ['qris_mandiri'], akt: ['qris_mandiri'], mdr: 'qris_mandiri' },
+  { k: 'edc_bca', n: 'EDC BCA', pos: ['edc_bca'], akt: ['edc_bca'], mdr: 'edc_bca' },
+  { k: 'qris_bca', n: 'QRIS BCA', pos: ['qris_bca'], akt: ['qris_bca'], mdr: 'qris_bca' },
+  { k: 'transfer', n: 'Transfer', pos: ['transfer_uob'], akt: ['transfer_uob'] },
+  { k: 'gofood', n: 'Gofood', pos: ['gofood'], akt: ['gofood'], mdr: 'gofood' },
+  { k: 'grabfood', n: 'Grabfood', pos: ['grabfood'], akt: ['grabfood'], mdr: 'grabfood' },
+  { k: 'tiktokgo', n: 'TikTok Go', pos: ['tiktokgo'], akt: ['tiktokgo'], mdr: 'tiktokgo' },
+  { k: 'error', n: 'Error', pos: ['error_customer', 'error_floor', 'error_kasir', 'error_bar'], akt: ['error_customer', 'error_floor', 'error_kasir', 'error_bar'] },
+]
+
+/** Every method that sums into Rekap Aktual — the whole Report Daily, no exceptions. */
+export const RK_PAY: readonly string[] = (() => {
+  const out: string[] = []
+  for (const g of RK_GRUP) for (const k of g.akt) if (!out.includes(k)) out.push(k)
+  for (const k of ['compliment', 'member_dep', 'voucher', 'error_kitchen']) if (!out.includes(k)) out.push(k)
+  return out
+})()
+
+export const rkPay = (rec: BarisHarian | null | undefined, k: string, f: 'pos' | 'actual') => {
+  const tabel = (rec?.pay ?? {}) as Record<string, { pos?: unknown, actual?: unknown }>
+  const p = tabel[k] ?? {}
+  return kNum(p[f])
+}
+
+export interface RekapUbah {
+  mdr?: Record<string, number | string>
+  aktual?: Record<string, number | string>
+  mdrman?: Record<string, number | string>
+  setor?: boolean
+  tanda?: Record<string, boolean>
+}
+
+export interface GrupHitung {
+  pos: number
+  kotor: number
+  mdr: number
+  akt: number
+  diketik: boolean
+  punyaPos: boolean
+  lebih: number
+  mdrMan: number | null
+  berlebih: boolean
+  selisih: number | null
+  adjust: number
+}
+
+/**
+ * One day of the sales recap (`rkHitung`, :2108-2174). Since 21 Aug 2026 the
+ * typist's figure is the ACTUAL; MDR becomes the difference. When the actual is
+ * ABOVE the gross, one of the two must be typed — the typed MDR wins and the
+ * excess is computed (`akt − kotor + mdr`).
+ */
+export function hitungRekapHari(
+  rec: BarisHarian | null | undefined,
+  omset: BarisHarian | null | undefined,
+  piutang: { date?: string, status?: string, lunasDate?: string, nominal?: unknown }[] | null | undefined,
+  date: string,
+  ubah?: RekapUbah | null,
+) {
+  const sisi = (keys: string[], f: 'pos' | 'actual') => keys.reduce((s, k) => s + rkPay(rec, k, f), 0)
+  const g: Record<string, GrupHitung> = {}
+  for (const x of RK_GRUP) {
+    const pos = sisi(x.pos, 'pos')
+    const kotor = sisi(x.akt, 'actual')
+    let akt = kotor
+    let mdr = 0
+    let diketik = false
+    let lebih = 0
+    let mdrMan: number | null = null
+    let berlebih = false
+    if (x.mdr) {
+      const ua = ubah?.aktual?.[x.mdr]
+      let ketik: number | null = null
+      if (ua !== undefined) ketik = ua === '' ? null : kNum(ua)
+      else {
+        const a = (rec?.aktual ?? {}) as Record<string, unknown>
+        if (a[x.mdr] !== undefined && a[x.mdr] !== '') ketik = kNum(a[x.mdr])
+      }
+      diketik = ketik !== null
+      const um = ubah?.mdrman?.[x.mdr]
+      if (um !== undefined) mdrMan = um === '' ? null : kNum(um)
+      else {
+        const m = (rec?.mdrManual ?? {}) as Record<string, unknown>
+        if (m[x.mdr] !== undefined && m[x.mdr] !== '') mdrMan = kNum(m[x.mdr])
+      }
+      const stored = (rec?.mdr ?? {}) as Record<string, unknown>
+      const mdrLama = ubah?.mdr?.[x.mdr] !== undefined ? kNum(ubah.mdr[x.mdr]) : kNum(stored[x.mdr])
+      akt = diketik ? ketik! : kotor - mdrLama
+      berlebih = akt > kotor
+      mdr = berlebih || mdrMan !== null ? (mdrMan ?? 0) : kotor - akt
+      lebih = akt - kotor + mdr
+    }
+    g[x.k] = {
+      pos,
+      kotor,
+      mdr,
+      akt,
+      diketik,
+      punyaPos: x.pos.length > 0,
+      lebih,
+      mdrMan,
+      berlebih,
+      selisih: x.pos.length ? pos - akt : null,
+      adjust: x.pos.length ? pos - akt : akt,
+    }
+  }
+  const mdrTotal = RK_GRUP.reduce((s, x) => s + (x.mdr ? g[x.k]!.mdr : 0), 0)
+  const kotorMdr = RK_GRUP.reduce((s, x) => s + (x.mdr ? g[x.k]!.kotor : 0), 0)
+  const lebihTotal = RK_GRUP.reduce((s, x) => s + (x.mdr ? (g[x.k]!.lebih || 0) : 0), 0)
+  const setoran = RK_PAY.reduce((s, k) => s + rkPay(rec, k, 'actual'), 0)
+  const totPos = RK_PAY.reduce((s, k) => s + rkPay(rec, k, 'pos'), 0)
+  const rekapAkt = setoran - mdrTotal + lebihTotal
+  const j = omset
+    ? { ada: true, net: netOf(omset), svc: kNum(omset.service_charge), tax: kNum(omset.tax), disc: kNum(omset.discount), tagihan: tagihanOf(omset) }
+    : { ada: false, net: 0, svc: 0, tax: 0, disc: 0, tagihan: 0 }
+  let baru = 0
+  let lunas = 0
+  for (const b of piutang || []) {
+    if (!b) continue
+    if (b.date === date) baru += kNum(b.nominal)
+    if (b.status === 'lunas' && b.lunasDate === date) lunas += kNum(b.nominal)
+  }
+  const bon = { baru, lunas, koreksi: lunas - baru, ada: baru !== 0 || lunas !== 0 }
+  const selisihTotal = j.tagihan - rekapAkt + bon.koreksi
+  return {
+    g,
+    j,
+    bon,
+    mdrTotal,
+    lebihTotal,
+    kotorMdr,
+    setoran,
+    totPos,
+    rekapAkt,
+    jual: j.tagihan,
+    selisihTotal,
+    comp: rkPay(rec, 'compliment', 'actual'),
+    mdep: rkPay(rec, 'member_dep', 'actual'),
+    vou: rkPay(rec, 'voucher', 'actual'),
+    errCust: rkPay(rec, 'error_customer', 'actual'),
+    errKit: rkPay(rec, 'error_kitchen', 'actual'),
+    adaData: !!rec || j.tagihan !== 0,
+    /** Has cashier deposits, has omset, but service & tax are both zero. */
+    tanpaSvcTax: setoran > 0 && j.ada && j.net > 0 && j.svc + j.tax === 0,
+  }
+}

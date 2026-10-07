@@ -42,6 +42,13 @@ const DEFAULT_PERMS: Record<string, Record<string, number>> = {
 
 export const useKasAksesSiap = () => useState<{ matriks: Record<string, Record<string, number>>, peran: Record<string, string> } | null>('kas-akses', () => null)
 
+/** Pages that HAVE input; outside this list "Ubah" is clamped to Lihat. */
+export const AKS_HAL_ISI_KAS = AKS_HAL_ISI
+
+/** Default level of one page for one role (before stored overrides). */
+export const tingkatBawaanKas = (page: string, role: string): number =>
+  DEFAULT_PERMS[page]?.[role] ?? PERM_VIEW
+
 /** Load the matrix + roles once from the module chrome (`siapkan`). */
 export function muatPeranKas() {
   const s = useKasAksesSiap()
@@ -102,9 +109,18 @@ export const LAYAR_FINANCE: Layar[] = [
   { key: 'kas_kk_buku', label: 'Buku Kas Kecil', desc: 'Semua transaksi berikut saldo berjalan tiap pos', icon: 'i-lucide-book-open', to: '/finance/kas', grup: 'Kas Kecil', boleh: kasHal('kk_buku') },
   { key: 'kas_kk_input', label: 'Input Transaksi Kas Kecil', desc: 'Satu baris = satu transaksi; tambah baris sebanyak yang perlu lalu simpan sekaligus', icon: 'i-lucide-pencil-line', to: '/finance/kas/input', grup: 'Kas Kecil', boleh: kasHal('kk_input') },
   { key: 'kas_kk_pos', label: 'Pos & Kategori', desc: 'Daftar pos pembayaran dan kategori belanja', icon: 'i-lucide-tags', to: '/finance/kas/pos', grup: 'Kas Kecil', boleh: kasHal('kk_pos') },
+  { key: 'kas_bayar', label: 'Planning Pembayaran', desc: 'Lembar transfer mingguan per rekening pembayar', icon: 'i-lucide-calendar-clock', to: '/finance/kas/bayar', grup: 'Kas Kecil', boleh: kasHal('bayar') },
+  { key: 'kas_rekap', label: 'Rekap Penjualan', desc: 'Cocokkan POS dengan setoran bank — angka penjualannya after tax & service', icon: 'i-lucide-clipboard-check', to: '/finance/kas/rekap', grup: 'Kas Kecil', boleh: kasHal('rekap') },
   { key: 'kas_dp', label: 'Dana Masuk (DP)', desc: 'DP reservasi yang sudah masuk — halaman milik modul Reservasi', icon: 'i-lucide-wallet', to: '/finance/kas/dp', grup: 'Kas Kecil', boleh: kasHal('dp') },
   { key: 'kas_bri', label: 'Pencocokan QRIS BRI', desc: 'Mutasi masuk rekening BRI dicocokkan ke DP reservasi', icon: 'i-lucide-scan-line', to: '/finance/kas/bri', grup: 'Kas Kecil', boleh: kasHal('bri') },
+  { key: 'kas_invoice', label: 'Invoice & Kwitansi', desc: 'Permintaan kwitansi dari Reservasi — periksa dana masuknya, lalu terbitkan', icon: 'i-lucide-file-text', to: '/finance/kas/invoice', grup: 'Kas Kecil', boleh: kasHal('invoice') },
+  { key: 'kas_void', label: 'Laporan Void', desc: 'Menu yang di-void berikut kronologinya — dicatat kasir di modul Cashier', icon: 'i-lucide-ban', to: '/finance/kas/void', grup: 'Kas Kecil', boleh: kasHal('voidb') },
+  { key: 'kas_bulanan', label: 'Dashboard Omset', desc: 'Pencapaian target bulan berjalan', icon: 'i-lucide-calendar-range', to: '/finance/kas/bulanan', grup: 'Kas Kecil', boleh: kasHal('bulanan') },
+  { key: 'kas_analytics', label: 'Dashboard Analytics', desc: 'Komposisi & sumber pendapatan', icon: 'i-lucide-pie-chart', to: '/finance/kas/analytics', grup: 'Kas Kecil', boleh: kasHal('analytics') },
+  { key: 'kas_marketing', label: 'Performa Marketing', desc: 'Kontribusi omset per marketing', icon: 'i-lucide-megaphone', to: '/finance/kas/marketing', grup: 'Kas Kecil', boleh: kasHal('marketing') },
+  { key: 'kas_event', label: 'Performa Event', desc: 'Kontribusi omset per PIC event', icon: 'i-lucide-party-popper', to: '/finance/kas/event', grup: 'Kas Kecil', boleh: kasHal('event') },
   { key: 'kas_kasir', label: 'Performa Kasir', desc: 'Omset yang diakui tiap kasir — angka final', icon: 'i-lucide-chart-column', to: '/finance/kas/kasir', grup: 'Kas Kecil', boleh: kasHal('kasir') },
+  { key: 'kas_akses', label: 'Kelola Kru', desc: 'Siapa saja yang bisa membuka modul Finance', icon: 'i-lucide-key-round', to: '/finance/kas/akses', grup: 'Kas Kecil', boleh: kasHal('akses') },
 ]
 
 /** The line under the user's name in the module chrome. */

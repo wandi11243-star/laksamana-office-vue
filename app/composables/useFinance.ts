@@ -164,3 +164,71 @@ export async function getBayar() {
 export function putBayar(bayar: RencanaBayar[], versi: Versi) {
   return useApi()<Envelope<unknown>>('/finance/petty-cash/payment-plan', { method: 'PUT', body: { bayar }, headers: ifMatch(versi) })
 }
+
+// ---------------------------------------------------------------- Invoices (panel Finance)
+
+export interface InvoiceReq {
+  id: string
+  resId?: string
+  jenis?: string
+  status: 'MENUNGGU' | 'DIBUAT' | 'DITOLAK'
+  no?: string
+  ringkas?: unknown
+  mintaOleh?: string
+  mintaAt?: number
+  putusOleh?: string
+  putusAt?: number
+  catatan?: string
+  [k: string]: unknown
+}
+
+/** The queue / history (`?status=&jenis=`), + `meta.versions` per row. */
+export async function getInvoices(status?: string, jenis?: string) {
+  const r = await useApi()<Envelope<InvoiceReq[]> & { meta?: Record<string, unknown> }>('/finance/invoices', { query: { status, jenis } })
+  return { rows: r.data, versions: VERSIONS(r.meta), queue: (r.meta?.queue ?? {}) as Record<string, number> }
+}
+export const getInvoiceQueue = () =>
+  useApi()<Envelope<{ total: number, perJenis: Record<string, number> }>>('/finance/invoices/queue')
+
+export function decideInvoice(id: string, body: { aksi: 'buat' | 'tolak' | 'batal', catatan?: string, penanda?: string[] }, versi: Versi) {
+  return useApi()<Envelope<InvoiceReq>>(`/finance/invoices/${id}/decision`, { method: 'POST', body, headers: ifMatch(versi) })
+}
+
+export interface InvoiceSetting {
+  prefix?: string
+  prefixInvoice?: string
+  cap?: string
+  penandaDefault?: string
+  penandaDefaultInvoice?: string
+  [k: string]: unknown
+}
+export async function getInvoiceSettings() {
+  const r = await useApi()<Envelope<InvoiceSetting>>('/finance/invoices/settings')
+  return { setting: r.data, version: versiDari(r) }
+}
+export function putInvoiceSettings(body: Partial<InvoiceSetting>, versi: Versi) {
+  return useApi()<Envelope<InvoiceSetting>>('/finance/invoices/settings', { method: 'PUT', body, headers: ifMatch(versi) })
+}
+
+export interface Penanda {
+  id: string
+  nama: string
+  jabatan?: string
+  ttd?: string
+  urut?: number
+  aktif?: boolean
+  [k: string]: unknown
+}
+export async function getPenanda() {
+  const r = await useApi()<Envelope<Penanda[]> & { meta?: Record<string, unknown> }>('/finance/invoices/signatories')
+  return { rows: r.data, versions: VERSIONS(r.meta) }
+}
+export function createPenanda(body: { nama: string, jabatan?: string, urut?: number, aktif?: boolean }) {
+  return useApi()<Envelope<Penanda>>('/finance/invoices/signatories', { method: 'POST', body })
+}
+export function patchPenanda(id: string, body: Partial<Penanda>, versi: Versi) {
+  return useApi()<Envelope<Penanda>>(`/finance/invoices/signatories/${id}`, { method: 'PATCH', body, headers: ifMatch(versi) })
+}
+export function deletePenanda(id: string, versi: Versi) {
+  return useApi()<{ deleted: boolean }>(`/finance/invoices/signatories/${id}`, { method: 'DELETE', headers: ifMatch(versi) })
+}
