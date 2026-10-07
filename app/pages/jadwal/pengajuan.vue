@@ -392,7 +392,7 @@ const form = ref(false)
           <JadwalAjuStatus :a="a" />
           <div
             v-if="bisaHead(a) || bisaHRD(a) || bisaBatal(a)"
-            class="grid grid-cols-2 gap-2"
+            class="grid grid-cols-[1fr_auto] gap-2"
           >
             <UButton
               v-if="bisaHead(a) || bisaHRD(a)"
@@ -416,7 +416,7 @@ const form = ref(false)
               label="Batal"
               color="neutral"
               variant="outline"
-              class="col-span-2 justify-center"
+              class="col-span-full justify-center"
               @click="batal(a)"
             />
           </div>

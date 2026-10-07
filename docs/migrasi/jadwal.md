@@ -329,3 +329,23 @@ Dikelilingi panel promo "Roster Kru & Daily Worker" / "Satu lembar untuk semua y
   - **DW → Marketing/Event/Reservasi:** Kalender Tamu menjumlahkan pax dari tiga modul (`deploy/dw/index.html:971-979`, `:2179-2193`); peta bentuk data kembar dengan `deploy/radar/index.html` (`satukan()`), disiplin saat kolom berubah.
   - **Jadwal & DW → Office/Account:** roster + tulis data pegawai; Tim HRD otomatis admin `jadwal`+`dw` (`CLAUDE.md:7684`). Tidak ada endpoint roster di kontrak `jadwal.md`/`dw.md` (ada di `Account`).
   - **Absensi → Jadwal/DW:** `shiftHari` + `jadwalDW`; v1 service call langsung (`_lintas-modul.md:51`, `docs/modules/absensi.md:75-76`).
+
+## J. Progres build (#11)
+
+Dipecah per kelompok layar (issue induk #11):
+
+| bagian | layar | status |
+|---|---|---|
+| 1/5 | shell + pemilih Roster (D.1), Dashboard (D.2), Jadwal Bulanan (D.3), Jadwal Saya (D.6), Pengajuan (D.7) | ✅ dibangun 2026-10-07, dicek di mock read-only 390px & 1366px (HRD dan head Kitchen) |
+| 2/5 | Input Mingguan (D.4: editor sel, alat massal, impor Excel lewat `xlsx-baca.ts`), Rekap Pegawai (D.5), ekspor lembar (Salin bulan lalu, Excel/PNG/Teks WA) | ⬜ |
+| 3/5 | Data Pegawai (D.8), Pengaturan (D.9) | ⬜ |
+| 4/5 | DW: Dashboard, Hadir, Kalender, Permintaan, Antrean (D.10, D.11, D.13–D.15) | ⬜ |
+| 5/5 | DW: Tamu + `pax-harian.ts` (D.12, G-05), Rekap, Bayar, Pekerja, Pengaturan, Akses (D.16–D.20) | ⬜ |
+
+Catatan bagian 1:
+- `LANJUTKAN DARI`: Input Mingguan. `JadwalLembar.vue` (lembar) dan `JadwalSelEditor.vue` (editor sel) sudah siap dipakai ulang.
+- Divisi kru dibaca dari `GET /jadwal/roster` (`divisi` sudah diselesaikan server, F.1), tidak dihitung ulang di Vue.
+- Pengesahan HRD menulis sel lewat `PUT /jadwal/cells` sesudah `POST /requests/{id}/decision`, sama dengan `kirimPutusan` lama; endpoint putusan tidak menyentuh sel.
+- Blok DAILY WORKER hanya tampil untuk pemegang `dw` sampai G-03 (laksamana-api#179); yang lain melihat keterangan.
+- Warna shift = data setting (`w`, bisa diubah admin), digambar lewat `JadwalShiftPil` dengan teks terang/gelap dari kecerahannya; tidak ada hex di komponen.
+- Lembar bulanan (31 kolom) bergulir di dalam kotaknya sendiri dengan kolom nama dibekukan, seperti `.tablewrap` lama; halaman tidak bergeser ke samping di 390px.

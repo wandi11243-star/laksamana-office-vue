@@ -68,7 +68,7 @@ const jamTeks = (uid: string, tgl: string) => {
           <th class="beku left-0 w-9 bg-table-head text-table-head-text">
             No.
           </th>
-          <th class="beku left-9 w-40 bg-table-head text-start text-table-head-text">
+          <th class="beku left-9 w-28 bg-table-head text-start lg:w-40 text-table-head-text">
             Nama
           </th>
           <th class="beku left-49 w-32 bg-table-head text-start text-table-head-text">
@@ -77,7 +77,7 @@ const jamTeks = (uid: string, tgl: string) => {
           <th
             v-for="d in hari"
             :key="d"
-            class="min-w-16 bg-table-head px-1 py-2 text-table-head-text num"
+            class="hari bg-table-head px-1 py-2 text-table-head-text num"
             :class="idxHari(d) === 0 && 'border-s-2 border-s-primary-400'"
           >
             {{ tglSel(d) }}
@@ -119,7 +119,7 @@ const jamTeks = (uid: string, tgl: string) => {
             <td class="beku left-0 bg-default text-center text-muted num">
               {{ i + 1 }}
             </td>
-            <td class="beku left-9 bg-default">
+            <td class="beku left-9 max-w-28 bg-default lg:max-w-40">
               <b class="block truncate text-highlighted">{{ u.name }}</b>
               <i
                 v-if="g.heads.includes(u.id)"
@@ -178,7 +178,7 @@ const jamTeks = (uid: string, tgl: string) => {
               <td class="beku left-0 bg-default text-center text-muted num">
                 {{ i + 1 }}
               </td>
-              <td class="beku left-9 bg-default">
+              <td class="beku left-9 max-w-28 bg-default lg:max-w-40">
                 <b class="block truncate text-highlighted">{{ w.nama }}</b>
                 <i class="text-[11px] text-muted">daily worker</i>
               </td>
@@ -230,10 +230,24 @@ const jamTeks = (uid: string, tgl: string) => {
 }
 .lembar td.sel {
   height: 2.75rem;
-  min-width: 4rem;
   padding: 0.125rem;
 }
+/* Every day column the same width, whatever its longest label. */
+.lembar .hari,
+.lembar td.sel {
+  width: 4.5rem;
+  min-width: 4.5rem;
+  max-width: 4.5rem;
+}
+/* Phones freeze only No + Nama; the info column scrolls with the days,
+   otherwise the frozen block alone fills a 390px screen. */
 .left-49 {
-  left: 12.25rem;
+  position: static;
+}
+@media (min-width: 1024px) {
+  .left-49 {
+    position: sticky;
+    left: 12.25rem;
+  }
 }
 </style>

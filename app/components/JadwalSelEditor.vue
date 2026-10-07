@@ -10,7 +10,7 @@
 -->
 <script setup lang="ts">
 import type { SelJadwal, SettingJadwal } from '~/utils/jadwal'
-import { HARI_SENIN, idxHari, kelasTeksShift, shiftDef, shiftPilihan } from '~/utils/jadwal'
+import { kelasTeksShift, shiftDef, shiftPilihan } from '~/utils/jadwal'
 import { saveCells } from '~/composables/useJadwal'
 import { fTgl } from '~/utils/format'
 
@@ -83,7 +83,7 @@ function kosongkan() {
   <ResponsiveSheet
     v-model:open="open"
     :title="target?.nama ?? ''"
-    :description="target ? `${HARI_SENIN[idxHari(target.tgl)]} · ${fTgl(target.tgl)}` : ''"
+    :description="target ? fTgl(target.tgl) : ''"
   >
     <div class="space-y-4">
       <div>
