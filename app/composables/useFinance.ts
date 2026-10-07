@@ -1,3 +1,5 @@
+import { ifMatch, versiDari, type Versi } from '~/utils/versi'
+
 // Finance invoice calls used by reservasi's kwitansi flow.
 //
 // Owned by the finance module; reservasi only borrows the three calls its
@@ -41,3 +43,192 @@ export const statusKwitansi = (resIds: string[]) =>
 /** GET /finance/invoices/file/{resId} — the printable document, or 404 `not_issued`. */
 export const berkasKwitansi = (resId: string) =>
   useApi()<Envelope<BerkasKwitansi>>(`/finance/invoices/file/${resId}`)
+
+// ════════════════════════════════════════════════════════════════════════════
+// Kas Kecil (`/finance/petty-cash`), the payment plan in the vault blob, and
+// the vault itself for Brankas. Contract: laksamana-api/docs/api/finance.md.
+//
+// Versions are content hashes: a list read carries `meta.versions` keyed by id,
+// a single read carries `meta.version`. Writes send it as If-Match. The whole
+// vault blob has ONE version (`meta.version`) for every list.
+// ════════════════════════════════════════════════════════════════════════════
+
+// ---------------------------------------------------------------- Kas Kecil
+
+export interface KkBaris { pos_id: string, debet: number, kredit: number }
+export interface KkTrx {
+  id: string
+  tgl: string
+  keterangan: string
+  kategori_id?: string | null
+  input?: boolean
+  bon?: boolean
+  dibuat_oleh?: string
+  baris: KkBaris[]
+}
+export interface KkItem { id: string, nama: string, urut?: number, aktif?: boolean }
+export type KkList = 'sources' | 'categories'
+export type KkTingkat = 0 | 1 | 2
+export interface KkAkses {
+  matrix: Record<string, Record<string, number>>
+  roles: Record<string, string>
+}
+export interface KkState {
+  pos: KkItem[]
+  kategori: KkItem[]
+  trx: KkTrx[]
+  /** role → page → tingkat (the stored matrix; absent = default). */
+  akses: Record<string, Record<string, number>>
+  /** '#<userId>' or '@<lower name>' → role. */
+  peran: Record<string, string>
+}
+
+const VERSIONS = (m?: Record<string, unknown>) => (m?.versions ?? {}) as Record<string, Versi>
+
+/** Bootstrap (`getAll`): pos, kategori, trx, akses, peran. */
+export const getKk = () => useApi()<Envelope<KkState>>('/finance/petty-cash/')
+
+/** `GET /transactions?from&to` + `meta.versions` per row. */
+export async function getKkTrx(from?: string, to?: string) {
+  const r = await useApi()<Envelope<KkTrx[]> & { meta?: Record<string, unknown> }>('/finance/petty-cash/transactions', { query: { from, to } })
+  return { trx: r.data, versions: VERSIONS(r.meta) }
+}
+/** One transaction with its split rows + `meta.version` (needed for an edit). */
+export async function getKkTrxSatu(id: string) {
+  const r = await useApi()<Envelope<KkTrx>>(`/finance/petty-cash/transactions/${id}`)
+  return { trx: r.data, version: versiDari(r) }
+}
+export function createKkTrx(body: Partial<KkTrx>) {
+  return useApi()<Envelope<{ id: string }>>('/finance/petty-cash/transactions', { method: 'POST', body })
+}
+/** PUT replaces the transaction and rewrites its split rows. */
+export function updateKkTrx(id: string, body: Partial<KkTrx>, versi: Versi) {
+  return useApi()<Envelope<KkTrx>>(`/finance/petty-cash/transactions/${id}`, { method: 'PUT', body, headers: ifMatch(versi) })
+}
+/** PATCH only the administrative ticks. */
+export function patchKkTrx(id: string, body: { input?: boolean, bon?: boolean }, versi: Versi) {
+  return useApi()<Envelope<KkTrx>>(`/finance/petty-cash/transactions/${id}`, { method: 'PATCH', body, headers: ifMatch(versi) })
+}
+export function deleteKkTrx(id: string, versi: Versi) {
+  return useApi()<{ deleted: boolean }>(`/finance/petty-cash/transactions/${id}`, { method: 'DELETE', headers: ifMatch(versi) })
+}
+
+/** `GET /sources` or `/categories` + `meta.versions` per row. */
+export async function getKkItems(list: KkList) {
+  const r = await useApi()<Envelope<KkItem[]> & { meta?: Record<string, unknown> }>(`/finance/petty-cash/${list}`)
+  return { items: r.data, versions: VERSIONS(r.meta) }
+}
+export function createKkItem(list: KkList, body: { nama: string, urut?: number }) {
+  return useApi()<Envelope<KkItem>>(`/finance/petty-cash/${list}`, { method: 'POST', body })
+}
+export function updateKkItem(list: KkList, id: string, body: Partial<KkItem>, versi: Versi) {
+  return useApi()<Envelope<KkItem>>(`/finance/petty-cash/${list}/${id}`, { method: 'PATCH', body, headers: ifMatch(versi) })
+}
+export function deleteKkItem(list: KkList, id: string, versi: Versi) {
+  return useApi()<{ deleted: boolean }>(`/finance/petty-cash/${list}/${id}`, { method: 'DELETE', headers: ifMatch(versi) })
+}
+
+export async function getKkAkses() {
+  const r = await useApi()<Envelope<KkAkses> & { meta?: Record<string, unknown> }>('/finance/petty-cash/access')
+  return { akses: r.data, version: versiDari(r), roleVersions: (r.meta?.roleVersions ?? {}) as Record<string, Versi> }
+}
+export function putKkMatrix(matrix: Record<string, Record<string, number>>, versi: Versi) {
+  return useApi()<Envelope<KkAkses>>('/finance/petty-cash/access/matrix', { method: 'PUT', body: { matrix }, headers: ifMatch(versi) })
+}
+export function putKkRole(userId: string, role: string, versi: Versi | undefined) {
+  return useApi()<Envelope<unknown>>(`/finance/petty-cash/access/roles/${encodeURIComponent(userId)}`, { method: 'PUT', body: { role }, headers: versi === undefined ? undefined : ifMatch(versi) })
+}
+
+// ---------------------------------------------------------------- Planning Pembayaran (bayar list in the vault blob)
+
+export interface RencanaBayar {
+  id: string
+  vendor?: string
+  keterangan?: string
+  kategori?: string
+  dari?: string
+  amount?: number
+  batch?: string
+  status?: 'scheduled' | 'paid' | string
+  bukti?: { ok?: boolean, [k: string]: unknown }
+  name?: string
+  cat?: string
+  [k: string]: unknown
+}
+
+/** The payment plan + the vault blob version (one version for the whole blob). */
+export async function getBayar() {
+  const r = await useApi()<Envelope<{ bayar?: RencanaBayar[] }> & { meta?: Record<string, unknown> }>('/finance/petty-cash/payment-plan')
+  return { bayar: r.data.bayar ?? [], version: versiDari(r) }
+}
+export function putBayar(bayar: RencanaBayar[], versi: Versi) {
+  return useApi()<Envelope<unknown>>('/finance/petty-cash/payment-plan', { method: 'PUT', body: { bayar }, headers: ifMatch(versi) })
+}
+
+// ---------------------------------------------------------------- Invoices (panel Finance)
+
+export interface InvoiceReq {
+  id: string
+  resId?: string
+  jenis?: string
+  status: 'MENUNGGU' | 'DIBUAT' | 'DITOLAK'
+  no?: string
+  ringkas?: unknown
+  mintaOleh?: string
+  mintaAt?: number
+  putusOleh?: string
+  putusAt?: number
+  catatan?: string
+  [k: string]: unknown
+}
+
+/** The queue / history (`?status=&jenis=`), + `meta.versions` per row. */
+export async function getInvoices(status?: string, jenis?: string) {
+  const r = await useApi()<Envelope<InvoiceReq[]> & { meta?: Record<string, unknown> }>('/finance/invoices', { query: { status, jenis } })
+  return { rows: r.data, versions: VERSIONS(r.meta), queue: (r.meta?.queue ?? {}) as Record<string, number> }
+}
+export const getInvoiceQueue = () =>
+  useApi()<Envelope<{ total: number, perJenis: Record<string, number> }>>('/finance/invoices/queue')
+
+export function decideInvoice(id: string, body: { aksi: 'buat' | 'tolak' | 'batal', catatan?: string, penanda?: string[] }, versi: Versi) {
+  return useApi()<Envelope<InvoiceReq>>(`/finance/invoices/${id}/decision`, { method: 'POST', body, headers: ifMatch(versi) })
+}
+
+export interface InvoiceSetting {
+  prefix?: string
+  prefixInvoice?: string
+  cap?: string
+  penandaDefault?: string
+  penandaDefaultInvoice?: string
+  [k: string]: unknown
+}
+export async function getInvoiceSettings() {
+  const r = await useApi()<Envelope<InvoiceSetting>>('/finance/invoices/settings')
+  return { setting: r.data, version: versiDari(r) }
+}
+export function putInvoiceSettings(body: Partial<InvoiceSetting>, versi: Versi) {
+  return useApi()<Envelope<InvoiceSetting>>('/finance/invoices/settings', { method: 'PUT', body, headers: ifMatch(versi) })
+}
+
+export interface Penanda {
+  id: string
+  nama: string
+  jabatan?: string
+  ttd?: string
+  urut?: number
+  aktif?: boolean
+  [k: string]: unknown
+}
+export async function getPenanda() {
+  const r = await useApi()<Envelope<Penanda[]> & { meta?: Record<string, unknown> }>('/finance/invoices/signatories')
+  return { rows: r.data, versions: VERSIONS(r.meta) }
+}
+export function createPenanda(body: { nama: string, jabatan?: string, urut?: number, aktif?: boolean }) {
+  return useApi()<Envelope<Penanda>>('/finance/invoices/signatories', { method: 'POST', body })
+}
+export function patchPenanda(id: string, body: Partial<Penanda>, versi: Versi) {
+  return useApi()<Envelope<Penanda>>(`/finance/invoices/signatories/${id}`, { method: 'PATCH', body, headers: ifMatch(versi) })
+}
+export function deletePenanda(id: string, versi: Versi) {
+  return useApi()<{ deleted: boolean }>(`/finance/invoices/signatories/${id}`, { method: 'DELETE', headers: ifMatch(versi) })
+}

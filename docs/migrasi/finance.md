@@ -393,8 +393,8 @@ Kode error yang wajib ditangani UI (`docs/api/finance.md:136-145`, `docs/api/kom
 - [ ] **finance / kas — `dp` embed** — legacy memuat halaman Reservasi dalam `<iframe>`; di Vue Nuxt SPA, apakah halaman DP dipindah menjadi halaman Reservasi asli (bukan embed) dan dibuka lintas modul? Bukti: `kas:6429-6440`, `CLAUDE.md:10872-10886`. Opsi: A) route Reservasi asli di Nuxt; B) iframe tetap; C) composable DP khusus.
 
 ## J. Progres build
-Branch: migrasi/finance-omset (#38) · migrasi/finance-input (#39, sub-issue 2/4) · Mulai: 2026-10-07
-LANJUTKAN DARI: #40 kas (15 layar), lalu #41 brankas (7 layar).
+Branch: migrasi/finance-omset (#38) · migrasi/finance-input (#39) · migrasi/finance-kas (#40, sub-issue 3/4) · Mulai: 2026-10-07
+LANJUTKAN DARI: #41 brankas (7 layar) — akan memakai `RK_GRUP`/`hitungRekapHari` dari `kompas.ts` untuk saldo (kembar `aktGrup`).
 
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
@@ -405,7 +405,21 @@ LANJUTKAN DARI: #40 kas (15 layar), lalu #41 brankas (7 layar).
 | omset/input | `app/pages/finance/omset/input.vue` | ✅ | `GET/PUT /kompas/days/{date}`, `GET /kompas/reports/{date}`, `/sections/piutang`, `GET /kompas/state` (pencapaian bulan) | — |
 | omset/breakdown | `app/pages/finance/omset/breakdown.vue` | ✅ | `GET/PUT /kompas/days/{date}`, `GET /kompas/state` (`employees`, `compliments`) | baris otomatis dari modul Marketing/Event (deal, VIP Assisted, event internal) menyusul saat modulnya ada; ditambah manual |
 | omset/akses | `app/pages/finance/omset/akses.vue` | ✅ | `GET /account/modules/kompas/members` | — |
-| kas/* (15 layar) | — | ⬜ | | #40 |
+| kas/kk_buku | `app/pages/finance/kas/index.vue` | ✅ | `GET /finance/petty-cash/` (bootstrap; saldo dari seluruh riwayat), `GET/PATCH/DELETE /petty-cash/transactions/{id}` | — |
+| kas/kk_input | `app/pages/finance/kas/input.vue` | ✅ | `POST/PUT /petty-cash/transactions`, `GET /petty-cash/transactions/{id}` (versi) | panel PO BD (`poTulisRealisasi`) ditunda — baris diketik tangan |
+| kas/kk_pos | `app/pages/finance/kas/pos.vue` | ✅ | `GET/POST/PATCH/DELETE /petty-cash/sources` + `/categories` | — |
+| kas/dp | `app/pages/finance/kas/dp.vue` | ✅ | `DanaMasukPanel` (kontrak reservasi, pintu G-14) | — |
+| kas/bri | `app/pages/finance/kas/bri.vue` + `app/components/KompasBri.vue` | ✅ | `GET /kompas/bri?from&to`, `POST /kompas/bri`, `/bri/match`, `POST /bri/{id}/cancel`, `POST/DELETE /bri/ignored[/{dpId}]`; DP lewat pintu G-14 | — |
+| kas/kasir | `app/pages/finance/kas/kasir.vue` + `app/components/PerformaKasir.vue` | ✅ | `GET /kompas/state` (daily+bd, employees, compliments), `GET /account/roster` | — |
+| kas/bayar | `app/pages/finance/kas/bayar.vue` | ✅ | `GET/PUT /finance/petty-cash/payment-plan` | saldo wallet (G-06), daftar vendor (stock), unggah bukti — ditunda & dicatat |
+| kas/rekap | `app/pages/finance/kas/rekap.vue` | ✅ | `GET /kompas/state` (reports, daily, piutang, rekap_setoran), `PUT /kompas/rekap` | — |
+| kas/voidb | `app/pages/finance/kas/void.vue` | ✅ | `GET /kompas/voids?from&to`; pembanding POS T-15 hanya bila ber-modul `analytics` | — |
+| kas/bulanan | `app/pages/finance/kas/bulanan.vue` | ✅ | `GET /kompas/state` | — |
+| kas/analytics | `app/pages/finance/kas/analytics.vue` | ✅ | `GET /kompas/state` | — |
+| kas/marketing + kas/event | `app/pages/finance/kas/{marketing,event}.vue` + `app/components/PerformaDivisi.vue` | ✅ | `GET /kompas/state`, `GET /account/roster`, mesin `performa-bonus.ts` | tangga bonus lengkap menyusul di layar modul Marketing/Event |
+| kas/invoice | `app/pages/finance/kas/invoice.vue` | ✅ | `/finance/invoices` (queue, decision, settings, signatories) | unggah gambar ttd/cap (di luar layar ini) |
+| kas/akses | `app/pages/finance/kas/akses.vue` | ✅ | `GET/PUT /petty-cash/access`, `PUT /petty-cash/access/roles/{userId}`, `GET /account/modules/finance/members` | — |
+| kas/* sisa | — | ✅ 15/15 | | — |
 | brankas/* (7 layar) | — | ⬜ | | #41 |
 
 Catatan build #38:
@@ -432,6 +446,32 @@ Catatan build #39 (input + breakdown):
 - `omset/breakdown.vue`: Section A kasir (bruto − diskon), Self Order, Section B marketing (potong kasir shift, `menuFix`/`payGroup`/Open Bill), Section C event (50% + OB penuh, kasir tidak dipotong); gate simpan = balance && baris marketing bernominal punya shift; peringatan diskon & PIC kosong; kartu Efek ke Realisasi; konfirmasi simpan + jejak `bdLog`. Baris `abaikan` dibawa apa adanya.
 - **Ditunda (dicatat):** baris otomatis dari modul Marketing/Event (deal, Reservasi VIP Assisted, event internal) + suntingan `abaikan`-nya — modul asalnya belum bermigrasi; baris ditambah manual dengan pita pemberitahuan di layar. Disunting ulang saat modul Marketing/Event dibangun.
 - Cek visual 2026-10-07 (mock `mock-api-cashier.mjs` 4013, tulis 403): `finance/omset/input?tgl=2026-10-01` (net Rp4.900.000, service+tax Rp210.000, setoran & selisih) dan `breakdown?tgl=2026-10-01` (total diakui = net, potongan GIG Rp200.000 ke shift, efek Sari Rp4.700.000, peringatan PIC, "Valid, siap disimpan") di 1366 & 390 overflow 0, console bersih; `PUT /kompas/days/2026-10-01` ditolak 403 tanpa crash.
+
+Catatan build #40 (Kas Kecil — BAGIAN PERTAMA, 4/15 layar):
+- `useFinance.ts` di-EXTEND, bukan ditimpa: permukaan invoice milik jalur reservasi (`mintaKwitansi`/`statusKwitansi`/`berkasKwitansi`, tipe `BerkasKwitansi`/`StatusKwitansi`) tetap apa adanya; bagian Kas Kecil + payment-plan ditambahkan di bawahnya.
+- `kas/kk_buku`: saldo tiap pos dihitung dari SELURUH riwayat (bukan bulan yang dibuka), tapis pos/kategori/status + cari + pager 25, tandai Input/Bon lewat `PATCH` (versi dibaca per baris sebelum menulis), hapus dengan konfirmasi + versi, ubah → form input.
+- `kas/kk_input`: satu baris per transaksi, debet/kredit + nominal per pos, `POST`/`PUT` per baris berurutan (legacy `simpanTrx` juga berurutan); baris gagal tetap di draf dengan pesannya. Panel PO BD (`poTulisRealisasi`) ditunda dan dicatat.
+- `kas/kk_pos`: dua daftar (pos & kategori), sunting inline + simpan per baris, nonaktif/aktifkan, hapus (ditolak server bila terpakai — pesan apa adanya).
+- `kas/dp`: memakai ulang `DanaMasukPanel` (T-12/U5) dengan hak verifikasi seperti kasir (G-14).
+- Cek visual 2026-10-07 (mock 4013, tulis 403): keempat layar di 1366 & 390 overflow 0, console bersih; saldo pos Rp2.120.000/BRI Rp2.000.000/UOB −Rp120.000 benar dari mock; ubah transaksi memuat isian dari baris; `GET` versi lalu `PUT` ditolak 403 tanpa crash.
+- SISA #40 (9 layar): bayar, rekap, voidb (baca saja, T-14), bulanan, analytics, marketing, event, invoice, akses.
+
+Catatan build #40 bagian kedua (8/15 layar):
+- **Matriks peran Kas** (`app/utils/layar/finance.ts`): `tingkatKas()` port `aksTingkat` (DEFAULT_PERMS + selisih tersimpan, admin modul selalu penuh & tidak bisa diturunkan, `viewer` dijepit ≤ Lihat, halaman non-isian ≤ Lihat); `useKasIzin()` dipakai sidebar (`boleh` per halaman) dan tiap layar (tombol sembunyi + penjaga di fungsi). Matriks dimuat sekali lewat `siapkan` shell finance.
+- **Ekstraksi panel bersama**: `KompasBri.vue` (dari Cashier) + prop `kunci`/`bolehUbah`, dan `PerformaKasir.vue` + prop `kunci`/`bolehSemua` (kas: semua nama terlihat — batasan "hanya dirimu" memang khas Cashier). Halaman Cashier menjadi pembungkus tipis; halaman Kas memakai komponen yang sama.
+- Gate peran juga dipasang di empat layar kas sebelumnya (kk_buku/kk_input/kk_pos/dp): tombol & checkbox disembunyikan untuk Lihat-saja, fungsi menolak menulis, halaman ber-PERM_NONE menampilkan pemberitahuan.
+- Cek visual 2026-10-07 (mock 4013, tulis 403) sebagai `finance` (admin, 3 kunci) & `kasir`: `finance/kas/bri`, `finance/kas/kasir`, `finance/kas` + regresi `cashier/bri`, `cashier/kasir`, `cashier/report` di 1366 & 390 overflow 0, console bersih; `PUT /kompas/sections/employees` (sinkron PIC T-01 U2) tetap jalan dan ditolak mock tanpa crash.
+
+Catatan build #40 bagian ketiga (9 layar; Kas Kecil 15/15):
+- **bayar**: lembar per tanggal + arsip, draf baris, status bayar/bukti, simpan sempit `PUT payment-plan` (bayarSave) — saldo wallet (G-06) & daftar vendor (stock) & unggah bukti ditunda dan disebut di layar.
+- **rekap**: tiga sub-tab (rekap bulanan, input harian, setoran cash). Rumus harian pindah ke `app/utils/kompas.ts` (`RK_GRUP`/`RK_PAY`/`hitungRekapHari`) — sumber yang nanti dipakai Brankas (kembar `aktGrup`); arah 21 Agu 2026: aktual yang diketik menggantikan hitungan, MDR jadi selisihnya, dana lebih dihitung saat aktual > kotor (`mdr manual` menang). Setoran cash: nominal dihitung server, baris lama tanpa rincian = setoran penuh. `uji:kompas` bertambah 8 pemeriksaan rumus rekap (21 total).
+- **voidb**: baca saja (T-14), agregat per orang/alasan/salah + rincian per tanggal+bill; kartu Pembanding POS hanya bila ber-modul `analytics` (T-15).
+- **bulanan & analytics**: dasar `tagihan` untuk realisasi/tren, komposisi dari gross (100%), sumber omset memakai `porsiPicKompas` + `potonganHariKompas` (Walk In = kasir sesudah potongan), Self Order di luar pie, selisih atribusi diskon dilaporkan.
+- **marketing/event**: satu komponen `PerformaDivisi.vue` memakai mesin `performa-bonus.ts` (`pbAgregasi`, `bonusMarketing`/`bonusEvent`); baris yatim dilaporkan; tangga bonus lengkap tetap milik layar modul Marketing/Event.
+- **invoice**: tiga tab (antrean/riwayat/pengaturan), keputusan buat/tolak/batal ber-If-Match + penanda tangan, pengaturan prefix/penanda bawaan, CRUD penanda (nama/jabatan/urut/aktif; unggah ttd di luar layar ini), peringatan "kwitansi = pengakuan uang diterima".
+- **akses**: matriks 15 halaman × 3 role (siklus klik; viewer & halaman tanpa isian dijepit Lihat; kolom Admin Modul terkunci penuh) + role per kru (`#userId`), simpan matriks sebagai SELISIH dari bawaan; muat ulang cache izin setelah simpan.
+- **Temuan ulang**: `USelect` Reka UI menolak `value: ''` — semua pilihan kosong memakai sentinel (`__kosong`, `__bawaan`, `__semua`, `__all__`); satu halaman sempat error dan sudah diperbaiki.
+- Cek visual 2026-10-07 (mock 4013, tulis 403): 9 layar baru di 1366 overflow 0, console bersih; endpoint yang dipanggil cocok dengan kontrak (lihat log mock); `lint`/`typecheck`/`build` hijau; `uji:kompas` 21 OK.
 
 ## Konsolidasi untuk README & berkas bersama
 - Baris README: `| finance | [finance.md](finance.md) | ⚠️ selesai dengan celah | 29 (1 pemilih + 6 omset + 15 kas + 7 brankas) + 2 pengalih | 2 ❌ · 5 ⚠️ | 6 | omset/kas/brankas/rekap + kompas |`

@@ -53,6 +53,33 @@ export const putRokokItems = (v: RokokItem[], version: Versi) => putBagianKompas
 /** Back to the built-in list: `PUT /sections/{key}` with `value: null` removes the part. */
 export const hapusRokokItems = (version: Versi) => tulis<null>('/kompas/sections/rokok_items', { value: null }, version)
 
+// ---- Rekap Penjualan (Kas Kecil) ----
+// The narrow write (`simpanRekap`): only the panel's own marks survive. It
+// writes `setor`, `mdr`, `aktual`, `mdrManual` and the POS flag `esb` — NEVER
+// `pay`. The server computes deposit amounts and recomputes `setor`.
+
+export interface RekapHari {
+  setor?: boolean
+  /** Objects keyed by payment group — the legacy shape the server stores. */
+  mdr?: Record<string, number | string> | number | string
+  aktual?: Record<string, number | string> | number | string
+  mdrManual?: Record<string, number | string> | number | string
+  esb?: Record<string, boolean> | string | boolean
+  [k: string]: unknown
+}
+
+export interface RekapHasil {
+  saved: boolean
+  ubah?: unknown
+  hari?: unknown
+  takDikenal?: unknown
+  setoran?: unknown[]
+}
+
+export function putRekap(body: { hari?: Record<string, RekapHari>, setoran?: { tambah?: unknown[], hapus?: string[] } }, version?: Versi) {
+  return useApi()<Envelope<RekapHasil>>('/kompas/rekap', { method: 'PUT', body, headers: version === undefined ? undefined : ifMatch(version) })
+}
+
 // ---- Performa Kasir (read-only, one whole-blob read) ----
 // The screen needs every daily row of the range INCLUDING `bd` (the event
 // deductions), `employees` (also written by Kompas, synced from the roster per
@@ -64,7 +91,9 @@ export interface KompasState {
   employees?: EmployeesKompas
   compliments?: ComplimentKasir[]
   owners?: string[]
+  piutang?: Bon[]
   reports?: Record<string, DailyReport>
+  rekap_setoran?: unknown[]
   [k: string]: unknown
 }
 
