@@ -172,3 +172,11 @@ tetapi v1 menulis record hanya untuk **admin modul** (`laksamana-api/app/Modules
 Akibatnya kru baru tidak punya baris `users` sampai seorang admin membuka modul.
 **Usul:** izinkan pembuatan baris `users` dari roster Office bagi pemegang modul (bukan hanya admin), atau
 sinkronkan di server saat roster Office berubah.
+
+### G-19 — cashier: `GET /kompas/bri` tidak memulangkan `dipakai[]`
+Mesin BRI lama memakai `dipakai` — dpId yang sudah dipegang baris **mana pun, lintas bulan** — supaya DP yang
+sudah dicatat di September tidak ditagih lagi di Agustus (`cocok-bri.js:203-207`, `:454-467`). v1 hanya
+memulangkan `{baris,total,maks,abai}` (`VoidBri::briList`, `laksamana-api/app/Modules/Kompas/Services/VoidBri.php:863-886`).
+Vue #30 memakai daftar baris bulan berjalan (perilaku sebelum 23 Sep 2026): benar untuk bulan yang dibuka,
+salah untuk bulan lain.
+**Usul:** tambahkan `dipakai: [dpId…]` (query `bri_mutasi` `cara='cocok' AND batal_at=0`) ke balasan `GET /kompas/bri`.
