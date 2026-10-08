@@ -188,7 +188,14 @@ async function kirimRevisi() {
       'Revisi diajukan', { refType: 'event', refId: props.ev.id, action: 'Revisi penawaran diajukan', detail: `revisi ke-${ke}: ${alasan}` },
     )
     if (ok) {
-      await buatMkt('notifications', { type: 'approval', text: `Negosiasi Lanjutan menunggu approval: ${props.ev.nama} — revisi ke-${ke}: ${alasan}`, at: Date.now(), read: false, to: 'all' }).catch(() => {})
+      await buatMkt('notifications', {
+        type: 'approval',
+        title: 'Negosiasi Lanjutan menunggu approval',
+        body: `${props.ev.nama} — revisi ke-${ke}: ${alasan}`,
+        link: '/marketing/approvals',
+        read: false,
+        at: new Date().toISOString(),
+      }).catch(() => {})
       await logMkt('event', props.ev.id, 'Masuk antrian Negosiasi Lanjutan', `revisi ke-${ke}`).catch(() => {})
       revisiBuka.value = false
       revisiAlasan.value = ''

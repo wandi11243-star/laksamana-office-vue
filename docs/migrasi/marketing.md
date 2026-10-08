@@ -373,22 +373,22 @@ Kode error yang wajib ditangani UI: `already_exists` (409 saat POST id duplikat)
 ```
 
 ## J. Progres build
-Issue: #16, dipecah #58–#63 · Branch saat ini: `migrasi/marketing-event` (#59, PR #81) · Mulai: 2026-10-07
-LANJUTKAN DARI: #60 — invoice, approval, reporting, notifikasi, timeline. #59 selesai (#58 merge PR #64).
+Issue: #16, dipecah #58–#63 · Branch saat ini: `migrasi/marketing-keuangan` (#60, PR #82, ditumpuk di atas #59) · Mulai: 2026-10-07
+LANJUTKAN DARI: #61 — Reservasi VIP + Request Design & Video. #59, #60 selesai (menunggu merge PR #81, #82).
 
 | layar (key) | file | status | endpoint dipakai | sub-issue |
 |---|---|---|---|---|
 | dashboard | `app/pages/marketing/dashboard.vue` | ✅ | `GET /marketing/state`, `POST /marketing/clients` (Lead Baru) | #58 — (koreksi build) Pendapatan Bulan Ini membandingkan bulan+tahun; lama hanya bulan, jadi Oktober tahun-tahun lalu ikut terjumlah |
 | crm | `app/pages/marketing/crm.vue` (+ `MarketingClientForm`, `MarketingClientDetail`, `MarketingFollowUp`) | ✅ | `POST/PATCH/DELETE /marketing/clients`, `DELETE /marketing/followups/{id}`, `POST /marketing/followups`, `PATCH /marketing/events/{id}`, `POST /marketing/activities` | #58 — ekspor/impor CSV sama kolom & aturan; hapus ditolak bila masih memegang event |
-| pipeline (+ events) | `app/pages/marketing/pipeline.vue` (+ `MarketingEventBaru`) | ✅ | `POST /marketing/events` (+ `POST /clients` isi cepat), `PATCH /marketing/events/{id}` (tahap) | #58 — (koreksi build) seret kartu kini butuh `edit_event`; lama tidak memeriksa izin. HP: kolom ditumpuk + "Pindah tahap". "Ajukan Revisi" & tombol Internal/Client/Draft = Segera (#59) |
+| pipeline (+ events) | `app/pages/marketing/pipeline.vue` (+ `MarketingEventBaru`) | ✅ | `POST /marketing/events` (+ `POST /clients` isi cepat), `PATCH /marketing/events/{id}` (tahap) | #58 + #60 — (koreksi build) seret kartu kini butuh `edit_event`; lama tidak memeriksa izin. HP: kolom ditumpuk + "Pindah tahap". Tombol Internal/Client/Draft diaktifkan (#60; dijanjikan #59) |
 | calendar | `app/pages/marketing/calendar.vue` | ✅ | `GET /marketing/state`, `GET /event/events?from&to`, `GET /reservasi/reservations?from&to` | #58 — (koreksi build) tanggal acara EMS = tanggal lokal `start_datetime`; lama memotong string UTC |
 | event (detail) | `app/pages/marketing/event/[id].vue` (+ `MarketingEventForm`, `MarketingFinanceEvent`, `MarketingBayarSheet`→dalam Finance, `MarketingPenawaran`, `MarketingMejaKunci`, `MarketingBarisTabel`, `app/utils/marketing-event.ts`) | ✅ | `GET /marketing/state`, `PATCH /marketing/events/{id}` (If-Match), `POST /marketing/files`, `POST /marketing/files/chunks`, `PUT /marketing/documents/settings` (kwSeq), `POST /marketing/notifications`, `GET/POST/PUT/DELETE /reservasi/reservations` (kunci `ev-<id>`), `DELETE /marketing/events/{id}` | #59 — form bertab 1/2/3/4 atas EVENT_SCHEMA D.1–D.11 + visibilitas div/fin; Finance: Rincian + Sisipkan FREE & TBC, ketentuan, centang DP (sinkron baris, bukti wajib), riwayat + Catat Pembayaran (default sisa DP → sisa), kwitansi `KW/…` dari kwSeq, pratinjau + cetak, Kirim Invoice / Reminder DP via WA; Penawaran: PDF 40MB chunks, approval, kirim (tahap → Quotation Terkirim), revisi (→ Prospect + Negosiasi Lanjutan), Konfirmasi Deal; hapus ketik-nama + lepas kunci dulu; brief tersembunyi Internal/Client/Draft + cetak |
 | brief | `app/pages/marketing/brief/index.vue` | ✅ | `GET /marketing/state` | #59 — tabel + tombol Internal/Client/Draft per baris; mode quote = template negosiasi, bukan surat resmi; PDF unggahan sendiri dibuka bila ada |
-| invoices | — | ⬜ | | #60 |
-| approvals | — | ⬜ | | #60 |
-| reports | — | ⬜ | | #60 |
-| notifications | — | ⬜ | | #60 (+ lonceng shell) |
-| timeline | — | ⬜ | | #60 |
+| invoices | `app/pages/marketing/invoices.vue` (+ `MarketingSlotInv`) | ✅ | `GET /marketing/state`, `GET /finance/invoices/status?res=`, `POST /finance/invoices/requests`, `GET /finance/invoices/file/{resId}` | #60 — hanya Confirmed/Deal/Event Done (F.16); 4 kartu + tab Semua/Lunas/Sudah DP/Belum Payment; nomor resmi dari Finance (pelunasan dulu); request DP/pelunasan + PDF resmi; Catat = ke tab Finance event |
+| approvals | `app/pages/marketing/approvals.vue` | ✅ | `GET /marketing/state`, `PATCH /marketing/events/{id}` (penawaran), `PATCH /marketing/approvals/{id}`, `POST /marketing/notifications` | #60 — penawaran + negosiasi satu daftar; 3 kartu; hanya Manager/Approver memutus; tolak negosiasi → Lost |
+| reports | `app/pages/marketing/reports.vue` | ✅ | `GET /marketing/state` | #60 — per kategori + TOTAL + rata-rata; Export CSV seluruh event (BOM + sep=) |
+| notifications | `app/pages/marketing/notifications.vue` | ✅ | `GET /marketing/state`, `PATCH /marketing/notifications/{id}` | #60 — pengingat live (DP, H-7/H-0, FU hari ini, overdue) + riwayat; lonceng shell + lencana belum dibaca |
+| timeline | `app/pages/marketing/timeline.vue` | ✅ | `GET /marketing/state` | #60 — tabel sortir + pager; Bersihkan Log = Segera (v1 tanpa hapus massal) |
 | vip | — | ⬜ | | #61 |
 | designreq | — | ⬜ | | #61 (403 laksamana-api#190 tak boleh memblokir) |
 | tasks | — | ⬜ | | #62 |
@@ -407,6 +407,11 @@ Catatan build:
 - Kunci meja di D.1: daftar meja dari `GET /reservasi/master/tables` + hunian hari itu dari `GET /reservasi/reservations?from&to`; tulis `POST` (baru) / `PUT` (ada) baris `ev-<id>`; gagal = toast + tidak ada yang berubah (seperti "Reservasi tidak terjangkau" di lama). Kunci pindah tanggal tanpa kunci ulang = peringatan merah (tidak dipindah otomatis, seperti lama).
 - Bukti DP & pembayaran diunggah SEGERA saat berkas dipilih (pola `dpBuktiPilih` lama); berkas yatim dibuang server 7 hari bila tab tidak disimpan.
 - Nomor kwitansi dari `kwSeq` settings: nomor dipakai saat baris lahir, `kwSeq` dinaikkan lewat `PUT /documents/settings`; gagal menaikkan tidak menggagalkan simpan (cek duplikat di cutover K).
+- Fondasi #60: `app/utils/marketing-keuangan.ts` (layakTagih F.16, rekap + tab bayar, resId `mkt:<id>:dp|lunas`, nomor resmi pelunasan-dulu, praPelunasan, ringkasInv, barisApproval pen+nego, laporan + CSV, pengingat live, linkNotif, labelJenis, lalu). Uji: `node tools/uji-marketing-keuangan.mjs` (18 cek; 1 mutasi tertangkap).
+- #60 menambah ke `useMarketing.ts`: `tandaiDibacaMkt` (PATCH notifikasi), `useLencanaMkt` (lonceng shell); memakai `mintaKwitansi`/`statusKwitansi`/`berkasKwitansi` milik Finance (tidak disalin). Bentuk notif diselaraskan ke lama (`type/title/body/link/read/at`); panggilan revisi #59 diperbaiki mengikuti bentuk ini.
+- Lonceng shell Marketing + lencana belum-dibaca ditulis di entri `// ── marketing ──` milik sendiri di `modul-shell.ts` (§4 TIM-A).
+- "Bersihkan Log" = Segera: v1 tanpa hapus massal dan baris log tidak membawa versi (tombol nonaktif + alasan).
+- Catat pembayaran dari layar invoices mengarah ke tab Finance event (lembar yang sama dengan #59), bukan modal ganda.
 - `normalizeState` lama dijalankan di memori saat membaca (`normEventMkt`, `normRoleAccMkt`, `staff` → `users`): event yang belum pernah disimpan ulang sejak migrasi lama tetap memberi Grand Total yang sama dengan Office lama. Server tidak disentuh sampai baris itu disimpan.
 - `autoCloseEvents` (Deal/Confirmed H+2 → Event Done) dijalankan sekali per sesi saat modul dibuka, satu PATCH berversi per event; penolakan diam seperti simpan latar lama.
 - Identitas: baris `users` dengan id Office lalu nama; belum ada → `marketing` di memori. Admin modul Office = Super Admin (seperti hasil sinkron roster lama). Sinkron roster → `POST /users` ikut Pegawai & Akses (#63).
@@ -430,3 +435,8 @@ Uji silang Vue ↔ Office lama pada data yang sama (dev). Bagian #58:
 - [ ] **penawaran** — PDF ≤40MB terunggah bertahap & terbaca; alur Draft → Menunggu Approval → Disetujui/Ditolak → Terkirim (tahap → Quotation Terkirim); kirim tanpa persetujuan ditolak; revisi (alasan wajib) → Prospect + antrian Negosiasi Lanjutan + riwayat putaran; Konfirmasi Deal membuat task divisi; nomor surat `NNN/PNW/LM/Romawi/Tahun` berurut.
 - [ ] **brief** — tabel + pencarian sama; Internal/Client/Draft membuka dokumen yang benar; client tidak memuat internalNote/highlight; quote menyebut bukan surat resmi; cetak rapi satu halaman.
 - [ ] **kunci & hapus** — kunci meja di D.1 tercatat sebagai baris `ev-<id>` di Reservasi & terlihat di sana; pindah tanggal memunculkan peringatan; Lepas Kunci membebaskan; hapus butuh ketik nama persis, melepas kunci dulu, gagal lepas dilaporkan + hapus manual; hapus event yang sudah terbayar diperingatkan dengan nomor kwitansi & totalnya.
+- [ ] **invoice** — hanya Confirmed/Deal/Event Done tampil (Draft dihitung terpisah); 4 kartu + 4 tab angkanya sama; nomor resmi = Finance (pelunasan didahulukan); request DP/pelunasan idempoten, ditolak bisa request ulang; PDF resmi tercetak dengan nomor + penanda; gagal jangkau Finance = pita + Coba lagi.
+- [ ] **approval** — penawaran (termasuk revisi = Negosiasi Lanjutan) + negosiasi harga satu daftar; 3 kartu; bukan approver hanya membaca; tolak negosiasi memindahkan event ke Lost + notifikasi; putusan penawaran tercatat di kartu detail.
+- [ ] **reporting** — kartu + tabel kategori + TOTAL sama; Export CSV terbuka rapi di Excel id-ID (BOM + sep=).
+- [ ] **notifikasi** — pengingat live (DP, H-7/H-0, FU hari ini + nurture, overdue) benar di hari yang sama; riwayat + badge lonceng + Tandai semua dibaca; klik baris membuka tujuan yang benar.
+- [ ] **timeline** — urut + pager kolom Waktu/Oleh/Jenis; rujukan nama benar; Bersihkan Log tetap Segera sampai v1 punya hapus massal.

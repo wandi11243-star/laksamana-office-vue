@@ -517,20 +517,19 @@ const kosong = computed(() => {
               <template #grand-cell="{ row }">
                 <span class="num">{{ rupiah(grand(row.original)) }}</span>
               </template>
-              <template #dok-cell>
+              <template #dok-cell="{ row }">
                 <div
                   class="flex gap-1"
                   @click.stop
                 >
                   <UButton
-                    v-for="d in ['Internal', 'Client', 'Draft']"
-                    :key="d"
-                    :label="d"
+                    v-for="d in [{ l: 'Internal', m: 'internal' }, { l: 'Client', m: 'client' }, { l: 'Draft', m: 'quote' }]"
+                    :key="d.l"
+                    :label="d.l"
                     size="xs"
                     color="neutral"
                     variant="ghost"
-                    disabled
-                    title="Segera — menyusul bersama Event Brief (#59)"
+                    :to="`/marketing/brief?id=${row.original.id}&mode=${d.m}`"
                   />
                 </div>
               </template>
