@@ -285,6 +285,15 @@ const cetak = () => window.print()
         </template>
       </template>
 
+      <!-- The API always sends the payload that matches `sumber`, but if it
+        ever does not, say so instead of showing a bare header. -->
+      <p
+        v-if="(d.sumber === 'mkt' && !d.mkt) || (d.sumber === 'vip' && !d.vip) || (d.sumber === 'evt' && !d.event)"
+        class="mt-4 rounded-field border border-default bg-muted p-3 text-sm text-muted"
+      >
+        Detail acara ini belum lengkap. Coba muat ulang, atau lihat langsung di modul asalnya.
+      </p>
+
       <p class="mt-5 text-xs text-muted print:hidden">
         Radar hanya membaca. Perubahan tetap dilakukan di modul asalnya.
       </p>
