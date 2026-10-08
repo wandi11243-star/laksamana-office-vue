@@ -231,9 +231,9 @@ marketing, konten, desain, pengaturan, akses). Struktur yang dipakai L2/L3:
 | error | pages/analytics/error.vue | ✅ (L2) | GET /kompas/analytics | — |
 | voidb | pages/analytics/voidb.vue | ✅ (L2) | GET /kompas/analytics | wadah voidb tersimpan (setia ke lama); /voids live → L3 |
 | promo | pages/analytics/promo.vue | ✅ (L2) | GET /kompas/analytics | pengurai promo diunggah via unggah (wadah terpisah) |
-| tren | pages/analytics/tren.vue | ⬜ (L3) | GET /kompas/analytics | — |
-| event | pages/analytics/event.vue | ⬜ (L3) | GET /kompas/analytics + event/state | ⚠️ E.7 |
-| marketing | pages/analytics/marketing.vue | ⬜ (L3) | GET /kompas/analytics + marketing/state | ⚠️ E.7 |
+| tren | pages/analytics/tren.vue | ✅ (L3) | GET /kompas/analytics | grafik Chart.js → AppBar; banding dua bulan bebas ikut |
+| event | pages/analytics/event.vue (+ utils/analytics-dampak.ts) | ✅ (L3) | GET /kompas/analytics + /event/state + /kompas/state (bd) | Open Bill via performa-bonus (impor) |
+| marketing | pages/analytics/marketing.vue | ✅ (L3) | GET /kompas/analytics + /marketing/state + /kompas/state (bd) | kategori = jenis acara Marketing |
 | konten | pages/analytics/konten.vue | ⬜ (L3) | GET /kompas/analytics + konten/state (malas) | ⚠️ E.7 |
 | desain | pages/analytics/desain.vue | ⬜ (L3) | GET /kompas/analytics + konten/state (malas) | ⚠️ E.7 |
 | unggah | pages/analytics/unggah.vue | ✅ (+ parser promo/void L2) | GET+PUT /kompas/analytics | wadah promo/voidb terpisah, daftar kunci tertutup |
