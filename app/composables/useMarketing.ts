@@ -333,6 +333,102 @@ export function useTabelMkt<T>(key: string, kolom: KolomMkt<T>[], sidik?: () => 
   return { urut, hal, klik, kepala, susun, potong }
 }
 
+// ---------------------------------------------------------------- files
+
+/** One uploaded file pointer (`POST /marketing/files` → `{key, name, url}`). */
+export interface BerkasMkt { key: string, name: string, url?: string }
+
+/** POST /marketing/files — images or PDF, ≤40 MB. The record stores {key, name}. */
+export const unggahBerkasMkt = (body: { dataBase64: string, fileName: string, mimeType: string }) =>
+  useApi()<Envelope<BerkasMkt>>('/marketing/files', { method: 'POST', body })
+
+/** POST /marketing/files/chunks — ~2 MB per chunk; the last one returns {key, name}. */
+export const unggahChunkMkt = (body: { uploadId: string, seq: number, last: boolean, dataBase64: string, mimeType: string, fileName: string }) =>
+  useApi()<Envelope<BerkasMkt>>('/marketing/files/chunks', { method: 'POST', body })
+
+/** GET /marketing/files/{key} — the file itself streams. */
+export const urlBerkasMkt = (key: string) => {
+  const { apiBase } = useRuntimeConfig().public as { apiBase: string }
+  return `${apiBase.replace(/\/api\/v1\/?$/, '')}/api/v1/marketing/files/${encodeURIComponent(key)}`
+}
+
+/** Read a File into pure base64 (no data: prefix), like the old fileToBase64. */
+export function berkasKeBase64(f: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(String(r.result).split(',').pop() ?? '')
+    r.onerror = () => reject(new Error('read_failed'))
+    r.readAsDataURL(f)
+  })
+}
+
+/**
+ * Upload in ~2 MB chunks (the old unggahBertahap for the 40 MB offer PDF).
+ * Calls back with 0..1 progress.
+ */
+export async function unggahBertahapMkt(f: File, progress?: (v: number) => void): Promise<BerkasMkt> {
+  const buf = new Uint8Array(await f.arrayBuffer())
+  let bin = ''
+  for (let i = 0; i < buf.length; i++) bin += String.fromCharCode(buf[i]!)
+  const b64 = btoa(bin)
+  const POTONG = 2 * 1024 * 1024
+  const uploadId = `${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`
+  const n = Math.max(1, Math.ceil(b64.length / POTONG))
+  let hasil: BerkasMkt = { key: '', name: f.name }
+  for (let i = 0; i < n; i++) {
+    const r = await unggahChunkMkt({
+      uploadId, seq: i, last: i === n - 1,
+      dataBase64: b64.slice(i * POTONG, (i + 1) * POTONG),
+      mimeType: f.type || 'application/octet-stream', fileName: f.name,
+    })
+    if (r.data?.key) hasil = r.data
+    progress?.((i + 1) / n)
+  }
+  return hasil
+}
+
+// ---------------------------------------------------------------- table locks (Reservasi module, read mostly)
+
+/** The Reservasi row id that holds this event's locked tables (rsvUbahBaris). */
+export const resIdKunciMkt = (evId: string) => `ev-${evId}`
+
+/**
+ * Release the lock row, fire-and-forget with one version retry (the old
+ * rsvUbahBaris(resId, () => null), retry 6x on conflict). A missing row
+ * (404) means the tables are already free. Anything else fails LOUDLY with
+ * the table names + the manual path, because a silent failure double-books
+ * the night (marketing.md F.8).
+ */
+export async function lepasKunciMejaMkt(evId: string): Promise<{ ok: boolean, pesan: string }> {
+  const resId = resIdKunciMkt(evId)
+  const api = useApi()
+  try {
+    const ada = await api<Envelope<{ updatedAt?: number }>>(`/reservasi/reservations/${encodeURIComponent(resId)}`).catch(() => null)
+    if (!ada) return { ok: true, pesan: 'Tidak ada meja terkunci di modul Reservasi.' }
+    await api(`/reservasi/reservations/${encodeURIComponent(resId)}`, { method: 'DELETE', headers: ifMatch((ada.data?.updatedAt ?? 0) as Versi) })
+    return { ok: true, pesan: 'Meja bebas lagi di modul Reservasi.' }
+  }
+  catch (e) {
+    return { ok: false, pesan: `Kunci meja (${resId}) gagal dilepas: ${apiErrorMessage(e)}. Hapus manual di modul Reservasi.` }
+  }
+}
+
+// ---------------------------------------------------------------- documents
+
+/** GET /marketing/documents/{doc} — settings & friends (contract Documents). */
+export const getDokumenMkt = (doc: string) =>
+  useApi()<Envelope<unknown>>(`/marketing/documents/${encodeURIComponent(doc)}`)
+
+/** PUT /marketing/documents/{doc} — whole value, needs the content hash. */
+export const simpanDokumenMkt = (doc: string, value: unknown, versi?: Versi) =>
+  useApi()<Envelope<unknown>>(`/marketing/documents/${encodeURIComponent(doc)}`, { method: 'PUT', body: value as Record<string, unknown>, headers: versiHdr(versi) })
+
+/** The content-hash version of a document envelope. */
+export const versiDokumenMkt = (r: Envelope<unknown>): Versi | undefined => {
+  const v = (r.meta as Record<string, unknown> | undefined)?.version
+  return (typeof v === 'string' || typeof v === 'number' ? v : undefined) as Versi | undefined
+}
+
 // ---------------------------------------------------------------- other modules (read-only)
 
 /** One EMS event as the calendar needs it (muatEventEms, :12141-12175). */

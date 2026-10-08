@@ -99,8 +99,30 @@ export interface ClientMkt {
   updatedAt?: number
 }
 
-export interface PembayaranMkt { id?: string, no?: string, type?: string, amount?: number | string, method?: string, at?: string, receipt?: unknown }
+export interface PembayaranMkt { id?: string, no?: string, type?: string, amount?: number | string, method?: string, at?: string, receipt?: unknown, receiptUrl?: string, verified?: boolean, by?: string, dariDpForm?: boolean }
 export type DetailEventMkt = Record<string, unknown>
+
+/** Surat Penawaran on the event row (penawaranCard, :10088-10190). */
+export interface PenawaranMkt {
+  status?: string
+  noSurat?: string
+  validUntil?: string
+  file?: { key?: string, name?: string, size?: number, at?: string | number, by?: string }
+  note?: string
+  revisiKe?: number
+  revisiAlasan?: string
+  revisiRiwayat?: { ke?: number, status?: string, alasan?: string, at?: string | number, by?: string, note?: string, sebelumnya?: Record<string, unknown> }[]
+  sentAt?: string | number
+  sentBy?: string
+  sentVia?: string
+  submittedBy?: string
+  submittedAt?: string | number
+  decidedBy?: string
+  decidedAt?: string | number
+  rejectNote?: string
+  approvedBy?: string
+  approvedAt?: string | number
+}
 
 export interface EventMkt {
   id: string
@@ -121,7 +143,7 @@ export interface EventMkt {
   detail?: DetailEventMkt
   payments?: PembayaranMkt[]
   tasks?: Record<string, unknown>
-  penawaran?: { status?: string }
+  penawaran?: PenawaranMkt
   updatedAt?: number
 }
 
