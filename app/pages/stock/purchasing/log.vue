@@ -7,9 +7,13 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { LogStock } from '~/composables/useStock'
 import { listLogs } from '~/composables/useStock'
+import { isAdminOf } from '~/composables/useMe'
 import { jam, tglPendek } from '~/utils/format'
 
 definePageMeta({ access: ['purchasing'] })
+
+const me = useMe()
+const admin = computed(() => isAdminOf(me.value, 'purchasing'))
 
 const dari = ref('')
 const ke = ref('')
@@ -51,7 +55,10 @@ const kolom: TableColumn<LogStock>[] = [
     title="Log Aktivitas"
     description="Siapa mengubah apa di stock — terbaru dulu"
   >
-    <template #actions>
+    <template
+      v-if="admin"
+      #actions
+    >
       <UButton
         label="Segarkan"
         icon="i-lucide-refresh-cw"
@@ -60,7 +67,20 @@ const kolom: TableColumn<LogStock>[] = [
       />
     </template>
 
-    <AppPanel title="Filter">
+    <AppPanel
+      v-if="!admin"
+      title="Khusus admin"
+      icon="i-lucide-lock"
+    >
+      <p class="text-sm text-muted">
+        Log Aktivitas hanya untuk admin Purchasing.
+      </p>
+    </AppPanel>
+
+    <AppPanel
+      v-if="admin"
+      title="Filter"
+    >
       <AppFilterGrid>
         <UFormField label="Dari">
           <UInput
@@ -101,6 +121,7 @@ const kolom: TableColumn<LogStock>[] = [
     </AppPanel>
 
     <AppPanel
+      v-if="admin"
       title="Aktivitas"
       flush
     >

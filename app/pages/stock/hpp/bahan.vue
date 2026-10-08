@@ -19,6 +19,7 @@ import {
 } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bacaBerkasTabel } from '~/utils/xlsx-baca'
+import { barisBerkolom } from '~/utils/stock-impor'
 import { rupiah } from '~/utils/format'
 import { buatKonteks, dipakaiOleh, sisiHarga } from '~/utils/stock-hpp'
 import { unduhCsvStock } from '~/utils/stock-catat'
@@ -190,7 +191,8 @@ async function impor(e: Event) {
   imporSibuk.value = true
   try {
     const tb = await bacaBerkasTabel(file)
-    const rows = tb.map(r => ({
+    // Letter-keyed rows -> header-keyed rows (the header is the first row).
+    const rows = barisBerkolom(tb).map(r => ({
       nama: String(r.Nama || r.nama || '').trim(),
       satuan: String(r.Satuan || r.satuan || ''),
       qty_beli: Number(r['Qty beli'] || r.qty_beli || 0),
@@ -198,6 +200,7 @@ async function impor(e: Event) {
       vendor: String(r.Vendor || r.vendor || ''),
       produk: String(r.Produk || r.produk || ''),
       kategori: String(r.Kategori || r.kategori || ''),
+      sisi_harga: String(r['Sisi harga'] || r.sisi_harga || ''),
       catatan: String(r.Catatan || r.catatan || ''),
     })).filter(r => r.nama)
     const hasil = await importIngredients(rows)

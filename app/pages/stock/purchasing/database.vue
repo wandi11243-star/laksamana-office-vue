@@ -24,6 +24,7 @@ import {
 } from '~/composables/useStock'
 import { apiErrorCode, apiErrorMessage } from '~/composables/useApi'
 import { bacaBerkasTabel } from '~/utils/xlsx-baca'
+import { barisBerkolom, barisKeProduk, barisKeVendor } from '~/utils/stock-impor'
 import { SATUAN_TERSEDIA, unduhCsvStock } from '~/utils/stock-catat'
 import { tanganiKonflik, type Versi } from '~/utils/versi'
 
@@ -235,8 +236,14 @@ async function impor(e: Event, jenis: 'vendor' | 'produk') {
   if (!file) return
   imporSibuk.value = true
   try {
-    const rows = await bacaBerkasTabel(file)
-    const r = jenis === 'vendor' ? await importVendors(rows) : await importProducts(rows)
+    const tb = await bacaBerkasTabel(file)
+    // Letter-keyed rows -> header-keyed rows, then export labels -> API keys
+    // (the API reads lowercase `nama`, `whatsapp`, ... — letters arrive as
+    // nameless rows and are all skipped).
+    const mapped = barisBerkolom(tb)
+    const r = jenis === 'vendor'
+      ? await importVendors(mapped.map(barisKeVendor).filter(x => x.nama))
+      : await importProducts(mapped.map(barisKeProduk).filter(x => x.nama))
     await (jenis === 'vendor' ? vendorQ.refresh() : produkQ.refresh())
     toast.add({ title: 'Impor selesai', description: `${r.baru} baru, ${r.diubah} diubah, ${r.dilewati} dilewati.`, color: 'success' })
   }

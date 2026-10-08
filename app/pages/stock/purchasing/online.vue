@@ -8,6 +8,7 @@
 <script setup lang="ts">
 import type { OrderStock, ProdukStock } from '~/composables/useStock'
 import { getProducts, listOrders, patchOrder } from '~/composables/useStock'
+import { isAdminOf } from '~/composables/useMe'
 import { apiErrorMessage } from '~/composables/useApi'
 import { hariIni, tglPendek } from '~/utils/format'
 import { tanganiKonflik, type Versi } from '~/utils/versi'
@@ -15,6 +16,8 @@ import { tanganiKonflik, type Versi } from '~/utils/versi'
 definePageMeta({ access: ['purchasing'] })
 
 const toast = useToast()
+const me = useMe()
+const admin = computed(() => isAdminOf(me.value, 'purchasing'))
 
 const ordersQ = useAsyncData('stock-online', () => listOrders({ status: 'Aktif' }), {
   default: () => ({ rows: [] as OrderStock[], versions: {} as Record<string, Versi> }),
@@ -78,7 +81,10 @@ async function tandai() {
     title="Barang Online"
     description="Pesanan daring — yang belum datang & riwayatnya"
   >
-    <template #actions>
+    <template
+      v-if="admin"
+      #actions
+    >
       <UButton
         label="Tandai semua"
         icon="i-lucide-check-check"
@@ -87,7 +93,17 @@ async function tandai() {
       />
     </template>
 
-    <AppStatGrid>
+    <AppPanel
+      v-if="!admin"
+      title="Khusus admin"
+      icon="i-lucide-lock"
+    >
+      <p class="text-sm text-muted">
+        Barang Online hanya untuk admin Purchasing.
+      </p>
+    </AppPanel>
+
+    <AppStatGrid v-if="admin">
       <AppStat
         label="Belum datang"
         :value="String(menunggu.length)"
@@ -104,7 +120,10 @@ async function tandai() {
       />
     </AppStatGrid>
 
-    <AppPanel title="Barang online">
+    <AppPanel
+      v-if="admin"
+      title="Barang online"
+    >
       <template #head>
         <AppSeg
           v-model="sub"
@@ -146,6 +165,7 @@ async function tandai() {
     </AppPanel>
 
     <ResponsiveSheet
+      v-if="admin"
       v-model:open="sheet"
       title="Tandai datang"
     >
