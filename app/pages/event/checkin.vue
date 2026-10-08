@@ -10,7 +10,7 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { Acara, KelasTiket, Kursi, Tiket } from '~/composables/useEvent'
+import type { Acara, KelasTiket, Kursi, OrderTiket, Tiket } from '~/composables/useEvent'
 import { listCheckins, postCheckin, useDaftarEvent } from '~/composables/useEvent'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
@@ -36,6 +36,21 @@ const qTiket = computed<Record<string, string>>(() => (eventId.value ? { event_i
 const { data: daftarTiket, status, refresh: refreshTiket } = useDaftarEvent<Tiket>('tickets', qTiket, 'event-checkin-tickets')
 const { data: daftarKursi, refresh: refreshKursi } = useDaftarEvent<Kursi>('seats', qTiket, 'event-checkin-seats')
 const { data: daftarKelas } = useDaftarEvent<KelasTiket>('ticket-classes', qTiket, 'event-checkin-classes')
+
+// The server ignores `event_id` on GET /tickets (API-side bug, see the Fase-3
+// report): legacy rows carry no `event_id`, only `order_item_id`. Resolve the
+// event through the order exactly like legacy `ciTiket` (`:10379-10382`),
+// which also drops Cancelled tickets.
+const { data: daftarOrder } = useDaftarEvent<OrderTiket>('orders', qTiket, 'event-checkin-orders')
+const orderDariId = computed(() => new Map(daftarOrder.value.rows.map(o => [o.id, o])))
+const eventTiket = (t: Tiket) => (t.event_id as string) || orderDariId.value.get(t.order_item_id ?? '')?.event_id || ''
+const namaTamu = (t: Tiket) => String(
+  (t as Record<string, unknown>).buyer_name
+  ?? orderDariId.value.get(t.order_item_id ?? '')?.buyer_name
+  ?? (t as Record<string, unknown>).name
+  ?? t.qr_token
+  ?? '—',
+)
 
 const checkins = ref<Awaited<ReturnType<typeof listCheckins>>['data']>([])
 async function muatCheckin() {
@@ -63,7 +78,7 @@ onBeforeUnmount(() => {
   if (timer) clearInterval(timer)
 })
 
-const tiket = computed(() => daftarTiket.value.rows.filter(t => !eventId.value || t.event_id === eventId.value))
+const tiket = computed(() => daftarTiket.value.rows.filter(t => (t.status ?? '') !== 'Cancelled' && (!eventId.value || eventTiket(t) === eventId.value)))
 const idCheckin = computed(() => new Set(checkins.value.filter(c => (c.result ?? 'Valid') === 'Valid').map(c => c.ticket_id)))
 const masuk = computed(() => tiket.value.filter(t => idCheckin.value.has(t.id)).length)
 const keterisian = computed(() => (tiket.value.length ? Math.round(masuk.value / tiket.value.length * 100) : 0))
@@ -97,7 +112,7 @@ const daftar = computed(() => {
     if (chip.value === 'belum' && sudah) return false
     if (chip.value === 'sudah' && !sudah) return false
     if (fKelas.value !== 'semua' && t.ticket_class_id !== fKelas.value) return false
-    if (cariL && !(String((t as Record<string, unknown>).buyer_name ?? t.qr_token ?? '').toLowerCase().includes(cariL) || String(t.qr_token ?? '').toLowerCase().includes(cariL))) return false
+    if (cariL && !(namaTamu(t).toLowerCase().includes(cariL) || String(t.qr_token ?? '').toLowerCase().includes(cariL))) return false
     return true
   })
 })
@@ -114,8 +129,6 @@ const kolom: TableColumn<Tiket>[] = [
   { id: 'status', header: 'Status' },
   { id: 'aksi', header: 'Aksi' },
 ]
-const namaTamu = (t: Tiket) => String((t as Record<string, unknown>).buyer_name ?? (t as Record<string, unknown>).name ?? t.qr_token ?? '—')
-
 async function checkin(t: Tiket) {
   try {
     await postCheckin({ ticket_id: t.id, result: 'Valid' })

@@ -20,6 +20,11 @@ const maks = computed(() => Math.max(1, ...grafik.value.map(g => g.jt)))
 const totalPeriode = computed(() => grafik.value.reduce((a, g) => a + g.jt, 0))
 
 const ringkas = computed(() => angkaEms(s.value?.events ?? [], s.value?.ticketClasses ?? [], s.value?.tickets ?? [], s.value?.orders ?? []))
+// Legacy report cards (`renderReportEms`): Total Omzet, Tiket Terbit, Hadir,
+// Avg Harga Tiket — deliberately NO "Keterisian" card: that label means
+// terjual/kuota on the Performance page but hadir/tiket here, so one shared
+// label would lie on one of the two pages.
+const avgHargaTiket = computed(() => ringkas.value.terjual ? Math.round(ringkas.value.omzet / ringkas.value.terjual) : 0)
 </script>
 
 <template>
@@ -91,10 +96,10 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], s.value?.ticketCl
         tone="success"
       />
       <AppStat
-        label="Keterisian"
-        :value="`${ringkas.hadirPct}%`"
-        icon="i-lucide-armchair"
-        tone="success"
+        label="Avg harga tiket"
+        :value="rupiah(avgHargaTiket)"
+        icon="i-lucide-tag"
+        tone="info"
       />
     </AppStatGrid>
   </AppPage>

@@ -375,9 +375,10 @@ export const fileEventUrl = (key: string) => {
 }
 
 /** GET /kompas/performa/event — recognised turnover + bonus per PIC (T-23).
- *  Lives in the kompas module, NOT here (`docs/api/event.md:32` is wrong, G-12). */
+ *  Lives in the kompas module, NOT here (`docs/api/event.md:32` is wrong, G-12).
+ *  Range keys are `from`/`to` (`laksamana-api/docs/api/kompas.md` "performa"). */
 export const performaEvent = (dari: string, sampai: string) =>
-  useApi()<Envelope<unknown>>('/kompas/performa/event', { query: { dari, sampai } })
+  useApi()<Envelope<unknown>>('/kompas/performa/event', { query: { from: dari, to: sampai } })
 
 // ---------------------------------------------------------------- writes
 
