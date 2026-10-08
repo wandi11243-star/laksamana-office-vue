@@ -648,8 +648,8 @@ dengan `details.current`. Legacy tidak punya ini (last-write-wins lewat `text/pl
   hanya menyebut namanya di komentar, tidak memuatnya).
 
 ## J. Progres build
-Branch: migrasi/stock-pohon (bagian 1/5) · migrasi/stock-usage (bagian 2/5, bertumpuk di atas pohon) · Mulai: 2026-10-07
-LANJUTKAN DARI: `ordering` (bagian 3/5) — sub-issue #54; lalu purchasing (#55), hpp (#56).
+Branch: migrasi/stock-pohon (bagian 1/5) · migrasi/stock-usage (bagian 2/5, bertumpuk di atas pohon) · migrasi/stock-ordering (bagian 3/5, #54) · migrasi/stock-purchasing (bagian 4/5, #55, di atas ordering) · migrasi/stock-hpp (bagian 5/5, #56, di atas purchasing) · Mulai: 2026-10-07 · ordering/purchasing/hpp selesai: 2026-10-08
+LANJUTKAN DARI: — (26/26 layar ada; tinggal review + merge berurutan ordering → purchasing → hpp).
 
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
@@ -659,6 +659,27 @@ LANJUTKAN DARI: `ordering` (bagian 3/5) — sub-issue #54; lalu purchasing (#55)
 | usage/pemakaian | `app/pages/stock/usage/pemakaian.vue` | ✅ | `GET/POST /stock/usage`, `PATCH/DELETE /stock/usage/{id}` | — |
 | usage/waste | `app/pages/stock/usage/waste.vue` | ✅ | `GET/POST /stock/waste`, `PATCH/DELETE /stock/waste/{id}`, `GET /stock/waste/{id}/photo` | — |
 | usage/serah | `app/pages/stock/usage/serah.vue` | ✅ | `GET/POST /stock/handovers`, `PATCH/DELETE /stock/handovers/{id}`, `GET /stock/handovers/{id}/photo` | — |
+| ordering/order | `app/pages/stock/ordering/order.vue` | ✅ | `GET /stock/products`; `GET /stock/orders/batches`; `POST /stock/orders/batches`; `POST /stock/logs` | — |
+| ordering/ck | `app/pages/stock/ordering/ck.vue` | ✅ | `GET /stock/ck/balance`; `GET /stock/ck/movements`; `POST /stock/orders/batches` (batchName Central Kitchen); `POST /stock/ck/deliveries` | — |
+| ordering/checkin | `app/pages/stock/ordering/checkin.vue` | ✅ | `GET /stock/orders?from=&to=&status=Aktif`; `PATCH /stock/orders/{nomor}` (`kedatangan`,`catatanAktual`) | — |
+| ordering/restock | `app/pages/stock/ordering/restock.vue` | ✅ | Google Apps Script (K-06) + `GET/PUT /stock/stock-today` | — |
+| ordering/forecast | `app/pages/stock/ordering/forecast.vue` | ✅ | idem (health) + `GET /stock/training`, `POST /stock/training`, `GET /stock/training/{target}` | — |
+| ordering/users | `app/pages/stock/ordering/users.vue` | ✅ | `GET/POST/PATCH/DELETE /stock/ordering-users`, `POST /stock/ordering-users-import` | — |
+| purchasing/dashboard | `app/pages/stock/purchasing/dashboard.vue` | ✅ | `GET /stock/orders`, `/stock/products`, `/stock/vendors`; `POST /stock/orders/archive|unarchive`; `PATCH /stock/orders/{nomor}` (`tglJemput`,`kedatangan`) | — |
+| purchasing/jemput | `app/pages/stock/purchasing/jemput.vue` | ✅ | `GET /stock/orders?status=Aktif`; `PATCH /stock/orders/{nomor}` (`tglJemput`) | — |
+| purchasing/online | `app/pages/stock/purchasing/online.vue` | ✅ | idem; `PATCH` (`kedatangan`,`tglTerima`,`catatanTerima`) | T-16 admin-only (tanpa entri PERM_DEFAULT) |
+| purchasing/ck | `app/pages/stock/purchasing/ck.vue` | ✅ | `GET /stock/ck/balance`, `/stock/ck/movements`; `POST/PATCH/DELETE /stock/ck/movements/{id}` | — |
+| purchasing/overview | `app/pages/stock/purchasing/overview.vue` | ✅ | `GET /stock/orders`, `/stock/products` (kicki klien) | — |
+| purchasing/database | `app/pages/stock/purchasing/database.vue` | ✅ | `GET/POST/PATCH/DELETE /stock/vendors|products`, `POST /stock/vendors-import`, `/stock/products-import`; `GET/PUT /stock/settings/purchasing` (format chat) | 503 bila `stock_settings` hilang (F.21, pesan jujur) |
+| purchasing/users | `app/pages/stock/purchasing/users.vue` | ✅ | `GET/POST/PATCH/DELETE /stock/users`; `GET/PUT /stock/settings/purchasing` (matriks) | idem |
+| purchasing/log | `app/pages/stock/purchasing/log.vue` | ✅ | `GET /stock/logs` | — |
+| hpp/dash | `app/pages/stock/hpp/dash.vue` | ✅ | `GET /stock/hpp/ingredients`, `/stock/hpp/recipes`, `/stock/hpp/settings` (hitung klien) | — |
+| hpp/resep | `app/pages/stock/hpp/resep.vue` | ✅ | `GET/POST/PATCH/DELETE /stock/hpp/recipes`, `/stock/hpp/recipes/{id}`; `POST /stock/hpp/recipes-import` | — |
+| hpp/bahan | `app/pages/stock/hpp/bahan.vue` | ✅ | `GET/POST/PATCH/DELETE /stock/hpp/ingredients`; `-import`, `-merge`, `/pull-products`, `/remove-shadows`, `/align-names` | — |
+| hpp/floor | `app/pages/stock/hpp/floor.vue` | ✅ | `GET /stock/hpp/ingredients` + `GET /stock/products` (filter area Floor); `PATCH/DELETE /stock/hpp/ingredients/{nama}` | — |
+| hpp/pakai | `app/pages/stock/hpp/pakai.vue` | ✅ | `GET/PATCH /stock/hpp/usage/{YYYY-MM}`; `GET /stock/hpp/settings` (ambang lampu) | — |
+| hpp/kalk | `app/pages/stock/hpp/kalk.vue` | ✅ | `GET /stock/hpp/ingredients`, `/stock/products`, `/stock/hpp/settings` (tanpa simpan) | — |
+| hpp/atur | `app/pages/stock/hpp/atur.vue` | ✅ | `GET/PATCH /stock/hpp/settings`; `POST /stock/hpp/import` (admin) | — |
 
 Catatan build stock-pohon (pemilih + tree):
 - **K-07**: sesi usage-only dibiarkan masuk (gate lama menolaknya — bug). Launcher memfilter 5 kartu per kunci; auto-redirect hanya bila satu panel DAN halamannya sudah ada.
@@ -680,5 +701,34 @@ Catatan build stock-usage (Daily SO, Pemakaian, Waste, Serah Terima):
 - Urutan daftar mengikuti urutan server (tanggal + waktu menurun) — paritas lama; paginasi "Muat 20 lagi" bukan pager angka.
 - Cek visual 2026-10-07 (`/tmp/mock-api-stock.mjs` 4015, tulis 403, `NUXT_PUBLIC_API_BASE` dibuktikan ke mock dari HTML dev + log mock): `koki` (Kitchen), `bar` (usage-only, K-07), `floor` (group FLOOR · OPERATIONAL, Tisu/Air Mineral tampil, Beras tidak), `gudang` (admin; pemilih tim 3 pilihan; serah admin tanpa pecah keluar/masuk) — 1366 & 390 overflow 0, console bersih; Daily SO mengisi fisik 9 → selisih −1/Seharusnya 10; Waste `POST` 403 mock membuktikan body `{tanggal,item,qty,unit,sebab,tim,catatan}` tanpa `pic`/`foto`.
 - LANJUTKAN: bagian 3/5 `ordering` (#54), lalu purchasing (#55), hpp (#56).
+
+Catatan build stock-ordering (#54, 6 layar, branch migrasi/stock-ordering):
+- `useStock.ts` diperluas (orders, CK, stock-today, vendors/products CRUD, logs, crew, settings, training — HPP menyusul di branch-nya). Panel index + `LAYAR_STOCK` + kartu pemilih ordering terdaftar.
+- **K-06 (terbukti end-to-end)**: Restock & Forecast memanggil Apps Script seperti lama (URL bawaan dari `ordering/index.html:1049`, bisa diubah + diingat di localStorage). Saat cek visual, payload ASLI termuat — "Data prakiraan termuat — 220 bahan".
+- **Rumus murni** di `app/utils/stock-forecast.ts` (status order/soon/safe/check/nostk/nofc, saran pack `ceil`, pencocokan nama exact/loose/alias, `daysUntilEmpty` akhir pekan, health tier/WAPE yang mendorong null ke bawah). Dijaga `tools/uji-stock-forecast.mjs` (`node tools/uji-stock-forecast.mjs`, 17 cek).
+- Draf order disimpan di localStorage ("Simpan Draft" seperti lama); checkin carry-over 14 hari hanya bila rentang menyentuh hari ini/ke depan (F.16); users menjaga "tidak bisa menurunkan akun sendiri" + "minimal 1 Admin".
+- Stock Today diunggah lewat `xlsx-baca.ts` milik fondasi (tanpa SheetJS); CSV unduh di restock.
+
+Catatan build stock-purchasing (#55, 8 layar, branch migrasi/stock-purchasing, Tab Panduan & PWA tidak dibangun):
+- Matriks izin dari `PERM_DEFAULT` lama dipindah ke `app/utils/layar/stock.ts` (`bolehPurchasing`): non-admin = baris `full`, `online` tanpa entri = admin-only (T-16). Admin selalu boleh semua.
+- Dashboard: sub-tab Per Item / Gabung per Vendor (vendor utama dari master produk; "Gabung per Vendor" mengabaikan filter divisi seperti lama) / Arsip; CK dikecualikan (`batchName` atau `sumber==='ck'`); draf WA mengikuti template lama + nomor vendor, pratinjau di sheet.
+- `PUT /settings/purchasing` 503 (F.21) ditangani jujur: matriks + format chat tampil bawaan dengan pesan "belum tersedia", bukan crash.
+- Log crew: `last_admin` ditangani eksplisit (400-an lain lewat `tanganiKonflik`).
+
+Catatan build stock-hpp (#56, 7 layar, branch migrasi/stock-hpp):
+- **Rumus murni** di `app/utils/stock-hpp.ts` (port setia `hpp/index.html:386-960`: `konvFam` berat↔volume diizinkan seperti dapur menulis; `modalResep` memo per panggilan + objek baru; spare sekali di dish; buffer negatif ditolak; COGS = modal/porsi/harga; `{catatan}` bukan bahan; `sisi_harga` base→resep; `prasmananKah` dari seksi; `hitungPakai` masuk/tercatat/aktual/selisih + lampu). Dijaga `tools/uji-stock-hpp.mjs` (`node tools/uji-stock-hpp.mjs`, 39 cek).
+- Floor = bahan yang namanya/pasangannya ber-area Floor di master Purchasing. Pager resep 25/hal per tab (T-17: 3 tab dari `seksi`, bukan kolom baru). Cetak PDF lama diganti Unduh CSV (K-05) — cetak massal PDF tidak dibawa (tanpa dependensi baru).
+- HPP terbukti menghitung benar di cek visual: Nasi Goreng 4,9% (1470÷2÷15000), Es Teh 26,3% (modal ketikan 2000+spare ÷8000).
+- **Insiden (ditemukan cek visual, bukan lint/typecheck)**: `USelect` Radix menolak item `value: ''` — dashboard/checkin/log/database/bahan/resep mati total ("Ada yang salah"). Perbaikan: sentinel (`semua`/`vendor`/`antar`/`auto`/`bahan`) yang dipetakan kembali ke `''` saat simpan. Pelajaran kedua sesudah TDZ kemarin: halaman lolos build masih bisa mati runtime.
+- **Insiden kedua**: `delete jalur[kunci]` ditolak lint (`no-dynamic-delete`) — diganti `jalur[kunci] = 0` (falsy = tidak di jalur).
+- `num` milik `stock-hpp.ts` diganti `numHpp` karena `cashier.ts` sudah mengekspor `num` (auto-import Nuxt bentrok — peringatan "Duplicated imports").
+- Versi resep dibaca dari `meta.versions` per id (bukan `versiDari` tunggal) untuk PATCH/DELETE.
+
+Cek visual 2026-10-08 (mock `/tmp/opencode/mock-api-stock.mjs` 4011, tulis 403; dev 3011; `NUXT_PUBLIC_API_BASE=http://127.0.0.1:4011/api/v1` dibuktikan dari log mock `GET /stock/products` + `/me` + data mock tampil di layar):
+- `gudang` (5 kunci, admin ordering/purchasing/hpp): 21/21 halaman 1280px — error console 0, overflow 0; 8 halaman 390px (order, checkin, dashboard, database, dash, resep, pakai, kalk) — overflow 0, console bersih.
+- `koki` (ordering+usage, non-admin): menu ordering hanya 3 tab harian; `/stock/ordering/restock` → dialihkan; `/stock/purchasing/dashboard` → "Belum ada akses".
+- `bar` (usage-only, K-07): `/stock` → `/stock/usage/opname` otomatis; hanya 4 layar usage.
+- Tulis ke mock 403 ditangani anggun (checkin Simpan → toast galat, tanpa crash); PATCH/POST tercatat di log mock (bukti body versi terkirim).
+- Login via klik agen-browser sempat tidak memicu submit (klik native `eval` berhasil) — masalah harness, bukan halaman login (bukan modul stock).
 
 
