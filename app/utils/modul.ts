@@ -69,6 +69,11 @@ export const MODUL: Modul[] = [
   // the omset daily map (docs/migrasi/investor.md). The card must exist so the
   // key is registered in Kelola Akses (deploy/index.html:1186-1194).
   { key: 'investor', label: 'Investor Compass', desc: 'Ruang investor: omset, capaian target, dan laporan', icon: 'i-lucide-hand-coins', group: 'Bisnis & Target', access: ['investor'] },
+  // Analytics reads the uploaded POS Sales Recapitulation in the browser and
+  // answers top menus, hours, tables, talent, errors, promos and trends
+  // (docs/migrasi/analytics.md). Its card must exist so the key registers in
+  // Kelola Akses (laksamana-office/deploy/index.html:1204-1218).
+  { key: 'analytics', label: 'Analytics', desc: 'Analisa Penjualan', icon: 'i-lucide-chart-line', group: 'Bisnis & Target', access: ['analytics'] },
 ]
 
 export const MODUL_GROUPS: ModulGroup[] = ['Operasional', 'Tim & Kru', 'Marketing & Event', 'Bisnis & Target', 'Lainnya']
