@@ -12,7 +12,8 @@
 -->
 <script setup lang="ts">
 import type { Acara, JadwalTalent } from '~/composables/useEvent'
-import { paxAcara, useStateEvent } from '~/composables/useEvent'
+import { useStateEvent } from '~/composables/useEvent'
+import { paxAcara } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { angka, hariIni, tglPanjang } from '~/utils/format'
 

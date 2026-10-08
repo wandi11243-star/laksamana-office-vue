@@ -7,7 +7,8 @@
 -->
 <script setup lang="ts">
 import type { Acara } from '~/composables/useEvent'
-import { EVT_CATS, uploadFileEvent } from '~/composables/useEvent'
+import { uploadFileEvent } from '~/composables/useEvent'
+import { EVT_CATS } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 
 const props = defineProps<{

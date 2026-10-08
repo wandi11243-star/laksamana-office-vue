@@ -9,7 +9,8 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { Talent } from '~/composables/useEvent'
-import { createEvent, removeEvent, TAL_CATS, updateEvent, useDaftarEvent } from '~/composables/useEvent'
+import { createEvent, removeEvent, updateEvent, useDaftarEvent } from '~/composables/useEvent'
+import { TAL_CATS } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka, rupiah } from '~/utils/format'

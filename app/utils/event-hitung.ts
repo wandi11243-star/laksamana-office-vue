@@ -2,8 +2,8 @@
 // 1:1 from the old client so Performance & Report never differ.
 //
 // No API, no Vue: importable from plain node for tools/uji-event.mjs.
-// The CRUD composable (app/composables/useEvent.ts) re-exports these, so
-// pages keep importing from there.
+// Pages import these directly from here (same pattern as stock pages
+// importing from app/utils/stock-*.ts).
 //
 // Sources (all in laksamana-office/deploy/event/index.html):
 //   statusPengajuan :4687-4688 · paxAcara :10902 · salesRingkas :6919

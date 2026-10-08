@@ -5,7 +5,8 @@
   stays removed (`:11281`).
 -->
 <script setup lang="ts">
-import { getDetail, getEvent, listCheckins, ringkasPenjualan, useDaftarEvent } from '~/composables/useEvent'
+import { getDetail, getEvent, listCheckins, useDaftarEvent } from '~/composables/useEvent'
+import { ringkasPenjualan } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { angka, rupiah, tglPanjang } from '~/utils/format'
 

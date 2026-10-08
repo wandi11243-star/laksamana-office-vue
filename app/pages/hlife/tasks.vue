@@ -14,7 +14,8 @@ import {
   useHlifeResource,
 } from '~/composables/useHlife'
 import type { KuadranHlife } from '~/utils/hlife'
-import { PILIHAN_SEMUA, PILIHAN_TANPA, kuadranHlife, tautanGcal, terlambat } from '~/utils/hlife'
+import { kuadranHlife, tautanGcal, terlambat } from '~/utils/hlife'
+import { PILIHAN_SEMUA, PILIHAN_TANPA } from '~/utils/bd-rumus'
 import { KUADRAN_META, lencanaTugas } from '~/utils/status-hlife'
 import { angka, hariIni, tambahHari } from '~/utils/format'
 

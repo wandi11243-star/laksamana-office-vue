@@ -13,12 +13,11 @@ export const STAGES = ['Idea', 'Planning', 'Research', 'Ready', 'Doing', 'Waitin
 
 /**
  * USelect (Radix SelectItem) refuses an empty-string option value, so the old
- * "no choice" options use these sentinels in the UI. Map them back to `''`
+ * "no choice" options use these sentinels in the UI. Single source:
+ * app/utils/bd-rumus.ts (imported from there). Map them back to `''`
  * before saving — the API stores "no business / no project / no milestone"
  * as an empty string, exactly like the old client.
  */
-export const PILIHAN_SEMUA = '__semua__'
-export const PILIHAN_TANPA = '__tanpa__'
 
 /** Content Pipeline columns (`:668`). */
 export const CSTAGES = ['Idea', 'Script', 'Shoot', 'Editing', 'Scheduled', 'Posted'] as const

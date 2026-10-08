@@ -6,7 +6,8 @@
   `terjual` (class counter) and `tiket` (issued e-tickets) stay apart on purpose.
 -->
 <script setup lang="ts">
-import { angkaEms, EVT_STATUS_HASIL, useStateEvent } from '~/composables/useEvent'
+import { useStateEvent } from '~/composables/useEvent'
+import { angkaEms, EVT_STATUS_HASIL } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { angka, persen, rupiah } from '~/utils/format'
 

@@ -8,7 +8,8 @@
 -->
 <script setup lang="ts">
 import type { Acara, Refund } from '~/composables/useEvent'
-import { patchEvent, statusPengajuan, useDaftarEvent } from '~/composables/useEvent'
+import { patchEvent, useDaftarEvent } from '~/composables/useEvent'
+import { statusPengajuan } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehSetujui, peranEvent } from '~/utils/layar/event'
 import { angka, rupiah, tglPendek } from '~/utils/format'

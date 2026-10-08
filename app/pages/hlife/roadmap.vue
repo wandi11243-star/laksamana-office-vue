@@ -9,7 +9,8 @@ import {
   createHlifeRecord, deleteHlifeRecord, updateHlifeRecord,
   useHlifeResource,
 } from '~/composables/useHlife'
-import { DREAM_CAT, DREAM_STATUS, PILIHAN_TANPA, persenGoal, persenMilestone } from '~/utils/hlife'
+import { DREAM_CAT, DREAM_STATUS, persenGoal, persenMilestone } from '~/utils/hlife'
+import { PILIHAN_TANPA } from '~/utils/bd-rumus'
 import { lencanaMimpi } from '~/utils/status-hlife'
 
 definePageMeta({ access: ['howandi_life'] })
