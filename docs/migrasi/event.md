@@ -424,6 +424,35 @@ Konkurensi: legacy ticketing tiap tulis `GET_LOCK('<db>:tix',10)` (`docs/modules
 - [ ] **event / dashboard — data demo** — bar chart "Uang Masuk per Event (6 bulan)" memakai angka tertulis-mati; konfirmasi Vue menghitung dari `omzetPerBulanEms`. Bukti: `event/index.html:2405`. Opsi: A) hitung dari data (disarankan); B) buang grafik.
 - [ ] **event / performa — lokasi endpoint** — kontrak `docs/api/event.md:32` menyebut Performa Omset "served by the marketing module", padahal v1 ada di `GET /api/v1/kompas/performa/event`. Konfirmasi Vue memanggil modul kompas. Bukti: `laksamana-api/app/Modules/Kompas/routes/v1.php:21`; `docs/api/kompas.md:61`.
 
+## J. Progres build
+Branch: migrasi/event · Mulai: 2026-10-08
+LANJUTKAN DARI: Kelompok 2 (pipeline, planning, events, ticketing, approval, performa, perfomset, report, akses, ideas, history)
+
+| layar (key) | file | status | endpoint dipakai | ditunda karena |
+|---|---|---|---|---|
+| dashboard | app/pages/event/dashboard.vue | ✅ | GET /state | — |
+| calendar | app/pages/event/calendar.vue | ✅ | GET /state; GET /marketing/events; GET /reservasi/reservations (pita + Coba lagi bila gagal) | — |
+| talents | app/pages/event/talents.vue | ✅ | GET/POST/PUT/DELETE /talents | — |
+| talents rincian | app/pages/event/talents/[id].vue | ✅ | GET/PUT /talents/{id}; POST /files | — |
+| schedule | app/pages/event/schedule.vue | ✅ | GET/POST/PATCH/DELETE /schedules; POST /recurring-rules | — |
+| fee | app/pages/event/fee.vue | ✅ | GET /schedules; GET/POST/PATCH /talent-payments; POST /files | OCR otomatis Segera (K-05 belum dipasang; verifikasi manual jalan) |
+| checkin | app/pages/event/checkin.vue | ✅ | GET /events; GET /tickets; GET /seats; GET /ticket-classes; GET/POST /checkins | tombol Batalkan Segera (G-10); pindai kamera Segera (butuh pustaka QR) |
+| pipeline | app/pages/event/pipeline.vue | ⬜ | | |
+| planning | app/pages/event/planning.vue | ⬜ | | |
+| events | app/pages/event/events.vue | ⬜ | | |
+| events rincian | app/pages/event/events/[id].vue | ⬜ | | |
+| ticketing | app/pages/event/ticketing.vue | ⬜ | | |
+| ticketing rincian | app/pages/event/ticketing/[id].vue | ⬜ | | |
+| ticketing kategori | app/pages/event/ticketing/[id]/[kelas].vue | ⬜ | | |
+| approval | app/pages/event/approval.vue | ⬜ | | |
+| performa | app/pages/event/performa.vue | ⬜ | | |
+| perfomset | app/pages/event/perfomset.vue | ⬜ | | |
+| report | app/pages/event/report.vue | ⬜ | | |
+| akses | app/pages/event/akses.vue | ⬜ | | |
+| ideas | app/pages/event/ideas.vue | ⬜ | | |
+| history | app/pages/event/history.vue | ⬜ | | |
+| history rincian | app/pages/event/history/[id].vue | ⬜ | | |
+
 ## Konsolidasi untuk README & berkas bersama
 
 ### Baris README.md
