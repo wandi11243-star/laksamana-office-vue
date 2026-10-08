@@ -29,6 +29,7 @@ import {
   PER_HAL_MKT, SETTING_MKT_BAWAAN, TENGGANG_TUTUP_MKT, bolehAksiMkt, bolehBukaMkt, hariAntaraMkt, normRoleAccMkt, normUserMkt, urutAwalMkt, urutMkt,
 } from '~/utils/marketing'
 import { normEventMkt } from '~/utils/marketing-uang'
+import type { PoBdMkt } from '~/utils/marketing-operasional'
 import { UButton } from '#components'
 import type { Versi } from '~/utils/versi'
 import { ifMatch, tanganiKonflik } from '~/utils/versi'
@@ -466,3 +467,49 @@ export async function getAcaraEms(from: string, to: string): Promise<AcaraEmsMkt
       return { id: String(e.id), tgl, nama: String(e.title || '(tanpa judul)'), venue: String(e.venue || ''), kategori: String(e.category || ''), status: String(e.status || ''), pic: String(e.pic || '') }
     })
 }
+
+// ---------------------------------------------------------------- documents: read-modify-write (#62)
+
+/**
+ * GET the document for its content hash, apply `ubah`, PUT it back under that
+ * hash — the old save() wrote the whole list too, but blind. A 409 means
+ * someone changed it in between; mktSimpan reloads and says so.
+ */
+export async function ubahDokumenMkt<T>(doc: 'fbFormats' | 'fbSubs' | 'katalog', ubah: (kini: T) => T): Promise<T> {
+  const r = await getDokumenMkt(doc)
+  const baru = ubah(r.data as T)
+  await simpanDokumenMkt(doc, baru, versiDokumenMkt(r))
+  return baru
+}
+
+// ---------------------------------------------------------------- authed images (#62)
+
+const urlGambarMkt = new Map<string, Promise<string>>()
+
+/**
+ * A `/marketing/files/{key}` image as an object URL. The endpoint needs the
+ * Bearer token, so a plain <img src> cannot load it. Cached per key for the
+ * session (the katalog shows and preloads the same slides again and again).
+ */
+export function gambarBerkasMkt(key: string): Promise<string> {
+  let p = urlGambarMkt.get(key)
+  if (!p) {
+    p = useApi()<Blob>(`/marketing/files/${encodeURIComponent(key)}`, { responseType: 'blob' }).then(b => URL.createObjectURL(b))
+    p.catch(() => urlGambarMkt.delete(key))
+    urlGambarMkt.set(key, p)
+  }
+  return p
+}
+
+// ---------------------------------------------------------------- BD purchasing (#62)
+
+/**
+ * GET /bd/purchase-orders — the live BD board (the old page read getAll and
+ * filtered). Needs module `bd` in v1; the old endpoint was open, so a
+ * Marketing-only holder now gets 403 and the page says so instead of failing.
+ */
+export const daftarPoBdMkt = () => useApi()<Envelope<PoBdMkt[]>>('/bd/purchase-orders')
+
+/** POST /bd/purchase-orders/batch — insert-only, like legacy addPo. → {added, ids}. */
+export const kirimPoBdMkt = (items: Record<string, unknown>[]) =>
+  useApi()<Envelope<{ added: number, ids: string[] }>>('/bd/purchase-orders/batch', { method: 'POST', body: { items } })
