@@ -97,6 +97,7 @@ watch(anggota, async (list) => {
         :tone="sert.tone === 'success' ? 'success' : 'warning'"
         :value="sert.label"
         :sub="`${st?.mandTotal ?? 0} materi wajib`"
+        wrap
       />
     </AppStatGrid>
 

@@ -211,6 +211,17 @@ LANJUTKAN DARI: — (semua layar bagian C punya halaman)
 Status layar: **dibangun, belum dicek visual** — ✅ di kolom status berarti halamannya
 sudah dibangun, **bukan** sudah dirender/dicek di browser (1366px/390px, tugas manusia).
 
+### Cek visual 2026-10-08 (Refs #19, branch `fix/visual-akademi`, mock read-only :4014 → dev :3014)
+13/13 layar dibuka 1366px & 390px sebagai admin (Risa, `tok-admin`) dan kru
+Kitchen (Kadek, `tok-kru`): overflow 0 di semua lebar, console tanpa error.
+Kolom tabel tim/kelola-materi/kelola-program/kelola-kru/log/sertifikat sama
+dengan Office lama; viewer materi (modul/video/SOP/menu/kuis), Mode Baca, dan
+intro + pengerjaan kuis dicek interaktif. Gate peran: kru melihat penolakan
+yang benar di `tim` (manager+) dan `anjungan`/kelola (admin).
+Perbaikan: kartu Sertifikasi di dashboard memakai `wrap` (`AppStat`) supaya
+"Belum Sertifikasi" tidak terpotong di 390px.
+`npm run lint && npm run typecheck && npm run build` hijau 2026-10-08.
+
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
 | dashboard | `app/pages/akademi/dashboard.vue` | ✅ | `GET /state`, `POST /users` (roster), `POST /activity`, `PUT /progress`, `PUT /program-progress` | — |
