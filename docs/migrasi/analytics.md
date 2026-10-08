@@ -230,7 +230,7 @@ marketing, konten, desain, pengaturan, akses). Struktur yang dipakai L2/L3:
 | talent | pages/analytics/talent.vue | ✅ (L2) | GET /kompas/analytics + /event/state | jadwal dibaca, bukan disalin; pasangan DJ ikut |
 | error | pages/analytics/error.vue | ✅ (L2) | GET /kompas/analytics | — |
 | voidb | pages/analytics/voidb.vue | ✅ (L2) | GET /kompas/analytics | wadah voidb tersimpan (setia ke lama); /voids live → L3 |
-| promo | pages/analytics/promo.vue | ⬜ (L2) | GET /kompas/analytics (+ pengurai promo) | — |
+| promo | pages/analytics/promo.vue | ✅ (L2) | GET /kompas/analytics | pengurai promo diunggah via unggah (wadah terpisah) |
 | tren | pages/analytics/tren.vue | ⬜ (L3) | GET /kompas/analytics | — |
 | event | pages/analytics/event.vue | ⬜ (L3) | GET /kompas/analytics + event/state | ⚠️ E.7 |
 | marketing | pages/analytics/marketing.vue | ⬜ (L3) | GET /kompas/analytics + marketing/state | ⚠️ E.7 |
