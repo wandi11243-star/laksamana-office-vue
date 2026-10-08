@@ -439,7 +439,7 @@ rincian [id] tidak pernah tampil. Lihat laporan Lane B 2026-10-08.)
 | talents rincian | app/pages/event/talents/[id].vue | ✅ | GET/PUT /talents/{id}; POST /files | — |
 | schedule | app/pages/event/schedule.vue | ✅ | GET/POST/PATCH/DELETE /schedules; POST /recurring-rules | — |
 | fee | app/pages/event/fee.vue | ✅ | GET /schedules; GET/POST/PATCH /talent-payments; POST /files | OCR otomatis Segera (K-05 belum dipasang; verifikasi manual jalan) |
-| checkin | app/pages/event/checkin.vue | ✅ | GET /events; GET /tickets; GET /seats; GET /ticket-classes; GET/POST /checkins | tombol Batalkan Segera (G-10); pindai kamera Segera (butuh pustaka QR) |
+| checkin | app/pages/event/checkin.vue | ✅ | GET /events; GET /tickets; GET /seats; GET /ticket-classes; GET /orders (cocokkan event via order, `event_id` diabaikan di /tickets); GET/POST /checkins | tombol Batalkan Segera (G-10); pindai kamera Segera (butuh pustaka QR) |
 | pipeline | app/pages/event/pipeline.vue | ✅ | GET/PATCH /events | — |
 | planning | app/pages/event/planning.vue | ✅ | GET/POST/PATCH/DELETE /events | — |
 | events | app/pages/event/events/index.vue | ✅ | GET/POST/PUT/DELETE /events; GET /orders | — |
@@ -449,8 +449,8 @@ rincian [id] tidak pernah tampil. Lihat laporan Lane B 2026-10-08.)
 | ticketing kategori | app/pages/event/ticketing/[id]/[kelas].vue | ✅ | GET /events/{id}; GET /ticket-classes; GET /tickets | — |
 | approval | app/pages/event/approval.vue | ✅ | GET/PATCH /events; GET/PATCH /refunds | — |
 | performa | app/pages/event/performa.vue | ✅ | GET /state | — |
-| perfomset | app/pages/event/perfomset.vue | ✅ | GET /kompas/performa/event; GET /account/modules/event/members; GET/PATCH /events (nominal) | impor performa-bonus.ts, tanpa salin |
-| report | app/pages/event/report.vue | ✅ | GET /state | — |
+| perfomset | app/pages/event/perfomset.vue | ✅ | GET /kompas/performa/event (`from`/`to`; daftar PIC dari `data.pic` kompas); GET/PATCH /events (nominal) | impor performa-bonus.ts, tanpa salin |
+| report | app/pages/event/report.vue | ✅ | GET /state | kartu ikut legacy `renderReportEms` (tanpa "Keterisian"; kartu ke-4 = Avg harga tiket) |
 | akses | app/pages/event/akses.vue | ✅ | GET /account/modules/event/members | matriks in-memory, reset saat muat ulang (K-08) |
 | ideas | app/pages/event/ideas.vue | ✅ | GET/POST/PATCH/DELETE /ideas; POST /events (spawn) | — |
 | history | app/pages/event/history/index.vue | ✅ | GET /events; GET /ticket-classes; GET /tickets; POST /events (serupa) | — |
