@@ -293,6 +293,28 @@ LANJUTKAN DARI: —
 Status layar: **dibangun, belum dicek visual** — ✅ di kolom status berarti halamannya
 sudah dibangun, **bukan** sudah dirender/dicek di browser (1366px/390px, tugas manusia).
 
+### Cek visual 2026-10-08 (Refs #19, branch `fix/visual-hlife`, mock read-only :4014 → dev :3014)
+14/14 layar dibuka 1366px & 390px sebagai pemegang `howandi_life`: overflow 0
+di semua lebar, console tanpa error. Semua sheet form dibuka (task, project,
+konten, goal, milestone, mimpi, catatan, evaluasi, bisnis, event, aset):
+tidak ada crash.
+Perbaikan di branch ini:
+- `tasks.vue` crash saat dibuka ("SelectItem value tidak boleh string kosong"):
+  opsi "Semua bisnis/project" dan "Tanpa bisnis/project" memakai sentinel
+  `PILIHAN_SEMUA`/`PILIHAN_TANPA` (baru di `app/utils/hlife.ts), dipetakan
+  kembali ke `''` saat simpan. Pola yang sama diperbaiki di `projects.vue`,
+  `projects/[id].vue` (bisnis), `goals.vue` + `roadmap.vue` (milestone) —
+  sheet-sheet itu tadinya akan crash saat dibuka.
+- `projects/[id].vue` dan `business/[id].vue` tidak pernah tampil (Nuxt
+  menyarangkan `[id]` di bawah `projects.vue`/`business.vue` yang tidak punya
+  `<NuxtPage/>`, jadi daftar yang tampil): induk kini merender `<NuxtPage/>`
+  dan menyembunyikan daftar saat rute anak aktif.
+- `rupiahRingkas()` memotong nol akhir bilangan bulat ("Rp 400 jt" tampil
+  "Rp 4 jt", "Rp 120 jt" tampil "Rp 12 jt"): `potong` kini hanya memotong nol
+  desimal.
+Reset data tetap tidak dibangun (K-01/G-13, sesuai spek).
+`npm run lint && npm run typecheck && npm run build` hijau 2026-10-08.
+
 Catatan integrasi: `app/utils/modul-shell.ts` TIDAK ikut diedit (bukan milik agen hlife). Selama pemilik
 file itu belum mendaftarkan entri `hlife`, sidebar tetap sidebar Office; karena itu Command Center
 menampilkan daftar layar sebagai jalan masuk semua halaman.

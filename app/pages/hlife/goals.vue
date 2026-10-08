@@ -9,7 +9,7 @@ import {
   createHlifeRecord, deleteHlifeRecord, updateHlifeRecord,
   useHlifeResource,
 } from '~/composables/useHlife'
-import { GOAL_AREAS, persenGoal } from '~/utils/hlife'
+import { GOAL_AREAS, PILIHAN_TANPA, persenGoal } from '~/utils/hlife'
 import { angka } from '~/utils/format'
 
 definePageMeta({ access: ['howandi_life'] })
@@ -30,7 +30,7 @@ const labelMilestone = (id: string) => {
 
 const opsiArea = GOAL_AREAS.map(a => ({ value: a as string, label: a }))
 const opsiMilestone = computed(() => [
-  { value: '', label: '— Tidak terhubung —' },
+  { value: PILIHAN_TANPA, label: '— Tidak terhubung —' },
   ...roadmap.value.slice().sort((a, b) => a.year - b.year).map(r => ({ value: r.id, label: `${r.year} · ${r.title}` })),
 ])
 
@@ -52,8 +52,8 @@ const form = reactive({
 
 function buka(g?: HlifeGoal) {
   Object.assign(form, g
-    ? { id: g.id, name: g.name, desc: g.desc || '', cur: g.cur || 0, target: g.target || 100, unit: g.unit || '', area: g.area || 'Finance', milestone: g.milestone || '' }
-    : { id: '', name: '', desc: '', cur: 0, target: 100, unit: '', area: 'Finance', milestone: '' })
+    ? { id: g.id, name: g.name, desc: g.desc || '', cur: g.cur || 0, target: g.target || 100, unit: g.unit || '', area: g.area || 'Finance', milestone: g.milestone || PILIHAN_TANPA }
+    : { id: '', name: '', desc: '', cur: 0, target: 100, unit: '', area: 'Finance', milestone: PILIHAN_TANPA })
   sheet.value = true
 }
 
@@ -79,7 +79,7 @@ async function simpan() {
     target: Number(form.target) || 1,
     unit: form.unit,
     area: form.area,
-    milestone: form.milestone,
+    milestone: form.milestone === PILIHAN_TANPA ? '' : form.milestone,
   }
   sibuk.value = true
   try {
