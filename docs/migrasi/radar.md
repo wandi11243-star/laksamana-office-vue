@@ -83,6 +83,13 @@ Baris `_lintas-modul.md` (tambahkan/dipertahankan; baris lama `_lintas-modul.md:
 Pertanyaan terbuka: **tidak ada** (kedua ⚠️ bersifat bentuk endpoint yang sudah dipahami, bukan keputusan yang menunggu owner).
 
 ## J. Progres build (2026-09-30)
+
+### Cek visual 2026-10-08 (issue #19, Lane A2 — mock read-only, akun jebe)
+- 1366px: Radar, Kalender Terpadu, Daftar Event, Reservasi, Promo, Detail Lengkap (mkt + evt) — semua merender tanpa galat, paritas dengan `deploy/radar` (§C: 5 rail + 1 detail internal; pita sumber gagal, auto-refresh 5 menit, "Radar hanya membaca", WA harian + "Buka reservasi hari ini").
+- 390px: keenam layar di atas — kartu statistik 2 kolom, tabel jadi kartu di bawah `lg`, tidak ada geser samping kecuali kisi kalender 7 kolom (disengaja, lihat di bawah).
+- Layar terkunci: user tanpa kunci `radar` mendapat 403 "Belum ada akses" di `/radar`; kartu Radar tidak muncul di beranda. Radar tidak punya matriks role (semua pemegang kunci melihat semua halaman).
+- Perbaikan: `pages/radar/detail/[sumber]/[id].vue` — payload sumber yang tak lengkap (mis. `mkt` tanpa `mkt`) dulu hanya menampilkan header kosong; sekarang ada pesan "Detail acara ini belum lengkap…" (terverifikasi di browser dengan respons tanpa payload).
+- Tidak ada aksi tulis di modul ini (read-only), jadi bagian D tidak berlaku.
 - API: `app/Modules/Radar` di laksamana-api (RadarRules murni + RadarBoard + RadarController), Unit test `RadarRulesTest`; Feature test `tests/Feature/Radar` **belum dijalankan** (butuh dump lokal).
 - Vue: `useRadar.ts`, `utils/radar.ts`, `utils/layar/radar.ts`, komponen `components/radar/*`, enam halaman di `pages/radar/`. Kartu Radar di `utils/modul.ts` (grup Operasional) + shell di `modul-shell.ts`.
 - Dicek di browser headless dengan API tiruan (390px & 1366px): semua halaman merender tanpa galat. **Belum dicek dengan data dev sungguhan.**
