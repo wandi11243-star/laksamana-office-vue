@@ -6,6 +6,11 @@
   The project dropdown follows F.6: a Done project is hidden, EXCEPT the one
   currently attached to the task being edited, marked "· selesai" — without it,
   opening an old task silently drops its project (old projOptions, :848-851).
+
+  The fifth tab (Selesai) is NOT in the old app: there a done task only
+  resurfaces in Today (due today) or the project detail, so a done task without
+  a project cannot be un-done or deleted from the UI. The tab lists done tasks
+  with the same row actions (toggle back, edit, delete via the sheet).
 -->
 <script setup lang="ts">
 import type { HlifeBusiness, HlifeProject, HlifeTask } from '~/composables/useHlife'
@@ -32,7 +37,7 @@ const tasks = computed(() => tasksData.value.rows)
 const bisnis = computed(() => bizData.value.rows)
 const proyek = computed(() => projData.value.rows)
 
-type Tampilan = 'matrix' | 'today' | 'week' | 'biz'
+type Tampilan = 'matrix' | 'today' | 'week' | 'biz' | 'done'
 const tampilan = ref<Tampilan>('matrix')
 const filterBiz = ref(PILIHAN_SEMUA)
 const filterProyek = ref(PILIHAN_SEMUA)
@@ -42,6 +47,7 @@ const TAMPILAN: { value: Tampilan, label: string }[] = [
   { value: 'today', label: 'Today' },
   { value: 'week', label: 'Minggu ini' },
   { value: 'biz', label: 'Per bisnis' },
+  { value: 'done', label: 'Selesai' },
 ]
 
 const hari = hariIni()
@@ -57,7 +63,7 @@ interface Grup {
   items: HlifeTask[]
 }
 
-/** All four sub-views flattened to groups, so one row markup serves them all. */
+/** All five sub-views flattened to groups, so one row markup serves them all. */
 const grup = computed<Grup[]>(() => {
   const dasar = tersaring.value
   if (tampilan.value === 'matrix') {
@@ -72,6 +78,9 @@ const grup = computed<Grup[]>(() => {
   }
   if (tampilan.value === 'week') {
     return [{ judul: '7 hari ke depan', items: dasar.filter(t => t.due && t.due <= tambahHari(hari, 7) && !t.done).slice().sort((a, b) => (a.due < b.due ? -1 : 1)) }]
+  }
+  if (tampilan.value === 'done') {
+    return [{ judul: 'Selesai', items: dasar.filter(t => t.done) }]
   }
   const peta = new Map<string, HlifeTask[]>()
   dasar.filter(t => !t.done).forEach((t) => {
@@ -496,7 +505,7 @@ watch(tasks, (list) => {
     </template>
 
     <p
-      v-if="tampilan === 'today' || tampilan === 'week'"
+      v-if="tampilan === 'today' || tampilan === 'week' || tampilan === 'done'"
       class="text-xs text-muted"
     >
       {{ angka(tasks.length) }} task total · {{ angka(tasks.filter(t => t.done).length) }} selesai
