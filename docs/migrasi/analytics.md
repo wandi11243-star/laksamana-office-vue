@@ -237,8 +237,8 @@ marketing, konten, desain, pengaturan, akses). Struktur yang dipakai L2/L3:
 | konten | pages/analytics/konten.vue | ✅ (L3) | GET /kompas/analytics + /konten/state (malas) | rumus via performa-konten (impor); muat malas idle/muat/ok/galat + Coba lagi |
 | desain | pages/analytics/desain.vue | ✅ (L3) | GET /kompas/analytics + /konten/state (malas) | bulan & blob berbagi dengan konten; mode kategori milik halaman ini |
 | unggah | pages/analytics/unggah.vue | ✅ (+ parser promo/void L2) | GET+PUT /kompas/analytics | wadah promo/voidb terpisah, daftar kunci tertutup |
-| pengaturan | pages/analytics/pengaturan.vue | ⬜ (L3) | PUT /kompas/analytics | — |
-| akses | pages/analytics/akses.vue | ⬜ (L3) | PUT /kompas/analytics/access + account members | — |
+| pengaturan | pages/analytics/pengaturan.vue | ✅ (L3) | PUT /kompas/analytics | daftar resep HPP cuma saran (read-only, boleh gagal) |
+| akses | pages/analytics/akses.vue | ✅ (L3) | PUT /kompas/analytics/access + account members | ubah hanya admin modul; kirim selisih dari bawaan |
 
 ## K. Daftar uji cutover (L1: fondasi + unggah; dilengkapi L2/L3)
 

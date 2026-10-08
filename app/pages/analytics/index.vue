@@ -10,7 +10,7 @@ import { LAYAR_ANALYTICS } from '~/utils/layar/analytics'
 definePageMeta({ access: ['analytics'] })
 
 /** Screen keys with a page file, in TITLES order. L2/L3 extend this list. */
-const LAYAR_DIBANGUN = ['ringkasan', 'hari', 'menu', 'kategori', 'kunjungan', 'meja', 'talent', 'error', 'voidb', 'promo', 'tren', 'event', 'marketing', 'konten', 'desain', 'unggah']
+const LAYAR_DIBANGUN = ['ringkasan', 'hari', 'menu', 'kategori', 'kunjungan', 'meja', 'talent', 'error', 'voidb', 'promo', 'tren', 'event', 'marketing', 'konten', 'desain', 'unggah', 'pengaturan', 'akses']
 
 const me = useMe()
 const router = useRouter()
