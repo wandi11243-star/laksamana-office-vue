@@ -180,7 +180,7 @@ async function simpanSetoran() {
   try {
     const r = await putRekap({ hari: {}, setoran: { tambah: [{ tgl: hari[hari.length - 1], tujuan: setorForm.tujuan.trim(), catatan: setorForm.catatan.trim(), hari }] } })
     setoranBuka.value = false
-    toast.add({ title: `Setoran dicatat (${hari.length} hari).${r.data.takDikenal?.length ? ` Sebagian tak dikenal: ${JSON.stringify(r.data.takDikenal)}` : ''}`, color: 'success' })
+    toast.add({ title: `Setoran dicatat (${hari.length} hari).${Array.isArray(r.data.takDikenal) && r.data.takDikenal.length ? ` Sebagian tak dikenal: ${JSON.stringify(r.data.takDikenal)}` : ''}`, color: 'success' })
     await refresh()
   }
   catch (e) {
