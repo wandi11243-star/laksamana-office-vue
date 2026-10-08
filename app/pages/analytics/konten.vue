@@ -50,6 +50,14 @@ const kumpul = computed(() => pkKumpul(stKonten.value?.content ?? [], {
   plat: keadaan.value.plat,
   cari: keadaan.value.cari,
 }))
+/* The shared default is this month, which often has no posted content yet
+   (a new month, or a mock with older months). Snap to the newest month that
+   has figures once the blob arrives — staying on an empty default would read
+   as "no performance anywhere". The user's own pick is never overridden. */
+watch(() => kumpul.value.bulanAda, (ada) => {
+  const kunci = Object.keys(ada).sort()
+  if (kunci.length && !kunci.includes(keadaan.value.bulan)) keadaan.value.bulan = kunci[kunci.length - 1] ?? ''
+})
 const total = computed(() => pkTotal(kumpul.value))
 const perPlat = computed(() => pkPerPlatform(kumpul.value.baris))
 const perPilar = computed(() => pkPerPillar(kumpul.value.konten))

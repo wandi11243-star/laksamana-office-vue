@@ -41,6 +41,10 @@ const galatPesan = computed(() => apiErrorMessage(stError.value, 'Modul Konten t
 
 const kumpul = computed(() => pkKumpul(stKonten.value?.content ?? [], { bulan: keadaan.value.bulan }))
 const banding = computed(() => pkBandingDesain(kumpul.value))
+watch(() => kumpul.value.bulanAda, (ada) => {
+  const kunci = Object.keys(ada).sort()
+  if (kunci.length && !kunci.includes(keadaan.value.bulan)) keadaan.value.bulan = kunci[kunci.length - 1] ?? ''
+})
 const fmtPersen = (v: number | null) => v === null ? '—' : `${pkPersen(v)}%`
 
 const semuaDesain = computed(() => pkDesainRows(stKonten.value?.content ?? [], stKonten.value?.prodTasks ?? []))
@@ -154,7 +158,16 @@ const kolomKat: TableColumn<BarisKat>[] = [
             />
           </AppStatGrid>
           <UAlert
-            v-if="!banding.pakai.n || !banding.tanpa.n"
+            v-if="!kumpul.konten.length"
+            class="mt-3"
+            color="info"
+            variant="subtle"
+            icon="i-lucide-info"
+            title="Belum ada konten tayang yang punya angka performa"
+            description="Konten yang tayang tapi belum diisi angkanya tidak ikut dihitung — mengisinya di modul Konten → Input Performa."
+          />
+          <UAlert
+            v-else-if="!banding.pakai.n || !banding.tanpa.n"
             class="mt-3"
             color="info"
             variant="subtle"

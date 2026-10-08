@@ -23,6 +23,7 @@ definePageMeta({ access: ['analytics'] })
 const toast = useToast()
 const me = useMe()
 const izin = useAnalyticsIzin()
+const bolehLihat = computed(() => izin.lihat('akses'))
 const sayaAdmin = computed(() => isAdminOf(me.value, 'analytics'))
 const bisa = computed(() => sayaAdmin.value && izin.ubah('akses'))
 
@@ -150,6 +151,15 @@ async function setPeran(u: AnalyticsAnggota, peran: string) {
         :description="apiErrorMessage(error, 'Periksa koneksi internet, lalu muat ulang halaman.')"
       />
     </div>
+
+    <UAlert
+      v-else-if="!bolehLihat"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-lock"
+      title="Halaman ini tidak boleh dibuka"
+      description="Minta admin modul mengubahnya di Kelola Akses."
+    />
 
     <template v-else>
       <UAlert

@@ -17,6 +17,7 @@ definePageMeta({ access: ['analytics'] })
 
 const toast = useToast()
 const izin = useAnalyticsIzin()
+const bolehLihat = computed(() => izin.lihat('pengaturan'))
 const bolehUbah = computed(() => izin.ubah('pengaturan'))
 const roleSaya = computed(() => ROLE_LABEL_ANALYTICS[izin.role.value] ?? izin.role.value)
 
@@ -189,6 +190,15 @@ const { data: resepHpp } = useAsyncData(
         :description="apiErrorMessage(error, 'Periksa koneksi internet, lalu muat ulang halaman.')"
       />
     </div>
+
+    <UAlert
+      v-else-if="!bolehLihat"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-lock"
+      title="Halaman ini tidak boleh dibuka"
+      :description="`Hak akses kamu di halaman &quot;Pengaturan&quot; cuma &quot;${roleSaya}&quot;. Minta admin modul mengubahnya di Kelola Akses.`"
+    />
 
     <template v-else>
       <UAlert
