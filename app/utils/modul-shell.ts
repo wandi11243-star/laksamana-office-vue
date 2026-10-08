@@ -222,6 +222,13 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
   },
 
   // ── analytics ──
+  analytics: {
+    subjudul: 'Analytics',
+    layar: LAYAR_ANALYTICS,
+    tambah: { label: 'Unggah laporan', to: '/analytics/unggah' },
+    peran: me => peranAnalyticsLabel(me),
+    siapkan: () => muatMatriksAnalytics(),
+  },
 
   // ── investor ──
   investor: {
