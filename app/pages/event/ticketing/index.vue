@@ -5,7 +5,8 @@
 -->
 <script setup lang="ts">
 import type { Acara } from '~/composables/useEvent'
-import { ringkasPenjualan, useDaftarEvent } from '~/composables/useEvent'
+import { useDaftarEvent } from '~/composables/useEvent'
+import { ringkasPenjualan } from '~/utils/event-hitung'
 import { angka, rupiah } from '~/utils/format'
 
 definePageMeta({ access: ['event'] })

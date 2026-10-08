@@ -10,7 +10,8 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { JadwalTalent, TagihanTalent, Talent } from '~/composables/useEvent'
-import { createEvent, feeAngka, patchEvent, uploadFileEvent, useDaftarEvent } from '~/composables/useEvent'
+import { createEvent, patchEvent, uploadFileEvent, useDaftarEvent } from '~/composables/useEvent'
+import { feeAngka } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka, hariIni, rupiah, tambahHari, tglPendek } from '~/utils/format'

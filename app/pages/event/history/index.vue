@@ -7,7 +7,8 @@
 -->
 <script setup lang="ts">
 import type { Acara } from '~/composables/useEvent'
-import { createEvent, ringkasPenjualan, useDaftarEvent } from '~/composables/useEvent'
+import { createEvent, useDaftarEvent } from '~/composables/useEvent'
+import { ringkasPenjualan } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka, rupiah, tglPanjang } from '~/utils/format'

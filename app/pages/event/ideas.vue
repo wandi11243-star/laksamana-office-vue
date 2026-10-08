@@ -4,7 +4,8 @@
 -->
 <script setup lang="ts">
 import type { EvaluasiIde, Ide } from '~/composables/useEvent'
-import { createEvent, FREQS, IDEA_CATS, patchEvent, removeEvent, roiIde, useDaftarEvent } from '~/composables/useEvent'
+import { createEvent, patchEvent, removeEvent, useDaftarEvent } from '~/composables/useEvent'
+import { FREQS, IDEA_CATS, roiIde } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { rupiah } from '~/utils/format'

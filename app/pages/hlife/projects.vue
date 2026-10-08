@@ -10,7 +10,8 @@ import {
   createHlifeRecord, deleteHlifeRecord, updateHlifeRecord,
   useHlifeResource,
 } from '~/composables/useHlife'
-import { PILIHAN_TANPA, PRIORITIES, STAGES, fmtDue, persenProject, stageAktif } from '~/utils/hlife'
+import { PRIORITIES, STAGES, fmtDue, persenProject, stageAktif } from '~/utils/hlife'
+import { PILIHAN_TANPA } from '~/utils/bd-rumus'
 import { ikonPrioritas, ikonStage, tonePrioritas, toneStage } from '~/utils/status-hlife'
 import { hariIni } from '~/utils/format'
 

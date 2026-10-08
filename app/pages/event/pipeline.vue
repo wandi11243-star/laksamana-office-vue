@@ -10,7 +10,8 @@
 -->
 <script setup lang="ts">
 import type { Acara } from '~/composables/useEvent'
-import { EVT_STATUS, patchEvent, statusPengajuan, useDaftarEvent } from '~/composables/useEvent'
+import { patchEvent, useDaftarEvent } from '~/composables/useEvent'
+import { EVT_STATUS, statusPengajuan } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehSetujui, bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka } from '~/utils/format'

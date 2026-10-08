@@ -7,7 +7,8 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { Acara } from '~/composables/useEvent'
-import { angkaEms, omzetPerBulan, paxAcara, statusPengajuan, useStateEvent } from '~/composables/useEvent'
+import { useStateEvent } from '~/composables/useEvent'
+import { angkaEms, omzetPerBulan, paxAcara, statusPengajuan } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { angka, hariIni, rupiah, tambahHari, tglPanjang } from '~/utils/format'
 import { STATUS_IKON_EVENT, STATUS_WARNA_EVENT } from '~/utils/status-event'

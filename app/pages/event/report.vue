@@ -4,7 +4,8 @@
   (`event/index.html:5605`, `omzetPerBulanEms :4975`).
 -->
 <script setup lang="ts">
-import { angkaEms, omzetPerBulan, useStateEvent } from '~/composables/useEvent'
+import { useStateEvent } from '~/composables/useEvent'
+import { angkaEms, omzetPerBulan } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { angka, rupiah } from '~/utils/format'
 
