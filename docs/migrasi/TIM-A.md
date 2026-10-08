@@ -67,8 +67,8 @@ Pembagian 2026-10-06: dua anggota, tiga jalur masing-masing. Assignee di issue t
 bila pembagian berubah, ubah assignee dan tabel ini bersamaan.
 
 **Koordinator: @dwipapap**: me-review dan me-merge PR, melepas label `blocked`, memperbarui
-`PLAN.md` §3, `_gap-api.md`, dan `_pertanyaan.md` (§4, §5). Keputusan owner yang masih terbuka
-(K-11, K-12): #23.
+`PLAN.md` §3, `_gap-api.md`, dan `_pertanyaan.md` (§4, §5). Keputusan owner K-11 dan K-12
+diputuskan 2026-10-08 (#23, `_pertanyaan.md`).
 
 | jalur | urutan issue | rumus bersama yang ia miliki (`PLAN.md` §4) | menunggu | PJ |
 |---|---|---|---|---|

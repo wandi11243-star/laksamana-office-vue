@@ -960,7 +960,7 @@ Bahasa user. Setiap aksi tulis diuji juga **silang**: ubah di Vue → terlihat d
 
 ## L. Definition of Done (PLAN.md §5)
 
-- [x] Setiap layar bagian C punya halaman: 7 Reservasi + 5 SE ✅. "Segera" ber-ID: Restore/Hapus Semua (K-11), (G-15 sudah ✅ di API). `hariH` alias + `review` hantu tidak dibangun (tercatat di C). ⚠️ Terbit-langsung kwitansi manajer jatuh ke lembar tanpa tanda tangan (menunggu sesi finance, tercatat di J).
+- [x] Setiap layar bagian C punya halaman: 7 Reservasi + 5 SE ✅. Restore/Hapus Semua tidak dibawa (K-11 = A, owner 2026-10-08), (G-15 sudah ✅ di API). `hariH` alias + `review` hantu tidak dibangun (tercatat di C). ⚠️ Terbit-langsung kwitansi manajer jatuh ke lembar tanpa tanda tangan (menunggu sesi finance, tercatat di J).
 - [x] Setiap baris tabel E dipakai lewat `useReservasi.ts` / `useServiceExcellent.ts`; tanpa URL legacy ✅ (grep `api-mysql` di `app/` → 0).
 - [x] Aturan F1–F24 diterapkan: F1–F5 fondasi; F5–F8 kunci meja; F10 kwitansi; F11 pisah DP; F12–F18 SE; F19 matriks + ekstra; F20 darurat admin; F22 audit server; F23 jejak denah; F24 default master. F9 tutup-otomatis mati (tidak dibawa, sesuai sumber). F21 PIN = modul auth, bukan layar ini.
 - [x] Rumus bersama diimpor dari `app/utils/`, bukan disalin ✅ (tabel Logika bersama di atas).
