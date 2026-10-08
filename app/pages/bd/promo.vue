@@ -7,7 +7,7 @@
 <script setup lang="ts">
 import type { BdPromo } from '~/composables/useBd'
 import { bdSimpan, putSetelan, useBdSettings, versiSetelan } from '~/composables/useBd'
-import { todayISO } from '~/utils/bd-rumus'
+import { PILIHAN_SEMUA, todayISO } from '~/utils/bd-rumus'
 import {
   PROMO_OUTLET_BAWAAN, promoBuatBarisCsv, promoImporRencana, promoJam, promoSort,
 } from '~/utils/bd-promo'
@@ -22,7 +22,7 @@ definePageMeta({ access: ['bd'] })
 
 const me = useMe()
 const { data: setelan } = useBdSettings()
-const f = useState('bd-promo-filter', () => ({ status: 'all', tipe: '', cari: '' }))
+const f = useState('bd-promo-filter', () => ({ status: 'all', tipe: PILIHAN_SEMUA, cari: '' }))
 
 const promos = computed(() => setelan.value?.data.promos || [])
 const versi = computed(() => versiSetelan(setelan.value, 'promos'))
@@ -30,7 +30,7 @@ const namaAku = computed(() => me.value?.name || '')
 
 const terlihat = computed(() => promos.value
   .filter(p => (f.value.status === 'all' || promoStatus(p) === f.value.status)
-    && (!f.value.tipe || (p.tipe || '') === f.value.tipe)
+    && (f.value.tipe === PILIHAN_SEMUA || (p.tipe || '') === f.value.tipe)
     && (!f.value.cari.trim() || [p.nama, p.benefit, p.partner, p.kode, p.ketentuan, p.lmPIC].join(' ').toLowerCase().includes(f.value.cari.trim().toLowerCase())))
   .slice()
   .sort(promoSort))
@@ -44,7 +44,7 @@ const chips = computed(() => [
   { value: 'paused', label: `Dijeda (${nStatus('paused')})` },
   { value: 'ended', label: `Selesai (${nStatus('ended')})` },
 ])
-const opsiTipe = [{ value: '', label: 'Semua tipe' }, ...Object.entries(PROMO_TIPE).map(([k, v]) => ({ value: k, label: v.l }))]
+const opsiTipe = [{ value: PILIHAN_SEMUA, label: 'Semua tipe' }, ...Object.entries(PROMO_TIPE).map(([k, v]) => ({ value: k, label: v.l }))]
 
 // ---- export / import ----
 function unduhCsv(baris: (string | number)[][], namaBerkas: string) {

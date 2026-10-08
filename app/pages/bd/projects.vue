@@ -8,7 +8,7 @@
 <script setup lang="ts">
 import type { BdProject } from '~/composables/useBd'
 import { bdSimpan, tambalBd, useBdState, versiBaris } from '~/composables/useBd'
-import { OWNER_DIVS, PROJ_STAGES, cariAku, lingkupIds, pics, saringLingkup, tasksPerluDitutup } from '~/utils/bd-rumus'
+import { OWNER_DIVS, PILIHAN_SEMUA, PROJ_STAGES, cariAku, lingkupIds, pics, saringLingkup, tasksPerluDitutup } from '~/utils/bd-rumus'
 import BdPicFilter from '~/widgets/bd/BdPicFilter.vue'
 import BdProjCard from '~/widgets/bd/BdProjCard.vue'
 import BdProjectSheet from '~/widgets/bd/BdProjectSheet.vue'
@@ -18,7 +18,7 @@ definePageMeta({ access: ['bd'] })
 const me = useMe()
 const { data: state } = useBdState()
 const fPics = useState<string[]>('bd-fPics', () => [])
-const f = useState('bd-proj-filter', () => ({ scope: 'tim', div: '' }))
+const f = useState('bd-proj-filter', () => ({ scope: 'tim', div: PILIHAN_SEMUA }))
 
 const people = computed(() => state.value.people)
 const aku = computed(() => cariAku(people.value, me.value))
@@ -27,7 +27,7 @@ const cocokPic = (o: { pics?: string[], pic?: string }) => !fPics.value.length |
 
 const base = computed(() => saringLingkup(state.value.projects, f.value.scope, lingkup.value, aku.value?.id)
   .filter(cocokPic)
-  .filter(p => !f.value.div || p.div === f.value.div))
+  .filter(p => f.value.div === PILIHAN_SEMUA || p.div === f.value.div))
 const diStage = (st: string) => base.value.filter(p => p.stage === st)
 
 const skop = [
@@ -35,11 +35,11 @@ const skop = [
   { value: 'saya', label: 'Ditugaskan ke saya' },
   { value: 'semua', label: 'Semua' },
 ]
-const opsiDiv = [{ value: '', label: 'Semua divisi' }, ...OWNER_DIVS.map(d => ({ value: d, label: d }))]
-const resetAktif = computed(() => fPics.value.length || f.value.div || f.value.scope !== 'tim')
+const opsiDiv = [{ value: PILIHAN_SEMUA, label: 'Semua divisi' }, ...OWNER_DIVS.map(d => ({ value: d, label: d }))]
+const resetAktif = computed(() => fPics.value.length || f.value.div !== PILIHAN_SEMUA || f.value.scope !== 'tim')
 function reset() {
   fPics.value = []
-  f.value = { ...f.value, div: '', scope: 'tim' }
+  f.value = { ...f.value, div: PILIHAN_SEMUA, scope: 'tim' }
 }
 
 // ---- move stage ----
@@ -93,7 +93,9 @@ function buka(p: BdProject) {
 </script>
 
 <template>
+  <NuxtPage v-if="$route.params.id" />
   <AppPage
+    v-else
     title="Projects"
     description="Pekerjaan besar berjangka + milestone."
   >

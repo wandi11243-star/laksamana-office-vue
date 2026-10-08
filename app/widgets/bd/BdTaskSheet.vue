@@ -6,7 +6,7 @@
 <script setup lang="ts">
 import type { BdPerson, BdProject, BdTask } from '~/composables/useBd'
 import { buatBd, bdSimpan, hapusBd, ubahBd, versiBaris } from '~/composables/useBd'
-import { OWNER_DIVS, PRIORITAS, STATUS_FLOW, TASK_TIPE, kuadran, opsiProject as opsiProjectBd, setPics, todayISO } from '~/utils/bd-rumus'
+import { OWNER_DIVS, PILIHAN_TANPA, PRIORITAS, STATUS_FLOW, TASK_TIPE, kuadran, opsiProject as opsiProjectBd, setPics, todayISO } from '~/utils/bd-rumus'
 import { WARNA_KUADRAN } from '~/utils/status-bd'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdPicPicker from '~/widgets/bd/BdPicPicker.vue'
@@ -179,10 +179,10 @@ async function hapus() {
         </UFormField>
         <UFormField label="Project (opsional)">
           <USelect
-            :model-value="f.project ?? undefined"
+            :model-value="f.project ?? PILIHAN_TANPA"
             :items="opsiProject"
             class="w-full"
-            @update:model-value="(v: string | undefined) => { f.project = v || null }"
+            @update:model-value="(v: string | undefined) => { f.project = !v || v === PILIHAN_TANPA ? null : v }"
           />
         </UFormField>
       </div>

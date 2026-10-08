@@ -6,7 +6,7 @@
 <script setup lang="ts">
 import type { BdCoord, BdPerson, BdProject } from '~/composables/useBd'
 import { bdSimpan, buatBd, hapusBd, ubahBd, versiBaris } from '~/composables/useBd'
-import { COORD_DIVS, COORD_FLOW, OWNER_DIVS, PRIORITAS, inDays, opsiProject as opsiProjectBd } from '~/utils/bd-rumus'
+import { COORD_DIVS, COORD_FLOW, OWNER_DIVS, PILIHAN_TANPA, PRIORITAS, inDays, opsiProject as opsiProjectBd } from '~/utils/bd-rumus'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 
 const props = defineProps<{
@@ -164,10 +164,10 @@ async function hapus() {
         </UFormField>
         <UFormField label="Project">
           <USelect
-            :model-value="f.project ?? undefined"
+            :model-value="f.project ?? PILIHAN_TANPA"
             :items="opsiProject"
             class="w-full"
-            @update:model-value="(v: string | undefined) => { f.project = v || null }"
+            @update:model-value="(v: string | undefined) => { f.project = !v || v === PILIHAN_TANPA ? null : v }"
           />
         </UFormField>
       </div>

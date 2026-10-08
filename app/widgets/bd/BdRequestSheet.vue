@@ -7,7 +7,7 @@
 <script setup lang="ts">
 import type { BdPerson, BdPo, BdProject } from '~/composables/useBd'
 import { bdSimpan, tambahPurchaseOrders } from '~/composables/useBd'
-import { OWNER_DIVS, akhirMinggu, nowStamp, opsiProject as opsiProjectBd, todayISO } from '~/utils/bd-rumus'
+import { OWNER_DIVS, PILIHAN_TANPA, akhirMinggu, nowStamp, opsiProject as opsiProjectBd, todayISO } from '~/utils/bd-rumus'
 
 const props = defineProps<{
   projects: BdProject[]
@@ -107,10 +107,10 @@ async function simpan() {
         </UFormField>
         <UFormField label="Project (opsional)">
           <USelect
-            :model-value="f.project ?? undefined"
+            :model-value="f.project ?? PILIHAN_TANPA"
             :items="opsiProject"
             class="w-full"
-            @update:model-value="(v: string | undefined) => { f.project = v || null }"
+            @update:model-value="(v: string | undefined) => { f.project = !v || v === PILIHAN_TANPA ? null : v }"
           />
         </UFormField>
       </div>
