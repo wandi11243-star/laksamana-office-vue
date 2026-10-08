@@ -20,7 +20,7 @@ export async function getHppIngredients(): Promise<{ rows: BahanHpp[] }> {
 }
 
 /** `GET /stock/hpp/recipes` — flat, nested or by-id; normalised to a list. */
-export async function getHppRecipes() {
+export async function getHppRecipes(): Promise<{ rows: ResepHpp[], versions: Record<string, Versi> }> {
   const r = await useApi()<Envelope<ResepHpp[] | Record<string, unknown>>>('/stock/hpp/recipes')
   const flat: ResepHpp[] = []
   const jalan = (v: unknown) => {
@@ -34,7 +34,7 @@ export async function getHppRecipes() {
     }
   }
   jalan(r.data)
-  return { rows: flat }
+  return { rows: flat, versions: (r.meta?.versions ?? {}) as Record<string, Versi> }
 }
 
 // ---------------------------------------------------------------- Usage panel (module `usage`)
@@ -613,9 +613,9 @@ export async function hppRapikanBahan(aksi: 'pull-products' | 'remove-shadows' |
 }
 
 /** `GET /stock/hpp/recipes` with versions keyed by id (normalised like the tree reader). */
-export async function hppRecipes() {
-  const { rows } = await getHppRecipes()
-  return { rows: rows as unknown as ResepHppTulis[] }
+export async function hppRecipes(): Promise<{ rows: ResepHppTulis[], versions: Record<string, Versi> }> {
+  const { rows, versions } = await getHppRecipes()
+  return { rows: rows as unknown as ResepHppTulis[], versions }
 }
 
 export async function createRecipe(body: Partial<ResepHppTulis> & { nama: string }) {

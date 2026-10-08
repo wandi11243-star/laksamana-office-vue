@@ -122,7 +122,7 @@ const sheetProduk = ref(false)
 const produkEdit = ref<ProdukStock | null>(null)
 const fp = ref({
   nama: '',
-  sumber: '',
+  sumber: 'vendor',
   satuanDasar: '',
   packIsi: 1,
   diOutlet: false,
@@ -132,7 +132,7 @@ const fp = ref({
   isi: {} as Record<string, number>,
   kategori: '',
   area: [] as string[],
-  caraBeli: '',
+  caraBeli: 'antar',
   aktif: true,
 })
 function bukaProduk(p?: ProdukStock) {
@@ -140,7 +140,7 @@ function bukaProduk(p?: ProdukStock) {
   fp.value = p
     ? {
         nama: p.nama,
-        sumber: (p.sumber as string) || '',
+        sumber: (p.sumber as string) || 'vendor',
         satuanDasar: (p.satuanDasar as string) || '',
         packIsi: Number((p as unknown as Record<string, unknown>).packIsi) || 1,
         diOutlet: !!((p as unknown as Record<string, unknown>).diOutlet),
@@ -150,10 +150,10 @@ function bukaProduk(p?: ProdukStock) {
         isi: { ...((p.isi as Record<string, number>) ?? {}) },
         kategori: (p.kategori as string) || '',
         area: [...((p.area as string[]) ?? [])],
-        caraBeli: (p.caraBeli as string) || '',
+        caraBeli: (p.caraBeli as string) || 'antar',
         aktif: p.aktif !== false,
       }
-    : { nama: '', sumber: '', satuanDasar: '', packIsi: 1, diOutlet: false, utama: '', cadangan: [], satuan: [], isi: {}, kategori: '', area: [], caraBeli: '', aktif: true }
+    : { nama: '', sumber: 'vendor', satuanDasar: '', packIsi: 1, diOutlet: false, utama: '', cadangan: [], satuan: [], isi: {}, kategori: '', area: [], caraBeli: 'antar', aktif: true }
   sheetProduk.value = true
 }
 const namaVendorSemua = computed(() => (vendorQ.data.value?.rows ?? []).map(v => v.nama))
@@ -167,7 +167,7 @@ async function simpanP() {
   try {
     const body: Record<string, unknown> = {
       nama: fp.value.nama.trim(),
-      sumber: fp.value.sumber,
+      sumber: fp.value.sumber === 'vendor' ? '' : fp.value.sumber,
       satuanDasar: fp.value.satuanDasar,
       isi: fp.value.isi,
       diOutlet: fp.value.diOutlet,
@@ -176,7 +176,7 @@ async function simpanP() {
       satuan: fp.value.satuan,
       kategori: fp.value.kategori,
       area: fp.value.area,
-      caraBeli: fp.value.caraBeli,
+      caraBeli: fp.value.caraBeli === 'antar' ? '' : fp.value.caraBeli,
       aktif: fp.value.aktif,
     }
     if (produkEdit.value) await patchProduk(produkEdit.value.nama, body, versiProduk.value[produkEdit.value.nama])
@@ -609,7 +609,7 @@ async function simpanTemplate() {
             v-model="fp.sumber"
             name="produk-sumber"
             :options="[
-              { value: '', label: 'Beli dari vendor' },
+              { value: 'vendor', label: 'Beli dari vendor' },
               { value: 'ck', label: 'Central Kitchen' },
               { value: 'both', label: 'Vendor & CK' },
             ]"
@@ -643,7 +643,8 @@ async function simpanTemplate() {
         <UFormField label="Vendor utama">
           <USelect
             v-model="fp.utama"
-            :items="['', ...namaVendorSemua]"
+            :items="namaVendorSemua"
+            placeholder="Tanpa vendor"
           />
         </UFormField>
         <UFormField label="Vendor alternatif / cadangan">
@@ -696,7 +697,7 @@ async function simpanTemplate() {
           <USelect
             v-model="fp.caraBeli"
             :items="[
-              { value: '', label: 'Diantar vendor' },
+              { value: 'antar', label: 'Diantar vendor' },
               { value: 'online', label: 'Online' },
               { value: 'jemput', label: 'Jemput' },
             ]"

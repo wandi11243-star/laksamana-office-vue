@@ -124,5 +124,23 @@ console.log('\nstock-hpp: CSV resep')
   cek('baris catatan Ref=Catatan', baris[4].includes('Catatan'))
 }
 
+console.log('\nstock-hpp: pemakaian & selisih')
+{
+  const set = { lampuKuning: 3, lampuMerah: 8 }
+  const ctxP = H.buatKonteks([{ nama: 'Beras', satuan: 'Kg', qty_beli: 1, harga_beli: 12000 }], [])
+  // masuk 100+20, tercatat 90+5, aktual 120−15=105 → selisih +10 (+10.5%) → merah.
+  const c = H.hitungPakai(ctxP, { bahan: 'Beras', sa: 100, beli: 20, resep: 90, spoil: 5, opname: 15 }, set)
+  samakan('masuk = sa + beli', c.masuk, 120)
+  samakan('tercatat = resep + lain', c.tercatat, 95)
+  samakan('aktual = masuk − opname', c.aktual, 105)
+  samakan('selisih + boros', c.selisih, 10)
+  cek('lampu merah di atas ambang', c.lampu === 'merah', c.lampu)
+  samakan('nilai = selisih × harga satuan', c.nilai, 120000)
+  const irit = H.hitungPakai(ctxP, { bahan: 'Beras', sa: 100, beli: 0, resep: 100, opname: 0 }, set)
+  cek('selisih nol = hijau', irit.lampu === 'hijau' && irit.selisih === 0)
+  const kosong = H.hitungPakai(ctxP, { bahan: 'Beras' }, set)
+  cek('tanpa angka = tidak ada', kosong.ada === false)
+}
+
 console.log('\n' + (gagal ? 'GAGAL ' + gagal : 'SEMUA OK') + ' — ' + ok + ' cek\n')
 process.exit(gagal ? 1 : 0)
