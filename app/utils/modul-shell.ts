@@ -185,6 +185,8 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     // The old top bar had no search and no "+": Lead Baru / Event Baru live on
     // their screens. Its bell (unread notifications) arrives with the
     // Notification Center (#60).
+    lonceng: { label: 'Notifikasi', to: '/marketing/notifications' },
+    lencana: () => useLencanaMkt(),
     // The old footer showed "<role> · <division>" (updateTopUser, :4813-4816).
     peran: (me) => {
       const u = sayaMkt(me, usePeranMkt().value.users)?.user

@@ -413,6 +413,19 @@ export async function lepasKunciMejaMkt(evId: string): Promise<{ ok: boolean, pe
   }
 }
 
+/** PATCH /marketing/notifications/{id} — mark read, needs the row version. */
+export const tandaiDibacaMkt = (id: string, versi?: Versi) =>
+  useApi()<Envelope<unknown>>(`/marketing/notifications/${encodeURIComponent(id)}`, { method: 'PATCH', body: { read: true }, headers: versiHdr(versi) })
+
+/**
+ * The red count of the Marketing chrome: unread notifications, on the bell
+ * (the old unread badge + popup, paintNotifPop).
+ */
+export function useLencanaMkt() {
+  const { data } = useStateMkt()
+  return computed(() => ({ lonceng: data.value.notifs.filter(n => !(n as { read?: boolean }).read).length }))
+}
+
 // ---------------------------------------------------------------- documents
 
 /** GET /marketing/documents/{doc} — settings & friends (contract Documents). */
