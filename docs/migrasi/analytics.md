@@ -236,7 +236,7 @@ marketing, konten, desain, pengaturan, akses). Struktur yang dipakai L2/L3:
 | marketing | pages/analytics/marketing.vue | ⬜ (L3) | GET /kompas/analytics + marketing/state | ⚠️ E.7 |
 | konten | pages/analytics/konten.vue | ⬜ (L3) | GET /kompas/analytics + konten/state (malas) | ⚠️ E.7 |
 | desain | pages/analytics/desain.vue | ⬜ (L3) | GET /kompas/analytics + konten/state (malas) | ⚠️ E.7 |
-| unggah | pages/analytics/unggah.vue | ✅ | GET+PUT /kompas/analytics | berkas promo/void terdeteksi → "Segera" (L2) |
+| unggah | pages/analytics/unggah.vue | ✅ (+ parser promo/void L2) | GET+PUT /kompas/analytics | wadah promo/voidb terpisah, daftar kunci tertutup |
 | pengaturan | pages/analytics/pengaturan.vue | ⬜ (L3) | PUT /kompas/analytics | — |
 | akses | pages/analytics/akses.vue | ⬜ (L3) | PUT /kompas/analytics/access + account members | — |
 
