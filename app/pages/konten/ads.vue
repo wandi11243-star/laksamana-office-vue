@@ -49,12 +49,7 @@ function ekspor(ym: string) {
   // the export uses ALL brands' rows of that month, like the old one
   const csv = csvBulanIklan(ym, st.value.adFunds, st.value.ads, namaBrand)
   if (!csv) return toast.add({ title: 'Tidak ada data pada bulan ini', color: 'error' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
-  a.download = `COMS_ads_${ym}.csv`
-  a.click()
-  URL.revokeObjectURL(a.href)
-  toast.add({ title: `File diunduh: ${a.download}`, color: 'success' })
+  unduhKonten(`COMS_ads_${ym}.csv`, csv, 'text/csv')
   logKonten('ekspor laporan ads', labelBulanIklan(ym)).catch(() => {})
 }
 const R = { th: 'text-right', td: 'text-right' }

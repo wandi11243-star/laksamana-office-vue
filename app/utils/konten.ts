@@ -263,7 +263,15 @@ export interface BrandKonten {
   desc?: string
   pic?: string
   pillars?: string[]
-  platforms?: { name?: string, username?: string, followers?: number, target?: number }[]
+  /** platform accounts as the old records store them: {p, user, followers, target} */
+  platforms?: { p?: string, user?: string, followers?: number, target?: number }[]
+  website?: string
+  audience?: string
+  tone?: string
+  kpiReach?: number
+  kpiFollowers?: number
+  freq?: string
+  hashtags?: string[]
   updatedAt?: number
 }
 
