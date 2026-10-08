@@ -101,10 +101,27 @@ export const getKompasState = () => baca<KompasState>('/kompas/state', {})
 export const putEmployees = (v: EmployeesKompas, version: Versi) =>
   putBagianKompas<EmployeesKompas>('employees', v, version)
 
-/** `GET /kompas/days/{date}` — all daily rows of one date, replaced together. */
-export const getDay = (date: string) => baca<{ rows: BarisHarian[] }>(`/kompas/days/${date}`, { rows: [] })
-export const putDay = (date: string, rows: BarisHarian[], version: Versi) =>
-  tulis<{ rows: BarisHarian[] }>(`/kompas/days/${date}`, { rows }, version)
+/**
+ * `GET /kompas/days/{date}` — all daily rows of one date, replaced together.
+ *
+ * Shape drift (lane B2, local API 2026-10-08): the mock answered
+ * `{rows: [...]}` but the real API answers a bare array `[...]`
+ * (KompasState::part `day`). Normalise both to `{rows}` so the callers
+ * (`omset/input.vue`, `omset/breakdown.vue`) never see an empty day and
+ * never overwrite a day's breakdown with a single fresh row.
+ */
+export const getDay = async (date: string): Promise<Part<{ rows: BarisHarian[] }>> => {
+  const res = await useApi()<Envelope<{ rows: BarisHarian[] } | BarisHarian[] | null>>(`/kompas/days/${date}`)
+  const shape = Array.isArray(res.data) ? { rows: res.data } : (res.data ?? { rows: [] })
+  return { value: shape, version: versiDari(res) ?? '' }
+}
+export const putDay = async (date: string, rows: BarisHarian[], version: Versi): Promise<Part<{ rows: BarisHarian[] }>> => {
+  const res = await useApi()<Envelope<{ rows: BarisHarian[] } | BarisHarian[]>>(`/kompas/days/${date}`, {
+    method: 'PUT', body: { rows }, headers: ifMatch(version),
+  })
+  const shape = Array.isArray(res.data) ? { rows: res.data } : res.data
+  return { value: shape, version: versiDari(res) ?? '' }
+}
 
 /** `GET /account/roster` — raw Tim/Keterangan, open to every signed-in user. */
 export const getRoster = async (): Promise<RosterUser[]> =>

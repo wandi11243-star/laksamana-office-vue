@@ -96,6 +96,9 @@ async function tulisBon(baru: Bon[], pesan: string): Promise<boolean> {
   menyimpan.value = true
   try {
     data.value.bon = await putPiutang(baru, data.value.bon.version)
+    // B2: real API 200 but the list only updates after reload — re-read so the
+    // new/changed/removed bon appears immediately (legacy redrew on save).
+    await refresh()
     toast.add({ title: pesan, color: 'success' })
     return true
   }
@@ -111,6 +114,8 @@ async function tulisOwners(baru: string[], pesan?: string): Promise<boolean> {
   if (!data.value) return false
   try {
     data.value.owners = await putOwners(baru, data.value.owners.version)
+    // B2: re-read so the new owner appears immediately (see tulisBon).
+    await refresh()
     if (pesan) toast.add({ title: pesan, color: 'success' })
     return true
   }

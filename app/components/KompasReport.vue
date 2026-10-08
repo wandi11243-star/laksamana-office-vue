@@ -103,6 +103,9 @@ async function submit() {
   try {
     const out = await putReport(tanggal.value, value, data.value.rep.version)
     data.value.rep = out
+    // B2: real API 200 but the screen only updates after reload — re-read so
+    // the saved report (and other parts, e.g. Rekap marks) appear immediately.
+    await refresh()
     kotor.value = false
     ditolak.value = false
     toast.add({

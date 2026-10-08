@@ -101,6 +101,9 @@ async function simpan() {
   try {
     const out = await putRokok(value, data.value.rokok.version)
     data.value.rokok = out
+    // B2: real API 200 but the screen only updates after reload — re-read so
+    // the saved day appears immediately (legacy redrew on save).
+    await refresh()
     kotor.value = false
     ditolak.value = false
     toast.add({ title: `Stock ${tglPanjang(tanggal.value)} tersimpan di server`, color: 'success' })

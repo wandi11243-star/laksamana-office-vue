@@ -30,6 +30,9 @@ async function simpanDaftar(baru: RokokItem[], pesan: string) {
   try {
     const out = await putRokokItems(baru, data.value.items.version)
     data.value.items = out
+    // B2: real API 200 but the screen only updates after reload — re-read so
+    // the saved list appears immediately (legacy redrew on save).
+    await refresh()
     toast.add({ title: pesan, color: 'success' })
   }
   catch (e) {
@@ -111,6 +114,8 @@ async function pulihkan() {
   try {
     const out = await hapusRokokItems(data.value.items.version)
     data.value.items = { value: [], version: out.version }
+    // B2: re-read so the built-in list appears immediately (see simpanDaftar).
+    await refresh()
     toast.add({ title: 'Daftar dikembalikan ke bawaan.', color: 'success' })
   }
   catch (e) {
