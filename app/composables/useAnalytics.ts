@@ -18,7 +18,16 @@ import type {
   BatasShift,
   ErrorBill,
   HasilUraiPos,
+  HasilUraiPromo,
+  HasilUraiVoid,
+  PromoAgregat,
+  PromoJam,
+  PromoMenu,
+  PromoTipe,
   RingkasPos,
+  RingkasPromo,
+  RingkasVoid,
+  VoidSimpan,
 } from '~/utils/analytics-agregat'
 import type { VoidBaris, VoidSetting } from '~/utils/cashier'
 
@@ -52,13 +61,34 @@ export interface AnalyticsSetting {
   [k: string]: unknown
 }
 
+/** One stored promo month: the summary only, never the rows. */
+export interface PromoBulan {
+  diunggah: string
+  oleh: string
+  berkas: string
+  promo: Record<string, PromoAgregat>
+  tipe: Record<string, PromoTipe>
+  jam: PromoJam[]
+  menu: Record<string, PromoMenu>
+  ringkas: RingkasPromo
+}
+
+/** One stored void month: rows are capped at VOID_MAKS, the cut is counted. */
+export interface VoidBulan {
+  diunggah: string
+  oleh: string
+  berkas: string
+  baris: VoidSimpan[]
+  ringkas: RingkasVoid
+}
+
 /** The stored blob. promo/voidb are separate containers (L2): uploading one
  *  report must never overwrite the other's summary. */
 export interface AnalyticsData {
   laporan: Record<string, LaporanBulan>
   setting: AnalyticsSetting
-  promo?: Record<string, unknown>
-  voidb?: Record<string, unknown>
+  promo?: Record<string, PromoBulan>
+  voidb?: Record<string, VoidBulan>
   [k: string]: unknown
 }
 
@@ -169,6 +199,40 @@ export function laporanDariHasil(u: HasilUraiPos): LaporanBulan {
     kunjungBayar: u.kunjungBayar,
     error: u.error,
     meja: u.meja,
+    ringkas: u.ringkas,
+  }
+}
+
+/**
+ * Strip a promo parse result down to what the server stores. Same closed
+ * key list discipline as laporanDariHasil: preview-only keys (nBaris,
+ * nLewat, blnLain, kind, tglAwal, tglAkhir) never leave the browser, and a
+ * new HasilUraiPromo key fails the type checker here until it is listed.
+ */
+export function promoDariHasil(u: HasilUraiPromo): PromoBulan {
+  return {
+    diunggah: '',
+    oleh: '',
+    berkas: u.berkas,
+    promo: u.promo,
+    tipe: u.tipe,
+    jam: u.jam,
+    menu: u.menu,
+    ringkas: u.ringkas,
+  }
+}
+
+/**
+ * Strip a void parse result down to what the server stores. Same closed
+ * key list discipline: preview-only keys (nBaris, nLewat, blnLain, kind)
+ * never leave the browser.
+ */
+export function voidDariHasil(u: HasilUraiVoid): VoidBulan {
+  return {
+    diunggah: '',
+    oleh: '',
+    berkas: u.berkas,
+    baris: u.baris,
     ringkas: u.ringkas,
   }
 }

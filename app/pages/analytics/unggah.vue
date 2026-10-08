@@ -10,8 +10,8 @@
 import type { TableColumn } from '@nuxt/ui'
 import { bacaBerkasTabel } from '~/utils/xlsx-baca'
 import { cariBarisKepala, deteksiJenisBerkas } from '~/utils/analytics-pos'
-import { uraiLaporanPos, type HasilUraiPos } from '~/utils/analytics-agregat'
-import { laporanDariHasil, saveAnalytics, useAnalyticsState } from '~/composables/useAnalytics'
+import { uraiLaporanPos, uraiLaporanPromo, uraiLaporanVoid, type HasilUraiPos, type HasilUraiPromo, type HasilUraiVoid } from '~/utils/analytics-agregat'
+import { laporanDariHasil, promoDariHasil, voidDariHasil, saveAnalytics, useAnalyticsState, type LaporanBulan, type PromoBulan, type VoidBulan } from '~/composables/useAnalytics'
 import { ROLE_LABEL_ANALYTICS, useAnalyticsIzin } from '~/utils/layar/analytics'
 import { tanganiKonflik, versiDari } from '~/utils/versi'
 import { BLN, angka, hariIni, rupiah, tglPanjang } from '~/utils/format'
@@ -32,8 +32,11 @@ const versi = computed(() => versiDari(balasan.value))
 const membaca = ref(false)
 const namaBerkas = ref('')
 const galat = ref('')
-const segera = ref<null | 'promo' | 'void'>(null)
 const hasil = ref<(HasilUraiPos & { diunggah: string, oleh: string }) | null>(null)
+const hasilPromo = ref<(HasilUraiPromo & { diunggah: string, oleh: string }) | null>(null)
+const hasilVoid = ref<(HasilUraiVoid & { diunggah: string, oleh: string }) | null>(null)
+/** A parse result lives in the browser until it is saved. */
+const adaHasil = computed(() => !!(hasil.value || hasilPromo.value || hasilVoid.value))
 
 /** '2026-08' -> 'Ags 2026'. */
 const fmtBln = (b: string) => {
@@ -53,20 +56,28 @@ async function pilihBerkas(e: Event) {
   }
   membaca.value = true
   galat.value = ''
-  segera.value = null
   hasil.value = null
+  hasilPromo.value = null
+  hasilVoid.value = null
   namaBerkas.value = f.name
   try {
     const baris = await bacaBerkasTabel(f)
     const iH = cariBarisKepala(baris)
     if (iH < 0) throw new Error('Baris kepala kolom tidak ketemu. Pastikan berkasnya hasil ekspor POS, bukan berkas yang sudah disunting.')
+    // One box for all three reports: the kind is read from the COLUMNS,
+    // never from the file name (a name is typed by a person).
     const jenis = deteksiJenisBerkas(baris[iH] ?? {})
-    if (jenis !== 'pos') {
-      segera.value = jenis
+    const oleh = me.value?.name ?? ''
+    if (jenis === 'promo') {
+      hasilPromo.value = { ...uraiLaporanPromo(baris, f.name), diunggah: hariIni(), oleh }
+      return
+    }
+    if (jenis === 'void') {
+      hasilVoid.value = { ...uraiLaporanVoid(baris, f.name), diunggah: hariIni(), oleh }
       return
     }
     const u = uraiLaporanPos(baris, f.name)
-    hasil.value = { ...u, diunggah: hariIni(), oleh: me.value?.name ?? '' }
+    hasil.value = { ...u, diunggah: hariIni(), oleh }
   }
   catch (err) {
     galat.value = (err as Error)?.message || 'penyebab tidak diketahui'
@@ -78,11 +89,16 @@ async function pilihBerkas(e: Event) {
 
 function batal() {
   hasil.value = null
-  segera.value = null
+  hasilPromo.value = null
+  hasilVoid.value = null
   galat.value = ''
 }
 
 const adaLama = computed(() => !!hasil.value && !!laporan.value[hasil.value.bulan])
+const promoTersimpan = computed(() => isi.value?.data.promo ?? {})
+const voidTersimpan = computed(() => isi.value?.data.voidb ?? {})
+const adaLamaPromo = computed(() => !!hasilPromo.value && !!promoTersimpan.value[hasilPromo.value.bulan])
+const adaLamaVoid = computed(() => !!hasilVoid.value && !!voidTersimpan.value[hasilVoid.value.bulan])
 
 async function simpan() {
   const u = hasil.value
@@ -132,15 +148,109 @@ async function hapus(bulan: string) {
   }
 }
 
+async function simpanPromo() {
+  const u = hasilPromo.value
+  if (!u || !isi.value) return
+  if (!bolehUbah.value) {
+    toast.add({ title: 'Tidak bisa dilakukan', description: `Hak akses kamu di halaman "Unggah Laporan" cuma "${roleSaya.value}". Minta admin modul mengubahnya di Kelola Akses.`, color: 'error' })
+    return
+  }
+  const lama = promoTersimpan.value[u.bulan]
+  if (lama && !confirm(`Laporan promo ${fmtBln(u.bulan)} sudah ada dan akan DITIMPA.\n\nYang sekarang: ${angka(lama.ringkas?.bill)} transaksi.\nYang baru   : ${angka(u.ringkas.bill)} transaksi.\n\nLanjut?`)) return
+  const v = versi.value
+  if (v === undefined) {
+    toast.add({ title: 'Data belum termuat', description: 'Tunggu angka tersimpan dimuat dulu, lalu simpan lagi.', color: 'warning' })
+    return
+  }
+  try {
+    await saveAnalytics({
+      ...isi.value.data,
+      promo: { ...promoTersimpan.value, [u.bulan]: { ...promoDariHasil(u), diunggah: u.diunggah, oleh: u.oleh } },
+    }, v)
+    hasilPromo.value = null
+    await refresh()
+    toast.add({ title: `Laporan promo ${fmtBln(u.bulan)} tersimpan.`, color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
+
+async function simpanVoid() {
+  const u = hasilVoid.value
+  if (!u || !isi.value) return
+  if (!bolehUbah.value) {
+    toast.add({ title: 'Tidak bisa dilakukan', description: `Hak akses kamu di halaman "Unggah Laporan" cuma "${roleSaya.value}". Minta admin modul mengubahnya di Kelola Akses.`, color: 'error' })
+    return
+  }
+  const lama = voidTersimpan.value[u.bulan]
+  if (lama && !confirm(`Laporan Void/Cancel ${fmtBln(u.bulan)} sudah ada dan akan DITIMPA.\n\nYang sekarang: ${angka(lama.ringkas?.nBaris)} baris.\nYang baru   : ${angka(u.ringkas.nBaris)} baris.\n\nLanjut?`)) return
+  const v = versi.value
+  if (v === undefined) {
+    toast.add({ title: 'Data belum termuat', description: 'Tunggu angka tersimpan dimuat dulu, lalu simpan lagi.', color: 'warning' })
+    return
+  }
+  try {
+    await saveAnalytics({
+      ...isi.value.data,
+      voidb: { ...voidTersimpan.value, [u.bulan]: { ...voidDariHasil(u), diunggah: u.diunggah, oleh: u.oleh } },
+    }, v)
+    hasilVoid.value = null
+    await refresh()
+    toast.add({ title: `Laporan Void/Cancel ${fmtBln(u.bulan)} tersimpan.`, color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
+
+async function hapusPromo(bulan: string) {
+  if (!bolehUbah.value || !isi.value) return
+  if (!confirm(`Hapus laporan promo ${fmtBln(bulan)}?\n\nBerkas aslinya tidak ikut terhapus — bisa diunggah lagi kapan saja.`)) return
+  const v = versi.value
+  if (v === undefined) return
+  const sisa: Record<string, PromoBulan> = {}
+  for (const k of Object.keys(promoTersimpan.value)) {
+    if (k !== bulan) sisa[k] = promoTersimpan.value[k]!
+  }
+  try {
+    await saveAnalytics({ ...isi.value.data, promo: sisa }, v)
+    await refresh()
+    toast.add({ title: 'Dihapus.', color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
+
+async function hapusVoid(bulan: string) {
+  if (!bolehUbah.value || !isi.value) return
+  if (!confirm(`Hapus laporan Void/Cancel ${fmtBln(bulan)}?\n\nBerkas aslinya tidak ikut terhapus — bisa diunggah lagi kapan saja.`)) return
+  const v = versi.value
+  if (v === undefined) return
+  const sisa: Record<string, VoidBulan> = {}
+  for (const k of Object.keys(voidTersimpan.value)) {
+    if (k !== bulan) sisa[k] = voidTersimpan.value[k]!
+  }
+  try {
+    await saveAnalytics({ ...isi.value.data, voidb: sisa }, v)
+    await refresh()
+    toast.add({ title: 'Dihapus.', color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
+
 // An unsaved parse lives in the browser only. Leaving the page (or closing
 // the tab) drops it — ask first, like the old go() + beforeunload pair.
 onBeforeRouteLeave(() => {
-  if (hasil.value && !confirm('Hasil urai berkas belum disimpan dan akan hilang. Lanjut?')) return false
+  if (adaHasil.value && !confirm('Hasil urai berkas belum disimpan dan akan hilang. Lanjut?')) return false
   return true
 })
 if (import.meta.client) {
   const sebelumTutup = (e: BeforeUnloadEvent) => {
-    if (hasil.value) e.preventDefault()
+    if (adaHasil.value) e.preventDefault()
   }
   onMounted(() => window.addEventListener('beforeunload', sebelumTutup))
   onUnmounted(() => window.removeEventListener('beforeunload', sebelumTutup))
@@ -258,16 +368,167 @@ const kolom: TableColumn<BarisRiwayat>[] = [
           Gagal membaca berkasnya: {{ galat }}
         </p>
         <UAlert
-          v-if="segera"
+          v-if="hasilPromo"
           class="mt-3"
           color="info"
           variant="subtle"
-          icon="i-lucide-hourglass"
-          title="Segera"
-          :description="segera === 'promo'
-            ? `Berkas ${namaBerkas} dikenali sebagai Promotion Report. Penguraiannya menyusul bersama layar Promo & Klaim di L2 — ringkasan penjualan di bawah tidak tersentuh.`
-            : `Berkas ${namaBerkas} dikenali sebagai berkas Cancel/Void. Penguraiannya menyusul bersama layar Void & Cancel di L2 — halaman itu membaca /voids milik Kompas.`"
+          icon="i-lucide-badge-percent"
+          title="Promotion Report dikenali"
+          :description="`Berkas ${namaBerkas} berisi laporan promo — ringkasannya tersimpan terpisah dan tidak menyentuh ringkasan penjualan.`"
         />
+        <UAlert
+          v-if="hasilVoid"
+          class="mt-3"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-ban"
+          title="Berkas Cancel/Void dikenali"
+          :description="`Berkas ${namaBerkas} berisi laporan pembatalan — ringkasannya tersimpan terpisah dan tidak menyentuh ringkasan penjualan.`"
+        />
+      </AppPanel>
+
+      <AppPanel
+        v-if="hasilPromo"
+        title="Pratinjau laporan promo"
+        icon="i-lucide-badge-percent"
+        :description="`Dari ${hasilPromo.berkas} — periksa dulu, baru simpan.`"
+      >
+        <AppStatGrid>
+          <AppStat
+            label="Bulan"
+            :value="fmtBln(hasilPromo.bulan)"
+            icon="i-lucide-calendar-days"
+            tone="gold"
+            :sub="`${hasilPromo.tglAwal ? tglPanjang(hasilPromo.tglAwal) : '—'} — ${hasilPromo.tglAkhir ? tglPanjang(hasilPromo.tglAkhir) : '—'}`"
+          />
+          <AppStat
+            label="Transaksi berpromo"
+            :value="angka(hasilPromo.ringkas.bill)"
+            icon="i-lucide-receipt"
+            tone="info"
+            :sub="`${angka(hasilPromo.ringkas.promoBeda)} promo · ${angka(hasilPromo.ringkas.baris)} baris`"
+          />
+          <AppStat
+            label="Nilai promo"
+            :value="rupiah(hasilPromo.ringkas.nilai)"
+            icon="i-lucide-banknote"
+            tone="success"
+            :sub="`diskon ${rupiah(hasilPromo.ringkas.nilaiDisc)} + dilepas ${rupiah(hasilPromo.ringkas.nilaiGratis)}`"
+          />
+        </AppStatGrid>
+
+        <div class="mt-3 space-y-2.5">
+          <UAlert
+            v-if="hasilPromo.blnLain.length"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-triangle-alert"
+            title="Berkasnya memuat lebih dari satu bulan"
+            :description="`${hasilPromo.blnLain.map(x => `${fmtBln(x.b)} (${angka(x.n)} baris)`).join(', ')}. Yang disimpan cuma ${fmtBln(hasilPromo.bulan)} — bulan yang barisnya paling banyak.`"
+          />
+          <UAlert
+            v-if="adaLamaPromo"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-triangle-alert"
+            title="Bulan ini sudah ada"
+            :description="`${fmtBln(hasilPromo.bulan)} sudah tersimpan (${angka(promoTersimpan[hasilPromo.bulan]?.ringkas?.bill)} transaksi). Menyimpan akan menimpanya.`"
+          />
+          <UAlert
+            v-if="hasilPromo.ringkas.jamGelap"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-triangle-alert"
+            title="Sebagian klaim tidak terbaca jamnya"
+            :description="`${angka(hasilPromo.ringkas.jamGelap)} baris jamnya tidak bisa diturunkan dari nomor bill dan tidak ikut di tabel jam halaman Promo.`"
+          />
+        </div>
+
+        <div class="mt-4 flex flex-wrap gap-2">
+          <UButton
+            :label="`Simpan ke ${fmtBln(hasilPromo.bulan)}`"
+            icon="i-lucide-check"
+            @click="simpanPromo()"
+          />
+          <UButton
+            label="Batal"
+            color="neutral"
+            variant="outline"
+            @click="batal()"
+          />
+        </div>
+      </AppPanel>
+
+      <AppPanel
+        v-if="hasilVoid"
+        title="Pratinjau laporan Void/Cancel"
+        icon="i-lucide-ban"
+        :description="`Dari ${hasilVoid.berkas} — periksa dulu, baru simpan.`"
+      >
+        <AppStatGrid>
+          <AppStat
+            label="Bulan"
+            :value="fmtBln(hasilVoid.bulan)"
+            icon="i-lucide-calendar-days"
+            tone="gold"
+            :sub="`${angka(hasilVoid.baris.length)} baris item terbaca`"
+          />
+          <AppStat
+            label="Bill tersentuh"
+            :value="angka(hasilVoid.ringkas.nBill)"
+            icon="i-lucide-receipt"
+            tone="info"
+            :sub="`satu bill bisa membawa belasan baris item`"
+          />
+          <AppStat
+            label="Nilai dibatalkan"
+            :value="rupiah(hasilVoid.ringkas.total)"
+            icon="i-lucide-banknote"
+            tone="success"
+            :sub="`${angka(hasilVoid.ringkas.qty)} item dibatalkan`"
+          />
+        </AppStatGrid>
+
+        <div class="mt-3 space-y-2.5">
+          <UAlert
+            v-if="hasilVoid.blnLain.length"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-triangle-alert"
+            title="Berkasnya memuat lebih dari satu bulan"
+            :description="`${hasilVoid.blnLain.map(x => `${fmtBln(x.b)} (${angka(x.n)} baris)`).join(', ')}. Yang disimpan cuma ${fmtBln(hasilVoid.bulan)} — bulan yang barisnya paling banyak.`"
+          />
+          <UAlert
+            v-if="adaLamaVoid"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-triangle-alert"
+            title="Bulan ini sudah ada"
+            :description="`${fmtBln(hasilVoid.bulan)} sudah tersimpan (${angka(voidTersimpan[hasilVoid.bulan]?.ringkas?.nBaris)} baris). Menyimpan akan menimpanya.`"
+          />
+          <UAlert
+            v-if="hasilVoid.ringkas.takTerbaca"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-triangle-alert"
+            title="Sebagian baris waktunya tidak terbaca"
+            :description="`${angka(hasilVoid.ringkas.takTerbaca)} baris dilewati dan tidak ikut tersimpan.`"
+          />
+        </div>
+
+        <div class="mt-4 flex flex-wrap gap-2">
+          <UButton
+            :label="`Simpan ke ${fmtBln(hasilVoid.bulan)}`"
+            icon="i-lucide-check"
+            @click="simpanVoid()"
+          />
+          <UButton
+            label="Batal"
+            color="neutral"
+            variant="outline"
+            @click="batal()"
+          />
+        </div>
       </AppPanel>
 
       <AppPanel
@@ -421,6 +682,81 @@ const kolom: TableColumn<BarisRiwayat>[] = [
             </div>
           </div>
         </template>
+      </AppPanel>
+      <AppPanel
+        title="Laporan Promo Tersimpan"
+        icon="i-lucide-badge-percent"
+        :count="Object.keys(promoTersimpan).length"
+      >
+        <div
+          v-if="!Object.keys(promoTersimpan).length"
+          class="p-6 text-center text-sm text-muted"
+        >
+          Belum ada laporan promo yang diunggah. Pilih berkas Promotion Report di atas — jenisnya dikenali sendiri.
+        </div>
+        <div
+          v-else
+          class="divide-y divide-default"
+        >
+          <div
+            v-for="b in Object.keys(promoTersimpan).sort().reverse()"
+            :key="b"
+            class="flex items-start gap-3 py-3"
+          >
+            <div class="min-w-0 flex-1">
+              <b class="block text-highlighted">{{ fmtBln(b) }}</b>
+              <span class="block text-xs text-muted">{{ angka(promoTersimpan[b]?.ringkas?.bill) }} transaksi · {{ angka(promoTersimpan[b]?.ringkas?.promoBeda) }} promo</span>
+              <span class="num mt-0.5 block text-sm font-semibold">{{ rupiah(promoTersimpan[b]?.ringkas?.nilai) }}</span>
+            </div>
+            <UButton
+              v-if="bolehUbah"
+              icon="i-lucide-trash-2"
+              color="error"
+              variant="ghost"
+              size="xs"
+              :title="`Hapus laporan promo ${fmtBln(b)}`"
+              @click="hapusPromo(b)"
+            />
+          </div>
+        </div>
+      </AppPanel>
+
+      <AppPanel
+        title="Laporan Void/Cancel Tersimpan"
+        icon="i-lucide-ban"
+        :count="Object.keys(voidTersimpan).length"
+      >
+        <div
+          v-if="!Object.keys(voidTersimpan).length"
+          class="p-6 text-center text-sm text-muted"
+        >
+          Belum ada laporan Void/Cancel yang diunggah. Pilih berkas Cancel Menu Detail Report di atas — jenisnya dikenali sendiri.
+        </div>
+        <div
+          v-else
+          class="divide-y divide-default"
+        >
+          <div
+            v-for="b in Object.keys(voidTersimpan).sort().reverse()"
+            :key="b"
+            class="flex items-start gap-3 py-3"
+          >
+            <div class="min-w-0 flex-1">
+              <b class="block text-highlighted">{{ fmtBln(b) }}</b>
+              <span class="block text-xs text-muted">{{ angka(voidTersimpan[b]?.ringkas?.nBaris) }} baris · {{ angka(voidTersimpan[b]?.ringkas?.nBill) }} bill</span>
+              <span class="num mt-0.5 block text-sm font-semibold">{{ rupiah(voidTersimpan[b]?.ringkas?.total) }}</span>
+            </div>
+            <UButton
+              v-if="bolehUbah"
+              icon="i-lucide-trash-2"
+              color="error"
+              variant="ghost"
+              size="xs"
+              :title="`Hapus laporan Void/Cancel ${fmtBln(b)}`"
+              @click="hapusVoid(b)"
+            />
+          </div>
+        </div>
       </AppPanel>
     </template>
   </AppPage>
