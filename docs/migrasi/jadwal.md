@@ -342,6 +342,20 @@ Dipecah per kelompok layar (issue induk #11):
 | 4/5 | DW: Dashboard, Hadir, Kalender, Permintaan, Antrean (D.10, D.11, D.13–D.15) | ✅ dibangun 2026-10-07, dicek visual mock read-only 1366px & 390px (HRD, head Kitchen, kru) |
 | 5/5 | DW: Tamu + `pax-harian.ts` (D.12, G-05), Rekap, Bayar, Pekerja, Pengaturan, Akses (D.16–D.20) | ✅ dibangun 2026-10-07, dicek visual mock 1366px & 390px (HRD, head, kru); bagian pax "Segera (G-05)" |
 
+### Cek visual 2026-10-08 — bagian 2–3 Jadwal Shift (Refs #19, branch `fix/visual-jadwal`, mock read-only :4014 → dev :3014)
+`minggu`, `rekap`, `pegawai`, `pengaturan` dibuka 1366px & 390px sebagai admin
+jadwal (Risa, `tok-admin`), head Kitchen (Bli, `tok-head`), dan kru
+(`tok-kru`): overflow halaman 0 di semua lebar (lembar mingguan bergulir di
+dalam kotaknya dengan kolom nama dibekukan, seperti `.tablewrap` lama),
+console tanpa error. Editor sel (head, divisi Kitchen), alat massal per
+divisi (Salin minggu lalu, Isi jadwal, Impor Excel, Kosongkan, Excel
+seminggu, Teks WA, Print/PDF), dan sheet Tambah kru / Tambah shift dicek
+interaktif. Gate peran: kru ditolak di `rekap`/`pegawai`/`pengaturan` dengan
+pesan yang benar; baris DW tampil untuk pemegang `dw` (keterangan G-03 untuk
+yang lain). PNG seminggu tetap belum (butuh pustaka gambar, lihat #11).
+Tidak ada perbaikan kode di branch ini.
+`npm run lint && npm run typecheck && npm run build` hijau 2026-10-08.
+
 Catatan bagian 1:
 - `LANJUTKAN DARI`: seluruh 5 bagian sudah dibangun. Sisa: cek visual bagian 2–3 Jadwal Shift (belum), lalu review/merge owner. PR ditandai siap review setelah `npm run lint && npm run typecheck && npm run build` hijau.
 - Divisi kru dibaca dari `GET /jadwal/roster` (`divisi` sudah diselesaikan server, F.1), tidak dihitung ulang di Vue.
