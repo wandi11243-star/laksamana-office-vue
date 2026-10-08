@@ -103,6 +103,11 @@ Catatan build:
 - Kalimat "Segera": tidak ada — seluruh 6 layar dibangun, tidak ada K/G yang memblokir.
 - Cek headless yang dilakukan: `lint` + `typecheck` + `build` hijau; 12 uji logika `app/utils/investor.ts` lolos; mock read-only port 4013 (semua tulisan 403) + dev 3013, keenam halaman HTTP 200, apiBase terbukti `127.0.0.1:4013`.
 - Belum dilakukan: cek visual di browser sungguhan (tidak ada browser di device ini) — 1366px & 390px sebagai investor biasa & admin investor, termasuk form unggah PDF dan sheet konfirmasi hapus.
+- Perbaikan Fase 3 (2026-10-08, diuji ke API lokal, Admin + jebe):
+  - Daftar PDF langsung disegarkan dari server sesudah unggah/hapus (akar: `useAsyncData` menyimpan payload di shallow ref — mutasi `data.lapor` di tempat tak pernah me-render ulang; kini seluruh `value` diganti dari `GET reports`).
+  - Pil tahun grafik dikunci eksplisit bila tinggal satu yang tampil (`disabled` + alasan + catatan "dikunci sampai ada data tahun lain") — mematikannya hanya akan mengosongkan grafik.
+  - Baris kartu Omset kini bertingkat blok — segmen delta & target tak lagi menyambung saat wrap (1366 & 390).
+  - Validasi berkas pindah ke dalam loop per berkas — Balance valid tetap tersimpan walau Ledger `.txt`; tiap kegagalan menyebut nama berkasnya.
 
 ## K. Daftar uji cutover
 

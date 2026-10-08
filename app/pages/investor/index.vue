@@ -50,6 +50,9 @@ const alihTahun = (y: string) => {
   else s.add(y)
   tahunAktif.value = s
 }
+// The last visible year stays locked: switching everything off would draw
+// an empty chart. The pill is disabled with its reason (see template) so a
+// tap that does nothing never reads as broken.
 // Line colours from the token palette (no hex in components).
 const WARNA_TAHUN = ['text-primary-600', 'text-success', 'text-info', 'text-vip', 'text-warning', 'text-error']
 const warnaTahun = (y: string) => WARNA_TAHUN[Math.max(0, tahunSemua.value.indexOf(y)) % WARNA_TAHUN.length]
@@ -169,14 +172,20 @@ const sorotan = computed(() => {
         >
           <span
             v-if="delta !== null"
-            class="font-semibold"
+            class="block font-semibold"
             :class="delta >= 0 ? 'text-success' : 'text-error'"
           >
             {{ delta >= 0 ? '▲' : '▼' }} {{ Math.abs(delta).toFixed(1).replace('.', ',') }}%
             <span class="font-normal text-muted">rata-rata/hari vs {{ blnPanjang(bl?.kunci) }}</span>
           </span>
-          <span v-if="target > 0">{{ pctTarget }}% dari target {{ rupiah(target) }}</span>
-          <span v-else>Target bulanan belum disetel</span>
+          <span
+            v-if="target > 0"
+            class="block"
+          >{{ pctTarget }}% dari target {{ rupiah(target) }}</span>
+          <span
+            v-else
+            class="block"
+          >Target bulanan belum disetel</span>
           <span
             v-if="ket"
             class="block"
@@ -214,6 +223,8 @@ const sorotan = computed(() => {
               :label="y"
               size="xs"
               :variant="tahunAktif.has(y) ? 'solid' : 'soft'"
+              :disabled="tahunAktif.size === 1 && tahunAktif.has(y)"
+              :title="tahunAktif.size === 1 && tahunAktif.has(y) ? 'Satu-satunya tahun yang tampil — mematikannya akan mengosongkan grafik' : `Tampilkan atau sembunyikan tahun ${y}`"
               @click="alihTahun(y)"
             />
           </div>
@@ -296,6 +307,12 @@ const sorotan = computed(() => {
         </svg>
         <p class="mt-1 text-[13px] text-muted">
           Arahkan ke titik untuk angka pastinya. Bentuk singkat hanya untuk sumbu — angka uang selalu penuh.
+        </p>
+        <p
+          v-if="tahunSemua.length < 2"
+          class="mt-1 text-[13px] text-muted"
+        >
+          Hanya tahun {{ tahunSemua[0] }} yang ada datanya — pil tahun dikunci sampai ada data tahun lain.
         </p>
       </AppPanel>
 
