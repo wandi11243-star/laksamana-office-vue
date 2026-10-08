@@ -562,3 +562,163 @@ export function prodSimpan(dicentang: Partial<Record<ProdKind, string>>, lama?: 
   }
   return out
 }
+
+// ---------------------------------------------------------------- production queues (#48)
+// Source: prodRows / queueSortVal / reqMktUntuk / kirimOpsiMkt, :2924-3210.
+
+export const printTypeLabel = (c?: KontenItem | null) => printTypes(c).join(' + ')
+
+/** One Marketing design/video request as `GET /marketing/design-queue` sends it (field names as the API). */
+export interface ReqDesainMkt {
+  id: string
+  jenis: 'design' | 'edit'
+  judul?: string
+  brief?: string
+  acara?: string
+  deadline?: string
+  prioritas?: string
+  pemohon?: string
+  brand?: string
+  brandNama?: string
+  platforms?: string[]
+  picMinta?: string
+  picId?: string
+  nRef?: number
+  status?: string
+}
+
+/** One row of a queue: a content's production need, a standalone task, or a Marketing request. */
+export interface BarisAntrian {
+  src: 'content' | 'task' | 'mkt'
+  /** content id / task id / request id */
+  id: string
+  title: string
+  sub: string
+  brand?: string
+  platforms: string[]
+  pic?: string
+  priority: string
+  date?: string
+  done: boolean
+}
+
+/**
+ * Marketing requests as queue rows (reqMktUntuk, :3060-3084): design/edit only;
+ * brand and PIC kept only when they exist here, otherwise named in the subline.
+ */
+export function reqMktUntuk(kind: ProdKind, reqs: ReqDesainMkt[], brands: BrandKonten[], users: UserKonten[]): BarisAntrian[] {
+  if (kind !== 'design' && kind !== 'edit') return []
+  return reqs.filter(r => r?.jenis === kind).map((r) => {
+    const adaBrand = brands.some(b => b.id === r.brand)
+    const adaPic = users.some(u => u.id === r.picId)
+    const ket = ['Request Marketing']
+    if (r.acara) ket.push(r.acara)
+    if (r.brandNama && !adaBrand) ket.push(r.brandNama)
+    if (r.picMinta) ket.push(`diminta: ${r.picMinta}`)
+    if (r.pemohon) ket.push(`oleh ${r.pemohon}`)
+    if (r.nRef) ket.push(`${r.nRef} referensi`)
+    return {
+      src: 'mkt' as const, id: r.id, title: r.judul || '(tanpa judul)', sub: ket.join(' · '),
+      brand: adaBrand ? r.brand : '', platforms: Array.isArray(r.platforms) ? r.platforms.map(normPlatform).filter(Boolean) : [],
+      pic: adaPic ? r.picId : '', priority: r.prioritas && PRIORITY_KONTEN[r.prioritas] ? r.prioritas : 'medium',
+      date: r.deadline || '', done: false,
+    }
+  })
+}
+
+/**
+ * Every row of a queue before filtering (prodRows, :3172-3187): content needs
+ * and standalone tasks follow the brand bar; Marketing requests do not.
+ */
+export function barisAntrian(kind: ProdKind, content: KontenItem[], tasks: ProdTask[], mkt: BarisAntrian[]): BarisAntrian[] {
+  const dariKonten = content.filter(c => c.prod?.[kind]).map(c => ({
+    src: 'content' as const, id: c.id, title: c.title || '', sub: contentTypeLabel(c) + (printTypeLabel(c) ? ` - cetak ${printTypeLabel(c)}` : ''),
+    brand: c.brand, platforms: contentPlatforms(c), pic: c.pic, priority: c.priority || 'medium',
+    date: c.prod![kind]!.date, done: c.prod![kind]!.status === 'done',
+  }))
+  const mandiri = tasks.filter(x => x.kind === kind).map(x => ({
+    src: 'task' as const, id: x.id, title: x.title || '', sub: x.note || 'Tugas mandiri', brand: x.brand, platforms: [],
+    pic: x.pic, priority: x.priority || 'medium', date: x.date, done: x.status === 'done',
+  }))
+  return [...dariKonten, ...mandiri, ...mkt]
+}
+
+/** Queue filter; default hides the archive (QUEUE_BAWAAN, :2924). Reset returns here (F.3). */
+export interface FilterAntrian { q: string, status: 'todo' | 'done' | '', priority: string, sort: string, dir: 1 | -1 }
+export const filterAntrianBawaan = (): FilterAntrian => ({ q: '', status: 'todo', priority: '', sort: 'date', dir: 1 })
+
+/**
+ * Filter + sort (prodRows :3189-3196, queueSortVal :2940-2950): search title +
+ * subline; ties fall back to priority (high first) then date.
+ */
+export function saringAntrian(rows: BarisAntrian[], f: FilterAntrian, namaBrand: (id?: string) => string, namaUser: (id?: string) => string): BarisAntrian[] {
+  const prio = (p: string) => PRIORITY_KONTEN[p]?.n ?? 0
+  const ms = (d?: string) => (d ? new Date(d).getTime() : Number.POSITIVE_INFINITY)
+  const nilai = (r: BarisAntrian): number | string => {
+    switch (f.sort) {
+      case 'priority': return prio(r.priority)
+      case 'title': return r.title.toLowerCase()
+      case 'brand': return namaBrand(r.brand).toLowerCase()
+      case 'pic': return namaUser(r.pic).toLowerCase()
+      case 'status': return r.done ? 1 : 0
+      default: return ms(r.date)
+    }
+  }
+  const q = f.q.toLowerCase()
+  let list = rows
+  if (q) list = list.filter(r => (r.title + r.sub).toLowerCase().includes(q))
+  if (f.status) list = list.filter(r => (f.status === 'done' ? r.done : !r.done))
+  if (f.priority) list = list.filter(r => r.priority === f.priority)
+  return list.slice().sort((a, b) => {
+    const va = nilai(a)
+    const vb = nilai(b)
+    if (va < vb) return -f.dir
+    if (va > vb) return f.dir
+    return (prio(b.priority) - prio(a.priority)) || (ms(a.date || '2099') - ms(b.date || '2099'))
+  })
+}
+
+/**
+ * What Konten lends Marketing for its request form, once per session
+ * (kirimOpsiMkt, :3031-3056; T-07): brands, active crew (production roles
+ * first) and the platform codes.
+ */
+export function opsiDesainMkt(brands: BrandKonten[], users: UserKonten[]) {
+  const peranProd = ['designer', 'video_editor', 'photographer', 'content_director', 'content_planner']
+  const pics = users.filter(u => u?.id && u.active !== false).map(u => ({
+    id: u.id, name: u.name || '',
+    peran: (u.roles ?? []).map(r => (ROLES_KONTEN as Record<string, { short: string }>)[r]?.short ?? r).join(' + '),
+    prod: (u.roles ?? []).some(r => peranProd.includes(r)) ? 1 : 0,
+  })).sort((a, b) => (b.prod - a.prod) || a.name.localeCompare(b.name))
+  return { brands: brands.map(b => ({ id: b.id, name: b.name || '' })), pics, platforms: [...PLATFORM_KONTEN] }
+}
+
+// ---------------------------------------------------------------- assets (#48)
+// Source: VIEWS.assets / openAssetForm / saveAsset, :4267-4305. Links only:
+// the old client never uploaded files here (konten.md E).
+
+export const KATEGORI_ASSET = ['Photo', 'Video', 'RAW', 'Edited', 'Logo', 'Font', 'Music', 'Motion Template', 'PSD', 'AI', 'Canva']
+export interface AssetKonten {
+  id: string
+  name: string
+  category?: string
+  brand?: string
+  version?: string
+  tags?: string[]
+  link?: string
+  by?: string
+  at?: number
+  updatedAt?: number
+}
+/** "a, b ,, c" → ['a','b','c'] (tags field). */
+export const pisahKoma = (s: string) => s.split(',').map(x => x.trim()).filter(Boolean)
+
+/** "baru saja" / "5m lalu" / "3j lalu" / "2h lalu" (timeAgo, :1321). */
+export function lamaKonten(ts?: number, kini = Date.now()): string {
+  if (!ts) return ''
+  const s = (kini - ts) / 1000
+  if (s < 60) return 'baru saja'
+  if (s < 3600) return `${Math.floor(s / 60)}m lalu`
+  if (s < 86400) return `${Math.floor(s / 3600)}j lalu`
+  return `${Math.floor(s / 86400)}h lalu`
+}

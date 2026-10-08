@@ -21,9 +21,9 @@
 import type { Me } from '~/composables/useMe'
 import { isAdminOf } from '~/composables/useMe'
 import type {
-  BrandKonten, KontenItem, LevelKonten, PermsKonten, ProdTask, ShootingKonten, UserKonten, VisitKonten,
+  AssetKonten, BrandKonten, KontenItem, LevelKonten, PermsKonten, ProdTask, ReqDesainMkt, ShootingKonten, UserKonten, VisitKonten,
 } from '~/utils/konten'
-import { ROLE_BAWAAN_KONTEN, VIEW_PERM_KONTEN, levelKonten, normPlatform, permsKonten } from '~/utils/konten'
+import { ROLE_BAWAAN_KONTEN, VIEW_PERM_KONTEN, levelKonten, normPlatform, opsiDesainMkt, permsKonten } from '~/utils/konten'
 import type { Versi } from '~/utils/versi'
 import { ifMatch, tanganiKonflik } from '~/utils/versi'
 
@@ -41,7 +41,7 @@ export interface StateKonten {
   content: KontenItem[]
   prodTasks: ProdTask[]
   shootings: ShootingKonten[]
-  assets: Record<string, unknown>[]
+  assets: AssetKonten[]
   bank: Record<string, unknown>[]
   kols: { id: string, name?: string, updatedAt?: number }[]
   visits: VisitKonten[]
@@ -269,4 +269,39 @@ export function kecilkanGambarKonten(file: File, maksPx = 1280, batas = 700 * 10
     }
     fr.readAsDataURL(file)
   })
+}
+
+// ---------------------------------------------------------------- Marketing design requests (#48)
+// The Design & Editing queues READ Marketing's requests and write back only
+// "done" (konten.md D.23b, F.21). The read is lazy and may fail on its own —
+// a crew member who holds Konten but not Marketing gets 403 until
+// laksamana-api#190 lands — and must never block the queue: the screen shows a
+// warning with "Coba lagi" and the rest of the queue as usual.
+
+/** GET /marketing/design-queue?active=1 — once per session (shared key), like REQ_MKT. */
+export const useReqDesainMkt = () =>
+  useAsyncData('konten-req-mkt', () =>
+    useApi()<Envelope<{ reqs?: ReqDesainMkt[] }>>('/marketing/design-queue', { query: { active: 1 } }).then(r => r.data?.reqs ?? []),
+  { default: () => [] as ReqDesainMkt[], server: false })
+
+/** GET /marketing/design-requests/{id} — the full request incl. reference images (`refs` {t, v, n}). */
+export const getReqDesainMkt = (id: string) =>
+  useApi()<Envelope<{ refs?: { t: string, v: string, n?: string }[] }>>(`/marketing/design-requests/${encodeURIComponent(id)}`)
+
+/** PUT /marketing/design-requests/{id}/progress — "✓ Tandai Selesai" (designReqSet). */
+export const selesaiReqDesainMkt = (id: string, picNama: string) =>
+  useApi()<unknown>(`/marketing/design-requests/${encodeURIComponent(id)}/progress`, { method: 'PUT', body: { status: 'done', picNama } })
+
+/**
+ * PUT /marketing/design-options — lend Marketing our brands, crew and
+ * platforms for its request form, ONCE per session after the queue read
+ * succeeded (T-07, kirimOpsiMkt). Fire-and-forget; nothing to send = not sent.
+ */
+export function kirimOpsiDesainMkt(st: StateKonten) {
+  const terkirim = useState('konten-opsi-mkt', () => false)
+  if (terkirim.value) return
+  const opsi = opsiDesainMkt(st.brands, st.users)
+  if (!opsi.brands.length && !opsi.pics.length) return
+  terkirim.value = true
+  useApi()('/marketing/design-options', { method: 'PUT', body: opsi }).catch(() => {})
 }

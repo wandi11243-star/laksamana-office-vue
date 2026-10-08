@@ -506,8 +506,8 @@ Konkurensi: legacy menstempel `updatedAt=sekarang` + `baseUpdatedAt=versi server
 - **Office/Account → Konten**: sesi `lm_session` + roster ber-grant `konten` (`account-api-mysql?action=listModuleRoster{module:'konten'}`, cadangan Apps Script) — v1 dari `/api/v1/account/*` (`laksamana-office/deploy/konten/index.html:1303-1363`).
 
 ## J. Progres build
-Issue: #15, dipecah #47–#51 · Branch saat ini: `migrasi/konten-perencanaan` (#47) · Mulai: 2026-10-07
-LANJUTKAN DARI: #48 — antrian produksi (shooting, design, editing) + assets. #47 selesai.
+Issue: #15, dipecah #47–#51 · Branch saat ini: `migrasi/konten-produksi` (#48, PR #66) · Mulai: 2026-10-07
+LANJUTKAN DARI: #49 — approval, publishing, perfinput, analytics, designperf + `performa-konten.ts`. #47 & #48 selesai.
 
 | layar (key) | file | status | endpoint dipakai | sub-issue |
 |---|---|---|---|---|
@@ -516,10 +516,10 @@ LANJUTKAN DARI: #48 — antrian produksi (shooting, design, editing) + assets. #
 | pipeline | `app/pages/konten/pipeline.vue` | ✅ | `PATCH /konten/content/{id}` (status), `POST /konten/notifications` | #47 — HP: daftar per status (drag tak dibawa ke sentuh) |
 | calendar | `app/pages/konten/calendar.vue` | ✅ | `PATCH /konten/content`, `/prod-tasks`, `/shootings`, `/visits` (geser tanggal) | #47 — (koreksi build 2026-10-07) tanggal sel | calendar | — | ⬜ | | #47 | "hari ini" lokal; lama memakai toISOString sehingga sel WIB menampilkan acara sehari sebelumnya |
 | panel detail + form konten (D.21) | `app/pages/konten/detail/[id].vue`, `app/components/KontenForm.vue` | ✅ | `POST/PUT/PATCH/DELETE /konten/content`, `DELETE /konten/shootings/{id}` (syncProdTasks), `POST /konten/notifications`, `POST /konten/logs` | #47 — blok performa (`renderPerfBlock`) ikut #49 |
-| shooting | — | ⬜ | | #48 |
-| design | — | ⬜ | | #48 |
-| editing | — | ⬜ | | #48 |
-| assets | — | ⬜ | | #48 |
+| shooting | `app/pages/konten/shooting.vue` (+ `KontenAntrian`, `KontenTugasForm`) | ✅ | `PATCH /konten/content/{id}` (prod[kind]), `POST/PUT/DELETE /konten/prod-tasks` | #48 — tanpa baris Marketing, seperti lama |
+| design | `app/pages/konten/design.vue` | ✅ | `PATCH /konten/content/{id}` (prod[kind]), `POST/PUT/DELETE /konten/prod-tasks`, `GET /marketing/design-queue?active=1`, `GET /marketing/design-requests/{id}`, `PUT /marketing/design-requests/{id}/progress`, `PUT /marketing/design-options` | #48 — 403 (laksamana-api#190) tidak memblokir: pita + Coba lagi |
+| editing | `app/pages/konten/editing.vue` | ✅ | sama dengan design | #48 |
+| assets | `app/pages/konten/assets.vue` (+ `KontenAssetForm`) | ✅ | `POST/PUT/DELETE /konten/assets` | #48 — tautan saja; `/files` tidak dipakai (lama pun tidak) |
 | approval | — | ⬜ | | #49 |
 | publishing | — | ⬜ | | #49 |
 | perfinput | — | ⬜ | | #49 (hapus 1 platform: G-01) |
@@ -534,9 +534,12 @@ LANJUTKAN DARI: #48 — antrian produksi (shooting, design, editing) + assets. #
 | profile | — | ⬜ | | #51 |
 
 Catatan build:
-- Fondasi #47: `app/utils/konten.ts` (konstanta & rumus murni), `app/utils/status-konten.ts`, `app/composables/useKonten.ts` (satu `GET /state` bersama, CRUD per record dengan If-Match = `updatedAt`), `app/utils/layar/konten.ts`, entri shell. Uji: `node tools/uji-konten.mjs` (28 cek; 10 mutasi tertangkap).
+- Fondasi #47: `app/utils/konten.ts` (konstanta & rumus murni), `app/utils/status-konten.ts`, `app/composables/useKonten.ts` (satu `GET /state` bersama, CRUD per record dengan If-Match = `updatedAt`), `app/utils/layar/konten.ts`, entri shell. Uji: `node tools/uji-konten.mjs` (28 cek pada #47; 10 mutasi tertangkap).
 - Kru tanpa baris `users` dikenali di memori sebagai planner (super_admin bila admin modul Office), seperti `resolveKontenUser` lama; sinkron roster → `POST /users` ikut Kelola Kru (#51).
 - Halaman detail konten di `/konten/detail/[id]` (lama: drawer).
+- #48: antrian = `barisAntrian` + `saringAntrian` + `reqMktUntuk` di `konten.ts`, satu komponen `KontenAntrian` untuk tiga layar. Request Marketing dibaca sekali per sesi (kunci `konten-req-mkt`); opsi brand/kru/platform dititipkan ke Marketing SEKALI per sesi sesudah request DAN state Konten terbaca (T-07). Tandai Selesai menyembunyikan baris seketika dan memunculkannya lagi bila Marketing menolak, seperti lama. Uji: `node tools/uji-konten.mjs` (57 cek; 9 mutasi antrian tertangkap).
+- (koreksi build) Deadline bawaan tugas mandiri = hari ini + 3 menurut tanggal lokal; lama memakai `toISOString()` (UTC) sehingga sebelum 07:00 WIB kurang sehari.
+- Tombol Simpan/Hapus form tugas & asset hanya untuk yang boleh mengubah layar itu (lama: form tugas bisa disimpan siapa pun yang membukanya dari baris).
 
 ## K. Daftar uji cutover
 Uji silang Vue ↔ Office lama pada data yang sama (dev). Bagian #47:
@@ -546,4 +549,7 @@ Uji silang Vue ↔ Office lama pada data yang sama (dev). Bagian #47:
 - [ ] **pipeline** — seret kartu → status berubah dan terlihat di Office lama; masuk Approval membuat notifikasi.
 - [ ] **calendar** — acara jatuh di tanggal yang benar (bandingkan dengan tanggal di data, bukan dengan sel lama yang bergeser sehari); geser tayang/produksi/tugas/kunjungan tersimpan.
 - [ ] **detail** — mundur/lanjut status, minta revisi, batalkan, hapus, toggle kebutuhan produksi (doneAt), checklist, komentar + @mention (notifikasi ke yang disebut), tandai tayang (publishRecord); tiap aksi tampil sama di Office lama.
+- [ ] **antrian (shooting/design/editing)** — baris konten + tugas mandiri (+ request Marketing di design/editing) sama dengan lama; arsip tersembunyi & jumlahnya; urut tiap kolom; Selesai/Buka mencap/menghapus `doneAt` dan terlihat di Office lama; tambah/edit/hapus tugas mandiri.
+- [ ] **request Marketing** — buka request: brief + referensi gambar/link; Tandai Selesai → hilang dari antrian dan Marketing melihat status done; kru yang hanya memegang Konten: pita "tidak terbaca" muncul dan antrian tetap jalan; `design-options` terkirim sekali per sesi (cek di form Request Design Marketing: brand/kru muncul).
+- [ ] **assets** — chip kategori, saring brand, kartu membuka link, tambah/edit/hapus tersimpan sama dengan lama.
 - [ ] **form konten** — buat & edit: platform/content type/print type multi, field tunggal lama ikut tertulis, keyword/caption/script lama tidak terhapus, referensi link+foto, rekomendasi tanggal produksi; konflik versi (dua tab) memunculkan pesan "Data sudah diubah orang lain".
