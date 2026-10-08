@@ -126,7 +126,7 @@ async function simpan() {
       toast.add({ title: 'Perubahan mutasi tersimpan.', color: 'success' })
     }
     else {
-      await createVaultRec('mutasi', isi)
+      await createVaultRec('mutasi', isi, versi)
       toast.add({ title: 'Mutasi tersimpan.', color: 'success' })
     }
     mulaiTambah()

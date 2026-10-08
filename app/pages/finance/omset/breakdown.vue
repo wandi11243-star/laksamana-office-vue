@@ -190,6 +190,9 @@ async function jalanSimpan() {
   const rowsBaru = [...rows.value.filter(r => r.date !== tanggal.value), baru]
   try {
     data.value.day = await putDay(tanggal.value, rowsBaru, data.value.day.version)
+    // B2: real API 200 but the screen only updates after reload — re-read
+    // (same finding as fix/api-cashier for the Kompas panels).
+    await refresh()
     simpanOpen.value = false
     toast.add({ title: `Breakdown ${tglPanjang(tanggal.value)} tersimpan.`, color: 'success' })
   }

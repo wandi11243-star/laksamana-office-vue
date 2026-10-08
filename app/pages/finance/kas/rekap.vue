@@ -178,9 +178,9 @@ async function simpanSetoran() {
   }
   sibuk.value = true
   try {
-    const r = await putRekap({ setoran: { tambah: [{ tgl: hari[hari.length - 1], tujuan: setorForm.tujuan.trim(), catatan: setorForm.catatan.trim(), hari }] } })
+    const r = await putRekap({ hari: {}, setoran: { tambah: [{ tgl: hari[hari.length - 1], tujuan: setorForm.tujuan.trim(), catatan: setorForm.catatan.trim(), hari }] } })
     setoranBuka.value = false
-    toast.add({ title: `Setoran dicatat (${hari.length} hari).${r.data.takDikenal ? ` Sebagian tak dikenal: ${JSON.stringify(r.data.takDikenal)}` : ''}`, color: 'success' })
+    toast.add({ title: `Setoran dicatat (${hari.length} hari).${r.data.takDikenal?.length ? ` Sebagian tak dikenal: ${JSON.stringify(r.data.takDikenal)}` : ''}`, color: 'success' })
     await refresh()
   }
   catch (e) {
@@ -197,7 +197,7 @@ async function jalanHapusSetoran() {
   if (!s || sibuk.value) return
   sibuk.value = true
   try {
-    await putRekap({ setoran: { hapus: [String(s.id)] } })
+    await putRekap({ hari: {}, setoran: { hapus: [String(s.id)] } })
     hapusSetoranOpen.value = false
     toast.add({ title: 'Setoran dihapus; harinya kembali ke daftar belum disetor.', color: 'success' })
     await refresh()
