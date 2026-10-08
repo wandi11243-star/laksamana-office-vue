@@ -396,6 +396,31 @@ Kode error yang wajib ditangani UI (`docs/api/finance.md:136-145`, `docs/api/kom
 Branch: migrasi/finance-omset (#38) · migrasi/finance-input (#39) · migrasi/finance-kas (#40, sub-issue 3/4) · migrasi/finance-brankas (#41, sub-issue 4/4) · Mulai: 2026-10-07
 LANJUTKAN DARI: #41 cek visual 7 layar brankas (kode selesai, lint/typecheck/build hijau) → dorong: push branch, draft PR ber-base migrasi/finance-kas, komentar issue.
 
+Catatan uji API lokal 2026-10-08 (lane B2, `fix/api-finance`; lanjut dari `fix/api-cashier`):
+- Omset sebagai Novi (finance+kompas, non-admin): input 2026-10-07 (simpan→`Update data` live→hapus,
+  kembali kosong), breakdown (gate `Selisih Rp0`, simpan `bdValid:true`, ikut terhapus), report/piutang/
+  compliment/akses render OK 1280 & 390. 32ae90f terverifikasi: hari berisi tidak terbaca kosong.
+- Kas sebagai Novi: kk_buku (tandai Input 0→1→0), kk_input (tambah id 5→hapus, sisa id 4), kk_pos
+  (tambah→hapus, kembali 3), bayar, rekap (penanda esb + setoran cash Rp148.000 dihitung server),
+  invoice (minta→terbit `INV/2026/10/0001`→batal→tolak DITOLAK), void (total Rp32.200, 1 hidup),
+  dp/bri render OK; akses terkunci (`staf→akses=0` dari matriks server: "tidak dibuka untuk peranmu").
+  6 layar performa (bulanan/analytics/marketing/event/kasir) + Kelola Kru disembunyikan untuk Novi
+  karena matriks server memberi staf=0 (bukan bug — konfigurasi).
+- Brankas sebagai jebe (7/7 render, 1280 & 390 overflow 0): ringkasan (likuid Rp1.646.742.187, piutang
+  Rp47.605.174/17 bon = sama dengan Piutang, runway —), saldo, mutasi, pending (read-only),
+  modal (tambah→hapus), pengaturan (burn 0→15jt→0), akses (matriks read-only non-admin).
+  kas/kasir sebagai jebe (viewer): semua nama terlihat (beda dengan Cashier yang hanya Semua+diri).
+- Temuan & perbaikan (commit berikut): (1) `getBayar` mengira `{bayar:[]}` padahal API `[...]` → daftar
+  selalu kosong (sekelas 32ae90f); dinormalisasi. (2) simpan/hapus setoran 422 `tidak ada daftar hari` —
+  server mewajibkan kunci `hari` (walau `{}`); ditambahkan di dua call-site. (3) `createVaultRec` tanpa
+  versi → 428 di mutasi & investor; versi blob dikirim. (4) input/breakdown tidak live-update setelah
+  simpan → `await refresh()`. (5) toast "Sebagian tak dikenal: []" (`[]` truthy) → cek `.length`.
+- ⚠️ INSIDEN DATA LOKAL: sebelum perbaikan (1), satu simpan bayar menimpa seluruh `bayar` di blob vault
+  dengan 1 baris uji (baca kosong + tulis-ganti-utuh). Isi `bayar` sebelumnya tidak bisa dipastikan
+  (tanpa binlog/riwayat); baris uji sudah dihapus via UI (plan kini `[]`). Perlu restore salinan lokal
+  oleh user bila plan berisi data. Rekap/setoran, kk_*, invoice, vault lain tidak tersentuh.
+- Uji mesin hijau: cashier 50, porsi-pic 29 (K-04 terkunci), bri 25, kompas 21; lint+typecheck+build hijau.
+
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
 | pemilih panel | `app/pages/finance/index.vue` | ✅ | — (kartu panel; auto-redirect bila satu panel) | — |

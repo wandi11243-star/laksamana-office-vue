@@ -159,8 +159,12 @@ export interface RencanaBayar {
 
 /** The payment plan + the vault blob version (one version for the whole blob). */
 export async function getBayar() {
-  const r = await useApi()<Envelope<{ bayar?: RencanaBayar[] }> & { meta?: Record<string, unknown> }>('/finance/petty-cash/payment-plan')
-  return { bayar: r.data.bayar ?? [], version: versiDari(r) }
+  const r = await useApi()<Envelope<{ bayar?: RencanaBayar[] } | RencanaBayar[] | null> & { meta?: Record<string, unknown> }>('/finance/petty-cash/payment-plan')
+  // B2: the mock answered `{bayar: [...]}` but the real API answers a bare
+  // array `[...]` (same drift as 32ae90f for /kompas/days). Without this the
+  // screen reads an empty plan and saving would overwrite the stored one.
+  const shape = Array.isArray(r.data) ? r.data : (r.data?.bayar ?? [])
+  return { bayar: shape, version: versiDari(r) }
 }
 export function putBayar(bayar: RencanaBayar[], versi: Versi) {
   return useApi()<Envelope<unknown>>('/finance/petty-cash/payment-plan', { method: 'PUT', body: { bayar }, headers: ifMatch(versi) })
@@ -207,8 +211,8 @@ export async function getVaultList<T = Record<string, unknown>>(list: VaultList)
   const r = await useApi()<Envelope<T[]> & { meta?: Record<string, unknown> }>(`/finance/vault/${list}`)
   return { rows: r.data ?? [], version: versiDari(r) }
 }
-export function createVaultRec<T = Record<string, unknown>>(list: VaultList, body: Partial<T>) {
-  return useApi()<Envelope<T>>(`/finance/vault/${list}`, { method: 'POST', body })
+export function createVaultRec<T = Record<string, unknown>>(list: VaultList, body: Partial<T>, versi: Versi) {
+  return useApi()<Envelope<T>>(`/finance/vault/${list}`, { method: 'POST', body, headers: ifMatch(versi) })
 }
 /** PUT replaces, PATCH shallow-merges. Both need the whole-blob version. */
 export function updateVaultRec<T = Record<string, unknown>>(list: VaultList, id: string, body: Partial<T>, versi: Versi, method: 'PUT' | 'PATCH' = 'PUT') {

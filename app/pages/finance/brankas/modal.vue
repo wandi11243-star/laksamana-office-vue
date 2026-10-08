@@ -95,7 +95,7 @@ async function tulisInvestor(obj: InvestorBrankas, ada: boolean, pesan: string) 
   try {
     const versi = vaultData.value.version ?? ''
     if (ada) await updateVaultRec('investor', String(obj.id), obj as never, versi, 'PUT')
-    else await createVaultRec('investor', obj as never)
+    else await createVaultRec('investor', obj as never, versi)
     toast.add({ title: pesan, color: 'success' })
     await refresh()
   }
