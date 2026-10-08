@@ -10,7 +10,7 @@
 // `profile` (Profil Saya) is reached from the user chip, not the menu (konten.md C).
 import type { Me } from '~/composables/useMe'
 import type { Layar } from '~/utils/layar'
-import { bolehLihatKonten, usePeranKonten } from '~/composables/useKonten'
+import { bolehLihatKonten, usePeranKonten, useStateKonten } from '~/composables/useKonten'
 
 const boleh = (key: string) => (me: Me) => {
   const p = usePeranKonten().value
@@ -41,3 +41,9 @@ export const LAYAR_KONTEN: Layar[] = [
   l('activity', 'Activity Log', 'Jejak audit seluruh aktivitas', 'i-lucide-clock', 'Sistem'),
   l('settings', 'Pengaturan', 'Konfigurasi sistem, daftar kru & hak akses', 'i-lucide-settings', 'Sistem'),
 ]
+
+/** Red badge on Approval: items waiting for approval across all brands (old updateApprovalBadge, :1683). */
+export function useLencanaKonten() {
+  const { data } = useStateKonten()
+  return computed<Record<string, number>>(() => ({ approval: data.value.content.filter(c => c.status === 'Approval').length }))
+}

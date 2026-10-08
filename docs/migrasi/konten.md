@@ -506,25 +506,25 @@ Konkurensi: legacy menstempel `updatedAt=sekarang` + `baseUpdatedAt=versi server
 - **Office/Account → Konten**: sesi `lm_session` + roster ber-grant `konten` (`account-api-mysql?action=listModuleRoster{module:'konten'}`, cadangan Apps Script) — v1 dari `/api/v1/account/*` (`laksamana-office/deploy/konten/index.html:1303-1363`).
 
 ## J. Progres build
-Issue: #15, dipecah #47–#51 · Branch saat ini: `migrasi/konten-produksi` (#48, PR #66) · Mulai: 2026-10-07
-LANJUTKAN DARI: #49 — approval, publishing, perfinput, analytics, designperf + `performa-konten.ts`. #47 & #48 selesai.
+Issue: #15, dipecah #47–#51 · Branch saat ini: `migrasi/konten-kontrol` (#49, PR #67, ditumpuk di atas #66) · Mulai: 2026-10-07
+LANJUTKAN DARI: #50 — kol, ads (autoUpdateStatuses, CSV), chats. #47, #48, #49 selesai.
 
 | layar (key) | file | status | endpoint dipakai | sub-issue |
 |---|---|---|---|---|
-| dashboard | `app/pages/konten/dashboard.vue` | ✅ | `GET /konten/state` | #47 — Top Konten masih `metrics.reach` (F.4), pindah ke `perf` di #49; `autoUpdateStatuses` (tulis status iklan) ikut #50 |
+| dashboard | `app/pages/konten/dashboard.vue` | ✅ | `GET /konten/state` | #47 — Top Konten dari angka per platform (`performa-konten.ts`, #49); `autoUpdateStatuses` (tulis status iklan) ikut #50 |
 | planning | `app/pages/konten/planning.vue` | ✅ | `GET /konten/state` | #47 |
 | pipeline | `app/pages/konten/pipeline.vue` | ✅ | `PATCH /konten/content/{id}` (status), `POST /konten/notifications` | #47 — HP: daftar per status (drag tak dibawa ke sentuh) |
 | calendar | `app/pages/konten/calendar.vue` | ✅ | `PATCH /konten/content`, `/prod-tasks`, `/shootings`, `/visits` (geser tanggal) | #47 — (koreksi build 2026-10-07) tanggal sel & "hari ini" lokal; lama memakai toISOString sehingga sel WIB menampilkan acara sehari sebelumnya |
-| panel detail + form konten (D.21) | `app/pages/konten/detail/[id].vue`, `app/components/KontenForm.vue` | ✅ | `POST/PUT/PATCH/DELETE /konten/content`, `DELETE /konten/shootings/{id}` (syncProdTasks), `POST /konten/notifications`, `POST /konten/logs` | #47 — blok performa (`renderPerfBlock`) ikut #49 |
+| panel detail + form konten (D.21) | `app/pages/konten/detail/[id].vue`, `app/components/KontenForm.vue` | ✅ | `POST/PUT/PATCH/DELETE /konten/content`, `DELETE /konten/shootings/{id}` (syncProdTasks), `POST /konten/notifications`, `POST /konten/logs` | #47 — blok performa = `KontenPerfBlok` (#49); lembar revisi & tayang = `KontenRevisiSheet`/`KontenTayangSheet` (dipakai bersama approval & publishing) |
 | shooting | `app/pages/konten/shooting.vue` (+ `KontenAntrian`, `KontenTugasForm`) | ✅ | `PATCH /konten/content/{id}` (prod[kind]), `POST/PUT/DELETE /konten/prod-tasks` | #48 — tanpa baris Marketing, seperti lama |
 | design | `app/pages/konten/design.vue` | ✅ | `PATCH /konten/content/{id}` (prod[kind]), `POST/PUT/DELETE /konten/prod-tasks`, `GET /marketing/design-queue?active=1`, `GET /marketing/design-requests/{id}`, `PUT /marketing/design-requests/{id}/progress`, `PUT /marketing/design-options` | #48 — 403 (laksamana-api#190) tidak memblokir: pita + Coba lagi |
 | editing | `app/pages/konten/editing.vue` | ✅ | sama dengan design | #48 |
 | assets | `app/pages/konten/assets.vue` (+ `KontenAssetForm`) | ✅ | `POST/PUT/DELETE /konten/assets` | #48 — tautan saja; `/files` tidak dipakai (lama pun tidak) |
-| approval | — | ⬜ | | #49 |
-| publishing | — | ⬜ | | #49 |
-| perfinput | — | ⬜ | | #49 (hapus 1 platform: G-01) |
-| analytics | — | ⬜ | | #49 (`performa-konten.ts`) |
-| designperf | — | ⬜ | | #49 |
+| approval | `app/pages/konten/approval.vue` (+ `KontenRevisiSheet`) | ✅ | `PATCH /konten/content/{id}` (approvals + status), `POST /konten/notifications`, `POST /konten/logs` | #49 — lencana menu = jumlah status Approval (semua brand) |
+| publishing | `app/pages/konten/publishing.vue` (+ `KontenTayangSheet`) | ✅ | `PATCH /konten/content/{id}` (publishRecord + status) | #49 |
+| perfinput | `app/pages/konten/perfinput.vue` (+ `KontenPerfForm`) | ✅ | `PUT /konten/content/{id}/performance` (satu per platform) | #49 — hapus catatan 1 platform = **Segera** (G-01, laksamana-api#177) |
+| analytics | `app/pages/konten/analytics.vue` (+ `KontenPerformaPanel`) | ✅ | `GET /konten/state` | #49 — panel & rumus dipakai juga modul Analytics (#20) |
+| designperf | `app/pages/konten/designperf.vue` (+ `KontenDesainPanel`) | ✅ | `GET /konten/state`, `GET /marketing/design-queue` (tanpa `active`) | #49 — 403 request Marketing: pita + Coba lagi, sisanya tetap jalan |
 | kol | — | ⬜ | | #50 |
 | ads | — | ⬜ | | #50 |
 | chats | — | ⬜ | | #50 |
@@ -540,6 +540,10 @@ Catatan build:
 - #48: antrian = `barisAntrian` + `saringAntrian` + `reqMktUntuk` di `konten.ts`, satu komponen `KontenAntrian` untuk tiga layar. Request Marketing dibaca sekali per sesi (kunci `konten-req-mkt`); opsi brand/kru/platform dititipkan ke Marketing SEKALI per sesi sesudah request DAN state Konten terbaca (T-07). Tandai Selesai menyembunyikan baris seketika dan memunculkannya lagi bila Marketing menolak, seperti lama. Uji: `node tools/uji-konten.mjs` (57 cek; 9 mutasi antrian tertangkap).
 - (koreksi build) Deadline bawaan tugas mandiri = hari ini + 3 menurut tanggal lokal; lama memakai `toISOString()` (UTC) sehingga sebelum 07:00 WIB kurang sehari.
 - Tombol Simpan/Hapus form tugas & asset hanya untuk yang boleh mengubah layar itu (lama: form tugas bisa disimpan siapa pun yang membukanya dari baris).
+- #49: rumus performa = `app/utils/performa-konten.ts` (port `deploy/assets/performa-konten.js`, pemilik konten). Modul Analytics (#20) WAJIB mengimpor dari sini + memakai `KontenPerformaPanel`/`KontenDesainPanel` (prop `kunci` untuk keadaan sendiri, `tautan=false` bila tanpa akses Konten); jangan disalin. Platform/tipe memakai `contentPlatforms`/`contentTypes` dari `konten.ts` (salinan PK_ALIAS lama tidak perlu lagi). Uji: `node tools/uji-performa-konten.mjs` (50 cek; 18 mutasi rumus tertangkap).
+- Input Performa: v1 menimpa `perf[platform]` dengan kiriman + `{at, by}`, jadi `firstAt/firstBy` dikirim dari klien (dipertahankan dari catatan lama). `by` v1 = NAMA pengguna (lama: id kru); tampilan membaca keduanya.
+- Hapus catatan satu platform (semua kotak dikosongkan) belum bisa di v1 (G-01): form menandai platform itu "Segera", tidak mengirimnya, dan menyebut sesudah simpan bahwa angka lamanya tetap. Form performa hanya bisa disimpan pemegang izin ubah `analytics` (lama: judul baris membuka form untuk siapa pun).
+- Publishing: tautan ↗ tidak digambar bila URL tersimpan `-`; kolom reach "Sudah tayang" dari angka per platform (lama `metrics.reach`, tak pernah ditulis).
 
 ## K. Daftar uji cutover
 Uji silang Vue ↔ Office lama pada data yang sama (dev). Bagian #47:
@@ -552,4 +556,8 @@ Uji silang Vue ↔ Office lama pada data yang sama (dev). Bagian #47:
 - [ ] **antrian (shooting/design/editing)** — baris konten + tugas mandiri (+ request Marketing di design/editing) sama dengan lama; arsip tersembunyi & jumlahnya; urut tiap kolom; Selesai/Buka mencap/menghapus `doneAt` dan terlihat di Office lama; tambah/edit/hapus tugas mandiri.
 - [ ] **request Marketing** — buka request: brief + referensi gambar/link; Tandai Selesai → hilang dari antrian dan Marketing melihat status done; kru yang hanya memegang Konten: pita "tidak terbaca" muncul dan antrian tetap jalan; `design-options` terkirim sekali per sesi (cek di form Request Design Marketing: brand/kru muncul).
 - [ ] **assets** — chip kategori, saring brand, kartu membuka link, tambah/edit/hapus tersimpan sama dengan lama.
+- [ ] **approval** — kartu sama dengan lama; Approve final → status Scheduled + jejak "Final Review" + notifikasi; Tolak / revisi → status Revision + catatan; role tanpa `approve` melihat kalimat tunggu; lencana menu = jumlah Approval.
+- [ ] **publishing** — Terjadwal (urut tanggal, lewat = merah) & Sudah tayang (10 terbaru) sama dengan lama; Tayang → publishRecord + Posted terlihat di Office lama.
+- [ ] **input performa** — tab & hitungan sama; isi angka beberapa platform → tampil di Office lama (panel detail & Performa); pengisi pertama tidak tertimpa; kosongkan satu platform → penanda Segera, angka lama tetap.
+- [ ] **performa konten & desain** — bandingkan kartu, per platform, pillar, top konten, jumlah post, desain per kategori, dan request Marketing dengan halaman lama untuk bulan yang sama; ganti bulan & platform; kru tanpa modul Marketing: pita "tidak terbaca".
 - [ ] **form konten** — buat & edit: platform/content type/print type multi, field tunggal lama ikut tertulis, keyword/caption/script lama tidak terhapus, referensi link+foto, rekomendasi tanggal produksi; konflik versi (dua tab) memunculkan pesan "Data sudah diubah orang lain".

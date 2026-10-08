@@ -24,6 +24,8 @@ import type {
   AssetKonten, BrandKonten, KontenItem, LevelKonten, PermsKonten, ProdTask, ReqDesainMkt, ShootingKonten, UserKonten, VisitKonten,
 } from '~/utils/konten'
 import { ROLE_BAWAAN_KONTEN, VIEW_PERM_KONTEN, levelKonten, normPlatform, opsiDesainMkt, permsKonten } from '~/utils/konten'
+import type { KatPk, UrutPk } from '~/utils/performa-konten'
+import { pkBulanIni } from '~/utils/performa-konten'
 import type { Versi } from '~/utils/versi'
 import { ifMatch, tanganiKonflik } from '~/utils/versi'
 
@@ -284,6 +286,16 @@ export const useReqDesainMkt = () =>
     useApi()<Envelope<{ reqs?: ReqDesainMkt[] }>>('/marketing/design-queue', { query: { active: 1 } }).then(r => r.data?.reqs ?? []),
   { default: () => [] as ReqDesainMkt[], server: false })
 
+/**
+ * GET /marketing/design-queue WITHOUT `active`: finished requests too, with
+ * their doneAt — Performa Desain counts them (separately). Loaded only when
+ * that page is open; a 403 (laksamana-api#190) shows a warning, never blocks.
+ */
+export const useReqDesainMktSemua = () =>
+  useAsyncData('konten-req-mkt-semua', () =>
+    useApi()<Envelope<{ reqs?: ReqDesainMkt[] }>>('/marketing/design-queue').then(r => r.data?.reqs ?? []),
+  { default: () => [] as ReqDesainMkt[], server: false })
+
 /** GET /marketing/design-requests/{id} — the full request incl. reference images (`refs` {t, v, n}). */
 export const getReqDesainMkt = (id: string) =>
   useApi()<Envelope<{ refs?: { t: string, v: string, n?: string }[] }>>(`/marketing/design-requests/${encodeURIComponent(id)}`)
@@ -305,3 +317,15 @@ export function kirimOpsiDesainMkt(st: StateKonten) {
   terkirim.value = true
   useApi()('/marketing/design-options', { method: 'PUT', body: opsi }).catch(() => {})
 }
+
+// ---------------------------------------------------------------- performance pages
+
+/**
+ * The choices of Performa Konten & Performa Desain (old PK_STATE). ONE state
+ * for both pages, so moving between them keeps the month — the old pages did
+ * the same. Default month = this month (WIB). Another host (Analytics) passes
+ * its own key.
+ */
+export interface KeadaanPk { bulan: string, plat: string, urut: UrutPk, cari: string, kat: KatPk }
+export const useKeadaanPk = (kunci = 'konten-pk') =>
+  useState<KeadaanPk>(kunci, () => ({ bulan: pkBulanIni(), plat: '', urut: 'reach', cari: '', kat: 'pillar' }))

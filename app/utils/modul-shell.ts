@@ -175,6 +175,8 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
       if (!s) return ''
       return s.roles.map(r => (ROLES_KONTEN as Record<string, { short: string }>)[r]?.short ?? r).join(' + ')
     },
+    // Red count on Approval: items waiting for approval, all brands (old updateApprovalBadge, :1683).
+    lencana: () => useLencanaKonten(),
     siapkan: () => muatPeranKonten(),
   },
 

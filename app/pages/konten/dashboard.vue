@@ -6,13 +6,15 @@
   Parity notes:
   - the four stat cards count ALL content; the lists below follow the brand bar
     (the old cards read DB.content, the lists filterByBrand);
-  - Top Konten ranks by `metrics.reach`, the old field that never had a writer
-    (F.4) — it moves to `perf` with performa-konten.ts (#49);
+  - Top Konten ranks by the per-platform figures (performa-konten.ts, #49):
+    the old screen read `metrics.reach`, a field nothing ever wrote (F.4), so
+    its list was always zeros; old flat records still count;
   - the old screen also ran autoUpdateStatuses() (ads) on open, a WRITE; that
     belongs to Ads Management (#50) and is not done here.
 -->
 <script setup lang="ts">
 import type { AcaraKalender } from '~/utils/konten'
+import { pkAggER, pkKumpul, pkPersen, pkUrutKonten } from '~/utils/performa-konten'
 import {
   DEADLINE_DEKAT, PROD_TYPES, acaraKalender, contentPlatforms, sisaHariKonten, sudahArsip, tugasSaya,
 } from '~/utils/konten'
@@ -42,7 +44,7 @@ const my = computed(() => (saya.value ? tugasSaya(saya.value.user.id, kontenBran
 const myLewat = computed(() => my.value.filter(x => x.sisa != null && x.sisa < 0))
 const myDekat = computed(() => my.value.filter(x => x.sisa != null && x.sisa >= 0 && x.sisa <= DEADLINE_DEKAT))
 const approvalPending = computed(() => kontenBrand.value.filter(c => c.status === 'Approval'))
-const top = computed(() => [...posted.value].sort((a, b) => (b.metrics?.reach || 0) - (a.metrics?.reach || 0)).slice(0, 5))
+const top = computed(() => pkUrutKonten(pkKumpul(posted.value).konten, 'reach').slice(0, 5))
 
 const semuaFilter = { publish: true, shoot: true, design: true, edit: true, visit: true }
 const agenda = computed(() => acaraKalender({
@@ -317,7 +319,7 @@ function tujuanTugas(x: { jenis: string, kind?: keyof typeof PROD_TYPES, ref: st
           class="divide-y divide-default"
         >
           <li
-            v-for="(c, i) in top"
+            v-for="({ c, agg }, i) in top"
             :key="c.id"
           >
             <NuxtLink
@@ -330,10 +332,10 @@ function tujuanTugas(x: { jenis: string, kind?: keyof typeof PROD_TYPES, ref: st
                   {{ c.title }}
                 </p>
                 <p class="text-xs text-muted">
-                  {{ contentPlatforms(c).slice(0, 2).join(' · ') }} - ER {{ c.metrics?.er || 0 }}%
+                  {{ contentPlatforms(c).slice(0, 2).join(' · ') }} - ER {{ pkAggER(agg) == null ? '—' : `${pkPersen(pkAggER(agg))}%` }}
                 </p>
               </div>
-              <span class="num font-bold text-primary-700">{{ angka(c.metrics?.reach || 0) }}</span>
+              <span class="num font-bold text-primary-700">{{ angka(agg.dasar) }}</span>
             </NuxtLink>
           </li>
         </ul>
