@@ -12,10 +12,10 @@ import { ifMatch, versiDari, type Versi } from '~/utils/versi'
 // ---------------------------------------------------------------- Pohon Resep (read-only panel, module `tree`)
 
 /** `GET /stock/hpp/ingredients` — flat or by-name; normalised to a list. */
-export async function getHppIngredients() {
+export async function getHppIngredients(): Promise<{ rows: BahanHpp[] }> {
   const r = await useApi()<Envelope<BahanHpp[] | Record<string, BahanHpp>>>('/stock/hpp/ingredients')
   const d = r.data as BahanHpp[] | Record<string, BahanHpp>
-  const rows = Array.isArray(d) ? d : Object.entries(d ?? {}).map(([nama, v]) => ({ nama, ...(v as object) }))
+  const rows: BahanHpp[] = Array.isArray(d) ? d : Object.entries(d ?? {}).map(([nama, v]) => ({ nama, ...(v as Partial<BahanHpp>) }))
   return { rows }
 }
 
@@ -99,10 +99,10 @@ export interface OpnameCatatan extends OpnameRingkas {
 export interface VersiMap { versions: Record<string, Versi> }
 
 /** `GET /stock/products` — a list; also accepts the legacy `{nama: {…}}` map. */
-export async function getProducts() {
+export async function getProducts(): Promise<{ rows: ProdukStock[], versions: Record<string, Versi> }> {
   const r = await useApi()<Envelope<ProdukStock[] | Record<string, ProdukStock>>>('/stock/products')
   const d = r.data as ProdukStock[] | Record<string, ProdukStock>
-  const rows = Array.isArray(d) ? d : Object.entries(d ?? {}).map(([nama, v]) => ({ nama, ...(v as Partial<ProdukStock>) }))
+  const rows: ProdukStock[] = Array.isArray(d) ? d : Object.entries(d ?? {}).map(([nama, v]) => ({ nama, ...(v as Partial<ProdukStock>) }))
   return { rows, versions: (r.meta?.versions ?? {}) as Record<string, Versi> }
 }
 
@@ -354,10 +354,10 @@ export interface VendorStock {
   tutupHari?: number[]
 }
 
-export async function listVendors() {
+export async function listVendors(): Promise<{ rows: VendorStock[], versions: Record<string, Versi> }> {
   const r = await useApi()<Envelope<VendorStock[] | Record<string, VendorStock>>>('/stock/vendors')
   const d = r.data as VendorStock[] | Record<string, VendorStock>
-  const rows = Array.isArray(d) ? d : Object.entries(d ?? {}).map(([nama, v]) => ({ nama, ...(v as object) }))
+  const rows: VendorStock[] = Array.isArray(d) ? d : Object.entries(d ?? {}).map(([nama, v]) => ({ nama, ...(v as Partial<VendorStock>) }))
   return { rows, versions: (r.meta?.versions ?? {}) as Record<string, Versi> }
 }
 
@@ -479,8 +479,10 @@ export async function importOrderingUsers(users: Record<string, unknown>[]) {
  * `GET /stock/settings/{ordering|purchasing}` — reads return the empty default
  * with `meta.available: false` while `stock_settings` is missing (stock.md F.21).
  */
-export async function getStockSettings(panel: 'ordering' | 'purchasing') {
-  const r = await useApi()<Envelope<{ perms?: unknown, templates?: unknown }>>(`/stock/settings/${panel}`)
+export interface TemplateChat { item?: string, gabungan?: string }
+
+export async function getStockSettings(panel: 'ordering' | 'purchasing'): Promise<{ data: { perms?: Record<string, Record<string, number>>, templates?: TemplateChat }, versi: Versi | undefined, tersedia: boolean }> {
+  const r = await useApi()<Envelope<{ perms?: Record<string, Record<string, number>>, templates?: TemplateChat }>>(`/stock/settings/${panel}`)
   return { data: r.data ?? {}, versi: versiDari(r), tersedia: (r.meta as Record<string, unknown> | undefined)?.available !== false }
 }
 
@@ -560,7 +562,7 @@ export interface ResepHppTulis {
 }
 
 /** `GET /stock/hpp/ingredients` — with versions keyed by name. */
-export async function hppIngredients() {
+export async function hppIngredients(): Promise<{ rows: BahanHpp[], versions: Record<string, Versi> }> {
   const r = await useApi()<Envelope<BahanHpp[] | Record<string, BahanHpp>>>('/stock/hpp/ingredients')
   const d = r.data as BahanHpp[] | Record<string, BahanHpp>
   const rows = Array.isArray(d) ? d : Object.entries(d ?? {}).map(([nama, v]) => ({ nama, ...(v as object) }))
