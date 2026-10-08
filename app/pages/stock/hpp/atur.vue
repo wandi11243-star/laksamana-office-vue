@@ -10,6 +10,7 @@ import { isAdminOf } from '~/composables/useMe'
 import { hppImport, hppSettings, patchHppSettings } from '~/composables/useStock'
 import { apiErrorCode, apiErrorMessage } from '~/composables/useApi'
 import { bacaBerkasTabel } from '~/utils/xlsx-baca'
+import { barisBerkolom } from '~/utils/stock-impor'
 import { SET_DEFAULT } from '~/utils/stock-hpp'
 import { tanganiKonflik } from '~/utils/versi'
 
@@ -66,7 +67,9 @@ async function impor(e: Event) {
   imporSibuk.value = true
   try {
     const tb = await bacaBerkasTabel(file)
-    const bahan = tb.filter(r => String(r.Nama || r.nama || '').trim() && !String(r.Resep || r.resep || '').trim()).map(r => ({
+    // Letter-keyed rows -> header-keyed rows (the header is the first row).
+    const rows = barisBerkolom(tb)
+    const bahan = rows.filter(r => String(r.Nama || r.nama || '').trim() && !String(r.Resep || r.resep || '').trim()).map(r => ({
       nama: String(r.Nama || r.nama || '').trim(),
       satuan: String(r.Satuan || r.satuan || ''),
       qty_beli: Number(r['Qty beli'] || r.qty_beli || 0),

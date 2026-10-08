@@ -17,6 +17,7 @@ import {
 } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bacaBerkasTabel } from '~/utils/xlsx-baca'
+import { barisBerkolom } from '~/utils/stock-impor'
 import { angka, persen, rupiah } from '~/utils/format'
 import {
   buatKonteks,
@@ -219,7 +220,9 @@ async function impor(e: Event) {
   if (!file) return
   imporSibuk.value = true
   try {
-    const rows = await bacaBerkasTabel(file)
+    const tb = await bacaBerkasTabel(file)
+    // Letter-keyed rows -> header-keyed rows (the header is the first row).
+    const rows = barisBerkolom(tb)
     // One spreadsheet row = one ingredient line; the recipe columns repeat on
     // the first line of each recipe (F.8). Group by recipe name + kind.
     const grup = new Map<string, Record<string, unknown> & { bahan: Record<string, unknown>[] }>()
@@ -229,14 +232,23 @@ async function impor(e: Event) {
       if (nm) {
         kunci = `${r.Jenis || r.jenis || 'food'}|${nm}`
         if (!grup.has(kunci)) {
-          grup.set(kunci, {
+          const ambilResep = (k: string): string => String(r[k] ?? '').trim()
+          const det: Record<string, unknown> & { bahan: Record<string, unknown>[] } = {
             nama: nm,
             jenis: String(r.Jenis || r.jenis || 'food'),
             tipe: String(r.Tipe || r.tipe || 'dish'),
             seksi: String(r.Seksi || r.seksi || ''),
             kode: String(r.Kode || r.kode || ''),
             bahan: [],
-          })
+          }
+          // The export repeats the recipe columns on the first line, so a
+          // re-uploaded export restores them (unset cells keep the default).
+          if (ambilResep('Yield') !== '') det.yield_qty = Number(ambilResep('Yield')) || 1
+          if (ambilResep('Satuan yield') !== '') det.yield_unit = ambilResep('Satuan yield')
+          if (ambilResep('Harga jual') !== '') det.harga_baru = Number(ambilResep('Harga jual')) || 0
+          if (ambilResep('Modal manual') !== '') det.modal_manual = Number(ambilResep('Modal manual')) || 0
+          if (ambilResep('Aktif') !== '') det.aktif = Number(ambilResep('Aktif')) ? 1 : 0
+          grup.set(kunci, det)
         }
       }
       const g = grup.get(kunci)
