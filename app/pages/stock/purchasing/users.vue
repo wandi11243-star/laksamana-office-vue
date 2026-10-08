@@ -18,12 +18,14 @@ import {
   putStockSettings,
 } from '~/composables/useStock'
 import { apiErrorCode, apiErrorMessage } from '~/composables/useApi'
+import { isAdminOf } from '~/composables/useMe'
 import { tanganiKonflik, type Versi } from '~/utils/versi'
 
 definePageMeta({ access: ['purchasing'] })
 
 const me = useMe()
 const toast = useToast()
+const admin = computed(() => isAdminOf(me.value, 'purchasing'))
 
 const HALAMAN = [
   { id: 'dashboard', label: 'Monitor Order' },
@@ -159,7 +161,10 @@ const kolom: TableColumn<KruStock>[] = [
     title="Kelola Akses"
     description="Matriks izin halaman & kru purchasing"
   >
-    <template #actions>
+    <template
+      v-if="admin"
+      #actions
+    >
       <UButton
         label="Tambah kru"
         icon="i-lucide-plus"
@@ -168,6 +173,17 @@ const kolom: TableColumn<KruStock>[] = [
     </template>
 
     <AppPanel
+      v-if="!admin"
+      title="Khusus admin"
+      icon="i-lucide-lock"
+    >
+      <p class="text-sm text-muted">
+        Kelola Akses hanya untuk admin Purchasing.
+      </p>
+    </AppPanel>
+
+    <AppPanel
+      v-if="admin"
       title="Matriks izin"
       description="Admin selalu boleh ubah semua."
     >
@@ -256,6 +272,7 @@ const kolom: TableColumn<KruStock>[] = [
     </AppPanel>
 
     <AppPanel
+      v-if="admin"
       title="Kru purchasing"
       flush
     >
@@ -326,6 +343,7 @@ const kolom: TableColumn<KruStock>[] = [
     </AppPanel>
 
     <ResponsiveSheet
+      v-if="admin"
       v-model:open="sheet"
       :title="editing ? 'Ubah kru' : 'Tambah kru'"
     >
