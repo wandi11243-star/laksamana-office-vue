@@ -175,6 +175,8 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
       if (!s) return ''
       return s.roles.map(r => (ROLES_KONTEN as Record<string, { short: string }>)[r]?.short ?? r).join(' + ')
     },
+    // Profil Saya is outside the menu; the old user chip opened it (konten.md D.20).
+    kaki: { label: 'Profil saya', to: '/konten/profile', icon: 'i-lucide-user-round' },
     // Red count on Approval: items waiting for approval, all brands (old updateApprovalBadge, :1683).
     lencana: () => useLencanaKonten(),
     siapkan: () => muatPeranKonten(),

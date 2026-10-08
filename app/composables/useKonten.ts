@@ -27,10 +27,12 @@ import { ROLE_BAWAAN_KONTEN, VIEW_PERM_KONTEN, levelKonten, normPlatform, opsiDe
 import type { KatPk, UrutPk } from '~/utils/performa-konten'
 import type { DanaIklan, IklanKonten, KolKonten, VisitPenuh } from '~/utils/promosi-konten'
 import { statusIklanOtomatis } from '~/utils/promosi-konten'
+import type { MemberOffice } from '~/utils/sistem-konten'
+import { rencanaSinkronKru } from '~/utils/sistem-konten'
 import { hariIni } from '~/utils/format'
 import { pkBulanIni } from '~/utils/performa-konten'
 import type { Versi } from '~/utils/versi'
-import { ifMatch, tanganiKonflik } from '~/utils/versi'
+import { ifMatch, tanganiKonflik, versiDari } from '~/utils/versi'
 
 /** v1 resource names (`docs/api/konten.md` Records). */
 export type KontenResource = 'users' | 'brands' | 'campaigns' | 'content' | 'prod-tasks' | 'shootings' | 'assets' | 'bank' | 'kols' | 'visits' | 'ads' | 'ad-funds' | 'notifications'
@@ -364,4 +366,74 @@ export function useStatusIklanOtomatis() {
     }
     if (n) await refreshNuxtData('konten-state')
   }, { immediate: true })
+}
+
+// ---------------------------------------------------------------- documents
+
+/**
+ * Write a whole document (`settings`, `perms`) against its CURRENT content
+ * hash: read it, apply `ubah` to what is stored now, PUT with that hash. A
+ * stale hash (someone saved in between) comes back as 409 and kontenSimpan
+ * reloads — the matrix editor never overwrites a matrix it did not see.
+ */
+export async function simpanDokumenKonten<T>(doc: 'settings' | 'perms', ubah: (lama: T | null) => T) {
+  const r = await getDokumenKonten<T>(doc)
+  return putDokumenKonten<T>(doc, ubah(r.data ?? null), versiDari(r) ?? '')
+}
+
+// ---------------------------------------------------------------- crew roster
+
+/**
+ * Crew rows follow the Office roster of `konten` (old autoSyncOfficeRoster,
+ * :1489, at every boot): new members get a row, names follow Office, a new
+ * module admin gains super_admin. Here: once per session, only for an Office
+ * admin of `konten` (the only one who may manage crew), silently — a failed
+ * write is retried next session. Rows that match only by NAME under an old
+ * id are returned (`kembar`) for Pengaturan to mention; they are not re-keyed.
+ */
+export function useSinkronKruKonten() {
+  const me = useMe()
+  const { data, status } = useStateKonten()
+  const sudah = useState('konten-kru-sinkron', () => false)
+  const kembar = useState<{ nama: string, id: string, officeId: string }[]>('konten-kru-kembar', () => [])
+  watch([status, () => me.value?.id], async ([s]) => {
+    if (sudah.value || s !== 'success' || !isAdminOf(me.value, 'konten')) return
+    sudah.value = true
+    let members: MemberOffice[]
+    try {
+      members = (await useApi()<Envelope<MemberOffice[]>>('/account/modules/konten/members')).data ?? []
+    }
+    catch {
+      return
+    }
+    const r = rencanaSinkronKru(members, data.value.users)
+    kembar.value = r.kembar.map(x => ({ nama: x.u.name, id: x.u.id, officeId: x.officeId }))
+    let n = 0
+    for (const u of r.baru) {
+      try {
+        await buatKonten<UserKonten>('users', u)
+        n++
+      }
+      catch { /* next session */ }
+    }
+    for (const { u, fields } of r.ubah) {
+      try {
+        await tambalKonten<UserKonten>('users', u.id, fields, u.updatedAt)
+        n++
+      }
+      catch { /* next session */ }
+    }
+    if (n) await refreshNuxtData('konten-state')
+  }, { immediate: true })
+  return kembar
+}
+
+/** Download text as a file (old downloadFile, :4627) and say so. */
+export function unduhKonten(nama: string, isi: string, tipe: string) {
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(new Blob([isi], { type: tipe }))
+  a.download = nama
+  a.click()
+  URL.revokeObjectURL(a.href)
+  tryUseNuxtApp()?.vueApp.runWithContext(() => useToast())?.add({ title: `File diunduh: ${nama}`, color: 'success' })
 }

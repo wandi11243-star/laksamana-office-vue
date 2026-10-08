@@ -506,8 +506,8 @@ Konkurensi: legacy menstempel `updatedAt=sekarang` + `baseUpdatedAt=versi server
 - **Office/Account → Konten**: sesi `lm_session` + roster ber-grant `konten` (`account-api-mysql?action=listModuleRoster{module:'konten'}`, cadangan Apps Script) — v1 dari `/api/v1/account/*` (`laksamana-office/deploy/konten/index.html:1303-1363`).
 
 ## J. Progres build
-Issue: #15, dipecah #47–#51 · Branch saat ini: `migrasi/konten-promosi` (#50, PR #68, ditumpuk di atas #67 ← #66) · Mulai: 2026-10-07
-LANJUTKAN DARI: #51 — brands, activity, settings (Restore = Segera, sinkron roster), profile. #47–#50 selesai.
+Issue: #15, dipecah #47–#51 · Branch terakhir: `migrasi/konten-sistem` (#51, PR #69, ditumpuk #68 ← #67 ← #66) · Mulai: 2026-10-07
+LANJUTKAN DARI: modul Konten (#15) lengkap — #47–#51 menunggu review/merge (PR #66–#69 bertumpuk). Restore JSON = Segera (K-01/G-13). Uji silang bagian K di dev saat cutover.
 
 | layar (key) | file | status | endpoint dipakai | sub-issue |
 |---|---|---|---|---|
@@ -528,10 +528,10 @@ LANJUTKAN DARI: #51 — brands, activity, settings (Restore = Segera, sinkron ro
 | kol | `app/pages/konten/kol.vue` (+ `KontenKolForm`, `KontenVisitForm`) | ✅ | `POST/PUT/DELETE /konten/kols`, `/konten/visits`, `PATCH /konten/visits/{id}` (status kehadiran) | #50 — sub-tab di `?tab=visit` |
 | ads | `app/pages/konten/ads.vue` (+ `KontenIklanForm`, `KontenDanaForm`) | ✅ | `POST/PUT/DELETE/PATCH /konten/ads`, `POST/PUT/DELETE /konten/ad-funds` | #50 — ekspor CSV per bulan di browser (K-05) |
 | chats | `app/pages/konten/chats.vue` | ✅ | `GET /konten/state` | #50 |
-| brands | — | ⬜ | | #51 |
-| activity | — | ⬜ | | #51 |
-| settings | — | ⬜ | | #51 (Restore JSON: K-01/G-13) |
-| profile | — | ⬜ | | #51 |
+| brands | `app/pages/konten/brands.vue` (+ `KontenBrandForm`) | ✅ | `POST/PUT/DELETE /konten/brands` | #51 — kartu: Konten, Tayang, Followers, % ke target (Σfollowers ÷ Σtarget) |
+| activity | `app/pages/konten/activity.vue` | ✅ | `GET /konten/state` (logs) | #51 — 80 terbaru |
+| settings | `app/pages/konten/settings.vue` (+ `KontenKruForm`) | ✅ | `GET/PUT /konten/documents/settings`, `GET/PUT /konten/documents/perms`, `PUT /konten/users/{id}` | #51 — Restore JSON = **Segera** (K-01/G-13); ekspor CSV & backup JSON di browser |
+| profile | `app/pages/konten/profile.vue` | ✅ | `GET /konten/state` | #51 — dibuka dari tombol kaki sidebar "Profil saya"; Keluar ke Office tanpa logout |
 
 Catatan build:
 - Fondasi #47: `app/utils/konten.ts` (konstanta & rumus murni), `app/utils/status-konten.ts`, `app/composables/useKonten.ts` (satu `GET /state` bersama, CRUD per record dengan If-Match = `updatedAt`), `app/utils/layar/konten.ts`, entri shell. Uji: `node tools/uji-konten.mjs` (28 cek pada #47; 10 mutasi tertangkap).
@@ -546,6 +546,10 @@ Catatan build:
 - #50: rumus KOL/Ads/Chats di `app/utils/promosi-konten.ts` (bulan = tanggal MULAI dengan cadangan berjenjang + keranjang tanpa tanggal; PPN 11%; biaya per chat null bila chat/dana 0; per video digabung per tautan yang dirapikan). Uji: `node tools/uji-promosi-konten.mjs` (43 cek; 17 mutasi tertangkap).
 - Status iklan otomatis (lama: tiap halaman dibuka, siapa pun) → sekali per sesi, hanya pemegang izin ubah `ads`, PATCH per iklan dengan versi, gagal diam (dicoba lagi sesi berikutnya). Dipanggil Ads Management & Dashboard.
 - (koreksi build) Tanggal bawaan form kunjungan = hari ini + 3 menurut tanggal LOKAL (lama UTC). Ubah status kehadiran memakai PATCH `status` saja; simpan form KOL/kunjungan/iklan/dana = PUT seluruh baris (field lama seperti `rateDrive`, `rateTier`, `createdDate` tetap).
+- #51: rumus brand/kru/matriks/ekspor di `app/utils/sistem-konten.ts`. Uji: `node tools/uji-sistem-konten.mjs` (25 cek; 20 mutasi tertangkap).
+- Sinkron roster (`useSinkronKruKonten`, dipanggil Dashboard): sekali per sesi, hanya admin modul Office; anggota baru → `POST /konten/users` (planner, super_admin bila admin modul), nama ikut Office (`PATCH`). Baris lama yang cocok NAMA tapi beda id TIDAK di-rekey diam-diam: dilaporkan di kartu Tim (pita "kembar").
+- Kelola Kru hanya admin modul Office; tidak ada "tambah kru" (baris datang dari roster Office). Nama & login dikelola Office.
+- Matriks role: baris pensiun (`bank`, `reports`) disembunyikan tapi ikut tersimpan; super_admin selalu Ubah. Dokumen settings/perms disimpan dengan GET hash dulu lalu PUT (`simpanDokumenKonten`).
 - Publishing: tautan ↗ tidak digambar bila URL tersimpan `-`; kolom reach "Sudah tayang" dari angka per platform (lama `metrics.reach`, tak pernah ditulis).
 
 ## K. Daftar uji cutover
@@ -566,4 +570,8 @@ Uji silang Vue ↔ Office lama pada data yang sama (dev). Bagian #47:
 - [ ] **KOL** — tambah/edit/hapus KOL & Medpar sama dengan lama; riwayat starting price bertambah hanya saat harga berubah; rate card gambar tampil & bisa dibesarkan; kunjungan: undangan terpilih bertahan saat penyaring diganti, DM WhatsApp/IG/TikTok berisi template, status kehadiran & Hadir/✕ hari-H, muncul di Kalender.
 - [ ] **ads** — 4 kartu, sisa keseluruhan, rekap per bulan (iklan masuk bulan tanggal mulai; tanpa tanggal ke "Belum ada tanggal mulai") sama dengan lama; ekspor CSV bulan itu sama isinya; buat/edit iklan dengan rincian + PPN; link video tanpa https dirapikan, bukan-link ditolak; status otomatis berjalan sekali dan tidak menyentuh "Dijeda".
 - [ ] **chats** — kartu, yang paling top, pita "chat tapi dana belum diisi", peringkat 3 urutan, per video & per platform sama dengan lama untuk bulan yang sama.
+- [ ] **brands** — kartu & angka sama dengan lama; tambah/edit (platform + followers/target, pillar, PIC, tone) & hapus brand terlihat di Office lama; konten brand terhapus tetap ada.
+- [ ] **activity** — 80 log terbaru, urutan & teks sama dengan lama.
+- [ ] **settings** — nama organisasi tersimpan; 3 CSV & backup JSON sama isinya dengan ekspor lama; matriks role tersimpan dan berlaku di Office lama (bank/reports tidak hilang); Kelola Kru (role rangkap, kapasitas, skill) terlihat di lama; anggota Office baru muncul sebagai kru sesudah admin membuka Dashboard; pita kembar muncul untuk baris lama beda id.
+- [ ] **profile** — role, Total task/Selesai/Kapasitas sama dengan lama; Keluar ke Office kembali ke beranda tanpa logout.
 - [ ] **form konten** — buat & edit: platform/content type/print type multi, field tunggal lama ikut tertulis, keyword/caption/script lama tidak terhapus, referensi link+foto, rekomendasi tanggal produksi; konflik versi (dua tab) memunculkan pesan "Data sudah diubah orang lain".

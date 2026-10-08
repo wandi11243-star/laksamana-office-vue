@@ -23,6 +23,7 @@ import { angka, hariIni, tglPanjang, tglPendek } from '~/utils/format'
 
 definePageMeta({ access: ['konten'] })
 useStatusIklanOtomatis()
+useSinkronKruKonten()
 
 const me = useMe()
 const { data: st, error, status } = useStateKonten()
