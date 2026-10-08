@@ -54,14 +54,14 @@ const picSaya = computed(() => {
     ?? daftarPic.value.find(p => p.name.toLowerCase() === (me.value?.name ?? '').toLowerCase())
   return saya ?? (daftarPic.value[0] ?? null)
 })
-const picAktif = ref('')
+const picAktif = ref('semua')
 watch(picSaya, (p) => {
-  if (!picAktif.value && p) picAktif.value = p.id
+  if (picAktif.value === 'semua' && p && !bolehSemua.value) picAktif.value = p.id
 }, { immediate: true })
 const bolehSemua = computed(() => manajemen.value || /head/i.test(me.value?.keterangan ?? ''))
 const picTampil = computed(() => {
-  if (bolehSemua.value) return daftarPic.value
-  return daftarPic.value.filter(p => p.id === (picAktif.value || picSaya.value?.id))
+  if (bolehSemua.value && (picAktif.value === 'semua' || !picAktif.value)) return daftarPic.value
+  return daftarPic.value.filter(p => p.id === (picAktif.value === 'semua' ? picSaya.value?.id : picAktif.value))
 })
 
 // Event list with hand-typed nominal (`event.nominal`, PF_PER_HAL = 5)
@@ -120,7 +120,7 @@ async function simpanNominal(e: Acara, nilai: number) {
     >
       <USelect
         v-model="picAktif"
-        :items="[{ value: '', label: 'Semua PIC' }, ...daftarPic.map(p => ({ value: p.id, label: p.name }))]"
+        :items="[{ value: 'semua', label: 'Semua PIC' }, ...daftarPic.map(p => ({ value: p.id, label: p.name }))]"
         class="max-w-xs"
       />
     </AppPanel>

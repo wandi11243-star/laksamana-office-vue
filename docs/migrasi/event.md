@@ -426,32 +426,35 @@ Konkurensi: legacy ticketing tiap tulis `GET_LOCK('<db>:tix',10)` (`docs/modules
 
 ## J. Progres build
 Branch: migrasi/event · Mulai: 2026-10-08
-LANJUTKAN DARI: Kelompok 2 (pipeline, planning, events, ticketing, approval, performa, perfomset, report, akses, ideas, history)
+LANJUTKAN DARI: —
+(koreksi build 2026-10-08: halaman daftar memakai `<nama>/index.vue`, bukan
+`<nama>.vue` — file+dir se-nama menjadi nested route tanpa outlet sehingga
+rincian [id] tidak pernah tampil. Lihat laporan Lane B 2026-10-08.)
 
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
 | dashboard | app/pages/event/dashboard.vue | ✅ | GET /state | — |
 | calendar | app/pages/event/calendar.vue | ✅ | GET /state; GET /marketing/events; GET /reservasi/reservations (pita + Coba lagi bila gagal) | — |
-| talents | app/pages/event/talents.vue | ✅ | GET/POST/PUT/DELETE /talents | — |
+| talents | app/pages/event/talents/index.vue | ✅ | GET/POST/PUT/DELETE /talents | — |
 | talents rincian | app/pages/event/talents/[id].vue | ✅ | GET/PUT /talents/{id}; POST /files | — |
 | schedule | app/pages/event/schedule.vue | ✅ | GET/POST/PATCH/DELETE /schedules; POST /recurring-rules | — |
 | fee | app/pages/event/fee.vue | ✅ | GET /schedules; GET/POST/PATCH /talent-payments; POST /files | OCR otomatis Segera (K-05 belum dipasang; verifikasi manual jalan) |
 | checkin | app/pages/event/checkin.vue | ✅ | GET /events; GET /tickets; GET /seats; GET /ticket-classes; GET/POST /checkins | tombol Batalkan Segera (G-10); pindai kamera Segera (butuh pustaka QR) |
-| pipeline | app/pages/event/pipeline.vue | ⬜ | | |
-| planning | app/pages/event/planning.vue | ⬜ | | |
-| events | app/pages/event/events.vue | ⬜ | | |
-| events rincian | app/pages/event/events/[id].vue | ⬜ | | |
-| ticketing | app/pages/event/ticketing.vue | ⬜ | | |
-| ticketing rincian | app/pages/event/ticketing/[id].vue | ⬜ | | |
-| ticketing kategori | app/pages/event/ticketing/[id]/[kelas].vue | ⬜ | | |
-| approval | app/pages/event/approval.vue | ⬜ | | |
-| performa | app/pages/event/performa.vue | ⬜ | | |
-| perfomset | app/pages/event/perfomset.vue | ⬜ | | |
-| report | app/pages/event/report.vue | ⬜ | | |
-| akses | app/pages/event/akses.vue | ⬜ | | |
-| ideas | app/pages/event/ideas.vue | ⬜ | | |
-| history | app/pages/event/history.vue | ⬜ | | |
-| history rincian | app/pages/event/history/[id].vue | ⬜ | | |
+| pipeline | app/pages/event/pipeline.vue | ✅ | GET/PATCH /events | — |
+| planning | app/pages/event/planning.vue | ✅ | GET/POST/PATCH/DELETE /events | — |
+| events | app/pages/event/events/index.vue | ✅ | GET/POST/PUT/DELETE /events; GET /orders | — |
+| events rincian | app/pages/event/events/[id].vue | ✅ | GET/PATCH/DELETE /events/{id}; GET/PUT /event-details/{id} | — |
+| ticketing | app/pages/event/ticketing/index.vue | ✅ | GET /events; GET /ticket-classes; GET /tickets | — |
+| ticketing rincian | app/pages/event/ticketing/[id]/index.vue | ✅ | GET /events/{id}; GET/POST/PATCH/DELETE /ticket-classes; POST /orders; POST /tickets; PATCH /ticket-classes; GET/PATCH /refunds; GET /seats | editor denah kanvas Segera (build tersendiri) |
+| ticketing kategori | app/pages/event/ticketing/[id]/[kelas].vue | ✅ | GET /events/{id}; GET /ticket-classes; GET /tickets | — |
+| approval | app/pages/event/approval.vue | ✅ | GET/PATCH /events; GET/PATCH /refunds | — |
+| performa | app/pages/event/performa.vue | ✅ | GET /state | — |
+| perfomset | app/pages/event/perfomset.vue | ✅ | GET /kompas/performa/event; GET /account/modules/event/members; GET/PATCH /events (nominal) | impor performa-bonus.ts, tanpa salin |
+| report | app/pages/event/report.vue | ✅ | GET /state | — |
+| akses | app/pages/event/akses.vue | ✅ | GET /account/modules/event/members | matriks in-memory, reset saat muat ulang (K-08) |
+| ideas | app/pages/event/ideas.vue | ✅ | GET/POST/PATCH/DELETE /ideas; POST /events (spawn) | — |
+| history | app/pages/event/history/index.vue | ✅ | GET /events; GET /ticket-classes; GET /tickets; POST /events (serupa) | — |
+| history rincian | app/pages/event/history/[id].vue | ✅ | GET /events/{id}; GET /event-details/{id}; GET /checkins | — |
 
 ## Konsolidasi untuk README & berkas bersama
 
@@ -484,3 +487,51 @@ LANJUTKAN DARI: Kelompok 2 (pipeline, planning, events, ticketing, approval, per
 - **Event → Office/Account (roster):** Hak Akses menarik roster ber-grant `event` via `account-api-mysql?action=listModuleRoster` (`event/index.html:4633-4664`) — tak ada padanan di kontrak v1 `event` (sama seperti HR/BD/stock).
 ```
 
+
+## K. Daftar uji cutover
+
+Konvensi: Vue ↔ Office lama dibuka berdampingan dengan data yang sama
+(API lokal dari DB hasil restore). Tulis memakai akun uji, bukan akun kru.
+
+1. Dashboard: status Planning/Prospect/Approval/Upcoming sama dengan lama;
+   8 kartu statistik cocok dengan hitungan lama; bar chart dihitung dari
+   data (bukan angka mati); tabel Event Terdekat = Upcoming terurut tanggal.
+2. Calendar: event, jadwal talent & calendarExtra tampil; Marketing (tanpa
+   Lost) & Reservasi (tanpa Cancelled/No-show) tampil; matikan API
+   marketing/reservasi → pita peringatan + Coba lagi, bukan layar kosong.
+3. Talents: filter kategori/status/kontrak + cari; tambah (validasi nama,
+   phone, email); sunting; hapus. Rincian: inline edit, unggah/ganti/hapus
+   dokumen (≤8MB), performance history & monthly income dari show Done.
+4. Schedule: tambah (multi-talent, fee per baris), mingguan, recurring,
+   generate bulanan; bentrok ditolak SEBELUM satu pun ditulis; ubah status,
+   hapus. Coba jadwal tumpang tindih di lama & Vue → sama-sama menolak.
+5. Fee: ganti mode minggu/bulan/rentang; rekap = show Done × fee baris;
+   generate payment; bayar (bukti + nominal + PIC); detail; set paid/reject.
+6. Checkin: pilih event ber-tiket; statistik cocok; tempel token → cek;
+   check-in dari daftar; polling 20 dtk tidak mematikan scroll. Batalkan =
+   Segera (G-10).
+7. Pipeline: pindah tahap via pilih & drag; Planning→Upcoming ditolak;
+   tarik ke Planning hanya manajemen; Event Done terkunci.
+8. Planning: ajukan (wajib judul+tanggal+venue) → Prospect/Menunggu;
+   setujui → Approval; tolak → Planning/Ditolak; hapus. Tab history tampil.
+9. Events: tab status + periode + cari; tambah/edit (PIC terkunci pembuat);
+   hapus. Rincian: 8 fase timeline; 5 seksi simpan per dokumen; variance
+   budget = actual−budget; kartu ticketing → kelola bila is_ticketed;
+   Event Done mengunci semua isian.
+10. Ticketing: hanya is_ticketed non-Planning; progres & omzet cocok;
+    peringatan ≥90%. Rincian: CRUD kelas; jual (habis disabled, default
+    +628, lunas); refund setujui/tolak; WA & unduh QR. Editor denah = Segera.
+11. Approval: 3 kartu = isi antrean; refund terlama di atas; putusan hanya
+    manajemen; angka lencana menu = antrean rencana + refund.
+12. Performa & Report: angkaEms sama di dua layar; hanya
+    Approval/Upcoming/Event Done; terjual ≠ tiket terbit.
+13. Perfomset: agregasi pbAgregasi + skema bonusEvent dari
+    GET /kompas/performa/event; kolom nominal diketik & tersimpan;
+    non-head/manajemen hanya baris PIC-nya.
+14. Akses: roster ber-grant event tampil; ubah matriks berlaku sampai muat
+    ulang (K-08); manajemen tak bisa mengunci diri dari halaman akses.
+15. Ideas & History: filter; tambah ide + evaluasi (skor 1–10, profit);
+    buat event dari ide (prefill, tanpa tanggal); arsip read-only;
+    buat serupa tanpa penjualan/kelas/denah, lahir Planning.
+16. Konflik: sunting satu record di dua tab → tab kedua 409 → toast
+    "Data sudah diubah orang lain" + muat ulang, tanpa menimpa.

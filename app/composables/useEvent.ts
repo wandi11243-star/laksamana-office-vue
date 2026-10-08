@@ -26,17 +26,10 @@ export type ResourceEvent
     | 'ticket-classes' | 'seats' | 'orders' | 'tickets' | 'ideas' | 'refunds'
     | 'calendar-extra'
 
-/** Event status, the five pipeline stages (`event/index.html:4490`). */
-export type StatusEvent = 'Planning' | 'Prospect' | 'Approval' | 'Upcoming' | 'Event Done'
-export const EVT_STATUS: StatusEvent[] = ['Planning', 'Prospect', 'Approval', 'Upcoming', 'Event Done']
-/** Stages that count as RESULT, not plan (`:4495`). A separate list on purpose. */
-export const EVT_STATUS_HASIL: StatusEvent[] = ['Approval', 'Upcoming', 'Event Done']
-
-export const EVT_CATS = ['Free', 'Paid', 'Internal', 'Community', 'Corporate', 'Wedding', 'Festival', 'Music', 'Launching', 'Private']
-export const TAL_CATS = ['Band', 'DJ', 'MC DJ', 'Acoustic', 'Solo Singer', 'Saxophone', 'Violin', 'Guest Artist']
-export const TIMELINE_PHASES = ['Preparation', 'Marketing', 'Vendor', 'Talent', 'Decoration', 'Opening', 'Closing', 'Evaluation']
-export const IDEA_CATS = ['Music', 'Community', 'Food', 'Competition', 'Family', 'Kids', 'Education', 'Business', 'Religious', 'Festival']
-export const FREQS = ['Weekly', 'Biweekly', 'Monthly', 'Quarterly', 'Yearly', 'One Time']
+/** EMS constants — single source in app/utils/event-hitung.ts (pure, tested).
+ *  Re-exported here so pages keep importing from this composable. */
+export type { StatusEvent } from '~/utils/event-hitung'
+export { EVT_CATS, EVT_STATUS, EVT_STATUS_HASIL, FREQS, IDEA_CATS, TAL_CATS, TIMELINE_PHASES } from '~/utils/event-hitung'
 
 /** Submission state of a plan (`statusPengajuan`, `:4687`). */
 export type StatusPengajuan = 'Belum diajukan' | 'Menunggu' | 'Disetujui' | 'Ditolak'
@@ -424,115 +417,6 @@ export const putSetting = (key: string, value: unknown, versi?: Versi) =>
 export const uploadFileEvent = (body: { dataBase64: string, fileName: string, mimeType: string }) =>
   useApi()<Envelope<Berkas>>('/event/files', { method: 'POST', body })
 
-// ---------------------------------------------------------------- shared sums
-
-/** The version of a row from a list read (`meta.versions`). */
-export const versiBarisEvent = (versions: Record<string, Versi> | undefined, id: string): Versi | undefined =>
-  versions?.[id]
-
-/** `statusPengajuan(e)` from `e.pengajuan` (`:4687-4688`). */
-export function statusPengajuan(e: Pick<Acara, 'pengajuan'>): StatusPengajuan {
-  return e.pengajuan?.status ?? 'Belum diajukan'
-}
-
-/** Pax of an event: tickets sold when there are classes, else planned capacity (`:10902`). */
-export function paxAcara(e: Acara, kelas: KelasTiket[]): number {
-  const milik = kelas.filter(c => c.event_id === e.id)
-  return milik.length ? milik.reduce((a, c) => a + (Number(c.sold) || 0), 0) : Number(e.capacity) || 0
-}
-
-/** `salesRingkas(eid)` (`:6919-6976`): per-class count & rupiah of non-refunded
- *  tickets, returned amount, valid tickets. Refunds are EMS crew work. */
-export function ringkasPenjualan(eid: string, tiket: Tiket[], kelas: KelasTiket[]) {
-  const milik = tiket.filter(t => t.event_id === eid && (t.status ?? '') !== 'Refunded')
-  const kembali = tiket.filter(t => t.event_id === eid && (t.status ?? '') === 'Refunded')
-  const harga = new Map(kelas.filter(c => c.event_id === eid).map(c => [c.id, Number(c.price) || 0]))
-  const perKelas = new Map<string, { nama: string, n: number, rp: number }>()
-  for (const t of milik) {
-    const k = kelas.find(c => c.id === t.ticket_class_id)
-    const nama = k?.name ?? 'Tanpa kelas'
-    const s = perKelas.get(nama) ?? { nama, n: 0, rp: 0 }
-    s.n += 1
-    s.rp += harga.get(t.ticket_class_id ?? '') ?? 0
-    perKelas.set(nama, s)
-  }
-  return {
-    perKelas: [...perKelas.values()].sort((a, b) => b.n - a.n),
-    omzet: milik.reduce((a, t) => a + (harga.get(t.ticket_class_id ?? '') ?? 0), 0),
-    dikembalikan: kembali.reduce((a, t) => a + (harga.get(t.ticket_class_id ?? '') ?? 0), 0),
-    tiketSah: milik.length,
-  }
-}
-
-/** `omzetPerBulanEms(n)` (`:4975-4987`): Paid orders only, mapped to the month
- *  of the event's start, in millions. The dashboard chart is computed from
- *  this — never hard-coded demo numbers (T-22). */
-export function omzetPerBulan(n: number, acara: Acara[], order: OrderTiket[], now = new Date()): { label: string, jt: number }[] {
-  const BLN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des']
-  const mulai = new Map(acara.map(e => [e.id, String(e.start_datetime ?? '').slice(0, 7)]))
-  const perBulan = new Map<string, number>()
-  for (const o of order) {
-    if (o.payment_status !== 'Paid') continue
-    const ym = mulai.get(o.event_id ?? '')
-    if (ym) perBulan.set(ym, (perBulan.get(ym) ?? 0) + (Number(o.total) || 0))
-  }
-  const keluar: { label: string, jt: number }[] = []
-  for (let i = n - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
-    const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    keluar.push({ label: BLN[d.getMonth()]!, jt: Math.round(((perBulan.get(ym) ?? 0) / 1000000) * 10) / 10 })
-  }
-  return keluar
-}
-
-/** One function for Performance & Report so the two never differ (`angkaEms :4925`). */
-export function angkaEms(acara: Acara[], kelas: KelasTiket[], tiket: Tiket[], order: OrderTiket[]) {
-  const hasil = acara.filter(e => (EVT_STATUS_HASIL as string[]).includes(String(e.status)))
-  const omzet = order.filter(o => o.payment_status === 'Paid').reduce((a, o) => a + (Number(o.total) || 0), 0)
-  const terjual = kelas.reduce((a, c) => a + (Number(c.sold) || 0), 0)
-  const kuota = kelas.reduce((a, c) => a + (Number(c.quota) || 0), 0)
-  const lembar = tiket.length
-  const hadir = tiket.filter(t => (t.status ?? '') === 'Checked-In').length
-  return {
-    hasil: hasil.length,
-    omzet,
-    terjual,
-    kuota,
-    tiket: lembar,
-    hadir,
-    isi: kuota ? Math.round(terjual / kuota * 100) : 0,
-    hadirPct: lembar ? Math.round(hadir / lembar * 100) : 0,
-  }
-}
-
-/** Two time ranges overlap (`overlaps :1687`). */
-export function tumpangTindih(a1: string, a2: string, b1: string, b2: string): boolean {
-  return (a1 || '') < (b2 || '') && (b1 || '') < (a2 || '')
-}
-
-/** `hasConflict` (`:3101`): same talent, same date, not Cancelled, overlapping. */
-export function bentrokJadwal(list: JadwalTalent[], talentId: string, date: string, st: string, et: string, abaikanId?: string): boolean {
-  return list.some(s =>
-    s.id !== abaikanId
-    && s.talent_id === talentId
-    && s.date === date
-    && (s.status ?? '') !== 'Cancelled'
-    && tumpangTindih(String(s.start_time ?? ''), String(s.end_time ?? ''), st, et),
-  )
-}
-
-/** `feeAngka(s)` (`:3972`): strip thousand separators to a number. */
-export function feeAngka(v: unknown): number {
-  if (typeof v === 'number') return v
-  const n = Number(String(v ?? '').replace(/[^0-9-]/g, ''))
-  return Number.isFinite(n) ? n : 0
-}
-
-/** ROI of an idea, in percent (`:11130`). */
-export function roiIde(budget: number, potensi: number): number {
-  return budget > 0 ? Math.round((potensi - budget) / budget * 100) : 0
-}
-
 /**
  * The red counts of the Event chrome: plans waiting for a decision + pending
  * refunds, on the Approval menu item and as the bell dot
@@ -548,3 +432,20 @@ export function useLencanaEvent() {
     return { approval: rencana + refund, lonceng: rencana + refund }
   })
 }
+
+// ---------------------------------------------------------------- shared sums
+// Browser-side arithmetic lives in app/utils/event-hitung.ts (pure, no API,
+// no Vue — importable from plain node for tools/uji-event.mjs) and is
+// re-exported here so pages keep importing from this composable.
+export {
+  angkaEms,
+  bentrokJadwal,
+  feeAngka,
+  omzetPerBulan,
+  paxAcara,
+  ringkasPenjualan,
+  roiIde,
+  statusPengajuan,
+  tumpangTindih,
+  versiBarisEvent,
+} from '~/utils/event-hitung'

@@ -53,7 +53,7 @@ const kolom: TableColumn<Acara>[] = [
   { id: 'tiket', header: 'Tiket' },
   { id: 'omzet', header: 'Omzet' },
   { id: 'status', header: 'Status' },
-  { id: 'aksi', header: 'Hapus' },
+  { id: 'aksi', header: 'Aksi' },
 ]
 
 // --- edit uses the same form; PIC stays as stored (`:6352`) ---
