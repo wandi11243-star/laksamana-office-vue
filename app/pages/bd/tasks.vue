@@ -4,6 +4,12 @@
   Four views of the same work: the Eisenhower Matrix, today & overdue, the next
   seven days, and per division. The quadrant is DERIVED from important+urgent;
   dragging a card only flips those two switches, never stores a quadrant.
+
+  The fifth mode (Selesai) is NOT in the old app: there a done task only
+  resurfaces in the project detail, so a done task without a project cannot be
+  un-done or deleted from the UI. The mode reuses BdTaskRow, whose
+  "Tandai belum selesai" toggle and delete button otherwise never receive a
+  done task.
 -->
 <script setup lang="ts">
 import type { BdTask } from '~/composables/useBd'
@@ -43,6 +49,7 @@ const mode = [
   { value: 'today', label: 'Hari ini', icon: 'i-lucide-sun' },
   { value: 'week', label: 'Minggu ini', icon: 'i-lucide-calendar-days' },
   { value: 'div', label: 'Per divisi', icon: 'i-lucide-layers' },
+  { value: 'done', label: 'Selesai', icon: 'i-lucide-check' },
 ]
 const opsiProject = computed(() => [{ value: PILIHAN_SEMUA, label: 'Semua project' }, ...projects.value.map(p => ({ value: p.id, label: p.name }))])
 const opsiDiv = [{ value: PILIHAN_SEMUA, label: 'Semua divisi' }, ...OWNER_DIVS.map(d => ({ value: d, label: d }))]
@@ -66,6 +73,7 @@ const minggu = computed(() => base.value.filter(t => !selesai(t) && t.deadline &
 const perDiv = computed(() => OWNER_DIVS
   .map(d => ({ div: d, items: base.value.filter(t => !selesai(t) && t.div === d) }))
   .filter(g => g.items.length))
+const sudahSelesai = computed(() => base.value.filter(selesai))
 
 const resetAktif = computed(() => fPics.value.length || f.value.div !== PILIHAN_SEMUA || f.value.proj !== PILIHAN_SEMUA || f.value.type !== PILIHAN_SEMUA || f.value.scope !== 'tim')
 function reset() {
@@ -286,6 +294,32 @@ function dropKotak(imp: boolean, urg: boolean) {
           class="py-6 text-center text-sm text-muted"
         >
           <b class="block text-highlighted">Tidak ada task</b>
+        </p>
+      </div>
+    </AppPanel>
+
+    <AppPanel
+      v-else-if="f.mode === 'done'"
+      title="Selesai"
+      icon="i-lucide-check"
+      :count="sudahSelesai.length"
+    >
+      <div class="divide-y divide-default">
+        <BdTaskRow
+          v-for="t in sudahSelesai"
+          :key="t.id"
+          :task="t"
+          :people="people"
+          :project-name="namaProject(t.project)"
+          @buka="buka(t)"
+          @toggle="toggle(t)"
+          @hapus="taskHapus = t"
+        />
+        <p
+          v-if="!sudahSelesai.length"
+          class="py-6 text-center text-sm text-muted"
+        >
+          <b class="block text-highlighted">Belum ada task selesai</b>
         </p>
       </div>
     </AppPanel>
