@@ -305,9 +305,14 @@ export const useSection = <T = unknown>(section: string) =>
  * One master section with its ENVELOPE kept. A section write needs that
  * section's own version, and `useAsyncData` throws `meta` away — so a caller
  * that has to write the section must read it this way.
+ *
+ * The key carries a `-versi` suffix on purpose: `useSection` above caches the
+ * bare value under `reservasi-section-${section}`, and sharing that key made
+ * every envelope read see the bare value after visiting another screen
+ * (empty dropdowns and "0 m" on Master Data, role list gone).
  */
 export const useSectionVersi = <T = unknown>(section: string) =>
-  useAsyncData(`reservasi-section-${section}`, () => getSection<T>(section))
+  useAsyncData(`reservasi-section-${section}-versi`, () => getSection<T>(section))
 
 /** GET /audit — the newest 500 rows, newest first. */
 export const getAudit = () => useApi()<Envelope<AuditRow[]>>('/reservasi/audit')

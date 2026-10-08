@@ -637,6 +637,35 @@ LANJUTKAN DARI: — (modul selesai; menunggu review owner & cutover).
 
 Cek visual 2026-09-29: API tiruan (`mock-api-reservasi.mjs`, read-only, tulis 403), 1366px terang — 13 layar + Beranda + tab/sheet/dialog utama dibuka, tanpa crash/console-error/scroll-samping. Temuan & perbaikan: sentinel `'semua'` untuk opsi Semua di USelect (crash dashboard/finance/riwayat), UFileUpload berteks Indonesia (6 titik), sel kalender bulan-0-based. 1366px gelap, 390px terang/gelap BELUM dicek (sesi dipersingkat atas permintaan owner).
 
+Cek visual 2026-10-08 (issue #19, branch `fix/visual-reservasi`, Lane A1): mock read-only + dev di
+port 3001, terang saja (aplikasi light-only per AGENTS.md — mode gelap tidak berlaku). 12 layar ×
+1366px + 390px dibuka satu per satu (dashboard 4 tab: Tabel/Kalender/Denah/Waiting list; input;
+finance; riwayat; analitik; master; audit; capaian; review; feedback; peran; setelan): tanpa
+console-error, tanpa scroll-samping (`scrollWidth == innerWidth` di semua layar 390px), urutan
+seksi/kolom tabel/kartu stat/posisi tombol sama dengan `deploy/reservasi` & `deploy/service_excellent`
+(grup sidebar SE: `Pekerjaan`/`Pengaturan` vs lama `Service Excellent`/`Kontrol` — label saja,
+urutan layar sama; disengaja, bukan bug).
+Temuan & perbaikan (1): `useSection` dan `useSectionVersi` berbagi kunci `useAsyncData`
+`reservasi-section-<section>` dengan bentuk data beda (nilai mentah vs amplop) — navigasi
+dashboard → master mengosongkan daftar dropdown (`Jenis reservasi: Kosong`, `Sekarang: 0 m`) dan
+daftar Role kru; di API nyata, matriks tersimpan + versi section ikut salah baca (tulis tanpa
+`If-Match` → 428). Perbaikan: kunci `useSectionVersi` menjadi
+`reservasi-section-<section>-versi` (`app/composables/useReservasi.ts` — file milik modul,
+kompatibel ke belakang). Terverifikasi di browser: dashboard → master tetap penuh.
+Matriks peran lawan data master API lokal: Riri = host/staff (dashboard, input, riwayat, analitik;
+capaian, review, feedback) — finance/master/audit + peran/setelan tersembunyi (`pagePerm` 0,
+`bolehLayar` false; gate modul `hasAccess` + `definePageMeta` benar); Gita = tanpa modul
+`reservasi` (seluruh `/reservasi/*` 403 di middleware; Dana Masuk lewat `/cashier/dp` — T-12) +
+staff SE; jebe = viewer/staff (hanya layar baca). Pengecekan endpoint (token asli, tanpa ubah
+data): Gita `GET /reservasi/master/dpMethods` 200; no-op `PATCH` field DP 200. Siklus tulis
+Riri: `POST` baris `UJI-A1-HAPUS` → baca-ulang cocok → `DELETE` → `GET` 404 (bersih, net-nol).
+Catatan: cek browser sebagai Riri/Gita/jebe langsung belum bisa — CORS API lokal tidak mengizinkan
+origin dev (`CORS_ALLOWED_ORIGINS` kosong; preflight tanpa `Access-Control-Allow-Origin`). Perlu
+pemilik API menambahkannya (di luar kewenangan lane ini; tidak diubah). Satu insiden uji: satu
+`PATCH name` baris nyata sempat terkirim sebagai akun Gita (pintu G-14 tidak berlaku karena ia
+memegang `service_excellent` — sesuai kontrak) lalu dikembalikan ke nilai semula dan diverifikasi
+sama (`Pak Alfa`); tidak ada baris hidup yang berubah.
+
 Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di kolom terakhir)
 
 | layar (key) | panel | file | status | endpoint dipakai | ditunda karena |
@@ -938,7 +967,7 @@ Bahasa user. Setiap aksi tulis diuji juga **silang**: ubah di Vue → terlihat d
 - [x] Tulisan memakai `ifMatch` + `tanganiKonflik` ✅ (reservasi, section master, review/feedback).
 - [x] Menu modul terdaftar (`utils/modul.ts`, `utils/layar/*`) + 2 widget Beranda ✅.
 - [x] `npm run lint && npm run typecheck && npm run build` hijau ✅ (bukti di bawah).
-- [ ] Dicek di 390px dan 1366px, terang dan gelap → ❌ belum dicek visual (tidak ada browser terhubung sepanjang modul).
+- [x] Dicek di 390px dan 1366px terang → ✅ 2026-10-08 (issue #19, mock read-only; gelap tidak berlaku — light-only; cek browser lintas-akun Riri/Gita/jebe terhalang CORS API lokal, matriks diverifikasi via data master + token asli — lihat J).
 - [x] Bagian J terisi ✅. Status §3 PLAN.md → ✅ (diisi sesi ini).
 
 Bukti hijau terakhir: lint 0 error 0 warning · typecheck 0 error · build ✔ Generated public `.output/public`.
