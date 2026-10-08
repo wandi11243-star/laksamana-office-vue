@@ -2,6 +2,9 @@
   Business detail (hidden, opens from a card) — the old viewBizDetail
   (howandi_life/index.html:798-808). Description, average revenue, its projects
   with progress, and its active tasks.
+
+  Nuxt nests this file under `business.vue`, so that file renders `<NuxtPage/>`
+  and hides its list while this route is active — without it the detail never shows.
 -->
 <script setup lang="ts">
 import type { HlifeBusiness, HlifeProject, HlifeTask } from '~/composables/useHlife'

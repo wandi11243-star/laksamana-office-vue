@@ -6,6 +6,11 @@
   The project dropdown follows F.6: a Done project is hidden, EXCEPT the one
   currently attached to the task being edited, marked "· selesai" — without it,
   opening an old task silently drops its project (old projOptions, :848-851).
+
+  The fifth tab (Selesai) is NOT in the old app: there a done task only
+  resurfaces in Today (due today) or the project detail, so a done task without
+  a project cannot be un-done or deleted from the UI. The tab lists done tasks
+  with the same row actions (toggle back, edit, delete via the sheet).
 -->
 <script setup lang="ts">
 import type { HlifeBusiness, HlifeProject, HlifeTask } from '~/composables/useHlife'
@@ -14,7 +19,7 @@ import {
   useHlifeResource,
 } from '~/composables/useHlife'
 import type { KuadranHlife } from '~/utils/hlife'
-import { kuadranHlife, tautanGcal, terlambat } from '~/utils/hlife'
+import { PILIHAN_SEMUA, PILIHAN_TANPA, kuadranHlife, tautanGcal, terlambat } from '~/utils/hlife'
 import { KUADRAN_META, lencanaTugas } from '~/utils/status-hlife'
 import { angka, hariIni, tambahHari } from '~/utils/format'
 
@@ -31,23 +36,24 @@ const tasks = computed(() => tasksData.value.rows)
 const bisnis = computed(() => bizData.value.rows)
 const proyek = computed(() => projData.value.rows)
 
-type Tampilan = 'matrix' | 'today' | 'week' | 'biz'
+type Tampilan = 'matrix' | 'today' | 'week' | 'biz' | 'done'
 const tampilan = ref<Tampilan>('matrix')
-const filterBiz = ref('')
-const filterProyek = ref('')
+const filterBiz = ref(PILIHAN_SEMUA)
+const filterProyek = ref(PILIHAN_SEMUA)
 
 const TAMPILAN: { value: Tampilan, label: string }[] = [
   { value: 'matrix', label: 'Matrix' },
   { value: 'today', label: 'Today' },
   { value: 'week', label: 'Minggu ini' },
   { value: 'biz', label: 'Per bisnis' },
+  { value: 'done', label: 'Selesai' },
 ]
 
 const hari = hariIni()
 
 const tersaring = computed(() => tasks.value.filter(t =>
-  (!filterBiz.value || t.biz === filterBiz.value)
-  && (!filterProyek.value || t.project === filterProyek.value)))
+  (filterBiz.value === PILIHAN_SEMUA || t.biz === filterBiz.value)
+  && (filterProyek.value === PILIHAN_SEMUA || t.project === filterProyek.value)))
 
 interface Grup {
   judul: string
@@ -56,7 +62,7 @@ interface Grup {
   items: HlifeTask[]
 }
 
-/** All four sub-views flattened to groups, so one row markup serves them all. */
+/** All five sub-views flattened to groups, so one row markup serves them all. */
 const grup = computed<Grup[]>(() => {
   const dasar = tersaring.value
   if (tampilan.value === 'matrix') {
@@ -72,6 +78,9 @@ const grup = computed<Grup[]>(() => {
   if (tampilan.value === 'week') {
     return [{ judul: '7 hari ke depan', items: dasar.filter(t => t.due && t.due <= tambahHari(hari, 7) && !t.done).slice().sort((a, b) => (a.due < b.due ? -1 : 1)) }]
   }
+  if (tampilan.value === 'done') {
+    return [{ judul: 'Selesai', items: dasar.filter(t => t.done) }]
+  }
   const peta = new Map<string, HlifeTask[]>()
   dasar.filter(t => !t.done).forEach((t) => {
     const k = t.biz || 'Tanpa bisnis'
@@ -80,18 +89,18 @@ const grup = computed<Grup[]>(() => {
   return [...peta].map(([judul, items]) => ({ judul, items }))
 })
 
-const adaFilter = computed(() => !!(filterBiz.value || filterProyek.value))
+const adaFilter = computed(() => filterBiz.value !== PILIHAN_SEMUA || filterProyek.value !== PILIHAN_SEMUA)
 function resetFilter() {
-  filterBiz.value = ''
-  filterProyek.value = ''
+  filterBiz.value = PILIHAN_SEMUA
+  filterProyek.value = PILIHAN_SEMUA
 }
 
 const opsiBisnis = computed(() => [
-  { value: '', label: 'Semua bisnis' },
+  { value: PILIHAN_SEMUA, label: 'Semua bisnis' },
   ...bisnis.value.map(b => ({ value: b.name, label: b.name })),
 ])
 const opsiProyekFilter = computed(() => [
-  { value: '', label: 'Semua project' },
+  { value: PILIHAN_SEMUA, label: 'Semua project' },
   ...proyek.value.map(p => ({ value: p.id, label: p.name })),
 ])
 
@@ -114,13 +123,13 @@ const form = reactive({
 })
 
 const opsiBisnisForm = computed(() => [
-  { value: '', label: '— Tanpa bisnis —' },
+  { value: PILIHAN_TANPA, label: '— Tanpa bisnis —' },
   ...bisnis.value.map(b => ({ value: b.name, label: b.name })),
 ])
 
 /** `projOptions()` (`:848-851`). */
 const opsiProyekForm = computed(() => [
-  { value: '', label: '— Tanpa project —' },
+  { value: PILIHAN_TANPA, label: '— Tanpa project —' },
   ...proyek.value
     .filter(p => p.stage !== 'Done' || p.id === form.project)
     .map(p => ({ value: p.id, label: `${p.name}${p.stage === 'Done' ? ' · selesai' : ''}` })),
@@ -130,8 +139,8 @@ const metaForm = computed(() => KUADRAN_META[kuadranHlife({ important: form.impo
 
 function buka(t?: HlifeTask, prefill: { biz?: string, project?: string } = {}) {
   Object.assign(form, t
-    ? { id: t.id, name: t.name, desc: t.desc || '', biz: t.biz || '', project: t.project || '', owner: t.owner || '', due: t.due || '', est: t.est || 0, important: !!t.important, urgent: !!t.urgent }
-    : { id: '', name: '', desc: '', biz: prefill.biz || '', project: prefill.project || '', owner: '', due: '', est: 0, important: true, urgent: false })
+    ? { id: t.id, name: t.name, desc: t.desc || '', biz: t.biz || PILIHAN_TANPA, project: t.project || PILIHAN_TANPA, owner: t.owner || '', due: t.due || '', est: t.est || 0, important: !!t.important, urgent: !!t.urgent }
+    : { id: '', name: '', desc: '', biz: prefill.biz || PILIHAN_TANPA, project: prefill.project || PILIHAN_TANPA, owner: '', due: '', est: 0, important: true, urgent: false })
   sheet.value = true
 }
 
@@ -148,8 +157,8 @@ async function simpan() {
   const body = {
     name,
     desc: form.desc,
-    biz: form.biz,
-    project: form.project,
+    biz: form.biz === PILIHAN_TANPA ? '' : form.biz,
+    project: form.project === PILIHAN_TANPA ? '' : form.project,
     owner: form.owner,
     due: form.due,
     est: Number(form.est) || 0,
@@ -495,7 +504,7 @@ watch(tasks, (list) => {
     </template>
 
     <p
-      v-if="tampilan === 'today' || tampilan === 'week'"
+      v-if="tampilan === 'today' || tampilan === 'week' || tampilan === 'done'"
       class="text-xs text-muted"
     >
       {{ angka(tasks.length) }} task total · {{ angka(tasks.filter(t => t.done).length) }} selesai

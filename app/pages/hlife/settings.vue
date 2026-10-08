@@ -92,7 +92,7 @@ function eksporIcs() {
           />
           <UButton
             label="Export .ics"
-            icon="i-lucide-calendar-download"
+            icon="i-lucide-calendar-arrow-down"
             color="neutral"
             variant="outline"
             :disabled="status === 'pending' || !state"

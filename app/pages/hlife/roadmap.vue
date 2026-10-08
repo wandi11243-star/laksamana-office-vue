@@ -9,7 +9,7 @@ import {
   createHlifeRecord, deleteHlifeRecord, updateHlifeRecord,
   useHlifeResource,
 } from '~/composables/useHlife'
-import { DREAM_CAT, DREAM_STATUS, persenGoal, persenMilestone } from '~/utils/hlife'
+import { DREAM_CAT, DREAM_STATUS, PILIHAN_TANPA, persenGoal, persenMilestone } from '~/utils/hlife'
 import { lencanaMimpi } from '~/utils/status-hlife'
 
 definePageMeta({ access: ['howandi_life'] })
@@ -42,7 +42,7 @@ const grupMimpi = computed(() => Object.keys(DREAM_CAT).map(cat => ({
 })).filter(g => g.items.length))
 
 const opsiMilestone = computed(() => [
-  { value: '', label: '— Tidak terhubung —' },
+  { value: PILIHAN_TANPA, label: '— Tidak terhubung —' },
   ...roadmap.value.slice().sort((a, b) => a.year - b.year).map(r => ({ value: r.id, label: `${r.year} · ${r.title}` })),
 ])
 const opsiCat = Object.keys(DREAM_CAT).map(c => ({ value: c, label: DREAM_CAT[c]!.label }))
@@ -141,8 +141,8 @@ const formDream = reactive({ id: '', title: '', cat: 'Travel', status: 'Someday'
 
 function bukaDream(d?: HlifeDream) {
   Object.assign(formDream, d
-    ? { id: d.id, title: d.title, cat: d.cat || 'Travel', status: d.status || 'Someday', year: d.year != null ? String(d.year) : '', note: d.note || '', milestone: d.milestone || '' }
-    : { id: '', title: '', cat: 'Travel', status: 'Someday', year: '', note: '', milestone: '' })
+    ? { id: d.id, title: d.title, cat: d.cat || 'Travel', status: d.status || 'Someday', year: d.year != null ? String(d.year) : '', note: d.note || '', milestone: d.milestone || PILIHAN_TANPA }
+    : { id: '', title: '', cat: 'Travel', status: 'Someday', year: '', note: '', milestone: PILIHAN_TANPA })
   sheetDream.value = true
 }
 
@@ -154,7 +154,7 @@ async function simpanDream() {
   }
   const yr = String(formDream.year ?? '').trim()
   const year = yr ? (Number.isFinite(Number(yr)) ? Number(yr) : yr) : ''
-  const body = { title, cat: formDream.cat, status: formDream.status, year, note: formDream.note, milestone: formDream.milestone }
+  const body = { title, cat: formDream.cat, status: formDream.status, year, note: formDream.note, milestone: formDream.milestone === PILIHAN_TANPA ? '' : formDream.milestone }
   sibuk.value = true
   try {
     if (formDream.id) {
