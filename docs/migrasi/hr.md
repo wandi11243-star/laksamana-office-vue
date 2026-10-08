@@ -291,3 +291,34 @@ Catatan build:
 - **Dicek visual** 2026-10-07 lewat `mock-api-hr.mjs` (root workspace, port 4012, semua tulisan 403): 17 halaman di 1366px & 390px, overflow horizontal 0, console bersih; sebagai HRD dan sebagai kru (menu admin tersembunyi, halaman admin terkunci). Tema gelap tidak ada (mode terkunci terang).
 - `npm run lint && npm run typecheck && npm run build`: hijau 2026-10-07.
 - `LANJUTKAN DARI`: draft PR #12 (base `migrasi/jadwal` sampai PR #33 merge, lalu pindah `main`) + review owner.
+
+### Uji API lokal 2026-10-08 — seluruh layar + aksi tulis vs API lokal (Refs #12, branch `fix/api-hr`, dev :3000 → API lokal :8000, DB salinan lokal)
+17 layar HR diuji melawan `http://127.0.0.1:8000/api/v1` (network log, nol
+request ke dev-api). Akun: arfan (HRD/admin), jebe (pemegang `hr` bukan admin),
+Adit/yuza (tanpa `hr` → "Belum ada akses"). Semua layar 1366px & 390px,
+overflow 0, console bersih kecuali satu peringatan Vue di `USelect` (lihat bawah).
+
+Aksi tulis terverifikasi simpan + reload/API (residu dibersihkan): OKR
+buat → progres KR → hapus; KPI input aktual + kosongkan sel; review layer HRD
+(`by` = user sesi ✓); coaching buat (+hapus via API — UI hanya Sunting, sesuai
+legacy); training program → catat hasil (Lulus + `LM-CERT-2026-001` +
+poin otomatis 20) → bersih; competency tambah skill; suksesi validasi
+("Pilih kandidat dulu.") + buat (via API, dropdown tak terbuka otomatis) →
+hapus via UI; career track buat (+hapus via API); poin earn (+redeem path sama),
+badge EOM (+150 poin); pelanggaran catat; mood 1–5 + saran (anon didukung
+`empId null`) → respon; kru buat → profil (skor + "data kurang" <40 ✓) →
+hapus via API; kalender agenda buat → hapus via UI; pengaturan bobot simpan +
+kembalikan; input bulanan (nilai string apa adanya ✓); impor Talenta XLSX
+rakitan (bulan dari isi, cocok via `talentaId` saja, peringatan unmatched,
+`importedBy` = sesi) → hapus bulan via UI; rincian kehadiran; audit mencatat
+semua aksi (ATT_IMPORT/HAPUS, SETTINGS_SAVE, CAL_DEL, …). Konkurensi satu-rev
+terbukti: tulis UI dengan versi basi → 409 `version_conflict` (bukan bug).
+Gate server: jebe 403 di `PUT /settings/*` + `GET /audit`, boleh `POST /okrs`
+(sesuai kontrak); halaman admin terkunci di UI untuk non-admin. Impor/Reset
+tetap "Segera (G-13)" nonaktif. Temuan: (1) dropdown `USelect` (Kandidat,
+Kru di sheet poin/coaching, Pengganti) tidak terbuka via klik otomatis +
+peringatan Vue `Unhandled error … SelectTrigger` di console — perlu cek manual
+apakah juga terjadi untuk klik manusia; (2) tulis dengan versi basi
+ditolak 409 dan formulir tetap terbuka dengan toast — sudah benar.
+`npm run lint && npm run typecheck && npm run build` hijau 2026-10-08
+(tanpa perubahan kode).
