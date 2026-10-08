@@ -9,7 +9,8 @@
 -->
 <script setup lang="ts">
 import type { DetailAcara } from '~/composables/useEvent'
-import { EVT_STATUS, getDetail, getEvent, patchEvent, putDetail, removeEvent, TIMELINE_PHASES } from '~/composables/useEvent'
+import { getDetail, getEvent, patchEvent, putDetail, removeEvent } from '~/composables/useEvent'
+import { EVT_STATUS, TIMELINE_PHASES } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka, rupiah, tglPanjang } from '~/utils/format'

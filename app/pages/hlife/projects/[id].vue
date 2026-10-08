@@ -13,7 +13,8 @@ import {
   deleteHlifeRecord, updateHlifeRecord,
   useHlifeResource,
 } from '~/composables/useHlife'
-import { PILIHAN_TANPA, PRIORITIES, STAGES, fmtDue, persenProject, stageAktif, tautanGcal } from '~/utils/hlife'
+import { PRIORITIES, STAGES, fmtDue, persenProject, stageAktif, tautanGcal } from '~/utils/hlife'
+import { PILIHAN_TANPA } from '~/utils/bd-rumus'
 import { ikonStage, lencanaTugas } from '~/utils/status-hlife'
 import { hariIni } from '~/utils/format'
 

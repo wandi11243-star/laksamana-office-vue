@@ -9,7 +9,8 @@
 -->
 <script setup lang="ts">
 import type { JadwalTalent, Talent } from '~/composables/useEvent'
-import { bentrokJadwal, createEvent, feeAngka, patchEvent, removeEvent, TAL_CATS, useDaftarEvent } from '~/composables/useEvent'
+import { createEvent, patchEvent, removeEvent, useDaftarEvent } from '~/composables/useEvent'
+import { bentrokJadwal, feeAngka, TAL_CATS } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { hariIni, rupiah, tglPendek } from '~/utils/format'

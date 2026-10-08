@@ -9,7 +9,8 @@ import {
   createHlifeRecord, deleteHlifeRecord, updateHlifeRecord,
   useHlifeResource,
 } from '~/composables/useHlife'
-import { GOAL_AREAS, PILIHAN_TANPA, persenGoal } from '~/utils/hlife'
+import { GOAL_AREAS, persenGoal } from '~/utils/hlife'
+import { PILIHAN_TANPA } from '~/utils/bd-rumus'
 import { angka } from '~/utils/format'
 
 definePageMeta({ access: ['howandi_life'] })

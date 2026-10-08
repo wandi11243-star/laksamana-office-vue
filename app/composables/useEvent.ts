@@ -19,6 +19,7 @@
 
 import type { Versi } from '~/utils/versi'
 import { ifMatch } from '~/utils/versi'
+import { statusPengajuan } from '~/utils/event-hitung'
 
 /** The twelve record collections of `GET /state`. */
 export type ResourceEvent
@@ -26,10 +27,8 @@ export type ResourceEvent
     | 'ticket-classes' | 'seats' | 'orders' | 'tickets' | 'ideas' | 'refunds'
     | 'calendar-extra'
 
-/** EMS constants — single source in app/utils/event-hitung.ts (pure, tested).
- *  Re-exported here so pages keep importing from this composable. */
-export type { StatusEvent } from '~/utils/event-hitung'
-export { EVT_CATS, EVT_STATUS, EVT_STATUS_HASIL, FREQS, IDEA_CATS, TAL_CATS, TIMELINE_PHASES } from '~/utils/event-hitung'
+/** EMS constants live in app/utils/event-hitung.ts (pure, tested) — import
+ *  them from there, like stock pages import from app/utils/stock-*.ts. */
 
 /** Submission state of a plan (`statusPengajuan`, `:4687`). */
 export type StatusPengajuan = 'Belum diajukan' | 'Menunggu' | 'Disetujui' | 'Ditolak'
@@ -436,17 +435,5 @@ export function useLencanaEvent() {
 
 // ---------------------------------------------------------------- shared sums
 // Browser-side arithmetic lives in app/utils/event-hitung.ts (pure, no API,
-// no Vue — importable from plain node for tools/uji-event.mjs) and is
-// re-exported here so pages keep importing from this composable.
-export {
-  angkaEms,
-  bentrokJadwal,
-  feeAngka,
-  omzetPerBulan,
-  paxAcara,
-  ringkasPenjualan,
-  roiIde,
-  statusPengajuan,
-  tumpangTindih,
-  versiBarisEvent,
-} from '~/utils/event-hitung'
+// no Vue — importable from plain node for tools/uji-event.mjs). Pages import
+// it from there directly; only statusPengajuan is imported above for internal use.
