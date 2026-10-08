@@ -234,8 +234,8 @@ marketing, konten, desain, pengaturan, akses). Struktur yang dipakai L2/L3:
 | tren | pages/analytics/tren.vue | ✅ (L3) | GET /kompas/analytics | grafik Chart.js → AppBar; banding dua bulan bebas ikut |
 | event | pages/analytics/event.vue (+ utils/analytics-dampak.ts) | ✅ (L3) | GET /kompas/analytics + /event/state + /kompas/state (bd) | Open Bill via performa-bonus (impor) |
 | marketing | pages/analytics/marketing.vue | ✅ (L3) | GET /kompas/analytics + /marketing/state + /kompas/state (bd) | kategori = jenis acara Marketing |
-| konten | pages/analytics/konten.vue | ⬜ (L3) | GET /kompas/analytics + konten/state (malas) | ⚠️ E.7 |
-| desain | pages/analytics/desain.vue | ⬜ (L3) | GET /kompas/analytics + konten/state (malas) | ⚠️ E.7 |
+| konten | pages/analytics/konten.vue | ✅ (L3) | GET /kompas/analytics + /konten/state (malas) | rumus via performa-konten (impor); muat malas idle/muat/ok/galat + Coba lagi |
+| desain | pages/analytics/desain.vue | ✅ (L3) | GET /kompas/analytics + /konten/state (malas) | bulan & blob berbagi dengan konten; mode kategori milik halaman ini |
 | unggah | pages/analytics/unggah.vue | ✅ (+ parser promo/void L2) | GET+PUT /kompas/analytics | wadah promo/voidb terpisah, daftar kunci tertutup |
 | pengaturan | pages/analytics/pengaturan.vue | ⬜ (L3) | PUT /kompas/analytics | — |
 | akses | pages/analytics/akses.vue | ⬜ (L3) | PUT /kompas/analytics/access + account members | — |
