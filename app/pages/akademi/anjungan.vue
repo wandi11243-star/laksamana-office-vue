@@ -203,6 +203,9 @@ const kolomKuis: TableColumn<(typeof hasilKuis.value)[number]>[] = [
             <template #peserta-cell="{ row }">
               {{ row.original.peserta }}/{{ row.original.total }}
             </template>
+            <template #lulus-cell="{ row }">
+              {{ row.original.lulus }}
+            </template>
             <template #rata-cell="{ row }">
               {{ row.original.rata != null ? `${row.original.rata}%` : '—' }}
             </template>
