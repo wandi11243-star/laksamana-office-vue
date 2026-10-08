@@ -11,7 +11,7 @@
 import type { BdPerson, BdPo, BdProject } from '~/composables/useBd'
 import { bdSimpan, buatBd, hapusBd, ubahBd, versiBaris } from '~/composables/useBd'
 import {
-  OWNER_DIVS, PO_FLOW, inDays, opsiProject as opsiProjectBd, orangById, sisaHari,
+  OWNER_DIVS, PILIHAN_TANPA, PO_FLOW, inDays, opsiProject as opsiProjectBd, orangById, sisaHari,
 } from '~/utils/bd-rumus'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import { fTgl } from '~/utils/format'
@@ -208,10 +208,10 @@ async function hapus() {
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField label="Project">
           <USelect
-            :model-value="f.project ?? undefined"
+            :model-value="f.project ?? PILIHAN_TANPA"
             :items="opsiProject"
             class="w-full"
-            @update:model-value="(v: string | undefined) => { f.project = v || null }"
+            @update:model-value="(v: string | undefined) => { f.project = !v || v === PILIHAN_TANPA ? null : v }"
           />
         </UFormField>
         <UFormField label="Catatan">

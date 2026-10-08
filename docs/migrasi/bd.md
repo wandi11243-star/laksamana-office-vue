@@ -355,6 +355,27 @@ LANJUTKAN DARI: —
 Status layar: **dibangun, belum dicek visual** — ✅ di kolom status berarti halamannya
 sudah dibangun, **bukan** sudah dirender/dicek di browser (1366px/390px, tugas manusia).
 
+### Cek visual 2026-10-08 (Refs #19, branch `fix/visual-bd`, mock read-only :4014 → dev :3014)
+11/11 layar dibuka 1366px & 390px sebagai admin modul (Risa, `tok-admin`):
+overflow 0 di semua lebar, console tanpa error. Semua sheet form dibuka
+(task, project, koordinasi, routine, promo, agenda, request order, kru):
+tidak ada crash. Kolom tabel, kartu stat, dan posisi tombol sama dengan Office
+lama; saran master vendor tetap teks bebas ("Segera" G-02, sesuai spek).
+Perbaikan di branch ini:
+- 4 layar crash saat dibuka ("SelectItem value tidak boleh string kosong"):
+  filter divisi/project/tipe/status di `tasks.vue`, `projects.vue`,
+  `calendar.vue`, `promo.vue`, `purchasing/index.vue` memakai sentinel
+  `PILIHAN_SEMUA` (baru di `app/utils/bd-rumus.ts`), perbandingan filter
+  disesuaikan.
+- Pilihan "tanpa project / belum diatur / tanpa atasan" di `opsiProject()`
+  (`bd-rumus.ts`) dan `BdOrangSheet.vue` memakai `PILIHAN_TANPA`, dipetakan
+  kembali ke `null`/`''` saat simpan; 4 sheet (`BdTaskSheet`,
+  `BdCoordSheet`, `BdPoSheet`, `BdRequestSheet`) tadinya akan crash saat dibuka.
+- `projects/[id].vue` tidak pernah tampil (kasus yang sama dengan hlife:
+  Nuxt menyarangkan `[id]` di bawah `projects.vue` tanpa `<NuxtPage/>`):
+  induk kini merender `<NuxtPage/>` dan menyembunyikan daftar saat rute anak aktif.
+`npm run lint && npm run typecheck && npm run build` hijau 2026-10-08.
+
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
 | dashboard | `app/pages/bd/dashboard.vue` | ✅ | `GET /bd/state`, `GET/PUT /bd/settings/focus` | — |

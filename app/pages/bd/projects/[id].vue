@@ -79,6 +79,22 @@ async function hapusTask() {
   taskHapus.value = null
   await bdSimpan(() => hapusBd('tasks', t.id, versiBaris(t)), 'Task dihapus')
 }
+// Hapus project: sama seperti legacy `hapusProj` (deploy/bd/index.html:2064) —
+// task/PO/koordinasi hanya dilepas tautannya, tidak ikut terhapus.
+const hapusProjectMau = ref(false)
+async function hapusProject() {
+  const pr = p.value
+  if (!pr) return
+  hapusProjectMau.value = false
+  const aksi = async () => {
+    for (const t of state.value.tasks.filter(x => x.project === pr.id)) await tambalBd<BdTask>('tasks', t.id, { project: null }, versiBaris(t))
+    for (const o of state.value.po.filter(x => x.project === pr.id)) await tambalBd<BdPo>('purchase-orders', o.id, { project: null }, versiBaris(o))
+    for (const c of state.value.coord.filter(x => x.project === pr.id)) await tambalBd<BdCoord>('coord-requests', c.id, { project: null }, versiBaris(c))
+    await hapusBd('projects', pr.id, versiBaris(pr))
+  }
+  const ok = await bdSimpan(aksi, 'Project dihapus')
+  if (ok) await navigateTo('/bd/projects')
+}
 function bukaCoordSheet(c: BdCoord) {
   coordPilih.value = c
   bukaCoord.value = true
@@ -109,6 +125,14 @@ function bukaPoSheet(o: BdPo) {
         label="Task"
         icon="i-lucide-plus"
         @click="bukaTaskBaru"
+      />
+      <UButton
+        v-if="p"
+        label="Hapus"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="outline"
+        @click="hapusProjectMau = true"
       />
     </template>
 
@@ -359,6 +383,12 @@ function bukaPoSheet(o: BdPo) {
         title="Hapus task ini?"
         description="Semua kru ikut kehilangan datanya."
         @konfirmasi="hapusTask"
+      />
+      <BdKonfirmasi
+        v-model:open="hapusProjectMau"
+        title="Hapus project ini?"
+        description="Task-nya TIDAK ikut terhapus — hanya dilepas dari project. Koordinasi dan PO terkait juga dilepas."
+        @konfirmasi="hapusProject"
       />
     </template>
   </AppPage>

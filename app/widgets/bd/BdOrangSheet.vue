@@ -6,7 +6,7 @@
 <script setup lang="ts">
 import type { BdPerson } from '~/composables/useBd'
 import { bdSimpan, tambalBd, versiBaris } from '~/composables/useBd'
-import { OWNER_DIVS } from '~/utils/bd-rumus'
+import { OWNER_DIVS, PILIHAN_TANPA } from '~/utils/bd-rumus'
 
 const props = defineProps<{
   orang?: BdPerson | null
@@ -15,18 +15,18 @@ const props = defineProps<{
 const open = defineModel<boolean>('open', { default: false })
 const toast = useToast()
 
-const f = reactive({ role: '', div: '', boss: '' })
+const f = reactive({ role: '', div: PILIHAN_TANPA, boss: PILIHAN_TANPA })
 
 watch(open, (o) => {
   if (!o || !props.orang) return
   f.role = props.orang.role || ''
-  f.div = props.orang.div || ''
-  f.boss = props.orang.boss || ''
+  f.div = props.orang.div || PILIHAN_TANPA
+  f.boss = props.orang.boss || PILIHAN_TANPA
 })
 
-const opsiDiv = [{ value: '', label: '— belum diatur —' }, ...OWNER_DIVS.map(d => ({ value: d, label: d }))]
+const opsiDiv = [{ value: PILIHAN_TANPA, label: '— belum diatur —' }, ...OWNER_DIVS.map(d => ({ value: d, label: d }))]
 const opsiBoss = computed(() => [
-  { value: '', label: '— tidak ada (puncak) —' },
+  { value: PILIHAN_TANPA, label: '— tidak ada (puncak) —' },
   ...props.people.filter(p => p.id !== props.orang?.id).map(p => ({ value: p.id, label: p.name })),
 ])
 
@@ -43,11 +43,15 @@ function melingkar(orangId: string, bossId: string): boolean {
 async function simpan() {
   const orang = props.orang
   if (!orang) return
-  if (f.boss && melingkar(orang.id, f.boss)) {
+  if (f.boss !== PILIHAN_TANPA && melingkar(orang.id, f.boss)) {
     toast.add({ title: 'Atasan melingkar — orang ini sudah jadi atasan dari kru tersebut.', color: 'error' })
     return
   }
-  const body: Partial<BdPerson> = { role: f.role.trim(), div: f.div, boss: f.boss }
+  const body: Partial<BdPerson> = {
+    role: f.role.trim(),
+    div: f.div === PILIHAN_TANPA ? '' : f.div,
+    boss: f.boss === PILIHAN_TANPA ? '' : f.boss,
+  }
   const ok = await bdSimpan(() => tambalBd<BdPerson>('people', orang.id, body, versiBaris(orang)), 'Data kru diperbarui')
   if (ok) open.value = false
 }

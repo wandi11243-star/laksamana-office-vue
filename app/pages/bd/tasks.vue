@@ -4,11 +4,17 @@
   Four views of the same work: the Eisenhower Matrix, today & overdue, the next
   seven days, and per division. The quadrant is DERIVED from important+urgent;
   dragging a card only flips those two switches, never stores a quadrant.
+
+  The fifth mode (Selesai) is NOT in the old app: there a done task only
+  resurfaces in the project detail, so a done task without a project cannot be
+  un-done or deleted from the UI. The mode reuses BdTaskRow, whose
+  "Tandai belum selesai" toggle and delete button otherwise never receive a
+  done task.
 -->
 <script setup lang="ts">
 import type { BdTask } from '~/composables/useBd'
 import { bdSimpan, bdTulisDiam, hapusBd, tambalBd, useBdState, versiBaris } from '~/composables/useBd'
-import { OWNER_DIVS, TASK_TIPE, cariAku, lewat, lingkupIds, pics, saringLingkup, selesai, sisaHari, todayISO } from '~/utils/bd-rumus'
+import { OWNER_DIVS, PILIHAN_SEMUA, TASK_TIPE, cariAku, lewat, lingkupIds, pics, saringLingkup, selesai, sisaHari, todayISO } from '~/utils/bd-rumus'
 import { WARNA_KUADRAN } from '~/utils/status-bd'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdPicFilter from '~/widgets/bd/BdPicFilter.vue'
@@ -20,7 +26,7 @@ definePageMeta({ access: ['bd'] })
 const me = useMe()
 const { data: state } = useBdState()
 const fPics = useState<string[]>('bd-fPics', () => [])
-const f = useState('bd-task-filter', () => ({ mode: 'matrix', div: '', proj: '', type: '', scope: 'tim' }))
+const f = useState('bd-task-filter', () => ({ mode: 'matrix', div: PILIHAN_SEMUA, proj: PILIHAN_SEMUA, type: PILIHAN_SEMUA, scope: 'tim' }))
 
 const people = computed(() => state.value.people)
 const projects = computed(() => state.value.projects)
@@ -30,7 +36,7 @@ const lingkup = computed(() => lingkupIds(people.value, aku.value?.id, isAdminOf
 const cocokPic = (o: { pics?: string[], pic?: string }) => !fPics.value.length || pics(o).some(id => fPics.value.includes(id))
 const base = computed(() => saringLingkup(state.value.tasks, f.value.scope, lingkup.value, aku.value?.id)
   .filter(cocokPic)
-  .filter(t => (!f.value.div || t.div === f.value.div) && (!f.value.proj || t.project === f.value.proj) && (!f.value.type || t.type === f.value.type)))
+  .filter(t => (f.value.div === PILIHAN_SEMUA || t.div === f.value.div) && (f.value.proj === PILIHAN_SEMUA || t.project === f.value.proj) && (f.value.type === PILIHAN_SEMUA || t.type === f.value.type)))
 
 const namaProject = (id?: string | null) => projects.value.find(p => p.id === id)?.name
 const skop = [
@@ -43,10 +49,11 @@ const mode = [
   { value: 'today', label: 'Hari ini', icon: 'i-lucide-sun' },
   { value: 'week', label: 'Minggu ini', icon: 'i-lucide-calendar-days' },
   { value: 'div', label: 'Per divisi', icon: 'i-lucide-layers' },
+  { value: 'done', label: 'Selesai', icon: 'i-lucide-check' },
 ]
-const opsiProject = computed(() => [{ value: '', label: 'Semua project' }, ...projects.value.map(p => ({ value: p.id, label: p.name }))])
-const opsiDiv = [{ value: '', label: 'Semua divisi' }, ...OWNER_DIVS.map(d => ({ value: d, label: d }))]
-const opsiType = [{ value: '', label: 'Semua tipe' }, ...TASK_TIPE.map(t => ({ value: t, label: t }))]
+const opsiProject = computed(() => [{ value: PILIHAN_SEMUA, label: 'Semua project' }, ...projects.value.map(p => ({ value: p.id, label: p.name }))])
+const opsiDiv = [{ value: PILIHAN_SEMUA, label: 'Semua divisi' }, ...OWNER_DIVS.map(d => ({ value: d, label: d }))]
+const opsiType = [{ value: PILIHAN_SEMUA, label: 'Semua tipe' }, ...TASK_TIPE.map(t => ({ value: t, label: t }))]
 
 const kuadranKotak = [
   { imp: true, urg: true, k: 'do', l: 'DO', d: 'Penting + Mendesak' },
@@ -66,11 +73,12 @@ const minggu = computed(() => base.value.filter(t => !selesai(t) && t.deadline &
 const perDiv = computed(() => OWNER_DIVS
   .map(d => ({ div: d, items: base.value.filter(t => !selesai(t) && t.div === d) }))
   .filter(g => g.items.length))
+const sudahSelesai = computed(() => base.value.filter(selesai))
 
-const resetAktif = computed(() => fPics.value.length || f.value.div || f.value.proj || f.value.type || f.value.scope !== 'tim')
+const resetAktif = computed(() => fPics.value.length || f.value.div !== PILIHAN_SEMUA || f.value.proj !== PILIHAN_SEMUA || f.value.type !== PILIHAN_SEMUA || f.value.scope !== 'tim')
 function reset() {
   fPics.value = []
-  f.value = { ...f.value, div: '', proj: '', type: '', scope: 'tim' }
+  f.value = { ...f.value, div: PILIHAN_SEMUA, proj: PILIHAN_SEMUA, type: PILIHAN_SEMUA, scope: 'tim' }
 }
 
 // ---- sheet & row actions ----
@@ -286,6 +294,32 @@ function dropKotak(imp: boolean, urg: boolean) {
           class="py-6 text-center text-sm text-muted"
         >
           <b class="block text-highlighted">Tidak ada task</b>
+        </p>
+      </div>
+    </AppPanel>
+
+    <AppPanel
+      v-else-if="f.mode === 'done'"
+      title="Selesai"
+      icon="i-lucide-check"
+      :count="sudahSelesai.length"
+    >
+      <div class="divide-y divide-default">
+        <BdTaskRow
+          v-for="t in sudahSelesai"
+          :key="t.id"
+          :task="t"
+          :people="people"
+          :project-name="namaProject(t.project)"
+          @buka="buka(t)"
+          @toggle="toggle(t)"
+          @hapus="taskHapus = t"
+        />
+        <p
+          v-if="!sudahSelesai.length"
+          class="py-6 text-center text-sm text-muted"
+        >
+          <b class="block text-highlighted">Belum ada task selesai</b>
         </p>
       </div>
     </AppPanel>

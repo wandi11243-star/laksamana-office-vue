@@ -11,7 +11,7 @@
 import type { BdAgenda, BdTask } from '~/composables/useBd'
 import { bdTulisDiam, tambalBd, useBdState, versiBaris } from '~/composables/useBd'
 import {
-  OWNER_DIVS, cariAku, isoOf, lingkupIds, pics, poBeres, saringLingkup, selesai, todayISO,
+  OWNER_DIVS, PILIHAN_SEMUA, cariAku, isoOf, lingkupIds, pics, poBeres, saringLingkup, selesai, todayISO,
 } from '~/utils/bd-rumus'
 import BdAgendaSheet from '~/widgets/bd/BdAgendaSheet.vue'
 import BdPicFilter from '~/widgets/bd/BdPicFilter.vue'
@@ -22,7 +22,7 @@ definePageMeta({ access: ['bd'] })
 const me = useMe()
 const { data: state } = useBdState()
 const fPics = useState<string[]>('bd-fPics', () => [])
-const f = useState('bd-proj-filter', () => ({ scope: 'tim', div: '' }))
+const f = useState('bd-proj-filter', () => ({ scope: 'tim', div: PILIHAN_SEMUA }))
 
 const people = computed(() => state.value.people)
 const aku = computed(() => cariAku(people.value, me.value))
@@ -34,14 +34,14 @@ interface CalItem { date: string, title: string, jenis: string, tone: 'error' | 
 const items = computed<CalItem[]>(() => {
   const out: CalItem[] = []
   saringLingkup(state.value.tasks, f.value.scope, lingkup.value, aku.value?.id).filter(cocokPic)
-    .filter(t => (!f.value.div || t.div === f.value.div) && t.deadline && !selesai(t))
+    .filter(t => (f.value.div === PILIHAN_SEMUA || t.div === f.value.div) && t.deadline && !selesai(t))
     .forEach(t => out.push({ date: t.deadline, title: t.name, jenis: 'Deadline', tone: 'error', id: t.id, geser: true }))
   saringLingkup(state.value.projects, f.value.scope, lingkup.value, aku.value?.id).filter(cocokPic)
-    .filter(p => !f.value.div || p.div === f.value.div)
+    .filter(p => f.value.div === PILIHAN_SEMUA || p.div === f.value.div)
     .forEach(p => (p.milestones || []).forEach((ms) => {
       if (ms.date) out.push({ date: ms.date, title: `${ms.t} (${p.name})`, jenis: 'Milestone', tone: 'vip' })
     }))
-  state.value.po.filter(o => !poBeres(o) && o.needBy && (!f.value.div || o.div === f.value.div) && (!fPics.value.length || fPics.value.includes(o.pic)))
+  state.value.po.filter(o => !poBeres(o) && o.needBy && (f.value.div === PILIHAN_SEMUA || o.div === f.value.div) && (!fPics.value.length || fPics.value.includes(o.pic)))
     .forEach(o => out.push({ date: o.needBy, title: `PO: ${o.item}`, jenis: 'PO', tone: 'info' }))
   state.value.coord.filter(c => c.status !== 'Selesai' && c.due)
     .forEach(c => out.push({ date: c.due, title: `Koord: ${c.title}`, jenis: 'Koordinasi', tone: 'warning' }))
@@ -86,11 +86,11 @@ const skop = [
   { value: 'saya', label: 'Ditugaskan ke saya' },
   { value: 'semua', label: 'Semua' },
 ]
-const opsiDiv = [{ value: '', label: 'Semua divisi' }, ...OWNER_DIVS.map(d => ({ value: d, label: d }))]
-const resetAktif = computed(() => fPics.value.length || f.value.div || f.value.scope !== 'tim')
+const opsiDiv = [{ value: PILIHAN_SEMUA, label: 'Semua divisi' }, ...OWNER_DIVS.map(d => ({ value: d, label: d }))]
+const resetAktif = computed(() => fPics.value.length || f.value.div !== PILIHAN_SEMUA || f.value.scope !== 'tim')
 function reset() {
   fPics.value = []
-  f.value = { ...f.value, div: '', scope: 'tim' }
+  f.value = { ...f.value, div: PILIHAN_SEMUA, scope: 'tim' }
 }
 
 // ---- agenda sheet & task drag ----
