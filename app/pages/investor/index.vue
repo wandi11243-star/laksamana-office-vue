@@ -169,14 +169,20 @@ const sorotan = computed(() => {
         >
           <span
             v-if="delta !== null"
-            class="font-semibold"
+            class="block font-semibold"
             :class="delta >= 0 ? 'text-success' : 'text-error'"
           >
             {{ delta >= 0 ? '▲' : '▼' }} {{ Math.abs(delta).toFixed(1).replace('.', ',') }}%
             <span class="font-normal text-muted">rata-rata/hari vs {{ blnPanjang(bl?.kunci) }}</span>
           </span>
-          <span v-if="target > 0">{{ pctTarget }}% dari target {{ rupiah(target) }}</span>
-          <span v-else>Target bulanan belum disetel</span>
+          <span
+            v-if="target > 0"
+            class="block"
+          >{{ pctTarget }}% dari target {{ rupiah(target) }}</span>
+          <span
+            v-else
+            class="block"
+          >Target bulanan belum disetel</span>
           <span
             v-if="ket"
             class="block"
