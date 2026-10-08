@@ -226,7 +226,7 @@ marketing, konten, desain, pengaturan, akses). Struktur yang dipakai L2/L3:
 | menu | pages/analytics/menu.vue | ✅ (L2) | GET /kompas/analytics | ⚠️ E.6: taksiran bahan & daftar resep menunggu Stock/HPP |
 | kategori | pages/analytics/kategori.vue | ✅ (L2) | GET /kompas/analytics | banding dua bulan → L3 (bersama tren) |
 | kunjungan | pages/analytics/kunjungan.vue | ✅ (L2) | GET /kompas/analytics | rincian DINE IN → L3 (Breakdown Sumber) |
-| meja | pages/analytics/meja.vue | ⬜ (L2) | GET /kompas/analytics (+ venue-layouts) | — |
+| meja | pages/analytics/meja.vue | ✅ (L2) | GET /kompas/analytics (+ venue-layouts) | kapasitas via ~/utils/venue-layouts (impor, bukan salinan) |
 | talent | pages/analytics/talent.vue | ⬜ (L2) | GET /kompas/analytics | — |
 | error | pages/analytics/error.vue | ⬜ (L2) | GET /kompas/analytics | — |
 | voidb | pages/analytics/voidb.vue | ⬜ (L2) | GET /kompas/voids | — |
