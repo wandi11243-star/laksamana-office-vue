@@ -201,6 +201,13 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
   // ── analytics ──
 
   // ── investor ──
+  investor: {
+    subjudul: 'Investor Compass',
+    layar: LAYAR_INVESTOR,
+    // The old footer showed the name with "Akun Office" underneath
+    // (investor/index.html: invStake).
+    peran: () => 'Akun Office',
+  },
 }
 
 /** The module the current route belongs to, when it has its own chrome. */
