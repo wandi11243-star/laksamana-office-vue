@@ -373,8 +373,8 @@ Kode error yang wajib ditangani UI: `already_exists` (409 saat POST id duplikat)
 ```
 
 ## J. Progres build
-Issue: #16, dipecah #58–#63 · Branch saat ini: `migrasi/marketing-inti` (#58, PR #64) · Mulai: 2026-10-07
-LANJUTKAN DARI: #59 — detail event (4 tab, D.1–D.11), finance & Catat Pembayaran, Surat Penawaran, brief. #58 selesai.
+Issue: #16, dipecah #58–#63 · Branch saat ini: `migrasi/marketing-event` (#59, PR #81) · Mulai: 2026-10-07
+LANJUTKAN DARI: #60 — invoice, approval, reporting, notifikasi, timeline. #59 selesai (#58 merge PR #64).
 
 | layar (key) | file | status | endpoint dipakai | sub-issue |
 |---|---|---|---|---|
@@ -382,8 +382,8 @@ LANJUTKAN DARI: #59 — detail event (4 tab, D.1–D.11), finance & Catat Pembay
 | crm | `app/pages/marketing/crm.vue` (+ `MarketingClientForm`, `MarketingClientDetail`, `MarketingFollowUp`) | ✅ | `POST/PATCH/DELETE /marketing/clients`, `DELETE /marketing/followups/{id}`, `POST /marketing/followups`, `PATCH /marketing/events/{id}`, `POST /marketing/activities` | #58 — ekspor/impor CSV sama kolom & aturan; hapus ditolak bila masih memegang event |
 | pipeline (+ events) | `app/pages/marketing/pipeline.vue` (+ `MarketingEventBaru`) | ✅ | `POST /marketing/events` (+ `POST /clients` isi cepat), `PATCH /marketing/events/{id}` (tahap) | #58 — (koreksi build) seret kartu kini butuh `edit_event`; lama tidak memeriksa izin. HP: kolom ditumpuk + "Pindah tahap". "Ajukan Revisi" & tombol Internal/Client/Draft = Segera (#59) |
 | calendar | `app/pages/marketing/calendar.vue` | ✅ | `GET /marketing/state`, `GET /event/events?from&to`, `GET /reservasi/reservations?from&to` | #58 — (koreksi build) tanggal acara EMS = tanggal lokal `start_datetime`; lama memotong string UTC |
-| event (detail) | `app/pages/marketing/event/[id].vue` | 🟡 | `GET /marketing/state` | #58 halaman sementara (ringkasan + uang + Catat FU); form detailing penuh #59 |
-| brief | — | ⬜ | | #59 |
+| event (detail) | `app/pages/marketing/event/[id].vue` (+ `MarketingEventForm`, `MarketingFinanceEvent`, `MarketingBayarSheet`→dalam Finance, `MarketingPenawaran`, `MarketingMejaKunci`, `MarketingBarisTabel`, `app/utils/marketing-event.ts`) | ✅ | `GET /marketing/state`, `PATCH /marketing/events/{id}` (If-Match), `POST /marketing/files`, `POST /marketing/files/chunks`, `PUT /marketing/documents/settings` (kwSeq), `POST /marketing/notifications`, `GET/POST/PUT/DELETE /reservasi/reservations` (kunci `ev-<id>`), `DELETE /marketing/events/{id}` | #59 — form bertab 1/2/3/4 atas EVENT_SCHEMA D.1–D.11 + visibilitas div/fin; Finance: Rincian + Sisipkan FREE & TBC, ketentuan, centang DP (sinkron baris, bukti wajib), riwayat + Catat Pembayaran (default sisa DP → sisa), kwitansi `KW/…` dari kwSeq, pratinjau + cetak, Kirim Invoice / Reminder DP via WA; Penawaran: PDF 40MB chunks, approval, kirim (tahap → Quotation Terkirim), revisi (→ Prospect + Negosiasi Lanjutan), Konfirmasi Deal; hapus ketik-nama + lepas kunci dulu; brief tersembunyi Internal/Client/Draft + cetak |
+| brief | `app/pages/marketing/brief/index.vue` | ✅ | `GET /marketing/state` | #59 — tabel + tombol Internal/Client/Draft per baris; mode quote = template negosiasi, bukan surat resmi; PDF unggahan sendiri dibuka bila ada |
 | invoices | — | ⬜ | | #60 |
 | approvals | — | ⬜ | | #60 |
 | reports | — | ⬜ | | #60 |
@@ -402,6 +402,11 @@ LANJUTKAN DARI: #59 — detail event (4 tab, D.1–D.11), finance & Catat Pembay
 
 Catatan build:
 - Fondasi #58: `app/utils/marketing.ts` (konstanta, tipe, matriks izin `ACTION_VIEW`/`legacyEditRules`/`roleAcc`/`u.acc`, pipeline, CRM & CSV, mesin tabel), `app/utils/marketing-uang.ts` (port apa adanya `eventFinance`, `eventFbCost`, `rinciTotalBayar`, `rincianPenawaran`, `invStatus`, `pendapatanPerBulan`, `papanClosing`), `app/utils/status-marketing.ts`, `app/composables/useMarketing.ts` (satu `GET /state` bersama, CRUD per record dengan If-Match = `updatedAt`; tab DP Event tetap di sini), `app/utils/layar/marketing.ts`, entri shell. Uji: `node tools/uji-marketing.mjs` (55 cek; 13 mutasi tertangkap).
+- Fondasi #59: `app/utils/marketing-event.ts` (EVENT_SCHEMA D.1–D.11, tab, visibilitas div/fin, `sinkronDpMkt`, `bawaanBayarMkt`, `sisaSesudahMkt`, `noKwitansiMkt`, `bayarBaruSahMkt`, `noSuratBaruMkt`, `ringkasHapusMkt`, `kunciTanggalSalahMkt`, `selesaiRundownMkt`, `ringkasNilaiMkt`, teks WA, `buildBriefDocMkt`). Uji: `node tools/uji-marketing-event.mjs` (28 cek; 1 mutasi tertangkap).
+- #59 menambah ke `useMarketing.ts` (tanpa mengubah pola lama): `unggahBerkasMkt` (`POST /files`), `unggahChunkMkt` + `unggahBertahapMkt` (`POST /files/chunks` ~2MB), `urlBerkasMkt` (`GET /files/{key}`), `getDokumenMkt`/`simpanDokumenMkt`/`versiDokumenMkt` (`PUT /documents/settings` untuk kwSeq), `resIdKunciMkt` + `lepasKunciMejaMkt` (baris `ev-<id>` di Reservasi, 404 = sudah bebas); tipe `PenawaranMkt` + `receiptUrl/verified/by/dariDpForm` di `PembayaranMkt`.
+- Kunci meja di D.1: daftar meja dari `GET /reservasi/master/tables` + hunian hari itu dari `GET /reservasi/reservations?from&to`; tulis `POST` (baru) / `PUT` (ada) baris `ev-<id>`; gagal = toast + tidak ada yang berubah (seperti "Reservasi tidak terjangkau" di lama). Kunci pindah tanggal tanpa kunci ulang = peringatan merah (tidak dipindah otomatis, seperti lama).
+- Bukti DP & pembayaran diunggah SEGERA saat berkas dipilih (pola `dpBuktiPilih` lama); berkas yatim dibuang server 7 hari bila tab tidak disimpan.
+- Nomor kwitansi dari `kwSeq` settings: nomor dipakai saat baris lahir, `kwSeq` dinaikkan lewat `PUT /documents/settings`; gagal menaikkan tidak menggagalkan simpan (cek duplikat di cutover K).
 - `normalizeState` lama dijalankan di memori saat membaca (`normEventMkt`, `normRoleAccMkt`, `staff` → `users`): event yang belum pernah disimpan ulang sejak migrasi lama tetap memberi Grand Total yang sama dengan Office lama. Server tidak disentuh sampai baris itu disimpan.
 - `autoCloseEvents` (Deal/Confirmed H+2 → Event Done) dijalankan sekali per sesi saat modul dibuka, satu PATCH berversi per event; penolakan diam seperti simpan latar lama.
 - Identitas: baris `users` dengan id Office lalu nama; belum ada → `marketing` di memori. Admin modul Office = Super Admin (seperti hasil sinkron roster lama). Sinkron roster → `POST /users` ikut Pegawai & Akses (#63).
@@ -420,3 +425,8 @@ Uji silang Vue ↔ Office lama pada data yang sama (dev). Bagian #58:
 - [ ] **event baru** — Pengakuan Omset kosong ditolak SEBELUM client cepat dibuat; client cepat masuk CRM sebagai Lead; PIC mengikuti aturan marketing/non-marketing.
 - [ ] **kalender** — event lintas hari di semua harinya, saringan status (bawaan tanpa Lost), pax bulan ini, pita EMS & Reservasi; tanpa modul Event/Reservasi muncul peringatan + Coba lagi, event Marketing tetap tergambar.
 - [ ] **akses** — role operational/finance/manager/marketing melihat menu sama dengan lama; override per orang berlaku; konflik versi (dua tab) memunculkan "Data sudah diubah orang lain".
+- [ ] **detail** — tiap tab menyimpan D.1–D.11 dengan kolom & validasi wajib yang sama; seksi divisi yang tak berhak tidak tampil; operasional tidak melihat Finance & Overview-uang; progres isi/total per seksi; Simpan & Lanjut pindah ke Operasional.
+- [ ] **finance** — Rincian + Sisipkan FREE & TBC, Discount/service/pajak, DP nominal + rekening + tanggal + bukti + centang (melahirkan 1 baris, Simpan kedua tidak menumpuk), Catat Pembayaran (default sisa DP → sisa; bukti wajib untuk baru, lama ditanya sekali), kwitansi `KW/…` berurut tanpa ganda, Kirim Invoice (invoiceSent → Sent) & Reminder DP (hanya bila ber-DP & kurang) membuka WA yang benar, pratinjau + cetak angkanya sama dengan Office lama.
+- [ ] **penawaran** — PDF ≤40MB terunggah bertahap & terbaca; alur Draft → Menunggu Approval → Disetujui/Ditolak → Terkirim (tahap → Quotation Terkirim); kirim tanpa persetujuan ditolak; revisi (alasan wajib) → Prospect + antrian Negosiasi Lanjutan + riwayat putaran; Konfirmasi Deal membuat task divisi; nomor surat `NNN/PNW/LM/Romawi/Tahun` berurut.
+- [ ] **brief** — tabel + pencarian sama; Internal/Client/Draft membuka dokumen yang benar; client tidak memuat internalNote/highlight; quote menyebut bukan surat resmi; cetak rapi satu halaman.
+- [ ] **kunci & hapus** — kunci meja di D.1 tercatat sebagai baris `ev-<id>` di Reservasi & terlihat di sana; pindah tanggal memunculkan peringatan; Lepas Kunci membebaskan; hapus butuh ketik nama persis, melepas kunci dulu, gagal lepas dilaporkan + hapus manual; hapus event yang sudah terbayar diperingatkan dengan nomor kwitansi & totalnya.
