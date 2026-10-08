@@ -13,7 +13,7 @@ import {
   versiBaris, versiSetelan,
 } from '~/composables/useBd'
 import {
-  PENYETUJU_BIBIT, PO_FLOW, awalMinggu, cariAku, fieldsProses, fRp, fRpPenuh, geserMinggu,
+  PENYETUJU_BIBIT, PILIHAN_SEMUA, PO_FLOW, awalMinggu, cariAku, fieldsProses, fRp, fRpPenuh, geserMinggu,
   jabatanOrang, labelMinggu, poBeres, poRequester, prBeres, prItems, prNoBerikut, prTotal,
   penyetujuPr, todayISO, uidBd,
 } from '~/utils/bd-rumus'
@@ -32,7 +32,7 @@ const { data: state } = useBdState()
 const { data: setelan } = useBdSettings()
 
 const poMode = useState('bd-po-mode', () => 'pr')
-const poFilter = useState('bd-po-filter', () => '')
+const poFilter = useState('bd-po-filter', () => PILIHAN_SEMUA)
 const poMinggu = ref(0)
 const prArsip = ref(false)
 
@@ -196,8 +196,8 @@ const enamMinggu = computed(() => {
   return out
 })
 
-const daftarFilter = computed(() => (poFilter.value ? semuaPo.value.filter(p => p.status === poFilter.value) : semuaPo.value))
-const opsiStatus = [{ value: '', label: 'Semua status' }, ...PO_FLOW.map(s => ({ value: s, label: s }))]
+const daftarFilter = computed(() => (poFilter.value === PILIHAN_SEMUA ? semuaPo.value : semuaPo.value.filter(p => p.status === poFilter.value)))
+const opsiStatus = [{ value: PILIHAN_SEMUA, label: 'Semua status' }, ...PO_FLOW.map(s => ({ value: s, label: s }))]
 
 // ---- signers ----
 async function simpanSet(daftar: BdApproverSet[], pesan: string) {

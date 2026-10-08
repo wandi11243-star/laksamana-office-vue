@@ -28,6 +28,15 @@ export const PROJ_HEALTH = ['on-track', 'at-risk', 'off-track']
 export const COORD_FLOW = ['Diminta', 'Diproses', 'Review', 'Selesai']
 /** `PO_FLOW`. */
 export const PO_FLOW = ['Draft', 'Diajukan', 'Approved', 'Dibeli', 'Diterima']
+
+/**
+ * USelect (Radix SelectItem) refuses an empty-string option value, so the old
+ * "all / none" options use these sentinels in the UI. Filters compare against
+ * `PILIHAN_SEMUA`; forms map `PILIHAN_TANPA` back to `''`/`null` before saving —
+ * the API stores "no project / no division / no boss" exactly like the old client.
+ */
+export const PILIHAN_SEMUA = '__semua__'
+export const PILIHAN_TANPA = '__tanpa__'
 /** `PR_FLOW`. */
 export const PR_FLOW = ['Draft', 'Diajukan', 'Disetujui', 'Selesai']
 /** `PO_SELESAI` — the final stage, written once. */
@@ -205,7 +214,7 @@ export function projProgress(p: BdProject, tasks: BdTask[]): number {
 }
 /** `opsiProject` — Completed is not offered unless it is already linked. */
 export function opsiProject(projects: BdProject[], terpilih?: string | null): { value: string, label: string }[] {
-  const out: { value: string, label: string }[] = [{ value: '', label: '— tanpa project —' }]
+  const out: { value: string, label: string }[] = [{ value: PILIHAN_TANPA, label: '— tanpa project —' }]
   projects.forEach((p) => {
     const beres = p.stage === 'Completed'
     if (beres && p.id !== terpilih) return
