@@ -53,6 +53,16 @@ function aturSatuan(b: BarisOrder) {
   const daftar = satuanOf(b.item)
   if (!daftar.includes(b.unit)) b.unit = daftar[0] ?? ''
 }
+// Like the old `enforceSelection`: a name outside the master is cleared on the
+// spot, with the legacy message — it must be picked from the suggestions.
+function paksaDaftar(b: BarisOrder) {
+  const nama = b.item.trim()
+  if (nama && daftarNama.value.length > 0 && !daftarNama.value.includes(nama)) {
+    b.item = ''
+    toast.add({ title: 'Input Ditolak', description: 'Harus pilih bahan dari list!', color: 'error' })
+  }
+  aturSatuan(b)
+}
 tambahBaris()
 
 const siap = computed(() => baris.value.filter(b => b.item.trim() && (Number(b.qty) || 0) > 0))
@@ -96,6 +106,29 @@ const hasil = ref<{ created: number, merged: number, batchId: string, batchName:
 function cekSubmit() {
   if (siap.value.length === 0) {
     toast.add({ title: 'Belum ada baris', description: 'Isi minimal satu bahan dengan jumlah.', color: 'warning' })
+    return
+  }
+  // Like the old screen (`ordering/index.html` Tahap 1 + `enforceSelection`):
+  // the item must be picked from the master list, not typed freely — a free
+  // name is stored as an order no vendor mapping can fulfil, so chat vendor
+  // never fires for it. Duplicates in the form are refused the same way.
+  const master = daftarNama.value
+  if (master.length > 0) {
+    const asing = siap.value.map(b => b.item.trim()).filter(n => !master.includes(n))
+    if (asing.length > 0) {
+      toast.add({ title: 'Data Tidak Valid', description: 'Ada baris kosong atau tidak terdaftar.', color: 'error' })
+      return
+    }
+  }
+  const terlihat = new Set<string>()
+  const ganda = siap.value.some((b) => {
+    const k = b.item.trim().toLowerCase()
+    if (terlihat.has(k)) return true
+    terlihat.add(k)
+    return false
+  })
+  if (ganda) {
+    toast.add({ title: 'Terdapat Duplikat Input', description: 'Gabungkan quantity bahan yang sama pada formulir.', color: 'error' })
     return
   }
   if (mode.value === 'gabung' && !batchPilih.value) {
@@ -263,7 +296,7 @@ function unduhDraf() {
                 v-model="b.item"
                 list="stock-order-produk"
                 placeholder="Ketik nama bahan"
-                @change="aturSatuan(b)"
+                @change="paksaDaftar(b)"
               />
             </UFormField>
             <UFormField label="Jumlah">

@@ -7,20 +7,24 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { LogStock } from '~/composables/useStock'
 import { listLogs } from '~/composables/useStock'
+import { isAdminOf } from '~/composables/useMe'
 import { jam, tglPendek } from '~/utils/format'
 
 definePageMeta({ access: ['purchasing'] })
 
+const me = useMe()
+const admin = computed(() => isAdminOf(me.value, 'purchasing'))
+
 const dari = ref('')
 const ke = ref('')
-const modul = ref('')
+const modul = ref('semua')
 const q = ref('')
 const limit = ref(300)
 
 const daftarQ = useAsyncData('stock-log', () => listLogs({
   dari: dari.value || undefined,
   ke: ke.value || undefined,
-  modul: modul.value || undefined,
+  modul: modul.value === 'semua' ? undefined : modul.value,
   q: q.value.trim() || undefined,
   limit: limit.value,
 }), {
@@ -51,7 +55,10 @@ const kolom: TableColumn<LogStock>[] = [
     title="Log Aktivitas"
     description="Siapa mengubah apa di stock — terbaru dulu"
   >
-    <template #actions>
+    <template
+      v-if="admin"
+      #actions
+    >
       <UButton
         label="Segarkan"
         icon="i-lucide-refresh-cw"
@@ -60,7 +67,20 @@ const kolom: TableColumn<LogStock>[] = [
       />
     </template>
 
-    <AppPanel title="Filter">
+    <AppPanel
+      v-if="!admin"
+      title="Khusus admin"
+      icon="i-lucide-lock"
+    >
+      <p class="text-sm text-muted">
+        Log Aktivitas hanya untuk admin Purchasing.
+      </p>
+    </AppPanel>
+
+    <AppPanel
+      v-if="admin"
+      title="Filter"
+    >
       <AppFilterGrid>
         <UFormField label="Dari">
           <UInput
@@ -78,7 +98,7 @@ const kolom: TableColumn<LogStock>[] = [
           <USelect
             v-model="modul"
             :items="[
-              { value: '', label: 'Semua' },
+              { value: 'semua', label: 'Semua' },
               { value: 'ordering', label: 'Ordering' },
               { value: 'purchasing', label: 'Purchasing' },
             ]"
@@ -101,6 +121,7 @@ const kolom: TableColumn<LogStock>[] = [
     </AppPanel>
 
     <AppPanel
+      v-if="admin"
       title="Aktivitas"
       flush
     >

@@ -9,6 +9,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { KruStock } from '~/composables/useStock'
 import { createKruStock, deleteKruStock, importOrderingUsers, listKruStock, patchKruStock } from '~/composables/useStock'
+import { isAdminOf } from '~/composables/useMe'
 import { apiErrorMessage } from '~/composables/useApi'
 import { tanganiKonflik, type Versi } from '~/utils/versi'
 
@@ -16,6 +17,7 @@ definePageMeta({ access: ['ordering'] })
 
 const me = useMe()
 const toast = useToast()
+const admin = computed(() => isAdminOf(me.value, 'ordering'))
 
 const daftarQ = useAsyncData('stock-ordering-users', () => listKruStock('ordering-users'), {
   default: () => ({ rows: [] as KruStock[], versions: {} as Record<string, Versi> }),
@@ -127,7 +129,10 @@ const kolom: TableColumn<KruStock>[] = [
     title="Kelola Akses"
     description="Kru dapur yang boleh order & check-in, beserta perannya"
   >
-    <template #actions>
+    <template
+      v-if="admin"
+      #actions
+    >
       <UButton
         label="Tambah kru"
         icon="i-lucide-plus"
@@ -135,7 +140,17 @@ const kolom: TableColumn<KruStock>[] = [
       />
     </template>
 
-    <AppStatGrid>
+    <AppPanel
+      v-if="!admin"
+      title="Khusus admin"
+      icon="i-lucide-lock"
+    >
+      <p class="text-sm text-muted">
+        Kelola Akses hanya untuk admin Ordering.
+      </p>
+    </AppPanel>
+
+    <AppStatGrid v-if="admin">
       <AppStat
         label="Admin"
         :value="String(semua.filter(k => k.role === 'admin').length)"
@@ -160,7 +175,7 @@ const kolom: TableColumn<KruStock>[] = [
     </AppStatGrid>
 
     <AppPanel
-      v-if="!semua.length"
+      v-if="admin && !semua.length"
       title="Daftar masih kosong"
       description="Isi daftar awal dari akunmu sendiri sebagai Admin."
     >
@@ -173,7 +188,7 @@ const kolom: TableColumn<KruStock>[] = [
     </AppPanel>
 
     <AppPanel
-      v-else
+      v-else-if="admin"
       title="Kru"
       flush
     >
@@ -241,6 +256,7 @@ const kolom: TableColumn<KruStock>[] = [
     </AppPanel>
 
     <ResponsiveSheet
+      v-if="admin"
       v-model:open="sheet"
       :title="editing ? 'Ubah peran kru' : 'Tambah kru'"
     >

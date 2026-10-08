@@ -8,6 +8,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { listTraining, trainingStatus, uploadTraining } from '~/composables/useStock'
+import { isAdminOf } from '~/composables/useMe'
 import { apiErrorMessage } from '~/composables/useApi'
 import {
   LABEL_TIER,
@@ -22,6 +23,8 @@ import {
 definePageMeta({ access: ['ordering'] })
 
 const toast = useToast()
+const me = useMe()
+const admin = computed(() => isAdminOf(me.value, 'ordering'))
 
 const KUNCI_URL = 'stock-forecast-url'
 const URL_BAWAAN = 'https://script.google.com/macros/s/AKfycbykGmdR7mGiCQUXlJQv2QwHhkNatj6GeCL8JnbZ1WXeoOCWA5m_b7cMdiuPHge0s6rH/exec'
@@ -100,7 +103,17 @@ async function unggahLatih(e: Event) {
     title="Data Forecast"
     description="Keandalan prakiraan & arsip data latih"
   >
-    <AppStatGrid>
+    <AppPanel
+      v-if="!admin"
+      title="Khusus admin"
+      icon="i-lucide-lock"
+    >
+      <p class="text-sm text-muted">
+        Data Forecast hanya untuk admin Ordering.
+      </p>
+    </AppPanel>
+
+    <AppStatGrid v-if="admin">
       <AppStat
         label="Tier andal"
         :value="String(tally.A ?? 0)"
@@ -132,6 +145,7 @@ async function unggahLatih(e: Event) {
     </AppStatGrid>
 
     <AppPanel
+      v-if="admin"
       title="Keandalan prakiraan"
       :description="payload ? `Data prakiraan termuat — ${barisSemua.length} bahan` : (memuat ? 'Memuat prakiraan…' : 'Prakiraan belum termuat — buka Daftar Restock untuk memuat.')"
       flush
@@ -203,7 +217,10 @@ async function unggahLatih(e: Event) {
       </p>
     </AppPanel>
 
-    <AppPanel title="Unggah data latih">
+    <AppPanel
+      v-if="admin"
+      title="Unggah data latih"
+    >
       <AppFilterGrid>
         <UFormField label="Arsip tujuan">
           <USelect

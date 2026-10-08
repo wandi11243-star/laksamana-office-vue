@@ -9,8 +9,10 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { getStockToday, putStockToday } from '~/composables/useStock'
+import { isAdminOf } from '~/composables/useMe'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bacaBerkasTabel } from '~/utils/xlsx-baca'
+import { barisBerkolom } from '~/utils/stock-impor'
 import {
   BukuForecast,
   LABEL_STATUS,
@@ -26,6 +28,8 @@ import type { Versi } from '~/utils/versi'
 definePageMeta({ access: ['ordering'] })
 
 const toast = useToast()
+const me = useMe()
+const admin = computed(() => isAdminOf(me.value, 'ordering'))
 
 /** The Apps Script URL ships in the old page (`ordering/index.html:1049`); editable + remembered. */
 const URL_BAWAAN = 'https://script.google.com/macros/s/AKfycbykGmdR7mGiCQUXlJQv2QwHhkNatj6GeCL8JnbZ1WXeoOCWA5m_b7cMdiuPHge0s6rH/exec'
@@ -71,16 +75,18 @@ onMounted(muatPrakiraan)
 
 const cari = ref('')
 const hanyaAksi = ref(true)
+// Full assessment (the summary cards count THIS); the visible list filters it.
+const penilaian = computed<PenilaianRestock[]>(() =>
+  Object.keys(payload.value?.items ?? {}).map(n => buku.value.assess(n)),
+)
 const semua = computed<PenilaianRestock[]>(() => {
-  const nama = Object.keys(payload.value?.items ?? {})
   const q = cari.value.trim().toUpperCase()
-  return nama
-    .map(n => buku.value.assess(n))
+  return penilaian.value
     .filter(a => (!q || a.nama.toUpperCase().includes(q)) && (!hanyaAksi.value || a.status === 'order' || a.status === 'soon' || a.status === 'check'))
 })
 const tampil = computed(() => semua.value.slice(0, RESTOCK_LIMIT))
 
-const hitung = (s: PenilaianRestock['status']) => semua.value.filter(a => a.status === s).length
+const hitung = (s: PenilaianRestock['status']) => penilaian.value.filter(a => a.status === s).length
 
 const fmtStok = (a: PenilaianRestock) => {
   if (a.stockNow == null) return '—'
@@ -133,7 +139,10 @@ async function unggahStok(e: Event) {
   if (!file) return
   mengunggah.value = true
   try {
-    const baris = await bacaBerkasTabel(file)
+    const tb = await bacaBerkasTabel(file)
+    // Letter-keyed rows -> header-keyed rows (the header is the first row, so
+    // `Object.keys` of row 0 used to be letters and no header ever matched).
+    const baris = barisBerkolom(tb)
     const kepala = Object.keys(baris[0] ?? {})
     const cNama = kepala.find(k => k.trim() === 'Product Name')
     const cStok = kepala.find(k => k.trim() === 'Stock Qty') ?? kepala.find(k => k.trim() === 'Effective Stock')
@@ -169,7 +178,10 @@ async function unggahStok(e: Event) {
     title="Daftar Restock"
     description="Bahan yang perlu dipesan, dari data prakiraan"
   >
-    <template #actions>
+    <template
+      v-if="admin"
+      #actions
+    >
       <UButton
         label="Muat prakiraan"
         icon="i-lucide-refresh-cw"
@@ -186,7 +198,17 @@ async function unggahStok(e: Event) {
       />
     </template>
 
-    <AppStatGrid>
+    <AppPanel
+      v-if="!admin"
+      title="Khusus admin"
+      icon="i-lucide-lock"
+    >
+      <p class="text-sm text-muted">
+        Daftar Restock hanya untuk admin Ordering.
+      </p>
+    </AppPanel>
+
+    <AppStatGrid v-if="admin">
       <AppStat
         label="Pesan sekarang"
         :value="String(hitung('order'))"
@@ -217,7 +239,10 @@ async function unggahStok(e: Event) {
       />
     </AppStatGrid>
 
-    <AppPanel title="Sumber data">
+    <AppPanel
+      v-if="admin"
+      title="Sumber data"
+    >
       <AppFilterGrid>
         <UFormField label="Tautan Apps Script prakiraan">
           <UInput
@@ -250,6 +275,7 @@ async function unggahStok(e: Event) {
     </AppPanel>
 
     <AppPanel
+      v-if="admin"
       title="Restock"
       flush
     >

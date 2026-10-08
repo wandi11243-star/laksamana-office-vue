@@ -20,7 +20,7 @@ export async function getHppIngredients(): Promise<{ rows: BahanHpp[] }> {
 }
 
 /** `GET /stock/hpp/recipes` — flat, nested or by-id; normalised to a list. */
-export async function getHppRecipes() {
+export async function getHppRecipes(): Promise<{ rows: ResepHpp[], versions: Record<string, Versi> }> {
   const r = await useApi()<Envelope<ResepHpp[] | Record<string, unknown>>>('/stock/hpp/recipes')
   const flat: ResepHpp[] = []
   const jalan = (v: unknown) => {
@@ -34,7 +34,7 @@ export async function getHppRecipes() {
     }
   }
   jalan(r.data)
-  return { rows: flat }
+  return { rows: flat, versions: (r.meta?.versions ?? {}) as Record<string, Versi> }
 }
 
 // ---------------------------------------------------------------- Usage panel (module `usage`)
@@ -613,9 +613,9 @@ export async function hppRapikanBahan(aksi: 'pull-products' | 'remove-shadows' |
 }
 
 /** `GET /stock/hpp/recipes` with versions keyed by id (normalised like the tree reader). */
-export async function hppRecipes() {
-  const { rows } = await getHppRecipes()
-  return { rows: rows as unknown as ResepHppTulis[] }
+export async function hppRecipes(): Promise<{ rows: ResepHppTulis[], versions: Record<string, Versi> }> {
+  const { rows, versions } = await getHppRecipes()
+  return { rows: rows as unknown as ResepHppTulis[], versions }
 }
 
 export async function createRecipe(body: Partial<ResepHppTulis> & { nama: string }) {
@@ -675,9 +675,16 @@ export async function hppSettings() {
 
 /** `PATCH /stock/hpp/settings` — only the five keys, as numbers. */
 export async function patchHppSettings(body: Partial<SettingHpp>, versi?: Versi) {
+  // The body goes out as a JSON STRING, not an object: ofetch 1.5.1 refuses to
+  // serialise any object with a truthy `buffer` key (its binary sniff,
+  // `value.buffer`, misfires on the settings' `buffer` rate), so the request
+  // would arrive as `[object Object]` without a content type and the server
+  // answers 422 "The body must be a JSON object". String bodies still get the
+  // JSON content type, so this parses. (`patchIngredient` never trips it only
+  // because no ingredient body has a top-level `buffer` key.)
   const r = await useApi()<Envelope<SettingHpp>>('/stock/hpp/settings', {
     method: 'PATCH',
-    body,
+    body: JSON.stringify(body),
     headers: versiHeaders(versi),
   })
   return r.data

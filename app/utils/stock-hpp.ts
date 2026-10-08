@@ -426,3 +426,64 @@ export function csvResep(resep: ResepHitung[]): string {
   }
   return out.join('\n')
 }
+
+// ---------------------------------------------------------------- pemakaian & selisih (hpp/index.html:3119-3149)
+
+/**
+ * Monthly usage lamp per ingredient:
+ *   masuk    = stok awal + belanja
+ *   tercatat = terpakai menurut resep + spoil + team + rnd + compliment
+ *   aktual   = masuk − stok opname
+ *   SELISIH  = aktual − tercatat (+ boros/hilang, − irit)
+ * The lamp is green under the yellow threshold, yellow up to red, red above.
+ */
+export interface HitungPakai {
+  h: number
+  masuk: number
+  lain: number
+  tercatat: number
+  aktual: number
+  selisih: number
+  p: number
+  lampu: 'hijau' | 'kuning' | 'merah'
+  nilai: number
+  nilaiAktual: number
+  nilaiStok: number
+  ada: boolean
+}
+
+export function hitungPakai(
+  ctx: KonteksHpp,
+  baris: BarisPakaiHpp,
+  set: SettingHppHitung,
+): HitungPakai {
+  const b = ctx.PB.get(low(baris.bahan))
+  const h = per1(b)
+  const masuk = numHpp(baris.sa) + numHpp(baris.beli)
+  const lain = numHpp(baris.spoil) + numHpp(baris.team) + numHpp(baris.rnd) + numHpp(baris.comp)
+  const tercatat = numHpp(baris.resep) + lain
+  const aktual = masuk - numHpp(baris.opname)
+  const selisih = aktual - tercatat
+  const p = tercatat > 0 ? (selisih / tercatat) * 100 : 0
+  const a = Math.abs(p)
+  const lampu = a > numHpp(set.lampuMerah) ? 'merah' : a > numHpp(set.lampuKuning) ? 'kuning' : 'hijau'
+  return {
+    h, masuk, lain, tercatat, aktual, selisih, p, lampu,
+    nilai: selisih * h,
+    nilaiAktual: aktual * h,
+    nilaiStok: numHpp(baris.opname) * h,
+    ada: masuk > 0 || tercatat > 0 || numHpp(baris.opname) > 0,
+  }
+}
+
+export interface BarisPakaiHpp {
+  bahan: string
+  sa?: unknown
+  beli?: unknown
+  resep?: unknown
+  spoil?: unknown
+  team?: unknown
+  rnd?: unknown
+  comp?: unknown
+  opname?: unknown
+}
