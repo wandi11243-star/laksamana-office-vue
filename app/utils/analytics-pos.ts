@@ -61,6 +61,58 @@ export const KOL_VOID_DETEKSI: Record<string, string[]> = {
   waktu: ['cancel / void time', 'cancel/void time', 'void time', 'cancel time'],
 }
 
+/** Full column list of the Promotion Report. */
+// Source: laksamana-office/deploy/analytics/index.html:7463
+export const KOL_PROMO: Record<string, string[]> = {
+  tgl: ['sales date', 'date', 'tanggal', 'trx date', 'transaction date'],
+  jam: ['sales in time', 'order time', 'time', 'jam', 'transaction time'],
+  bill: ['sales number', 'bill number', 'receipt number', 'no bill'],
+  nama: ['promotion name', 'promo name', 'nama promo'],
+  tipe: ['promotion type', 'promo type', 'jenis promo'],
+  menu: ['menu name', 'menu', 'item name', 'product name', 'nama menu'],
+  qty: ['qty', 'quantity', 'jumlah', 'qty sold'],
+  harga: ['original price', 'normal price', 'harga normal'],
+  disc: ['discount total', 'total discount', 'discount amount'],
+}
+
+/** Full column list of the Cancel Menu Detail Report. */
+// Source: laksamana-office/deploy/analytics/index.html:7657
+export const KOL_VOID: Record<string, string[]> = {
+  bill: ['sales number', 'bill number', 'no bill'],
+  menu: ['menu', 'menu name', 'item'],
+  kat: ['menu category'],
+  katD: ['menu category detail'],
+  orderBy: ['order by', 'ordered by', 'waiter'],
+  orderTgl: ['order time'],
+  by: ['cancel / void by', 'cancel/void by', 'void by', 'cancel by'],
+  waktu: ['cancel / void time', 'cancel/void time', 'void time', 'cancel time'],
+  jenis: ['cancel / void', 'cancel/void', 'type', 'action'],
+  nota: ['cancel notes', 'void notes', 'notes', 'reason'],
+  qty: ['qty', 'quantity'],
+  sub: ['subtotal', 'sub total'],
+  svc: ['service charge'],
+  tax: ['tax'],
+  total: ['total'],
+}
+
+/**
+ * Loose but bounded: production holds ~84 rows a month, while a POS export
+ * over a whole year would blow up the stored blob. Cut rows are COUNTED and
+ * reported on screen, never dropped silently.
+ */
+// Source: laksamana-office/deploy/analytics/index.html:7675
+export const VOID_MAKS = 800
+
+/**
+ * The Promotion Report has no time column, so the claim hour is derived from
+ * the bill number (SLMCL + 12 digits, first ten = epoch seconds — proven on
+ * 4.785 August 2026 bills, 99.2% second-exact). Only used when the epoch's
+ * own date matches the row's Sales Date; otherwise -1 and reported.
+ */
+// Source: laksamana-office/deploy/analytics/index.html:7469
+export const PROMO_EPOCH_MIN = 1262304000 /* 2010-01-01 */
+export const PROMO_EPOCH_MAX = 4102444800 /* 2100-01-01 */
+
 export const KUN_TANPA = '(tanpa keterangan)'
 export const KAT_TANPA = '(tanpa kategori)'
 export const MEJA_TANPA = '(tanpa meja)'

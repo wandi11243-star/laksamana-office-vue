@@ -145,5 +145,56 @@ cek('kunci hilang + dijepit', A.batasShift({ s1a: 9 }).s1b === 18 && A.batasShif
 cek('diRentang lurus & melingkar', A.diRentang(12, 10, 18) && !A.diRentang(19, 10, 18) && A.diRentang(1, 18, 2) && !A.diRentang(10, 18, 2))
 cek('shiftDariJam', A.shiftDariJam(12, A.SHIFT_AN_BAWAAN) === 1 && A.shiftDariJam(20, A.SHIFT_AN_BAWAAN) === 2)
 
+console.log('\nanalytics-agregat: promo & void')
+const jEpoch = Math.floor(Date.parse('2026-08-02T20:00:00+07:00') / 1000)
+const promoRows = [
+  { A: 'Promotion Report' },
+  { A: 'Sales Date', B: 'Sales Number', C: 'Promotion Name', D: 'Promotion Type', E: 'Menu Name', F: 'Qty', G: 'Original Price', H: 'Discount Total' },
+  { A: '2026-08-02', B: 'SLMCL' + jEpoch + '01', C: 'DISKON 20%', D: 'Discount', E: '-', F: '1', G: '', H: '20000' },
+  { A: '2026-08-02', B: 'SLMCL' + jEpoch + '01', C: 'GRATIS KOPI', D: 'Free Item', E: 'KOPI SUSU', F: '2', G: '15000', H: '' },
+  { A: '2026-09-01', B: 'SLMCL' + jEpoch + '02', C: 'DISKON 20%', D: 'Discount', E: '-', F: '1', G: '', H: '10000' },
+]
+const pu = A.uraiLaporanPromo(promoRows, 'promo-agust.xlsx')
+cek('promo bulan terbanyak', pu.bulan === '2026-08' && pu.blnLain.length === 1)
+cek('promo diskon vs gratis dipisah sel', pu.ringkas.nilaiDisc === 20000 && pu.ringkas.nilaiGratis === 30000 && pu.ringkas.nilai === 50000)
+cek('promo bill unik', pu.ringkas.bill === 1 && pu.promo['DISKON 20%'].bill === 1)
+cek('promo tanpa menu dihitung', pu.ringkas.tanpaMenu === 1 && pu.menu['KOPI SUSU'].qty === 2)
+cek('jam dari nomor bill', pu.jam[20].bill === 1 && pu.ringkas.jamGelap === 0)
+cek('jam ditolak bila tanggal tak cocok', A.jamNomorBill('SLMCL' + jEpoch + '01', '2026-08-03') === -1)
+const voidRows = [
+  { A: 'Cancel Menu Detail' },
+  { A: 'Sales Number', B: 'Menu', C: 'Cancel / Void', D: 'Cancel Notes', E: 'Cancel / Void Time', F: 'Cancel / Void By', G: 'Qty', H: 'Total', I: 'Order By' },
+  { A: 'B1', B: 'KOPI SUSU', C: 'Void', D: 'Salah input', E: '2026-08-02 20:15', F: 'SPV', G: '1', H: '15000', I: '-' },
+  { A: 'B1', B: 'TEH MANIS', C: 'Cancel', D: 'salah input', E: '2026-08-02 20:16', F: 'SPV', G: '2', H: '20000', I: 'Rian' },
+]
+const vu = A.uraiLaporanVoid(voidRows, 'void-agust.xlsx')
+cek('void terbaca', vu.bulan === '2026-08' && vu.baris.length === 2 && vu.ringkas.total === 35000)
+cek('vdOrang menolak strip', A.vdOrang('-') === '' && A.vdOrang('SPV') === 'SPV')
+const vdK = A.vdKelompok(vu.baris, x => x.nota || '(tanpa alasan)')
+cek('vdKelompok gabung beda kapital', vdK.length === 1 && vdK[0].baris === 2 && vdK[0].bill === 1)
+
+console.log('\nanalytics-agregat: kanal, menu, meja, talent')
+const rk = A.rekapKanal(
+  { 'ONLINE': { grand: 100000, bill: 10 }, 'DINE IN': { grand: 200000, bill: 20 } },
+  { 'ONLINE|GRABFOOD': { grand: 70000, bill: 7 }, 'ONLINE|GOFOOD': { grand: 10000, bill: 1 }, 'ONLINE|CASH': { grand: 20000, bill: 2 } },
+)
+cek('kanal dipecah', rk.baris.some(x => x.n === 'GRABFOOD' && x.grand === 70000))
+cek('invarian omset kanal', rk.baris.reduce((a, x) => a + x.grand, 0) === 300000)
+cek('sisa online + takKanal disebut', rk.baris.some(x => x.n === 'ONLINE') && (rk.takKanal.ONLINE || []).includes('CASH'))
+cek('dineInKah', A.dineInKah('Dine In') && !A.dineInKah('DINE-IN X'))
+const katM = { 'COFFEE SERIES': { qty: 4, nilai: 55000, kat: 'BEVERAGES' }, 'EVENT': { qty: 10, nilai: 100000, kat: 'OTHERS' } }
+const katMenu = { 'COFFEE SERIES': { KOPI: { qty: 4, nilai: 55000 } }, 'EVENT': { Prasmanan: { qty: 10, nilai: 100000 } } }
+const lewat = A.menuKatLewat(katMenu, katM)
+cek('menuKatLewat', lewat.Prasmanan && !lewat.KOPI)
+cek('kelMenu', A.kelMenu(katMenu, katM).KOPI === 'BEVERAGES')
+cek('mejaNorm + bukan', A.mejaNorm('U 3') === 'U3' && A.mejaNorm('EXTRA 15') === 'EXT15' && A.mejaBukanKah('QuickService'))
+cek('kursiDari batas bawah', A.kursiDari('10-12') === 10 && A.kursiDari('4') === 4 && A.kursiDari('') === 0)
+cek('talSlot tanpa jam 23', JSON.stringify(A.talSlot({ tgl: '2026-08-02', mulai: '20:00', selesai: '23:00' }).jam.map(x => x.jam)) === '[20,21,22]')
+cek('talSlot lewat tengah malam pindah tanggal', JSON.stringify(A.talSlot({ tgl: '2026-08-02', mulai: '22:30', selesai: '01:30' }).jam) === JSON.stringify([{ tgl: '2026-08-02', jam: 22 }, { tgl: '2026-08-02', jam: 23 }, { tgl: '2026-08-03', jam: 0 }, { tgl: '2026-08-03', jam: 1 }]))
+cek('talSlot tak terbaca = null', A.talSlot({ tgl: '2026-08-02', mulai: '', selesai: '23:00' }) === null)
+const to = A.talOmset({ '2026-08-02': { 20: { g: 50000, b: 5 } } }, ['2026-08-02|20', '2026-08-02|21'])
+cek('talOmset + jamKosong', to.omset === 50000 && to.jamBerdata === 1 && to.jamKosong === 1)
+cek('talKunci', A.talKunci({ jam: [{ tgl: '2026-08-02', jam: 20 }] })[0] === '2026-08-02|20')
+
 console.log('\n' + ok + ' lulus, ' + gagal + ' gagal')
 process.exit(gagal ? 1 : 0)

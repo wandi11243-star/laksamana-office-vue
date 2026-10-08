@@ -221,22 +221,22 @@ marketing, konten, desain, pengaturan, akses). Struktur yang dipakai L2/L3:
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
 | fondasi | useAnalytics.ts, analytics-pos.ts, analytics-agregat.ts, layar/analytics.ts, modul.ts, modul-shell.ts, uji-analytics.mjs | ✅ | GET /kompas/analytics | — |
-| ringkasan | pages/analytics/ringkasan.vue | ⬜ (L2) | GET /kompas/analytics (+ /kompas/state untuk jembatan) | — |
-| hari | pages/analytics/hari.vue | ⬜ (L2) | GET /kompas/analytics | — |
-| menu | pages/analytics/menu.vue | ⬜ (L2) | GET /kompas/analytics + stock/hpp | ⚠️ E.6 |
-| kategori | pages/analytics/kategori.vue | ⬜ (L2) | GET /kompas/analytics | — |
-| kunjungan | pages/analytics/kunjungan.vue | ⬜ (L2) | GET /kompas/analytics | — |
-| meja | pages/analytics/meja.vue | ⬜ (L2) | GET /kompas/analytics (+ venue-layouts) | — |
-| talent | pages/analytics/talent.vue | ⬜ (L2) | GET /kompas/analytics | — |
-| error | pages/analytics/error.vue | ⬜ (L2) | GET /kompas/analytics | — |
-| voidb | pages/analytics/voidb.vue | ⬜ (L2) | GET /kompas/voids | — |
-| promo | pages/analytics/promo.vue | ⬜ (L2) | GET /kompas/analytics (+ pengurai promo) | — |
+| ringkasan | pages/analytics/ringkasan.vue | ✅ (L2) | GET /kompas/analytics + /kompas/daily | banding & jembatan via /daily (compliment dari kolomnya) |
+| hari | pages/analytics/hari.vue | ✅ (L2) | GET /kompas/analytics | asal-acara per shift → L3 (Breakdown Sumber) |
+| menu | pages/analytics/menu.vue | ✅ (L2) | GET /kompas/analytics | ⚠️ E.6: taksiran bahan & daftar resep menunggu Stock/HPP |
+| kategori | pages/analytics/kategori.vue | ✅ (L2) | GET /kompas/analytics | banding dua bulan → L3 (bersama tren) |
+| kunjungan | pages/analytics/kunjungan.vue | ✅ (L2) | GET /kompas/analytics | rincian DINE IN → L3 (Breakdown Sumber) |
+| meja | pages/analytics/meja.vue | ✅ (L2) | GET /kompas/analytics (+ venue-layouts) | kapasitas via ~/utils/venue-layouts (impor, bukan salinan) |
+| talent | pages/analytics/talent.vue | ✅ (L2) | GET /kompas/analytics + /event/state | jadwal dibaca, bukan disalin; pasangan DJ ikut |
+| error | pages/analytics/error.vue | ✅ (L2) | GET /kompas/analytics | — |
+| voidb | pages/analytics/voidb.vue | ✅ (L2) | GET /kompas/analytics | wadah voidb tersimpan (setia ke lama); /voids live → L3 |
+| promo | pages/analytics/promo.vue | ✅ (L2) | GET /kompas/analytics | pengurai promo diunggah via unggah (wadah terpisah) |
 | tren | pages/analytics/tren.vue | ⬜ (L3) | GET /kompas/analytics | — |
 | event | pages/analytics/event.vue | ⬜ (L3) | GET /kompas/analytics + event/state | ⚠️ E.7 |
 | marketing | pages/analytics/marketing.vue | ⬜ (L3) | GET /kompas/analytics + marketing/state | ⚠️ E.7 |
 | konten | pages/analytics/konten.vue | ⬜ (L3) | GET /kompas/analytics + konten/state (malas) | ⚠️ E.7 |
 | desain | pages/analytics/desain.vue | ⬜ (L3) | GET /kompas/analytics + konten/state (malas) | ⚠️ E.7 |
-| unggah | pages/analytics/unggah.vue | ✅ | GET+PUT /kompas/analytics | berkas promo/void terdeteksi → "Segera" (L2) |
+| unggah | pages/analytics/unggah.vue | ✅ (+ parser promo/void L2) | GET+PUT /kompas/analytics | wadah promo/voidb terpisah, daftar kunci tertutup |
 | pengaturan | pages/analytics/pengaturan.vue | ⬜ (L3) | PUT /kompas/analytics | — |
 | akses | pages/analytics/akses.vue | ⬜ (L3) | PUT /kompas/analytics/access + account members | — |
 
