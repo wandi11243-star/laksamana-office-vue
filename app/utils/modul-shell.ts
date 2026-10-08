@@ -179,6 +179,23 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
   },
 
   // ── marketing ──
+  marketing: {
+    subjudul: 'Marketing',
+    layar: LAYAR_MARKETING,
+    // The old top bar had no search and no "+": Lead Baru / Event Baru live on
+    // their screens. Its bell (unread notifications) arrives with the
+    // Notification Center (#60).
+    // The old footer showed "<role> · <division>" (updateTopUser, :4813-4816).
+    peran: (me) => {
+      const u = sayaMkt(me, usePeranMkt().value.users)?.user
+      if (!u) return ''
+      return namaRoleMkt(u.role) + (u.div ? ` · ${u.div}` : '')
+    },
+    siapkan: () => {
+      muatPeranMkt()
+      useTutupEventLewat()
+    },
+  },
 
   // ── stock ──
   stock: {
