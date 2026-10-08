@@ -16,8 +16,8 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { InvestorLabaRugi, JenisLapor } from '~/composables/useInvestor'
-import { JENIS_LAPOR, deleteInvestorReport, getInvestorReportUrl, uploadInvestorReport, useInvestorCanUpload, useInvestorSummary } from '~/composables/useInvestor'
+import type { InvestorLabaRugi, InvestorSummary, JenisLapor } from '~/composables/useInvestor'
+import { JENIS_LAPOR, deleteInvestorReport, getInvestorReportUrl, getInvestorReports, uploadInvestorReport, useInvestorCanUpload, useInvestorSummary } from '~/composables/useInvestor'
 import { isAdminOf } from '~/composables/useMe'
 import { rupiah } from '~/utils/format'
 import { bacaBase64, blnPanjang, bulanLaluISO, fileBukanPdf, ukuranTeks } from '~/utils/investor'
@@ -91,6 +91,22 @@ watch(bulanTersimpan, (b) => {
 const isiBulan = computed(() => (pdfBulan.value && lapor.value[pdfBulan.value]) || {})
 const opsiPdf = computed(() => bulanTersimpan.value.map(b => ({ value: b, label: blnPanjang(b) })))
 
+// The list is re-read from the server after every successful PUT/DELETE.
+// useAsyncData keeps its payload in a shallow ref, so assigning
+// `balasan.value.data.lapor` in place never re-renders — the list only
+// caught up after a reload. Replacing the whole value fixes that.
+async function segarkanLapor(jatuhKembali: InvestorSummary['lapor']) {
+  try {
+    const segar = await getInvestorReports()
+    const lama = balasan.value
+    if (lama) balasan.value = { ...lama, data: { ...lama.data, lapor: segar } }
+  }
+  catch {
+    const lama = balasan.value
+    if (lama) balasan.value = { ...lama, data: { ...lama.data, lapor: jatuhKembali } }
+  }
+}
+
 const membuka = ref<JenisLapor | null>(null)
 async function bukaPdf(jenis: JenisLapor) {
   if (!pdfBulan.value || membuka.value) return
@@ -118,7 +134,8 @@ async function jalankanHapus() {
   if (!hapusTarget.value || !pdfBulan.value) return
   try {
     const res = await deleteInvestorReport(pdfBulan.value, hapusTarget.value)
-    if (balasan.value) balasan.value.data.lapor = res.data.lapor
+    await segarkanLapor(res.data.lapor)
+    if (!bulanTersimpan.value.includes(pdfBulan.value)) pdfBulan.value = bulanTersimpan.value[0] ?? ''
     sheetHapus.value = false
     toast.add({ title: 'Berkas dihapus.', color: 'success' })
   }
@@ -175,7 +192,7 @@ async function kirimLapor() {
         galat.push(`${f.name}: ${apiErrorMessage(e)}`)
       }
     }
-    if (balasan.value) balasan.value.data.lapor = peta
+    if (balasan.value) await segarkanLapor(peta)
     // The filter moves to the month just uploaded: without it the uploader
     // presses Unggah, sees nothing change, and concludes it failed.
     pdfBulan.value = formBulan.value
