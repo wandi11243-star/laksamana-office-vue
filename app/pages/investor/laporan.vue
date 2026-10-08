@@ -164,17 +164,6 @@ async function kirimLapor() {
     pesan.value = 'Pilih minimal satu berkas.'
     return
   }
-  for (const f of [fileBalance.value, fileLedger.value]) {
-    if (!f) continue
-    if (f.size > BATAS) {
-      pesan.value = `${f.name} berukuran ${ukuranTeks(f.size)}, melebihi batas 12 MB.`
-      return
-    }
-    if (await fileBukanPdf(f)) {
-      pesan.value = `${f.name} bukan PDF.`
-      return
-    }
-  }
   mengunggah.value = true
   pesan.value = 'Mengunggah…'
   try {
@@ -183,25 +172,40 @@ async function kirimLapor() {
     if (fileLedger.value) antre.push(['ledger', fileLedger.value])
     const galat: string[] = []
     let peta = lapor.value
+    let sukses = 0
     for (const [jenis, f] of antre) {
+      // Validated per file, inside the loop: one bad pick must not swallow
+      // its sibling (legacy keeps whatever succeeded). Each failure names
+      // its file and the loop goes on with the other one.
+      if (f.size > BATAS) {
+        galat.push(`${f.name} berukuran ${ukuranTeks(f.size)}, melebihi batas 12 MB.`)
+        continue
+      }
+      if (await fileBukanPdf(f)) {
+        galat.push(`${f.name} bukan PDF.`)
+        continue
+      }
       try {
         const res = await uploadInvestorReport(formBulan.value, jenis, await bacaBase64(f), f.name)
         peta = res.data.lapor
+        sukses++
       }
       catch (e) {
         galat.push(`${f.name}: ${apiErrorMessage(e)}`)
       }
     }
-    if (balasan.value) await segarkanLapor(peta)
+    if (sukses > 0) await segarkanLapor(peta)
     // The filter moves to the month just uploaded: without it the uploader
     // presses Unggah, sees nothing change, and concludes it failed.
-    pdfBulan.value = formBulan.value
+    if (sukses > 0) pdfBulan.value = formBulan.value
     fileBalance.value = null
     fileLedger.value = null
     pesanOk.value = galat.length === 0
-    pesan.value = galat.length
-      ? `Sebagian gagal: ${galat.join('; ')}. Yang berhasil sudah tersimpan.`
-      : `Tersimpan untuk ${blnPanjang(formBulan.value)}.`
+    pesan.value = galat.length === 0
+      ? `Tersimpan untuk ${blnPanjang(formBulan.value)}.`
+      : sukses > 0
+        ? `Sebagian gagal: ${galat.map(g => g.replace(/\.+$/, '')).join('; ')}. Yang berhasil sudah tersimpan.`
+        : galat.join('; ')
   }
   catch (e) {
     pesanOk.value = false
