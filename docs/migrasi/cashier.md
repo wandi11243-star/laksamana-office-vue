@@ -410,6 +410,25 @@ Catatan build #30 (pencocokan QRIS BRI):
   Rp250.000, Belum Rp1.349.000, 1 tanpa tanggal, usulan pasti 1 → Zhafira), panel kandidat menawarkan 3 DP yang
   benar, bukti `@f:img1` termuat, `POST /bri/match` ditolak 403 tanpa crash.
 
+Catatan uji API lokal 2026-10-08 (lane B2, `fix/api-cashier`):
+- 11/11 layar dibuka sebagai kasir (Gita, non-admin) di 1280 & 390: overflow 0, console bersih.
+- Setiap aksi tulis diverifikasi di server + reload: report (POS 150.000/Actual 148.000→149.000→kembali
+  148.000), piutang (tambah→lunasi→batal lunas→ubah→hapus, kembali 74 baris), compliment (tambah→hapus,
+  kembali 606), void (tambah nominal 57.500=50.000+svc 2.500+tax 5.000→batal, `batalAt/batalOleh/batalAlasan`;
+  setelan terkunci untuk non-admin), rokok (LA Mango 0/0→7/2→kembali 0/0), rokokset (tambah→buang, kembali
+  18 item), bri (tambah Rp12.345→batal), DP (Gita tanpa modul reservasi memverifikasi 1 DP dimas Rp400.000
+  via pintu G-14; 3→2 perlu, 72→73 terverifikasi), kasir (tab Semua + nama sendiri saja; Omset diakui
+  Gita Rp19.041.108, tangga bonus = BONUS_KASIR), akses (14 pemegang, read-only).
+- Temuan & perbaikan (commit berikut): tulis sukses 200 tapi daftar tidak ikut berubah sampai reload —
+  `await refresh()` ditambahkan setelah setiap tulis sukses di `KompasPiutang` (bon+owners),
+  `KompasCompliment`, `KompasReport`, `rokok.vue`, `rokokset.vue` (termasuk kembali-ke-bawaan).
+  `KompasBri`/`voidb` sudah memanggil `refresh()` sehingga lolos. Penyebabnya belum dipastikan di lapisan
+  reaktivitas (assignment PUT-echo terbukti jalan via log, tapi computed tidak render ulang) — pola
+  `refresh()` sama dengan yang dipakai jalur konflik, jadi aman.
+- 32ae90f terverifikasi ulang: `GET /kompas/days/{date}` API lokal memulangkan array telanjang
+  (cek 2026-09-15), breakdown hari berisi tidak lagi terbaca kosong; simpan breakdown 2026-10-07
+  (Selisih Rp0, gate balance) lalu hapus hari itu via omset/input — kembali kosong tanpa sisa.
+
 ## K. Daftar uji cutover (layar #26)
 Setiap aksi tulis diuji SILANG: ubah di Vue → terlihat di Office lama (Cashier & Finance › Omset), dan sebaliknya.
 

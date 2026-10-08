@@ -88,6 +88,9 @@ async function tulis(baru: ComplimentKasir[], pesan: string) {
   menyimpan.value = true
   try {
     data.value.comps = await putCompliments(baru, data.value.comps.version)
+    // B2: real API 200 but the list only updates after reload — re-read so the
+    // new/changed/removed compliment appears immediately (legacy redrew on save).
+    await refresh()
     toast.add({ title: pesan, color: 'success' })
     return true
   }
