@@ -3,8 +3,9 @@
   View/Edit matrix, backup. Every section writes with ITS OWN loaded version
   (§2.7); a change in between reloads the section instead of overwriting it.
 
-  Restore-from-backup and wipe-everything are NOT built (data-deletion rule):
-  they stand as "Segera · K-11".
+  Restore-from-backup and wipe-everything are NOT brought to Vue (K-11 = A,
+  owner 2026-10-08; data-deletion rule): a restore is done by a developer from
+  the backup file, never from a button.
   Source: laksamana-office/deploy/reservasi/index.html:10516-10706.
 -->
 <script setup lang="ts">
@@ -223,7 +224,7 @@ async function resetMatriks() {
 }
 
 // --- backup (read-only) ------------------------------------------------------------------
-// Restore and wipe are NOT built (K-11): they overwrite/erase everything.
+// Restore and wipe are not in Vue (K-11 = A): they overwrite/erase everything.
 
 async function backupJson() {
   try {
@@ -422,20 +423,10 @@ async function backupJson() {
             size="sm"
             @click="backupJson"
           />
-          <UButton
-            label="Restore dari backup — Segera · K-11"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            disabled
-          />
-          <UButton
-            label="Hapus semua data — Segera · K-11"
-            color="error"
-            variant="ghost"
-            size="sm"
-            disabled
-          />
+          <p class="basis-full text-sm text-muted">
+            Restore dari backup dan Hapus semua data tidak tersedia di Office Vue (K-11): keduanya menimpa atau
+            menghapus seluruh data. Kalau perlu restore, minta developer memulihkannya dari berkas backup.
+          </p>
         </div>
       </AppList>
 
