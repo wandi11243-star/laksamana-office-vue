@@ -12,7 +12,6 @@
 import type { Acara } from '~/composables/useEvent'
 import { patchEvent, performaEvent, useDaftarEvent } from '~/composables/useEvent'
 import { apiErrorMessage } from '~/composables/useApi'
-import { useModulMembers } from '~/composables/useRoster'
 import { bolehSetujui, peranEvent } from '~/utils/layar/event'
 import { angka, rupiah, tglPendek } from '~/utils/format'
 import type { HariBreakdown, PicBonus } from '~/utils/performa-bonus'
@@ -38,21 +37,25 @@ function geserBulan(n: number) {
 }
 const labelBulan = computed(() => new Date(`${bulan.value}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }))
 
-const { data: anggota } = useModulMembers('event')
-const daftarPic = computed<PicBonus[]>(() => (anggota.value ?? []).map(m => ({ id: m.id, name: m.name })))
-
 const { data: envKompas, status, error } = useAsyncData(
   `event-perfomset-${bulan.value}`,
-  () => performaEvent(dari.value, sampai.value).then(r => r.data as { days?: HariBreakdown[] }),
+  () => performaEvent(dari.value, sampai.value).then(r => r.data as { days?: HariBreakdown[], pic?: PicBonus[] }),
   { watch: [bulan], default: () => null },
 )
+// Legacy `list = PEV.data.pic` (`:5346`): pbAgregasi joins breakdown rows by
+// the KOMPAS pic id (`r.picId`), so the list must be the kompas roster — NOT
+// the Office member list (office ids never equal kompas ids, every row became
+// "yatim" and all cards read Rp 0).
+const daftarPic = computed<PicBonus[]>(() => (envKompas.value?.pic ?? []).map(p => ({ id: String(p.id), name: p.name, officeUserId: p.officeUserId })))
 const agregat = computed(() => pbAgregasi(envKompas.value?.days, 'event', daftarPic.value))
 const bonus = computed(() => bonusEvent(daftarPic.value, agregat.value.agg))
 
+// Legacy `pevAkuPic` (`:5256`): officeUserId first, name only as fallback.
 const picSaya = computed(() => {
-  const saya = daftarPic.value.find(p => p.id === me.value?.id)
-    ?? daftarPic.value.find(p => p.name.toLowerCase() === (me.value?.name ?? '').toLowerCase())
-  return saya ?? (daftarPic.value[0] ?? null)
+  const l = daftarPic.value
+  return l.find(p => p.officeUserId != null && String(p.officeUserId) === String(me.value?.id))
+    ?? l.find(p => p.name.trim().toLowerCase() === (me.value?.name ?? '').trim().toLowerCase())
+    ?? null
 })
 const picAktif = ref('semua')
 watch(picSaya, (p) => {
