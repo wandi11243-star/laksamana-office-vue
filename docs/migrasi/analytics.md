@@ -222,7 +222,7 @@ marketing, konten, desain, pengaturan, akses). Struktur yang dipakai L2/L3:
 |---|---|---|---|---|
 | fondasi | useAnalytics.ts, analytics-pos.ts, analytics-agregat.ts, layar/analytics.ts, modul.ts, modul-shell.ts, uji-analytics.mjs | ✅ | GET /kompas/analytics | — |
 | ringkasan | pages/analytics/ringkasan.vue | ✅ (L2) | GET /kompas/analytics + /kompas/daily | banding & jembatan via /daily (compliment dari kolomnya) |
-| hari | pages/analytics/hari.vue | ⬜ (L2) | GET /kompas/analytics | — |
+| hari | pages/analytics/hari.vue | ✅ (L2) | GET /kompas/analytics | asal-acara per shift → L3 (Breakdown Sumber) |
 | menu | pages/analytics/menu.vue | ⬜ (L2) | GET /kompas/analytics + stock/hpp | ⚠️ E.6 |
 | kategori | pages/analytics/kategori.vue | ⬜ (L2) | GET /kompas/analytics | — |
 | kunjungan | pages/analytics/kunjungan.vue | ⬜ (L2) | GET /kompas/analytics | — |
