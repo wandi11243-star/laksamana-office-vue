@@ -64,10 +64,10 @@ const kolom: TableColumn<BahanHpp>[] = [
 // --- editor -----------------------------------------------------------------------
 const sheet = ref(false)
 const editing = ref<BahanHpp | null>(null)
-const f = ref({ nama: '', satuan: '', qty_beli: 0, harga_beli: 0, vendor: '', produk: '', kategori: '', catatan: '', sisi_harga: '', di_purchasing: true })
+const f = ref({ nama: '', satuan: '', qty_beli: 0, harga_beli: 0, vendor: '', produk: '', kategori: '', catatan: '', sisi_harga: 'auto', di_purchasing: true })
 function bukaTambah() {
   editing.value = null
-  f.value = { nama: '', satuan: '', qty_beli: 0, harga_beli: 0, vendor: '', produk: '', kategori: '', catatan: '', sisi_harga: '', di_purchasing: true }
+  f.value = { nama: '', satuan: '', qty_beli: 0, harga_beli: 0, vendor: '', produk: '', kategori: '', catatan: '', sisi_harga: 'auto', di_purchasing: true }
   sheet.value = true
 }
 function bukaUbah(b: BahanHpp) {
@@ -81,7 +81,7 @@ function bukaUbah(b: BahanHpp) {
     produk: String(b.produk ?? ''),
     kategori: String(b.kategori ?? ''),
     catatan: String(b.catatan ?? ''),
-    sisi_harga: String(b.sisi_harga ?? ''),
+    sisi_harga: String(b.sisi_harga ?? '') || 'auto',
     di_purchasing: b.di_purchasing !== false,
   }
   sheet.value = true
@@ -103,7 +103,7 @@ async function simpan() {
       produk: f.value.produk.trim(),
       kategori: f.value.kategori.trim(),
       catatan: f.value.catatan.trim(),
-      sisi_harga: f.value.sisi_harga,
+      sisi_harga: f.value.sisi_harga === 'auto' ? '' : f.value.sisi_harga,
       di_purchasing: f.value.di_purchasing,
     }
     if (editing.value?.nama) await patchIngredient(String(editing.value.nama), body, versi.value[String(editing.value.nama)])
@@ -431,7 +431,7 @@ async function impor(e: Event) {
           <USelect
             v-model="f.sisi_harga"
             :items="[
-              { value: '', label: 'Ikut aturan (base → resep)' },
+              { value: 'auto', label: 'Ikut aturan (base → resep)' },
               { value: 'beli', label: 'Beli' },
               { value: 'resep', label: 'Resep' },
             ]"

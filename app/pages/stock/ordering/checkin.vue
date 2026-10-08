@@ -26,7 +26,7 @@ const tanggal = ref(hariIni())
 const dari = ref(tambahHari(hariIni(), -6))
 const ke = ref(hariIni())
 const poFilter = ref<'all' | 'progress' | 'partial' | 'complete'>('all')
-const timFilter = ref('')
+const timFilter = ref('semua')
 
 const mulai = computed(() => (mode.value === 'hari' ? tanggal.value : dari.value))
 const sampai = computed(() => (mode.value === 'hari' ? tanggal.value : ke.value))
@@ -67,7 +67,7 @@ const poTampil = computed(() => {
       && (po.tgl || '') < mulai.value
       && po.baris.some(b => (b.kedatangan || '') !== 'Datang')
     if (!dalamRentang && !tertunda) return false
-    if (timFilter.value && po.tim !== timFilter.value) return false
+    if (timFilter.value !== 'semua' && po.tim !== timFilter.value) return false
     const datang = po.baris.filter(b => (b.kedatangan || '') === 'Datang').length
     const status = datang === 0 ? 'progress' : (datang === po.baris.length ? 'complete' : 'partial')
     return poFilter.value === 'all' || poFilter.value === status
@@ -214,7 +214,7 @@ async function simpan() {
         <UFormField label="Tim">
           <USelect
             v-model="timFilter"
-            :items="[{ value: '', label: 'Semua tim' }, ...tims.map(t => ({ value: t, label: t }))]"
+            :items="[{ value: 'semua', label: 'Semua tim' }, ...tims.map(t => ({ value: t, label: t }))]"
           />
         </UFormField>
       </AppFilterGrid>

@@ -117,7 +117,7 @@ const f = ref({
 })
 function bukaTambah() {
   editing.value = null
-  f.value = { nama: '', jenis: 'food', tipe: tab.value === 'base' ? 'base' : 'dish', seksi: tab.value === 'pras' ? 'PRASMANAN' : '', kode: '', yield_qty: 1, yield_unit: 'Porsi', harga_baru: 0, modal_manual: 0, aktif: true, catatan: '', bahan: [{ nama: '', qty: 1, satuan: '', ref: '', catatan: '' }] }
+  f.value = { nama: '', jenis: 'food', tipe: tab.value === 'base' ? 'base' : 'dish', seksi: tab.value === 'pras' ? 'PRASMANAN' : '', kode: '', yield_qty: 1, yield_unit: 'Porsi', harga_baru: 0, modal_manual: 0, aktif: true, catatan: '', bahan: [{ nama: '', qty: 1, satuan: '', ref: 'bahan', catatan: '' }] }
   sheet.value = true
 }
 function bukaUbah(r: ResepHppTulis) {
@@ -134,9 +134,9 @@ function bukaUbah(r: ResepHppTulis) {
     modal_manual: Number(r.modal_manual ?? 0),
     aktif: r.aktif !== 0 && r.aktif !== false,
     catatan: String(r.catatan ?? ''),
-    bahan: (r.bahan ?? []).map(b => ({ nama: b.nama || '', qty: Number(b.qty ?? 0), satuan: b.satuan || '', ref: b.ref || '', catatan: b.catatan || '' })),
+    bahan: (r.bahan ?? []).map(b => ({ nama: b.nama || '', qty: Number(b.qty ?? 0), satuan: b.satuan || '', ref: b.ref || 'bahan', catatan: b.catatan || '' })),
   }
-  if (!f.value.bahan.length) f.value.bahan = [{ nama: '', qty: 1, satuan: '', ref: '', catatan: '' }]
+  if (!f.value.bahan.length) f.value.bahan = [{ nama: '', qty: 1, satuan: '', ref: 'bahan', catatan: '' }]
   sheet.value = true
 }
 const menyimpan = ref(false)
@@ -163,7 +163,7 @@ async function simpan() {
         nama: b.nama.trim() || undefined,
         qty: Number(b.qty) || 0,
         satuan: b.satuan.trim(),
-        ref: b.ref || undefined,
+        ref: b.ref === 'resep' ? 'resep' : undefined,
         catatan: b.catatan.trim() || undefined,
       })),
     }
@@ -557,7 +557,7 @@ async function impor(e: Event) {
           <UFormField label="Dari resep?">
             <USelect
               v-model="b.ref"
-              :items="[{ value: '', label: 'Dari bahan' }, { value: 'resep', label: 'Dari resep' }]"
+              :items="[{ value: 'bahan', label: 'Dari bahan' }, { value: 'resep', label: 'Dari resep' }]"
             />
           </UFormField>
           <div class="flex items-end">
@@ -575,7 +575,7 @@ async function impor(e: Event) {
           icon="i-lucide-plus"
           variant="outline"
           class="self-start"
-          @click="f.bahan.push({ nama: '', qty: 1, satuan: '', ref: '', catatan: '' })"
+          @click="f.bahan.push({ nama: '', qty: 1, satuan: '', ref: 'bahan', catatan: '' })"
         />
         <div class="flex justify-end gap-2">
           <UButton

@@ -33,7 +33,7 @@ const TEMPLATE_GABUNG = 'Halo {vendor},\nBerikut orderan gabungan resmi dari {ca
 const sub = ref<'item' | 'vendor' | 'arsip'>('item')
 const cari = ref('')
 const tglDatang = ref('')
-const tim = ref('')
+const tim = ref('semua')
 
 const ordersQ = useAsyncData('stock-purch-orders', () => listOrders(), {
   default: () => ({ rows: [] as OrderStock[], versions: {} as Record<string, Versi> }),
@@ -60,7 +60,7 @@ const saring = (rows: OrderStock[]) => {
   return rows.filter(o =>
     (!q || [o.nomorOrder, o.item, o.batchName, utamaOf(o.item)].join(' ').toLowerCase().includes(q))
     && (!tglDatang.value || (o.tglDatang || '') === tglDatang.value)
-    && (!tim.value || (o.tim || '') === tim.value),
+    && (tim.value === 'semua' || (o.tim || '') === tim.value),
   )
 }
 const tims = computed(() => [...new Set(aktif.value.map(o => o.tim || '').filter(Boolean))].sort())
@@ -291,7 +291,7 @@ function unduhCsv() {
         <UFormField label="Divisi">
           <USelect
             v-model="tim"
-            :items="[{ value: '', label: 'Semua' }, ...tims.map(t => ({ value: t, label: t }))]"
+            :items="[{ value: 'semua', label: 'Semua' }, ...tims.map(t => ({ value: t, label: t }))]"
           />
         </UFormField>
       </AppFilterGrid>

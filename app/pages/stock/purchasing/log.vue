@@ -13,14 +13,14 @@ definePageMeta({ access: ['purchasing'] })
 
 const dari = ref('')
 const ke = ref('')
-const modul = ref('')
+const modul = ref('semua')
 const q = ref('')
 const limit = ref(300)
 
 const daftarQ = useAsyncData('stock-log', () => listLogs({
   dari: dari.value || undefined,
   ke: ke.value || undefined,
-  modul: modul.value || undefined,
+  modul: modul.value === 'semua' ? undefined : modul.value,
   q: q.value.trim() || undefined,
   limit: limit.value,
 }), {
@@ -78,7 +78,7 @@ const kolom: TableColumn<LogStock>[] = [
           <USelect
             v-model="modul"
             :items="[
-              { value: '', label: 'Semua' },
+              { value: 'semua', label: 'Semua' },
               { value: 'ordering', label: 'Ordering' },
               { value: 'purchasing', label: 'Purchasing' },
             ]"
