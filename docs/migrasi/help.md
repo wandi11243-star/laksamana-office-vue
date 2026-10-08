@@ -76,7 +76,7 @@ Pertanyaan terbuka: **tidak ada** (modul statis; satu-satunya keputusan desain �
 
 ## J. Progres build
 
-Status: ✅ dibangun (2026-10-01) · **belum dicek visual** (lihat di bawah)
+Status: ✅ dibangun (2026-10-01) · cek visual 2026-10-08 lolos tanpa temuan (issue #19)
 
 ### Layar yang dibangun
 | layar | file | catatan |
@@ -106,7 +106,7 @@ Status: ✅ dibangun (2026-10-01) · **belum dicek visual** (lihat di bawah)
 - **Tombol "Kembali ke Office" di top bar lama** tidak dibuat terpisah: link **"Beranda Office"** milik shell bersama sudah menuju `/` (dua jalan ke tempat yang sama di halaman yang sama tidak menambah apa pun). Yang dipertahankan justru tombol kaki "Keluar ke Office" karena ikon dayanya sudah jadi tempat yang dicari di modul lain.
 
 ### Belum dicek / perlu owner
-- **Belum dicek visual** di 390px/1366px, terang/gelap: halaman butuh sesi Office dan API hidup; belum dijalankan di peramban.
+- **Cek visual 2026-10-08 (issue #19, Lane A2 — mock read-only, akun jebe + peran terbatas `help` saja):** beranda, artikel (`/help/reservasi`), dan hasil cari di 1366px & 390px — kartu digrup seperti portal lama, daftar isi + blok artikel rapi, pencarian menyorot kata dan menyebut jumlah bagian, tidak ada geser samping di 390px. Peran terbatas hanya melihat bab `portal`; membuka `/help/reservasi` dipulangkan ke beranda dengan pesan yang sama seperti kunci tak dikenal. **Tanpa temuan — tidak ada perubahan kode.**
 - **`npm run build` gagal di lingkungan ini untuk SEMUA route** (bukan hanya Help): nitro prerender melempar `Only URLs with a scheme in: file, data, and node are supported… Received protocol 'd:'` untuk `/login`, `/styleguide`, `/` dan seterusnya — masalah path Windows/nitro, bukan dari Help. `npm run lint` dan `npm run typecheck` hijau; `npm run uji:help` 196 hijau.
 - **Langkah di luar repo tetap sama**: kunci `help` harus didaftarkan lewat `syncModules` lalu dicentangkan (di DATABASE, bukan di git).
 
