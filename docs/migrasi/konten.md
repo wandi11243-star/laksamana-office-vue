@@ -506,12 +506,12 @@ Konkurensi: legacy menstempel `updatedAt=sekarang` + `baseUpdatedAt=versi server
 - **Office/Account → Konten**: sesi `lm_session` + roster ber-grant `konten` (`account-api-mysql?action=listModuleRoster{module:'konten'}`, cadangan Apps Script) — v1 dari `/api/v1/account/*` (`laksamana-office/deploy/konten/index.html:1303-1363`).
 
 ## J. Progres build
-Issue: #15, dipecah #47–#51 · Branch saat ini: `migrasi/konten-kontrol` (#49, PR #67, ditumpuk di atas #66) · Mulai: 2026-10-07
-LANJUTKAN DARI: #50 — kol, ads (autoUpdateStatuses, CSV), chats. #47, #48, #49 selesai.
+Issue: #15, dipecah #47–#51 · Branch saat ini: `migrasi/konten-promosi` (#50, PR #68, ditumpuk di atas #67 ← #66) · Mulai: 2026-10-07
+LANJUTKAN DARI: #51 — brands, activity, settings (Restore = Segera, sinkron roster), profile. #47–#50 selesai.
 
 | layar (key) | file | status | endpoint dipakai | sub-issue |
 |---|---|---|---|---|
-| dashboard | `app/pages/konten/dashboard.vue` | ✅ | `GET /konten/state` | #47 — Top Konten dari angka per platform (`performa-konten.ts`, #49); `autoUpdateStatuses` (tulis status iklan) ikut #50 |
+| dashboard | `app/pages/konten/dashboard.vue` | ✅ | `GET /konten/state` | #47 — Top Konten dari angka per platform (`performa-konten.ts`, #49); `autoUpdateStatuses` = `useStatusIklanOtomatis` (#50) |
 | planning | `app/pages/konten/planning.vue` | ✅ | `GET /konten/state` | #47 |
 | pipeline | `app/pages/konten/pipeline.vue` | ✅ | `PATCH /konten/content/{id}` (status), `POST /konten/notifications` | #47 — HP: daftar per status (drag tak dibawa ke sentuh) |
 | calendar | `app/pages/konten/calendar.vue` | ✅ | `PATCH /konten/content`, `/prod-tasks`, `/shootings`, `/visits` (geser tanggal) | #47 — (koreksi build 2026-10-07) tanggal sel & "hari ini" lokal; lama memakai toISOString sehingga sel WIB menampilkan acara sehari sebelumnya |
@@ -525,9 +525,9 @@ LANJUTKAN DARI: #50 — kol, ads (autoUpdateStatuses, CSV), chats. #47, #48, #49
 | perfinput | `app/pages/konten/perfinput.vue` (+ `KontenPerfForm`) | ✅ | `PUT /konten/content/{id}/performance` (satu per platform) | #49 — hapus catatan 1 platform = **Segera** (G-01, laksamana-api#177) |
 | analytics | `app/pages/konten/analytics.vue` (+ `KontenPerformaPanel`) | ✅ | `GET /konten/state` | #49 — panel & rumus dipakai juga modul Analytics (#20) |
 | designperf | `app/pages/konten/designperf.vue` (+ `KontenDesainPanel`) | ✅ | `GET /konten/state`, `GET /marketing/design-queue` (tanpa `active`) | #49 — 403 request Marketing: pita + Coba lagi, sisanya tetap jalan |
-| kol | — | ⬜ | | #50 |
-| ads | — | ⬜ | | #50 |
-| chats | — | ⬜ | | #50 |
+| kol | `app/pages/konten/kol.vue` (+ `KontenKolForm`, `KontenVisitForm`) | ✅ | `POST/PUT/DELETE /konten/kols`, `/konten/visits`, `PATCH /konten/visits/{id}` (status kehadiran) | #50 — sub-tab di `?tab=visit` |
+| ads | `app/pages/konten/ads.vue` (+ `KontenIklanForm`, `KontenDanaForm`) | ✅ | `POST/PUT/DELETE/PATCH /konten/ads`, `POST/PUT/DELETE /konten/ad-funds` | #50 — ekspor CSV per bulan di browser (K-05) |
+| chats | `app/pages/konten/chats.vue` | ✅ | `GET /konten/state` | #50 |
 | brands | — | ⬜ | | #51 |
 | activity | — | ⬜ | | #51 |
 | settings | — | ⬜ | | #51 (Restore JSON: K-01/G-13) |
@@ -543,6 +543,9 @@ Catatan build:
 - #49: rumus performa = `app/utils/performa-konten.ts` (port `deploy/assets/performa-konten.js`, pemilik konten). Modul Analytics (#20) WAJIB mengimpor dari sini + memakai `KontenPerformaPanel`/`KontenDesainPanel` (prop `kunci` untuk keadaan sendiri, `tautan=false` bila tanpa akses Konten); jangan disalin. Platform/tipe memakai `contentPlatforms`/`contentTypes` dari `konten.ts` (salinan PK_ALIAS lama tidak perlu lagi). Uji: `node tools/uji-performa-konten.mjs` (50 cek; 18 mutasi rumus tertangkap).
 - Input Performa: v1 menimpa `perf[platform]` dengan kiriman + `{at, by}`, jadi `firstAt/firstBy` dikirim dari klien (dipertahankan dari catatan lama). `by` v1 = NAMA pengguna (lama: id kru); tampilan membaca keduanya.
 - Hapus catatan satu platform (semua kotak dikosongkan) belum bisa di v1 (G-01): form menandai platform itu "Segera", tidak mengirimnya, dan menyebut sesudah simpan bahwa angka lamanya tetap. Form performa hanya bisa disimpan pemegang izin ubah `analytics` (lama: judul baris membuka form untuk siapa pun).
+- #50: rumus KOL/Ads/Chats di `app/utils/promosi-konten.ts` (bulan = tanggal MULAI dengan cadangan berjenjang + keranjang tanpa tanggal; PPN 11%; biaya per chat null bila chat/dana 0; per video digabung per tautan yang dirapikan). Uji: `node tools/uji-promosi-konten.mjs` (43 cek; 17 mutasi tertangkap).
+- Status iklan otomatis (lama: tiap halaman dibuka, siapa pun) → sekali per sesi, hanya pemegang izin ubah `ads`, PATCH per iklan dengan versi, gagal diam (dicoba lagi sesi berikutnya). Dipanggil Ads Management & Dashboard.
+- (koreksi build) Tanggal bawaan form kunjungan = hari ini + 3 menurut tanggal LOKAL (lama UTC). Ubah status kehadiran memakai PATCH `status` saja; simpan form KOL/kunjungan/iklan/dana = PUT seluruh baris (field lama seperti `rateDrive`, `rateTier`, `createdDate` tetap).
 - Publishing: tautan ↗ tidak digambar bila URL tersimpan `-`; kolom reach "Sudah tayang" dari angka per platform (lama `metrics.reach`, tak pernah ditulis).
 
 ## K. Daftar uji cutover
@@ -560,4 +563,7 @@ Uji silang Vue ↔ Office lama pada data yang sama (dev). Bagian #47:
 - [ ] **publishing** — Terjadwal (urut tanggal, lewat = merah) & Sudah tayang (10 terbaru) sama dengan lama; Tayang → publishRecord + Posted terlihat di Office lama.
 - [ ] **input performa** — tab & hitungan sama; isi angka beberapa platform → tampil di Office lama (panel detail & Performa); pengisi pertama tidak tertimpa; kosongkan satu platform → penanda Segera, angka lama tetap.
 - [ ] **performa konten & desain** — bandingkan kartu, per platform, pillar, top konten, jumlah post, desain per kategori, dan request Marketing dengan halaman lama untuk bulan yang sama; ganti bulan & platform; kru tanpa modul Marketing: pita "tidak terbaca".
+- [ ] **KOL** — tambah/edit/hapus KOL & Medpar sama dengan lama; riwayat starting price bertambah hanya saat harga berubah; rate card gambar tampil & bisa dibesarkan; kunjungan: undangan terpilih bertahan saat penyaring diganti, DM WhatsApp/IG/TikTok berisi template, status kehadiran & Hadir/✕ hari-H, muncul di Kalender.
+- [ ] **ads** — 4 kartu, sisa keseluruhan, rekap per bulan (iklan masuk bulan tanggal mulai; tanpa tanggal ke "Belum ada tanggal mulai") sama dengan lama; ekspor CSV bulan itu sama isinya; buat/edit iklan dengan rincian + PPN; link video tanpa https dirapikan, bukan-link ditolak; status otomatis berjalan sekali dan tidak menyentuh "Dijeda".
+- [ ] **chats** — kartu, yang paling top, pita "chat tapi dana belum diisi", peringkat 3 urutan, per video & per platform sama dengan lama untuk bulan yang sama.
 - [ ] **form konten** — buat & edit: platform/content type/print type multi, field tunggal lama ikut tertulis, keyword/caption/script lama tidak terhapus, referensi link+foto, rekomendasi tanggal produksi; konflik versi (dua tab) memunculkan pesan "Data sudah diubah orang lain".
