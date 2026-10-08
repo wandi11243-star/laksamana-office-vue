@@ -224,7 +224,7 @@ marketing, konten, desain, pengaturan, akses). Struktur yang dipakai L2/L3:
 | ringkasan | pages/analytics/ringkasan.vue | ✅ (L2) | GET /kompas/analytics + /kompas/daily | banding & jembatan via /daily (compliment dari kolomnya) |
 | hari | pages/analytics/hari.vue | ✅ (L2) | GET /kompas/analytics | asal-acara per shift → L3 (Breakdown Sumber) |
 | menu | pages/analytics/menu.vue | ✅ (L2) | GET /kompas/analytics | ⚠️ E.6: taksiran bahan & daftar resep menunggu Stock/HPP |
-| kategori | pages/analytics/kategori.vue | ⬜ (L2) | GET /kompas/analytics | — |
+| kategori | pages/analytics/kategori.vue | ✅ (L2) | GET /kompas/analytics | banding dua bulan → L3 (bersama tren) |
 | kunjungan | pages/analytics/kunjungan.vue | ⬜ (L2) | GET /kompas/analytics | — |
 | meja | pages/analytics/meja.vue | ⬜ (L2) | GET /kompas/analytics (+ venue-layouts) | — |
 | talent | pages/analytics/talent.vue | ⬜ (L2) | GET /kompas/analytics | — |
