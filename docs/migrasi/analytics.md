@@ -208,11 +208,16 @@ pindah halaman = konfirmasi (`go()`, `:7989-7998`).
   - Tombol satu-klik bersiklus None→Lihat→Ubah (`:558-560`) → kontrol eksplisit (select/radio) agar tidak salah klik.
 
 ## J. Progres build
-Branch: migrasi/analytics-inti · Mulai: 2026-10-08
-LANJUTKAN DARI: L1 selesai (fondasi + unggah ✅). L2 bangun kelompok penjualan
-(ringkasan, hari, menu, kategori, kunjungan, meja, talent, error, voidb, promo)
-+ pengurai berkas promo/void; L3 kelompok performa & sistem (tren, event,
-marketing, konten, desain, pengaturan, akses). Struktur yang dipakai L2/L3:
+Branch: migrasi/analytics-performa · Mulai: 2026-10-08
+LANJUTKAN DARI: L3 selesai — 18/18 layar ada filenya (fondasi L1 + 10 layar
+penjualan L2 + 7 layar performa & sistem L3: tren, event, marketing, konten,
+desain, pengaturan, akses). Sisa: uji cutover §K di bawah (butuh API lokal +
+Office lama sebagai pembanding), lalu siap integrasi (rebase ke main + PR).
+Banding dua bulan kategori/menu TIDAK dikerjakan di L3: polanya beda dari
+tren (kolom pembanding per baris, bukan tabel bebas A-vs-B) — dicatat, bukan
+ditebak. Asal-acara per shift di Hari & rincian DINE IN di Kunjungan juga
+tetap notice menunggu Breakdown Sumber dibaca di kedua layar itu (rumusnya
+sudah ada di analytics-dampak.ts). Struktur yang dipakai L2/L3:
 `useAnalyticsState()` (baca), `versiDari`/`accessVersionDari` +
 `tanganiKonflik`, `useAnalyticsIzin().lihat()/ubah()`,
 `LAYAR_ANALYTICS` + `LAYAR_DIBANGUN` di `pages/analytics/index.vue`
@@ -249,6 +254,13 @@ marketing, konten, desain, pengaturan, akses). Struktur yang dipakai L2/L3:
 - Viewer membuka /analytics → menu tanpa unggah/pengaturan; buka /analytics/unggah langsung → notice "Hanya membaca", tombol nonaktif.
 - Simpan bersamaan dua staf → yang kedua 409 → toast "Data sudah diubah orang lain" + muat ulang.
 - Uji silang: ringkasan bulan di Vue = angka halaman Ringkasan Office lama untuk berkas yang sama.
+- Tren: dua bulan terunggah → kartu (terunggah, rata-rata, tertinggi, tumbuh) + AppBar per bulan + tabel Δ + banding bebas A-vs-B (pilih bulan sama → notice selisih nol).
+- Event / Marketing: bulan dengan 1 acara Event Done + 1 belum → kartu 4 angka + top-3 dari Breakdown Sumber + tabel per hari vs hari sama + peringatan bukan-bukti-sebab-akibat; acara Upcoming tidak ikut di kedua sisi.
+- Konten: bulan berisi konten tayang berangka → kartu Reach/ER/Virality/CTA + per platform + per pillar + per konten; modul Konten mati → notice galat + "Coba lagi".
+- Desain: bulan berisi 1 konten berdesain + 1 tanpa → kartu virality 2 sisi + tabel selesai per kategori (pillar/jenis/cetak).
+- Pengaturan (staf): ubah batas shift → simpan → Hari & Jam ikut; tambah + hapus petaMenu/petaKode → Menu ikut menggabung; viewer membuka langsung → kunci "tidak boleh dibuka".
+- Akses: staf membuka → matriks read-only + notice admin; admin modul → ubah sel + Simpan Matriks → tersimpan; ganti role kru → tersimpan; kirim yang dikirim cuma selisih bawaan.
+- Uji silang: tren/event/konten/desain di Vue = angka halaman yang sama di Office lama untuk berkas & modul yang sama.
 ## Konsolidasi untuk README & berkas bersama
 Baris README:
 `| analytics | [analytics.md](analytics.md) | ✅ selesai (ringkas) | 18 | 0 ❌ · 3 ⚠️ | 0 | inventaris ringkas (belum ada di Vue); KOREKSI: pakai backend+CK Kompas, bukan "tanpa DB" |`

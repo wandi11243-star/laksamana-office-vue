@@ -5,7 +5,10 @@
 // blob's Breakdown Sumber (daily[].bd). Pure functions only: pages fetch,
 // this file computes. Open Bill comes from ~/utils/performa-bonus
 // (pbObTotal) — imported, never copied.
-import { pbObTotal } from '~/utils/performa-bonus'
+// NOTE: the value import below is relative with an explicit extension
+// (./performa-bonus.ts), not ~/, so plain Node can run this file in
+// tools/uji-analytics.mjs — the same rule as analytics-agregat.ts.
+import { pbObTotal } from './performa-bonus.ts'
 
 export interface AcaraDampak { tgl: string, judul: string, sumber: 'Event' | 'Marketing', kategori: string }
 export interface BdAcara { tgl: string, nama: string, omset: number }

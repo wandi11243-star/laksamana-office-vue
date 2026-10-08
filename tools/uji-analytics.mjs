@@ -1,15 +1,18 @@
 /*
- * tools/uji-analytics.mjs — guard for app/utils/analytics-pos.ts and
- * app/utils/analytics-agregat.ts (Lane L1, issue #20).
+ * tools/uji-analytics.mjs — guard for app/utils/analytics-pos.ts,
+ * app/utils/analytics-agregat.ts and app/utils/analytics-dampak.ts
+ * (Lane L1/L2/L3, issue #20).
  *
  *   node tools/uji-analytics.mjs      (Node 24: imports the .ts directly)
  *
  * The POS column matcher, the Indonesian number reader, the three date
- * shapes, the payment split and the month-summary aggregation. A drift here
- * silently moves turnover between days, methods or months.
+ * shapes, the payment split, the month-summary aggregation and the
+ * event/marketing impact arithmetic. A drift here silently moves turnover
+ * between days, methods, months or shows.
  */
 import * as P from '../app/utils/analytics-pos.ts'
 import * as A from '../app/utils/analytics-agregat.ts'
+import * as D from '../app/utils/analytics-dampak.ts'
 
 let ok = 0
 let gagal = 0
@@ -195,6 +198,41 @@ cek('talSlot tak terbaca = null', A.talSlot({ tgl: '2026-08-02', mulai: '', sele
 const to = A.talOmset({ '2026-08-02': { 20: { g: 50000, b: 5 } } }, ['2026-08-02|20', '2026-08-02|21'])
 cek('talOmset + jamKosong', to.omset === 50000 && to.jamBerdata === 1 && to.jamKosong === 1)
 cek('talKunci', A.talKunci({ jam: [{ tgl: '2026-08-02', jam: 20 }] })[0] === '2026-08-02|20')
+
+console.log('\nanalytics-dampak: acara & breakdown')
+cek('acaraSelesai tak peka huruf', D.acaraSelesai('Event Done') && D.acaraSelesai('  event done ') && !D.acaraSelesai('Upcoming') && !D.acaraSelesai(''))
+cek('omsetBdAcara = amount+tax+service', D.omsetBdAcara({ amount: 100000, tax: 10000, service: 5000 }) === 115000)
+const bdDaily = [
+  { date: '2026-09-01', bd: { event: [{ eventName: 'Nobar', amount: 100000, tax: 10000, service: 5000 }], marketing: [{ eventName: 'Promo', amount: 50000, tax: 5000, service: 2500 }] } },
+  { date: '2026-09-02', bd: { event: [], marketing: [] } },
+  { date: '2026-08-01', bd: { event: [{ eventName: 'Lain', amount: 1, tax: 0, service: 0 }], marketing: [] } },
+]
+cek('barisBdSumber potong bulan', D.barisBdSumber(bdDaily, 'Event', '2026-09').length === 1 && D.barisBdSumber(bdDaily, 'Marketing', '2026-09')[0].omset === 57500)
+cek('barisBdSumber tanpa nama tetap ikut', D.barisBdSumber([{ date: '2026-09-01', bd: { event: [{ amount: 7000, tax: 0, service: 0 }] } }], 'Event', '2026-09')[0].nama === '')
+
+console.log('\nanalytics-dampak: hitungDampakPenuh (hari abu-abu)')
+const hariD = { '2026-09-01': { grand: 100000 }, '2026-09-02': { grand: 200000 }, '2026-09-03': { grand: 150000 } }
+const hdp = D.hitungDampakPenuh(
+  hariD,
+  [{ tgl: '2026-09-01', judul: 'Nobar', sumber: 'Event', kategori: 'Nobar' }],
+  [{ tgl: '2026-09-03', judul: 'Rencana', sumber: 'Event', kategori: 'Musik' }],
+  [{ tgl: '2026-09-01', nama: 'Nobar', omset: 30000 }],
+)
+cek('hari acara vs biasa vs abu-abu', JSON.stringify(hdp.adaEv) === '["2026-09-01"]' && JSON.stringify(hdp.tanpa) === '["2026-09-02"]' && JSON.stringify(hdp.abuAbu) === '["2026-09-03"]')
+cek('rata & omset', hdp.rEv === 100000 && hdp.rNo === 200000 && hdp.omsetEv === 100000 && hdp.omsetSaja === 30000 && hdp.totalBulan === 450000)
+
+console.log('\nanalytics-dampak: top3Acara')
+const t3 = D.top3Acara([
+  { tgl: '2026-09-01', nama: 'Nobar', omset: 30000 },
+  { tgl: '2026-09-02', nama: 'nobar', omset: 20000 },
+  { tgl: '2026-09-01', nama: '', omset: 90000 },
+  { tgl: '2026-09-02', nama: 'Nol', omset: 0 },
+  { tgl: '2026-09-03', nama: 'A', omset: 1000 },
+  { tgl: '2026-09-04', nama: 'B', omset: 2000 },
+  { tgl: '2026-09-05', nama: 'C', omset: 3000 },
+])
+cek('kelompok per nama tak peka huruf', t3.top[0].nama === '(tanpa nama)' && t3.top[1].nama === 'Nobar' && t3.top[1].omset === 50000)
+cek('nol disaring, sisa dihitung', t3.top.length === 3 && t3.sisa === 2 && t3.sisaOmset === 3000 && t3.tanpaNama === 1)
 
 console.log('\n' + ok + ' lulus, ' + gagal + ' gagal')
 process.exit(gagal ? 1 : 0)
