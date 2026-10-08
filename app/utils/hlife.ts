@@ -11,6 +11,15 @@ import { hariIni, tambahHari } from '~/utils/format'
 /** Project Center columns. 'Archive' was removed 19 Aug 2026 and merged into 'Done' (`:638-644`). */
 export const STAGES = ['Idea', 'Planning', 'Research', 'Ready', 'Doing', 'Waiting', 'Review', 'Done'] as const
 
+/**
+ * USelect (Radix SelectItem) refuses an empty-string option value, so the old
+ * "no choice" options use these sentinels in the UI. Map them back to `''`
+ * before saving — the API stores "no business / no project / no milestone"
+ * as an empty string, exactly like the old client.
+ */
+export const PILIHAN_SEMUA = '__semua__'
+export const PILIHAN_TANPA = '__tanpa__'
+
 /** Content Pipeline columns (`:668`). */
 export const CSTAGES = ['Idea', 'Script', 'Shoot', 'Editing', 'Scheduled', 'Posted'] as const
 
@@ -95,7 +104,9 @@ export function rupiahRingkas(n: number | null | undefined): string {
   let v = Number(n) || 0
   const tanda = v < 0 ? '-' : ''
   v = Math.abs(v)
-  const potong = (x: string) => x.replace(/\.?0+$/, '')
+  // Strip only DECIMAL zeros ("2.40" -> "2.4"): whole hundreds like "400"
+  // must stay "400", or Rp 400 jt would read "Rp 4 jt".
+  const potong = (x: string) => x.includes('.') ? x.replace(/\.?0+$/, '') : x
   if (v >= 1e9) return `${tanda}Rp ${potong((v / 1e9).toFixed(v >= 1e10 ? 1 : 2))} M`
   if (v >= 1e6) return `${tanda}Rp ${potong((v / 1e6).toFixed(0))} jt`
   if (v >= 1e3) return `${tanda}Rp ${potong((v / 1e3).toFixed(0))} rb`

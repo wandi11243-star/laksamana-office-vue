@@ -14,7 +14,7 @@ import {
   useHlifeResource,
 } from '~/composables/useHlife'
 import type { KuadranHlife } from '~/utils/hlife'
-import { kuadranHlife, tautanGcal, terlambat } from '~/utils/hlife'
+import { PILIHAN_SEMUA, PILIHAN_TANPA, kuadranHlife, tautanGcal, terlambat } from '~/utils/hlife'
 import { KUADRAN_META, lencanaTugas } from '~/utils/status-hlife'
 import { angka, hariIni, tambahHari } from '~/utils/format'
 
@@ -33,8 +33,8 @@ const proyek = computed(() => projData.value.rows)
 
 type Tampilan = 'matrix' | 'today' | 'week' | 'biz'
 const tampilan = ref<Tampilan>('matrix')
-const filterBiz = ref('')
-const filterProyek = ref('')
+const filterBiz = ref(PILIHAN_SEMUA)
+const filterProyek = ref(PILIHAN_SEMUA)
 
 const TAMPILAN: { value: Tampilan, label: string }[] = [
   { value: 'matrix', label: 'Matrix' },
@@ -46,8 +46,8 @@ const TAMPILAN: { value: Tampilan, label: string }[] = [
 const hari = hariIni()
 
 const tersaring = computed(() => tasks.value.filter(t =>
-  (!filterBiz.value || t.biz === filterBiz.value)
-  && (!filterProyek.value || t.project === filterProyek.value)))
+  (filterBiz.value === PILIHAN_SEMUA || t.biz === filterBiz.value)
+  && (filterProyek.value === PILIHAN_SEMUA || t.project === filterProyek.value)))
 
 interface Grup {
   judul: string
@@ -80,18 +80,18 @@ const grup = computed<Grup[]>(() => {
   return [...peta].map(([judul, items]) => ({ judul, items }))
 })
 
-const adaFilter = computed(() => !!(filterBiz.value || filterProyek.value))
+const adaFilter = computed(() => filterBiz.value !== PILIHAN_SEMUA || filterProyek.value !== PILIHAN_SEMUA)
 function resetFilter() {
-  filterBiz.value = ''
-  filterProyek.value = ''
+  filterBiz.value = PILIHAN_SEMUA
+  filterProyek.value = PILIHAN_SEMUA
 }
 
 const opsiBisnis = computed(() => [
-  { value: '', label: 'Semua bisnis' },
+  { value: PILIHAN_SEMUA, label: 'Semua bisnis' },
   ...bisnis.value.map(b => ({ value: b.name, label: b.name })),
 ])
 const opsiProyekFilter = computed(() => [
-  { value: '', label: 'Semua project' },
+  { value: PILIHAN_SEMUA, label: 'Semua project' },
   ...proyek.value.map(p => ({ value: p.id, label: p.name })),
 ])
 
@@ -114,13 +114,13 @@ const form = reactive({
 })
 
 const opsiBisnisForm = computed(() => [
-  { value: '', label: '— Tanpa bisnis —' },
+  { value: PILIHAN_TANPA, label: '— Tanpa bisnis —' },
   ...bisnis.value.map(b => ({ value: b.name, label: b.name })),
 ])
 
 /** `projOptions()` (`:848-851`). */
 const opsiProyekForm = computed(() => [
-  { value: '', label: '— Tanpa project —' },
+  { value: PILIHAN_TANPA, label: '— Tanpa project —' },
   ...proyek.value
     .filter(p => p.stage !== 'Done' || p.id === form.project)
     .map(p => ({ value: p.id, label: `${p.name}${p.stage === 'Done' ? ' · selesai' : ''}` })),
@@ -130,8 +130,8 @@ const metaForm = computed(() => KUADRAN_META[kuadranHlife({ important: form.impo
 
 function buka(t?: HlifeTask, prefill: { biz?: string, project?: string } = {}) {
   Object.assign(form, t
-    ? { id: t.id, name: t.name, desc: t.desc || '', biz: t.biz || '', project: t.project || '', owner: t.owner || '', due: t.due || '', est: t.est || 0, important: !!t.important, urgent: !!t.urgent }
-    : { id: '', name: '', desc: '', biz: prefill.biz || '', project: prefill.project || '', owner: '', due: '', est: 0, important: true, urgent: false })
+    ? { id: t.id, name: t.name, desc: t.desc || '', biz: t.biz || PILIHAN_TANPA, project: t.project || PILIHAN_TANPA, owner: t.owner || '', due: t.due || '', est: t.est || 0, important: !!t.important, urgent: !!t.urgent }
+    : { id: '', name: '', desc: '', biz: prefill.biz || PILIHAN_TANPA, project: prefill.project || PILIHAN_TANPA, owner: '', due: '', est: 0, important: true, urgent: false })
   sheet.value = true
 }
 
@@ -148,8 +148,8 @@ async function simpan() {
   const body = {
     name,
     desc: form.desc,
-    biz: form.biz,
-    project: form.project,
+    biz: form.biz === PILIHAN_TANPA ? '' : form.biz,
+    project: form.project === PILIHAN_TANPA ? '' : form.project,
     owner: form.owner,
     due: form.due,
     est: Number(form.est) || 0,

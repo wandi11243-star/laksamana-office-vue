@@ -119,7 +119,9 @@ async function hapus() {
 </script>
 
 <template>
+  <NuxtPage v-if="$route.params.id" />
   <AppPage
+    v-else
     title="Businesses"
     description="Howandi Chandra Inc. — klik untuk detail tiap anak perusahaan."
   >

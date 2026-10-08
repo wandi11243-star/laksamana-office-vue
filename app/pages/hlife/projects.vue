@@ -10,7 +10,7 @@ import {
   createHlifeRecord, deleteHlifeRecord, updateHlifeRecord,
   useHlifeResource,
 } from '~/composables/useHlife'
-import { PRIORITIES, STAGES, fmtDue, persenProject, stageAktif } from '~/utils/hlife'
+import { PILIHAN_TANPA, PRIORITIES, STAGES, fmtDue, persenProject, stageAktif } from '~/utils/hlife'
 import { ikonPrioritas, ikonStage, tonePrioritas, toneStage } from '~/utils/status-hlife'
 import { hariIni } from '~/utils/format'
 
@@ -106,7 +106,7 @@ const form = reactive({
 })
 
 const opsiBisnis = computed(() => [
-  { value: '', label: '—' },
+  { value: PILIHAN_TANPA, label: '—' },
   ...bisnis.value.map(b => ({ value: b.name, label: b.name })),
 ])
 const opsiStage = STAGES.map(s => ({ value: s as string, label: s }))
@@ -114,8 +114,8 @@ const opsiPrioritas = PRIORITIES.map(p => ({ value: p as string, label: p }))
 
 function buka(p?: HlifeProject) {
   Object.assign(form, p
-    ? { id: p.id, name: p.name, desc: p.desc || '', biz: p.biz || '', priority: p.priority || 'Med', pic: p.pic || '', team: p.team || '', stage: stageAktif(p), due: p.due || '', progress: p.progress || 0 }
-    : { id: '', name: '', desc: '', biz: '', priority: 'Med', pic: '', team: '', stage: 'Idea', due: '', progress: 0 })
+    ? { id: p.id, name: p.name, desc: p.desc || '', biz: p.biz || PILIHAN_TANPA, priority: p.priority || 'Med', pic: p.pic || '', team: p.team || '', stage: stageAktif(p), due: p.due || '', progress: p.progress || 0 }
+    : { id: '', name: '', desc: '', biz: PILIHAN_TANPA, priority: 'Med', pic: '', team: '', stage: 'Idea', due: '', progress: 0 })
   sheet.value = true
 }
 
@@ -132,7 +132,7 @@ async function simpan() {
   const body = {
     name,
     desc: form.desc,
-    biz: form.biz,
+    biz: form.biz === PILIHAN_TANPA ? '' : form.biz,
     priority: form.priority,
     pic: form.pic,
     team: form.team,
@@ -208,7 +208,9 @@ const lewat = (p: HlifeProject) => !!p.due && p.due < hari && stageAktif(p) !== 
 </script>
 
 <template>
+  <NuxtPage v-if="$route.params.id" />
   <AppPage
+    v-else
     title="Project Center"
     description="Klik project untuk lihat detail & task-nya. Drag kartu antar kolom, atau pakai tombol pindah stage di HP."
   >

@@ -3,6 +3,9 @@
   (howandi_life/index.html:654-665). PIC/Tim/Task selesai, progress automatic
   from the project's tasks, deadline with a Google Calendar link, and the task
   list of this project. New tasks open the Tasks screen prefilled (F.6).
+
+  Nuxt nests this file under `projects.vue`, so that file renders `<NuxtPage/>`
+  and hides its list while this route is active — without it the detail never shows.
 -->
 <script setup lang="ts">
 import type { HlifeBusiness, HlifeProject, HlifeTask } from '~/composables/useHlife'
@@ -10,7 +13,7 @@ import {
   deleteHlifeRecord, updateHlifeRecord,
   useHlifeResource,
 } from '~/composables/useHlife'
-import { PRIORITIES, STAGES, fmtDue, persenProject, stageAktif, tautanGcal } from '~/utils/hlife'
+import { PILIHAN_TANPA, PRIORITIES, STAGES, fmtDue, persenProject, stageAktif, tautanGcal } from '~/utils/hlife'
 import { ikonStage, lencanaTugas } from '~/utils/status-hlife'
 import { hariIni } from '~/utils/format'
 
@@ -52,14 +55,14 @@ const form = reactive({
   progress: 0,
 })
 
-const opsiBisnis = computed(() => [{ value: '', label: '—' }, ...bisnis.value.map(b => ({ value: b.name, label: b.name }))])
+const opsiBisnis = computed(() => [{ value: PILIHAN_TANPA, label: '—' }, ...bisnis.value.map(b => ({ value: b.name, label: b.name }))])
 const opsiStage = STAGES.map(s => ({ value: s as string, label: s }))
 const opsiPrioritas = PRIORITIES.map(p => ({ value: p as string, label: p }))
 
 function bukaEdit() {
   const p = proyek.value
   if (!p) return
-  Object.assign(form, { id: p.id, name: p.name, desc: p.desc || '', biz: p.biz || '', priority: p.priority || 'Med', pic: p.pic || '', team: p.team || '', stage: stageAktif(p), due: p.due || '', progress: p.progress || 0 })
+  Object.assign(form, { id: p.id, name: p.name, desc: p.desc || '', biz: p.biz || PILIHAN_TANPA, priority: p.priority || 'Med', pic: p.pic || '', team: p.team || '', stage: stageAktif(p), due: p.due || '', progress: p.progress || 0 })
   sheet.value = true
 }
 
@@ -84,7 +87,7 @@ async function simpan() {
       id: form.id,
       name,
       desc: form.desc,
-      biz: form.biz,
+      biz: form.biz === PILIHAN_TANPA ? '' : form.biz,
       priority: form.priority,
       pic: form.pic,
       team: form.team,
