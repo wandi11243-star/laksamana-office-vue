@@ -83,3 +83,38 @@ Baris `_lintas-modul.md` (tambahkan):
 - **Kartu launcher `investor` wajib ada di `BRANCHES`** agar kuncinya terdaftar di Kelola Akses (`deploy/index.html:1186-1194`); tanpa itu tidak seorang pun bisa masuk tanpa galat.
 
 Pertanyaan terbuka: **tidak ada** (⚠️ pada `investorLaporFile` adalah perbedaan bentuk biner vs base64 yang memang sudah jadi kontrak v1 — bukan celah; keputusan konvensi omset sudah ditetapkan owner).
+
+## J. Progres build
+Branch: migrasi/investor · Mulai: 2026-10-08
+LANJUTKAN DARI: selesai build — tinggal cek visual di browser (1366 & 390, investor biasa & admin), push + PR oleh owner.
+
+| layar (key) | file | status | endpoint dipakai | ditunda karena |
+|---|---|---|---|---|
+| masuk | app/pages/investor/masuk.vue | ✅ | POST /auth/login (lewat login() useMe) | — |
+| ringkasan | app/pages/investor/index.vue | ✅ | GET /kompas/investor/summary | — |
+| laporan | app/pages/investor/laporan.vue | ✅ | summary (labaRugi) + reports GET/PUT/DELETE | — |
+| dividen | app/pages/investor/dividen.vue | ✅ | summary (dividen) | — |
+| event | app/pages/investor/event.vue | ✅ | GET /kompas/investor/agenda | — |
+| promo | app/pages/investor/promo.vue | ✅ | GET /kompas/investor/agenda | — |
+
+Catatan build:
+- Grafik "Omset per Bulan" digambar sebagai SVG tanpa dependensi baru (tidak ada chart lib di repo; `tesseract.js`/face-api satu-satunya yang diizinkan dan tidak relevan). Titik membawa `<title>` berangka penuh; sumbu Y memakai `rpSumbu()`.
+- Tulisan PDF tidak memakai `ifMatch`/versi: kontrak (`kompas.md:118-119`) tidak mengenal versi untuk reports — tiap (bulan, jenis) diganti utuh oleh admin.
+- Kalimat "Segera": tidak ada — seluruh 6 layar dibangun, tidak ada K/G yang memblokir.
+- Cek headless yang dilakukan: `lint` + `typecheck` + `build` hijau; 12 uji logika `app/utils/investor.ts` lolos; mock read-only port 4013 (semua tulisan 403) + dev 3013, keenam halaman HTTP 200, apiBase terbukti `127.0.0.1:4013`.
+- Belum dilakukan: cek visual di browser sungguhan (tidak ada browser di device ini) — 1366px & 390px sebagai investor biasa & admin investor, termasuk form unggah PDF dan sheet konfirmasi hapus.
+
+## K. Daftar uji cutover
+
+1. Buka `/investor/masuk`, masuk dengan nama + PIN — mendarat di Ringkasan; angka sama dengan Investor Compass lama bulan berjalan.
+2. Masuk dengan akun Office tanpa kunci `investor` — tampil "Akun Anda belum diberi akses. Minta admin mencentang Investor Compass lewat Kelola Akses di Laksamana Office." (pesan persis).
+3. Ringkasan: kartu Omset memakai netSales; baris keterangan service/pajak/compliment + tagihan POS cocok dengan Rekap Penjualan; baris hilang bila ketiganya nol; delta rata-rata/hari vs bulan lalu hilang bila bulan lalu < 7 hari terisi.
+4. Ringkasan: grafik Omset per Bulan bisa menyalakan/mematikan tahun; tooltip titik berangka penuh; Sorotan menyebut hari terbaik + rata-rata bulan berjalan.
+5. Laporan: pilih bulan — blok Pendapatan cocok dengan Profit Loss Report CFO; baris beban bertanda "belum ada inputnya"; ada nota "Net Sales bukan laba."
+6. Laporan (admin investor): unggah Balance + Ledger sekaligus untuk bulan lalu — penyaring pindah ke bulan itu; unggah ulang bulan yang sama mengganti; berkas > 12 MB dan bukan-PDF ditolak sebelum terkirim; Buka PDF membuka tab baru; Hapus meminta konfirmasi dulu.
+7. Laporan (investor biasa): form unggah dan tombol Hapus tidak tampil.
+8. Dividen: total/modal/sisa cocok dengan Finance → Brankas → Pengembalian Modal; riwayat terbaru lebih dulu; teks menegaskan angka seluruh investor.
+9. Event: daftar urut waktu terdekat; kalender menandai tanggal yang ada acaranya; bila modul Marketing/Event/BD tak terbaca, muncul pita "Daftar mungkin belum lengkap".
+10. Promo: promo berjalan dan akan datang tampil dengan pil Berjalan/Akan datang; tanpa harga dan tanpa nama klien.
+11. Silang: catat omset harian / pengembalian modal / unggah PDF di Office lama → terlihat di Vue setelah muat ulang, dan sebaliknya (unggah di Vue → terbaca di Investor Compass lama).
+12. HP 390px: tidak ada geser ke samping di keenam layar; tabel menjadi kartu; form unggah muat penuh.

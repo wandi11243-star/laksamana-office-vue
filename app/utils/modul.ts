@@ -65,6 +65,10 @@ export const MODUL: Modul[] = [
   // access key so its chapters can be filtered by the key of the module they
   // document (deploy/index.html:1394-1415).
   { key: 'help', label: 'Help Center', desc: 'Panduan pemakaian tiap modul', icon: 'i-lucide-book-open', group: 'Lainnya', access: ['help'] },
+  // Investor Compass: read-only figures for investors, summed server-side from
+  // the omset daily map (docs/migrasi/investor.md). The card must exist so the
+  // key is registered in Kelola Akses (deploy/index.html:1186-1194).
+  { key: 'investor', label: 'Investor Compass', desc: 'Ruang investor: omset, capaian target, dan laporan', icon: 'i-lucide-hand-coins', group: 'Bisnis & Target', access: ['investor'] },
 ]
 
 export const MODUL_GROUPS: ModulGroup[] = ['Operasional', 'Tim & Kru', 'Marketing & Event', 'Bisnis & Target', 'Lainnya']
