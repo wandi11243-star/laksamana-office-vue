@@ -9,6 +9,8 @@
 -->
 <script setup lang="ts">
 import { useModulMembers } from '~/composables/useRoster'
+import type { ModulMember } from '~/composables/useRoster'
+import type { Me } from '~/composables/useMe'
 import type { PeranEvent } from '~/utils/layar/event'
 import { bolehUbahEvent, EMS_HALAMAN_LABEL, peranEvent, PERAN_EVENT, PERAN_LABEL_EVENT, resetMatriksEvent, setIzinEvent, useMatriksEvent } from '~/utils/layar/event'
 
@@ -18,6 +20,12 @@ const me = useMe()
 const toast = useToast()
 const peran = computed(() => peranEvent(me.value))
 const bolehUbah = computed(() => bolehUbahEvent('akses', peran.value))
+
+/** Legacy `peranDariRoster` (`:4591`): a module admin is always Manajemen;
+ *  everyone else goes through the same Tim-column mapping as yourself
+ *  (`peranEvent`) — never a binary admin/non-admin split. */
+const peranAnggota = (m: ModulMember): PeranEvent =>
+  m.isModuleAdmin ? 'manajemen' : peranEvent({ keterangan: m.keterangan ?? '', adminModules: [] } as unknown as Me)
 
 const { data: anggota, status } = useModulMembers('event')
 const daftarAnggota = computed(() => [...(anggota.value ?? [])])
@@ -75,7 +83,7 @@ function kembalikan() {
           </AppStatus>
         </template>
         <template #peran-cell="{ row }">
-          {{ row.original.isModuleAdmin ? PERAN_LABEL_EVENT.manajemen : PERAN_LABEL_EVENT.event }}
+          {{ PERAN_LABEL_EVENT[peranAnggota(row.original)] }}{{ row.original.isModuleAdmin ? ' (admin modul)' : '' }}
         </template>
       </UTable>
       <ul class="divide-y divide-default lg:hidden">
@@ -85,7 +93,7 @@ function kembalikan() {
           class="px-4 py-2.5 text-sm"
         >
           <b class="text-highlighted">{{ m.name }}</b>
-          <span class="block text-xs text-muted">{{ m.isModuleAdmin ? PERAN_LABEL_EVENT.manajemen : PERAN_LABEL_EVENT.event }} · {{ m.keterangan || '—' }}</span>
+          <span class="block text-xs text-muted">{{ PERAN_LABEL_EVENT[peranAnggota(m)] }}{{ m.isModuleAdmin ? ' (admin modul)' : '' }} · {{ m.keterangan || '—' }}</span>
         </li>
       </ul>
     </AppPanel>
