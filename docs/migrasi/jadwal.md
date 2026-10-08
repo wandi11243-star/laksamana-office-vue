@@ -356,6 +356,42 @@ yang lain). PNG seminggu tetap belum (butuh pustaka gambar, lihat #11).
 Tidak ada perbaikan kode di branch ini.
 `npm run lint && npm run typecheck && npm run build` hijau 2026-10-08.
 
+### Uji API lokal 2026-10-08 — seluruh layar + aksi tulis vs API lokal (Refs #11, branch `fix/api-jadwal`, dev :3000 → API lokal :8000, DB salinan lokal)
+20 layar Jadwal Shift + DW diuji melawan `http://127.0.0.1:8000/api/v1` (dibuktikan
+via network log + `__NUXT__.config.public.apiBase`; nol request ke dev-api).
+Akun: arfan (HRD/admin), Adit (head Kitchen), yuza (kru Bar, tanpa `dw`/`hr`),
+jebe (semua modul kecuali `dw` — tidak punya grant `dw` di DB lokal).
+
+Layar × peran × viewport (1366px & 390px, overflow halaman 0, console bersih):
+semua 8 layar Jadwal Shift + pemilih Roster (arfan dua kartu; yuza/jebe langsung
+dashboard karena hanya pegang `jadwal`) dan semua 11 layar DW lolos baca.
+Gate: Adit terkunci di `pegawai`/`pengaturan` (pesan admin), `minggu` hanya
+Kitchen (70/70 sel bisa diklik); yuza terkunci di `rekap`/`pegawai`, `/dw` &
+`/hr` → "Belum ada akses"; jebe: `minggu` pesan khusus head (0 sel),
+`bulanan` 1085 sel read-only (0 bisa diklik), `rekap`/`pegawai` terkunci,
+`/dw` → "Belum ada akses". Adit di DW: tanpa angka uang, `antrean`/`bayar`/
+`akses` terkunci untuk HRD; `tamu` tampil "Segera (G-05)" untuk pax + konteks
+DW dari overview.
+
+Aksi tulis terverifikasi simpan + reload (residu uji dibersihkan, DB kembali
+baseline): sel `PUT /cells` + hapus; pengajuan 2 langkah penuh Adit → arfan
+(MENUNGGU → MENUNGGU_HRD → DISETUJUI + sel OFF tertulis); pegawai
+tambah (PIN 1111, modul bawaan) → ubah → nonaktifkan → hapus permanen;
+pengaturan tambah + hapus shift; DW pekerja tambah → sunting → nonaktif →
+aktifkan → hapus; permintaan head → tunjuk HRD (assign) → DISETUJUI; hadir
+HADIR; ganti orang (endpoint, ALFA + baris baru HADIR, sesuai F.21); bayar
+tandai/batal; kalender assign + kembalikan (→MENUNGGU); antrean tolak,
+tarik kembali + hapus (head), setujui bulk 2 ajuan; tarif + akses toggle +
+kembalikan bawaan. Aturan uang terbukti di UI: baris ALFA Rp0, `''` tetap
+dibayar. `hapusAjuanDw` di `useDw.ts` tidak dipanggil halaman mana pun —
+penghapusan ajuan hanya lewat API (catat sebagai gap UI).
+Otomasi browser (CDP/JS) tidak bisa membuka dropdown `USelect` kustom
+(kandidat suksesi, pengganti ganti-orang) dan klik sel `JadwalLembar` —
+diatasi via event JS untuk sel/sheet/dialog; dropdown yang tidak terbuka
+diverifikasi lewat endpoint + validasi form ("Pilih kandidat dulu.").
+`npm run lint && npm run typecheck && npm run build` hijau 2026-10-08
+(tanpa perubahan kode).
+
 Catatan bagian 1:
 - `LANJUTKAN DARI`: seluruh 5 bagian sudah dibangun. Sisa: cek visual bagian 2–3 Jadwal Shift (belum), lalu review/merge owner. PR ditandai siap review setelah `npm run lint && npm run typecheck && npm run build` hijau.
 - Divisi kru dibaca dari `GET /jadwal/roster` (`divisi` sudah diselesaikan server, F.1), tidak dihitung ulang di Vue.
