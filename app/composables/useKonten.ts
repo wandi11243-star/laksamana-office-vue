@@ -21,10 +21,13 @@
 import type { Me } from '~/composables/useMe'
 import { isAdminOf } from '~/composables/useMe'
 import type {
-  AssetKonten, BrandKonten, KontenItem, LevelKonten, PermsKonten, ProdTask, ReqDesainMkt, ShootingKonten, UserKonten, VisitKonten,
+  AssetKonten, BrandKonten, KontenItem, LevelKonten, PermsKonten, ProdTask, ReqDesainMkt, ShootingKonten, UserKonten,
 } from '~/utils/konten'
 import { ROLE_BAWAAN_KONTEN, VIEW_PERM_KONTEN, levelKonten, normPlatform, opsiDesainMkt, permsKonten } from '~/utils/konten'
 import type { KatPk, UrutPk } from '~/utils/performa-konten'
+import type { DanaIklan, IklanKonten, KolKonten, VisitPenuh } from '~/utils/promosi-konten'
+import { statusIklanOtomatis } from '~/utils/promosi-konten'
+import { hariIni } from '~/utils/format'
 import { pkBulanIni } from '~/utils/performa-konten'
 import type { Versi } from '~/utils/versi'
 import { ifMatch, tanganiKonflik } from '~/utils/versi'
@@ -45,10 +48,10 @@ export interface StateKonten {
   shootings: ShootingKonten[]
   assets: AssetKonten[]
   bank: Record<string, unknown>[]
-  kols: { id: string, name?: string, updatedAt?: number }[]
-  visits: VisitKonten[]
-  ads: Record<string, unknown>[]
-  adFunds: Record<string, unknown>[]
+  kols: KolKonten[]
+  visits: VisitPenuh[]
+  ads: IklanKonten[]
+  adFunds: DanaIklan[]
   notifs: Record<string, unknown>[]
   logs: LogKonten[]
   settings: { orgName?: string }
@@ -329,3 +332,36 @@ export function kirimOpsiDesainMkt(st: StateKonten) {
 export interface KeadaanPk { bulan: string, plat: string, urut: UrutPk, cari: string, kat: KatPk }
 export const useKeadaanPk = (kunci = 'konten-pk') =>
   useState<KeadaanPk>(kunci, () => ({ bulan: pkBulanIni(), plat: '', urut: 'reach', cari: '', kat: 'pillar' }))
+
+// ---------------------------------------------------------------- ads
+
+/**
+ * Ad statuses follow their dates (old autoUpdateStatuses, :1635, run when the
+ * Panel opened): ended / active / draft from start & end, a manual "paused"
+ * untouched. Here: once per session, after the state loaded, only for whoever
+ * may edit `ads` (a viewer opening the dashboard should not write), silently —
+ * one PATCH per changed ad with its version, a failure just leaves the old
+ * status for the next session.
+ */
+export function useStatusIklanOtomatis() {
+  const { data, status } = useStateKonten()
+  const { can } = useAksesKonten()
+  const sudah = useState('konten-iklan-status', () => false)
+  watch([status, () => data.value.ads.length, () => can('ads')], async ([s]) => {
+    if (sudah.value || s !== 'success' || !can('ads')) return
+    sudah.value = true
+    const hari = hariIni()
+    const ubah = data.value.ads.map(a => ({ a, s: statusIklanOtomatis(a, hari) })).filter(x => x.s)
+    let n = 0
+    for (const { a, s: baru } of ubah) {
+      try {
+        await tambalKonten<IklanKonten>('ads', a.id, { status: baru! }, a.updatedAt)
+        n++
+      }
+      catch {
+        // stale or refused: the next session tries again
+      }
+    }
+    if (n) await refreshNuxtData('konten-state')
+  }, { immediate: true })
+}
