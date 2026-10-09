@@ -1035,7 +1035,7 @@ async function hapus() {
               </AppStatus>
             </p>
             <p class="mt-0.5 text-muted">
-              {{ profilNomor.kunjungan }}× kunjungan<template v-if="profilNomor.kunjunganTerakhir">, terakhir {{ tglPendek(profilNomor.kunjunganTerakhir) }}</template><template v-if="profilNomor.member"> · member {{ profilNomor.memberNo }}</template><template v-if="profilNomor.blacklist"> · {{ profilNomor.noShow }}× no-show, disarankan wajib DP</template>
+              {{ profilNomor.kunjungan }}× kunjungan<span v-if="profilNomor.kunjunganTerakhir">, terakhir {{ tglPendek(profilNomor.kunjunganTerakhir) }}</span><span v-if="profilNomor.member"> · member {{ profilNomor.memberNo }}</span><span v-if="profilNomor.blacklist"> · {{ profilNomor.noShow }}× no-show, disarankan wajib DP</span>
             </p>
           </div>
         </div>
