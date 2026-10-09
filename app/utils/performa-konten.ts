@@ -441,7 +441,8 @@ export function perfSaring(rows: PerfBaris[], f: FilterPerf): PerfBaris[] {
  *    filler (`firstAt`/`firstBy`) so a later fix does not erase who typed it;
  *    the server stamps `at`/`by` itself;
  *  - a platform whose boxes are ALL empty but that had a record → `hapus`
- *    (the old client deleted it; v1 cannot yet — G-01, laksamana-api#177);
+ *    (the old client deleted it; G-01 / laksamana-api#177 sends `metrics: null`
+ *    for each one, after asking and naming the platforms);
  *  - empty and never filled → nothing.
  */
 export function perfRencana(c: KontenItem, isi: Record<string, Record<string, unknown>>, saya: string, kini = Date.now()) {
