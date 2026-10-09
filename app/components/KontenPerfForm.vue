@@ -8,9 +8,10 @@
   server stamps at/by; we keep firstAt/firstBy so a later fix does not erase
   who typed it first — perfRencana).
 
-  Clearing every box of a platform that HAD figures deleted its record in the
-  old Panel (F.10). v1 cannot delete one platform yet (G-01,
-  laksamana-api#177): the screen says so ("Segera") and keeps the old figures.
+  Clearing every box of a platform that HAD figures deletes its record, with a
+  confirmation that NAMES the platform (F.10). G-01 (laksamana-api#177) made
+  that possible: `metrics: null` removes just that platform (hapusPerformaKonten).
+  A platform that never had figures and stays empty is left untouched.
 -->
 <script setup lang="ts">
 import type { KontenItem } from '~/utils/konten'
@@ -20,7 +21,6 @@ import { PK_FIELD, perfRencana } from '~/utils/performa-konten'
 const props = defineProps<{ item: KontenItem | null }>()
 const open = defineModel<boolean>('open', { default: false })
 
-const toast = useToast()
 const { data: st } = useStateKonten()
 const { saya, can } = useAksesKonten()
 // the old title link opened the form for anyone; saving needs the `analytics` row (stricter, like #48's forms)
@@ -55,20 +55,19 @@ const legacy = computed(() => !!props.item?.metrics && !Object.keys(props.item?.
 
 async function simpan() {
   const c = props.item
-  if (!c || !nKirim.value || !boleh.value) return
+  if (!c || (!nKirim.value && !rencana.value.hapus.length) || !boleh.value) return
+  const hapus = rencana.value.hapus
+  // Clearing every box of a platform DELETES that platform's figures, so ask
+  // first and name it — a confirmation without content just trains people to
+  // press OK (old savePerf, :4368-4372).
+  if (hapus.length && !confirm(`Catatan performa untuk ${hapus.join(', ')} akan DIHAPUS karena seluruh kotaknya kosong.\n\nLanjutkan?`)) return
   sibuk.value = true
   const ok = await kontenSimpan(async () => {
     for (const [p, m] of Object.entries(rencana.value.kirim)) await simpanPerformaKonten(c.id, p, m)
+    for (const p of hapus) await hapusPerformaKonten(c.id, p)
   }, 'Performa tersimpan', { action: 'mengisi performa konten', target: c.title })
   sibuk.value = false
   if (!ok) return
-  if (rencana.value.hapus.length) {
-    toast.add({
-      title: `Catatan ${rencana.value.hapus.join(', ')} tidak dihapus`,
-      description: 'Menghapus catatan satu platform segera tersedia. Angka lamanya tetap tersimpan.',
-      color: 'warning',
-    })
-  }
   open.value = false
 }
 </script>
@@ -111,7 +110,7 @@ async function simpan() {
           <span class="text-xs text-muted">{{ jejak(p) }}</span>
           <UBadge
             v-if="rencana.hapus.includes(p)"
-            label="Hapus catatan: Segera"
+            label="Akan dihapus"
             color="warning"
             variant="subtle"
             size="sm"
@@ -121,8 +120,8 @@ async function simpan() {
           v-if="rencana.hapus.includes(p)"
           class="mb-3 text-xs text-warning"
         >
-          Seluruh kotak {{ p }} kosong. Menghapus catatan satu platform belum bisa dilakukan (Segera), jadi angka lamanya
-          tetap tersimpan. Isi lagi angkanya kalau tidak ingin mengubah apa-apa.
+          Seluruh kotak {{ p }} kosong. Menyimpan akan MENGHAPUS catatan platform ini — ditanya dulu dengan menyebut
+          namanya. Isi lagi salah satu angkanya kalau tidak ingin menghapus apa-apa.
         </p>
         <div class="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <UFormField
@@ -152,7 +151,7 @@ async function simpan() {
         v-if="boleh"
         label="Simpan performa"
         :loading="sibuk"
-        :disabled="!nKirim"
+        :disabled="!nKirim && !rencana.hapus.length"
         @click="simpan"
       />
       <UButton

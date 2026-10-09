@@ -194,6 +194,15 @@ export const logKonten = (action: string, target = '') =>
 export const simpanPerformaKonten = (id: string, platform: string, metrics: Record<string, unknown>) =>
   useApi()<Envelope<KontenItem>>(`/konten/content/${encodeURIComponent(id)}/performance`, { method: 'PUT', body: { platform, metrics } })
 
+/**
+ * PUT /konten/content/{id}/performance with `metrics: null` — REMOVES that one
+ * platform's entry and keeps the others (G-01 / laksamana-api#177). This is the
+ * old `delete c.perf[platform]` when every box of that platform was emptied;
+ * the caller confirms first, naming the platform (konten.md F.10).
+ */
+export const hapusPerformaKonten = (id: string, platform: string) =>
+  useApi()<Envelope<KontenItem>>(`/konten/content/${encodeURIComponent(id)}/performance`, { method: 'PUT', body: { platform, metrics: null } })
+
 /** GET/PUT /konten/documents/{doc} — `settings`, `perms`, `seeded`; version = content hash. */
 export const getDokumenKonten = <T>(doc: 'settings' | 'perms' | 'seeded') =>
   useApi()<Envelope<T>>(`/konten/documents/${doc}`)

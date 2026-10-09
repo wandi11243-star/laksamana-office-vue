@@ -15,7 +15,7 @@
  *     fixed WIB;
  *   - no-value rows sink when sorting;
  *   - Input Performa: tab counts before the tab filter, first filler kept,
- *     clearing a filled platform = "hapus" (not yet possible in v1, G-01).
+ *     clearing a filled platform = "hapus" (sent as `metrics: null`, G-01).
  */
 import { register } from 'node:module'
 
