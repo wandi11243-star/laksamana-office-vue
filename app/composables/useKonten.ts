@@ -289,10 +289,11 @@ export function kecilkanGambarKonten(file: File, maksPx = 1280, batas = 700 * 10
 
 // ---------------------------------------------------------------- Marketing design requests (#48)
 // The Design & Editing queues READ Marketing's requests and write back only
-// "done" (konten.md D.23b, F.21). The read is lazy and may fail on its own —
-// a crew member who holds Konten but not Marketing gets 403 until
-// laksamana-api#190 lands — and must never block the queue: the screen shows a
-// warning with "Coba lagi" and the rest of the queue as usual.
+// "done" (konten.md D.23b, F.21). G-16 (laksamana-api#190) opens the queue
+// reads/writes to `marketing|konten`, so a crew member who holds only Konten
+// can open and finish the queue. The read is still lazy and may fail on its own
+// (API down); it must never block the queue: the screen shows a warning with
+// "Coba lagi" and the rest of the queue as usual.
 
 /** GET /marketing/design-queue?active=1 — once per session (shared key), like REQ_MKT. */
 export const useReqDesainMkt = () =>
@@ -303,7 +304,7 @@ export const useReqDesainMkt = () =>
 /**
  * GET /marketing/design-queue WITHOUT `active`: finished requests too, with
  * their doneAt — Performa Desain counts them (separately). Loaded only when
- * that page is open; a 403 (laksamana-api#190) shows a warning, never blocks.
+ * that page is open; a failure shows a warning, never blocks.
  */
 export const useReqDesainMktSemua = () =>
   useAsyncData('konten-req-mkt-semua', () =>

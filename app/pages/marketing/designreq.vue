@@ -3,7 +3,8 @@
   #61): requests stay HERE and Konten reads them through its narrow
   endpoints — never copied over. Progress flows back the other way
   (done/picNama/at). Cancelling keeps the trace (batalAt), never deletes.
-  A 403 (laksamana-api#190) shows a ribbon + retry and never blocks.
+  G-16 (laksamana-api#190) opens the queue to `marketing|konten`; a failure
+  shows a ribbon + retry and never blocks.
 -->
 <script setup lang="ts">
 import type { KolomMkt, RequestDesainMkt } from '~/utils/marketing'

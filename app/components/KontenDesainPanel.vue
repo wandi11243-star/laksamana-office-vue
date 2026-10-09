@@ -8,8 +8,8 @@
   tasks done + Marketing DESIGN requests finished (since 26 Sep 2026, counted
   SEPARATELY in their own card; videos are named but never added to design).
   The Marketing list is read lazily from GET /marketing/design-queue (all, with
-  doneAt); a failure (403 for crew with Konten only, laksamana-api#190) says
-  so with "Coba lagi" and the rest still works.
+  doneAt; G-16 / laksamana-api#190 opens it to `marketing|konten`); a failure
+  (API down) says so with "Coba lagi" and the rest still works.
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
