@@ -183,7 +183,9 @@ sudah dicatat di September tidak ditagih lagi di Agustus (`cocok-bri.js:203-207`
 memulangkan `{baris,total,maks,abai}` (`VoidBri::briList`, `laksamana-api/app/Modules/Kompas/Services/VoidBri.php:863-886`).
 Vue #30 memakai daftar baris bulan berjalan (perilaku sebelum 23 Sep 2026): benar untuk bulan yang dibuka,
 salah untuk bulan lain.
-**Usul:** tambahkan `dipakai: [dpId…]` (query `bri_mutasi` `cara='cocok' AND batal_at=0`) ke balasan `GET /kompas/bri`.
+**Usul:** tambahkan `dipakai: [dpId…]` ke balasan `GET /kompas/bri` (dan `briList` legacy, karena PHP lama sudah memulangkannya).
+Koreksi 2026-10-09: query lama yang sebenarnya `SELECT DISTINCT dp_id FROM bri_mutasi WHERE dp_id <> '' AND batal_at = 0`
+— tanpa saringan `cara` (`laksamana-office/kompas-mysql/lib_kompas_mysql.php` `bri_list()`, :2918-2934).
 
 ### G-20 — marketing/konten: antrean Request Design dan pemilih brand/kru lintas modul
 Layar Request Design di Marketing butuh antrean desain Konten dan daftar brand + kru produksi, sementara
