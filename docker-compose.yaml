@@ -1,0 +1,11 @@
+# Dokploy (Compose service) runs the image that .github/workflows/image.yml publishes.
+# No host port: set the domain in Dokploy → Domains with container port 80, and
+# Dokploy's Traefik serves it over HTTPS. OFFICE_TAG picks the image:
+#   latest (production API, default) · dev (dev-api) · sha-<short> to pin or roll back.
+services:
+  office:
+    image: ghcr.io/dwipapap/laksamana-office-vue:${OFFICE_TAG:-latest}
+    pull_policy: always
+    restart: unless-stopped
+    expose:
+      - "80"

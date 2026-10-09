@@ -116,11 +116,22 @@ sebelum menulis kode: itu inventaris layar, field, rumus, dan endpoint-nya.
 ## Build & deploy
 
 - `npm run build` menghasilkan file statis di `.output/public` (SPA dengan fallback `200.html`). `NUXT_PUBLIC_API_BASE` dibaca **saat build**, jadi dev dan production perlu build terpisah.
-- **Docker:**
+- **Docker (lokal):** build-arg wajib diisi, `Dockerfile` sengaja tidak punya default.
   ```bash
   docker build --build-arg NUXT_PUBLIC_API_BASE=https://api.laksamanamuda.id/api/v1 -t laksamana-office .
   docker run -p 8080:80 laksamana-office
   ```
+- **Image di GHCR** (`.github/workflows/image.yml`):
+  - push ke `main` membangun `ghcr.io/dwipapap/laksamana-office-vue:latest` dan `:sha-<7 char>` untuk API production;
+  - Actions → **image** → Run workflow → `dev` membangun `:dev` dan `:dev-sha-<7 char>` untuk `dev-api`;
+  - push yang hanya mengubah `docs/` atau `*.md` tidak memicu build.
+- **VPS (Dokploy, tipe Compose):** pakai `docker-compose.yaml` di repo ini.
+  1. Karena repo private, package GHCR juga private. Di Dokploy → Settings → Registry, tambahkan `ghcr.io` dengan
+     username GitHub dan PAT (classic) ber-scope `read:packages`.
+  2. Domains: domain Office, container port `80`, HTTPS (Let's Encrypt).
+  3. Environment: `OFFICE_TAG=latest` (default). Isi `dev` untuk gladi, atau `sha-<7 char>` untuk mengunci/rollback versi.
+  4. Opsional: salin webhook deploy compose itu ke secret repo `DOKPLOY_WEBHOOK_PRODUCTION` (atau `DOKPLOY_WEBHOOK_DEV`),
+     supaya Dokploy redeploy otomatis setelah image baru terbit. Tanpa secret itu, tekan **Deploy** di Dokploy.
 - `nginx.conf` sudah mengatur fallback SPA dan cache (aset `/_nuxt/` immutable; `sw.js` dan manifest `no-cache`, supaya PWA cepat menerima update).
 - Domain production masih placeholder: `office.laksamanamuda.id`. Domain yang dipakai harus masuk ke `CORS_ALLOWED_ORIGINS` di API production.
 

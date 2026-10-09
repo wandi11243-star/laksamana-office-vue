@@ -1,0 +1,92 @@
+# Build the static Office image and publish it to GHCR; Dokploy pulls it via
+# docker-compose.yaml (CONTRIBUTING.md "Build & deploy").
+#
+#   - push to main      → ghcr.io/dwipapap/laksamana-office-vue:latest + :sha-<short>,
+#                         built against the production API.
+#   - Run workflow (dev) → :dev + :dev-sha-<short>, built against dev-api, for rehearsals.
+#
+# NUXT_PUBLIC_API_BASE is baked in at build time, so each API needs its own image.
+# Override the URLs with the repo variables API_BASE_PRODUCTION / API_BASE_DEV.
+# Dokploy only redeploys when told: set DOKPLOY_WEBHOOK_PRODUCTION / DOKPLOY_WEBHOOK_DEV
+# (the compose's deploy webhook URL) to redeploy right after the push; without them
+# press Deploy in Dokploy.
+name: image
+
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['docs/**', '**/*.md']
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Which API the image talks to
+        type: choice
+        options: [production, dev]
+        default: production
+
+concurrency:
+  group: image-${{ github.event_name == 'workflow_dispatch' && inputs.target || 'production' }}
+  cancel-in-progress: true
+
+jobs:
+  image:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.target || 'production' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Pick API and tags
+        id: cfg
+        env:
+          API_PRODUCTION: ${{ vars.API_BASE_PRODUCTION || 'https://api.laksamanamuda.id/api/v1' }}
+          API_DEV: ${{ vars.API_BASE_DEV || 'https://dev-api.laksamanamuda.id/api/v1' }}
+        run: |
+          short=${GITHUB_SHA::7}
+          image=ghcr.io/${GITHUB_REPOSITORY,,}
+          if [ "$TARGET" = production ]; then
+            echo "api=$API_PRODUCTION" >> "$GITHUB_OUTPUT"
+            echo "tags=$image:latest,$image:sha-$short" >> "$GITHUB_OUTPUT"
+          else
+            echo "api=$API_DEV" >> "$GITHUB_OUTPUT"
+            echo "tags=$image:dev,$image:dev-sha-$short" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.cfg.outputs.tags }}
+          build-args: NUXT_PUBLIC_API_BASE=${{ steps.cfg.outputs.api }}
+          cache-from: type=gha,scope=${{ env.TARGET }}
+          cache-to: type=gha,mode=max,scope=${{ env.TARGET }}
+
+      - name: Redeploy on Dokploy
+        env:
+          HOOK_PRODUCTION: ${{ secrets.DOKPLOY_WEBHOOK_PRODUCTION }}
+          HOOK_DEV: ${{ secrets.DOKPLOY_WEBHOOK_DEV }}
+        run: |
+          # Chosen here, not with `cond && a || b`: an empty production secret would fall through to dev's.
+          if [ "$TARGET" = production ]; then HOOK=$HOOK_PRODUCTION; else HOOK=$HOOK_DEV; fi
+          if [ -z "$HOOK" ]; then
+            echo "No Dokploy webhook for $TARGET: image pushed, press Deploy in Dokploy." | tee -a "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          curl -fsS -X POST "$HOOK" > /dev/null
+          echo "Dokploy redeploy triggered for $TARGET." | tee -a "$GITHUB_STEP_SUMMARY"
+
+      - name: Summary
+        run: |
+          echo "API: \`${{ steps.cfg.outputs.api }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "Tags: \`${{ steps.cfg.outputs.tags }}\`" >> "$GITHUB_STEP_SUMMARY"
