@@ -107,6 +107,9 @@ function vendorBaris(p: RencanaBayar): string {
 }
 
 // ---- wallet select follows the old sheet: five wallets, no free text ----
+// Reka UI rejects `value: ''` (SelectItem setup crash), so the placeholder
+// uses a sentinel mapped back to `''` on write.
+const DARI_KOSONG = '__pilih'
 const opsiDariDasar = WADAH.map(w => ({ label: w.n, value: w.k as string }))
 /** Existing custom text is kept as its own option so saving never drops it. */
 function opsiDariUntuk(dari: unknown) {
@@ -410,11 +413,11 @@ async function simpan() {
             </UFormField>
             <UFormField label="Dibayar dari">
               <USelect
-                :model-value="String(r.dari || '')"
-                :items="[{ label: 'Pilih wallet…', value: '' }, ...opsiDariUntuk(r.dari)]"
+                :model-value="String(r.dari || DARI_KOSONG)"
+                :items="[{ label: 'Pilih wallet…', value: DARI_KOSONG }, ...opsiDariUntuk(r.dari)]"
                 class="w-full"
                 :disabled="!izin.ubah('bayar')"
-                @update:model-value="(v: string) => set(r, 'dari', v)"
+                @update:model-value="(v: string) => set(r, 'dari', v === DARI_KOSONG ? '' : v)"
               />
             </UFormField>
             <UFormField label="Nominal">
