@@ -233,9 +233,9 @@ export function dpKeBri(d: { metode?: string, bank?: string }): boolean {
 /**
  * dpId → true for every DP ALREADY held by a live row. Seeded from the server's
  * cross-month list first, then overridden by this month's rows (:454-467).
- * v1 `GET /kompas/bri` does not return `dipakai` yet (gap noted in
- * docs/migrasi/_gap-api.md), so the page passes `{}` and the month's own rows
- * carry the rule.
+ * v1 `GET /kompas/bri` returns `dipakai` (laksamana-api#233); a backend without
+ * the key behaves like before 23 Sep 2026 — right for the open month, wrong
+ * for other months (cocok-bri.js:268-272).
  */
 export function dpTerpakai(rows: BarisBri[], dipakaiLain?: Record<string, unknown> | null): Record<string, boolean> {
   const p: Record<string, boolean> = {}

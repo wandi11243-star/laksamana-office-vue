@@ -326,7 +326,7 @@ Konkurensi: legacy memakai **`baseTs`** pada `saveAll` (`:819-852`, penjaga `:80
 
 ## J. Progres build
 Branch: migrasi/cashier-inti (#26) · migrasi/cashier-void (#27) · migrasi/cashier-stock (#28) · migrasi/cashier-kasir (#29) · migrasi/cashier-bri (#30) · Mulai: 2026-10-06
-LANJUTKAN DARI: tidak ada — 11/11 layar ✅ digabung ke main. Gap terbuka: G-19 (`dipakai[]` di `GET /kompas/bri`, `laksamana-api#233`).
+LANJUTKAN DARI: tidak ada — 11/11 layar ✅ digabung ke main. G-19 (`dipakai[]` di `GET /kompas/bri`, `laksamana-api#233`) sudah ditutup: `KompasBri.vue` menyemai `dpTerpakai` dari server.
 
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
@@ -395,9 +395,11 @@ Catatan build #30 (pencocokan QRIS BRI):
 - `tools/uji-cocok-bri.mjs` (`npm run uji:bri`): 25 pemeriksaan. Fungsi yang diekspor dibandingkan FUNGSI-PER-FUNGSI
   dengan mesin lama yang dijalankan lewat `new Function('window',…)` (`cbJamWIB`, `cbNamaCocok`, `cbNamaDari`,
   `cbTglID`, dan `cbUsulan` termasuk kasus perebutan DP) — bukan sekadar disalin.
-- **Gap ditemukan & dicatat:** v1 `GET /kompas/bri` belum memulangkan `dipakai[]` (dpId yang dipegang lintas bulan,
-  perilaku 23 Sep 2026 di mesin lama). Vue memakai fallback baris bulan berjalan; dicatat sebagai **G-19** di
-  `_gap-api.md` dan issue `dwipapap/laksamana-api#233`.
+- **G-19 ditutup (`laksamana-api#233`):** v1 `GET /kompas/bri` memulangkan `dipakai[]` (dpId yang dipegang
+  lintas bulan, perilaku 23 Sep 2026 di mesin lama). `KompasBri.vue` menyemainya lewat `dipakaiMap` ke `dpsBulan` dan
+  `dpBernisan`, jadi DP yang sudah dicatat di bulan lain tidak ditawarkan lagi; backend lama tanpa key kembali ke
+  fallback baris bulan berjalan (bukan galat). Syarat baris bulan ini tetap `sudahCocok` (= `sudah` di mesin lama:
+  hidup dan `cara==='cocok'`).
 - Yang sengaja tidak dibawa: unggah mutasi bank dari Excel (sudah DICABUT 21 Sep 2026 di Office lama; baris lama
   tetap dibaca & bisa dicocokkan). Paginasi per-tabel lama (25/50/100 baris) disederhanakan: satu pager 25 baris
   untuk tabel utama; kartu DP dan kartu luar tampil utuh.

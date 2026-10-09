@@ -134,14 +134,16 @@ export interface BriList {
   total: number
   maks: number
   abai: AbaiBri[]
-  /** dpId held by a live row ANYWHERE (older backends only) — v1 does not return it. */
-  dipakai?: string[]
+  /** dpId held by a live row ANYWHERE — v1 returns it (laksamana-api#233). */
+  dipakai: string[]
 }
 
 export async function getBri(from: string, to: string): Promise<BriList> {
   const res = await useApi()<Envelope<Partial<BriList>>>(`/kompas/bri?from=${from}&to=${to}`)
   const d = res.data ?? {}
-  return { baris: d.baris ?? [], total: d.total ?? 0, maks: d.maks ?? 2000, abai: d.abai ?? [], dipakai: d.dipakai }
+  // A backend without the key behaves like before 23 Sep 2026 (open month
+  // only) — not an error, same as cocok-bri.js:268-272.
+  return { baris: d.baris ?? [], total: d.total ?? 0, maks: d.maks ?? 2000, abai: d.abai ?? [], dipakai: d.dipakai ?? [] }
 }
 
 export type BriCara = 'cocok' | 'bukan' | 'lepas'

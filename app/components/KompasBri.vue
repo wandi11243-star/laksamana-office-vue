@@ -81,12 +81,18 @@ const abaiMap = computed(() => {
   for (const a of data.value?.bri.abai ?? []) if (a?.dpId) m[a.dpId] = a
   return m
 })
+/** dpIds held by a live row in ANY month, seeded from the server (G-19). */
+const dipakaiMap = computed(() => {
+  const m: Record<string, boolean> = {}
+  for (const id of data.value?.bri.dipakai ?? []) if (id) m[String(id)] = true
+  return m
+})
 const gab = computed(() => barisGabungan(rows.value, dps.value))
 const stats = computed(() => statistikBri(rows.value))
-const bulanDps = computed(() => dpsBulan(dps.value, rows.value, abaiMap.value, bulan.value, null))
+const bulanDps = computed(() => dpsBulan(dps.value, rows.value, abaiMap.value, bulan.value, dipakaiMap.value))
 const belum = computed(() => dpBelumDicatat(bulanDps.value))
 const luar = computed(() => dpLuarBri(dps.value, abaiMap.value, bulan.value))
-const nisan = computed(() => dpBernisan(dps.value, rows.value, abaiMap.value, bulan.value, null))
+const nisan = computed(() => dpBernisan(dps.value, rows.value, abaiMap.value, bulan.value, dipakaiMap.value))
 const usulan = computed(() => cbUsulan(rows.value.filter(belumCocok), bulanDps.value))
 const usulanPasti = computed(() => Object.keys(usulan.value).filter(i => usulan.value[i]!.babak.pasti))
 const usulanKira = computed(() => Object.keys(usulan.value).filter(i => !usulan.value[i]!.babak.pasti))
