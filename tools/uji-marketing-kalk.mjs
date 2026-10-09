@@ -103,5 +103,15 @@ cek('tanpa deal / tanpa harga -> null', K.dealKalkMkt(10000, null, 10) === null 
 cek('deal 0 tetap dihitung (bukan dianggap kosong)', K.dealKalkMkt(10000, 0, 10)?.teks === 'Diskon 100%')
 cek('yield Kg/L ditandai, porsi/pcs tidak', K.yieldAnehKalkMkt({ yield_unit: 'Kg' }) && !K.yieldAnehKalkMkt({ yield_unit: 'Porsi' }) && !K.yieldAnehKalkMkt({ yield_unit: '' }))
 
+console.log('\nmarketing-kalk: riwayat perhitungan bernama (G-09)')
+const rkRec = K.rekamKalkMkt('kh1', 'Event PT Maju', rk, 7500, 'Ana', 'u-a', '2026-10-09T03:00:00.000Z', 111)
+cek('rekam: potret baris + total + pengisi (modal tidak disimpan)', rkRec.id === 'kh1' && rkRec.rows.length === 3 && rkRec.rows[0].h === 5000 && rkRec.total === rk.total && rkRec.perPax === rk.perPax && rkRec.byId === 'u-a' && rkRec.updatedAt === 111 && !('modal' in rkRec))
+cek('urut: terbaru dulu; baris tanpa id dibuang', sama(K.urutRiwayatKalkMkt([{ ...rkRec, id: 'a', at: '2026-10-01' }, { ...rkRec, id: 'b', at: '2026-10-05' }, { ...rkRec, id: '', at: '2026-10-09' }]).map(x => x.id), ['b', 'a']))
+cek('diskon riwayat: di bawah harga → Diskon, di atas → Naik, sama → 0%, tanpa deal → —', K.diskonRiwayatKalkMkt({ ...rkRec, deal: 7500 }) === 'Diskon 16.7%' && K.diskonRiwayatKalkMkt({ ...rkRec, deal: 12000 }) === 'Naik 33.3%' && K.diskonRiwayatKalkMkt({ ...rkRec, deal: 9000 }) === '0%' && K.diskonRiwayatKalkMkt({ ...rkRec, deal: null }) === '—')
+cek('boleh hapus: admin, atau pembuat lewat id / nama', K.bolehHapusKalkMkt(rkRec, true, 'lain', 'Lain') && K.bolehHapusKalkMkt(rkRec, false, 'u-a', 'Lain') && K.bolehHapusKalkMkt(rkRec, false, 'u-b', 'Ana') && !K.bolehHapusKalkMkt(rkRec, false, 'u-b', 'Budi'))
+const itemsBerubah = { Ayam: [{ ...items.Ayam[0], h: 6000 }], Lainnya: items.Lainnya }
+const ckh = K.cekHargaKalkMkt(rkRec, itemsBerubah)
+cek('buka riwayat: harga naik & menu hilang DINAMAI, tidak dipakai diam-diam', ckh.berubah.length === 1 && ckh.berubah[0].n === 'Ayam Goreng' && ckh.berubah[0].dari === 5000 && ckh.berubah[0].ke === 6000 && sama(ckh.hilang, ['Bakwan']))
+
 console.log(`\n${ok} OK, ${gagal} GAGAL`)
 process.exit(gagal ? 1 : 0)
