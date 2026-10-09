@@ -544,3 +544,32 @@ export const daftarPoBdMkt = () => useApi()<Envelope<PoBdMkt[]>>('/bd/purchase-o
 /** POST /bd/purchase-orders/batch — insert-only, like legacy addPo. → {added, ids}. */
 export const kirimPoBdMkt = (items: Record<string, unknown>[]) =>
   useApi()<Envelope<{ added: number, ids: string[] }>>('/bd/purchase-orders/batch', { method: 'POST', body: { items } })
+
+/** What `GET /kompas/performa/marketing` returns: the raw inputs of the bonus engine. */
+export interface PerformaMkt {
+  pic: { id: string | number, name: string, officeUserId?: string | number | null }[]
+  days: { date: string, omsetHari?: number, bd?: Record<string, unknown> }[]
+  comps: Record<string, unknown>[]
+}
+
+/**
+ * GET /kompas/performa/marketing?from&to (old `performaDivisi`, divi
+ * 'marketing', D.12). `omsetHari` is the day's tagihan — the denominator of
+ * the "Kontribusi hari itu" column. Breakdown rows carry no `shift`.
+ */
+export const getPerformaMkt = (from: string, to: string) =>
+  useApi()<Envelope<PerformaMkt>>('/kompas/performa/marketing', { query: { from, to } }).then(r => r.data)
+
+/**
+ * Read-modify-write one document under its content hash (Pengaturan, the role
+ * matrix): GET for the fresh value + version, then PUT the changed whole. A
+ * stale hash is a 409 that mktSimpan turns into "reload".
+ */
+export async function tulisDokumenMkt<T>(doc: string, ubah: (lama: T | null) => T) {
+  // A document never saved answers 404: start from nothing, without a version.
+  const r = await getDokumenMkt(doc).catch((e: { statusCode?: number }) => {
+    if (e?.statusCode === 404) return null
+    throw e
+  })
+  return simpanDokumenMkt(doc, ubah((r?.data ?? null) as T | null), r ? versiDokumenMkt(r) : undefined)
+}

@@ -373,8 +373,8 @@ Kode error yang wajib ditangani UI: `already_exists` (409 saat POST id duplikat)
 ```
 
 ## J. Progres build
-Issue: #16, dipecah #58–#63 · Branch saat ini: `migrasi/marketing-operasional` (#62, PR #96, dari main) · Mulai: 2026-10-07
-LANJUTKAN DARI: #63 — Kalkulator, Performa Omset & Bonus, Pegawai & Akses, Pengaturan. #58–#60 sudah merge; #61 (PR #92) dan #62 (PR #96) menunggu review.
+Issue: #16, dipecah #58–#63 · Branch saat ini: `migrasi/marketing-sistem` (#63, PR #97) · Mulai: 2026-10-07
+LANJUTKAN DARI: #63 selesai (menunggu review PR #97). Seluruh layar Marketing sudah ⬜→✅ di cabang masing-masing; sisa: uji cutover K + tindak lanjut API (G-09 riwayat kalkulator, izin baca HPP untuk modul marketing).
 
 | layar (key) | file | status | endpoint dipakai | sub-issue |
 |---|---|---|---|---|
@@ -395,10 +395,10 @@ LANJUTKAN DARI: #63 — Kalkulator, Performa Omset & Bonus, Pegawai & Akses, Pen
 | templates | `app/pages/marketing/templates.vue` (+ `MarketingTemplateForm`, `MarketingTabelTemplate`) | ✅ | `GET/PUT /marketing/documents/fbFormats`, `GET/PUT /marketing/documents/fbSubs`, `POST/PATCH/DELETE /marketing/task-templates`, `PATCH /marketing/events/{id}` (ubah nama / pindah kategori) | #62 — kartu per format (bawaan tertutup, per browser), Salin dari, ubah nama, sub kategori + urutan (seret di desktop, ↑/↓ di mana saja), kategori lama + Pindahkan |
 | katalog | `app/pages/marketing/katalog.vue` (+ `MarketingKatalogShow`, `MarketingGambar`) | ✅ | `GET/PUT /marketing/documents/katalog`, `POST /marketing/files`, `GET /marketing/files/{key}` (blob ber-token) | #62 — kartu + ↑/↓ + Edit/Hapus; presentasi layar penuh (← → Spasi, C, P 6 detik, F, Esc) |
 | purchasing | `app/pages/marketing/purchasing.vue` | ✅ | `POST /bd/purchase-orders/batch`, `GET /bd/purchase-orders` | #62 — v1 mengunci keduanya dengan modul `bd` (lama terbuka): pemegang Marketing saja kena 403 → pita + Coba lagi; celah API dilaporkan |
-| kalkulator | — | ⬜ | | #63 (`hpp-mesin.ts`; riwayat G-09 = Segera) |
-| perfomset | — | ⬜ | | #63 (impor `performa-bonus.ts`) |
-| staff (+ users) | — | ⬜ | | #63 (roster U2) |
-| settings | — | ⬜ | | #63 |
+| kalkulator | `app/pages/marketing/kalkulator.vue` (+ `MarketingKalkPilih`, `app/utils/hpp-mesin.ts`, `app/utils/marketing-kalk.ts`) | ✅ | `GET /stock/hpp/recipes`, `/stock/hpp/ingredients`, `/stock/hpp/settings`, (admin) `/stock/products` | #63 — menu = resep Prasmanan aktif lewat mesin HPP (tanpa salin rumus); pemilih kategori + cari, =pax, rasio per pax, total per satuan, deal → diskon/markup; modal/porsi khusus admin (koreksi build: sel modal lama tidak pernah tergambar). Riwayat = Segera (G-09). API 403 untuk akun yang hanya punya modul marketing → pita + Coba lagi |
+| perfomset | `app/pages/marketing/perfomset.vue` (+ `MarketingBonusSkema`, `app/utils/marketing-performa.ts`) | ✅ | `GET /kompas/performa/marketing?from&to`, `GET /account/roster`, `PATCH /marketing/events/{id}` (`nominalDiakui`), `PATCH /marketing/vip/{id}` (`nominal`) | #63 — pbAgregasi + bonusMarketing diimpor (F.17); Head (kata utuh, pbHead) / admin modul lihat semua, lainnya Semua + diri; gerbang di `pid`; Daftar Event dari modul ⨝ breakdown lewat srcId, 5/hal, Kontribusi hari itu; kartu Skema 1–4 |
+| staff (+ users) | `app/pages/marketing/staff.vue` (+ `app/utils/marketing-pegawai.ts`) | ✅ | `GET /account/roster`, `GET /account/modules/marketing/members`, `POST/PATCH /marketing/users`, `GET/PUT /marketing/documents/roleAcc` | #63 — sinkron roster otomatis saat halaman dibuka (basi 5 menit / gagal); role dari Tim Office (ROLE_JABATAN), admin modul → Super Admin, anggota gagal dibaca = role tak disentuh; Ubah No. HP, Hak Akses per orang (+ reset), matriks role (Super Admin terkunci, dashboard min Lihat) |
+| settings | `app/pages/marketing/settings.vue` | ✅ | `GET/PUT /marketing/documents/settings`, `POST /marketing/files`, `GET /marketing/files/{key}` | #63 — 8 baris aturan + Simpan (baca-ubah-tulis berhash, kwSeq & galeri tak tertimpa); Akun aktif + Keluar ke Office; 9 poin konfirmasi; Galeri Venue unggah (gambar ≤8MB) / hapus |
 
 Catatan build:
 - Fondasi #58: `app/utils/marketing.ts` (konstanta, tipe, matriks izin `ACTION_VIEW`/`legacyEditRules`/`roleAcc`/`u.acc`, pipeline, CRM & CSV, mesin tabel), `app/utils/marketing-uang.ts` (port apa adanya `eventFinance`, `eventFbCost`, `rinciTotalBayar`, `rincianPenawaran`, `invStatus`, `pendapatanPerBulan`, `papanClosing`), `app/utils/status-marketing.ts`, `app/composables/useMarketing.ts` (satu `GET /state` bersama, CRUD per record dengan If-Match = `updatedAt`; tab DP Event tetap di sini), `app/utils/layar/marketing.ts`, entri shell. Uji: `node tools/uji-marketing.mjs` (55 cek; 13 mutasi tertangkap).
@@ -433,6 +433,13 @@ Catatan build:
 - Gambar katalog dibaca sebagai blob ber-token (`gambarBerkasMkt`, cache per sesi) karena `/marketing/files` butuh Bearer; slide berikutnya dimuat di latar.
 - Urutan sub kategori: seret (desktop) + tombol ↑/↓ (tambahan Vue supaya bisa di HP; seret HTML5 tidak jalan di layar sentuh).
 
+- Fondasi #63: `app/utils/hpp-mesin.ts` (pabrik tipis di atas `stock-hpp.ts`: bawaan setting, migrasi harga_lama, salinan baris), `app/utils/marketing-kalk.ts`, `app/utils/marketing-performa.ts`, `app/utils/marketing-pegawai.ts`. Uji: `node tools/uji-marketing-kalk.mjs` (41 cek) + `node tools/uji-marketing-sistem.mjs` (59 cek); 41 mutasi tertangkap, 0 lolos.
+- #63 menambah ke `useMarketing.ts`: `getPerformaMkt` (`GET /kompas/performa/marketing`), `tulisDokumenMkt` (baca-ubah-tulis dokumen berhash; 404 = belum pernah disimpan).
+- (koreksi build) Kalkulator: kolom Modal / porsi kini benar-benar terisi untuk admin (lama: kepala kolom ada, selnya tidak pernah digambar).
+- (koreksi build) Sinkron roster: baris yang cocok lewat nama TIDAK dipindah ke id Office (baris REST tidak bisa ganti id); yang lain sama. Pita menyebut perubahan yang tertolak, bukan mengaku tersinkron.
+- Sinkron roster jalan saat halaman Pegawai & Akses dibuka (lama: tiap modul dibuka).
+- Celah API (belum diajukan, menunggu jawaban): HPP `/stock/hpp/*` butuh modul ordering|purchasing|hpp|usage — akun yang hanya marketing kena 403 di Kalkulator; riwayat kalkulator menunggu G-09 / laksamana-api#184.
+
 ## K. Daftar uji cutover
 Uji silang Vue ↔ Office lama pada data yang sama (dev). Bagian #58:
 
@@ -460,3 +467,10 @@ Uji silang Vue ↔ Office lama pada data yang sama (dev). Bagian #58:
 - [ ] **templates** — tambah/ubah nama kategori (event pemakai ikut berganti format & progresnya tidak hilang), Salin dari (dua kali tidak menggandakan), hapus kategori; sub kategori tambah/ubah nama/hapus (item pindah ke tanpa sub) & urutan ikut di papan; item tambah/edit/hapus; kategori lama → Pindahkan (progres event format itu ikut); konflik versi dari dua tab tidak menimpa diam-diam.
 - [ ] **katalog** — unggah banyak gambar (bukan gambar / >8MB ditolak), judul dari nama berkas, edit + ganti gambar, ↑/↓, hapus; presentasi layar penuh dengan semua pintasan; urutan sama dengan Office lama.
 - [ ] **purchasing** — kirim baris (tanpa nama dilewati, event masuk catatan) masuk papan BD berstatus Diajukan; daftar "sudah dikirim" hanya dari Marketing & status ikut BD; akun Marketing tanpa modul bd: pita 403 (sampai celah API ditutup).
+
+Bagian #63:
+
+- [ ] **kalkulator** — menu & harga = Prasmanan aktif di HPP (harga lama dipakai bila harga baru kosong); kotak kategori + rentang harga; pilih/cabut lewat lembar; jumlah per satuan, total, harga jual/pax (dibulatkan), deal → selisih/diskon/markup & total deal sama dengan Office lama; admin melihat modal/porsi (= modul HPP), non-admin tidak; akun marketing-only → pita akses.
+- [ ] **perfomset** — Realisasi, Jumlah Event, Compliment, Daftar Event (Nominal/Omset/Tax/Service/Diakui/Kontribusi), dan kartu Skema 1–4 sama dengan Office lama & panel Finance untuk bulan yang sama; Head/admin membuka tiap PIC, staf hanya Semua + diri (nama PIC tidak muncul di Semua); ubah Nominal event → nominalDiakui (kosong = pulihkan), VIP → nominal.
+- [ ] **staff** — sinkron roster: pegawai baru, No. HP/Tim/aktif ikut Office, role ikut Tim (admin modul = Super Admin, Tim kosong = tidak disentuh); Ubah No. HP; Hak Akses per orang + reset; matriks role tersimpan & dipakai menu; Super Admin terkunci.
+- [ ] **settings** — 8 nilai tersimpan & terbaca modul lama; kwSeq tidak mundur; galeri venue unggah/hapus tampil di Draft Negotiation.
