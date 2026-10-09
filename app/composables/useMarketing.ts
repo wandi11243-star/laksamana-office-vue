@@ -29,6 +29,7 @@ import {
   PER_HAL_MKT, SETTING_MKT_BAWAAN, TENGGANG_TUTUP_MKT, bolehAksiMkt, bolehBukaMkt, hariAntaraMkt, normRoleAccMkt, normUserMkt, urutAwalMkt, urutMkt,
 } from '~/utils/marketing'
 import { normEventMkt } from '~/utils/marketing-uang'
+import type { PoBdMkt } from '~/utils/marketing-operasional'
 import { UButton } from '#components'
 import type { Versi } from '~/utils/versi'
 import { ifMatch, tanganiKonflik } from '~/utils/versi'
@@ -496,4 +497,79 @@ export async function getAcaraEms(from: string, to: string): Promise<AcaraEmsMkt
         : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
       return { id: String(e.id), tgl, nama: String(e.title || '(tanpa judul)'), venue: String(e.venue || ''), kategori: String(e.category || ''), status: String(e.status || ''), pic: String(e.pic || '') }
     })
+}
+
+// ---------------------------------------------------------------- documents: read-modify-write (#62)
+
+/**
+ * GET the document for its content hash, apply `ubah`, PUT it back under that
+ * hash — the old save() wrote the whole list too, but blind. A 409 means
+ * someone changed it in between; mktSimpan reloads and says so.
+ */
+export async function ubahDokumenMkt<T>(doc: 'fbFormats' | 'fbSubs' | 'katalog', ubah: (kini: T) => T): Promise<T> {
+  const r = await getDokumenMkt(doc)
+  const baru = ubah(r.data as T)
+  await simpanDokumenMkt(doc, baru, versiDokumenMkt(r))
+  return baru
+}
+
+// ---------------------------------------------------------------- authed images (#62)
+
+const urlGambarMkt = new Map<string, Promise<string>>()
+
+/**
+ * A `/marketing/files/{key}` image as an object URL. The endpoint needs the
+ * Bearer token, so a plain <img src> cannot load it. Cached per key for the
+ * session (the katalog shows and preloads the same slides again and again).
+ */
+export function gambarBerkasMkt(key: string): Promise<string> {
+  let p = urlGambarMkt.get(key)
+  if (!p) {
+    p = useApi()<Blob>(`/marketing/files/${encodeURIComponent(key)}`, { responseType: 'blob' }).then(b => URL.createObjectURL(b))
+    p.catch(() => urlGambarMkt.delete(key))
+    urlGambarMkt.set(key, p)
+  }
+  return p
+}
+
+// ---------------------------------------------------------------- BD purchasing (#62)
+
+/**
+ * GET /bd/purchase-orders — the live BD board (the old page read getAll and
+ * filtered). Needs module `bd` in v1; the old endpoint was open, so a
+ * Marketing-only holder now gets 403 and the page says so instead of failing.
+ */
+export const daftarPoBdMkt = () => useApi()<Envelope<PoBdMkt[]>>('/bd/purchase-orders')
+
+/** POST /bd/purchase-orders/batch — insert-only, like legacy addPo. → {added, ids}. */
+export const kirimPoBdMkt = (items: Record<string, unknown>[]) =>
+  useApi()<Envelope<{ added: number, ids: string[] }>>('/bd/purchase-orders/batch', { method: 'POST', body: { items } })
+
+/** What `GET /kompas/performa/marketing` returns: the raw inputs of the bonus engine. */
+export interface PerformaMkt {
+  pic: { id: string | number, name: string, officeUserId?: string | number | null }[]
+  days: { date: string, omsetHari?: number, bd?: Record<string, unknown> }[]
+  comps: Record<string, unknown>[]
+}
+
+/**
+ * GET /kompas/performa/marketing?from&to (old `performaDivisi`, divi
+ * 'marketing', D.12). `omsetHari` is the day's tagihan — the denominator of
+ * the "Kontribusi hari itu" column. Breakdown rows carry no `shift`.
+ */
+export const getPerformaMkt = (from: string, to: string) =>
+  useApi()<Envelope<PerformaMkt>>('/kompas/performa/marketing', { query: { from, to } }).then(r => r.data)
+
+/**
+ * Read-modify-write one document under its content hash (Pengaturan, the role
+ * matrix): GET for the fresh value + version, then PUT the changed whole. A
+ * stale hash is a 409 that mktSimpan turns into "reload".
+ */
+export async function tulisDokumenMkt<T>(doc: string, ubah: (lama: T | null) => T) {
+  // A document never saved answers 404: start from nothing, without a version.
+  const r = await getDokumenMkt(doc).catch((e: { statusCode?: number }) => {
+    if (e?.statusCode === 404) return null
+    throw e
+  })
+  return simpanDokumenMkt(doc, ubah((r?.data ?? null) as T | null), r ? versiDokumenMkt(r) : undefined)
 }
