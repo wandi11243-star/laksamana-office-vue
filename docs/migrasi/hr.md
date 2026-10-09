@@ -182,7 +182,7 @@ Catatan umum: **semua layar memakai satu state `S`** dan menyimpan lewat `save()
 - **Data:** bila URL server terisi → "Data tersimpan online…"; else "Belum tersambung ke server…". Backup JSON nama `Staff-Performance_Laksamana_backup_<tanggal>.json`.
 
 ### D.17 audit — Audit Log (admin `manageOps`)
-- **Tampilan:** tabel `Waktu, User, Aksi, Detail` (200 teratas); `S.audit` di-cap 800 di `log()` (`:692`). Bukti `:2689-2694`.
+- **Tampilan:** tabel `Waktu, User, Aksi, Detail` (800 terbaru via `GET /hr/audit?limit=800`, batas warisan `log()` `:692`); bila terpotong, sebut totalnya (`meta.total`). Bukti `:2689-2694`.
 - **Aksi:** tidak ada (append-only).
 
 ### D.18 Lock/boot & Login (di luar menu)
@@ -250,7 +250,7 @@ Kode error yang wajib ditangani UI: `unauthenticated`, `module_not_granted`, `no
   - `saveMonthlyInput(empId, month, value)` → `PUT /monthly-inputs/{empId}/{month}`; `useMonthlyInputs()` → `GET /monthly-inputs`.
   - `useHrSettings()` → `GET /settings`; `saveSetting(key, value, version)` → `PUT /settings/{key}`.
   - `useAttendance()` → `GET /attendance`; `saveAttendance(month, value, version)` → `PUT /attendance/{YYYY-MM}` (nilai `null` menghapus bulan).
-  - `useAudit()` → `GET /audit`; `postAudit(action, detail)` → `POST /audit` (tanpa version, tidak menaikkan rev).
+  - `useAudit()` → `GET /audit?limit=800` (800 terbaru + `meta.total` bila terpotong, G-11); `postAudit(action, detail)` → `POST /audit` (tanpa version, tidak menaikkan rev).
   - Konkurensi: sertakan `If-Match: "<version>"` pada setiap tulis; tangani `409 version_conflict` dengan modal "Perubahan Tidak Tersimpan" (pertahankan pola legacy: `error.details` = `{rev, savedBy, savedAt}`).
 - **Pindahkan logika mesin skor ke Vue (tidak ada di API):** `peopleScore`, `gradeOf`/`gradeTag`, `kpiItemScore`/`divKpiScore`/`empKpiScore`, `attendanceDetail`/`attendanceCumulative`, `trainingScore`, `feedbackScore`, `disciplineScore`, `reviewAspectScore`, `activeSP`/`suggestSP`, `nextCertNo`, `calendarItems`, `buildInsights`. Ini inti modul; jangan disederhanakan.
 - **Impor Talenta:** parser XLSX tanpa pustaka (`unzipEntries`/`parseTalentaXlsx`) harus dipindah apa adanya (kolom dicari lewat judul, bukan posisi). Boleh tetap di klien.
@@ -269,7 +269,7 @@ Kode error yang wajib ditangani UI: `unauthenticated`, `module_not_granted`, `no
 ## I. Pertanyaan terbuka
 - [ ] **hr / settings — Impor & Reset massal** — v1 tidak punya endpoint "ganti seluruh dokumen" maupun "kosongkan semua". Legacy `importJson` (`:2668`) dan `resetAll` (`:2682`) menimpa/mengosongkan seluruh `S` lalu `saveAll`. Konteks: keduanya operasi whole-document. Opsi: A) buang kedua tombol (paling aman; data PII/SP hilang massal memang berbahaya); B) implementasi loop PUT/DELETE per record; C) minta endpoint khusus. Bukti: `:2668-2688`, `docs/api/hr.md` (tak menyebut impor/reset). (juga disalin ke `_pertanyaan.md`)
 - [ ] **hr / autoSyncOfficeRoster** — legacy menarik roster ber-grant `hr` dari `account-api-mysql?action=listModuleRoster` (`:391`). Kontrak v1 `hr` tidak punya padanannya, dan v1 tidak menyebut siapa yang membuat record `employees` saat kru baru masuk lewat Office. Apakah Vue cukup memakai `employees` yang sudah ada (dibuat oleh sinkron Office lain), atau butuh endpoint roster? Opsi: A) Vue hanya CRUD `employees`; B) sediakan endpoint roster di modul Office/Account. Bukti: `:378-427`. (juga disalin ke `_pertanyaan.md`)
-- [ ] **hr / audit — cap 800 baris** — legacy membatasi `S.audit` di klien (`.length > 800` → potong, `:692`), UI tampilkan 200. v1 `audit` append-only tanpa batas yang terdokumentasi; apakah UI perlu batas/paginasi sendiri? Bukti: `:692`, `docs/api/hr.md:82-87`. [DUGAAN] tak berbahaya, tapi perlu keputusan retensi.
+- [x] **hr / audit — cap 800 baris** — **tersambung (G-11, #103):** UI memakai `GET /hr/audit?limit=800` (batas warisan `log()` `:692`, kini di server) + menyebut `meta.total` bila terpotong. Bukti: `:692`, `docs/api/hr.md` (Audit).
 
 ## J. Progres build (#12)
 
@@ -322,3 +322,9 @@ apakah juga terjadi untuk klik manusia; (2) tulis dengan versi basi
 ditolak 409 dan formulir tetap terbuka dengan toast — sudah benar.
 `npm run lint && npm run typecheck && npm run build` hijau 2026-10-08
 (tanpa perubahan kode).
+
+### Sambungan G-11 2026-10-09 (#103, branch `migrasi/event-hr-gap`)
+Audit Log tidak lagi memotong `S.audit` di klien (200 teratas): memakai
+`GET /hr/audit?limit=800` (batas warisan `log()` `:692`, kini di server) dan
+menyebut `meta.total` bila terpotong ("800 terbaru dari N"). Helper baru
+`listHrAudit(limit)` di `useHr.ts`.

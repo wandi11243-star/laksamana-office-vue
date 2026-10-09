@@ -1,17 +1,27 @@
 <!--
-  HR › Audit Log (deploy/hr/index.html RENDER.audit :2689-2693). Append-only;
-  newest first, 200 rows — the legacy client cap, while server retention stays
-  an open question (G-11).
+  HR › Audit Log (deploy/hr/index.html RENDER.audit :2689-2693). Append-only,
+  newest first; the server trims to the 800-row bound of the old client
+  (`log() :692`) via `GET /hr/audit?limit=800`, and `meta.total` names the
+  full count when the view is truncated (G-11).
 -->
 <script setup lang="ts">
+import type { HrAudit } from '~/utils/hr'
 import { canHr } from '~/utils/hr'
-import { useHrDasar } from '~/composables/useHr'
+import { listHrAudit, useHrDasar } from '~/composables/useHr'
 
 definePageMeta({ access: ['hr'] })
 
-const { s, cu, officeAdmin, error } = useHrDasar()
+const { cu, officeAdmin, error } = useHrDasar()
 const admin = computed(() => canHr('manageOps', cu.value, officeAdmin.value))
-const daftar = computed(() => s.value.audit.slice(0, 200))
+
+/** The old client's bound (800 rows), now enforced server-side. */
+const BATAS = 800
+const { data: audit } = useAsyncData('hr-audit', () => listHrAudit(BATAS), {
+  default: () => ({ rows: [] as HrAudit[], total: 0 }),
+})
+const daftar = computed(() => audit.value.rows)
+const total = computed(() => audit.value.total)
+const terpotong = computed(() => total.value > daftar.value.length)
 const waktu = (at: string) => String(at || '').slice(0, 16).replace('T', ' ')
 </script>
 
@@ -43,7 +53,7 @@ const waktu = (at: string) => String(at || '').slice(0, 16).replace('T', ' ')
       title="Jejak aksi"
       icon="i-lucide-scroll-text"
       :count="daftar.length"
-      description="Append-only; 200 terbaru."
+      :description="terpotong ? `Append-only; ${BATAS} terbaru dari ${total}.` : 'Append-only; 800 terbaru.'"
       flush
     >
       <div

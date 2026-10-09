@@ -237,7 +237,7 @@ Sub-layar rincian (bukan menu, argumen rute `router` `:2135-2152`):
 - **Perhitungan:** occupancy `occ = round(masuk/tickets.length*100)` (`:10374`).
 - **Real-time:** polling `setInterval(…, 20000)` (`:1596`); di halaman Check-In memakai `segarkanCheckin()` parsial (kartu angka, denah, tabel) supaya kamera tidak mati & scroll tidak lompat (`:1623-1643`).
 - **Perubahan v1:** checkin `POST /checkins` mencatat `staff` = **nama user sesi** (body tidak bisa menyetel); legacy memakai `staff: DB.role` yang selalu `'Director'` (`event/index.html:10548`).
-- **Aturan:** check-in append-only (tidak bisa diubah/dihapus di v1, `docs/api/event.md:85`); pembatalan legacy menghapus baris `checkins` (`:10722`).
+- **Aturan:** check-in append-only (tidak bisa diubah/dihapus di v1, `docs/api/event.md:85`); pembatalan legacy menghapus baris `checkins` (`:10722`), v1 menambah **baris koreksi** `{batalDari}` (G-10) — jejak utuh, kehadiran = baris terbaru per tiket tanpa `batalDari`.
 
 ### D.17 ideas — Event Idea Bank (tersembunyi)
 - **Tampilan:** filter kategori `IDEA_CATS` (`Music,Community,Food,Competition,Family,Kids,Education,Business,Religious,Festival`) & frekuensi `FREQS` (`Weekly,Biweekly,Monthly,Quarterly,Yearly,One Time`) (`:11119-11120`); kisi kartu ide dengan ROI `round((potential_revenue-budget)/budget*100)` (`:11130`).
@@ -312,7 +312,7 @@ Aksi (`api.php:40-85`): `getAll` (GET default), `stats`, `ping`, `saveAll`, `eve
 | (lintas modul) `performaDivisi` | Performa Omset & Bonus | baca | `GET /api/v1/kompas/performa/{divisi}` (`divisi=event`) | ⚠️ | TIDAK di modul event — ada di modul **kompas** (`KompasController.php:194`, `routes/v1.php:21`). Kontrak `docs/api/event.md:32` keliru menyebut "marketing module" |
 | (lintas modul) `marketing getAll` / `reservasi getAll` | Event Calendar | baca | — (panggil endpoint modul masing-masing) | ⚠️ | v1 event tak punya agregat; Vue harus memanggil `/api/v1/marketing/...` & `/api/v1/reservasi/...` lalu menyatukan sendiri (`event/index.html:10759,10830`) |
 | (matriks izin `DB.perm`) | Hak Akses `setIzin`/`resetIzin` | tulis | — | ❌ | backend lama tak menyimpan `perm` (`event-mysql/lib_event_mysql.php:430-433`); v1 "client-side"; lihat §F.6, §I |
-| (checkins delete) | Check-In "Batalkan" | tulis (hapus) | — | ⚠️ | v1 check-in **append-only tanpa delete** (`docs/api/event.md:85`); legacy menghapus baris `checkins` (`event/index.html:10717-10728`). Lihat §I |
+| (checkins delete) | Check-In "Batalkan" | tulis (baris koreksi) | `POST /checkins {batalDari}` | ✅ | v1 check-in **append-only tanpa delete** (`docs/api/event.md:85`); pembatalan = baris koreksi, kehadiran = baris terbaru per tiket tanpa `batalDari` (G-10). Lihat §I |
 | (Reset data) | resetData | tulis (hapus massal) | — | ❌ | `resetData` (`:1646`) mengosongkan semua koleksi (`Ketik KOSONGKAN`); v1 tak punya reset massal |
 
 ### E.2 Backend lama Ticketing (`ticketing-mysql/api.php`)
@@ -394,7 +394,7 @@ Konkurensi: legacy ticketing tiap tulis `GET_LOCK('<db>:tix',10)` (`docs/modules
   - CRUD generik: `list(res, filters)`, `get(res,id)`, `create(res,body)` → `POST /{res}`, `update(res,id,body,version)` → `PUT`, `patch` → `PATCH`, `remove(res,id,version)` → `DELETE`; `res ∈ talents,events,schedules,recurring-rules,talent-payments,ticket-classes,seats,orders,tickets,ideas,refunds,calendar-extra`.
   - `eventDetail(eventId)` → `GET/PUT/DELETE /event-details/{eventId}`; `setupSetting(key,value,version)` → `PUT /settings/{key}` untuk `entertainmentRules|role|layoutTemplates`.
   - `uploadFile({dataBase64,fileName,mimeType})` → `POST /files`; `fileUrl(key)` → `GET /files/{key}`.
-  - `checkins({ticket_id,gate,result})` → `GET/POST /checkins` (append-only; **tidak ada delete** → tombol "Batalkan" legacy tak bisa dibawa apa adanya).
+  - `checkins({ticket_id,gate,result})` → `GET/POST /checkins` (append-only; pembatalan = `POST {batalDari}` baris koreksi, kehadiran = baris terbaru per tiket tanpa `batalDari`).
   - Kirim version sebagai `If-Match: "<version>"` / `?version=`; tangani `409 version_conflict` (muat ulang dari `error.details.current`), `428 version_required`, `409 duplicate` (qr_token ganda), `422 invalid_file`.
   - Performa: `performaDivisi('event', from, to)` → `GET /api/v1/kompas/performa/event` (modul kompas, gated `event`).
 - Composable `useTicketing.ts`:
@@ -418,7 +418,7 @@ Konkurensi: legacy ticketing tiap tulis `GET_LOCK('<db>:tix',10)` (`docs/modules
 ## I. Pertanyaan terbuka
 - [ ] **event / akses — Matriks izin tidak tersimpan** — haruskah matriks `EMS_HALAMAN × EMS_PERAN` dibawa ke Vue, dan di mana disimpan? Konteks: legacy `setIzin()` `save()` tapi backend hanya menyimpan `entertainmentRules`,`role`,`layoutTemplates` — `perm` dibuang sehingga izin reset tiap muat ulang; v1 tak punya endpoinnya (Hak Akses "client-side"). Bukti: `laksamana-office/deploy/event/index.html:6061-6073`; `laksamana-office/event-mysql/lib_event_mysql.php:430-433`; `laksamana-api/docs/api/event.md:33,89`. Opsi: A) buang layar izin, cukup `module:event` di server; B) simpan matriks di `settings` baru (tambah kunci v1); C) simpan di UI store per perangkat saja.
 - [ ] **event / akses — roster Office tanpa padanan v1** — Vue `event` butuh daftar kru ber-grant `event` + peran turunan Tim; v1 `event` tak punya endpoint roster. Bukti: `event/index.html:4633-4664`; `laksamana-api/docs/api/event.md` (tak menyebut roster). Opsi: A) Vue memakai `/api/v1/account/roster*` (butuh scope `account`); B) tambah endpoint roster di `event`; C) hitung peran hanya dari `/me` sesi.
-- [ ] **event / checkin — membatalkan check-in** — legacy "Batalkan" **menghapus** baris `checkins`; v1 append-only tanpa delete. Haruskah UI v1 tetap punya tombol pembatalan? Bukti: `event/index.html:10717-10728`; `laksamana-api/docs/api/event.md:78-85`. Opsi: A) buang tombol, salah pindai ditangani di luar sistem; B) tambah `DELETE /checkins/{id}` (melanggar "append-only"); C) simpan baris koreksi (event kedua).
+- [x] **event / checkin — membatalkan check-in** — **tersambung (G-10, #103):** tombol "Batalkan" posting baris koreksi `POST /checkins {batalDari}` sesudah konfirmasi, lalu baca ulang checkins + tiket; kehadiran = baris terbaru per tiket tanpa `batalDari`. Legacy "Batalkan" **menghapus** baris `checkins`. Bukti: `event/index.html:10717-10728`; `laksamana-api/docs/api/event.md` (Check-ins). Opsi yang dipakai: C) baris koreksi.
 - [ ] **event / resetData — kosongkan semua data** — tombol "KOSONGKAN SEMUA DATA" (`resetData`) tak punya padanan v1 (blob → per-record). Bukti: `event/index.html:1646-1663`. Opsi: A) buang; B) loop DELETE per record (berisiko, lintas DB); C) endpoint khusus.
 - [ ] **ticketing / dev — `ujiEmail`** — aksi uji SMTP dev-only legacy tak ada di v1. Perlukah di Vue (dev) atau cukup CLI/mailer? Bukti: `ticketing-mysql/api.php:169-181`; `laksamana-api/docs/api/ticketing.md` (tak menyebut). Opsi: A) buang; B) expose di non-produksi.
 - [ ] **event / dashboard — data demo** — bar chart "Uang Masuk per Event (6 bulan)" memakai angka tertulis-mati; konfirmasi Vue menghitung dari `omzetPerBulanEms`. Bukti: `event/index.html:2405`. Opsi: A) hitung dari data (disarankan); B) buang grafik.
@@ -439,7 +439,7 @@ rincian [id] tidak pernah tampil. Lihat laporan Lane B 2026-10-08.)
 | talents rincian | app/pages/event/talents/[id].vue | ✅ | GET/PUT /talents/{id}; POST /files | — |
 | schedule | app/pages/event/schedule.vue | ✅ | GET/POST/PATCH/DELETE /schedules; POST /recurring-rules | — |
 | fee | app/pages/event/fee.vue | ✅ | GET /schedules; GET/POST/PATCH /talent-payments; POST /files | OCR otomatis Segera (K-05 belum dipasang; verifikasi manual jalan) |
-| checkin | app/pages/event/checkin.vue | ✅ | GET /events; GET /tickets; GET /seats; GET /ticket-classes; GET /orders (cocokkan event via order, `event_id` diabaikan di /tickets); GET/POST /checkins | tombol Batalkan Segera (G-10); pindai kamera Segera (butuh pustaka QR) |
+| checkin | app/pages/event/checkin.vue | ✅ | GET /events; GET /tickets; GET /seats; GET /ticket-classes; GET /orders (cocokkan event via order, `event_id` diabaikan di /tickets); GET/POST /checkins (batal = baris koreksi `{batalDari}`, G-10) | pindai kamera Segera (butuh pustaka QR) |
 | pipeline | app/pages/event/pipeline.vue | ✅ | GET/PATCH /events | — |
 | planning | app/pages/event/planning.vue | ✅ | GET/POST/PATCH/DELETE /events | — |
 | events | app/pages/event/events/index.vue | ✅ | GET/POST/PUT/DELETE /events; GET /orders | — |
@@ -508,8 +508,8 @@ Konvensi: Vue ↔ Office lama dibuka berdampingan dengan data yang sama
 5. Fee: ganti mode minggu/bulan/rentang; rekap = show Done × fee baris;
    generate payment; bayar (bukti + nominal + PIC); detail; set paid/reject.
 6. Checkin: pilih event ber-tiket; statistik cocok; tempel token → cek;
-   check-in dari daftar; polling 20 dtk tidak mematikan scroll. Batalkan =
-   Segera (G-10).
+   check-in dari daftar; Batalkan → konfirmasi → baris koreksi (jejak utuh,
+   tiket kembali belum datang); polling 20 dtk tidak mematikan scroll.
 7. Pipeline: pindah tahap via pilih & drag; Planning→Upcoming ditolak;
    tarik ke Planning hanya manajemen; Event Done terkunci.
 8. Planning: ajukan (wajib judul+tanggal+venue) → Prospect/Menunggu;
@@ -535,3 +535,9 @@ Konvensi: Vue ↔ Office lama dibuka berdampingan dengan data yang sama
     buat serupa tanpa penjualan/kelas/denah, lahir Planning.
 16. Konflik: sunting satu record di dua tab → tab kedua 409 → toast
     "Data sudah diubah orang lain" + muat ulang, tanpa menimpa.
+
+### Sambungan G-10 2026-10-09 (#103, branch `migrasi/event-hr-gap`)
+Tombol "Batalkan" posting baris koreksi `POST /checkins {batalDari}` sesudah
+konfirmasi (`ResponsiveSheet`, teks ikut `:10717`), lalu baca ulang checkins +
+tiket; kehadiran = baris terbaru per tiket tanpa `batalDari` (append-only,
+baris tidak dihapus). Helper baru `batalCheckin()` di `useEvent.ts`.
