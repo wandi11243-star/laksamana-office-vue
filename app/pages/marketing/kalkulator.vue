@@ -4,20 +4,21 @@
 
   "Hitung harga jual per pax lalu diskon dari harga deal customer." Menu &
   price = the active Prasmanan recipes of HPP & Resep, through the HPP engine
-  (`hpp-mesin.ts` over `stock-hpp.ts`) — no formula is copied here. Not saved:
-  a quick calculator. Only admins (module admin / Super Admin) see the cost per
-  portion. The named history (old S.kalkHistori) waits for G-09 → "Segera".
+  (`hpp-mesin.ts` over `stock-hpp.ts`) — no formula is copied here. Only admins
+  (module admin / Super Admin) see the cost per portion. The named history (old
+  S.kalkHistori) is stored as the `documents/kalkHistori` document (G-09).
 -->
 <script setup lang="ts">
 import { getHppIngredients, getHppRecipes, getProducts, hppSettings } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { hppMesin } from '~/utils/hpp-mesin'
-import type { BarisKalkMkt } from '~/utils/marketing-kalk'
+import type { BarisKalkMkt, RiwayatKalkMkt } from '~/utils/marketing-kalk'
 import {
-  barisBaruKalkMkt, dealKalkMkt, idxWarnaKatKalkMkt, itemRefKalkMkt, menuKalkMkt, rasioKalkMkt, refKalkMkt,
-  ringkasKalkMkt, semuaMenuKalkMkt, terapkanPilihKalkMkt, WARNA_KAT_KALK_MKT, yieldAnehKalkMkt,
+  barisBaruKalkMkt, bolehHapusKalkMkt, cekHargaKalkMkt, dealKalkMkt, diskonRiwayatKalkMkt, idxWarnaKatKalkMkt,
+  itemRefKalkMkt, menuKalkMkt, rasioKalkMkt, refKalkMkt, rekamKalkMkt, ringkasKalkMkt, semuaMenuKalkMkt,
+  terapkanPilihKalkMkt, urutRiwayatKalkMkt, WARNA_KAT_KALK_MKT, yieldAnehKalkMkt,
 } from '~/utils/marketing-kalk'
-import { angka, rupiah } from '~/utils/format'
+import { angka, fTgl, rupiah } from '~/utils/format'
 import type { BahanHppHitung, ResepHitung } from '~/utils/stock-hpp'
 
 definePageMeta({ access: ['marketing'] })
@@ -113,6 +114,86 @@ function pakai(refs: string[]) {
   toast.add({ title: 'Menu diperbarui', description: `${refs.length} menu masuk hitungan.`, color: 'success' })
 }
 const awalPilih = computed(() => k.value.rows.map(r => r.ref).filter(Boolean))
+
+// ---- named history (G-09, old S.kalkHistori) ----
+// Saved as the documents/kalkHistori document (content-hash version), so one
+// calculation never wipes another: ubahKalkHistoriMkt re-reads before writing.
+const { data: hist, refresh: muatHist } = useAsyncData('mkt-kalk-histori', () =>
+  getKalkHistoriMkt().then(r => urutRiwayatKalkMkt((r.data ?? []) as RiwayatKalkMkt[])),
+{ default: () => [] as RiwayatKalkMkt[] })
+const namaSimpan = ref('')
+const bukaId = ref<string | null>(null)
+const riwayat = computed(() => hist.value ?? [])
+const bolehHapusRiwayat = (x: RiwayatKalkMkt) =>
+  bolehHapusKalkMkt(x, admin.value, String(me.value?.id ?? ''), me.value?.name ?? '')
+
+async function simpanRiwayat() {
+  const nama = namaSimpan.value.trim()
+  if (!nama) {
+    toast.add({ title: 'Nama perhitungan wajib', description: 'Tulis untuk kebutuhan apa perhitungan ini (mis. "Event PT Maju 12 Okt").', color: 'error' })
+    return
+  }
+  const rk = ringkasKalkMkt(items.value, k.value.rows, k.value.pax)
+  if (!rk.baris.length) {
+    toast.add({ title: 'Belum ada menu', description: 'Pilih minimal satu menu dulu sebelum menyimpan.', color: 'error' })
+    return
+  }
+  const rec = rekamKalkMkt(
+    `kh${Date.now().toString(36)}${Math.floor(Math.random() * 1e5).toString(36)}`,
+    nama, rk, k.value.deal,
+    me.value?.name ?? '', String(me.value?.id ?? ''),
+    new Date().toISOString(), Date.now(),
+  )
+  const ok = await mktSimpan(
+    () => ubahKalkHistoriMkt(list => [rec, ...list]),
+    'Tersimpan',
+    { refType: 'kalk', refId: rec.id, action: 'Simpan perhitungan kalkulator', detail: `${nama} · ${rk.pax} pax · ${rupiah(rk.perPax)}/pax` },
+  )
+  if (!ok) return
+  await muatHist()
+  namaSimpan.value = ''
+  bukaId.value = rec.id
+}
+
+/** Reopen a saved calculation; prices that moved (or menus gone) are NAMED, not silently used. */
+function bukaRiwayat(x: RiwayatKalkMkt) {
+  k.value.rows = (x.rows ?? []).map(r => ({ ref: r.ref, pcs: Math.max(0, Math.round(+r.pcs || 0)) }))
+  if (!k.value.rows.length) k.value.rows = [barisBaruKalkMkt(k.value.pax)]
+  k.value.pax = Math.max(0, Math.round(+x.pax || 0))
+  k.value.deal = x.deal == null ? null : +x.deal
+  bukaId.value = x.id
+  namaSimpan.value = x.nama ?? ''
+  const { berubah, hilang } = cekHargaKalkMkt(x, items.value)
+  if (hilang.length) {
+    toast.add({ title: 'Ada menu yang sudah tidak ada di HPP', description: hilang.join(', '), color: 'error' })
+  }
+  else if (berubah.length) {
+    toast.add({
+      title: 'Harga HPP sudah berubah sejak disimpan',
+      description: `Yang dipakai harga sekarang: ${berubah.map(b => `${b.n} (${b.dari == null ? '—' : rupiah(b.dari)} → ${b.ke == null ? '—' : rupiah(b.ke)})`).join(', ')}`,
+      color: 'warning',
+    })
+  }
+  else {
+    toast.add({ title: 'Dibuka', description: `"${x.nama}" dimuat ke kalkulator.`, color: 'success' })
+  }
+}
+
+async function hapusRiwayat(x: RiwayatKalkMkt) {
+  if (!bolehHapusRiwayat(x)) {
+    toast.add({ title: 'Tidak bisa', description: 'Hanya pembuatnya atau admin yang bisa menghapus riwayat ini.', color: 'error' })
+    return
+  }
+  if (!confirm(`Hapus riwayat perhitungan "${x.nama || ''}"?\n\nDibuat ${x.by || '-'}. Tidak bisa dibatalkan.`)) return
+  const ok = await mktSimpan(
+    () => ubahKalkHistoriMkt(list => list.filter(y => y.id !== x.id)),
+    'Riwayat dihapus',
+    { refType: 'kalk', refId: x.id, action: 'Hapus riwayat kalkulator', detail: x.nama ?? '' },
+  )
+  if (!ok) return
+  await muatHist()
+  if (bukaId.value === x.id) bukaId.value = ''
+}
 </script>
 
 <template>
@@ -448,12 +529,170 @@ const awalPilih = computed(() => k.value.rows.map(r => r.ref).filter(Boolean))
         </div>
 
         <AppPanel
+          title="Simpan perhitungan"
+          icon="i-lucide-save"
+        >
+          <p class="mb-3 text-sm text-muted">
+            Beri nama untuk kebutuhan apa perhitungan ini, lalu simpan — isinya menu, porsi, pax, harga jual saat ini, dan harga deal.
+          </p>
+          <p
+            v-if="bukaId"
+            class="mb-3 text-sm text-primary-700"
+          >
+            Sedang membuka riwayat <b>{{ namaSimpan }}</b>. Menyimpan lagi membuat riwayat baru — yang lama tetap ada.
+          </p>
+          <div class="flex flex-wrap items-end gap-3">
+            <UFormField
+              label="Untuk kebutuhan apa"
+              required
+              class="min-w-56 flex-1"
+            >
+              <UInput
+                v-model="namaSimpan"
+                placeholder="mis. Event PT Maju — 12 Okt, 150 pax"
+                @keydown.enter.prevent="simpanRiwayat"
+              />
+            </UFormField>
+            <UButton
+              icon="i-lucide-check"
+              label="Simpan ke riwayat"
+              @click="simpanRiwayat"
+            />
+          </div>
+        </AppPanel>
+
+        <AppPanel
           title="Riwayat perhitungan"
           icon="i-lucide-history"
+          flush
         >
-          <p class="text-sm text-dimmed">
-            Segera — menyimpan perhitungan bernama menunggu tempat penyimpanannya di API (G-09). Sampai itu, hasil hitung di atas tidak tersimpan.
-          </p>
+          <div
+            v-if="!riwayat.length"
+            class="p-6 text-center text-sm text-muted"
+          >
+            Belum ada perhitungan yang disimpan.
+          </div>
+          <template v-else>
+            <table class="hidden w-full text-sm lg:table">
+              <thead class="bg-table-head text-left text-xs font-bold uppercase tracking-wide text-table-head-text">
+                <tr>
+                  <th class="px-3 py-2">
+                    Kebutuhan
+                  </th>
+                  <th class="px-3 py-2">
+                    Disimpan
+                  </th>
+                  <th class="w-20 px-3 py-2 text-right">
+                    Pax
+                  </th>
+                  <th class="w-32 px-3 py-2 text-right">
+                    Harga jual / pax
+                  </th>
+                  <th class="w-28 px-3 py-2 text-right">
+                    Deal / pax
+                  </th>
+                  <th class="w-24 px-3 py-2 text-right">
+                    Diskon
+                  </th>
+                  <th class="w-28" />
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-default">
+                <tr
+                  v-for="x in riwayat"
+                  :key="x.id"
+                  :class="x.id === bukaId ? 'bg-primary-50' : ''"
+                >
+                  <td class="px-3 py-2">
+                    <p class="font-semibold text-highlighted">
+                      {{ x.nama || '—' }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      {{ (x.rows ?? []).length }} menu
+                    </p>
+                  </td>
+                  <td class="px-3 py-2">
+                    <p>{{ fTgl(String(x.at || '').slice(0, 10)) }}</p>
+                    <p class="text-xs text-muted">
+                      {{ x.by || '—' }}
+                    </p>
+                  </td>
+                  <td class="px-3 py-2 text-right num">
+                    {{ +x.pax || 0 }}
+                  </td>
+                  <td class="px-3 py-2 text-right num">
+                    {{ rupiah(x.perPax) }}
+                  </td>
+                  <td class="px-3 py-2 text-right num">
+                    {{ x.deal == null ? '—' : rupiah(x.deal) }}
+                  </td>
+                  <td class="px-3 py-2 text-right">
+                    {{ diskonRiwayatKalkMkt(x) }}
+                  </td>
+                  <td class="px-3 py-1">
+                    <div class="flex justify-end gap-1">
+                      <UButton
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        label="Buka"
+                        @click="bukaRiwayat(x)"
+                      />
+                      <UButton
+                        v-if="bolehHapusRiwayat(x)"
+                        size="xs"
+                        color="error"
+                        variant="ghost"
+                        icon="i-lucide-trash-2"
+                        aria-label="Hapus riwayat"
+                        @click="hapusRiwayat(x)"
+                      />
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+            <ul class="divide-y divide-default lg:hidden">
+              <li
+                v-for="x in riwayat"
+                :key="x.id"
+                class="space-y-1.5 p-4"
+                :class="x.id === bukaId ? 'bg-primary-50' : ''"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <div class="min-w-0">
+                    <p class="font-semibold text-highlighted">
+                      {{ x.nama || '—' }}
+                    </p>
+                    <p class="text-xs text-muted">
+                      {{ (x.rows ?? []).length }} menu · {{ fTgl(String(x.at || '').slice(0, 10)) }} · {{ x.by || '—' }}
+                    </p>
+                  </div>
+                  <div class="flex shrink-0 gap-1">
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="outline"
+                      label="Buka"
+                      @click="bukaRiwayat(x)"
+                    />
+                    <UButton
+                      v-if="bolehHapusRiwayat(x)"
+                      size="xs"
+                      color="error"
+                      variant="ghost"
+                      icon="i-lucide-trash-2"
+                      aria-label="Hapus riwayat"
+                      @click="hapusRiwayat(x)"
+                    />
+                  </div>
+                </div>
+                <p class="text-xs text-muted">
+                  {{ +x.pax || 0 }} pax · jual {{ rupiah(x.perPax) }}/pax · deal {{ x.deal == null ? '—' : `${rupiah(x.deal)}/pax` }} · {{ diskonRiwayatKalkMkt(x) }}
+                </p>
+              </li>
+            </ul>
+          </template>
         </AppPanel>
       </template>
 

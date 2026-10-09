@@ -30,6 +30,7 @@ import {
 } from '~/utils/marketing'
 import { normEventMkt } from '~/utils/marketing-uang'
 import type { PoBdMkt } from '~/utils/marketing-operasional'
+import type { RiwayatKalkMkt } from '~/utils/marketing-kalk'
 import { UButton } from '#components'
 import type { Versi } from '~/utils/versi'
 import { ifMatch, tanganiKonflik } from '~/utils/versi'
@@ -572,4 +573,23 @@ export async function tulisDokumenMkt<T>(doc: string, ubah: (lama: T | null) => 
     throw e
   })
   return simpanDokumenMkt(doc, ubah((r?.data ?? null) as T | null), r ? versiDokumenMkt(r) : undefined)
+}
+
+// ---------------------------------------------------------------- Menu Kalkulator history (G-09)
+
+/** GET /marketing/documents/kalkHistori — the named calculator history (legacy `extra:kalkHistori`). */
+export const getKalkHistoriMkt = () =>
+  getDokumenMkt('kalkHistori')
+
+/**
+ * Read-modify-write the history under its own content hash: GET the fresh list,
+ * apply `ubah`, PUT it back. A concurrent save is a 409 that `mktSimpan` turns
+ * into "reload", so one calculation never wipes another (same guard as the
+ * old per-row collections, marketing.md F.1).
+ */
+export async function ubahKalkHistoriMkt(ubah: (kini: RiwayatKalkMkt[]) => RiwayatKalkMkt[]) {
+  return tulisDokumenMkt<RiwayatKalkMkt[]>('kalkHistori', (lama) => {
+    const kini = Array.isArray(lama) ? lama.filter((x): x is RiwayatKalkMkt => !!x && typeof x.id === 'string') : []
+    return ubah(kini)
+  })
 }

@@ -6,10 +6,10 @@ Terakhir diperbarui: 2026-09-29
 > **Triase 2026-09-29** — status di tabel E yang bertentangan dengan catatan ini: catatan ini yang berlaku.
 > Rincian: [`_pertanyaan.md`](_pertanyaan.md), [`_gap-api.md`](_gap-api.md).
 > - Roster: ❌ → ✅ `/api/v1/account/*` (U2). `ping`/`stats` ❌ → U3. `saveAll` → U4.
-> - `kalkHistori` → G-09. `hapus_yang_hilang` → T-04.
+> - `kalkHistori` → G-09 ✅ (API #184, `documents/kalkHistori`). `hapus_yang_hilang` → T-04.
 
 ## Ringkasan
-- Jumlah layar: 23 (3 tersembunyi: `events`, `brief`, `users`) + 1 layar detail event tanpa key sidebar · Aksi backend lama (marketing): 13 · Gap v1: 3 ❌ · ⚠️ 8
+- Jumlah layar: 23 (3 tersembunyi: `events`, `brief`, `users`) + 1 layar detail event tanpa key sidebar · Aksi backend lama (marketing): 13 · Gap v1: 2 ❌ · ⚠️ 8
 - Modul ini adalah CRM penuh orang Marketing: Database Client, Sales Pipeline & Event (kanban + daftar), detailing satu event (11 seksi D.1–D.11), Brief & Surat Penawaran, Reservasi VIP, Request Design & Video, Task Divisi/handover, Template Task, Invoice & Payment, Approval Flow, Purchase Order ke BD, Katalog, Kalkulator, Performa Omset & Bonus, Reporting, Timeline, Notifikasi, Pegawai & Akses, Pengaturan.
 - State disimpan sebagai satu blob lewat `saveAll` dengan penjaga anti-timpa per baris (`baseUpdatedAt` + cap `updated_at`); kontrak v1 memecahnya jadi CRUD per-resource dengan `version`/`If-Match`. Ini perubahan bentuk paling berisiko — lihat §E dan §F.
 - Paling rawan hilang saat migrasi: rumus uang di `eventFinance()` (subtotal/diskon/service/pajak/DP/pembayaran), mekanisme "Pengakuan Omset" (`menuFix`), sinkronisasi kunci meja ke modul Reservasi, alur Surat Penawaran + Approval, dan penjaga integritas (client/event tidak boleh dihapus sembarangan).
@@ -275,7 +275,7 @@ Kelompok `NAV_DEF` (`:4747-4843`), judul dari `TITLES` (`:4867`), dispatch rende
 | `uploadReceipt` (POST) | lampiran, katalog, DP, bukti bayar | tulis | `POST /files` | ✅ | ≤40MB (`docs/api/marketing.md:76`) |
 | `uploadChunk` (POST) | Surat Penawaran 40MB | tulis | `POST /files/chunks` | ✅ | ~2MB/potong (`docs/api/marketing.md:77`) |
 | `saveAll` (POST `data, _sejak`) | SEMUA tulisan | tulis | per-resource `POST/PUT/PATCH/DELETE` + `PUT /documents/{doc}` | ⚠️ | blob → CRUD per baris; penjaga `baseUpdatedAt`/`updated_at` → `version`/`If-Match` (409 `version_conflict`, 428 `version_required`) (`docs/api/marketing.md:43-53`) |
-| (koleksi `kalkHistori` / `extra:kalkhistori`) | kalkulator (riwayat) | tulis | — | ❌ | tidak terdaftar di resource/document mana pun (`:2322`; `docs/api/marketing.md:37,58`) |
+| (koleksi `kalkHistori` / `extra:kalkhistori`) | kalkulator (riwayat) | baca/tulis | `GET/PUT /documents/kalkHistori` | ✅ | dokumen terdaftar (G-09, laksamana-api#184); `If-Match` = content hash, `extra:kalkhistori` legacy (`:2322`) |
 
 ### E.2 Panggilan lintas-modul dari frontend
 | aksi / URL | dipakai di layar | baca/tulis | endpoint v1 | status | catatan |
@@ -338,7 +338,7 @@ Kode error yang wajib ditangani UI: `already_exists` (409 saat POST id duplikat)
 - **Elemen lama yang melanggar DESIGN.md → padanannya:** kartu angka besar `.grid.g-4`/`stat()` di banyak layar (Dashboard, Invoices, VIP, Reporting, Staff, Designreq) → ringkas jadi ringkasan teks/`AppStatus`; grafik batang custom `rvchart` → grafik Nuxt UI; emoji dipakai di segmen (`🧮 Semua` `:14776`, `🎨/🎬` `DR_JENIS`) → ikon Nuxt UI; warna hex/hardcoded (`--gold`, `--violet`, `color-mix`) → token Nuxt UI; `.seg`/chip PIC custom → `UButtonGroup`/`AppStatus`. Warna kuning sebagai teks (`--gold-deep`) hanya untuk aksen "sekarang".
 
 ## I. Pertanyaan terbuka
-- [ ] **marketing / kalkulator** — Riwayat perhitungan (`S.kalkHistori`) disimpan sebagai `extra:kalkhistori` di `settings` server, tapi TIDAK terdaftar di kontrak v1 (resource/document). Bagaimana Vue menyimpannya — document baru `documents/kalkHistori`, atau kolom di `settings` terstruktur? Bukti: `deploy/marketing/index.html:2322,19315`; `docs/api/marketing.md:37,58`.
+- [x] **marketing / kalkulator** — ✅ **Selesai (G-09, laksamana-api#184):** disimpan sebagai dokumen `documents/kalkHistori`; Vue memakai `GET/PUT` dengan `If-Match` content hash. Bukti: `deploy/marketing/index.html:2322,19315`; `docs/api/marketing.md:58`.
 - [ ] **marketing / boot** — `action=stats` & `action=ping` tidak punya padanan v1. Apakah CI/health-check tetap butuh, atau dihapus? Bukti: `deploy/marketing/index.html:2971-2981` (getAll); `marketing-mysql/api.php:73-78`.
 - [ ] **marketing / seluruh modul** — Kontrak v1 memakai CRUD per-baris (If-Match) sementara frontend lama memakai blob `saveAll` + `bentrok[]`. Apakah Vue boleh tetap mengirim satu blob (mis. `PUT /state`)? Tidak ada endpoint `PUT /state` di kontrak. Bukti: `docs/api/marketing.md:43-54,67`.
 - [ ] **marketing / event** — `saveAll` memiliki mekanisme hapus `hapus_yang_hilang` dibatasi `_sejak`; v1 DELETE per baris. Apakah event/pembayaran yang dihapus di v1 perlu meniru audit trail `bentrok`? Bukti: `docs/modules/marketing.md:65-68`.
@@ -348,11 +348,11 @@ Kode error yang wajib ditangani UI: `already_exists` (409 saat POST id duplikat)
 
 ### Baris `README.md`
 ```
-| marketing | [marketing.md](marketing.md) | ⚠️ selesai dengan celah | 23 (3 tersembunyi) + detail event | 3 ❌ · 8 ⚠️ | 5 | 20.365 baris; CRM+Event+VIP+Design+PO; blob saveAll → CRUD per-baris; `addPo` ke BD; `performa-bonus.js`/`hpp-mesin.js` |
+| marketing | [marketing.md](marketing.md) | ⚠️ selesai dengan celah | 23 (3 tersembunyi) + detail event | 2 ❌ · 8 ⚠️ | 5 | 20.365 baris; CRM+Event+VIP+Design+PO; blob saveAll → CRUD per-baris; `addPo` ke BD; `performa-bonus.js`/`hpp-mesin.js` |
 ```
 
 ### `_pertanyaan.md` (bullet)
-- [ ] **marketing / kalkulator** — Riwayat perhitungan (`S.kalkHistori`) disimpan sebagai `extra:kalkhistori` di `settings` server, tapi TIDAK terdaftar di kontrak v1 (resource/document). Konteks: kalkulator menyimpan riwayat bernama (menu, porsi, harga jual, pax, deal) — modal TIDAK disimpan. Bukti: `deploy/marketing/index.html:2322,19315`; `laksamana-api/docs/api/marketing.md:37,58`. Opsi: A) tambah `documents/kalkHistori`; B) simpan sebagai kolom di `settings`; C) tidak diporting.
+- [x] **marketing / kalkulator** — ✅ **Selesai (G-09, laksamana-api#184):** riwayat disimpan sebagai dokumen `documents/kalkHistori` (legacy `extra:kalkhistori`); Vue membaca/menulis lewat `GET/PUT` dengan `If-Match` content hash. Konteks lama: kalkulator menyimpan riwayat bernama (menu, porsi, harga jual, pax, deal) — modal TIDAK disimpan. Bukti: `deploy/marketing/index.html:2322,19315`; `laksamana-api/docs/api/marketing.md:58`.
 - [ ] **marketing / boot** — `action=stats` & `action=ping` tidak punya padanan v1. Konteks: `ping` mengembalikan `identitas()`/`LIB_VERSI` yang diperiksa CI; tidak ada endpoint `/stats`/`/ping` di kontrak. Bukti: `marketing-mysql/api.php:73-78`; `docs/modules/marketing.md:9`. Opsi: A) tambah endpoint diagnosa v1; B) hapus dari Vue.
 - [ ] **marketing / seluruh modul** — Kontrak v1 memakai CRUD per-baris (`If-Match`) sementara frontend lama memakai blob `saveAll` + `bentrok[]`. Konteks: tidak ada `PUT /state` di kontrak; penjaga anti-timpa per baris (409 `version_conflict`) menggantikan `bentrok[]`. Bukti: `docs/api/marketing.md:43-54,67`. Opsi: A) Vue pakai CRUD per-baris; B) kontrak tambah `PUT /state`.
 - [ ] **marketing / event** — `hapus_yang_hilang` lama dibatasi `_sejak`; di v1 hapus per baris (`DELETE`). Konteks: perilaku hapus massal vs per-baris bisa berbeda. Bukti: `docs/modules/marketing.md:65-68`.
@@ -374,7 +374,7 @@ Kode error yang wajib ditangani UI: `already_exists` (409 saat POST id duplikat)
 
 ## J. Progres build
 Issue: #16, dipecah #58–#63 · Branch saat ini: `migrasi/marketing-sistem` (#63, PR #97) · Mulai: 2026-10-07
-LANJUTKAN DARI: #63 selesai (menunggu review PR #97). Seluruh layar Marketing sudah ⬜→✅ di cabang masing-masing; sisa: uji cutover K + tindak lanjut API (G-09 riwayat kalkulator, izin baca HPP untuk modul marketing).
+LANJUTKAN DARI: #63 selesai (menunggu review PR #97). Seluruh layar Marketing sudah ⬜→✅ di cabang masing-masing; sisa: uji cutover K + tindak lanjut API (izin baca HPP untuk modul marketing). G-09 (riwayat kalkulator) selesai di branch `migrasi/marketing-g09-kalkhistori`.
 
 | layar (key) | file | status | endpoint dipakai | sub-issue |
 |---|---|---|---|---|
@@ -395,7 +395,7 @@ LANJUTKAN DARI: #63 selesai (menunggu review PR #97). Seluruh layar Marketing su
 | templates | `app/pages/marketing/templates.vue` (+ `MarketingTemplateForm`, `MarketingTabelTemplate`) | ✅ | `GET/PUT /marketing/documents/fbFormats`, `GET/PUT /marketing/documents/fbSubs`, `POST/PATCH/DELETE /marketing/task-templates`, `PATCH /marketing/events/{id}` (ubah nama / pindah kategori) | #62 — kartu per format (bawaan tertutup, per browser), Salin dari, ubah nama, sub kategori + urutan (seret di desktop, ↑/↓ di mana saja), kategori lama + Pindahkan |
 | katalog | `app/pages/marketing/katalog.vue` (+ `MarketingKatalogShow`, `MarketingGambar`) | ✅ | `GET/PUT /marketing/documents/katalog`, `POST /marketing/files`, `GET /marketing/files/{key}` (blob ber-token) | #62 — kartu + ↑/↓ + Edit/Hapus; presentasi layar penuh (← → Spasi, C, P 6 detik, F, Esc) |
 | purchasing | `app/pages/marketing/purchasing.vue` | ✅ | `POST /bd/purchase-orders/batch`, `GET /bd/purchase-orders` | #62 — v1 mengunci keduanya dengan modul `bd` (lama terbuka): pemegang Marketing saja kena 403 → pita + Coba lagi; celah API dilaporkan |
-| kalkulator | `app/pages/marketing/kalkulator.vue` (+ `MarketingKalkPilih`, `app/utils/hpp-mesin.ts`, `app/utils/marketing-kalk.ts`) | ✅ | `GET /stock/hpp/recipes`, `/stock/hpp/ingredients`, `/stock/hpp/settings`, (admin) `/stock/products` | #63 — menu = resep Prasmanan aktif lewat mesin HPP (tanpa salin rumus); pemilih kategori + cari, =pax, rasio per pax, total per satuan, deal → diskon/markup; modal/porsi khusus admin (koreksi build: sel modal lama tidak pernah tergambar). Riwayat = Segera (G-09). API 403 untuk akun yang hanya punya modul marketing → pita + Coba lagi |
+| kalkulator | `app/pages/marketing/kalkulator.vue` (+ `MarketingKalkPilih`, `app/utils/hpp-mesin.ts`, `app/utils/marketing-kalk.ts`) | ✅ | `GET /stock/hpp/recipes`, `/stock/hpp/ingredients`, `/stock/hpp/settings`, (admin) `/stock/products`, `GET/PUT /marketing/documents/kalkHistori` | #63 — menu = resep Prasmanan aktif lewat mesin HPP (tanpa salin rumus); pemilih kategori + cari, =pax, rasio per pax, total per satuan, deal → diskon/markup; modal/porsi khusus admin (koreksi build: sel modal lama tidak pernah tergambar). Riwayat perhitungan bernama = `documents/kalkHistori` (#105/G-09): simpan/buka/hapus, harga HPP yang berubah disebut. API 403 untuk akun yang hanya punya modul marketing → pita + Coba lagi |
 | perfomset | `app/pages/marketing/perfomset.vue` (+ `MarketingBonusSkema`, `app/utils/marketing-performa.ts`) | ✅ | `GET /kompas/performa/marketing?from&to`, `GET /account/roster`, `PATCH /marketing/events/{id}` (`nominalDiakui`), `PATCH /marketing/vip/{id}` (`nominal`) | #63 — pbAgregasi + bonusMarketing diimpor (F.17); Head (kata utuh, pbHead) / admin modul lihat semua, lainnya Semua + diri; gerbang di `pid`; Daftar Event dari modul ⨝ breakdown lewat srcId, 5/hal, Kontribusi hari itu; kartu Skema 1–4 |
 | staff (+ users) | `app/pages/marketing/staff.vue` (+ `app/utils/marketing-pegawai.ts`) | ✅ | `GET /account/roster`, `GET /account/modules/marketing/members`, `POST/PATCH /marketing/users`, `GET/PUT /marketing/documents/roleAcc` | #63 — sinkron roster otomatis saat halaman dibuka (basi 5 menit / gagal); role dari Tim Office (ROLE_JABATAN), admin modul → Super Admin, anggota gagal dibaca = role tak disentuh; Ubah No. HP, Hak Akses per orang (+ reset), matriks role (Super Admin terkunci, dashboard min Lihat) |
 | settings | `app/pages/marketing/settings.vue` | ✅ | `GET/PUT /marketing/documents/settings`, `POST /marketing/files`, `GET /marketing/files/{key}` | #63 — 8 baris aturan + Simpan (baca-ubah-tulis berhash, kwSeq & galeri tak tertimpa); Akun aktif + Keluar ke Office; 9 poin konfirmasi; Galeri Venue unggah (gambar ≤8MB) / hapus |
@@ -438,7 +438,7 @@ Catatan build:
 - (koreksi build) Kalkulator: kolom Modal / porsi kini benar-benar terisi untuk admin (lama: kepala kolom ada, selnya tidak pernah digambar).
 - (koreksi build) Sinkron roster: baris yang cocok lewat nama TIDAK dipindah ke id Office (baris REST tidak bisa ganti id); yang lain sama. Pita menyebut perubahan yang tertolak, bukan mengaku tersinkron.
 - Sinkron roster jalan saat halaman Pegawai & Akses dibuka (lama: tiap modul dibuka).
-- Celah API (belum diajukan, menunggu jawaban): HPP `/stock/hpp/*` butuh modul ordering|purchasing|hpp|usage — akun yang hanya marketing kena 403 di Kalkulator; riwayat kalkulator menunggu G-09 / laksamana-api#184.
+- Celah API (belum diajukan, menunggu jawaban): HPP `/stock/hpp/*` butuh modul ordering|purchasing|hpp|usage — akun yang hanya marketing kena 403 di Kalkulator. Riwayat kalkulator sudah tersedia (`documents/kalkHistori`, G-09 / laksamana-api#184).
 
 ## K. Daftar uji cutover
 Uji silang Vue ↔ Office lama pada data yang sama (dev). Bagian #58:

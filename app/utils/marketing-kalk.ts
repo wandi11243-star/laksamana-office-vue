@@ -167,3 +167,90 @@ export function yieldAnehKalkMkt(r?: ResepHitung | null): boolean {
   const u = String(r?.yield_unit ?? '').trim().toLowerCase()
   return !!u && !['porsi', 'pcs', 'pax', 'cup', 'gelas', 'buah', 'pack'].includes(u)
 }
+
+// ---------------------------------------------------------------- named history (G-09)
+// The named calculations of the old S.kalkHistori, stored as documents/kalkHistori.
+// Only what the whole marketing team may see is saved: menus, quantities, the
+// SELLING PRICE at save time (HPP can change later) and the deal — the cost per
+// portion is NEVER stored (:19310-19325).
+
+/** One saved named calculation (legacy S.kalkHistori record). */
+export interface RiwayatKalkMkt {
+  id: string
+  nama: string
+  pax: number
+  deal: number | null
+  /** rows at save time: ref, category, name, quantity, and the price SNAPSHOT. */
+  rows: { ref: string, kat: string, n: string, pcs: number, h: number | null }[]
+  total: number
+  perPax: number
+  by: string
+  byId: string
+  at: string
+  updatedAt: number
+}
+
+/** A saved calculation from the current totals (kalkSimpanHistori, :19341). */
+export function rekamKalkMkt(
+  id: string,
+  nama: string,
+  rk: RingkasKalkMkt,
+  deal: number | null,
+  by: string,
+  byId: string,
+  at: string,
+  updatedAt: number,
+): RiwayatKalkMkt {
+  return {
+    id,
+    nama,
+    pax: rk.pax,
+    deal,
+    rows: rk.baris.map(b => ({ ref: b.ref, kat: b.kat, n: b.n, pcs: b.pcs, h: b.h })),
+    total: rk.total,
+    perPax: rk.perPax,
+    by,
+    byId,
+    at,
+    updatedAt,
+  }
+}
+
+/** Newest saved first; entries without an id dropped (kalkHistoriList). */
+export function urutRiwayatKalkMkt(list: RiwayatKalkMkt[] | null | undefined): RiwayatKalkMkt[] {
+  return (Array.isArray(list) ? list : []).filter(x => x && x.id)
+    .slice().sort((a, b) => String(b.at || '').localeCompare(String(a.at || '')))
+}
+
+/** The discount column from a saved calculation; '—' when there is no deal or no price (kalkHistoriHTML). */
+export function diskonRiwayatKalkMkt(x: RiwayatKalkMkt): string {
+  if (x.deal == null || !(x.perPax > 0)) return '—'
+  const dis = (x.perPax - x.deal) / x.perPax * 100
+  if (Math.abs(dis) < 0.005) return '0%'
+  return `${dis > 0 ? 'Diskon ' : 'Naik '}${Math.abs(dis).toFixed(dis % 1 ? 1 : 0)}%`
+}
+
+/** Who may delete a saved calculation: module admin, or its author by id/name (kalkBolehHapus). */
+export function bolehHapusKalkMkt(x: RiwayatKalkMkt, admin: boolean, meId?: string, meName?: string): boolean {
+  return !!x && (admin || (!!meId && x.byId === meId) || (!!meName && x.by === meName))
+}
+
+/**
+ * Menus whose Prasmanan price moved since the calculation was saved, and menus
+ * that no longer exist — both are NAMED when a history is reopened, never
+ * silently used (kalkBukaHistori, :19368-19383).
+ */
+export function cekHargaKalkMkt(
+  x: RiwayatKalkMkt,
+  items: Record<string, MenuKalkMkt[]>,
+): { berubah: { n: string, dari: number | null, ke: number | null }[], hilang: string[] } {
+  const berubah: { n: string, dari: number | null, ke: number | null }[] = []
+  const hilang: string[] = []
+  for (const r of x.rows ?? []) {
+    const it = itemRefKalkMkt(items, r.ref)
+    const lama = r.h == null ? null : +r.h
+    if (!it) hilang.push(r.n)
+    else if ((it.h || null) !== lama) berubah.push({ n: r.n, dari: lama, ke: it.h })
+  }
+  return { berubah, hilang }
+}
