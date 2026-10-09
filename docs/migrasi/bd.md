@@ -386,7 +386,7 @@ Perbaikan di branch ini:
 | coord | `app/pages/bd/coord.vue` | ✅ | `GET /bd/state`, `POST/PUT/PATCH/DELETE /bd/coord-requests` | — |
 | routine | `app/pages/bd/routine.vue` | ✅ | `GET /bd/state`, `POST/PUT/DELETE /bd/routines` | — |
 | promo | `app/pages/bd/promo.vue` | ✅ | `GET/PUT /bd/settings/promos` | CSV ekspor/impor di browser, sesuai K-05 (1) |
-| purchasing | `app/pages/bd/purchasing/index.vue` | ✅ | `GET /bd/state`, `POST /bd/purchase-orders/batch`, `PATCH/DELETE /bd/purchase-orders`, `POST /bd/purchase-requests`, `GET/PUT /bd/settings/approverSets` | saran master vendor PO **"Segera" (G-02)** — endpoint Stock digate modul Stock |
+| purchasing | `app/pages/bd/purchasing/index.vue` | ✅ | `GET /bd/state`, `POST /bd/purchase-orders/batch`, `PATCH/DELETE /bd/purchase-orders`, `POST /bd/purchase-requests`, `GET/PUT /bd/settings/approverSets`, `GET /stock/vendors` (G-02, saran Vendor) | — |
 | prDetail | `app/pages/bd/purchasing/pr-[id].vue` | ✅ | `GET /bd/state`, `PATCH /bd/purchase-requests`, `PATCH /bd/purchase-orders`, `PUT /bd/purchase-orders/{id}/realisasi` | — |
 | tim | `app/pages/bd/tim.vue` | ✅ | `GET /bd/state`, `POST/PATCH/DELETE /bd/people`, `GET /account/modules/bd/members` | — |
 
@@ -394,7 +394,8 @@ Catatan build (2026-10-01):
 - **Tulisan per-record (T-25).** Tidak ada `saveAll`; tiap mutasi lewat `POST/PUT/PATCH/DELETE /bd/{resource}` dengan `If-Match` dari `versiBaris(row)` (`data.updatedAt`) + `tanganiKonflik`. Dokumen `settings` (`focus`, `approverSets`, `promos`) lewat `PUT /bd/settings/{key}` dengan versi dari `meta.versions`.
 - **Rumus browser dipindah persis** ke `app/utils/bd-rumus.ts` (kuadran, `sisaHari`/tanggal, `projProgress`, `overbudget`/`realisasiNum`, kepatuhan routine, `prBeres`/`prTotal`/`prNoBerikut`, `poBeres`, `fRp`/`rzFormat`) dan `app/utils/bd-promo.ts` (`promoStatus`/`promoSisa`/urutan, CSV impor/ekspor). Warna/ikon status di `app/utils/status-bd.ts`.
 - **Roster (T-01).** "Segarkan dari Office" membandingkan `GET /api/v1/account/modules/bd/members` dengan `/people` dan `POST /people` yang belum ada; tidak pernah menghapus (`tanpaAkses`). Tidak ada endpoint `bd` roster. `ping`/`stats` tidak dibawa (T-02/U3).
-- **Ditunda:** saran master vendor pada form PO `Segera (G-02)`; kolom Vendor tetap teks bebas (nama tak dikenal boleh).
+- **Vendor PO (G-02, #102).** Kolom Vendor form PO mengetik melawan master Purchasing (`GET /stock/vendors`, `<datalist>`); nama di luar master tetap bisa disimpan dan ditandai di bawah kotak (`… belum ada di master Purchasing`), master mati hanya menghilangkan saran. Kolom tetap teks bebas, yang tersimpan tetap nama.
+- **Ditunda:** —
 - **Perlu ditindak lead:** entri `bd` di `app/utils/modul-shell.ts` (layar sidebar, tombol `+`, lonceng, `siapkan`) belum ditambahkan — di luar kepemilikan berkas agen `bd`. Halaman tetap dapat dibuka lewat rute `/bd/...`.
 
 ## K. Daftar uji cutover
@@ -414,7 +415,7 @@ menimpa diam-diam). Tanda **[G-xx]** menandai butir yang menyentuh bagian "Seger
 - [ ] **coord** — Koordinasi (D.6): mode Board (kanban `Diminta…Selesai`) & Tabel, pita penjelasan.
 - [ ] **routine** — Routine (D.7): 3 kartu (aktif/kepatuhan/terlewat) + tabel routine.
 - [ ] **promo** — Promotion (D.8): 4 kartu status, filter status/tipe, kotak cari, tabel promo, detail + poster.
-- [ ] **purchasing** — Purchasing (D.9): 3 sub-tab (PR & Rekap Mingguan / Semua Item / Penyetuju), 3 kartu ringkasan. **[G-02]**
+- [ ] **purchasing** — Purchasing (D.9): 3 sub-tab (PR & Rekap Mingguan / Semua Item / Penyetuju), 3 kartu ringkasan, saran Vendor dari master Purchasing (nama luar master ditandai, tetap tersimpan).
 - [ ] **prDetail** — Purchase Request/route `pr-[id]` (D.10): lembar siap cetak, kolom Harga/Realisasi/Overbudget/Proses, blok APPROVE BY.
 - [ ] **tim** — Kru BD (D.12): hierarki atasan→anak buah, tabel Nama/Jabatan/Divisi/Atasan/Task/Akses, penanda kamu/dicabut/nonaktif.
 
@@ -427,7 +428,7 @@ menimpa diam-diam). Tanda **[G-xx]** menandai butir yang menyentuh bagian "Seger
 - [ ] coord: `POST/PUT/PATCH/DELETE /coord-requests`, drag status; PIC tujuan teks bebas.
 - [ ] routine: `POST/PUT/DELETE /routines`; kepatuhan dihitung, baris tanpa `total` = 100%.
 - [ ] promo: `PUT /settings/promos` (tambah/ubah/jeda/hapus); tanggal selesai < mulai ditolak; status dihitung dari tanggal (paused menang); ekspor→impor CSV bolak-balik.
-- [ ] purchasing: `POST /purchase-orders/batch` (baris kosong diabaikan, semua "Diajukan"); `PATCH`/`DELETE /purchase-orders`; "Sudah diproses" → Diterima + `statusSebelum`, batal mengembalikan; `POST /purchase-requests` + `PATCH` PO `prId`; `PUT /settings/approverSets` (admin). **"Segera" [G-02]:** saran master vendor PO (endpoint Stock digate modul Stock).
+- [ ] purchasing: `POST /purchase-orders/batch` (baris kosong diabaikan, semua "Diajukan"); `PATCH`/`DELETE /purchase-orders`; "Sudah diproses" → Diterima + `statusSebelum`, batal mengembalikan; `POST /purchase-requests` + `PATCH` PO `prId`; `PUT /settings/approverSets` (admin); saran Vendor dari `GET /stock/vendors` (nama luar master ditandai, tetap tersimpan).
 - [ ] prDetail: `PUT`/`PATCH /purchase-requests`; setujui hanya signer/admin (jejak, bukan otorisasi); `PUT /purchase-orders/{id}/realisasi` (realisasi kosong ≠ 0, overbudget dihitung); masukkan/keluarkan PO dari lembar.
 - [ ] tim: "Segarkan dari Office" (`POST /people` yang belum ada, tidak pernah menghapus); edit `role/div/boss` (`PATCH /people/{id}`, tolak atasan melingkar); hapus hanya bila akses dicabut & tanpa pekerjaan.
 

@@ -170,6 +170,28 @@ export function putBayar(bayar: RencanaBayar[], versi: Versi) {
   return useApi()<Envelope<unknown>>('/finance/petty-cash/payment-plan', { method: 'PUT', body: { bayar }, headers: ifMatch(versi) })
 }
 
+// ---------------------------------------------------------------- Saldo wallet (G-06)
+
+export interface WalletBalance { wallet: string, nama: string, saldo: number }
+
+export interface WalletBalances {
+  wallets: WalletBalance[]
+  total: number
+  /** Stored group → wallet map from the vault setting (defaults applied client-side). */
+  peta: Record<string, string>
+}
+
+/**
+ * GET /finance/petty-cash/wallet-balances — vault-side saldo per wallet for
+ * Payment Planning (module `finance`). Kompas sales are NOT in here: the
+ * client adds them from kompas state with the same engine as the Brankas
+ * panel, as the old page does (`deploy/finance/kas/index.html: saldoSemua`).
+ */
+export async function getWalletBalances() {
+  const r = await useApi()<Envelope<WalletBalances> & { meta?: Record<string, unknown> }>('/finance/petty-cash/wallet-balances')
+  return { saldo: r.data, version: versiDari(r) }
+}
+
 // ---------------------------------------------------------------- Brankas (`/finance/vault`, module `brankas`)
 //
 // The vault blob holds the `rekening`, `piutang`, `bayar`, `investor` and
