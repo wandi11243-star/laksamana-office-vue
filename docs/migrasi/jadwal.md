@@ -383,8 +383,7 @@ HADIR; ganti orang (endpoint, ALFA + baris baru HADIR, sesuai F.21); bayar
 tandai/batal; kalender assign + kembalikan (→MENUNGGU); antrean tolak,
 tarik kembali + hapus (head), setujui bulk 2 ajuan; tarif + akses toggle +
 kembalikan bawaan. Aturan uang terbukti di UI: baris ALFA Rp0, `''` tetap
-dibayar. `hapusAjuanDw` di `useDw.ts` tidak dipanggil halaman mana pun —
-penghapusan ajuan hanya lewat API (catat sebagai gap UI).
+dibayar. `hapusAjuanDw` tidak dibawa — paritas Office lama (owner 2026-10-09).
 Otomasi browser (CDP/JS) tidak bisa membuka dropdown `USelect` kustom
 (kandidat suksesi, pengganti ganti-orang) dan klik sel `JadwalLembar` —
 diatasi via event JS untuk sel/sheet/dialog; dropdown yang tidak terbuka

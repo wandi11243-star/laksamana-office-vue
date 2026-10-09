@@ -186,9 +186,6 @@ export const putusAjuanDw = (id: string, status: 'DISETUJUI' | 'DITOLAK' | 'MENU
 export const putusBanyakDw = (ids: string[], status: 'DISETUJUI' | 'DITOLAK', nota = '') =>
   useApi()<Envelope<{ saved: boolean, ids: string[] }>>('/dw/assignments/decisions', { method: 'POST', body: { ids, status, nota } })
 
-export const hapusAjuanDw = (id: string) =>
-  useApi()<Envelope<{ deleted: boolean }>>(`/dw/assignments/${id}`, { method: 'DELETE' })
-
 export const simpanHadirDw = (id: string, hadir: '' | 'HADIR' | 'TELAT' | 'ALFA', nota = '') =>
   useApi()<Envelope<{ saved: boolean, id: string }>>(`/dw/assignments/${id}/attendance`, { method: 'POST', body: { hadir, nota } })
 

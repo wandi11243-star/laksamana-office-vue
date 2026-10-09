@@ -153,9 +153,9 @@ const bolehLayarSe = (key: string) => (me: Me) => bolehBukaSe(key, tingkatSe(me)
 
 /** The screens of the panel, in the order of the old sidebar. */
 export const LAYAR_SERVICE_EXCELLENT: Layar[] = [
-  { key: 'capaian', label: 'Dashboard', desc: 'Pencapaian tim dan papan reward.', icon: 'i-lucide-chart-column-increasing', to: '/service_excellent', grup: 'Pekerjaan', boleh: bolehLayarSe('capaian') },
-  { key: 'review', label: 'Google review', desc: 'Ajakan review ke tamu, klaim, dan verifikasinya.', icon: 'i-lucide-star', to: '/service_excellent/review', grup: 'Pekerjaan', boleh: bolehLayarSe('review') },
-  { key: 'feedback', label: 'Catat feedback', desc: 'Pujian & keluhan tamu, dikategorikan per divisi.', icon: 'i-lucide-message-square', to: '/service_excellent/feedback', grup: 'Pekerjaan', boleh: bolehLayarSe('feedback') },
-  { key: 'peran', label: 'Kelola role', desc: 'Kelola role Service Excellent.', icon: 'i-lucide-shield', to: '/service_excellent/peran', grup: 'Pengaturan', boleh: bolehLayarSe('peran') },
-  { key: 'setelan', label: 'Setelan', desc: 'Link Google Review, saklar ajakan WhatsApp, dan reward.', icon: 'i-lucide-settings', to: '/service_excellent/setelan', grup: 'Pengaturan', boleh: bolehLayarSe('setelan') },
+  { key: 'capaian', label: 'Dashboard', desc: 'Pencapaian tim dan papan reward.', icon: 'i-lucide-chart-column-increasing', to: '/service_excellent', grup: 'Service Excellent', boleh: bolehLayarSe('capaian') },
+  { key: 'review', label: 'Google review', desc: 'Ajakan review ke tamu, klaim, dan verifikasinya.', icon: 'i-lucide-star', to: '/service_excellent/review', grup: 'Service Excellent', boleh: bolehLayarSe('review') },
+  { key: 'feedback', label: 'Catat feedback', desc: 'Pujian & keluhan tamu, dikategorikan per divisi.', icon: 'i-lucide-message-square', to: '/service_excellent/feedback', grup: 'Service Excellent', boleh: bolehLayarSe('feedback') },
+  { key: 'peran', label: 'Kelola role', desc: 'Kelola role Service Excellent.', icon: 'i-lucide-shield', to: '/service_excellent/peran', grup: 'Kontrol', boleh: bolehLayarSe('peran') },
+  { key: 'setelan', label: 'Setelan', desc: 'Link Google Review, saklar ajakan WhatsApp, dan reward.', icon: 'i-lucide-settings', to: '/service_excellent/setelan', grup: 'Kontrol', boleh: bolehLayarSe('setelan') },
 ]

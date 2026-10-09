@@ -643,8 +643,8 @@ port 3001, terang saja (aplikasi light-only per AGENTS.md — mode gelap tidak b
 finance; riwayat; analitik; master; audit; capaian; review; feedback; peran; setelan): tanpa
 console-error, tanpa scroll-samping (`scrollWidth == innerWidth` di semua layar 390px), urutan
 seksi/kolom tabel/kartu stat/posisi tombol sama dengan `deploy/reservasi` & `deploy/service_excellent`
-(grup sidebar SE: `Pekerjaan`/`Pengaturan` vs lama `Service Excellent`/`Kontrol` — label saja,
-urutan layar sama; disengaja, bukan bug).
+(grup sidebar SE kini ikut Office lama: `Service Excellent`/`Kontrol` (owner 2026-10-09);
+urutan layar sama).
 Temuan & perbaikan (1): `useSection` dan `useSectionVersi` berbagi kunci `useAsyncData`
 `reservasi-section-<section>` dengan bentuk data beda (nilai mentah vs amplop) — navigasi
 dashboard → master mengosongkan daftar dropdown (`Jenis reservasi: Kosong`, `Sekarang: 0 m`) dan
