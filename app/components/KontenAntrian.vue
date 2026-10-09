@@ -6,9 +6,10 @@
   Rows: production needs of content (`c.prod[kind]`), standalone tasks
   (`prod-tasks`), and — Design & Editing only — Marketing's design/video
   requests, READ from the Marketing module, never copied. A Marketing row is
-  read-only except "✓ Tandai Selesai". If Marketing cannot be read (offline, or
-  403 for crew without the Marketing module, laksamana-api#190) the queue still
-  works: a warning says what is missing, with "Coba lagi".
+  read-only except "✓ Tandai Selesai". G-16 (laksamana-api#190) opens these
+  queue reads/writes to `marketing|konten`, so a Konten-only crew member can
+  finish them; if the API cannot be reached the queue still works: a warning
+  says what is missing, with "Coba lagi".
 
   Default filter hides the archive (status `todo`); the total and the archived
   count stay visible so nobody thinks work vanished. Reset returns to that.

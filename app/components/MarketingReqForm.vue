@@ -1,8 +1,9 @@
 <!--
-  Marketing › design/video request form (drForm, :15932). Brand & PIC ride on
-  option lists when Konten lent them, free text when it did not — an old value
-  missing from the list stays selectable and marked, never silently replaced.
-  Photo refs ride inside the row (2 MB each, 6 MB per request).
+  Marketing › design/video request form (drForm, :15932). Brand & PIC come from
+  Konten's narrow picker (`GET /konten/design-options`, G-16); free text when it
+  is empty — an old value missing from the list stays selectable and marked,
+  never silently replaced. Photo refs ride inside the row (2 MB each, 6 MB per
+  request).
 -->
 <script setup lang="ts">
 import type { EventMkt, RequestDesainMkt } from '~/utils/marketing'
