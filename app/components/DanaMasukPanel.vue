@@ -152,7 +152,12 @@ const demoTelepon = new Set(DEMO_NAMA.map((_, i) => normPhone(`08${1234500000 + 
 const adalahDemo = (r: Reservasi) => DEMO_NAMA.includes(String(r?.name || '').trim()) && demoTelepon.has(normPhone(r?.phone))
 const demo = computed(() => (semua.value ?? []).filter(adalahDemo))
 
-// --- client paging (G-08: no server paging in v1) ------------------------------
+// --- paging in the browser ---------------------------------------------------
+// One row is one TRANSFER, so the reservation-level paging of the API (G-08)
+// cannot page this table: a page of 10 reservations holds an unpredictable
+// number of transfers, and the transfer filters (bank, scan state, tab) have
+// no server twin either. The window stays the loader; the pager below never
+// hides, like the old screen.
 
 const hal = ref(1)
 const perHal = ref(10)
@@ -771,6 +776,8 @@ async function hapusDemo() {
 // --- Export CSV (browser, K-05: CSV dulu) ------------------------------------------------
 // The basis rides in the filename: two exports of the same range with different
 // bases hold different rows, and an identical name would overwrite (`:9976-10004`).
+// Stays in the browser on purpose: the server export is reservation-level
+// (Recap columns), while this table exports transfers.
 
 function unduhCsv() {
   const list = daftar.value
@@ -1493,10 +1500,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
             size="sm"
             class="w-28"
           />
-          <div
-            v-if="maxHal > 1"
-            class="flex items-center gap-2"
-          >
+          <div class="flex items-center gap-2">
             <UButton
               icon="i-lucide-chevron-left"
               color="neutral"

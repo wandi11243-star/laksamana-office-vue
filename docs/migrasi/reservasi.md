@@ -1,11 +1,11 @@
 # Reservasi (+ Service Excellent) — inventaris migrasi
 
 Status: ⚠️ selesai dengan celah
-Terakhir diperbarui: 2026-09-29
+Terakhir diperbarui: 2026-10-09
 
 > **Triase 2026-09-29** — status di tabel E yang bertentangan dengan catatan ini: catatan ini yang berlaku.
 > Rincian: [`_pertanyaan.md`](_pertanyaan.md), [`_gap-api.md`](_gap-api.md).
-> - `ping`/`stats` ❌ → tidak dibawa (U3). `ringkasTamu` → G-07. Paging/ekspor → G-08.
+> - `ping`/`stats` ❌ → tidak dibawa (U3). `ringkasTamu` → G-07 ✅ API #256, tersambung 2026-10-09 (J.5). Paging/ekspor → G-08 ✅ API #259, tersambung 2026-10-09 (J.5).
 > - Denah → T-20. OCR → K-05. Review → T-21. Reward SE → T-19. Embed SE → T-24.
 
 ## Ringkasan
@@ -390,11 +390,11 @@ diverifikasi dengan grep `apiGet(`/`apiPost(`/`apiGetPoll(`.
 | `saveAll` | SEMUA layar tulis | tulis | `POST/PUT/PATCH/DELETE /reservations/{id}`; `PUT/PATCH/DELETE /master/{section}[/{id}]`; `POST /audit` | ⚠️ | blob utuh (reservations+master+audit) → CRUD per-baris + section per-section. `baseVer` → `If-Match`/`?version=`; `dikenal` → `DELETE /reservations/{id}` per baris; `APP_LAWAS` → `428 version_required` (`docs/api/reservasi.md:105-111`,`:130-139`; lib `save_all` `:253-408`) |
 | `putFile` | — (tidak dipanggil frontend; foto ditulis via `saveAll`) | tulis | `PUT /api/v1/reservasi/files/{key}` | ✅ | `docs/api/reservasi.md:103` |
 | `ver` | polling denah (`:3122`) | baca | (tidak ada endpoint khusus; `meta.ver` dari `GET /reservations`) | ⚠️ | legacy hanya `read_ver()` 1 SELECT (`api.php:68-72`); v1 tak punya endpoint versi-saja — polling harus menarik seluruh jendela |
-| `riwayat` | riwayat (`:10041`, `ekspor:1` `:10070`) | baca | `GET /reservations` (saring klien) | ⚠️ | legacy saring+urut+`LIMIT` di SQL + `&ekspor=1` untuk CSV (`api.php:74-76`, `CLAUDE.md:526-544`); v1 hanya daftar per rentang, tanpa paging/ekspor server |
-| `ringkasTamu` | autofill tamu & profil di input (`:2771`) | baca | — | ❌ | ringkasan Loyal/blacklist/auto-isi **lintas seluruh riwayat** (`api.php:85-87`, `lib:713-748`); di mode berjendela tak bisa dihitung klien — GAP |
-| `halRecap` | dashboard tabel (`:5330`) | baca | `GET /reservations?from&to` | ⚠️ | legacy memulangkan `{rows,total,hal,maxHal,per}` dari SQL (`SRVPG`, `:5205-5261`); v1 tak punya paging server |
-| `halDana` | finance (`:9364`) | baca | `GET /reservations?from&to` | ⚠️ | legacy memulangkan baris-turunan per transfer (bank, mismatch, status); data sama ada di `dps[]`, dirakit klien |
-| `halAudit` | audit (`:10771`) | baca | `GET /audit` | ⚠️ | legacy berhalaman; v1 `GET /audit` memulangkan 500 terbaru sekaligus (`docs/api/reservasi.md:68`,`:126`) |
+| `ringkasTamu` | autofill tamu & profil di input (`:2771`) | baca | `GET /reservasi/guests/summary?before=` (+ `?phone=`) | ✅ | ringkasan Loyal/blacklist/auto-isi lintas seluruh riwayat; klien menggabung dengan baris jendelanya tanpa hitung ganda (J.5) |
+| `halRecap` | dashboard tabel (`:5330`) | baca | `GET /reservations?from&to&q&status&page&perPage` (+ `meta.total`/`meta.batal`) | ✅ | dipakai bila saringan bisa diungkap server (satu status + cari); saringan kaya & urut khusus tetap memotong jendela (J.5) |
+| `halDana` | finance (`:9364`) | baca | — (tetap jendela + potong klien) | ⚠️ | satu baris = satu transfer, API hanya berhalaman per reservasi; lihat J.5 |
+| `halAudit` | audit (`:10771`) | baca | `GET /audit?q&page&perPage` (+ `meta.total`) | ✅ | aturan cari kembar `auditCocok` (J.5) |
+| `riwayat` (+ `ekspor=1`) | riwayat (`:10041`, `:10070`) | baca | `GET /reservations?from&to&q&status` (persempit; tanpa paging) + CSV arsip di browser | ⚠️ | aturan arsip ("lewat atau sudah tutup") hanya di klien; paging server akan memotong sebelum aturan itu (J.5) |
 | `stats` | — (diagnostik; tidak dipanggil frontend) | baca | — | ❌ | `api.php:94-95`, `lib:749+`; bukan fitur layar |
 | `ping` | — (diagnostik; tidak dipanggil frontend) | baca | — | ❌ | `api.php:97-98`; bukan fitur layar |
 | (Office `listModuleRoster`) | Reservasi `autoSyncOfficeRoster` (`:3584`) | baca | `GET /api/v1/account/modules/reservasi/members` | ✅ | `account/routes/v1.php:18`; identitas Office, bukan API modul |
@@ -506,12 +506,15 @@ HTTP 200 + `APP_LAWAS` (klien terlalu tua) + `conflict:true` (`docs/modules/rese
   (Capaian), `review.vue`, `feedback.vue`, `peran.vue`, `setelan.vue`.
   `definePageMeta({ access: ['reservasi'] })` / `access: ['service_excellent']`.
 - **Composable `useReservasi.ts`** (fungsi → endpoint):
-  - `listReservations({from,to})` → `GET /reservasi/reservations`
+  - `listReservations({from,to,q,status})` → `GET /reservasi/reservations` (q/status opsional untuk persempit; tanpa itu jawabannya seperti dulu)
+  - `listReservationsHalaman({from,to,q,status,page,perPage})` → `GET /reservasi/reservations` + `meta.total`/`meta.batal` (G-08)
+  - `exportReservationsCsv({from,to,q,status})` → `GET /reservasi/reservations/export` (Blob CSV, G-08)
+  - `getGuestsSummary(before?, phone?)`, `useRingkasanTamu(before)` → `GET /reservasi/guests/summary` (peta tanpa awalan `k`, G-07)
   - `getReservation(id)`, `createReservation(body)`, `updateReservation(id,body)`,
     `patchReservation(id,fields)`, `deleteReservation(id)`
   - `getMaster()`, `putMaster(value)`, `getSection(sec)`, `putSection(sec,value)`,
     `putSectionItem(sec,id,value)`, `deleteSectionItem(sec,id)`
-  - `getAudit()`, `postAudit({action,detail,res})`
+  - `getAudit()`, `listAuditHalaman(q,page,perPage)` → `GET /reservasi/audit` + `meta.total` (G-08), `postAudit({action,detail,res})`
   - `getFile(key)`, `putFile(key,data)`
   - `getRoster()` → `/account/roster`, `getModuleMembers('reservasi')` → `/account/modules/reservasi/members`
 - **Composable `useServiceExcellent.ts`** (fungsi → endpoint):
@@ -670,13 +673,13 @@ Legend: ✅ selesai · 🟡 sedang · ⬜ belum · ⏸ ditunda (sebut ID K/G di 
 
 | layar (key) | panel | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|---|
-| dashboard | reservasi | `pages/reservasi/dashboard.vue` | ✅ | `GET /reservasi/reservations`, `GET/PATCH/POST/DELETE /reservations`, `GET/POST /audit`, `GET/PUT/DELETE /master/{dineEstMin,clashLeadMin,waitlist,waTargets,layouts,layoutOverrides,layoutOverrides2,layoutTanggal}` | tipe tamu G-07 · drag ganti bulan tidak dibangun |
-| input | reservasi | `pages/reservasi/input.vue` | ✅ | `GET/POST/PATCH/DELETE /reservations`, `GET /reservations/{id}`, `GET /files/*` | autofill profil tamu → G-07 |
-| finance | reservasi | `pages/reservasi/finance.vue` + `components/DanaMasukPanel.vue` + `components/KwitansiSlot.vue` | ✅ | `GET /reservations`, `GET/PATCH/DELETE /reservations/{id}`, `GET /files/{key}`, `GET /marketing/dp`, `POST /finance/invoices/requests`, `GET /finance/invoices/status`, `GET /finance/invoices/file/{resId}`, `POST /audit` | paging klien (G-08) · tipe tamu G-07 · DP Event dibuka untuk reservasi/cashier/finance (G-15 ✅) · terbit-langsung manajer ditunda (sesi finance) |
-| riwayat | reservasi | `pages/reservasi/riwayat.vue` + `utils/riwayat.ts` | ✅ | `GET /reservations?from&to` (+ tanpa batas untuk mode Semua) | paging + ekspor di browser (G-08) · profil dari data termuat (G-07) · bawaan Bulan ini, bukan Semua |
-| analitik | reservasi | `pages/reservasi/analitik.vue` + `utils/analitik.ts` | ✅ | `GET /reservations` (tanpa batas — keseluruhan butuh semua) | grafik div tanpa lib (K-05 CSV) · ringkasan butuh seluruh tabel (G-08) |
+| dashboard | reservasi | `pages/reservasi/dashboard.vue` | ✅ | `GET /reservasi/reservations` (+ `q/status/page/perPage` + `meta.total`/`meta.batal` bila satu status dipilih), `GET /reservasi/guests/summary`, `GET /reservations/export` (CSV), `GET/PATCH/POST/DELETE /reservations`, `GET/POST /audit`, `GET/PUT/DELETE /master/{…}` | drag ganti bulan tidak dibangun |
+| input | reservasi | `pages/reservasi/input.vue` | ✅ | `GET/POST/PATCH/DELETE /reservations`, `GET /reservations/{id}`, `GET /reservasi/guests/summary` (direktori + profil tamu), `GET /files/*` | — |
+| finance | reservasi | `pages/reservasi/finance.vue` + `components/DanaMasukPanel.vue` + `components/KwitansiSlot.vue` | ✅ | `GET /reservations`, `GET/PATCH/DELETE /reservations/{id}`, `GET /files/{key}`, `GET /marketing/dp`, `POST /finance/invoices/requests`, `GET /finance/invoices/status`, `GET /finance/invoices/file/{resId}`, `POST /audit` | paging + ekspor transfer di browser (satu baris = satu transfer; API berhalaman per reservasi) · DP Event dibuka untuk reservasi/cashier/finance (G-15 ✅) · terbit-langsung manajer ditunda (sesi finance) |
+| riwayat | reservasi | `pages/reservasi/riwayat.vue` + `utils/riwayat.ts` | ✅ | `GET /reservations?from&to&q&status` (persempit; paging + CSV arsip di browser) + `GET /reservasi/guests/summary` (profil CRM seluruh riwayat) | bawaan Bulan ini, bukan Semua |
+| analitik | reservasi | `pages/reservasi/analitik.vue` + `utils/analitik.ts` | ✅ | `GET /reservations` (tanpa batas — keseluruhan butuh semua) | grafik div tanpa lib (K-05 CSV) |
 | master | reservasi | `pages/reservasi/master.vue` | ✅ | `GET/PUT /master/{dineEstMin,categories,dpMethods,infoSources,waTargets,users,perms}` + `GET /reservations` + `GET /master` (backup) | Restore/Hapus Semua → K-11 · waTargets tampil saja (seperti lama) |
-| audit | reservasi | `pages/reservasi/audit.vue` | ✅ | `GET /reservasi/audit` | paging di browser (G-08) · tautan hanya bila bawa id reservasi |
+| audit | reservasi | `pages/reservasi/audit.vue` | ✅ | `GET /reservasi/audit?q&page&perPage` + `meta.total` | tautan hanya bila bawa id reservasi |
 | capaian | service_excellent | `pages/service_excellent/index.vue` (beranda + capaian) | ✅ | `GET /master/reviews`, `/feedbacks`, `/reviewCfg`, `/seCrew`, `GET /reservations`, `GET /account/roster` | reward hanya tampilan (T-19) · tanpa G-16 |
 | review | service_excellent | `pages/service_excellent/review.vue` | ✅ | `GET/PUT/DELETE /master/reviews/{id}`, `/files/rv:*`, `GET /reservations` | — |
 | feedback | service_excellent | `pages/service_excellent/feedback.vue` | ✅ | `GET/PUT/DELETE /master/feedbacks/{id}`, `/files/fb:*`, `GET /reservations` (direktori) | — |
@@ -818,7 +821,7 @@ Semua field D.2 ada, dengan pesan validasinya apa adanya. Yang dibangun di layar
 | "Samakan dengan jumlah pax" | hanya muncul kalau tercatat masuk > dipesan, dan **ditahan sampai Simpan** (`:4689-4703`) |
 | hapus | hanya mode edit + `bolehAksi('deleteReservation', role)`, lewat `ResponsiveSheet` (`:8469`) |
 | versi | edit: `meta.version` dari `GET /reservations/{id}`, atau `updatedAt`; `ifMatch()` + `tanganiKonflik()` (reload membaca ulang barisnya) |
-| autofill profil tamu | blok "Segera · G-07" (text-dimmed); datalist nama/HP tetap diisi dari jendela yang dimuat, seperti mode berjendela lama |
+| autofill profil tamu | direktori + profil dari `GET /reservasi/guests/summary` digabung baris jendela (J.5): datalist nama/HP seluruh riwayat, ketik nama → HP terisi, ketik HP → nama terisi + pita Loyal/blacklist/member |
 
 **Pembangun record** — `bangunRecord()` menyalin seluruh field yang ditulis `:4850-4890`, termasuk dua yang **lupa ditulis** di sana dan koreksi build 2026-09-29:
 - **`tableAsli`** — tanpa ini "pulang ke meja asal" hilang begitu reservasi disunting.
@@ -849,7 +852,7 @@ Semua field D.2 ada, dengan pesan validasinya apa adanya. Yang dibangun di layar
 
 ### J.3 Tahap 3 — `dashboard` (bagian 1 & 2, 2026-09-29)
 
-**Bagian 1** (`feat(reservasi): dashboard bagian 1`) — ringkasan, filter, tab Tabel. Ringkasan = `AppFocus` (jumlah reservasi + pax) + `AppList` (empat barisa angka), bukan grid kartu. Tab Tabel: `UTable` di `lg+` dan `AppList` di HP dari baris yang sama, urut per kolom (Tombol sort, bukan klik header — sorting lewat tombol di bawah tabel, bukan klik header (klik header pada UTable tidak bisa di-style dan tidak konsisten)), paging 10/25/50 di browser dengan catatan **G-08** di layar. "Tipe tamu" **Segera · G-07** (butuh `ringkasTamu`).
+**Bagian 1** (`feat(reservasi): dashboard bagian 1`) — ringkasan, filter, tab Tabel. Ringkasan = `AppFocus` (jumlah reservasi + pax) + `AppList` (empat barisa angka), bukan grid kartu. Tab Tabel: `UTable` di `lg+` dan `AppList` di HP dari baris yang sama, urut per kolom (Tombol sort, bukan klik header — sorting lewat tombol di bawah tabel, bukan klik header (klik header pada UTable tidak bisa di-style dan tidak konsisten)), paging 10/25/50 selalu tampil. Bila saringan bisa diungkap server (satu status + cari nama/HP/meja), tabel + ekspor CSV datang dari server (J.5); saringan kaya & urut khusus tetap memotong jendela. "Tipe tamu" (Baru / Loyal atau repeat / Member) memakai profil gabungan seluruh riwayat (J.5).
 
 ## Tahap 5 — Service Excellent
 
@@ -865,13 +868,13 @@ Semua field D.2 ada, dengan pesan validasinya apa adanya. Yang dibangun di layar
 
 ## Tahap 4b — riwayat, analitik, master, audit
 
-**Audit** (`feat(reservasi): audit`) — `app/pages/reservasi/audit.vue`: 500 terakhir (server), kolom `Waktu, User, Role, Aksi, Detail`, cari (user/role/aksi/detail), paging browser (G-08), baris ber-`res` → `/reservasi/input?id=` — TANPA tebakan nama (tautan menebak bisa membuka reservasi orang lain, `:10728-10753`). Tanpa tulisan di layar ini.
+**Audit** (`feat(reservasi): audit`) — `app/pages/reservasi/audit.vue`: kolom `Waktu, User, Role, Aksi, Detail`, cari (user/role/aksi/detail) + paging di server (`GET /audit?q&page&perPage`, `meta.total`; ketik ditunda 300 ms), pager 10/25/50 selalu tampil, baris ber-`res` → `/reservasi/input?id=` — TANPA tebakan nama (tautan menebak bisa membuka reservasi orang lain, `:10728-10753`). Tanpa tulisan di layar ini.
 
 **Master** (`feat(reservasi): master`) — `app/pages/reservasi/master.vue` (+ `seedPermsReservasi()` di `utils/layar/reservasi.ts`, cermin `DEFAULT_PERMS` `:1109-1129`): estimasi duduk (min 30, pills, contoh jam — put `dineEstMin` + audit), 3 daftar dropdown per section (tulis langsung per tambah/hapus seperti lama, masing-masing versi sectionnya + audit), waTargets tampil saja + hint (seperti lama — tidak ada edit di sana), Role Kru (ganti role, put `users`; tanpa tambah — seperti lama), matriks View/Ubah (klik geser, viewer 2 keadaan, baris ekstra terkunci bila induk tak terlihat, admin terkunci Ubah, Simpan menjepit viewer ≤1 + admin =2, Default = konfirmasi → seed; put `perms` + audit; F19), Backup JSON (`GET /reservations` tanpa batas + `GET /master`, unduh saja — tanpa audit seperti lama), Restore/Hapus = "Segera · K-11" (baru, ⬜). Tiap tulis section: `putSection(key, value, versiDari(sectionYangDimuat))` + `tanganiKonflik(refreshSection)` (§2.7).
 
 **Analitik** (`feat(reservasi): analitik`) — `app/pages/reservasi/analitik.vue` + `app/utils/analitik.ts` (murni, `// Source:`): Performa Harian/Bulanan (`performaPeriode()` — rumus persis `:10364-10403`: hadir/diharapkan, tepat/telat + rata telat, durasi rata, realisasi pax datang/dipesan, no-show, walk-in, hari tersibuk, tren harian, 5 paling telat, 5 duduk terlama) + Ringkasan Keseluruhan (`ringkasKeseluruhan()`: total, pax, rata, rasio no-show, unik, sumber, PIC per ORANG — bukan per peran — peak hour & hari = JUMLAH PAX, tren per bulan). Angka di baris ringkas + satu AppFocus (kehadiran), bukan kartu; grafik = div bar tanpa library (§2.8). Keseluruhan memuat seluruh tabel sekaligus (tanpa paging server tidak ada jalan lain — G-08).
 
-**Riwayat** (`feat(reservasi): riwayat`) — `app/pages/reservasi/riwayat.vue` + `app/utils/riwayat.ts` (milik reservasi): kartu CRM saat mencari (profil dari baris TERMUAT saja — `ringkasTamu` = G-07 — dan kartunya menyebut itu), arsip `Tanggal, Tamu, Pax (datang/dipesan), Meja, Durasi, DP, Status`, filter D.4 (Cari, Periode Semua/Bulanan/Tahunan, Status Akhir), paging + Export CSV di browser (G-08; kolom = lama termasuk Lantai via `lantaiMap`, Rekening via `rekeningDp()` baru di `dp-reservasi.ts`), baris → `/reservasi/input?id=` (layar yang sudah ada). Rumus murni `// Source:`: `PUNCTUAL_TOL=10`, `keterlambatanDatang()`, `tepatWaktu()`, `durasiDuduk()`, `profilTamu()`, `barisArsip()` (lewat ATAU sudah-tutup), `urutArsip()`, `csvRiwayat()` + `unduhCsv()`. 15 kasus uji lolos (node strip-types). `fmtDur` tidak di-port — `fmtMenit()` kunci-meja sudah setara ("1j 5m" vs "1 j 20 m"). Bawaan = **Bulan ini** (penyimpangan disengaja dari `HIST_F.mode="all"`): tanpa paging server, "Semua" menarik seluruh tabel — buka layar harus tetap cepat, "Semua" tinggal satu ketukan.
+**Riwayat** (`feat(reservasi): riwayat`) — `app/pages/reservasi/riwayat.vue` + `app/utils/riwayat.ts` (milik reservasi): kartu CRM saat mencari (profil gabungan SELURUH riwayat: ringkasan server + baris jendela, J.5), arsip `Tanggal, Tamu, Pax (datang/dipesan), Meja, Durasi, DP, Status`, filter D.4 (Cari, Periode Semua/Bulanan/Tahunan, Status Akhir), cari + status dipersempit di server (`GET /reservations?from&to&q&status`), paging + Export CSV di browser (kolom = lama termasuk Lantai via `lantaiMap`, Rekening via `rekeningDp()` baru di `dp-reservasi.ts`; aturan arsip hanya di klien — J.5), pager 10/25/50 selalu tampil, baris → `/reservasi/input?id=` (layar yang sudah ada). Rumus murni `// Source:`: `PUNCTUAL_TOL=10`, `keterlambatanDatang()`, `tepatWaktu()`, `durasiDuduk()`, `profilTamu()`, `barisArsip()` (lewat ATAU sudah-tutup), `urutArsip()`, `csvRiwayat()` + `unduhCsv()`. 15 kasus uji lolos (node strip-types). `fmtDur` tidak di-port — `fmtMenit()` kunci-meja sudah setara ("1j 5m" vs "1 j 20 m"). Bawaan = **Bulan ini** (penyimpangan disengaja dari `HIST_F.mode="all"`): tanpa paging server, "Semua" menarik seluruh tabel — buka layar harus tetap cepat, "Semua" tinggal satu ketukan.
 
 ## Tahap 4a — finance (Dana Masuk / DanaMasukPanel)
 
@@ -928,6 +931,34 @@ Helper baru **`app/utils/wa.ts`** (dipakai juga Service Excellent nanti): `waKir
 
 
 
+
+### J.5 Tahap 6 — G-07 + G-08 tersambung (2026-10-09, `feat(reservasi): sambungkan G-07 + G-08`, issue #100)
+
+Kontrak: `laksamana-api/docs/api/reservasi.md` ("Guest summary", "Paging, filters and export") — API #256 (G-07) + #259 (G-08).
+
+**G-07 — ringkasan tamu.** `useReservasi.ts` tambah `getGuestsSummary(before?, phone?)` + `useRingkasanTamu(before)` →
+`GET /reservasi/guests/summary` (bentuk legacy `[n, datang, noshow, member, memberNo, vip, kunjunganTerakhir,
+jumlahPax, namaPertama, namaTerakhir]`, kunci tanpa awalan `k`). `app/utils/riwayat.ts` tambah kembaran murni:
+`normStatus()` (Checked-in/Completed → Datang, Booking → Confirmed), `diLuarJendela()`, `profilTamuGabung()`
+(kembar `profilGabung()` — ambang sama: Loyal ≥5, Repeat ≥1, blacklist no-show ≥2, VIP flag atau ≥8; nama = nama
+PERTAMA), `direktoriTamu()` + `cariTamuLewatNomor/Nama()` (kembar `guestDirectory()`/`findGuestBy*`), `unduhBlob()`.
+Pemakaian: input (datalist + isi-otomatis dua arah + pita profil), dashboard (saringan Tipe tamu), riwayat (kartu CRM
+seluruh riwayat; mode Semua memakai jendela saja — jendelanya memang seluruh tabel). Perbandingan status di
+saringan/hitungan dinormalkan supaya sama dengan hitungan server (baris legacy `Checked-in`/`Booking`/`Completed`
+tidak lagi lolos dari saringan atau hilang dari hitungan).
+
+**G-08 — paging & ekspor server.** Daftar Reservasi: tabel memakai `page`/`perPage`/`q`/`status` + `meta.total`/
+`meta.batal` + `GET /reservations/export` (CSV) **bila dan hanya bila** saringan bisa diungkap server (satu status
+dipilih + cari tunggal nama/HP/meja + urut bawaan tanggal menaik + tanpa jam/kategori/lantai/kursi/DP/PIC/tipe tamu).
+Syarat status-dipilih itu disengaja: tampilan bawaan menyembunyikan Cancelled dengan hitungan ("Semua (tanpa
+cancelled)"), dan server hanya menyembunyikannya bila status dikirim. Di luar itu tabel + ekspor memotong jendela
+seperti dulu (kembar `tblPageSrv` + cadangan lokalnya); ketik ditunda 300 ms. Audit Log: `GET /audit?q&page&perPage`
+penuh (aturan cari kembar `auditCocok`, termasuk label role). Riwayat: cari + status hanya mempersempit jendela
+(tanpa `page`) — aturan arsip ("lewat atau sudah tutup") hanya ada di klien; paging server akan memotong sebelum
+aturan itu jalan. Dana Masuk: tetap jendela + potong klien — satu barisnya satu TRANSFER (saring bank/status
+scan/tab tak punya kembaran server), dan ekspor CSV-nya berkolom transfer, bukan kolom Recap. Pager 10/25/50
+selalu tampil di keempat tabel (nav tidak lagi sembunyi saat satu halaman). Layar lain (analitik, denah, antrean,
+lencana) memuat seperti dulu.
 
 ## K. Daftar uji cutover
 

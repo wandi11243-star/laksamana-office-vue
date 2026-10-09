@@ -18,13 +18,14 @@
 import type { Reservasi, ReservasiArrival } from '~/composables/useReservasi'
 import {
   createReservation, deleteReservation, getReservation, listReservations,
-  patchReservation, useDaftarReservasi, useDenah, useSection,
+  patchReservation, useDaftarReservasi, useDenah, useRingkasanTamu, useSection,
 } from '~/composables/useReservasi'
 import type { LayoutDenah } from '~/utils/venue-layouts'
 import { dayTypeLayoutLt, getLayout, parseKeyTanggal } from '~/utils/venue-layouts'
 import { buatIzinTumpang, conflictCheck, tablesOf } from '~/utils/kunci-meja'
-import { adaBuktiDp, dpBaru, dpMetodeBawaan, normPhone, pastikanDps, resetDpScan, syncDp, uid } from '~/utils/dp-reservasi'
-import { fmtRupiah, hariIni, normTime, opsiJam, rupiahVal, tambahHari } from '~/utils/format'
+import { adaBuktiDp, dpBaru, dpMetodeBawaan, normPhone, pastikanDps, resetDpScan, syncDp, tampilPhone, uid } from '~/utils/dp-reservasi'
+import { cariTamuLewatNama, cariTamuLewatNomor, direktoriTamu, profilTamuGabung } from '~/utils/riwayat'
+import { fmtRupiah, hariIni, normTime, opsiJam, rupiahVal, tambahHari, tglPendek } from '~/utils/format'
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
 
 definePageMeta({ access: ['reservasi'] })
@@ -269,9 +270,48 @@ function samakanDenganPax() {
 /** 20+ pax needs a manager's nod (`:4628`). A warning, never a block. */
 const butuhApproval = computed(() => (Number(form.pax) || 0) >= 20)
 
-/** The guest directory from the loaded window — what the datalist offers, as in the windowed old client. */
-const namaTamu = computed(() => [...new Set((sekitar.value ?? []).map(r => r.name).filter(Boolean))])
-const nomorTamu = computed(() => [...new Set((sekitar.value ?? []).map(r => r.phone).filter(Boolean))])
+/** The guest directory from the whole history: the server summary (before the
+ *  window) first, then the loaded rows — what the datalists offer and what
+ *  the autofill reads, as in the old client (`guestDirectory`). */
+const { data: ringkasan } = useRingkasanTamu(dari, 'reservasi-tamu-input')
+const direktori = computed(() => direktoriTamu(ringkasan.value ?? new Map(), sekitar.value ?? [], dari.value))
+const namaTamu = computed(() => [...new Set(direktori.value.map(g => g.name).filter(Boolean))])
+const nomorTamu = computed(() => [...new Set(direktori.value.map(g => tampilPhone(g.phone)).filter(Boolean))])
+
+/**
+ * The typed number's whole-history profile (Loyal / blacklist / member), for
+ * the hint under the form. Null until enough digits are typed.
+ */
+const profilNomor = computed(() =>
+  normPhone(form.phone).length >= 8
+    ? profilTamuGabung(ringkasan.value ?? new Map(), sekitar.value ?? [], form.phone, dari.value)
+    : null,
+)
+
+/** Autofill note under the name field, set by the two handlers below. */
+const petunjukNama = ref('')
+
+/** Typed NAME → the phone joins it from the directory, when the phone field is still empty. */
+function isiOtomatisDariNama() {
+  petunjukNama.value = ''
+  if (form.phone.trim()) return
+  const g = cariTamuLewatNama(direktori.value, form.name)
+  if (g) {
+    form.phone = tampilPhone(g.phone)
+    petunjukNama.value = `Nomor HP terisi otomatis dari data tamu "${g.name}".`
+  }
+}
+
+/** Typed PHONE → the name joins it from the directory, when the name field is still empty. */
+function isiOtomatisDariNomor() {
+  if (!form.name.trim()) {
+    const g = cariTamuLewatNomor(direktori.value, form.phone)
+    if (g) {
+      form.name = g.name
+      petunjukNama.value = `Nama terisi otomatis dari data tamu nomor ${tampilPhone(g.phone)}.`
+    }
+  }
+}
 
 // --- saving --------------------------------------------------------------------
 
@@ -671,6 +711,7 @@ async function hapus() {
             size="xl"
             class="w-full"
             placeholder="Nama pemesan / PJ"
+            @update:model-value="isiOtomatisDariNama"
           />
         </UFormField>
         <UFormField
@@ -685,6 +726,7 @@ async function hapus() {
             size="xl"
             class="w-full"
             placeholder="08xxxx"
+            @update:model-value="isiOtomatisDariNomor"
           />
         </UFormField>
         <UFormField
@@ -972,11 +1014,48 @@ async function hapus() {
           v-else
           class="hidden lg:block"
         />
-        <p class="col-span-full -mt-1 flex items-center gap-1.5 text-sm text-dimmed">
+        <div
+          v-if="profilNomor && profilNomor.totalBaris > 0"
+          class="col-span-full flex items-start gap-2 rounded-field bg-info/10 p-3 text-sm text-default"
+        >
           <UIcon
-            name="i-lucide-user-search"
+            name="i-lucide-user-round"
+            class="mt-0.5 size-4 shrink-0"
+          />
+          <div class="min-w-0">
+            <p>
+              Tamu dikenal: <b>{{ profilNomor.nama || form.name }}</b>
+              <AppStatus
+                :color="profilNomor.blacklist ? 'error' : profilNomor.vip ? 'vip' : profilNomor.tipe === 'Baru' ? 'info' : 'gold'"
+                size="sm"
+                :icon="profilNomor.blacklist ? 'i-lucide-shield-alert' : profilNomor.vip ? 'i-lucide-crown' : profilNomor.tipe === 'Loyal' ? 'i-lucide-star' : 'i-lucide-repeat'"
+                class="ms-1.5"
+              >
+                {{ profilNomor.blacklist ? 'Blacklist' : profilNomor.vip ? 'VIP' : profilNomor.tipe }}
+              </AppStatus>
+            </p>
+            <p class="mt-0.5 text-muted">
+              {{ profilNomor.kunjungan }}× kunjungan<span v-if="profilNomor.kunjunganTerakhir">, terakhir {{ tglPendek(profilNomor.kunjunganTerakhir) }}</span><span v-if="profilNomor.member"> · member {{ profilNomor.memberNo }}</span><span v-if="profilNomor.blacklist"> · {{ profilNomor.noShow }}× no-show, disarankan wajib DP</span>
+            </p>
+          </div>
+        </div>
+        <p
+          v-else-if="profilNomor"
+          class="col-span-full flex items-center gap-1.5 text-sm text-muted"
+        >
+          <UIcon
+            name="i-lucide-sparkles"
             class="size-4"
-          />Profil tamu (loyal, daftar hitam, riwayat kunjungan) — Segera · G-07
+          />Nomor baru, tamu pertama kali.
+        </p>
+        <p
+          v-if="petunjukNama"
+          class="col-span-full flex items-center gap-1.5 text-sm text-muted"
+        >
+          <UIcon
+            name="i-lucide-history"
+            class="size-4"
+          />{{ petunjukNama }}
         </p>
         <UFormField
           label="Upload dokumen special request (opsional)"
