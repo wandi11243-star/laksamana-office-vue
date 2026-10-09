@@ -14,7 +14,6 @@
 // Not ported on purpose (no v1 endpoint, see docs/migrasi/event.md E and
 // _gap-api.md): `saveAll` (U4 — replaced by granular writes), `ping`/`stats`
 // as screens (U3), `DB.perm` persistence (K-08 — in-memory default only),
-// check-in delete (K-09/G-10 — append-only, correction row pending),
 // `resetData` (K-01/G-13 — whole-document reset), `ujiEmail` (ticketing dev).
 
 import type { Versi } from '~/utils/versi'
@@ -271,7 +270,9 @@ export interface KalenderEkstra {
   [key: string]: unknown
 }
 
-/** One attendance line. Append-only: no update, no delete (F.12). */
+/** One attendance line. Append-only: no update, no delete (F.12). A row with
+ *  `batalDari` is a cancellation correcting the named check-in (G-10); the
+ *  trail stays intact and presence is newest-wins per ticket_id. */
 export interface Checkin {
   id: string
   ticket_id: string
@@ -279,6 +280,8 @@ export interface Checkin {
   result?: string
   staff: string
   checked_in_at: string
+  /** Set on cancellation rows: the id of the check-in being corrected. */
+  batalDari?: string
   createdAt: number
   updatedAt: number
   [key: string]: unknown
@@ -407,6 +410,15 @@ export const putDetail = (eventId: string, value: DetailAcara, versi?: Versi) =>
 /** POST /event/checkins — `{ticket_id, gate?, result?}`. `staff` is the session
  *  user; the body cannot set it (F.12). No update, no delete. */
 export const postCheckin = (body: { ticket_id: string, gate?: string, result?: string, id?: string }) =>
+  useApi()<Envelope<Checkin>>('/event/checkins', { method: 'POST', body })
+
+/** POST /event/checkins — cancellation `{batalDari: <id>, ticket_id?}` (G-10).
+ *  Appends a correction row; nothing is deleted (owner decision 2026-09-29 —
+ *  the old "Batalkan" deleted the row). `ticket_id` may be omitted (taken from
+ *  the cancelled row); when sent it must match. Presence is newest-wins per
+ *  ticket_id: the ticket counts as checked in only while its newest row has
+ *  no `batalDari`. */
+export const batalCheckin = (body: { batalDari: string, ticket_id?: string, id?: string }) =>
   useApi()<Envelope<Checkin>>('/event/checkins', { method: 'POST', body })
 
 /** PUT /event/settings/{key} — body `{"value": …}`. Version required. */

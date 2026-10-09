@@ -4,14 +4,15 @@
 
   Camera decoding needs a QR library (new dependency) — the camera buttons
   show "Segera"; token paste + "Cek token ini" and list check-in work fully.
-  Cancelling a check-in is "Segera (G-10)": legacy DELETED the row
-  (`:10717`), v1 is append-only without delete, and the correction row
-  (K-09 = C) waits on the API. Occupancy = masuk/tickets (`:10374`).
+  Cancelling posts a correction row `{batalDari}` (G-10, append-only — the old
+  "Batalkan" deleted the row instead); presence is newest-wins per ticket_id,
+  so a ticket whose latest row is a cancellation counts as not checked in.
+  Occupancy = masuk/tickets (`:10374`).
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { Acara, KelasTiket, Kursi, OrderTiket, Tiket } from '~/composables/useEvent'
-import { listCheckins, postCheckin, useDaftarEvent } from '~/composables/useEvent'
+import type { Acara, Checkin, KelasTiket, Kursi, OrderTiket, Tiket } from '~/composables/useEvent'
+import { batalCheckin, listCheckins, postCheckin, useDaftarEvent } from '~/composables/useEvent'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka, persen } from '~/utils/format'
@@ -79,7 +80,22 @@ onBeforeUnmount(() => {
 })
 
 const tiket = computed(() => daftarTiket.value.rows.filter(t => (t.status ?? '') !== 'Cancelled' && (!eventId.value || eventTiket(t) === eventId.value)))
-const idCheckin = computed(() => new Set(checkins.value.filter(c => (c.result ?? 'Valid') === 'Valid').map(c => c.ticket_id)))
+// Presence rule (contract `docs/api/event.md`, Check-ins): group the rows by
+// ticket_id; the newest row wins (`checked_in_at`, then `id`). The ticket
+// counts as checked in only when that row has NO `batalDari` — a ticket whose
+// latest row is a cancellation counts as not checked in, even though the
+// cancelled rows are still listed.
+const checkinTerbaru = computed(() => {
+  const m = new Map<string, Checkin>()
+  for (const c of checkins.value) {
+    const cur = m.get(c.ticket_id)
+    if (!cur || c.checked_in_at > cur.checked_in_at || (c.checked_in_at === cur.checked_in_at && c.id > cur.id)) m.set(c.ticket_id, c)
+  }
+  return m
+})
+const idCheckin = computed(() => new Set(
+  [...checkinTerbaru.value].filter(([, c]) => !c.batalDari).map(([tid]) => tid),
+))
 const masuk = computed(() => tiket.value.filter(t => idCheckin.value.has(t.id)).length)
 const keterisian = computed(() => (tiket.value.length ? Math.round(masuk.value / tiket.value.length * 100) : 0))
 
@@ -137,6 +153,39 @@ async function checkin(t: Tiket) {
   }
   catch (e) {
     if (!(await tanganiKonflik(e, muatCheckin))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
+
+// --- cancellation (`batalCheckin :10707`, confirm `batalCheckinYakin :10717`).
+// Legacy deleted the row; v1 appends a correction row, so confirm first —
+// a wrong tap revokes a real guest's arrival proof. Afterwards the ticket
+// status is re-read (presence recomputes newest-wins). ---
+const batalTarget = ref<Tiket | null>(null)
+const batalSedang = ref(false)
+function mintaBatal(t: Tiket) {
+  batalTarget.value = t
+}
+async function batalkan() {
+  const t = batalTarget.value
+  if (!t) return
+  const terbaru = checkinTerbaru.value.get(t.id)
+  if (!terbaru || terbaru.batalDari) {
+    toast.add({ title: 'Tiket ini memang belum check-in.', color: 'error' })
+    batalTarget.value = null
+    return
+  }
+  batalSedang.value = true
+  try {
+    await batalCheckin({ batalDari: terbaru.id, ticket_id: t.id })
+    toast.add({ title: `Check-in ${namaTamu(t)} dibatalkan.`, color: 'success' })
+    batalTarget.value = null
+    await Promise.all([muatCheckin(), refreshTiket()])
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, muatCheckin))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    batalSedang.value = false
   }
 }
 
@@ -339,8 +388,7 @@ function cekToken() {
               color="neutral"
               variant="ghost"
               size="sm"
-              disabled
-              title="Segera (G-10): pembatalan menunggu baris koreksi di API"
+              @click="mintaBatal(row.original)"
             >
               Batalkan
             </UButton>
@@ -366,14 +414,27 @@ function cekToken() {
           >
             Check-in
           </UButton>
-          <AppStatus
+          <span
             v-else-if="idCheckin.has(t.id)"
-            color="success"
-            icon="i-lucide-check"
-            size="sm"
+            class="flex items-center gap-1"
           >
-            Sudah datang
-          </AppStatus>
+            <AppStatus
+              color="success"
+              icon="i-lucide-check"
+              size="sm"
+            >
+              Sudah datang
+            </AppStatus>
+            <UButton
+              v-if="bolehUbah"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              @click="mintaBatal(t)"
+            >
+              Batalkan
+            </UButton>
+          </span>
         </li>
       </ul>
       <div class="flex items-center justify-between px-4 py-3 text-xs text-muted">
@@ -398,5 +459,36 @@ function cekToken() {
         </span>
       </div>
     </AppPanel>
+
+    <ResponsiveSheet
+      :open="batalTarget !== null"
+      title="Batalkan check-in?"
+      @update:open="(v: boolean) => { if (!v) batalTarget = null }"
+    >
+      <p class="text-sm text-muted">
+        Kedatangan <b class="text-highlighted">{{ batalTarget ? namaTamu(batalTarget) : '' }}</b>
+        dibatalkan, dan tiketnya kembali berlaku seperti belum dipakai.
+        Jejak check-in tetap tersimpan.
+      </p>
+      <p class="mt-2 text-xs text-muted">
+        Pakai ini kalau tadi salah orang atau salah pindai.
+      </p>
+      <template #footer>
+        <UButton
+          color="error"
+          :loading="batalSedang"
+          @click="batalkan()"
+        >
+          Ya, batalkan
+        </UButton>
+        <UButton
+          color="neutral"
+          variant="outline"
+          @click="batalTarget = null"
+        >
+          Tidak jadi
+        </UButton>
+      </template>
+    </ResponsiveSheet>
   </AppPage>
 </template>
