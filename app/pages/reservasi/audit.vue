@@ -1,16 +1,16 @@
 <!--
-  Audit Log — the newest 500 rows, newest first, append-only and trimmed by
-  the server. Search across user, role, action and detail; paging in the
-  browser (G-08). Only a trace CARRYING a reservation id links anywhere — a
-  link that guesses by name could open someone else's booking
-  (`:10728-10753`). Deleted rows keep their trace: the link goes to the input
-  page, which reports a missing row itself.
+  Audit Log — append-only and trimmed by the server (newest 500). Search
+  across user, role, action and detail; paging on the server (G-08:
+  `GET /audit` with q/page/perPage + meta.total). Only a trace CARRYING a
+  reservation id links anywhere — a link that guesses by name could open
+  someone else's booking (`:10728-10753`). Deleted rows keep their trace:
+  the link goes to the input page, which reports a missing row itself.
   Source: laksamana-office/deploy/reservasi/index.html:10717-10773.
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { AuditRow } from '~/composables/useReservasi'
-import { useAudit } from '~/composables/useReservasi'
+import { listAuditHalaman } from '~/composables/useReservasi'
 import { ROLE_LABEL_RESERVASI, bolehBuka, roleReservasi } from '~/utils/layar/reservasi'
 import { angka } from '~/utils/format'
 
@@ -19,29 +19,36 @@ definePageMeta({ access: ['reservasi'] })
 const me = useMe()
 const role = computed(() => roleReservasi(me.value))
 
-const { data: semua, status } = useAudit()
-
 const q = ref('')
 
-const cocok = (a: AuditRow, kata: string) => {
-  if (!kata) return true
-  return [a.user, ROLE_LABEL_RESERVASI[a.role as keyof typeof ROLE_LABEL_RESERVASI] || a.role, a.action, a.detail]
-    .some(v => String(v == null ? '' : v).toLowerCase().includes(kata))
-}
+/** Typing searches on the server, 300 ms after the last key. */
+const qTunda = ref('')
+let tundaQ: ReturnType<typeof setTimeout> | undefined
+watch(q, (v) => {
+  clearTimeout(tundaQ)
+  tundaQ = setTimeout(() => {
+    qTunda.value = v.trim()
+  }, 300)
+}, { immediate: true })
 
-const daftar = computed(() => {
-  const kata = q.value.trim().toLowerCase()
-  return (semua.value ?? []).filter(a => cocok(a, kata))
-})
-
-// --- client paging (G-08) ------------------------------------------------------
+// --- server paging (G-08) --------------------------------------------------------
 
 const hal = ref(1)
 const perHal = ref(10)
-const maxHal = computed(() => Math.max(1, Math.ceil(daftar.value.length / perHal.value)))
-const halaman = computed(() => daftar.value.slice((hal.value - 1) * perHal.value, hal.value * perHal.value))
-watch([daftar, perHal], () => {
-  hal.value = Math.min(hal.value, maxHal.value)
+const { data: halAudit, status } = useAsyncData(
+  'reservasi-audit-hal',
+  () => listAuditHalaman(qTunda.value || undefined, hal.value, perHal.value),
+  { watch: [qTunda, hal, perHal] },
+)
+const daftar = computed(() => halAudit.value?.data ?? [])
+const total = computed(() => Number(halAudit.value?.meta?.total ?? 0))
+const maxHal = computed(() => Math.max(1, Math.ceil(total.value / perHal.value)))
+/** A new search starts on page one; the server clamps a page past the end. */
+watch([qTunda, perHal], () => {
+  hal.value = 1
+})
+watch(() => halAudit.value?.meta?.page, (p) => {
+  if (p && p !== hal.value) hal.value = p
 })
 
 const capWaktu = (ts: number) => ts
@@ -73,8 +80,11 @@ const kolom = computed<TableColumn<AuditRow>[]>(() => [
           />
         </UFormField>
         <p class="mt-1 text-sm text-muted">
-          <template v-if="q">
-            <b>{{ angka(daftar.length) }}</b> dari {{ angka((semua ?? []).length) }} baris cocok dengan “{{ q }}”.
+          <template v-if="qTunda">
+            <b>{{ angka(total) }}</b> baris cocok dengan “{{ qTunda }}”.
+          </template>
+          <template v-else>
+            <b>{{ angka(total) }}</b> baris terakhir.
           </template>
           Reservasi yang <b>dibatalkan atau dihapus</b> tetap punya jejaknya di sini — cari namanya.
           Yang tersimpan <b>500 baris terakhir</b>.
@@ -83,7 +93,7 @@ const kolom = computed<TableColumn<AuditRow>[]>(() => [
 
       <div class="mb-7 hidden overflow-hidden rounded-panel border border-default bg-default shadow-panel lg:block">
         <UTable
-          :data="halaman"
+          :data="daftar"
           :columns="kolom"
           :loading="status === 'pending'"
           empty="Belum ada aktivitas tercatat."
@@ -118,7 +128,7 @@ const kolom = computed<TableColumn<AuditRow>[]>(() => [
         class="lg:hidden"
       >
         <AppListRow
-          v-for="a in halaman"
+          v-for="a in daftar"
           :key="a.id"
           :title="`${a.action} — ${a.user}`"
           :description="`${capWaktu(a.ts)}${a.detail ? ` · ${a.detail}` : ''}`"
@@ -126,10 +136,10 @@ const kolom = computed<TableColumn<AuditRow>[]>(() => [
           :to="a.res ? `/reservasi/input?id=${a.res}` : undefined"
         />
         <p
-          v-if="!halaman.length"
+          v-if="!daftar.length"
           class="px-4 py-3 text-muted"
         >
-          {{ q ? `Tidak ada jejak yang cocok dengan “${q}”.` : 'Belum ada aktivitas tercatat.' }}
+          {{ qTunda ? `Tidak ada jejak yang cocok dengan “${qTunda}”.` : 'Belum ada aktivitas tercatat.' }}
         </p>
       </AppList>
 

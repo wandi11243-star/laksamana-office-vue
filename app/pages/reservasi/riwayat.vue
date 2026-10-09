@@ -1,26 +1,27 @@
 <!--
   Riwayat Reservasi — the archive: past bookings, the CRM base, evaluation.
-  Server paging (`halRecap`…) has no v1 endpoint (G-08), so the window loads
-  and the page slices it in the browser. The default period is THIS MONTH, not
-  "Semua": without server paging "Semua" pulls the whole table, and opening
-  the screen should stay fast — "Semua" remains one tap away.
+  Search + status narrow the window on the server (G-08 `q`/`status`, no
+  paging — the archive rule "past or already closed" lives only here, so the
+  page itself is still sliced in the browser). The default period is THIS
+  MONTH, not "Semua": "Semua" pulls the whole table, and opening the screen
+  should stay fast — "Semua" remains one tap away.
 
-  Guest profiles come from the LOADED rows only (`ringkasTamu` is G-07); the
-  card says so. Rows open the reservation's input page, the screen that
-  already reads and edits one booking.
+  Guest profiles merge the whole-history summary (G-07) with the loaded rows.
+  Rows open the reservation's input page, the screen that already reads and
+  edits one booking.
   Source: laksamana-office/deploy/reservasi/index.html:10041-10213.
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { Reservasi } from '~/composables/useReservasi'
-import { useDaftarReservasi, useDenah } from '~/composables/useReservasi'
+import { useDaftarReservasi, useDenah, useRingkasanTamu } from '~/composables/useReservasi'
 import { lantaiMap } from '~/utils/venue-layouts'
 import { bolehBuka, roleReservasi } from '~/utils/layar/reservasi'
 import { angka, hariIni, tglPendek } from '~/utils/format'
 import { fmtMenit } from '~/utils/kunci-meja'
 import { tampilPhone } from '~/utils/dp-reservasi'
 import {
-  barisArsip, csvRiwayat, durasiDuduk, profilTamu, paxRiwayat, unduhCsv, urutArsip,
+  barisArsip, csvRiwayat, durasiDuduk, normStatus, profilTamu, profilTamuGabung, paxRiwayat, unduhCsv, urutArsip,
 } from '~/utils/riwayat'
 
 definePageMeta({ access: ['reservasi'] })
@@ -51,26 +52,47 @@ const sampai = computed(() => {
   return ''
 })
 
-const { data: semua, status } = useDaftarReservasi(dari, sampai, 'reservasi-riwayat')
+/** Typing narrows the window on the server, 300 ms after the last key. */
+const cariTunda = ref('')
+let tundaCari: ReturnType<typeof setTimeout> | undefined
+watch(cari, (v) => {
+  clearTimeout(tundaCari)
+  tundaCari = setTimeout(() => {
+    cariTunda.value = v
+  }, 300)
+}, { immediate: true })
+
+/** Server-side narrowing (G-08): search + status only. The archive rule lives here alone, so no paging. */
+const saringServer = computed(() => ({
+  q: cariTunda.value.trim() || undefined,
+  status: statusAkhir.value !== SEMUA ? statusAkhir.value : undefined,
+}))
+
+const { data: semua, status } = useDaftarReservasi(dari, sampai, 'reservasi-riwayat', saringServer)
+
+/** Whole-history guest map, before the period start. Empty in "Semua" mode: the window IS the whole table there. */
+const { data: ringkasan } = useRingkasanTamu(dari, 'reservasi-tamu-riwayat')
 
 const arsip = computed(() => urutArsip(barisArsip(semua.value ?? [], hariIni())))
 
 const daftar = computed(() => {
-  const q = cari.value.trim().toLowerCase()
+  const q = cariTunda.value.trim().toLowerCase()
   return arsip.value.filter((r) => {
-    if (statusAkhir.value !== SEMUA && r.status !== statusAkhir.value) return false
+    if (statusAkhir.value !== SEMUA && normStatus(r.status) !== statusAkhir.value) return false
     if (q && !((r.name || '').toLowerCase().includes(q) || (r.phone || '').includes(q))) return false
     return true
   })
 })
 
-/** The CRM card reads the first FOUND row's phone, over the loaded rows. */
+/** The CRM card reads the first FOUND row's phone, over the whole history (summary + window, no double count). */
 const profil = computed(() => {
-  const pertama = cari.value.trim() && daftar.value.length ? daftar.value[0]! : null
-  return pertama ? profilTamu(arsip.value, pertama.phone) : null
+  const pertama = cariTunda.value.trim() && daftar.value.length ? daftar.value[0]! : null
+  if (!pertama) return null
+  if (!dari.value) return profilTamu(arsip.value, pertama.phone)
+  return profilTamuGabung(ringkasan.value ?? new Map(), semua.value ?? [], pertama.phone, dari.value)
 })
 
-// --- client paging (G-08) ------------------------------------------------------
+// --- paging in the browser (the server only narrows; the archive rule lives here) ---
 
 const hal = ref(1)
 const perHal = ref(10)
@@ -199,7 +221,7 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
           icon="i-lucide-badge-check"
           :tone="profil.blacklist ? 'error' : profil.vip ? 'vip' : 'info'"
           :value="profil.blacklist ? 'Blacklist' : profil.vip ? 'VIP' : profil.tipe"
-          :sub="profil.kunjunganTerakhir ? `terakhir ${tglPendek(profil.kunjunganTerakhir)} · dari data yang dimuat (G-07)` : 'belum pernah datang'"
+          :sub="profil.kunjunganTerakhir ? `terakhir ${tglPendek(profil.kunjunganTerakhir)} · dari seluruh riwayat` : 'belum pernah datang'"
         />
       </AppStatGrid>
 
@@ -344,10 +366,7 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
               class="w-28"
             />
           </div>
-          <div
-            v-if="maxHal > 1"
-            class="flex items-center gap-2"
-          >
+          <div class="flex items-center gap-2">
             <UButton
               icon="i-lucide-chevron-left"
               color="neutral"
@@ -370,7 +389,7 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
           </div>
         </div>
         <p class="border-t border-default px-4 py-2 text-xs text-dimmed">
-          Paging & ekspor di browser — server v1 belum menerima halaman (G-08).
+          Pencarian & status dipersempit di server; halaman & ekspor CSV di browser — aturan arsip ("sudah lewat atau sudah tutup") hanya ada di layar ini.
         </p>
       </AppPanel>
     </template>

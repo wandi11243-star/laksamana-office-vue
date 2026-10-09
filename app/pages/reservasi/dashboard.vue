@@ -15,14 +15,18 @@
       because someone searching a name needs to be able to tell "not here" from
       "here but cancelled".
 
-  No server paging exists (G-08), so the table pages in the browser.
+  The table pages from the server when the filter set is server-expressible
+  (G-08, `pakaiServer` below: one status + name/phone/table search); richer
+  filters and custom sorting fall back to the loaded window, like the old
+  screen's local fallback (`tblPageSrv`).
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { useMediaQuery } from '@vueuse/core'
 import type { Reservasi, Waitlist, WaTarget } from '~/composables/useReservasi'
-import { createReservation, patchReservation, postAudit, putDenah, putSectionItem, useDaftarReservasi, useDenah, useSection, useSectionVersi } from '~/composables/useReservasi'
+import { createReservation, exportReservationsCsv, listReservationsHalaman, patchReservation, postAudit, putDenah, putSectionItem, useDaftarReservasi, useDenah, useRingkasanTamu, useSection, useSectionVersi } from '~/composables/useReservasi'
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
+import { profilTamuGabung, normStatus, unduhBlob } from '~/utils/riwayat'
 import { arrivedPax, buatIzinTumpang, canAddArrival, fmtMenit, harihOccupancy, isSeated, occupiedMap, remainingPax, sedangDialihkan, tableFill, tablesOf } from '~/utils/kunci-meja'
 import { dpTotal, normPhone, rekeningDp, tampilPhone, uid } from '~/utils/dp-reservasi'
 import type { LayoutDenah } from '~/utils/venue-layouts'
@@ -69,6 +73,7 @@ const filter = reactive({
   kursi: '',
   dp: SEMUA,
   pic: SEMUA,
+  ctype: SEMUA,
   q: '',
 })
 const cari = ref('')
@@ -104,6 +109,12 @@ const sampai = computed(() => {
 
 const { data: semua, refresh, status } = useDaftarReservasi(dari, sampai, 'reservasi-dashboard')
 
+/** Whole-history guest map for the guest-type filter, before the loaded window (`dari`). */
+const { data: ringkasan } = useRingkasanTamu(dari, 'reservasi-tamu-dashboard')
+
+/** One row's whole-history profile, for the guest-type filter. */
+const profilBaris = (phone: string) => profilTamuGabung(ringkasan.value ?? new Map(), semua.value ?? [], phone, dari.value)
+
 // --- filtering (`:5080-5104`, `:5793-5826`) ----------------------------------
 
 const cariLower = computed(() => cari.value.trim().toLowerCase())
@@ -117,10 +128,14 @@ const saringan = computed(() => {
   else if (F.mode === 'range' && F.from && F.to) r = r.filter(x => x.date >= F.from && x.date <= F.to)
   if (F.fromHour) r = r.filter(x => (x.time || '') >= F.fromHour)
   if (F.toHour) r = r.filter(x => (x.time || '') <= F.toHour)
-  if (saringAktif(F.status)) r = r.filter(x => x.status === F.status)
+  if (saringAktif(F.status)) r = r.filter(x => normStatus(x.status) === F.status)
   if (saringAktif(F.category)) r = r.filter(x => (x.category || '') === F.category)
   if (saringAktif(F.dp)) r = r.filter(x => x.dpStatus === F.dp)
   if (saringAktif(F.pic)) r = r.filter(x => (x.picName || '') === F.pic)
+  if (saringAktif(F.ctype)) r = r.filter((x) => {
+    const p = profilBaris(x.phone)
+    return F.ctype === 'Baru' ? p.kunjungan === 0 : F.ctype === 'Loyal' ? (p.tipe === 'Loyal' || p.tipe === 'Repeat') : F.ctype === 'Member' ? p.member : true
+  })
   if (F.q) {
     const q = F.q.toLowerCase()
     r = r.filter(x => x.name.toLowerCase().includes(q) || x.phone.includes(q))
@@ -152,28 +167,28 @@ const saringan = computed(() => {
 })
 
 /** Cancelled is dropped after the other filters, and counted (`:5807-5816`). */
-const batal = computed(() => (filter.status !== 'Cancelled' ? saringan.value.filter(r => r.status === 'Cancelled').length : 0))
-const list = computed(() => (filter.status !== 'Cancelled' ? saringan.value.filter(r => r.status !== 'Cancelled') : saringan.value))
+const batal = computed(() => (filter.status !== 'Cancelled' ? saringan.value.filter(r => normStatus(r.status) === 'Cancelled').length : 0))
+const list = computed(() => (filter.status !== 'Cancelled' ? saringan.value.filter(r => normStatus(r.status) !== 'Cancelled') : saringan.value))
 
 /** The map and the queue only ever describe one day. */
-const dayList = computed(() => (semua.value ?? []).filter(r => r.date === tglDenah.value && r.status !== 'Cancelled'))
+const dayList = computed(() => (semua.value ?? []).filter(r => r.date === tglDenah.value && normStatus(r.status) !== 'Cancelled'))
 const basis = computed(() => (perTanggal.value ? dayList.value : list.value))
 
 // --- the six numbers (`:5336-5355`) ------------------------------------------
 
-const totalPax = computed(() => basis.value.filter(r => r.status !== 'No-show').reduce((a, r) => a + (Number(r.pax) || 0), 0))
-const paxDatang = computed(() => basis.value.filter(r => r.status === 'Datang').reduce((a, r) => a + arrivedPax(r), 0))
+const totalPax = computed(() => basis.value.filter(r => normStatus(r.status) !== 'No-show').reduce((a, r) => a + (Number(r.pax) || 0), 0))
+const paxDatang = computed(() => basis.value.filter(r => normStatus(r.status) === 'Datang').reduce((a, r) => a + arrivedPax(r), 0))
 const dpYes = computed(() => basis.value.filter(r => r.dpStatus === 'Sudah').length)
 
 /** Only unconfirmed bookings need chasing: once it is "Confirmed" (or the guest
  *  has arrived) the host has already spoken to them (`:3871-3876`). */
-const perluFollowUp = computed(() => (semua.value ?? []).filter(r => r.date === hariIni() && r.status === 'Pending').length)
+const perluFollowUp = computed(() => (semua.value ?? []).filter(r => r.date === hariIni() && normStatus(r.status) === 'Pending').length)
 
 const { data: categories } = useSection<string[]>('categories')
 
 const kap = computed(() => kapasitasTanggal(master.value, tglDenah.value))
 const paxTgl = computed(() => (semua.value ?? [])
-  .filter(r => r.date === tglDenah.value && !['Cancelled', 'No-show'].includes(r.status))
+  .filter(r => r.date === tglDenah.value && !['Cancelled', 'No-show'].includes(normStatus(r.status)))
   .reduce((a, r) => a + (Number(r.pax) || 0), 0))
 const pctKap = computed(() => (kap.value.pax ? Math.round(paxTgl.value / kap.value.pax * 100) : 0))
 
@@ -231,9 +246,9 @@ watch(() => route.query, (q) => {
   }
 }, { immediate: true })
 const filterAktif = computed(() => filter.mode !== 'day' || filter.date !== hariIni() || !!filter.fromHour || !!filter.toHour
-  || saringAktif(filter.status) || saringAktif(filter.category) || saringAktif(filter.lantai) || !!filter.kursi || saringAktif(filter.dp) || saringAktif(filter.pic) || !!filter.q || !!cari.value)
+  || saringAktif(filter.status) || saringAktif(filter.category) || saringAktif(filter.lantai) || !!filter.kursi || saringAktif(filter.dp) || saringAktif(filter.pic) || saringAktif(filter.ctype) || !!filter.q || !!cari.value)
 function resetFilter() {
-  Object.assign(filter, { mode: 'day', date: hariIni(), month: hariIni().slice(0, 7), year: new Date().getFullYear(), from: hariIni(), to: hariIni(), fromHour: '', toHour: '', status: SEMUA, category: SEMUA, lantai: SEMUA, kursi: '', dp: SEMUA, pic: SEMUA, q: '' })
+  Object.assign(filter, { mode: 'day', date: hariIni(), month: hariIni().slice(0, 7), year: new Date().getFullYear(), from: hariIni(), to: hariIni(), fromHour: '', toHour: '', status: SEMUA, category: SEMUA, lantai: SEMUA, kursi: '', dp: SEMUA, pic: SEMUA, ctype: SEMUA, q: '' })
   cari.value = ''
 }
 
@@ -264,11 +279,90 @@ const terurut = computed(() => {
     return (typeof x === 'number' && typeof y === 'number' ? x - y : String(x).localeCompare(String(y))) * arah
   })
 })
-const maxHal = computed(() => Math.max(1, Math.ceil(terurut.value.length / perHal.value)))
 const halaman = computed(() => terurut.value.slice((hal.value - 1) * perHal.value, hal.value * perHal.value))
-watch([list, perHal], () => {
-  hal.value = Math.min(hal.value, maxHal.value)
+
+// --- the table from the server (G-08) ------------------------------------------
+// The API pages name/phone/table search + ONE status (`GET /reservations`
+// with page/perPage/q/status + meta.total). A chosen status is required: the
+// screen's default view hides Cancelled with a count, which the server only
+// does when a status is sent. Richer filters (hours, category, floor, seats
+// left, DP, PIC, guest type, the second search box) and custom sorting stay on
+// the loaded window — the old screen fell back the same way (`tblPageSrv`).
+const urutBawaan = computed(() => urut.value.kolom === 'date' && urut.value.naik)
+/** The two search boxes cannot intersect server-side: both filled means the window. */
+const qServer = computed(() => {
+  const a = filter.q.trim()
+  const b = cari.value.trim()
+  if (a && b) return null
+  return a || b || undefined
 })
+const pakaiServer = computed(() => tab.value === 'list' && urutBawaan.value
+  && saringAktif(filter.status) && !saringAktif(filter.category) && !saringAktif(filter.dp)
+  && !saringAktif(filter.pic) && !filter.fromHour && !filter.toHour && !saringAktif(filter.lantai)
+  && !filter.kursi && !saringAktif(filter.ctype) && qServer.value !== null)
+
+/** The table's period as plain bounds — the server has no day/month/year modes. */
+const rentangServer = computed(() => {
+  if (filter.mode === 'day') return { from: filter.date, to: filter.date }
+  if (filter.mode === 'month') return { from: `${filter.month}-01`, to: jumlahHariBulan(filter.month) }
+  if (filter.mode === 'year') return { from: `${filter.year}-01-01`, to: `${filter.year}-12-31` }
+  if (filter.mode === 'range' && filter.from && filter.to) return { from: filter.from, to: filter.to }
+  return {}
+})
+
+/** Typing fires one request, 300 ms after the last key (old `srvpgMuat`). */
+const qTunda = ref('')
+let tundaQ: ReturnType<typeof setTimeout> | undefined
+watch(qServer, (v) => {
+  clearTimeout(tundaQ)
+  tundaQ = setTimeout(() => {
+    qTunda.value = v ?? ''
+  }, 300)
+}, { immediate: true })
+
+const paramServer = computed(() => ({
+  ...rentangServer.value,
+  q: qTunda.value || undefined,
+  status: filter.status,
+  page: hal.value,
+  perPage: perHal.value,
+}))
+const { data: halServer, status: statusServer } = useAsyncData(
+  'reservasi-dashboard-hal',
+  () => pakaiServer.value ? listReservationsHalaman(paramServer.value) : Promise.resolve(null),
+  { watch: [paramServer, pakaiServer] },
+)
+const barisServer = computed(() => halServer.value?.data ?? [])
+const totalServer = computed(() => Number(halServer.value?.meta?.total ?? 0))
+const batalServer = computed(() => Number(halServer.value?.meta?.batal ?? 0))
+/** The server clamps a page past the end to the last one — follow it. */
+watch(() => halServer.value?.meta?.page, (p) => {
+  if (p && p !== hal.value) hal.value = p
+})
+
+/** What the table shows: the server page, or the window slice. The pager below never hides. */
+const barisTampil = computed(() => pakaiServer.value ? barisServer.value : halaman.value)
+const totalTampil = computed(() => pakaiServer.value ? totalServer.value : terurut.value.length)
+const batalTampil = computed(() => pakaiServer.value ? batalServer.value : batal.value)
+const maxHalTampil = computed(() => Math.max(1, Math.ceil(totalTampil.value / perHal.value)))
+watch([barisTampil, perHal], () => {
+  hal.value = Math.min(hal.value, maxHalTampil.value)
+})
+
+/** CSV: the server file in server mode, the rows on screen otherwise (K-05: CSV dulu). */
+async function eksporServer() {
+  try {
+    const blob = await exportReservationsCsv({
+      ...rentangServer.value,
+      q: qTunda.value || undefined,
+      status: filter.status,
+    })
+    unduhBlob(`reservasi_laksamana_${hariIni()}.csv`, blob)
+  }
+  catch (e) {
+    toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+}
 
 function urutkan(kolom: Urut) {
   urut.value = urut.value.kolom === kolom
@@ -287,7 +381,7 @@ const nowMin = computed(() => {
   const d = new Date(sekarang.value)
   return d.getHours() * 60 + d.getMinutes()
 })
-const belumDatang = (r: Reservasi) => ['Pending', 'Confirmed'].includes(r.status)
+const belumDatang = (r: Reservasi) => ['Pending', 'Confirmed'].includes(normStatus(r.status))
 /** Today, still expected, and past its time: the yellow row (`:5520-5522`). */
 const telat = (r: Reservasi) => r.date === hariIni() && belumDatang(r) && menitDari(r.time) < nowMin.value
 /** Today, still expected, due within 30 minutes: the pale row and "segera". */
@@ -465,9 +559,9 @@ const kalenderPerTanggal = computed(() => {
   for (const r of semua.value ?? []) {
     if (!r.date) continue
     if (kalenderStatus.value !== SEMUA) {
-      if (r.status !== kalenderStatus.value) continue
+      if (normStatus(r.status) !== kalenderStatus.value) continue
     }
-    else if (r.status === 'Cancelled') continue
+    else if (normStatus(r.status) === 'Cancelled') continue
     const list = map.get(r.date) ?? []
     list.push(r)
     map.set(r.date, list)
@@ -476,7 +570,7 @@ const kalenderPerTanggal = computed(() => {
   return map
 })
 
-const kalenderDibatalkan = computed(() => (kalenderStatus.value !== SEMUA ? 0 : (semua.value ?? []).filter(r => r.status === 'Cancelled').length))
+const kalenderDibatalkan = computed(() => (kalenderStatus.value !== SEMUA ? 0 : (semua.value ?? []).filter(r => normStatus(r.status) === 'Cancelled').length))
 
 /** The month's cells, Monday first, with the leading and trailing days of the
  *  neighbouring months greyed out (`:5578-5581`, `:5624-5628`). */
@@ -503,7 +597,7 @@ const selBulan = computed(() => {
   return sel
 })
 
-const paxHari = (list: Reservasi[]) => list.filter(r => r.status !== 'No-show').reduce((a, r) => a + (Number(r.pax) || 0), 0)
+const paxHari = (list: Reservasi[]) => list.filter(r => normStatus(r.status) !== 'No-show').reduce((a, r) => a + (Number(r.pax) || 0), 0)
 
 /** A click on a day switches to Daily for that date AND moves the map's date, so
  *  the map does not stay on the previous day (`:5608-5611`). */
@@ -736,7 +830,7 @@ const aksiDuduk = computed(() => !!aksi.value && isSeated(aksi.value))
 /** Past the arrival time and not here yet — the shortcut to a follow-up message. */
 const aksiTelat = computed(() => {
   const r = aksi.value
-  if (!r || !['Pending', 'Confirmed'].includes(r.status)) return false
+  if (!r || !['Pending', 'Confirmed'].includes(normStatus(r.status))) return false
   return new Date(`${r.date}T${(r.time || '00:00')}:00`).getTime() < Date.now()
 })
 
@@ -820,7 +914,7 @@ async function simpanDatang() {
 }
 
 async function selesai(r: Reservasi) {
-  if (r.status !== 'Datang') {
+  if (normStatus(r.status) !== 'Datang') {
     toast.add({ title: 'Hanya tamu yang sudah datang bisa ditandai selesai', color: 'error' })
     return
   }
@@ -1224,7 +1318,7 @@ const daftarKoord = computed(() => {
   const lo = saringAktif(coordDari.value) ? menitDari(coordDari.value) : null
   const hi = saringAktif(coordSampai.value) ? menitDari(coordSampai.value) : null
   return (semua.value ?? [])
-    .filter(r => r.date === tglDenah.value && !['Cancelled', 'No-show'].includes(r.status))
+    .filter(r => r.date === tglDenah.value && !['Cancelled', 'No-show'].includes(normStatus(r.status)))
     .filter((r) => {
       const t = menitDari(r.time)
       return (lo === null || t >= lo) && (hi === null || t <= hi)
@@ -1331,14 +1425,14 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', saatKemba
 
 /** A filter that hides part of the rows must not be used to add guests or move tables. */
 const saringBerlaku = computed(() => !!(filter.fromHour || filter.toHour || saringAktif(filter.status) || saringAktif(filter.category)
-  || saringAktif(filter.lantai) || filter.kursi || saringAktif(filter.dp) || saringAktif(filter.pic) || filter.q || cari.value || filter.mode !== 'day'))
+  || saringAktif(filter.lantai) || filter.kursi || saringAktif(filter.dp) || saringAktif(filter.pic) || saringAktif(filter.ctype) || filter.q || cari.value || filter.mode !== 'day'))
 
 const tglPanjangLama = (tgl: string) => new Date(`${tgl}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })
 
 /** The queue count used in the map's header line. */
 const ants = computed(() => antreanHari.value)
 
-const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/${r.pax} · sisa ${remainingPax(r)}` : String(r.pax || 0))
+const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arrivedPax(r)}/${r.pax} · sisa ${remainingPax(r)}` : String(r.pax || 0))
 </script>
 
 <template>
@@ -1562,14 +1656,10 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
             class="w-full"
           />
         </UFormField>
-        <UFormField
-          label="Tipe tamu"
-          help="Segera · G-07"
-        >
+        <UFormField label="Tipe tamu">
           <USelect
-            :items="[{ value: SEMUA, label: 'Semua' }]"
-            :model-value="SEMUA"
-            disabled
+            v-model="filter.ctype"
+            :items="[{ value: SEMUA, label: 'Semua' }, { value: 'Baru', label: 'Baru' }, { value: 'Loyal', label: 'Loyal atau repeat' }, { value: 'Member', label: 'Member' }]"
             class="w-full"
           />
         </UFormField>
@@ -1597,9 +1687,9 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
           @click="resetFilter"
         />
         <span class="text-sm text-muted">
-          <b class="text-highlighted num">{{ angka(list.length) }}</b> reservasi · {{ labelPeriode }}
-          <template v-if="batal">
-            · <b>{{ angka(batal) }}</b> dibatalkan tidak ditampilkan
+          <b class="text-highlighted num">{{ angka(totalTampil) }}</b> reservasi · {{ labelPeriode }}
+          <template v-if="batalTampil">
+            · <b>{{ angka(batalTampil) }}</b> dibatalkan tidak ditampilkan
           </template>
         </span>
       </div>
@@ -1608,7 +1698,7 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
     <AppPanel
       v-if="tab === 'list'"
       title="Daftar reservasi"
-      :count="list.length"
+      :count="totalTampil"
       flush
     >
       <template #actions>
@@ -1618,15 +1708,15 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
           color="neutral"
           variant="outline"
           size="sm"
-          :disabled="!list.length"
-          @click="eksporCSV"
+          :disabled="!totalTampil"
+          @click="pakaiServer ? eksporServer() : eksporCSV()"
         />
       </template>
 
       <!-- Phone: the same rows as cards -->
       <div class="divide-y divide-default lg:hidden">
         <button
-          v-for="r in halaman"
+          v-for="r in barisTampil"
           :key="r.id"
           type="button"
           class="block w-full px-4 py-3 text-start hover:bg-muted/60"
@@ -1683,7 +1773,7 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
           </div>
         </button>
         <p
-          v-if="!halaman.length"
+          v-if="!barisTampil.length"
           class="px-4 py-6 text-center text-muted"
         >
           Tidak ada reservasi untuk saringan ini.
@@ -1693,11 +1783,11 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
       <!-- Desktop: the old recap table -->
       <UTable
         class="hidden lg:block"
-        :data="halaman"
+        :data="barisTampil"
         :columns="kolom"
         :column-visibility="kolomTampil"
         :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 text-[13px]' }"
-        :loading="status === 'pending'"
+        :loading="pakaiServer ? statusServer === 'pending' : status === 'pending'"
         :meta="{ class: { tr: (row: { original: Reservasi }) => `cursor-pointer ${kelasBaris(row.original)}` } }"
         empty="Tidak ada reservasi untuk saringan ini."
         @select="(_e: Event, row: { original: Reservasi }) => bukaAksi(row.original)"
@@ -1808,7 +1898,7 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
           </p>
         </template>
         <template #pax-cell="{ row }">
-          <template v-if="row.original.status === 'Datang'">
+          <template v-if="normStatus(row.original.status) === 'Datang'">
             <b class="text-highlighted">{{ arrivedPax(row.original) }}</b><span class="text-muted">/{{ row.original.pax }}</span>
             <div class="mt-1">
               <AppStatus
@@ -1967,7 +2057,7 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
 
       <div class="flex flex-wrap items-center justify-between gap-3 border-t border-default px-4 py-3 text-sm text-muted">
         <div class="flex items-center gap-2">
-          <span class="num">{{ list.length ? (hal - 1) * perHal + 1 : 0 }}–{{ Math.min(hal * perHal, list.length) }} dari {{ list.length }}</span>
+          <span class="num">{{ totalTampil ? (hal - 1) * perHal + 1 : 0 }}–{{ Math.min(hal * perHal, totalTampil) }} dari {{ angka(totalTampil) }}</span>
           <USelect
             v-model.number="perHal"
             :items="[{ value: 10, label: '10 / hal' }, { value: 25, label: '25 / hal' }, { value: 50, label: '50 / hal' }]"
@@ -1975,10 +2065,7 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
             class="w-28"
           />
         </div>
-        <div
-          v-if="maxHal > 1"
-          class="flex items-center gap-2"
-        >
+        <div class="flex items-center gap-2">
           <UButton
             icon="i-lucide-chevron-left"
             color="neutral"
@@ -1988,14 +2075,14 @@ const statusPax = (r: Reservasi) => (r.status === 'Datang' ? `${arrivedPax(r)}/$
             :disabled="hal <= 1"
             @click="hal--"
           />
-          <span class="num">Hal {{ hal }} / {{ maxHal }}</span>
+          <span class="num">Hal {{ hal }} / {{ maxHalTampil }}</span>
           <UButton
             icon="i-lucide-chevron-right"
             color="neutral"
             variant="outline"
             size="sm"
             aria-label="Halaman berikutnya"
-            :disabled="hal >= maxHal"
+            :disabled="hal >= maxHalTampil"
             @click="hal++"
           />
         </div>

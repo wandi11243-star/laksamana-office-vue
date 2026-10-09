@@ -16,11 +16,11 @@
 //
 import type { LayoutDenah } from '~/utils/venue-layouts'
 
-// Not ported on purpose, they have no v1 endpoint (see docs/migrasi/reservasi.md
-// bagian E and _gap-api.md): `ringkasTamu` (G-07, guest profile / autofill),
-// `halRecap` / `halDana` / `halAudit` (server paging, G-08), `riwayat` (paging +
-// CSV export, G-08), `ver` (version-only poll, G-08), and the diagnostics
-// `ping` / `stats` (U3 — not a screen feature).
+// G-07 (guest summary) and G-08 (server paging + CSV export) are wired now
+// (docs/migrasi/reservasi.md J.4). Still without a v1 endpoint on purpose:
+// `ver` (version-only poll) and the diagnostics `ping` / `stats` (U3 — not a
+// screen feature). Dana Masuk keeps its paging in the browser: its table shows
+// one row per TRANSFER while the API pages reservations.
 
 /** Reservation status. "Booking" was the old Marketing value; the client maps it to "Confirmed". */
 export type StatusReservasi = 'Pending' | 'Confirmed' | 'Datang' | 'Cancelled' | 'No-show'
@@ -246,20 +246,36 @@ export const muatPeranReservasi = () => {
 
 // ---------------------------------------------------------------- reads
 
-/** GET /reservations?from&to — rows whose date is in range, in created_at order. */
-export const listReservations = (from?: string, to?: string) =>
-  useApi()<Envelope<Reservasi[]> & { meta: { total: number, ver: number } }>('/reservasi/reservations', { query: { from, to } })
+/** GET /reservations?from&to — rows whose date is in range, in created_at order.
+ *  `q` (name/phone/table) and `status` (normalised) narrow it on the server;
+ *  without them the answer is exactly what it always was. */
+export const listReservations = (from?: string, to?: string, q?: string, status?: string) =>
+  useApi()<Envelope<Reservasi[]> & { meta: { total: number, ver: number } }>('/reservasi/reservations', {
+    query: {
+      from: from || undefined,
+      to: to || undefined,
+      q: q || undefined,
+      status: status || undefined,
+    },
+  })
 
 /**
  * The reactive window every Reservasi screen filters from (dashboard, Dana
  * Masuk, riwayat, analitik). `key` keeps two screens on the same page from
- * sharing one `useAsyncData` slot with different dates.
+ * sharing one `useAsyncData` slot with different dates. `saring` is
+ * server-side narrowing only (G-08 `q`/`status`, no paging): the screen still
+ * owns filtering and slicing, exactly as before when it is unset.
  */
-export const useDaftarReservasi = (from: Ref<string>, to: Ref<string>, key = 'reservasi-daftar') =>
+export const useDaftarReservasi = (
+  from: Ref<string>,
+  to: Ref<string>,
+  key = 'reservasi-daftar',
+  saring?: Ref<{ q?: string, status?: string }>,
+) =>
   useAsyncData(
     key,
-    () => listReservations(from.value, to.value).then(r => r.data),
-    { watch: [from, to], default: () => [] },
+    () => listReservations(from.value, to.value, saring?.value?.q, saring?.value?.status).then(r => r.data),
+    { watch: [from, to, ...(saring ? [saring] : [])], default: () => [] },
   )
 
 /**
@@ -278,6 +294,121 @@ export function useLencanaReservasi() {
 
 /** GET /reservations/{id} — one row, with the authoritative `meta.version`. */
 export const getReservation = (id: string) => useApi()<Envelope<Reservasi>>(`/reservasi/reservations/${id}`)
+
+// ---------------------------------------------------------------- G-07: guest summary
+
+/**
+ * One guest-summary entry, the legacy `ringkas_tamu` shape
+ * (`reservasi-mysql/lib_reservasi_mysql.php:713-748`):
+ * `[n, datang, noshow, member, memberNo, vip, kunjunganTerakhir, jumlahPax, namaPertama, namaTerakhir]`.
+ */
+export type RingkasanTamu = [number, number, number, number, string, number, string, number, string, string]
+
+/**
+ * The whole-history map, keyed WITHOUT the legacy `k` prefix (stripped on
+ * load, like the old `muatRingkasTamu`). The window rows join it without
+ * double counting — see `profilTamuGabung` in app/utils/riwayat.ts.
+ */
+export type PetaRingkasan = Map<string, RingkasanTamu>
+
+/**
+ * GET /reservasi/guests/summary — the Loyal / blacklist / autofill profile
+ * over the WHOLE history. `before` bounds it (twin of legacy `sebelum`):
+ * only reservations dated before it count. `phone` narrows the map to one
+ * number. Keys in the answer carry the legacy `k` prefix.
+ */
+export const getGuestsSummary = (before?: string, phone?: string) =>
+  useApi()<Envelope<{ sebelum: string | null, tamu: Record<string, RingkasanTamu> }> & { meta: { ver: number } }>(
+    '/reservasi/guests/summary',
+    { query: { before: before || undefined, phone: phone || undefined } },
+  )
+
+/**
+ * The summary for one window start. Pass the window's `dari`: the summary
+ * covers everything dated before it, the window everything from it on, so
+ * the two never overlap. Skipped while `before` is empty — an unbounded
+ * summary would be the whole table, which the window already holds.
+ */
+export const useRingkasanTamu = (before: Ref<string | undefined>, key = 'reservasi-tamu') =>
+  useAsyncData(
+    key,
+    async () => {
+      const m: PetaRingkasan = new Map()
+      if (!before.value) return m
+      const { data } = await getGuestsSummary(before.value)
+      for (const [k, v] of Object.entries(data.tamu ?? {})) m.set(k.startsWith('k') ? k.slice(1) : k, v)
+      return m
+    },
+    { watch: [before], default: () => new Map<string, RingkasanTamu>() },
+  )
+
+// ---------------------------------------------------------------- G-08: server paging + export
+
+/** Server-paged reservation filter. `q` matches name/phone/table; `status` compares the normalised status. */
+export interface FilterHalamanReservasi {
+  from?: string
+  to?: string
+  q?: string
+  status?: string
+  page?: number
+  perPage?: number
+}
+
+export interface MetaHalaman {
+  total: number
+  ver?: number
+  /** Hidden-cancelled count for this filter set; only sent with a `status`. */
+  batal?: number
+  page?: number
+  perPage?: number
+}
+
+/**
+ * GET /reservations with the G-08 params. Always sent WITH page/perPage here,
+ * so `meta.total` counts every match and the rows come in Recap display order
+ * (date+time, stable). Without a `status` every row stays — including
+ * Cancelled, unlike the screen's default view, which is why callers only use
+ * this when a status is chosen.
+ */
+export const listReservationsHalaman = (f: FilterHalamanReservasi) =>
+  useApi()<Envelope<Reservasi[]> & { meta: MetaHalaman }>('/reservasi/reservations', {
+    query: {
+      from: f.from || undefined,
+      to: f.to || undefined,
+      q: f.q || undefined,
+      status: f.status || undefined,
+      page: f.page ?? 1,
+      perPage: f.perPage ?? 10,
+    },
+  })
+
+/**
+ * GET /reservations/export — the same filter as the list, as CSV for Excel
+ * (BOM'd by the server). Paging is ignored: the export always covers every
+ * matching row, in display order. Callers narrow it to what the server can
+ * express (from/to/q/status).
+ */
+export const exportReservationsCsv = (f: Pick<FilterHalamanReservasi, 'from' | 'to' | 'q' | 'status'>) =>
+  useApi()<Blob>('/reservasi/reservations/export', {
+    query: {
+      from: f.from || undefined,
+      to: f.to || undefined,
+      q: f.q || undefined,
+      status: f.status || undefined,
+    },
+    responseType: 'blob',
+  })
+
+/**
+ * GET /audit with `q` + paging (G-08). `q` searches user, role, action and
+ * detail — the twin of the screen's search — and `meta.total` counts every
+ * match. Without the new params the answer would be the newest 500 with no
+ * `meta`; this caller always pages, so `meta` is always there.
+ */
+export const listAuditHalaman = (q?: string, page = 1, perPage = 10) =>
+  useApi()<Envelope<AuditRow[]> & { meta: { total: number, page: number, perPage: number } }>('/reservasi/audit', {
+    query: { q: q || undefined, page, perPage },
+  })
 
 /** GET /master — the whole blob. Bootstrap and migrations only; screens read their own section. */
 export const getMaster = () => useApi()<Envelope<Master>>('/reservasi/master')

@@ -1,16 +1,30 @@
 // History, guest profile, punctuality and seating duration — pure functions.
 //
 // Owned by reservasi (PLAN.md §4), read by riwayat.vue and analitik.vue.
-// The windowed client cannot use `ringkasTamu` (G-07): the profile below is
-// computed from the LOADED rows only, and says so where it is shown.
+// Whole-history profiles come from GET /reservasi/guests/summary (G-07),
+// merged below with the loaded window rows exactly like the old screen did
+// (`profilGabung`); the directory feeds the input form's autofill.
 //
 // Source: laksamana-office/deploy/reservasi/index.html:3408-3440 (profile),
+// :3432-3458 (profilGabung), :4550-4600 (guestDirectory, autofill),
 // :10198-10213 (lateness, tolerance, durations), :1461-1466 (dpRekeningList is
 // in dp-reservasi.ts), :5640-5662 (exportCSV).
 
-import type { Reservasi } from '~/composables/useReservasi'
+import type { Reservasi, RingkasanTamu } from '~/composables/useReservasi'
 import { normPhone, rekeningDp } from './dp-reservasi'
 import { arrivedPax } from './kunci-meja'
+
+/** Normalised status for comparison (twin of rsv_norm_status()): old rows still store the legacy values. */
+export function normStatus(s?: string | null): string {
+  if (s === 'Checked-in' || s === 'Completed') return 'Datang'
+  if (s === 'Booking') return 'Confirmed'
+  return String(s ?? '')
+}
+
+/** Outside the loaded window (twin of luarJendela): dated before its start. Undated rows are never outside. */
+export function diLuarJendela(r: Pick<Reservasi, 'date'>, sebelum?: string): boolean {
+  return !!sebelum && !!r.date && r.date < sebelum
+}
 
 /** On-time threshold: up to 10 minutes past the booking still counts (`:10205`). */
 export const PUNCTUAL_TOL = 10
@@ -78,12 +92,102 @@ export function profilTamu(baris: Reservasi[], phone: string): ProfilTamu {
 
 /** Pax cell: arrived/booked once seated, booked otherwise (`:1398-1401`). */
 export function paxRiwayat(r: Reservasi): { datang: number | null, dipesan: number } {
-  return { datang: r.status === 'Datang' ? arrivedPax(r) : null, dipesan: Number(r.pax) || 0 }
+  return { datang: normStatus(r.status) === 'Datang' ? arrivedPax(r) : null, dipesan: Number(r.pax) || 0 }
 }
 
-/** Archive rows: past dates, or already closed whatever the date (`renderRiwayatLokal`). */
+/**
+ * Whole-history profile: the server summary (everything dated before the
+ * window) merged with the window rows — the twin of `profilGabung()`, same
+ * rules, same thresholds, no double counting. The summary side is normalised
+ * (Checked-in/Completed count as visits), so the window side is too. Falls
+ * back to the window rows alone while the summary has no entry for this
+ * number (or has not loaded yet), exactly like the old screen.
+ */
+export function profilTamuGabung(
+  ringkasan: Map<string, RingkasanTamu>,
+  baris: Reservasi[],
+  phone: string,
+  sebelum?: string,
+): ProfilTamu {
+  const key = normPhone(phone)
+  const a = ringkasan.get(key)
+  const hist = baris.filter(r => normPhone(r.phone) === key && !diLuarJendela(r, sebelum))
+  if (!a) return profilTamu(baris, phone)
+  const done = hist.filter(r => normStatus(r.status) === 'Datang')
+  const count = (Number(a[0]) || 0) + hist.length
+  const kunjungan = (Number(a[1]) || 0) + done.length
+  const noShow = (Number(a[2]) || 0) + hist.filter(r => normStatus(r.status) === 'No-show').length
+  const paxSum = (Number(a[7]) || 0) + hist.reduce((s, r) => s + (Number(r.pax) || 0), 0)
+  return {
+    nama: a[8] || '',
+    telepon: hist[0]?.phone || phone,
+    kunjungan,
+    totalBaris: count,
+    noShow,
+    tipe: kunjungan >= 5 ? 'Loyal' : kunjungan >= 1 ? 'Repeat' : 'Baru',
+    blacklist: noShow >= 2,
+    member: !!Number(a[3]) || hist.some(r => r.member),
+    memberNo: a[4] || hist.find(r => r.member && r.memberNo)?.memberNo || '',
+    vip: !!Number(a[5]) || hist.some(r => r.vip) || kunjungan >= 8,
+    kunjunganTerakhir: [a[6] || '', ...done.map(r => r.date)].filter(Boolean).sort().slice(-1)[0] || null,
+    rataPax: count ? Math.round(paxSum / count) : 0,
+  }
+}
+
+/** One guest-directory entry: the newest known name for a number. */
+export interface EntriDirektori {
+  phone: string
+  name: string
+}
+
+/**
+ * Guest directory for the input form's autofill (twin of `guestDirectory()`):
+ * summary names first (latest non-empty), then window rows oldest-first, so
+ * the newest row wins — the same order as reading the whole history.
+ */
+export function direktoriTamu(
+  ringkasan: Map<string, RingkasanTamu>,
+  baris: Reservasi[],
+  sebelum?: string,
+): EntriDirektori[] {
+  const m = new Map<string, EntriDirektori>()
+  ringkasan.forEach((a, key) => {
+    if (key.length >= 8 && a[9]) m.set(key, { phone: key, name: String(a[9]).trim() })
+  })
+  ;[...baris]
+    .filter(r => !diLuarJendela(r, sebelum))
+    .sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0))
+    .forEach((r) => {
+      const key = normPhone(r.phone)
+      if (!key || key.length < 8 || !r.name) return
+      m.set(key, { phone: key, name: String(r.name).trim() })
+    })
+  return [...m.values()]
+}
+
+/** Directory lookup by phone (twin of `findGuestByPhone`). */
+export function cariTamuLewatNomor(dir: EntriDirektori[], v: string): EntriDirektori | null {
+  const k = normPhone(v)
+  if (!k || k.length < 8) return null
+  return dir.find(g => g.phone === k) || null
+}
+
+/**
+ * Directory lookup by name (twin of `findGuestByName`): exact match first,
+ * else the single name starting with the typed text.
+ */
+export function cariTamuLewatNama(dir: EntriDirektori[], v: string): EntriDirektori | null {
+  const s = String(v || '').trim().toLowerCase()
+  if (s.length < 3) return null
+  const pas = dir.filter(g => g.name.toLowerCase() === s)
+  if (pas.length) return pas[0]!
+  const awal = dir.filter(g => g.name.toLowerCase().startsWith(s))
+  return awal.length === 1 ? awal[0]! : null
+}
+
+/** Archive rows: past dates, or already closed whatever the date (`renderRiwayatLokal`). Statuses are normalised: a legacy `Completed` is closed too. */
 export function barisArsip(baris: Reservasi[], hariIni: string): Reservasi[] {
-  return baris.filter(r => r.date < hariIni || ['No-show', 'Cancelled'].includes(r.status))
+  return baris.filter(r => r.date < hariIni || ['No-show', 'Cancelled'].includes(normStatus(r.status)))
 }
 
 /** Newest booking first (`renderRiwayatLokal`). */
@@ -115,6 +219,15 @@ export function csvRiwayat(baris: Reservasi[], lantai?: (meja: string) => number
 /** Download a CSV string, UTF-8 with BOM for Excel. */
 export function unduhCsv(nama: string, csv: string) {
   const blob = new Blob([`\ufeff${csv}`], { type: 'text/csv;charset=utf-8' })
+  const a = document.createElement('a')
+  a.href = URL.createObjectURL(blob)
+  a.download = nama
+  a.click()
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000)
+}
+
+/** Download a Blob the server already built (GET /reservations/export is BOM'd for Excel itself). */
+export function unduhBlob(nama: string, blob: Blob) {
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
   a.download = nama
