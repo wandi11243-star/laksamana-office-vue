@@ -9,9 +9,9 @@
 // the old `simpanSel`), so writes send no `If-Match`. The server checks the
 // head-of-Divisi rule per row and answers 403 `forbidden`.
 //
-// The DAILY WORKER block (approved DW shifts) needs `GET /dw/schedule`, which
-// demands module `dw`. Most crew hold `jadwal` only, so the block is read only
-// for `dw` holders until laksamana-api#179 (G-03) gives `jadwal` its own read.
+// The DAILY WORKER block (approved DW shifts) is read through the jadwal
+// module itself (G-03, laksamana-api#258), so every crew member holding
+// `jadwal` can draw it without the `dw` module.
 import type { KruJadwal, PeranJadwal, PetaSel, SelJadwal, SettingJadwal, Timpa } from '~/utils/jadwal'
 import { daftarTimpa, kunciSel, normalSetting, peranJadwal, selDariPengajuan } from '~/utils/jadwal'
 
@@ -79,23 +79,21 @@ export const useJadwalRequests = () =>
   })
 
 /**
- * Approved DW shifts for a range — only for `dw` holders (G-03). Never throws
- * into the screen: like the old `muatDW()` (`:1478`), a failure is one warning
- * line and the crew sheet still draws whole.
+ * Approved DW shifts for a range, read-only through the jadwal module (G-03:
+ * `GET /jadwal/dw-schedule`, the same `DwService::scheduleRange` read as
+ * `GET /dw/schedule`, without phone numbers). Never throws into the screen:
+ * like the old `muatDW()` (`:1478`), a failure is one warning line and the
+ * crew sheet still draws whole.
  */
 export function useJadwalDw(key: string, from: Ref<string>, to: Ref<string>) {
-  const me = useMe()
-  const bisa = computed(() => hasAccess(me.value, ['dw']))
-  const res = useAsyncData(
+  return useAsyncData(
     key,
     async () => {
-      if (!bisa.value) return [] as DwJadwal[]
-      const r = await useApi()<Envelope<{ rows: DwJadwal[] }>>('/dw/schedule', { query: { from: from.value, to: to.value } })
+      const r = await useApi()<Envelope<{ rows: DwJadwal[] }>>('/jadwal/dw-schedule', { query: { from: from.value, to: to.value } })
       return r.data.rows ?? []
     },
-    { watch: [from, to, bisa], default: () => [] as DwJadwal[] },
+    { watch: [from, to], default: () => [] as DwJadwal[] },
   )
-  return { ...res, bisa }
 }
 
 /**

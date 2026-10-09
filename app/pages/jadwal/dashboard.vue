@@ -7,7 +7,8 @@
   a head think the day is covered when it has a hole (:2462).
   Daily workers get their own panel and are never mixed into "Masuk": the stat
   cards count Office crew, and a DW row in that table would no longer match
-  the numbers above it (:2671). DW rows need module `dw` until G-03.
+  the numbers above it (:2671). DW rows are read through the jadwal module
+  itself (G-03: GET /jadwal/dw-schedule).
   Tables page by 10, numbering continues across pages; changing date,
   division or order goes back to page 1 (:2729-2737).
 -->
@@ -39,7 +40,7 @@ watch([tgl, div, urut], () => {
 const dari = computed(() => awalBulan(bulanDari(tgl.value)))
 const sampai = computed(() => akhirBulan(bulanDari(tgl.value)))
 const { data: cells, refresh: refreshSel, status } = useJadwalCells('jadwal-cells-dash', dari, sampai)
-const { data: dwRows, error: dwError, bisa: bisaDw } = useJadwalDw('jadwal-dw-dash', dari, sampai)
+const { data: dwRows, error: dwError } = useJadwalDw('jadwal-dw-dash', dari, sampai)
 
 const peta = computed(() => petaSel(cells.value ?? []))
 const ini = computed(() => tgl.value === hariIni())
@@ -294,8 +295,7 @@ const muatUlang = () => Promise.all([refreshDasar(), refreshSel()])
         <AppStat
           label="Daily worker"
           icon="i-lucide-user-plus"
-          :value="bisaDw ? dwHari.length : '—'"
-          :sub="bisaDw ? undefined : 'Butuh akses Daily Worker (G-03)'"
+          :value="dwHari.length"
           tone="vip"
         />
       </AppStatGrid>

@@ -27,11 +27,34 @@ export const useDwHadirTgl = () => useState('dw-hadir-tgl', () => hariIni())
 export const useDwBayarMinggu = () => useState('dw-bayar-minggu', () => '')
 
 /**
- * Guest pax per date, filled from G-05's endpoint once it exists. Until then
- * every caller reads 0, which is exactly "no event": the quota guide falls
- * back to weekday/weekend, like the old page without Marketing.
+ * Guest pax per date (event sources only), filled by the Kalender Tamu from
+ * GET /dw/guests (G-05). The quota guide reads this: a date missing here
+ * means "no event", falling back to weekday/weekend like the old page
+ * without Marketing.
  */
 export const useDwPax = () => useState<Record<string, number>>('dw-pax', () => ({}))
+
+/** One aggregated guest row (`GET /dw/guests` rows). */
+export interface TamuHarian {
+  tgl: string
+  sumber: string
+  pax: number
+}
+
+/**
+ * GET /dw/guests — daily guest pax per source for the Kalender Tamu (G-05,
+ * laksamana-api#254): `{rows: [{tgl, sumber, pax}]}` with `sumber` one of
+ * `marketing`, `event` or `reservasi`. Read in-process from the three source
+ * modules, so a `dw` holder needs none of them. Summing per day is the only
+ * client work, in `app/utils/pax-harian.ts` — the quota guide keeps reading
+ * the event sources only (`paxAcaraDari`), exactly as the old page.
+ */
+export const useDwGuests = (key: string, from: Ref<string>, to: Ref<string>) =>
+  useAsyncData(
+    key,
+    () => useApi()<Envelope<{ rows: TamuHarian[], dari: string, sampai: string }>>('/dw/guests', { query: { from: from.value, to: to.value } }).then(r => r.data.rows ?? []),
+    { watch: [from, to], default: () => [] as TamuHarian[] },
+  )
 
 /** The range the bootstrap must cover (`rentangDibutuhkan`, :1943). */
 export function useDwRentang() {
