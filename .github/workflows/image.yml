@@ -1,9 +1,11 @@
 # Build the static Office image and publish it to GHCR; Dokploy pulls it via
 # docker-compose.yaml (CONTRIBUTING.md "Build & deploy").
 #
-#   - push to main      → ghcr.io/dwipapap/laksamana-office-vue:latest + :sha-<short>,
-#                         built against the production API.
-#   - Run workflow (dev) → :dev + :dev-sha-<short>, built against dev-api, for rehearsals.
+# Manual only (Actions → image → Run workflow), to spend the private repo's
+# Actions minutes on releases rather than on every merge:
+#   - production → ghcr.io/dwipapap/laksamana-office-vue:latest + :sha-<short>,
+#                  built against the production API.
+#   - dev        → :dev + :dev-sha-<short>, built against dev-api, for rehearsals.
 #
 # NUXT_PUBLIC_API_BASE is baked in at build time, so each API needs its own image.
 # Override the URLs with the repo variables API_BASE_PRODUCTION / API_BASE_DEV.
@@ -13,9 +15,6 @@
 name: image
 
 on:
-  push:
-    branches: [main]
-    paths-ignore: ['docs/**', '**/*.md']
   workflow_dispatch:
     inputs:
       target:
@@ -25,7 +24,7 @@ on:
         default: production
 
 concurrency:
-  group: image-${{ github.event_name == 'workflow_dispatch' && inputs.target || 'production' }}
+  group: image-${{ inputs.target }}
   cancel-in-progress: true
 
 jobs:
@@ -35,7 +34,7 @@ jobs:
       contents: read
       packages: write
     env:
-      TARGET: ${{ github.event_name == 'workflow_dispatch' && inputs.target || 'production' }}
+      TARGET: ${{ inputs.target }}
     steps:
       - uses: actions/checkout@v4
 
