@@ -32,7 +32,7 @@ const cari = ref('')
 const dari = computed(() => awalBulan(mk.value))
 const sampai = computed(() => akhirBulan(mk.value))
 const { data: cells, refresh: refreshSel } = useJadwalCells('jadwal-cells-bulan', dari, sampai)
-const { data: dwRows, error: dwError, bisa: bisaDw } = useJadwalDw('jadwal-dw-bulan', dari, sampai)
+const { data: dwRows, error: dwError } = useJadwalDw('jadwal-dw-bulan', dari, sampai)
 
 const peta = computed(() => petaSel(cells.value ?? []))
 const hari = computed(() => hariSebulan(mk.value))
@@ -233,12 +233,6 @@ const waTeks = computed(() => teksWA(set.value, peta.value, kruDiv.value, div.va
           class="rounded-field bg-warning/12 px-3 py-2 text-sm text-warning"
         >
           Daftar daily worker belum bisa diambil ({{ apiErrorMessage(dwError) }}). Lembar kru di bawah tetap benar.
-        </p>
-        <p
-          v-else-if="!bisaDw"
-          class="text-sm text-muted"
-        >
-          Baris daily worker hanya tampil untuk pemegang akses Daily Worker (menunggu G-03).
         </p>
 
         <div
