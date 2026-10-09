@@ -11,24 +11,28 @@ Status: ⬜ belum diajukan · 📨 issue dibuat (tulis nomornya) · ✅ ada di v
 
 | ID | status | issue |
 |---|---|---|
-| G-01 | 📨 | [laksamana-api#177](https://github.com/dwipapap/laksamana-api/issues/177) |
-| G-02 | 📨 | [laksamana-api#178](https://github.com/dwipapap/laksamana-api/issues/178) |
-| G-03 | 📨 | [laksamana-api#179](https://github.com/dwipapap/laksamana-api/issues/179) |
+| G-01 | ✅ | [laksamana-api#177](https://github.com/dwipapap/laksamana-api/issues/177) → [PR #249](https://github.com/dwipapap/laksamana-api/pull/249) |
+| G-02 | ✅ | [laksamana-api#178](https://github.com/dwipapap/laksamana-api/issues/178) → [PR #255](https://github.com/dwipapap/laksamana-api/pull/255) |
+| G-03 | ✅ | [laksamana-api#179](https://github.com/dwipapap/laksamana-api/issues/179) → [PR #258](https://github.com/dwipapap/laksamana-api/pull/258) |
 | G-04 | ✅ | sudah didukung API; hanya dokumentasi → G-12 |
-| G-05 | 📨 | [laksamana-api#180](https://github.com/dwipapap/laksamana-api/issues/180) |
-| G-06 | 📨 | [laksamana-api#181](https://github.com/dwipapap/laksamana-api/issues/181) |
-| G-07 | 📨 | [laksamana-api#182](https://github.com/dwipapap/laksamana-api/issues/182) |
-| G-08 | 📨 | [laksamana-api#183](https://github.com/dwipapap/laksamana-api/issues/183) |
-| G-09 | 📨 | [laksamana-api#184](https://github.com/dwipapap/laksamana-api/issues/184) |
-| G-10 | 📨 | [laksamana-api#185](https://github.com/dwipapap/laksamana-api/issues/185) |
-| G-11 | 📨 | [laksamana-api#186](https://github.com/dwipapap/laksamana-api/issues/186) |
-| G-12 | 📨 | [laksamana-api#188](https://github.com/dwipapap/laksamana-api/issues/188) |
+| G-05 | ✅ | [laksamana-api#180](https://github.com/dwipapap/laksamana-api/issues/180) → [PR #254](https://github.com/dwipapap/laksamana-api/pull/254) |
+| G-06 | ✅ | [laksamana-api#181](https://github.com/dwipapap/laksamana-api/issues/181) → [PR #250](https://github.com/dwipapap/laksamana-api/pull/250) |
+| G-07 | ✅ | [laksamana-api#182](https://github.com/dwipapap/laksamana-api/issues/182) → [PR #256](https://github.com/dwipapap/laksamana-api/pull/256) |
+| G-08 | ✅ | [laksamana-api#183](https://github.com/dwipapap/laksamana-api/issues/183) → [PR #259](https://github.com/dwipapap/laksamana-api/pull/259) |
+| G-09 | ✅ | [laksamana-api#184](https://github.com/dwipapap/laksamana-api/issues/184) → [PR #251](https://github.com/dwipapap/laksamana-api/pull/251) |
+| G-10 | ✅ | [laksamana-api#185](https://github.com/dwipapap/laksamana-api/issues/185) → [PR #248](https://github.com/dwipapap/laksamana-api/pull/248) |
+| G-11 | ✅ | [laksamana-api#186](https://github.com/dwipapap/laksamana-api/issues/186) → [PR #252](https://github.com/dwipapap/laksamana-api/pull/252) |
+| G-12 | ✅ | [laksamana-api#188](https://github.com/dwipapap/laksamana-api/issues/188) → [PR #253](https://github.com/dwipapap/laksamana-api/pull/253) |
 | G-13 | 📨 | [laksamana-api#187](https://github.com/dwipapap/laksamana-api/issues/187) |
 | G-14 | ✅ | [laksamana-api#189](https://github.com/dwipapap/laksamana-api/issues/189) → [PR #193](https://github.com/dwipapap/laksamana-api/pull/193) |
 | G-15 | ✅ | tanpa issue → [laksamana-api PR #193](https://github.com/dwipapap/laksamana-api/pull/193) |
-| G-16 | ⬜ | — (ditemukan gelombang 1, 2026-10-01) |
-| G-17 | ⬜ | — (ditemukan gelombang 1, 2026-10-01) |
-| G-18 | ⬜ | — (ditemukan gelombang 1, 2026-10-01) |
+| G-16 | 📨 | [laksamana-api#228](https://github.com/dwipapap/laksamana-api/issues/228) (satu issue untuk G-16..G-18; menunggu keputusan owner) |
+| G-17 | 📨 | [laksamana-api#228](https://github.com/dwipapap/laksamana-api/issues/228) (satu issue untuk G-16..G-18; menunggu keputusan owner) |
+| G-18 | 📨 | [laksamana-api#228](https://github.com/dwipapap/laksamana-api/issues/228) (satu issue untuk G-16..G-18; menunggu keputusan owner) |
+| G-19 | 📨 | [laksamana-api#233](https://github.com/dwipapap/laksamana-api/issues/233) |
+| G-20 | ✅ | [laksamana-api#190](https://github.com/dwipapap/laksamana-api/issues/190) → [PR #257](https://github.com/dwipapap/laksamana-api/pull/257) (Vue PR #112 menyebutnya "G-16") |
+| G-21 | ✅ | [laksamana-api#260](https://github.com/dwipapap/laksamana-api/issues/260) → [PR #262](https://github.com/dwipapap/laksamana-api/pull/262) |
+| G-22 | ✅ | [laksamana-api#261](https://github.com/dwipapap/laksamana-api/issues/261) → [PR #263](https://github.com/dwipapap/laksamana-api/pull/263) |
 
 ---
 
@@ -180,3 +184,23 @@ memulangkan `{baris,total,maks,abai}` (`VoidBri::briList`, `laksamana-api/app/Mo
 Vue #30 memakai daftar baris bulan berjalan (perilaku sebelum 23 Sep 2026): benar untuk bulan yang dibuka,
 salah untuk bulan lain.
 **Usul:** tambahkan `dipakai: [dpId…]` (query `bri_mutasi` `cara='cocok' AND batal_at=0`) ke balasan `GET /kompas/bri`.
+
+### G-20 — marketing/konten: antrean Request Design dan pemilih brand/kru lintas modul
+Layar Request Design di Marketing butuh antrean desain Konten dan daftar brand + kru produksi, sementara
+pemegang `marketing` tidak memegang `konten` (dan sebaliknya).
+**✅ Selesai (laksamana-api PR #257, 2026-10-09).** Antrean desain terbuka untuk `marketing|konten`, plus
+`GET /marketing/design-requests/{id}` dan pemilih sempit `{brands:[{id,name}], pics:[{id,name,roles}]}`
+(kru aktif saja, peran produksi di depan — `KontenQueries::designOptions`). Catatan: PR API, kode, dan Vue PR #112
+menyebut gap ini "G-16" karena ID itu sudah dipakai akademi; ID resminya **G-20**.
+
+### G-21 — finance: baca master vendor
+Layar Finance (pembayaran vendor) membaca master vendor Stock, tetapi `GET /stock/vendors` hanya terbuka untuk
+`stock|bd|brankas` (G-02).
+**✅ Selesai (laksamana-api PR #262, 2026-10-09).** Gate baca vendor ditambah `finance`; tulis tetap `stock`.
+
+### G-22 — konten: `perf` kosong harus objek `{}`, bukan array `[]`
+Setelah platform performa terakhir dihapus (G-01), PHP men-encode `perf` kosong sebagai `[]`; klien yang
+memperlakukannya sebagai peta (`perf[platform]`) jadi salah tipe.
+**✅ Selesai (laksamana-api PR #263, 2026-10-09).** `perf` kosong selalu `{}` di list, `find()`, dan getAll;
+`setPerformance` menyimpan `{}` saat platform terakhir dihapus. Perbedaan disengaja dari legacy, dicatat di
+`docs/api/konten.md`.

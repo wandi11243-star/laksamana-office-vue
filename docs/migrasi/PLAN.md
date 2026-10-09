@@ -51,19 +51,19 @@ Urutan mempertimbangkan ukuran, risiko, dan **siapa yang membangun komponen bers
 | # | modul (`key` Vue) | cakupan | butuh keputusan | dibangun di sini untuk dipakai ulang | status |
 |---|---|---|---|---|---|
 | 1 | absensi | lengkapi: Riwayat penuh (T-06), Antrean, Atur (K-03). Punch & wajah BELUM (lihat §3 baris 15) | — | — | ✅ (K-02 punch & daftar wajah menyusul di §3 baris 15) |
-| 2 | akademi | 13 layar | — | — | ⚠️ (gelombang 1, 2026-10-01; dibangun, belum dicek visual; 3 tombol sync/restore "Segera", lihat G-16/G-17/G-18) |
-| 3 | hlife | 14 layar | K-01 (G-13) | — | ⚠️ (gelombang 1, 2026-10-01; dibangun, belum dicek visual; Reset data "Segera" K-01/G-13) |
-| 4 | konten | 20 layar | K-01 (G-13), K-05 | `performa-konten.ts`, `xlsx-baca.ts` | ⬜ |
-| 5 | bd | 11 layar | — (G-02) | — | ⚠️ (gelombang 1, 2026-10-01; dibangun, belum dicek visual; saran master vendor "Segera" G-02) |
+| 2 | akademi | 13 layar | — | — | ⚠️ (gelombang 1, 2026-10-01; cek visual #19 2026-10-09; 3 tombol sync/restore "Segera", G-16/G-17/G-18 menunggu owner di `laksamana-api#228`) |
+| 3 | hlife | 14 layar | K-01 (G-13) | — | ⚠️ (gelombang 1, 2026-10-01; cek visual #19 2026-10-09; Reset data "Segera" K-01/G-13 `laksamana-api#187`) |
+| 4 | konten | 20 layar | K-01 (G-13), K-05 | `performa-konten.ts`, `xlsx-baca.ts` | ✅ (20 layar digabung 2026-10-08, #66–#69; G-01 hapus performa per platform #110; antrean desain lintas modul G-20 #112; impor/reset massal "Segera" G-13) |
+| 5 | bd | 11 layar | — (G-02) | — | ✅ (gelombang 1, 2026-10-01; cek visual #19 2026-10-09; master vendor G-02 tersambung #109) |
 | 6 | hr | 17 layar | K-01 (G-13), K-05 | `people-score.ts` | ✅ (dibangun 2026-10-07 + cek visual mock 1366/390 sebagai HRD & kru; impor/reset massal "Segera" G-13; sinkron roster subset aman) |
-| 7 | jadwal | jadwal + dw + roster, 20 layar | K-10 (G-03/05) | `pax-harian.ts` (`satukan()`) | ✅ (dibangun 2026-10-07; cek visual mock 1366/390 untuk bagian 1, 4–5; bagian 2–3 Jadwal Shift dilewati atas persetujuan owner; blok DW menunggu G-03, pax tamu "Segera" G-05) |
-| 8 | reservasi | reservasi + service_excellent, 12 layar | K-05: OCR `tesseract.js` diizinkan, lazy (G-07/08) | `DanaMasukPanel`, `Denah` + `venue-layouts.ts`, `kwitansi.ts` | ✅ (visual belum dicek) |
+| 7 | jadwal | jadwal + dw + roster, 20 layar | K-10 (G-03/05) | `pax-harian.ts` (`satukan()`) | ✅ (dibangun 2026-10-07; cek visual mock 1366/390 untuk bagian 1, 4–5; bagian 2–3 Jadwal Shift dilewati atas persetujuan owner; blok DW G-03 & pax tamu G-05 tersambung 2026-10-09, #108) |
+| 8 | reservasi | reservasi + service_excellent, 12 layar | K-05: OCR `tesseract.js` diizinkan, lazy (G-07/08) | `DanaMasukPanel`, `Denah` + `venue-layouts.ts`, `kwitansi.ts` | ✅ (ringkasTamu G-07 + paging/ekspor server G-08 tersambung #113, 2026-10-09) |
 | 9 | cashier | 11 layar | K-04 | `cocok-bri.ts`, `porsi-pic.ts` | ✅ (11/11 layar digabung ke main 2026-10-07; sisa gap G-19 di `laksamana-api#233`) |
-| 10 | finance | omset + kas + brankas + rekap, 29 layar | K-04 (G-06) | `performa-bonus.ts` | ✅ (4/4 sub-issue digabung ke main 2026-10-07: #38, #39, #40 kas 15/15, #41 brankas 7/7; cek visual mock 1366/390; G-06 & vendor stock ditunda & dicatat) |
-| 11 | stock | 5 panel, 26 layar | K-05 (ekspor CSV), K-06 (Apps Script), K-07 | — | ⬜ |
-| 12 | event | 17 layar staf | K-01 (G-13), K-08, K-09 (G-10) | — | ⬜ |
-| 13 | marketing | 23 layar + detail event | K-05 (G-09) | `hpp-mesin.ts` | ⬜ |
-| 14 | analytics, radar, investor, help | modul yang belum ada di `utils/modul.ts` | — | — | 🟡 radar ✅, help ✅ (keduanya visual belum dicek); analytics, investor ⬜ |
+| 10 | finance | omset + kas + brankas + rekap, 29 layar | K-04 (G-06) | `performa-bonus.ts` | ✅ (4/4 sub-issue digabung ke main 2026-10-07: #38, #39, #40 kas 15/15, #41 brankas 7/7; cek visual mock 1366/390; saldo wallet G-06 tersambung #109; master vendor untuk finance G-21 di api PR #262) |
+| 11 | stock | 5 panel, 26 layar | K-05 (ekspor CSV), K-06 (Apps Script), K-07 | — | ✅ (5 panel digabung 2026-10-08, #17 bagian 1–5 s.d. #72) |
+| 12 | event | 17 layar staf | K-01 (G-13), K-08, K-09 (G-10) | — | ✅ (17 layar staf #73, 2026-10-08; koreksi check-in G-10 #107; impor/reset "Segera" G-13) |
+| 13 | marketing | 23 layar + detail event | K-05 (G-09) | `hpp-mesin.ts` | ✅ (23 layar + detail event, #59–#63 digabung s.d. #98, 2026-10-09; kalkHistori G-09 #111; Request Design G-20 #112) |
+| 14 | analytics, radar, investor, help | modul yang belum ada di `utils/modul.ts` | — | — | ✅ radar, help, analytics (18 layar, #93–#95), investor (#74) |
 | 15 | absensi (punch) | punch kamera wajah + GPS, daftar wajah (K-02). Paling akhir; face-api diizinkan untuk tugas ini | K-02 | — | ⬜ |
 | 16 | homepage (greenfield) | 5 layar: Ringkasan, Menu, Berita, Event, Promo — panel website (katalog menu, berita, saklar event & slider promo) | — | — | 🟡 Menu & Berita ✅; Event baru 2026-09-30, Promo baru 2026-09-30 (visual belum dicek) |
 

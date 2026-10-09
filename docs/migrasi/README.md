@@ -24,7 +24,7 @@ Status: ⬜ belum · 🟡 sedang dikerjakan · ✅ selesai · ⚠️ selesai den
 | reservasi | [reservasi.md](reservasi.md) | ⚠️ selesai dengan celah | 12 (0 tersembunyi) | 3 ❌ · 6 ⚠️ | 9 | reservasi + service_excellent |
 | event | [event.md](event.md) | ⚠️ selesai dengan celah | 28 (17 EMS, 2 tersembunyi + 11 publik ticketing) | 4 ❌ · 7 ⚠️ | 7 | event + ticketing; matriks izin tak tersimpan |
 | marketing | [marketing.md](marketing.md) | ⚠️ selesai dengan celah | 23 (3 tersembunyi) + detail event | 3 ❌ · 8 ⚠️ | 5 | 20.365 baris; CRM+Event+VIP+Design+PO |
-| analytics | [analytics.md](analytics.md) | ✅ selesai (ringkas) | 18 | 0 ❌ · 3 ⚠️ | 0 | inventaris ringkas (belum ada di Vue); KOREKSI: pakai backend+CK Kompas |
+| analytics | [analytics.md](analytics.md) | ✅ selesai (ringkas) | 18 | 0 ❌ · 3 ⚠️ | 0 | inventaris ringkas (dibangun di Vue 2026-10-08, #93–#95); KOREKSI: pakai backend+CK Kompas |
 | radar | [radar.md](radar.md) | ✅ selesai (ringkas) | 6 (5 rail + 1 detail) | 0 ❌ · 2 ⚠️ | 0 | dibangun di Vue 2026-09-30 lewat `/radar/*` API; read-only |
 | help | [help.md](help.md) | ✅ dibangun (visual belum dicek) | 3 jenis (beranda + 25 bab + cari) | 0 | 0 | statis, tanpa backend; registri bab menyalin `modul.ts` + uji `tools/uji-help.mjs`; grup `Lainnya` |
 | investor | [investor.md](investor.md) | ✅ selesai (ringkas) | 6 (1 masuk + 5 tab) | 0 ❌ · 1 ⚠️ | 0 | KOREKSI: pakai backend Kompas+Account |
@@ -52,10 +52,10 @@ Sumber menu launcher lama: `laksamana-office/deploy/index.html`, `BRANCHES` (`:1
 | finance | `deploy/finance/` (pemilih) → `omset/ kas/ brankas/ rekap/`, + `deploy/kompas/` (pengalih) | `kompas`, `finance`, `brankas` | `finance-mysql/`, `kompas-mysql/` | `finance.md`, `kompas.md` |
 | bd | `deploy/bd/` | `bd` | `bd-mysql/` | `bd.md` |
 | hlife | `deploy/howandi_life/` | `howandi_life` | `howandi-life-mysql/` | `hlife.md` |
-| — (belum di Vue) | `deploy/analytics/` | `analytics` | baca stock/hpp, konten, marketing, kompas, event; **menyimpan** ke backend Kompas | `kompas.md` (`/kompas/analytics`) |
+| analytics | `deploy/analytics/` | `analytics` | baca stock/hpp, konten, marketing, kompas, event; **menyimpan** ke backend Kompas | `kompas.md` (`/kompas/analytics`) |
 | — | `deploy/radar/` | `radar` | baca marketing, reservasi, event, bd | — |
 | — | `deploy/help/` | `help` | statis (`panduan/`, `gambar/`), tanpa backend | — |
-| — | `investor/` (di luar `deploy/`, domain sendiri) | `investor` | **Kompas** (omset/laporan) + **Account** (SSO) | `kompas.md` (`/kompas/investor/*`) |
+| investor | `investor/` (di luar `deploy/`, domain sendiri) | `investor` | **Kompas** (omset/laporan) + **Account** (SSO) | `kompas.md` (`/kompas/investor/*`) |
 | homepage | — (greenfield: Office lama tidak punya panel website) | `menu`, `news`, `homepage` | — (modul baru di `laksamana-api`) | `menu.md`, `news.md`, `homepage.md` |
 
 ### Koreksi terhadap peta awal (dari kode, bukan dari tabel tugas)
