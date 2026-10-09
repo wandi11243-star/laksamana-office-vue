@@ -6,7 +6,7 @@
 // Records live on many resources, so the CRUD helpers are generic; the
 // nested maps (kpi-actuals / monthly-inputs / settings / attendance) and the
 // append-only audit have their own calls.
-import type { HrAkademiStat, HrEmployee, HrState } from '~/utils/hr'
+import type { HrAkademiStat, HrAudit, HrEmployee, HrState } from '~/utils/hr'
 import { isOfficeHrAdmin, normalHr } from '~/utils/hr'
 import type { Versi } from '~/utils/versi'
 import { ifMatch, versiDari } from '~/utils/versi'
@@ -66,6 +66,13 @@ export const hrSaveAttendance = (mk: string, value: unknown | null) =>
 /** Audit is append-only and does not bump the rev, so it needs no If-Match. */
 export const hrPostAudit = (action: string, detail = '') =>
   useApi()<Envelope<{ id: string }>>('/hr/audit', { method: 'POST', body: { action, detail } })
+
+/** GET /hr/audit?limit=N — newest N rows, `meta.total` is the full count
+ *  (G-11). The old app trimmed to 800 rows client-side (`:692`); pass
+ *  limit=800 for the same bound, server-side. */
+export const listHrAudit = (limit = 800) =>
+  useApi()<Envelope<HrAudit[]>>('/hr/audit', { query: { limit } })
+    .then(r => ({ rows: r.data, total: Number(r.meta?.total ?? r.data.length) }))
 
 // ---------------------------------------------------------------- base
 
