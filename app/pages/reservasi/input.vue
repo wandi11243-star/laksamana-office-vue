@@ -711,7 +711,7 @@ async function hapus() {
             size="xl"
             class="w-full"
             placeholder="Nama pemesan / PJ"
-            @input="isiOtomatisDariNama"
+            @update:model-value="isiOtomatisDariNama"
           />
         </UFormField>
         <UFormField
@@ -726,7 +726,7 @@ async function hapus() {
             size="xl"
             class="w-full"
             placeholder="08xxxx"
-            @input="isiOtomatisDariNomor"
+            @update:model-value="isiOtomatisDariNomor"
           />
         </UFormField>
         <UFormField
