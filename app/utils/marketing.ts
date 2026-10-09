@@ -102,6 +102,74 @@ export interface ClientMkt {
 export interface PembayaranMkt { id?: string, no?: string, type?: string, amount?: number | string, method?: string, at?: string, receipt?: unknown, receiptUrl?: string, verified?: boolean, by?: string, dariDpForm?: boolean }
 export type DetailEventMkt = Record<string, unknown>
 
+/** One DP proof row of a VIP reservation (vipBuktiList). */
+export interface BuktiVipMkt { id: string, nominal?: number | string, metode?: string, name?: string, key?: string, url?: string, by?: string, at?: string | number }
+
+/** One Reservasi VIP row (D.14). */
+export interface VipMkt {
+  id: string
+  jenis?: string
+  nominal?: number | string
+  menuFix?: string
+  nama?: string
+  clientId?: string
+  perusahaan?: string
+  hp?: string
+  tanggal?: string
+  jamMulai?: string
+  jamSelesai?: string
+  paxMin?: number | string
+  paxMax?: number | string
+  layoutReq?: string
+  tv?: boolean
+  speaker?: boolean
+  catatan?: string
+  meja?: string[]
+  mktPIC?: string
+  resId?: string
+  bukti?: BuktiVipMkt[]
+  batalAt?: string
+  batalOleh?: string
+  createdBy?: string
+  createdAt?: string
+  updatedAt?: number
+}
+
+/** One design/video request (D.13). Stays here; Konten only reads it. */
+export interface RequestDesainMkt {
+  id: string
+  jenis?: string
+  judul?: string
+  brief?: string
+  acara?: string
+  deadline?: string
+  prioritas?: string
+  brand?: string
+  brandNama?: string
+  pic?: string
+  picNama?: string
+  platforms?: string[]
+  refs?: { t: string, v: string, n?: string }[]
+  by?: string
+  byNama?: string
+  at?: string
+  batalAt?: string
+  updatedAt?: number
+}
+
+/** One DP row of a `vip-<id>` Reservasi record (vipDpsUntukReservasi). */
+export interface DpVipMkt {
+  id: string
+  vipBuktiId?: string
+  amount?: number
+  method?: string
+  proofData?: string
+  proofName?: string
+  by?: string
+  at?: number
+  [k: string]: unknown
+}
+
 /** Surat Penawaran on the event row (penawaranCard, :10088-10190). */
 export interface PenawaranMkt {
   status?: string

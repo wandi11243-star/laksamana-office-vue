@@ -373,8 +373,8 @@ Kode error yang wajib ditangani UI: `already_exists` (409 saat POST id duplikat)
 ```
 
 ## J. Progres build
-Issue: #16, dipecah #58–#63 · Branch saat ini: `migrasi/marketing-keuangan` (#60, PR #82, ditumpuk di atas #59) · Mulai: 2026-10-07
-LANJUTKAN DARI: #61 — Reservasi VIP + Request Design & Video. #59, #60 selesai (menunggu merge PR #81, #82).
+Issue: #16, dipecah #58–#63 · Branch saat ini: `migrasi/marketing-vip` (#61, PR #92, dari main) · Mulai: 2026-10-07
+LANJUTKAN DARI: #62 — Task, Template Task, Katalog, Purchasing. #58–#60 sudah merge; #61 menunggu review PR #92.
 
 | layar (key) | file | status | endpoint dipakai | sub-issue |
 |---|---|---|---|---|
@@ -389,8 +389,8 @@ LANJUTKAN DARI: #61 — Reservasi VIP + Request Design & Video. #59, #60 selesai
 | reports | `app/pages/marketing/reports.vue` | ✅ | `GET /marketing/state` | #60 — per kategori + TOTAL + rata-rata; Export CSV seluruh event (BOM + sep=) |
 | notifications | `app/pages/marketing/notifications.vue` | ✅ | `GET /marketing/state`, `PATCH /marketing/notifications/{id}` | #60 — pengingat live (DP, H-7/H-0, FU hari ini, overdue) + riwayat; lonceng shell + lencana belum dibaca |
 | timeline | `app/pages/marketing/timeline.vue` | ✅ | `GET /marketing/state` | #60 — tabel sortir + pager; Bersihkan Log = Segera (v1 tanpa hapus massal) |
-| vip | — | ⬜ | | #61 |
-| designreq | — | ⬜ | | #61 (403 laksamana-api#190 tak boleh memblokir) |
+| vip | `app/pages/marketing/vip.vue` (+ `MarketingVipForm`, `MarketingVipKunci`) | ✅ | `GET /marketing/state`, `POST/PATCH/DELETE /marketing/vip`, `POST /marketing/files` (bukti DP), `GET /marketing/files/{key}`, `GET /reservasi/master/tables`, `GET /reservasi/reservations?from&to`, `GET/POST/PUT/PATCH/DELETE /reservasi/reservations/{id}` (baris `vip-<id>`, If-Match) | #61 — 5 segmen jenis (bawaan Regular & Assisted tanpa batal) + keterangan saringan; Isi Nominal di kolom Nominal hanya bila kosong; ikon Detail/Ubah/Batalkan/Buka kembali/Hapus; strip `vip-yatim` + Pulihkan; pemilih meja = daftar meja Reservasi (bukan denah) |
+| designreq | `app/pages/marketing/designreq.vue` (+ `MarketingReqForm`) | ✅ | `GET /marketing/state`, `POST/PATCH /marketing/design-requests`, `GET /marketing/design-queue` (progres), `GET /konten/state` (opsi brand/PIC) | #61 — 403 (laksamana-api#190) = pita + Coba lagi, tidak memblokir; Batalkan menyimpan jejak (`batalAt`), tidak menghapus |
 | tasks | — | ⬜ | | #62 |
 | templates | — | ⬜ | | #62 |
 | katalog | — | ⬜ | | #62 |
@@ -418,6 +418,14 @@ Catatan build:
 - (koreksi build) Follow up dicap jam lokal; lama memakai `toISOString()` sehingga follow up sebelum 07:00 WIB tercatat kemarin dan tidak terhitung "Follow Up Hari Ini".
 - (koreksi build) Client baru: Marketing PIC bawaan = diri sendiri bila termasuk daftar; lama mengambil nama pertama di daftar.
 - Layar tanpa izin: `MarketingGerbang` menampilkan "Akses belum aktif" / "Akses ditolak" seperti `go()` lama.
+- Fondasi #61: `app/utils/marketing-vip.ts` — VIP: angka & rekap, saringan jenis/periode, perusahaan dari CRM, `vip-yatim` + pulihkan, catatan kunci (tulis/baca per posisi), dps + gabung (cicilan kru & verifikasi tetap), baris Reservasi `vip-<id>`, jendela kunci meja `mejaTerpakaiVipMkt` (±3 jam dari jam booking, lintas hari, tamu duduk = check-in + 180 menit, batal/pulang/tanpa jam membebaskan), status buka-kembali; Request: status/kategori/saringan, prioritas, sisa deadline, gerbang foto & link. Uji: `node tools/uji-marketing-vip.mjs` (43 cek; 39 mutasi tertangkap).
+- #61 tipe `VipMkt`/`RequestDesainMkt`/`BuktiVipMkt`/`DpVipMkt` di `marketing.ts`. Nama `ReqDesainMkt` & `opsiDesainMkt` sudah dipakai `konten.ts` (auto-import bertabrakan), jadi sisi Marketing memakai `RequestDesainMkt` & `bacaOpsiDesainMkt`.
+- (koreksi build) Progres request dibaca dari `GET /design-queue` TANPA `active=1`: dengan `active=1` API membuang yang sudah `done`, sehingga "Sudah Selesai" selalu 0.
+- Pemilih meja VIP memakai aturan `rsvMejaTerpakai` lama apa adanya: reservasi Cancelled/No-show/pulang tidak memegang meja, hunian dibaca ±1 hari, jendela per jam booking (bukan sehari penuh).
+- Kunci meja mengganti baris Reservasi yang sudah ada dengan `PUT` + If-Match (versi baris itu); tanpa versi API menjawab 428.
+- Foto referensi request dikecilkan di peramban (`kecilkanGambarKonten`, 1280px JPEG) sebelum disimpan; bukan gambar / >2MB dilewati dengan alasan; total 6MB per request dihitung bersama foto yang sudah ada. Link tanpa `https://` dirapikan, link ganda ditolak.
+- "Buka kembali" VIP batal (`vipBukaLagi` lama, tidak tercantum di D.14 tapi ada di lama) ikut dibawa: ditolak dengan nama meja yang bentrok bila mejanya sudah dipesan tamu lain.
+- Belum dibawa: denah visual `venue-layouts.js` (pemilih meja berupa daftar tombol meja), kwitansi resmi VIP (`:16684`), estimasi lama duduk dari `master.dineEstMin` (dipakai 180 menit bawaan lama).
 
 ## K. Daftar uji cutover
 Uji silang Vue ↔ Office lama pada data yang sama (dev). Bagian #58:
@@ -440,3 +448,5 @@ Uji silang Vue ↔ Office lama pada data yang sama (dev). Bagian #58:
 - [ ] **reporting** — kartu + tabel kategori + TOTAL sama; Export CSV terbuka rapi di Excel id-ID (BOM + sep=).
 - [ ] **notifikasi** — pengingat live (DP, H-7/H-0, FU hari ini + nurture, overdue) benar di hari yang sama; riwayat + badge lonceng + Tandai semua dibaca; klik baris membuka tujuan yang benar.
 - [ ] **timeline** — urut + pager kolom Waktu/Oleh/Jenis; rujukan nama benar; Bersihkan Log tetap Segera sampai v1 punya hapus massal.
+- [ ] **vip** — 4 kartu + peringatan tanpa nominal sama dengan lama; 5 segmen jenis & periode memberi baris dan hitungan yang sama; buat Assisted/Regular dengan DP + bukti → tampil di Office lama; Kunci meja menulis baris `vip-<id>` (Confirmed, dps, catatan) yang terlihat di modul Reservasi, cicilan yang dicatat kru Reservasi tidak hilang; meja tamu batal tidak lagi tampil terpakai; Batalkan → status Cancelled di Reservasi + meja bebas; Buka kembali → terkunci lagi, ditolak bila bentrok; Hapus → baris Reservasi hilang (tamu sudah datang: hanya ditandai batal); Isi Nominal masuk omzet; baris `vip-` tanpa pasangan muncul di strip + Pulihkan.
+- [ ] **designreq** — request baru (brief, platform, foto & link) muncul di Design/Editing Queue Konten; Tandai Selesai di Konten → "Sudah Selesai" di sini dengan PIC & waktu; Ubah & Batalkan tersimpan (yang batal hilang dari antrian Konten); kru tanpa modul Konten: opsi brand/PIC jatuh ke isian bebas; 403 laksamana-api#190 = pita + Coba lagi.

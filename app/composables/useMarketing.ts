@@ -23,7 +23,7 @@
 import type { Me } from '~/composables/useMe'
 import { isAdminOf } from '~/composables/useMe'
 import type {
-  AktivitasMkt, ClientMkt, EventMkt, FollowupMkt, KolomMkt, RoleAccMkt, SettingsMkt, UrutMkt, UserMkt,
+  AktivitasMkt, ClientMkt, EventMkt, FollowupMkt, KolomMkt, RequestDesainMkt, RoleAccMkt, SettingsMkt, UrutMkt, UserMkt, VipMkt,
 } from '~/utils/marketing'
 import {
   PER_HAL_MKT, SETTING_MKT_BAWAAN, TENGGANG_TUTUP_MKT, bolehAksiMkt, bolehBukaMkt, hariAntaraMkt, normRoleAccMkt, normUserMkt, urutAwalMkt, urutMkt,
@@ -93,8 +93,8 @@ export interface StateMkt {
   taskCategories: Record<string, unknown>[]
   categories: string[]
   notifs: Record<string, unknown>[]
-  vip: Record<string, unknown>[]
-  designreqs: Record<string, unknown>[]
+  vip: VipMkt[]
+  designreqs: RequestDesainMkt[]
   activities: AktivitasMkt[]
   settings: SettingsMkt
   roleAcc: RoleAccMkt
@@ -424,6 +424,37 @@ export const tandaiDibacaMkt = (id: string, versi?: Versi) =>
 export function useLencanaMkt() {
   const { data } = useStateMkt()
   return computed(() => ({ lonceng: data.value.notifs.filter(n => !(n as { read?: boolean }).read).length }))
+}
+
+// ---------------------------------------------------------------- design requests (Konten side)
+
+/**
+ * GET /marketing/design-queue — progress written back by Konten, once per
+ * page open (drSegarkanProgres). Without active=1: that flag drops the done
+ * ones, which are exactly what this reads. A 403 (laksamana-api#190) never
+ * blocks the queue: the caller shows a ribbon + "Coba lagi".
+ */
+export const progresDesainMkt = () =>
+  useApi()<Envelope<{ reqs?: { id: string, status?: string, pic?: string, doneAt?: string }[] }>>('/marketing/design-queue')
+
+export interface OpsiDesainMkt { brands: string[], pics: string[], platforms: string[] }
+
+/**
+ * Brand/PIC options, read straight from Konten (once per session, only when
+ * the request page opens). Konten down or no access → null, and the form
+ * falls back to free text — there is always a way out (drOpsiField).
+ */
+export async function bacaOpsiDesainMkt(): Promise<OpsiDesainMkt | null> {
+  try {
+    const r = await useApi()<Envelope<{ brands?: { id: string, name: string }[], users?: { id: string, name: string }[] }>>('/konten/state')
+    const brands = (r.data?.brands ?? []).map(b => b.name).filter(Boolean)
+    const pics = (r.data?.users ?? []).map(u => u.name).filter(Boolean)
+    if (!brands.length && !pics.length) return null
+    return { brands, pics, platforms: [] }
+  }
+  catch {
+    return null
+  }
 }
 
 // ---------------------------------------------------------------- documents
