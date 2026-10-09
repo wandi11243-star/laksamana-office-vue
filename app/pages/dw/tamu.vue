@@ -1,23 +1,29 @@
 <!--
   Kalender Tamu (deploy/dw/index.html viewTamu :5340-5454).
 
-  The old page answered "how busy is the day, and is there enough DW yet" by
-  merging guest pax from Marketing + Event + Reservasi. In v1 there is no
-  aggregate endpoint — gap G-05, laksamana-api#180 — so the guest half of each
-  box shows "Segera (G-05)" and the DW half is built from GET /dw/overview
-  (approved + waiting counts per day). The mapping for the day the endpoint
-  arrives is already ported in app/utils/pax-harian.ts (`satukan`), owned by
-  this module; the screen only has to call it.
+  Guest pax comes from GET /dw/guests (G-05, laksamana-api#254): per day per
+  source (`marketing`, `event`, `reservasi`), already filtered server-side to
+  confirmed events and non-cancelled reservations (no-shows count 0). The
+  screen only sums, in app/utils/pax-harian.ts (`paxAcaraDari`, `paxRsvDari`,
+  `paxTotalDari`); the quota guide keeps reading the event sources only
+  (`konteksHariDw`, F.15), fed through `useDwPax` so the Ajukan sheet
+  (`DwAjukan`) sees the same numbers.
+
+  The endpoint carries pax, not event titles or reservation counts, so each
+  box shows the total plus the per-source split instead of the old title
+  list. The DW half of each box is built from GET /dw/overview (approved +
+  waiting counts per day).
 
   Clicking any box still opens the Ajukan DW sheet for that day, so the page
   keeps its one job: see the day and act on it.
 -->
 <script setup lang="ts">
 import type { AjuanDw } from '~/utils/dw'
-import { ajuanHidup } from '~/utils/dw'
-import { useDwBulan, useDwDasar } from '~/composables/useDw'
+import { ajuanHidup, mulaiKisi } from '~/utils/dw'
+import { useDwBulan, useDwDasar, useDwGuests, useDwPax } from '~/composables/useDw'
+import { paxAcaraDari, paxRsvDari, paxTotalDari, SUMBER_ACARA } from '~/utils/pax-harian'
 import { akhirBulan, geserBulan, labelBulanJadwal, namaDivisiJadwal } from '~/utils/jadwal'
-import { hariIni } from '~/utils/format'
+import { hariIni, tambahHari } from '~/utils/format'
 
 definePageMeta({ access: ['dw'] })
 
@@ -27,18 +33,58 @@ const bulanIni = hariIni().slice(0, 7)
 
 const awal = computed(() => `${mk.value}-01`)
 const akhir = computed(() => akhirBulan(mk.value))
+/** The visible 42-box grid, so neighbouring-month boxes have pax too. */
+const gridDari = computed(() => mulaiKisi(mk.value))
+const gridSampai = computed(() => tambahHari(gridDari.value, 41))
+const { data: tamu, error: tamuError, refresh: refreshTamu } = useDwGuests('dw-guests', gridDari, gridSampai)
+
+const rows = computed(() => tamu.value ?? [])
+const paxAcara = (tgl: string) => paxAcaraDari(rows.value, tgl)
+const paxRsv = (tgl: string) => paxRsvDari(rows.value, tgl)
+const paxTotal = (tgl: string) => paxTotalDari(rows.value, tgl)
+const rincian = (tgl: string) => {
+  const parts: string[] = []
+  const pa = paxAcara(tgl)
+  const pr = paxRsv(tgl)
+  if (pa) parts.push(`${pa} acara`)
+  if (pr) parts.push(`${pr} rsv`)
+  return parts.join(' · ')
+}
+
+/** Feed the quota guide (`DwAjukan` reads this): event pax per date. */
+const pax = useDwPax()
+watch(rows, (rs) => {
+  const m: Record<string, number> = {}
+  for (const r of rs) {
+    if (!SUMBER_ACARA.includes(String(r.sumber || '').toLowerCase())) continue
+    m[r.tgl] = (m[r.tgl] ?? 0) + (Number(r.pax) || 0)
+  }
+  pax.value = m
+}, { immediate: true })
+
+/** Every date of the open month, for the monthly stats. */
+const hariBulan = computed(() => {
+  const out: string[] = []
+  for (let d = awal.value; d <= akhir.value; d = tambahHari(d, 1)) out.push(d)
+  return out
+})
+const paxAcaraBulan = computed(() => hariBulan.value.reduce((n, d) => n + paxAcara(d), 0))
+const paxRsvBulan = computed(() => hariBulan.value.reduce((n, d) => n + paxRsv(d), 0))
+const paxBulan = computed(() => paxAcaraBulan.value + paxRsvBulan.value)
+const hariAda = computed(() => hariBulan.value.filter(d => paxTotal(d) > 0).length)
 
 const ajuanBulan = computed(() => ajuan.value.filter(a => a.tgl >= awal.value && a.tgl <= akhir.value && a.status !== 'BATAL'))
 const hariAjuan = (tgl: string): AjuanDw[] => ajuan.value.filter(a => a.tgl === tgl && ajuanHidup(a))
+const adaSetuju = (tgl: string) => hariAjuan(tgl).some(a => a.status === 'DISETUJUI')
 
 const stat = computed(() => {
   const setuju = ajuanBulan.value.filter(a => a.status === 'DISETUJUI')
   const tunggu = ajuanBulan.value.filter(a => a.status === 'MENUNGGU')
-  const hariAda = new Set(setuju.map(a => a.tgl)).size
-  const hariTanpa = [...new Set(ajuanBulan.value.filter(a => a.status === 'DISETUJUI' || a.status === 'MENUNGGU').map(a => a.tgl))]
-    .filter(t => !setuju.some(a => a.tgl === t)).length
-  return { setuju: setuju.length, tunggu: tunggu.length, hariAda, hariTanpa }
+  const tanpa = hariBulan.value.filter(d => paxTotal(d) > 0 && !adaSetuju(d)).length
+  return { setuju: setuju.length, tunggu: tunggu.length, tanpa }
 })
+
+const muatUlang = () => Promise.all([refresh(), refreshTamu()])
 
 const ajukanOpen = ref(false)
 const ajukanTgl = ref('')
@@ -111,35 +157,50 @@ const bisaKlik = () => true
             color="neutral"
             variant="ghost"
             size="sm"
-            @click="refresh()"
+            @click="muatUlang()"
           />
         </div>
       </template>
 
-      <p class="mb-3 rounded-field bg-info/10 px-3 py-2 text-sm">
-        <b>Pax tamu: Segera (G-05).</b> Jumlah tamu gabungan Marketing, Event dan Reservasi belum punya endpoint v1
-        (laksamana-api#180). Sementara ini kotak menampilkan konteks daily worker; angka pax muncul otomatis begitu
-        endpoint-nya tersedia.
+      <p
+        v-if="tamuError"
+        class="mb-3 rounded-field bg-warning/12 px-3 py-2 text-sm text-warning"
+      >
+        Angka pax belum lengkap ({{ apiErrorMessage(tamuError) }}). Kotak di bawah hanya menampilkan konteks
+        daily worker.
+        <UButton
+          label="Coba lagi"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          class="ms-2"
+          @click="refreshTamu()"
+        />
       </p>
 
       <AppStatGrid>
         <AppStat
           label="Total pax"
           icon="i-lucide-users"
-          value="—"
-          sub="Segera (G-05)"
+          :value="paxBulan"
+          :sub="`${paxAcaraBulan} acara + ${paxRsvBulan} reservasi`"
         />
         <AppStat
           label="Acara"
           icon="i-lucide-mic-vocal"
-          value="—"
-          sub="Segera (G-05)"
+          :value="paxAcaraBulan"
+          sub="pax acara"
         />
         <AppStat
           label="Reservasi meja"
           icon="i-lucide-armchair"
-          value="—"
-          sub="Segera (G-05)"
+          :value="paxRsvBulan"
+          sub="pax reservasi"
+        />
+        <AppStat
+          label="Hari ada tamu"
+          icon="i-lucide-calendar-check"
+          :value="hariAda"
         />
         <AppStat
           label="DW disetujui"
@@ -154,22 +215,19 @@ const bisaKlik = () => true
           :tone="stat.tunggu ? 'warning' : 'gold'"
         />
         <AppStat
-          label="Hari ada DW"
-          icon="i-lucide-calendar-check"
-          :value="stat.hariAda"
-        />
-        <AppStat
           label="Hari tanpa DW"
           icon="i-lucide-calendar-x"
-          :value="stat.hariTanpa"
-          :tone="stat.hariTanpa ? 'warning' : 'gold'"
+          :value="stat.tanpa"
+          :tone="stat.tanpa ? 'warning' : 'gold'"
         />
       </AppStatGrid>
 
       <div class="mb-3 flex flex-wrap items-center gap-2 text-sm text-muted">
+        <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-primary-400" /> Marketing</span>
+        <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-vip" /> Event</span>
+        <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-info" /> Reservasi meja</span>
         <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-success" /> Disetujui</span>
         <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-warning" /> Menunggu</span>
-        <span class="inline-flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-muted" /> Belum ada DW</span>
         <span v-if="!peran.hrd && (peran.divisi || []).length">
           · head hanya melihat divisi {{ peran.divisi.map(namaDivisiJadwal).join(', ') }} untuk pengisian.
         </span>
@@ -182,6 +240,14 @@ const bisaKlik = () => true
       >
         <template #hari="{ tgl, luar }">
           <template v-if="!luar">
+            <span
+              v-if="paxTotal(tgl)"
+              class="text-[11px] font-bold text-highlighted num"
+            >{{ paxTotal(tgl) }} pax</span>
+            <span
+              v-if="rincian(tgl)"
+              class="text-[10px] text-muted num"
+            >{{ rincian(tgl) }}</span>
             <template v-if="hariAjuan(tgl).length">
               <span class="text-[10px] font-semibold text-muted">
                 <template v-if="hariAjuan(tgl).filter(a => a.status === 'DISETUJUI').length">
@@ -194,6 +260,10 @@ const bisaKlik = () => true
               </span>
             </template>
             <span
+              v-else-if="paxTotal(tgl)"
+              class="text-[10px] font-semibold text-warning"
+            >belum ada DW</span>
+            <span
               v-else
               class="text-[10px] italic text-dimmed"
             >belum ada DW</span>
@@ -202,7 +272,7 @@ const bisaKlik = () => true
       </DwKisi>
 
       <p class="mt-3 text-sm text-muted">
-        Klik hari mana pun untuk mengajukan daily worker di hari itu. Angka pax dibaca langsung dari modul
+        Klik hari mana pun untuk mengajukan daily worker di hari itu. Angka pax dibaca dari
         <b>Marketing</b>, <b>Event</b>, dan <b>Reservasi</b> — hanya acara yang statusnya sudah pasti jalan, dan
         reservasi yang tidak dibatalkan (<i>no-show</i> dihitung 0 pax). Panduan jumlah DW tetap dihitung dari
         ada-tidaknya acara, bukan dari reservasi.

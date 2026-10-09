@@ -4,10 +4,12 @@
 // The old page read three module APIs directly (Marketing, Event, Reservasi;
 // deploy/dw/index.html:971-979). That door is gone in v1: those endpoints are
 // gated by their own modules, and a `dw` holder does not necessarily have them
-// — gap G-05, laksamana-api#180, which asks for `GET /api/v1/dw/guests`.
-// This file holds the mapping so the screen only has to call the endpoint
-// once it exists; meanwhile the Kalender Tamu shows the guest part as
-// "Segera (G-05)" and keeps the DW context it can get from /dw/overview.
+// — gap G-05, laksamana-api#180, closed by `GET /api/v1/dw/guests`
+// (laksamana-api#254), which applies the same rules server-side. This file
+// holds the mapping for the raw sources plus the sums over the aggregated
+// endpoint rows, so screens never re-implement either; the Kalender Tamu
+// draws its guest half from the endpoint and its DW context from
+// /dw/overview.
 //
 // The shape mapping lives in ONE place now — the old twin copies in dw and
 // radar were exactly the kind of duplication PLAN.md §4 forbids.
@@ -141,3 +143,36 @@ export const paxRsvTgl = (rsv: TamuReservasi[], iso: string) =>
 /** Total people in the building: two different crowds, one number on purpose (`paxTgl`, :2193). */
 export const paxTgl = (tamu: TamuAgenda[], rsv: TamuReservasi[], iso: string) =>
   paxAcaraTgl(tamu, iso) + paxRsvTgl(rsv, iso)
+
+// ---------------------------------------------------------------- aggregated rows (G-05)
+//
+// GET /dw/guests already applies the rules above server-side (in-process
+// from the three source modules, laksamana-api#254) and answers per day per
+// source: `{rows: [{tgl, sumber, pax}]}` with `sumber` one of `marketing`,
+// `event` or `reservasi`. The screen only sums; no rule is re-implemented
+// here, so this file stays the single place that knows which sources count
+// as "acara" for the quota guide (F.15: Marketing + Event, never Reservasi).
+
+/** One aggregated guest row from `GET /dw/guests`. */
+export interface PaxSumber {
+  tgl: string
+  sumber: string
+  pax: number
+}
+
+/** Event sources feed the quota guide; anything else does not. */
+export const SUMBER_ACARA = ['marketing', 'event']
+
+/** Guest pax from Marketing + Event on one date — the quota guide uses this, never the total. */
+export const paxAcaraDari = (rows: PaxSumber[], iso: string) =>
+  rows.filter(r => r.tgl === iso && SUMBER_ACARA.includes(String(r.sumber || '').toLowerCase()))
+    .reduce((n, r) => n + (Number(r.pax) || 0), 0)
+
+/** Guest pax from table reservations on one date (no-shows already count 0 server-side). */
+export const paxRsvDari = (rows: PaxSumber[], iso: string) =>
+  rows.filter(r => r.tgl === iso && String(r.sumber || '').toLowerCase() === 'reservasi')
+    .reduce((n, r) => n + (Number(r.pax) || 0), 0)
+
+/** Total people in the building on one date. */
+export const paxTotalDari = (rows: PaxSumber[], iso: string) =>
+  paxAcaraDari(rows, iso) + paxRsvDari(rows, iso)
