@@ -8,8 +8,9 @@
   legacy status values stay selectable (`selStatus :6497`).
 -->
 <script setup lang="ts">
-import type { DetailAcara } from '~/composables/useEvent'
-import { getDetail, getEvent, patchEvent, putDetail, removeEvent } from '~/composables/useEvent'
+import type { DetailAcara, OrderTiket, Refund } from '~/composables/useEvent'
+import { getDetail, getEvent, patchEvent, putDetail, removeEvent, useDaftarEvent } from '~/composables/useEvent'
+import { refundGantung } from '~/utils/event-refund'
 import { EVT_STATUS, TIMELINE_PHASES } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
@@ -68,8 +69,21 @@ async function simpanEdit(body: Record<string, unknown>) {
   }
 }
 const sheetHapus = ref(false)
+// Paid orders block deletion (`hapusEvent :3024`): removing them would erase
+// the trail of money that really came in. A hanging refund is named when it
+// is the reason.
+const { data: daftarOrder } = useDaftarEvent<OrderTiket>('orders', { event_id: id.value }, `event-rinci-orders-${id.value}`)
+const { data: daftarRefund } = useDaftarEvent<Refund>('refunds', {}, `event-rinci-refunds-${id.value}`)
+const infoHapus = computed(() => {
+  const orderIds = new Set(daftarOrder.value.rows.map(o => o.id))
+  const refunds = daftarRefund.value.rows.filter(r => r.event_id === id.value || orderIds.has(r.order_id ?? ''))
+  const lunas = daftarOrder.value.rows.filter(o => o.payment_status === 'Paid')
+  const gantungN = lunas.filter(o => refunds.some(r => r.order_id === o.id && refundGantung(r, o))).length
+  return { lunas: lunas.length, gantung: gantungN }
+})
 async function hapus() {
   sheetHapus.value = false
+  if (infoHapus.value.lunas) return
   try {
     await removeEvent('events', id.value, versiAcara.value)
     toast.add({ title: 'Event dihapus', color: 'success' })
@@ -712,11 +726,37 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
       v-model:open="sheetHapus"
       title="Hapus event?"
     >
-      <p class="text-sm text-muted">
+      <p
+        v-if="infoHapus.lunas"
+        class="text-sm text-muted"
+      >
+        Event <b class="text-highlighted">{{ String(acara?.title ?? '') }}</b> sudah punya
+        <b class="text-highlighted num">{{ angka(infoHapus.lunas) }} pesanan lunas</b>.
+        Menghapusnya berarti menghapus jejak uang yang benar-benar masuk.
+      </p>
+      <p
+        v-if="infoHapus.gantung"
+        class="mt-2 text-sm text-muted"
+      >
+        <b class="text-highlighted num">{{ angka(infoHapus.gantung) }}</b> di antaranya refundnya sudah
+        disetujui tapi belum diselesaikan — buka Ticketing › Penjualan lalu tekan Selesaikan refund (manajemen).
+      </p>
+      <p
+        v-if="infoHapus.lunas"
+        class="mt-2 text-sm text-muted"
+      >
+        Kalau acaranya batal, selesaikan lewat refund pada pesanan itu dulu. Kalau cuma ingin
+        menyembunyikannya dari daftar aktif, ubah statusnya jadi Event Done.
+      </p>
+      <p
+        v-else
+        class="text-sm text-muted"
+      >
         Event ini dihapus. Rincian (rundown, vendor, budget, sponsor, task) ikut terhapus.
       </p>
       <template #footer>
         <UButton
+          v-if="!infoHapus.lunas"
           color="error"
           @click="hapus()"
         >
@@ -727,7 +767,7 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
           variant="outline"
           @click="sheetHapus = false"
         >
-          Batal
+          {{ infoHapus.lunas ? 'Tutup' : 'Batal' }}
         </UButton>
       </template>
     </ResponsiveSheet>

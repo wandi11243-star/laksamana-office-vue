@@ -7,9 +7,11 @@
   first (`:5697`); the menu badge counts the same two queues (`emsAntriApproval`).
 -->
 <script setup lang="ts">
-import type { Acara, Refund } from '~/composables/useEvent'
+import type { Acara, KelasTiket, Kursi, OrderTiket, Refund, Tiket } from '~/composables/useEvent'
 import { patchEvent, useDaftarEvent } from '~/composables/useEvent'
 import { statusPengajuan } from '~/utils/event-hitung'
+import { jalankanRefund, refundGantung, ringkasRefund } from '~/utils/event-refund'
+import type { RefundBaris } from '~/utils/event-refund'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehSetujui, peranEvent } from '~/utils/layar/event'
 import { angka, rupiah, tglPendek } from '~/utils/format'
@@ -28,6 +30,14 @@ const riwayat = ref<'antri' | 'sudah'>('antri')
 
 const { data: daftar, status, refresh } = useDaftarEvent<Acara>('events', {}, 'event-approval-events')
 const { data: daftarRefund, refresh: refreshRefund } = useDaftarEvent<Refund>('refunds', {}, 'event-approval-refunds')
+const { data: daftarOrder, refresh: refreshOrder } = useDaftarEvent<OrderTiket>('orders', {}, 'event-approval-orders')
+const { data: daftarTiket, refresh: refreshTiket } = useDaftarEvent<Tiket>('tickets', {}, 'event-approval-tickets')
+const { data: daftarKursi, refresh: refreshKursi } = useDaftarEvent<Kursi>('seats', {}, 'event-approval-seats')
+const { data: daftarKelas, refresh: refreshKelas } = useDaftarEvent<KelasTiket>('ticket-classes', {}, 'event-approval-classes')
+
+// The order behind a refund request (`refundGantung :10182` needs it).
+const orderDariId = computed(() => new Map(daftarOrder.value.rows.map(o => [o.id, o])))
+const gantung = (r: RefundBaris) => refundGantung(r, orderDariId.value.get(r.order_id ?? ''))
 
 const antreRencana = computed(() => daftar.value.rows.filter(e => statusPengajuan({ pengajuan: e.pengajuan }) === 'Menunggu'))
 const sudahRencana = computed(() => daftar.value.rows.filter(e => ['Disetujui', 'Ditolak'].includes(statusPengajuan({ pengajuan: e.pengajuan }))))
@@ -37,7 +47,7 @@ const antreRefund = computed(() => [...daftarRefund.value.rows.filter(r => (r.st
 const sudahRefund = computed(() => daftarRefund.value.rows.filter(r => (r.status ?? '') !== 'Pending'))
 const nilaiTertahan = computed(() => antreRefund.value.reduce((a, r) => a + (Number(r.amount) || 0), 0))
 
-const muatUlang = () => Promise.all([refresh(), refreshRefund()])
+const muatUlang = () => Promise.all([refresh(), refreshRefund(), refreshOrder(), refreshTiket(), refreshKursi(), refreshKelas()])
 
 async function putuskanRencana(e: Acara, setuju: boolean) {
   try {
@@ -55,13 +65,86 @@ async function putuskanRencana(e: Acara, setuju: boolean) {
   }
 }
 async function putuskanRefund(r: Refund, setuju: boolean) {
-  try {
-    await patchEvent('refunds', r.id, { status: setuju ? 'Approved' : 'Rejected', updatedAt: Date.now() }, daftarRefund.value.versions[r.id])
-    toast.add({ title: setuju ? 'Refund disetujui' : 'Refund ditolak', color: 'success' })
-    await refreshRefund()
+  if (!setuju) {
+    try {
+      await patchEvent('refunds', r.id, { status: 'Rejected', updatedAt: Date.now() }, daftarRefund.value.versions[r.id])
+      toast.add({ title: 'Refund ditolak', color: 'success' })
+      await refreshRefund()
+    }
+    catch (err) {
+      if (!(await tanganiKonflik(err, refreshRefund))) toast.add({ title: apiErrorMessage(err), color: 'error' })
+    }
+    return
   }
-  catch (err) {
-    if (!(await tanganiKonflik(err, refreshRefund))) toast.add({ title: apiErrorMessage(err), color: 'error' })
+  // Approving runs the refund itself (`approveRefundYakin :10217`): the order
+  // goes Refunded, its tickets Cancelled, seats & class quota back — never
+  // just the request status.
+  const order = orderDariId.value.get(r.order_id ?? '')
+  if (!order) {
+    toast.add({ title: 'Pesanannya sudah tidak ada.', color: 'error' })
+    return
+  }
+  const hasil = await jalankanRefund({
+    refund: r,
+    order,
+    tiket: daftarTiket.value.rows,
+    kursi: daftarKursi.value.rows,
+    kelas: daftarKelas.value.rows,
+    versi: {
+      refund: daftarRefund.value.versions[r.id],
+      order: daftarOrder.value.versions[order.id],
+      tiket: daftarTiket.value.versions,
+      kursi: daftarKursi.value.versions,
+      kelas: daftarKelas.value.versions,
+    },
+    patch: patchEvent,
+    nama: namaSaya.value,
+  })
+  if (hasil.konflik) await tanganiKonflik(hasil.galat, muatUlang)
+  else await muatUlang()
+  if (hasil.ok) {
+    toast.add({ title: `Refund disetujui — ${hasil.tiketBatal} tiket dibatalkan & kursinya dilepas.`, color: 'success' })
+  }
+  else {
+    toast.add({ title: 'Refund disetujui sebagian', description: ringkasRefund(hasil), color: 'warning' })
+  }
+}
+
+// Repair for approvals from the old version that only flipped the request
+// status (`selesaikanRefund :10187`): runs the same execution, keeps Approved.
+const selesaikanId = ref('')
+const sheetSelesaikan = computed({ get: () => selesaikanId.value !== '', set: v => (selesaikanId.value = v ? selesaikanId.value : '') })
+const refundDipilih = computed(() => daftarRefund.value.rows.find(x => x.id === selesaikanId.value))
+const orderDipilih = computed(() => orderDariId.value.get(refundDipilih.value?.order_id ?? ''))
+async function selesaikan() {
+  const r = refundDipilih.value
+  const order = orderDipilih.value
+  sheetSelesaikan.value = false
+  if (!r || !order) return
+  const hasil = await jalankanRefund({
+    refund: r,
+    order,
+    tiket: daftarTiket.value.rows,
+    kursi: daftarKursi.value.rows,
+    kelas: daftarKelas.value.rows,
+    versi: {
+      refund: daftarRefund.value.versions[r.id],
+      order: daftarOrder.value.versions[order.id],
+      tiket: daftarTiket.value.versions,
+      kursi: daftarKursi.value.versions,
+      kelas: daftarKelas.value.versions,
+    },
+    patch: patchEvent,
+    nama: namaSaya.value,
+    selesaikan: true,
+  })
+  if (hasil.konflik) await tanganiKonflik(hasil.galat, muatUlang)
+  else await muatUlang()
+  if (hasil.ok) {
+    toast.add({ title: `Refund diselesaikan — ${hasil.tiketBatal} tiket dibatalkan & kursinya dilepas.`, color: 'success' })
+  }
+  else {
+    toast.add({ title: 'Refund diselesaikan sebagian', description: ringkasRefund(hasil), color: 'warning' })
   }
 }
 
@@ -268,6 +351,27 @@ const lihatRefund = computed(() => tab.value !== 'rencana')
               Tolak
             </UButton>
           </span>
+          <span
+            v-else-if="gantung(row.original)"
+            class="flex flex-wrap items-center gap-1.5"
+          >
+            <AppStatus
+              color="warning"
+              icon="i-lucide-hourglass"
+              size="sm"
+            >
+              Disetujui · belum diselesaikan
+            </AppStatus>
+            <UButton
+              v-if="manajemen"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              @click="selesaikanId = row.original.id"
+            >
+              Selesaikan refund
+            </UButton>
+          </span>
           <AppStatus
             v-else
             :color="row.original.status === 'Approved' ? 'success' : 'error'"
@@ -285,6 +389,27 @@ const lihatRefund = computed(() => tab.value !== 'rencana')
           class="px-4 py-3 text-sm"
         >
           <b class="text-highlighted num">{{ rupiah(Number(r.amount) || 0) }}</b> · {{ String(r.reason ?? '') }}
+          <span
+            v-if="gantung(r) && riwayat !== 'antri'"
+            class="mt-1 flex flex-wrap items-center gap-1.5"
+          >
+            <AppStatus
+              color="warning"
+              icon="i-lucide-hourglass"
+              size="sm"
+            >
+              Disetujui · belum diselesaikan
+            </AppStatus>
+            <UButton
+              v-if="manajemen"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              @click="selesaikanId = r.id"
+            >
+              Selesaikan refund
+            </UButton>
+          </span>
           <span
             v-if="riwayat === 'antri' && manajemen"
             class="mt-1.5 flex gap-1.5"
@@ -310,5 +435,39 @@ const lihatRefund = computed(() => tab.value !== 'rencana')
         Tidak ada refund di sini.
       </p>
     </AppPanel>
+
+    <ResponsiveSheet
+      v-model:open="sheetSelesaikan"
+      title="Selesaikan refund"
+    >
+      <div
+        v-if="refundDipilih && orderDipilih"
+        class="grid gap-1.5 text-sm"
+      >
+        <p><span class="text-muted">Pembeli:</span> <b class="text-highlighted">{{ String((orderDipilih as Record<string, unknown>).buyer_name ?? '—') }}</b></p>
+        <p><span class="text-muted">Nominal:</span> <b class="text-highlighted num">{{ rupiah(Number((orderDipilih as Record<string, unknown>).total) || 0) }}</b></p>
+        <p><span class="text-muted">Alasan:</span> {{ String(refundDipilih.reason ?? '—') }}</p>
+        <p class="text-muted">
+          Refund ini sudah disetujui, tapi oleh versi lama yang tidak ikut membatalkan tiketnya.
+          Menyelesaikannya: pesanan jadi Refunded, tiket dibatalkan, kursinya dilepas, dan kuota kelasnya kembali.
+          Tidak bisa dibatalkan.
+        </p>
+      </div>
+      <template #footer>
+        <UButton
+          color="primary"
+          @click="selesaikan()"
+        >
+          Selesaikan
+        </UButton>
+        <UButton
+          color="neutral"
+          variant="outline"
+          @click="sheetSelesaikan = false"
+        >
+          Batal
+        </UButton>
+      </template>
+    </ResponsiveSheet>
   </AppPage>
 </template>
