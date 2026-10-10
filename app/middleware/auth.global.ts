@@ -5,6 +5,11 @@
 export default defineNuxtRouteMiddleware(async (to) => {
   if (to.meta.public) return
 
+  // A switched-off module (MODUL[].nonaktif) has no pages, for anyone.
+  if (MODUL.some(m => m.nonaktif && to.path.split('/')[1] === m.key)) {
+    throw createError({ statusCode: 404, statusMessage: 'Halaman tidak ditemukan.' })
+  }
+
   if (!useToken().value) {
     return navigateTo({ path: '/login', query: to.fullPath === '/' ? {} : { next: to.fullPath } })
   }

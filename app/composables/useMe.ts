@@ -7,6 +7,8 @@ export interface Me {
   modules: string[]
   adminModules: string[]
   headDivisi: string[]
+  /** Beranda teams from the Tim column (laksamana-api AppSupportTim); several per person. */
+  tim?: { key: string, label: string }[]
   ulid: string
 }
 

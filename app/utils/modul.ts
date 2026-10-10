@@ -22,11 +22,18 @@ export interface Modul {
   access: string[]
   /** Home-screen widgets, in order. Shown when the user holds the module. */
   widgets?: Component[]
+  /** One live line on the module's Beranda card ("Dashboard tim"). Falls back to `desc`. */
+  kartu?: Component
   /**
    * No old Office screen (homepage). The Help chapter guard does not demand a
    * guide for a module the old Office never documented.
    */
   greenfield?: boolean
+  /**
+   * Switched off: hidden from the launcher, sidebar, Beranda and Help, and its
+   * pages answer 404. The code stays; delete the flag to bring the module back.
+   */
+  nonaktif?: boolean
 }
 
 // 'Lainnya' exists only to match the old launcher's GRUP list: the old Help
@@ -35,13 +42,15 @@ export interface Modul {
 export type ModulGroup = 'Operasional' | 'Tim & Kru' | 'Marketing & Event' | 'Bisnis & Target' | 'Lainnya'
 
 export const MODUL: Modul[] = [
-  { key: 'absensi', label: 'Absensi', desc: 'Absen masuk & pulang', icon: 'i-lucide-clock', group: 'Tim & Kru', access: ['absensi'],
+  // Off until the module is finished (Oct 2026).
+  { key: 'absensi', label: 'Absensi', desc: 'Absen masuk & pulang', icon: 'i-lucide-clock', group: 'Tim & Kru', access: ['absensi'], nonaktif: true,
     widgets: [defineAsyncComponent(() => import('~/widgets/absensi/AbsenHariIni.vue'))] },
   { key: 'jadwal', label: 'Roster', desc: 'Jadwal shift & daily worker', icon: 'i-lucide-calendar-days', group: 'Tim & Kru', access: ['jadwal', 'dw'] },
   { key: 'akademi', label: 'Akademi', desc: 'Training kru', icon: 'i-lucide-graduation-cap', group: 'Tim & Kru', access: ['akademi'] },
   { key: 'hr', label: 'Staff Performance', desc: 'Human resource', icon: 'i-lucide-users', group: 'Tim & Kru', access: ['hr'] },
   { key: 'stock', label: 'Stock', desc: 'Ordering, purchasing & HPP', icon: 'i-lucide-package', group: 'Operasional', access: ['ordering', 'purchasing', 'tree', 'usage', 'hpp'] },
   { key: 'reservasi', label: 'Reservasi', desc: 'Booking dan tamu', icon: 'i-lucide-coffee', group: 'Operasional', access: ['reservasi'],
+    kartu: defineAsyncComponent(() => import('~/widgets/reservasi/KartuReservasi.vue')),
     widgets: [
       defineAsyncComponent(() => import('~/widgets/reservasi/ReservasiHariIni.vue')),
       defineAsyncComponent(() => import('~/widgets/reservasi/DpPerluVerifikasi.vue')),
@@ -52,7 +61,8 @@ export const MODUL: Modul[] = [
   { key: 'radar', label: 'Radar', desc: 'Pusat koordinasi', icon: 'i-lucide-radar', group: 'Operasional', access: ['radar'] },
   { key: 'cashier', label: 'Cashier', desc: 'Setoran & dana masuk', icon: 'i-lucide-banknote', group: 'Operasional', access: ['cashier'] },
   { key: 'konten', label: 'Konten', desc: 'Content operations', icon: 'i-lucide-pen-line', group: 'Marketing & Event', access: ['konten'] },
-  { key: 'event', label: 'Event', desc: 'Event management', icon: 'i-lucide-mic-vocal', group: 'Marketing & Event', access: ['event'] },
+  { key: 'event', label: 'Event', desc: 'Event management', icon: 'i-lucide-mic-vocal', group: 'Marketing & Event', access: ['event'],
+    kartu: defineAsyncComponent(() => import('~/widgets/event/KartuEvent.vue')) },
   // Greenfield (no old Office screen): the website's menu catalogue, news and
   // event switch. Three access keys so F&B can own the menu, marketing the news
   // and whoever runs Event the "tampil di website" switch.
@@ -75,5 +85,8 @@ export const MODUL: Modul[] = [
   // Kelola Akses (laksamana-office/deploy/index.html:1204-1218).
   { key: 'analytics', label: 'Analytics', desc: 'Analisa Penjualan', icon: 'i-lucide-chart-line', group: 'Bisnis & Target', access: ['analytics'] },
 ]
+
+/** Access keys whose module is switched off (`nonaktif`). */
+export const KUNCI_NONAKTIF = new Set(MODUL.filter(m => m.nonaktif).flatMap(m => m.access))
 
 export const MODUL_GROUPS: ModulGroup[] = ['Operasional', 'Tim & Kru', 'Marketing & Event', 'Bisnis & Target', 'Lainnya']

@@ -7,7 +7,7 @@
 //
 // Chapter visibility is decided at runtime by `babBoleh` against the user's
 // `modules` (GET /me), exactly like the old `boleh()` read `lm_session.modules`.
-import { MODUL } from '~/utils/modul'
+import { KUNCI_NONAKTIF, MODUL } from '~/utils/modul'
 
 export interface HelpGrup {
   key: string
@@ -159,6 +159,7 @@ export function periksaRegistryHelp(
  */
 export function babBoleh(bab: HelpBab, modules: string[] | null | undefined): boolean {
   if (!bab.izin) return true
+  if (KUNCI_NONAKTIF.has(bab.izin)) return false
   const mods = modules ?? []
   return mods.includes('*') || mods.includes(bab.izin)
 }
