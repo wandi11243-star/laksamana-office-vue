@@ -6,9 +6,18 @@
   without one are REPORTED, never guessed, or the wallet balances read larger
   than reality. Investor records are written per record against the
   whole-blob version; conflicts reload, never retry.
+
+  ACCOUNT LINK (VUE-7b, old `akunHtml`): each card can link an Office account
+  (`akunId`/`akunNama` on the record, `POST /account/investor-akun` for
+  create-or-link). Unlinking drops only the link — the grant stays (its
+  business lives in Kelola Akses). Buttons need module admin of investor,
+  brankas or finance; the server checks again.
 -->
 <script setup lang="ts">
-import { createVaultRec, deleteVaultRec, getVault, updateVaultRec } from '~/composables/useFinance'
+import { buatAkunInvestor, createVaultRec, deleteVaultRec, getVault, updateVaultRec } from '~/composables/useFinance'
+import { getRoster } from '~/composables/useCashier'
+import { isAdminOf } from '~/composables/useMe'
+import type { RosterUser } from '~/composables/useRoster'
 import { useBrankasIzin } from '~/utils/layar/finance'
 import { fmtRp, num } from '~/utils/cashier'
 import { fTgl, hariIni } from '~/utils/format'
@@ -19,7 +28,12 @@ import { modalTanpaWadah, modalTotal, namaWallet, SEMUA_WADAH } from '~/utils/br
 definePageMeta({ access: ['brankas'] })
 
 const izin = useBrankasIzin()
+const me = useMe()
 const toast = useToast()
+
+/** Linking an account is the bigger right (old `sayaAdmin`): module admin of
+ * investor, brankas or finance. The server checks again. */
+const akunBoleh = computed(() => isAdminOf(me.value, 'investor') || isAdminOf(me.value, 'brankas') || isAdminOf(me.value, 'finance'))
 
 const { data: vaultData, error, refresh } = useAsyncData('brankas-vault', () => getVault())
 const daftar = computed<InvestorBrankas[]>(() => ((vault.value.investor ?? []) as InvestorBrankas[]).slice())
@@ -236,6 +250,144 @@ async function jalanHapusInvestor() {
 const opsiWallet = computed(() => [{ label: '— pilih wallet —', value: '__kosong' }, ...SEMUA_WADAH.map(k => ({ label: namaWallet(k), value: k }))])
 const SEMUHAKAN_OK = SEMUA_WADAH
 onMounted(() => ivBaru())
+
+// ---- investor → Office account link (VUE-7b, old `akunHtml`/`akBuka`/`akKirim`) ----
+// Only the LINK (`akunId`/`akunNama`) is stored on the investor record, through
+// the same versioned vault write as everything else on this page. The grant
+// itself lives in the account module: linking grants `investor` (never admin),
+// unlinking only drops the link (never the grant).
+
+/** Which investor card has its account box open (one at a time, like `AK_EDIT`). */
+const akBuka = ref<{ iv: string, mode: 'pilih' | 'buat' } | null>(null)
+const akDraf = reactive({ nama: '', hp: '', pin: '', userId: '' })
+/** Roster for the "link existing" picker: lazy-loaded once, active only (old `akMuatUsers`). */
+const akUsers = ref<RosterUser[] | null>(null)
+const akUsersErr = ref('')
+const akMemuat = ref(false)
+
+const opsiAkun = computed(() => [
+  { label: '— pilih akun —', value: '__kosong' },
+  ...(akUsers.value ?? []).map(u => ({ label: String(u.name || '(tanpa nama)'), value: String(u.id) })),
+])
+
+function akPilihOtomatis(i: InvestorBrankas) {
+  const sama = (akUsers.value ?? []).find(u => String(u.name || '').trim().toLowerCase() === String(i.name || '').trim().toLowerCase())
+  akDraf.userId = sama ? String(sama.id) : ''
+}
+
+async function akBukaForm(i: InvestorBrankas, mode: 'pilih' | 'buat') {
+  if (!akunBoleh.value) return
+  akDraf.nama = String(i.name || '')
+  akDraf.hp = ''
+  akDraf.pin = ''
+  akDraf.userId = ''
+  akBuka.value = { iv: String(i.id), mode }
+  if (mode !== 'pilih') return
+  if (akUsers.value) {
+    akPilihOtomatis(i)
+    return
+  }
+  if (akMemuat.value) return
+  akMemuat.value = true
+  akUsersErr.value = ''
+  try {
+    const rows = await getRoster()
+    akUsers.value = rows
+      .filter(u => u.active !== false)
+      .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
+    akPilihOtomatis(i)
+  }
+  catch (e) {
+    akUsersErr.value = apiErrorMessage(e)
+  }
+  finally {
+    akMemuat.value = false
+  }
+}
+
+/** `bad_pin` / `name_taken` in plain words (old `AK_PESAN`). */
+function pesanAkun(e: unknown): string {
+  const kode = apiErrorCode(e)
+  if (kode === 'bad_pin') return 'PIN harus 4–6 angka.'
+  if (kode === 'name_taken') return 'Nama itu sudah dipakai akun lain — pakai Hubungkan akun yang ada, atau pakai nama lain.'
+  return apiErrorMessage(e)
+}
+
+async function akKirim(i: InvestorBrankas) {
+  if (!vaultData.value || !akunBoleh.value || sibuk.value) return
+  const mode = akBuka.value?.iv === String(i.id) ? akBuka.value.mode : null
+  if (!mode) return
+  let badan: { userId: string } | { name: string, noHp?: string, pin: string }
+  if (mode === 'pilih') {
+    if (!akDraf.userId) {
+      toast.add({ title: 'Pilih dulu akun yang mau dihubungkan.', color: 'error' })
+      return
+    }
+    // Linking changes not one column of the account; the name/PIN stay.
+    badan = { userId: akDraf.userId }
+  }
+  else {
+    if (!akDraf.nama.trim()) {
+      toast.add({ title: 'Nama akun baru wajib diisi.', color: 'error' })
+      return
+    }
+    if (!/^[0-9]{4,6}$/.test(akDraf.pin)) {
+      toast.add({ title: 'PIN harus 4–6 angka.', color: 'error' })
+      return
+    }
+    badan = { name: akDraf.nama.trim(), pin: akDraf.pin, ...(akDraf.hp.trim() ? { noHp: akDraf.hp.trim() } : {}) }
+  }
+  sibuk.value = true
+  try {
+    let akun
+    try {
+      akun = await buatAkunInvestor(badan)
+    }
+    catch (e) {
+      // Unversioned call: no conflict to reload, only the plain reason.
+      toast.add({ title: `Gagal menyiapkan akun: ${pesanAkun(e)}`, color: 'error' })
+      return
+    }
+    if (!akun) {
+      toast.add({ title: 'Server tidak mengembalikan akun.', color: 'error' })
+      return
+    }
+    const obj = { ...i, akunId: String(akun.id), akunNama: String(akun.name) }
+    try {
+      await updateVaultRec('investor', String(i.id), obj as never, vaultData.value.version ?? '', 'PUT')
+      toast.add({ title: `Akun Office "${akun.name}" tertaut ke ${i.name}.`, color: 'success' })
+      akBuka.value = null
+      await refresh()
+    }
+    catch (e2) {
+      const ditangani = await tanganiKonflik(e2, refresh)
+      if (mode === 'buat') {
+        // The account is already born (with the grant) — the link is what
+        // failed, conflict or not. A second create would birth a twin: link
+        // instead (old `akKirim` rollback).
+        toast.add({
+          title: `Akun "${akun.name}" SUDAH dibuat dan diberi hak investor, tapi tautannya belum tersimpan. Pakai Hubungkan akun yang ada lalu pilih akun itu — jangan buat akun kedua.`,
+          color: 'error',
+        })
+      }
+      else if (!ditangani) {
+        toast.add({ title: `Gagal menyimpan tautan: ${apiErrorMessage(e2)}`, color: 'error' })
+      }
+    }
+  }
+  finally {
+    sibuk.value = false
+  }
+}
+
+async function akLepas(i: InvestorBrankas) {
+  if (!akunBoleh.value) return
+  if (!confirm(`Lepas tautan akun "${String(i.akunNama || i.akunId)}" dari ${String(i.name)}?\n\nHanya tautannya yang dibuang — hak akses investor akun itu TIDAK dicabut (urusannya di Kelola Akses).`)) return
+  const obj = { ...i }
+  delete obj.akunId
+  delete obj.akunNama
+  await tulisInvestor(obj, true, 'Tautan akun dilepas.')
+}
 </script>
 
 <template>
@@ -379,6 +531,150 @@ onMounted(() => ivBaru())
             <span class="block text-[12px] font-bold uppercase tracking-wider text-muted">Jumlah pembayaran</span>
             <b class="num text-highlighted">{{ (i.returns ?? []).length }}×</b>
           </div>
+        </div>
+
+        <div class="border-t border-default px-4 py-3 lg:px-5">
+          <template v-if="i.akunId">
+            <p class="text-sm text-highlighted">
+              <b>Akun Office:</b> {{ String(i.akunNama || i.akunId) }}
+            </p>
+            <div
+              v-if="akunBoleh"
+              class="mt-2"
+            >
+              <UButton
+                label="Lepas tautan"
+                size="xs"
+                color="neutral"
+                variant="outline"
+                :loading="sibuk"
+                @click="akLepas(i)"
+              />
+            </div>
+          </template>
+          <template v-else-if="akunBoleh">
+            <div
+              v-if="akBuka?.iv !== String(i.id)"
+              class="flex flex-wrap gap-2"
+            >
+              <UButton
+                label="Buat akun baru"
+                size="sm"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-user-plus"
+                @click="akBukaForm(i, 'buat')"
+              />
+              <UButton
+                label="Hubungkan akun yang ada"
+                size="sm"
+                color="neutral"
+                variant="outline"
+                icon="i-lucide-link"
+                @click="akBukaForm(i, 'pilih')"
+              />
+            </div>
+            <template v-else-if="akBuka.mode === 'pilih'">
+              <b class="text-sm text-highlighted">Hubungkan akun yang ada</b>
+              <p class="mb-2 text-[12px] text-muted">
+                Akun yang dipilih diberi hak modul investor (tidak pernah admin); nama dan PIN-nya tidak diubah.
+              </p>
+              <p
+                v-if="akMemuat"
+                class="text-sm text-muted"
+              >
+                Memuat daftar akun…
+              </p>
+              <UAlert
+                v-else-if="akUsersErr"
+                color="error"
+                variant="subtle"
+                icon="i-lucide-triangle-alert"
+                :title="`Daftar akun gagal dimuat: ${akUsersErr}`"
+              />
+              <div
+                v-else
+                class="grid gap-2 sm:grid-cols-2"
+              >
+                <UFormField label="Akun Office">
+                  <USelect
+                    :model-value="akDraf.userId || '__kosong'"
+                    :items="opsiAkun"
+                    class="w-full"
+                    @update:model-value="(v: string) => akDraf.userId = v === '__kosong' ? '' : v"
+                  />
+                </UFormField>
+                <div class="flex items-end gap-2">
+                  <UButton
+                    label="Hubungkan"
+                    size="sm"
+                    :loading="sibuk"
+                    @click="akKirim(i)"
+                  />
+                  <UButton
+                    label="Batal"
+                    size="sm"
+                    color="neutral"
+                    variant="ghost"
+                    @click="akBuka = null"
+                  />
+                </div>
+              </div>
+            </template>
+            <template v-else>
+              <b class="text-sm text-highlighted">Buat akun baru</b>
+              <p class="mb-2 text-[12px] text-muted">
+                Akun langsung aktif dengan hak modul investor. PIN tidak disimpan di layar ini — sampaikan langsung ke investornya.
+              </p>
+              <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                <UFormField label="Nama">
+                  <UInput
+                    v-model="akDraf.nama"
+                    placeholder="Nama akun"
+                    class="w-full"
+                  />
+                </UFormField>
+                <UFormField label="No. HP">
+                  <UInput
+                    v-model="akDraf.hp"
+                    inputmode="tel"
+                    placeholder="08…"
+                    class="w-full"
+                  />
+                </UFormField>
+                <UFormField label="PIN (4–6 angka)">
+                  <UInput
+                    v-model="akDraf.pin"
+                    inputmode="numeric"
+                    maxlength="6"
+                    placeholder="••••"
+                    class="w-full"
+                  />
+                </UFormField>
+                <div class="flex items-end gap-2">
+                  <UButton
+                    label="Buat & tautkan"
+                    size="sm"
+                    :loading="sibuk"
+                    @click="akKirim(i)"
+                  />
+                  <UButton
+                    label="Batal"
+                    size="sm"
+                    color="neutral"
+                    variant="ghost"
+                    @click="akBuka = null"
+                  />
+                </div>
+              </div>
+            </template>
+          </template>
+          <p
+            v-else
+            class="text-sm text-muted"
+          >
+            Belum terhubung ke akun Office — yang bisa menautkan admin modul investor, brankas, atau finance.
+          </p>
         </div>
 
         <div
