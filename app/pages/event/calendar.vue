@@ -13,7 +13,7 @@
 <script setup lang="ts">
 import type { Acara, JadwalTalent } from '~/composables/useEvent'
 import { useStateEvent } from '~/composables/useEvent'
-import { paxAcara } from '~/utils/event-hitung'
+import { paxAcara, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { angka, hariIni, tglPanjang } from '~/utils/format'
 
@@ -85,7 +85,7 @@ interface ItemCal { tgl: string, tipe: TipeCal, judul: string, sub?: string, aca
 const semuaItem = computed<ItemCal[]>(() => {
   const keluar: ItemCal[] = []
   for (const e of s.value?.events ?? []) {
-    const tgl = String(e.start_datetime ?? '').slice(0, 10)
+    const tgl = tglWIB(e.start_datetime)
     if (tgl >= bulanDari.value && tgl <= bulanSampai.value) {
       keluar.push({ tgl, tipe: 'Event', judul: e.title, sub: String(e.venue ?? ''), acara: e })
     }
@@ -124,7 +124,7 @@ const paxBulan = computed(() => {
   const kelas = s.value?.ticketClasses ?? []
   let ems = 0
   for (const e of s.value?.events ?? []) {
-    const tgl = String(e.start_datetime ?? '').slice(0, 10)
+    const tgl = tglWIB(e.start_datetime)
     if (tgl >= bulanDari.value && tgl <= bulanSampai.value) ems += paxAcara(e, kelas)
   }
   const mktPax = mkt.value.reduce((a, e) => a + (Number(e.pax) || 0), 0)

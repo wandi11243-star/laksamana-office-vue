@@ -8,7 +8,7 @@
 <script setup lang="ts">
 import type { Acara } from '~/composables/useEvent'
 import { createEvent, useDaftarEvent } from '~/composables/useEvent'
-import { ringkasPenjualan } from '~/utils/event-hitung'
+import { ringkasPenjualan, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka, rupiah, tglPanjang } from '~/utils/format'
@@ -27,11 +27,11 @@ const { data: daftarTiket } = useDaftarEvent('tickets', {}, 'event-history-ticke
 
 const arsip = computed(() => daftar.value.rows
   .filter(e => ['Event Done', 'Finished'].includes(String(e.status)))
-  .filter(e => (fTahun.value === 'semua' || String(e.start_datetime ?? '').slice(0, 4) === fTahun.value))
+  .filter(e => (fTahun.value === 'semua' || tglWIB(e.start_datetime).slice(0, 4) === fTahun.value))
   .filter(e => (fKategori.value === 'semua' || String(e.category ?? '') === fKategori.value))
   .sort((a, b) => String(b.start_datetime ?? '').localeCompare(String(a.start_datetime ?? ''))))
 
-const tahunAda = computed(() => [...new Set(daftar.value.rows.map(e => String(e.start_datetime ?? '').slice(0, 4)).filter(Boolean))].sort().reverse())
+const tahunAda = computed(() => [...new Set(daftar.value.rows.map(e => tglWIB(e.start_datetime).slice(0, 4)).filter(Boolean))].sort().reverse())
 const kategoriAda = computed(() => [...new Set(daftar.value.rows.map(e => String(e.category ?? '')).filter(Boolean))].sort())
 
 const kelas = computed(() => daftarKelas.value.rows.map(r => ({ id: String(r.id), event_id: String(r.event_id ?? ''), name: String(r.name ?? ''), price: Number(r.price) || 0 })))
@@ -132,7 +132,7 @@ async function buatSerupa(e: Acara) {
           {{ e.title }}
         </ULink>
         <p class="mt-0.5 text-xs text-muted">
-          {{ tglPanjang(String(e.start_datetime ?? '').slice(0, 10)) }} · {{ e.venue || '—' }}
+          {{ tglPanjang(tglWIB(e.start_datetime)) }} · {{ e.venue || '—' }}
         </p>
         <p class="mt-1.5 text-sm num">
           {{ rupiah(ringkas(e).omzet) }} ·

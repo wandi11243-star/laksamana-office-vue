@@ -17,6 +17,7 @@ import {
   type AcaraDampak,
 } from '~/utils/analytics-dampak'
 import { BLN, HARI, angka, rupiah, tglPanjang } from '~/utils/format'
+import { tglWIB } from '~/utils/event-hitung'
 
 definePageMeta({ access: ['analytics'] })
 
@@ -46,14 +47,8 @@ const ketLaporan = computed(() => {
   return `${d.value.jenis === 'menu' ? 'Menu Report' : 'Bill Report'} · diunggah ${d.value.diunggah}${d.value.oleh ? ` oleh ${d.value.oleh}` : ''}`
 })
 
-/** Local date of an EMS start_datetime (same rule as getAcaraEms: local, not UTC slice). */
-const tglLokal = (v: unknown) => {
-  const s = String(v ?? '')
-  if (!s) return ''
-  const t = new Date(s)
-  if (Number.isNaN(t.getTime())) return s.slice(0, 10)
-  return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
-}
+/** WIB date of an EMS start_datetime — the module's one rule (event-hitung). */
+const tglLokal = (v: unknown) => tglWIB(v)
 
 const { data: eventState, status: eventStatus } = useAsyncData(
   'analytics-event-agenda',

@@ -11,7 +11,7 @@
 import type { DetailAcara, OrderTiket, Refund } from '~/composables/useEvent'
 import { getDetail, getEvent, patchEvent, putDetail, removeEvent, useDaftarEvent } from '~/composables/useEvent'
 import { refundGantung } from '~/utils/event-refund'
-import { EVT_STATUS, TIMELINE_PHASES } from '~/utils/event-hitung'
+import { EVT_STATUS, TIMELINE_PHASES, jamWIB, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka, rupiah, tglPanjang } from '~/utils/format'
@@ -135,8 +135,8 @@ function tambahBaris(s: Seksi) {
   simpanDetail((d) => {
     if (s === 'rundown') {
       const rs = d.rundown ?? []
-      const mulai = rs.length ? (rs[rs.length - 1]!.endtime || String(acara.value?.start_datetime ?? '').slice(11, 16)) : String(acara.value?.start_datetime ?? '').slice(11, 16)
-      d.rundown = [...rs, { time: mulai, endtime: '', activity: '', pic: '', notes: '' }]
+      const mulai = rs.length ? (rs[rs.length - 1]!.endtime || jamWIB(acara.value?.start_datetime)) : jamWIB(acara.value?.start_datetime)
+      d.rundown = [...rs, { time: mulai === '—' ? '' : mulai, endtime: '', activity: '', pic: '', notes: '' }]
     }
     else if (s === 'vendors') d.vendors = [...(d.vendors ?? []), { name: '', pic: '', phone: '', cost: 0, status: 'Pending' }]
     else if (s === 'budget') d.budget = [...(d.budget ?? []), { item: '', type: 'Expense', budget: 0, actual: 0 }]
@@ -221,7 +221,7 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
         <div class="grid gap-x-6 gap-y-2 text-sm lg:grid-cols-2">
           <p><b class="text-highlighted">{{ acara.title }}</b> · {{ acara.category }}</p>
           <p class="text-muted">
-            {{ tglPanjang(String(acara.start_datetime ?? '').slice(0, 10)) }} · {{ String(acara.start_datetime ?? '').slice(11, 16) }}
+            {{ tglPanjang(tglWIB(acara.start_datetime)) }} · {{ jamWIB(acara.start_datetime) }}
           </p>
           <p class="text-muted">
             Venue: {{ acara.venue || '—' }} · Kapasitas: {{ angka(Number(acara.capacity) || 0) }}

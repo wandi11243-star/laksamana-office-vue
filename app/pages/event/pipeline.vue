@@ -11,7 +11,7 @@
 <script setup lang="ts">
 import type { Acara } from '~/composables/useEvent'
 import { patchEvent, useDaftarEvent } from '~/composables/useEvent'
-import { EVT_STATUS, statusPengajuan } from '~/utils/event-hitung'
+import { EVT_STATUS, statusPengajuan, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehSetujui, bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka } from '~/utils/format'
@@ -142,7 +142,7 @@ async function jatuhkan(ev: DragEvent, tahap: string) {
             >
               {{ e.title }}
             </ULink>
-            <span class="mt-0.5 block truncate text-xs text-muted">{{ String(e.start_datetime ?? '').slice(0, 10) }} · {{ e.venue || '—' }}</span>
+            <span class="mt-0.5 block truncate text-xs text-muted">{{ tglWIB(e.start_datetime) }} · {{ e.venue || '—' }}</span>
             <span
               v-if="statusPengajuan({ pengajuan: e.pengajuan }) !== 'Belum diajukan'"
               class="mt-0.5 block text-[11px] text-muted"
@@ -187,7 +187,7 @@ async function jatuhkan(ev: DragEvent, tahap: string) {
           </ULink>
         </template>
         <template #tanggal-cell="{ row }">
-          {{ String(row.original.start_datetime ?? '').slice(0, 10) }}
+          {{ tglWIB(row.original.start_datetime) }}
         </template>
         <template #venue-cell="{ row }">
           {{ row.original.venue || '—' }}
