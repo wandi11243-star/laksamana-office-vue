@@ -1,8 +1,8 @@
 <!--
   Stock › Pilih Panel (old launcher, deploy/stock/index.html:86-91,184-232).
 
-  One backend, five panels with their own keys: ordering, purchasing, tree,
-  usage, hpp. Someone holding exactly one BUILT panel goes straight there;
+  One backend, six panels with their own keys: ordering, purchasing, tree,
+  usage, hpp, breakloss. Someone holding exactly one BUILT panel goes straight there;
   a panel that is not built yet reads "Segera" instead of linking nowhere.
   Usage-only sessions are let in (K-07): the old `<head>` gate dropped them,
   but the panel list itself names them.
@@ -10,7 +10,7 @@
 <script setup lang="ts">
 import { hasAccess } from '~/composables/useMe'
 
-definePageMeta({ access: ['ordering', 'purchasing', 'tree', 'usage', 'hpp'] })
+definePageMeta({ access: ['ordering', 'purchasing', 'tree', 'usage', 'hpp', 'breakloss'] })
 
 const me = useMe()
 
@@ -22,6 +22,7 @@ const semua: Panel[] = [
   { key: 'tree', label: 'Pohon Resep', sub: 'Rincian menu sampai bahan mentah', icon: 'i-lucide-tree-deciduous', to: '/stock/tree', kunci: ['tree'] },
   { key: 'usage', label: 'Pemakaian Bahan Baku', sub: 'Bahan untuk prasmanan, training & RND', icon: 'i-lucide-utensils', to: '/stock/usage', kunci: ['usage'] },
   { key: 'hpp', label: 'HPP & Resep', sub: 'Resep, harga bahan, modal per menu & COGS', icon: 'i-lucide-calculator', to: '/stock/hpp', kunci: ['hpp'] },
+  { key: 'breakloss', label: 'Break & Loss', sub: 'Barang pecah & hilang + stok terkini', icon: 'i-lucide-package-x', to: '/stock/breakloss', kunci: ['breakloss'] },
 ]
 
 const panels = computed(() => semua.filter(p => hasAccess(me.value, p.kunci)))

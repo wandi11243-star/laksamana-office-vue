@@ -44,7 +44,7 @@ export const HELP_GRUP: HelpGrup[] = [
   { key: 'lainnya', label: 'Lainnya' },
 ]
 
-/** The 25 chapters, copied from the old daftar.js. Labels stay as they were. */
+/** The 26 chapters, copied from the old daftar.js. Labels stay as they were. */
 export const HELP_BAB: HelpBab[] = [
   { izin: null, key: 'portal', grup: 'panduan', label: 'Office & Cara Masuk',
     ringkas: 'Masuk ke Office, memilih modul, dan apa artinya kalau sebuah modul tidak muncul.' },
@@ -67,6 +67,8 @@ export const HELP_BAB: HelpBab[] = [
     ringkas: 'Catatan pemakaian, waste, dan serah terima bahan.' },
   { izin: 'hpp', key: 'hpp', grup: 'operasional', label: 'Stock, HPP & Resep',
     ringkas: 'Resep dapur, harga bahan, modal per menu, dan COGS.' },
+  { izin: 'breakloss', key: 'breakloss', grup: 'operasional', label: 'Stock, Break & Loss',
+    ringkas: 'Barang inventaris yang pecah atau hilang, berikut stok terkininya.' },
 
   { izin: 'jadwal', key: 'jadwal', grup: 'tim', label: 'Roster, Jadwal Shift',
     ringkas: 'Menyusun jadwal shift kru, pengajuan off, dan data pegawai.' },
