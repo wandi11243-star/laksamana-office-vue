@@ -15,8 +15,10 @@ import {
   cariAku, fDue, fRp, inisial, pics, projProgress, projTasks, saringArsip, selesai, todayISO, urutDeadline,
   type ModeArsip,
 } from '~/utils/bd-rumus'
+import type { GZoom } from '~/utils/bd-gantt'
 import { IKON_HEALTH, LABEL_HEALTH, WARNA_PO } from '~/utils/status-bd'
 import BdCoordSheet from '~/widgets/bd/BdCoordSheet.vue'
+import BdGantt from '~/widgets/bd/BdGantt.vue'
 import BdKanban from '~/widgets/bd/BdKanban.vue'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdPoSheet from '~/widgets/bd/BdPoSheet.vue'
@@ -36,9 +38,10 @@ const p = computed<BdProject | undefined>(() => state.value.projects.find(x => x
 const people = computed(() => state.value.people)
 const aku = computed(() => cariAku(people.value, me.value))
 const tugas = computed(() => (p.value ? projTasks(state.value.tasks, p.value.id) : []))
-/** Detail tabs: Kanban first (the 6 Oct 2026 request was never withdrawn), then the tree. Timeline arrives in VUE-11. */
-const pdTab = ref<'kanban' | 'list'>('kanban')
+/** Detail tabs: Kanban first (the 6 Oct 2026 request was never withdrawn), then the tree and the Timeline. */
+const pdTab = ref<'kanban' | 'list' | 'timeline'>('kanban')
 const pdArsip = ref<ModeArsip>('aktif')
+const pdZoom = ref<GZoom>('week')
 const tugasArsip = computed(() => saringArsip(tugas.value, pdArsip.value).slice().sort(urutDeadline))
 const pg = computed(() => (p.value ? projProgress(p.value, state.value.tasks) : 0))
 const sel = computed(() => tugas.value.filter(selesai).length)
@@ -191,19 +194,37 @@ function bukaPoSheet(o: BdPo) {
           <div class="mb-3 flex flex-wrap items-center gap-2">
             <AppSeg
               v-model="pdTab"
-              :options="[{ value: 'kanban', label: 'Kanban' }, { value: 'list', label: 'Task & sub-task' }]"
+              :options="[{ value: 'kanban', label: 'Kanban' }, { value: 'list', label: 'Task & sub-task' }, { value: 'timeline', label: 'Timeline' }]"
               size="sm"
             />
             <div class="flex-1" />
             <AppSeg
+              v-if="pdTab === 'timeline'"
+              v-model="pdZoom"
+              :options="[{ value: 'day', label: 'Hari' }, { value: 'week', label: 'Minggu' }, { value: 'month', label: 'Bulan' }]"
+              size="sm"
+            />
+            <AppSeg
+              v-else
               v-model="pdArsip"
               :options="[{ value: 'aktif', label: `Aktif (${tugas.filter(t => !selesai(t)).length})` }, { value: 'arsip', label: `Arsip (${tugas.filter(selesai).length})` }, { value: 'semua', label: `Semua (${tugas.length})` }]"
               size="sm"
             />
           </div>
 
+          <BdGantt
+            v-if="pdTab === 'timeline'"
+            :projects="[p]"
+            :tasks="state.tasks"
+            :people="people"
+            scoped
+            :zoom="pdZoom"
+            @buka-task="bukaTaskSheet"
+            @sub-toggle="subToggle"
+          />
+
           <BdKanban
-            v-if="pdTab === 'kanban'"
+            v-else-if="pdTab === 'kanban'"
             :tasks="tugasArsip"
             :semua="state.tasks"
             :people="people"

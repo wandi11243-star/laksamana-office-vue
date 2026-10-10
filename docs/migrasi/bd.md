@@ -380,6 +380,7 @@ Perbaikan di branch ini:
 |---|---|---|---|---|
 | dashboard | `app/pages/bd/dashboard.vue` | ✅ | `GET /bd/state`, `GET/PUT /bd/settings/focus` | — |
 | mytask | `app/pages/bd/mytask.vue` | ✅ (VUE-10) | `GET /bd/state`, `POST/PUT/PATCH/DELETE /bd/tasks` | — |
+| timeline | `app/pages/bd/timeline.vue` | ✅ (VUE-11) | `GET /bd/state` | — |
 | tasks | `app/pages/bd/tasks.vue` | ➡️ pengalih ke My Task (VUE-10) | — | Board & Tasks dicabut dari menu 7 Okt 2026 |
 | projects | `app/pages/bd/projects.vue` | ✅ (VUE-10: kartu + Kanban) | `GET /bd/state`, `POST/PUT/PATCH /bd/projects`, `PATCH /bd/tasks` | — |
 | projectDetail | `app/pages/bd/projects/[id].vue` | ✅ (VUE-10: tab Kanban + pohon) | `GET /bd/state`, `PATCH /bd/projects`, `/bd/tasks`, `/bd/coord-requests`, `/bd/purchase-orders` | tab Timeline di VUE-11 |
@@ -426,6 +427,23 @@ Sumber Office lama: commit `9b51932`, `abcd462`, `002c91c`, `e865822`, `a211c19`
 - **Tulisan**: PUT task selalu mengirim seluruh field yang dibaca (membuka dari Done juga
   membuang `doneAt`, yang tak bisa dilakukan PATCH); tutup project ikut mencap `doneAt`.
   `urutDeadline()` satu urutan baku; mulai > deadline ditolak di form.
+- **Belum dijalankan**: `npm run lint/typecheck/build`, cek browser 390/1366 dengan mock.
+
+### VUE-11 — BD Timeline / Gantt (branch `migrasi/bd-timeline`, dari branch VUE-10)
+
+Sumber Office lama: commit `e865822` (`ganttHtml`) + `tools/uji-timeline-bd.js`.
+
+- **Menu Timeline** (`timeline.vue`: Aktif/Semua + divisi + PIC + zoom Hari/Minggu/Bulan, tombol
+  Buka/Tutup semua + Ke hari ini) dan **tab Timeline di detail project** (scoped, bawaan Kanban tetap).
+- **Geometri murni** di `app/utils/bd-gantt.ts` (rentang dari semua item + jepit 2 tahun, header dua
+  lapis, batang/belah ketupat, panah `dependsOn` hanya bila kedua task tampil); widget
+  `app/widgets/bd/BdGantt.vue` hanya menggambar (div + satu SVG panah).
+- Task tanpa `start` = belah ketupat di deadline-nya (bukan batang karangan); sub-task `d` =
+  ketupat kecil yang bisa dicentang; tanpa tanggal = "belum ada tanggal". Posisi gulir terjaga
+  saat render ulang (DOM-nya bertahan; kunci baru melompat ke hari ini).
+- Di HP, Gantt bergulir horizontal DI DALAM panelnya; halamannya sendiri tidak.
+- Satu penyimpangan disengaja: warna memakai token aplikasi (tanpa hex/gradien) — garis
+  lock violet jadi batang solid, disebut di legenda.
 - **Belum dijalankan**: `npm run lint/typecheck/build`, cek browser 390/1366 dengan mock.
 
 ## K. Daftar uji cutover
