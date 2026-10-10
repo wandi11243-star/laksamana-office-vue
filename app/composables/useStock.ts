@@ -1,6 +1,6 @@
-// Stock — API calls + types for the five panels (ordering, purchasing, tree,
-// usage, hpp). One backend serves them all; reads need any of the five keys,
-// writes follow who does them in the old panels.
+// Stock — API calls + types for the six panels (ordering, purchasing, tree,
+// usage, hpp, breakloss). One backend serves them all; reads need any of the
+// panel keys, writes follow who does them in the old panels.
 //
 // Contract: laksamana-api/docs/api/stock.md. Spec: docs/migrasi/stock.md.
 // Versions are content hashes: a list read carries `meta.versions` keyed by
@@ -172,6 +172,109 @@ export async function getFotoEntri(kind: 'waste' | 'handovers', id: string) {
 /** Convenience aliases so callers read naturally. */
 export const getWastePhoto = (id: string) => getFotoEntri('waste', id)
 export const getHandoverPhoto = (id: string) => getFotoEntri('handovers', id)
+
+// ---------------------------------------------------------------- Break & Loss panel (module `breakloss`)
+
+// Contract: laksamana-api/docs/api/stock.md "Break & Loss". No versions here:
+// the API locks rows server-side (opname, edits) and answers 409 on a race.
+// A missing `bl_*` table is 503 `breakloss_unavailable`, never DDL.
+
+/** One registered inventory item. `stok`/`totBreak`/`totLoss` are all-time. */
+export interface BlItem {
+  id: string
+  nama: string
+  kategori: string
+  satuan: string
+  lokasi: string
+  harga: number
+  stokMin: number
+  aktif: boolean
+  catatan: string
+  thumb: string
+  adaFoto: boolean
+  stok: number
+  nMutasi: number
+  totBreak: number
+  totLoss: number
+  dibuatOleh: string
+  dibuatAt: string
+  diubahOleh: string
+  diubahAt: string
+}
+
+/** One entry of a movement's edit history (`riwayat`, newest last). */
+export interface BlRiwayat {
+  at: string
+  oleh: string
+  sebelum: { itemId?: string, jenis?: string, qty?: number, tanggal?: string, sebab?: string }
+}
+
+/** One stock movement. `qty` is signed; break/loss rows are negative. */
+export interface BlMutasi {
+  id: string
+  itemId: string
+  tanggal: string
+  jenis: 'break' | 'loss' | 'masuk' | 'opname'
+  qty: number
+  harga: number
+  sebab: string
+  pic: string
+  tim: string
+  catatan: string
+  adaFoto: boolean
+  oleh: string
+  waktu: string
+  batalAt: string
+  batalOleh: string
+  batalAlasan: string
+  diubahOleh: string
+  diubahAt: string
+  riwayat: BlRiwayat[]
+}
+
+/** `GET /stock/breakloss?dari=&ke=` — the range filters movements only. */
+export async function listBreakLoss(dari?: string, ke?: string) {
+  const r = await useApi()<Envelope<{ items: BlItem[], mutasi: BlMutasi[] }>>('/stock/breakloss', {
+    params: { dari: dari || undefined, ke: ke || undefined },
+  })
+  return { items: r.data?.items ?? [], mutasi: r.data?.mutasi ?? [] }
+}
+
+/** `POST /stock/breakloss/items` — `stokAwal` becomes a `masuk` movement. */
+export const createBlItem = (b: Record<string, unknown>) =>
+  useApi()<Envelope<{ id: string }>>('/stock/breakloss/items', { method: 'POST', body: b }).then(r => r.data)
+
+/** `PATCH /stock/breakloss/items/{id}` — photo absent/null keeps, `""` removes. */
+export const patchBlItem = (id: string, b: Record<string, unknown>) =>
+  useApi()<Envelope<{ id: string }>>(`/stock/breakloss/items/${encodeURIComponent(id)}`, { method: 'PATCH', body: b }).then(r => r.data)
+
+/** `PUT /stock/breakloss/items/{id}/active` — deactivate/reactivate, never delete. */
+export const setBlItemActive = (id: string, aktif: boolean) =>
+  useApi()<Envelope<{ id: string, aktif: boolean }>>(`/stock/breakloss/items/${encodeURIComponent(id)}/active`, { method: 'PUT', body: { aktif } }).then(r => r.data)
+
+/** `POST /stock/breakloss/movements` — break/loss/masuk need `qty`, opname needs `fisik`. */
+export const createBlMovement = (b: Record<string, unknown>) =>
+  useApi()<Envelope<{ id: string, delta: number, stok: number }>>('/stock/breakloss/movements', { method: 'POST', body: b }).then(r => r.data)
+
+/** `PATCH /stock/breakloss/movements/{id}` — live break/loss rows only. */
+export const patchBlMovement = (id: string, b: Record<string, unknown>) =>
+  useApi()<Envelope<{ id: string, stok: number }>>(`/stock/breakloss/movements/${encodeURIComponent(id)}`, { method: 'PATCH', body: b }).then(r => r.data)
+
+/** `POST /stock/breakloss/movements/{id}/cancel` — reason required, once only. */
+export const cancelBlMovement = (id: string, alasan: string) =>
+  useApi()<Envelope<{ id: string }>>(`/stock/breakloss/movements/${encodeURIComponent(id)}/cancel`, { method: 'POST', body: { alasan } }).then(r => r.data)
+
+/** `GET /stock/breakloss/items|movements/{id}/photo` → `{foto, fotoNama}`. */
+export async function getBlPhoto(kind: 'item' | 'mutasi', id: string) {
+  const path = kind === 'item'
+    ? `/stock/breakloss/items/${encodeURIComponent(id)}/photo`
+    : `/stock/breakloss/movements/${encodeURIComponent(id)}/photo`
+  const r = await useApi()<Envelope<{ foto: string, fotoNama: string }>>(path)
+  return r.data
+}
+
+export const getBlItemPhoto = (id: string) => getBlPhoto('item', id)
+export const getBlMovementPhoto = (id: string) => getBlPhoto('mutasi', id)
 
 // ---------------------------------------------------------------- Orders (ordering + purchasing)
 

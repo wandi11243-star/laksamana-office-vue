@@ -24,6 +24,7 @@ export const PEMUAT: Record<string, PemuatanBab> = {
   tree: () => import('./panduan/tree'),
   usage: () => import('./panduan/usage'),
   hpp: () => import('./panduan/hpp'),
+  breakloss: () => import('./panduan/breakloss'),
   jadwal: () => import('./panduan/jadwal'),
   dw: () => import('./panduan/dw'),
   absensi: () => import('./panduan/absensi'),

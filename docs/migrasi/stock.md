@@ -739,4 +739,24 @@ Catatan perbaikan Fase 3 (2026-10-08, branch ini; temu uji integrasi, semua repr
 - **Halaman admin via URL langsung**: `ordering/users,restock,forecast` + `purchasing/users,log,online` kini menampilkan panel "Khusus admin" (pola akademi) untuk non-admin, isi tidak di-render. Terbukti visual sebagai kru (6/6 notice, console bersih) & admin (isi penuh).
 - Cek visual Fase 3 (mock `/tmp/opencode/mock-stock-4011.mjs` 4011 tulis-ditolak; dev 3011; ME=kru & ME=admin): 390px restock (kartu 2×2, tanpa overflow) & 1366px order; `npm run lint && typecheck && build` hijau.
 
+Catatan build stock-breakloss (VUE-9, branch `migrasi/stock-breakloss`, butuh API-5 ✅ di `laksamana-api@eb69036`):
+- Satu halaman `app/pages/stock/breakloss.vue` (rute `/stock/breakloss`, kunci `breakloss`): dua menu
+  (Break & Loss: Catat | Report; Barang & Stok: Daftarkan Barang | Stok Terkini), dibangun dari
+  komponen & pola `usage/waste.vue` (AppSeg, AppPanel, AppStatGrid, AppBar, UTable + kartu HP,
+  ResponsiveSheet, StockFotoSheet). Kunci didaftarkan di `utils/modul.ts` (access), pemilih Stock,
+  `utils/layar/stock.ts` (+ `peranStock`), Help (`breakloss` + `panduan/breakloss.ts` + `muat.ts`).
+- Aturan lama yang dibawa: stok = SUM qty live (server); opname menghitung selisih di server;
+  tanpa DELETE (batal beralasan sekali saja; barang dinonaktifkan); harga disalin ke baris mutasi;
+  jumlah bulat (dibulatkan saat diketik); ubah catatan hanya break/loss hidup + riwayat 20 terakhir;
+  daftar mengirim thumb, foto penuh lewat endpoint foto; tim mengikuti divisi akun (helper
+  `stock-catat.ts`, bukan salinan); foto dua pintu (kamera `capture=environment` + unggah);
+  satuan tampil sebagai label. Foto item = foto 1280 px + thumb 320 px (`fotoKeThumb` baru di
+  `stock-catat.ts`, di samping `fotoKeData`).
+- Tulisan tanpa versi (kontrak breakloss tidak memakai If-Match; kunci baris di server):
+  409/428 lewat `tanganiKonflik` (muat ulang). 503 `breakloss_unavailable` (tabel `bl_*` belum ada)
+  dijawab jujur: pita galat di atas halaman memakai pesan server.
+- Pelajaran stock.md yang dihindari: `resetCatat()`/`resetItem()` dipanggil setelah semua ref ada
+  (TDZ); sentinel non-string-kosong untuk semua USelect (`SEMUA` kategori, `ALL`, `BL`);
+  USelectMenu memakai `:model-value="... || undefined"` (string kosong crash Radix).
+
 

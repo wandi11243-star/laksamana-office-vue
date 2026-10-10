@@ -1,5 +1,5 @@
-// The screens of the Stock module. One backend serves five panels with their
-// own keys: ordering/, purchasing/, tree/, usage/, hpp/ — stock.md bagian B.
+// The screens of the Stock module. One backend serves six panels with their
+// own keys: ordering/, purchasing/, tree/, usage/, hpp/, breakloss/ — stock.md bagian B.
 // In Vue they share ONE module card (`MODUL` access: all five keys), so each
 // screen declares the panel key it needs via `boleh`. Panel entries land here
 // as their branches do; unbuilt panels stay out (their launcher card reads
@@ -79,6 +79,9 @@ export const LAYAR_STOCK: Layar[] = [
   { key: 'hpp_pakai', label: 'Pemakaian & Selisih', desc: 'Stok awal, belanja, pemakaian & opname', icon: 'i-lucide-scale', to: '/stock/hpp/pakai', grup: 'HPP & Resep', boleh: panel('hpp') },
   { key: 'hpp_kalk', label: 'Kalkulator HPP', desc: 'Hitung modal & harga jual tanpa menyimpan', icon: 'i-lucide-calculator', to: '/stock/hpp/kalk', grup: 'HPP & Resep', boleh: panel('hpp') },
   { key: 'hpp_atur', label: 'Pengaturan HPP', desc: 'Target COGS, buffer & ambang lampu selisih', icon: 'i-lucide-settings', to: '/stock/hpp/atur', grup: 'HPP & Resep', boleh: panel('hpp') },
+
+  // ── Break & Loss (kunci breakloss) ──
+  { key: 'breakloss', label: 'Break & Loss', desc: 'Barang pecah & hilang + stok terkini', icon: 'i-lucide-package-x', to: '/stock/breakloss', grup: 'Break & Loss', boleh: panel('breakloss') },
 ]
 
 /** The line under the user's name in the module chrome. */
@@ -90,5 +93,6 @@ export function peranStock(me: Me | null): string {
   if (hasAccess(me, ['tree'])) p.push('Pohon Resep')
   if (hasAccess(me, ['usage'])) p.push('Pemakaian')
   if (hasAccess(me, ['hpp'])) p.push('HPP')
+  if (hasAccess(me, ['breakloss'])) p.push('Break & Loss')
   return p.join(' · ') || 'Kru'
 }

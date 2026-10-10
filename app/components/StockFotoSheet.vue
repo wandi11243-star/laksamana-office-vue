@@ -1,5 +1,5 @@
 <!--
-  Photo viewer for waste / handover records (old overlay `bukaFoto`).
+  Photo viewer for waste / handover / break & loss records (old overlay `bukaFoto`).
 
   A data URI cannot be opened in a new tab (Chrome blocks top-level `data:`
   navigation), so the photo is shown in place with a download link
@@ -7,7 +7,7 @@
 -->
 <script setup lang="ts">
 const props = defineProps<{
-  kind: 'waste' | 'handovers'
+  kind: 'waste' | 'handovers' | 'bl-item' | 'bl-movement'
   id: string
   judul?: string
 }>()
@@ -25,7 +25,13 @@ watch(open, async (v) => {
   pesan.value = ''
   memuat.value = true
   try {
-    const r = props.kind === 'waste' ? await getWastePhoto(props.id) : await getHandoverPhoto(props.id)
+    const r = props.kind === 'waste'
+      ? await getWastePhoto(props.id)
+      : props.kind === 'handovers'
+        ? await getHandoverPhoto(props.id)
+        : props.kind === 'bl-item'
+          ? await getBlItemPhoto(props.id)
+          : await getBlMovementPhoto(props.id)
     foto.value = r.foto
     nama.value = r.fotoNama || 'foto.jpg'
   }

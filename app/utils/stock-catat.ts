@@ -708,3 +708,49 @@ export function fotoKeData(file: File): Promise<string> {
     reader.readAsDataURL(file)
   })
 }
+
+/**
+ * The list thumbnail next to a full photo (320px, quality 0.7) — the old
+ * `kecilkan(img, 320, 0.7)` in `deploy/stock/breakloss`. Same readable
+ * rejections as `fotoKeData`; stays under the API's 300 KB thumbnail cap.
+ */
+export function fotoKeThumb(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!/^image\//.test(file.type || '')) {
+      reject(new Error('Bukan gambar — pilih berkas foto (jpg/png).'))
+      return
+    }
+    if (file.size > 12 * 1024 * 1024) {
+      reject(new Error('Foto terlalu besar — maksimal 12MB.'))
+      return
+    }
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('Berkas tidak terbaca.'))
+    reader.onload = (e) => {
+      const data = String(e.target?.result ?? '')
+      const img = new Image()
+      img.onerror = () => resolve(data)
+      img.onload = () => {
+        const maks = 320
+        let { width: w, height: h } = img
+        if (w > maks || h > maks) {
+          const r = Math.min(maks / w, maks / h)
+          w = Math.round(w * r)
+          h = Math.round(h * r)
+        }
+        const c = document.createElement('canvas')
+        c.width = w
+        c.height = h
+        const g = c.getContext('2d')
+        if (g) {
+          g.fillStyle = '#fff'
+          g.fillRect(0, 0, w, h)
+          g.drawImage(img, 0, 0, w, h)
+        }
+        resolve(c.toDataURL('image/jpeg', 0.7))
+      }
+      img.src = data
+    }
+    reader.readAsDataURL(file)
+  })
+}
