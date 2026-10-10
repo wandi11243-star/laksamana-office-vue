@@ -9,7 +9,7 @@
 <script setup lang="ts">
 import type { Acara, KelasTiket, Kursi, OrderTiket, Refund, Tiket } from '~/composables/useEvent'
 import { patchEvent, useDaftarEvent } from '~/composables/useEvent'
-import { statusPengajuan } from '~/utils/event-hitung'
+import { statusPengajuan, tglWIB } from '~/utils/event-hitung'
 import { jalankanRefund, refundGantung, ringkasRefund } from '~/utils/event-refund'
 import type { RefundBaris } from '~/utils/event-refund'
 import { apiErrorMessage } from '~/composables/useApi'
@@ -228,7 +228,7 @@ const lihatRefund = computed(() => tab.value !== 'rencana')
           <span class="block text-xs text-muted">{{ row.original.venue || '—' }}</span>
         </template>
         <template #tanggal-cell="{ row }">
-          {{ tglPendek(String(row.original.start_datetime ?? '').slice(0, 10)) }}
+          {{ tglPendek(tglWIB(row.original.start_datetime)) }}
         </template>
         <template #oleh-cell="{ row }">
           {{ row.original.pengajuan?.oleh || '—' }}
@@ -281,7 +281,7 @@ const lihatRefund = computed(() => tab.value !== 'rencana')
           class="px-4 py-3"
         >
           <b class="block text-sm text-highlighted">{{ e.title }}</b>
-          <span class="mt-0.5 block text-xs text-muted">{{ tglPendek(String(e.start_datetime ?? '').slice(0, 10)) }} · {{ e.pengajuan?.oleh || '—' }}</span>
+          <span class="mt-0.5 block text-xs text-muted">{{ tglPendek(tglWIB(e.start_datetime)) }} · {{ e.pengajuan?.oleh || '—' }}</span>
           <span
             v-if="riwayat === 'antri'"
             class="mt-1.5 flex gap-1.5"

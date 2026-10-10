@@ -10,7 +10,7 @@
 <script setup lang="ts">
 import type { Acara } from '~/composables/useEvent'
 import { createEvent, patchEvent, removeEvent, useDaftarEvent } from '~/composables/useEvent'
-import { statusPengajuan } from '~/utils/event-hitung'
+import { statusPengajuan, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehSetujui, bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { tglPanjang } from '~/utils/format'
@@ -208,7 +208,7 @@ async function hapus() {
             {{ e.title }}
           </ULink>
           <p class="mt-0.5 text-xs text-muted">
-            {{ tglPanjang(String(e.start_datetime ?? '').slice(0, 10)) }} · {{ e.venue || '—' }}
+            {{ tglPanjang(tglWIB(e.start_datetime)) }} · {{ e.venue || '—' }}
           </p>
           <p class="mt-1.5">
             <AppStatus
@@ -286,7 +286,7 @@ async function hapus() {
             {{ e.title }}
           </ULink>
           <p class="mt-0.5 text-xs text-muted">
-            {{ tglPanjang(String(e.start_datetime ?? '').slice(0, 10)) }} · {{ e.venue || '—' }}
+            {{ tglPanjang(tglWIB(e.start_datetime)) }} · {{ e.venue || '—' }}
           </p>
         </AppPanel>
       </div>

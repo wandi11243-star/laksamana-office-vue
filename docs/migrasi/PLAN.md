@@ -94,6 +94,7 @@ tertinggal" di Office lama (`laksamana-office/CLAUDE.md:2611-2637`) persis karen
 | `cocok-bri.ts` | `deploy/assets/cocok-bri.js` | cashier | finance |
 | `kompas.ts` | turunan baris harian `grossOf`/`netOf`/`tagihanOf`/`avgSpendOf`/`itemsOf` + `validasiHarian` | finance (omset) | kas, brankas, dashboard — satu rumus untuk satu angka |
 | `porsi-pic.ts` | `porsiPic`/`potonganHari`/`obTotal` (cashier, omset, kas) | cashier | finance. **K-04: dua rumus SENGAJA berbeda** — ekspor `porsiPicCashier` (versi cashier) dan `porsiPicKompas` (versi omset/kas) dari file yang sama, dengan komentar yang menyebut K-04. Jangan disatukan. |
+| `sync-kasir.ts` | bekuan Performa Kasir `SYNC_KASIR_MULAI`/`sidikBd`/`snapKasir`/`barisKasirPerforma` (kembar di `deploy/finance/omset/`, `deploy/finance/kas/`, `deploy/cashier/`) | finance (omset) | kas, cashier — PerformaKasir bersama |
 | `performa-bonus.ts` | `deploy/assets/performa-bonus.js` | jalur fondasi (dulu finance, TIM-A.md §3) | event, marketing |
 | `hpp-mesin.ts` | `deploy/assets/hpp-mesin.js` | marketing | — |
 | `promo.ts` | `promoTipe`/`promoKat`/`promoHariTeks`/`promoStatus`/`promoSisa` (kembar di `deploy/bd` & `deploy/radar`) | bd | radar. Teks sisa waktu: K-12 |

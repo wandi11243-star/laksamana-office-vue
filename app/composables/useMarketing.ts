@@ -29,6 +29,7 @@ import {
   PER_HAL_MKT, SETTING_MKT_BAWAAN, TENGGANG_TUTUP_MKT, bolehAksiMkt, bolehBukaMkt, hariAntaraMkt, normRoleAccMkt, normUserMkt, urutAwalMkt, urutMkt,
 } from '~/utils/marketing'
 import { normEventMkt } from '~/utils/marketing-uang'
+import { tglWIB } from '~/utils/event-hitung'
 import type { PoBdMkt } from '~/utils/marketing-operasional'
 import type { RiwayatKalkMkt } from '~/utils/marketing-kalk'
 import { UButton } from '#components'
@@ -494,10 +495,7 @@ export async function getAcaraEms(from: string, to: string): Promise<AcaraEmsMkt
   return (r.data ?? [])
     .filter(e => e && e.start_datetime && e.status !== 'Planning')
     .map((e) => {
-      const d = new Date(String(e.start_datetime))
-      const tgl = Number.isNaN(d.getTime())
-        ? String(e.start_datetime).slice(0, 10)
-        : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+      const tgl = tglWIB(e.start_datetime)
       return { id: String(e.id), tgl, nama: String(e.title || '(tanpa judul)'), venue: String(e.venue || ''), kategori: String(e.category || ''), status: String(e.status || ''), pic: String(e.pic || '') }
     })
 }

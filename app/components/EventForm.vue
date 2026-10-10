@@ -8,7 +8,7 @@
 <script setup lang="ts">
 import type { Acara } from '~/composables/useEvent'
 import { uploadFileEvent } from '~/composables/useEvent'
-import { EVT_CATS } from '~/utils/event-hitung'
+import { EVT_CATS, dtLokalInput, instanDariLokal } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 
 const props = defineProps<{
@@ -27,8 +27,11 @@ const form = ref({
   theme: String(props.awal?.theme ?? ''),
   venue: String(props.awal?.venue ?? ''),
   capacity: Number(props.awal?.capacity ?? 100),
-  start_datetime: String(props.awal?.start_datetime ?? ''),
-  end_datetime: String(props.awal?.end_datetime ?? ''),
+  // The box reads LOCAL time (`dtLokalInput :6148`): a raw UTC instant shows
+  // an empty box in the browser, and reading it back as local once shifted
+  // every Edit → Simpan 7 hours back.
+  start_datetime: dtLokalInput(props.awal?.start_datetime),
+  end_datetime: dtLokalInput(props.awal?.end_datetime),
   description: String(props.awal?.description ?? ''),
   is_ticketed: Boolean(props.awal?.is_ticketed ?? false),
 })
@@ -48,6 +51,18 @@ async function simpan() {
   }
   if (form.value.end_datetime && form.value.end_datetime < form.value.start_datetime) {
     toast.add({ title: 'Waktu selesai tidak boleh sebelum waktu mulai.', color: 'error' })
+    return
+  }
+  // Save back as the UTC instant `saveEvent() :6425` writes — the same rule
+  // that filled the box, so Edit → Simpan round-trips without shifting.
+  const mulai = instanDariLokal(form.value.start_datetime)
+  if (!mulai) {
+    toast.add({ title: 'Tanggal & jam mulai tidak valid.', color: 'error' })
+    return
+  }
+  const selesai = instanDariLokal(form.value.end_datetime)
+  if (form.value.end_datetime && !selesai) {
+    toast.add({ title: 'Tanggal & jam selesai tidak valid.', color: 'error' })
     return
   }
   menyimpan.value = true
@@ -70,6 +85,8 @@ async function simpan() {
     emit('simpan', {
       ...form.value,
       title: form.value.title.trim(),
+      start_datetime: mulai,
+      end_datetime: selesai,
       poster_img: poster,
       pic: props.awal?.pic || props.picTerkunci,
       ...(props.statusBaru ? { status: props.statusBaru } : {}),
@@ -152,6 +169,7 @@ async function simpan() {
       <UInput
         v-model="form.end_datetime"
         type="datetime-local"
+        :min="form.start_datetime || undefined"
         class="w-full"
       />
     </UFormField>

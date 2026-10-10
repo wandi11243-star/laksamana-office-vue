@@ -7,9 +7,10 @@ import type { TableColumn } from '@nuxt/ui'
 import type { Acara, OrderTiket, Refund } from '~/composables/useEvent'
 import { createEvent, removeEvent, updateEvent, useDaftarEvent } from '~/composables/useEvent'
 import { refundGantung } from '~/utils/event-refund'
+import { bulanAktif, geserPeriode, rentangPeriodeEvent, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
-import { angka, hariIni, rupiah, tambahHari, tglPendek } from '~/utils/format'
+import { angka, rupiah, tglPendek } from '~/utils/format'
 import { STATUS_IKON_EVENT, STATUS_WARNA_EVENT } from '~/utils/status-event'
 import { tanganiKonflik } from '~/utils/versi'
 
@@ -22,8 +23,20 @@ const bolehUbah = computed(() => bolehUbahEvent('events', peranEvent(me.value)))
 
 const tabStatus = ref('Semua')
 const TABS = ['Approval', 'Upcoming', 'Event Done', 'Semua']
-const modePeriode = ref<'semua' | 'hari' | 'minggu' | 'bulan'>('semua')
+// '' | 'hari' | 'minggu' | 'bulan' | 'YYYY-MM' | 'YYYY-MM-DD' (`evtPeriode`).
+const modePeriode = ref('')
 const cari = ref('')
+
+function aturPeriode(k: string) {
+  modePeriode.value = k
+  // A picked month or day opens the Semua tab: last month's shows are already
+  // Event Done, and the other tabs would answer with an empty list — reading
+  // as "that month had no shows" (`evtSetPeriode`).
+  if (/^\d{4}-\d{2}/.test(k)) tabStatus.value = 'Semua'
+}
+function geserBulan(arah: -1 | 1) {
+  aturPeriode(geserPeriode(modePeriode.value, arah))
+}
 
 const { data: daftar, status, refresh } = useDaftarEvent<Acara>('events', {}, 'event-events')
 const { data: daftarOrder } = useDaftarEvent<OrderTiket>('orders', {}, 'event-events-orders')
@@ -34,14 +47,14 @@ const omzet = (id: string) => daftarOrder.value.rows
   .reduce((a, o) => a + (Number(o.total) || 0), 0)
 
 const list = computed(() => {
-  const h = hariIni()
+  // The period filters FIRST, then status, then text — so "x dari y" means
+  // "shows in this period". Dates are WIB, never a raw UTC slice.
+  const r = rentangPeriodeEvent(modePeriode.value)
   const cariL = cari.value.trim().toLowerCase()
   return daftar.value.rows.filter((e) => {
     if (tabStatus.value !== 'Semua' && String(e.status) !== tabStatus.value) return false
-    const tgl = String(e.start_datetime ?? '').slice(0, 10)
-    if (modePeriode.value === 'hari' && tgl !== h) return false
-    if (modePeriode.value === 'minggu' && (tgl < h || tgl > tambahHari(h, 6))) return false
-    if (modePeriode.value === 'bulan' && tgl.slice(0, 7) !== h.slice(0, 7)) return false
+    const tgl = tglWIB(e.start_datetime)
+    if (r && (!tgl || tgl < r.a || tgl > r.b)) return false
     if (cariL && !`${e.title} ${e.venue} ${e.pic}`.toLowerCase().includes(cariL)) return false
     return true
   }).sort((a, b) => String(b.start_datetime ?? '').localeCompare(String(a.start_datetime ?? '')))
@@ -147,12 +160,35 @@ async function hapus() {
         <AppSeg
           v-model="modePeriode"
           :options="[
-            { value: 'semua', label: 'Semua' },
+            { value: '', label: 'Semua' },
             { value: 'hari', label: 'Hari ini' },
             { value: 'minggu', label: 'Minggu ini' },
             { value: 'bulan', label: 'Bulan ini' },
           ]"
           size="sm"
+        />
+        <UButton
+          color="neutral"
+          variant="outline"
+          size="sm"
+          icon="i-lucide-chevron-left"
+          title="Bulan sebelumnya"
+          @click="geserBulan(-1)"
+        />
+        <UInput
+          :model-value="bulanAktif(modePeriode)"
+          type="month"
+          title="Pilih bulan"
+          class="w-auto"
+          @update:model-value="(v) => { if (v) aturPeriode(String(v)) }"
+        />
+        <UButton
+          color="neutral"
+          variant="outline"
+          size="sm"
+          icon="i-lucide-chevron-right"
+          title="Bulan berikutnya"
+          @click="geserBulan(1)"
         />
       </div>
       <div class="mt-2 flex items-center gap-2">
@@ -187,7 +223,7 @@ async function hapus() {
           </ULink>
         </template>
         <template #tanggal-cell="{ row }">
-          {{ tglPendek(String(row.original.start_datetime ?? '').slice(0, 10)) }}
+          {{ tglPendek(tglWIB(row.original.start_datetime)) }}
         </template>
         <template #venue-cell="{ row }">
           {{ row.original.venue || '—' }}
@@ -246,7 +282,7 @@ async function hapus() {
             class="block px-4 py-3"
           >
             <b class="block truncate text-sm text-highlighted">{{ e.title }}</b>
-            <span class="mt-0.5 block text-xs text-muted">{{ tglPendek(String(e.start_datetime ?? '').slice(0, 10)) }} · {{ e.venue || '—' }} · {{ e.pic || '—' }}</span>
+            <span class="mt-0.5 block text-xs text-muted">{{ tglPendek(tglWIB(e.start_datetime)) }} · {{ e.venue || '—' }} · {{ e.pic || '—' }}</span>
             <span class="mt-1.5 flex items-center gap-2">
               <AppStatus
                 :color="STATUS_WARNA_EVENT[String(e.status)] ?? 'neutral'"

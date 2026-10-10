@@ -6,7 +6,7 @@
 -->
 <script setup lang="ts">
 import { getDetail, getEvent, listCheckins, useDaftarEvent } from '~/composables/useEvent'
-import { ringkasPenjualan } from '~/utils/event-hitung'
+import { ringkasPenjualan, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { angka, rupiah, tglPanjang } from '~/utils/format'
 
@@ -65,7 +65,7 @@ const pl = computed(() => {
         <div class="grid gap-x-6 gap-y-2 text-sm lg:grid-cols-2">
           <p><b class="text-highlighted">{{ acara.title }}</b> · {{ acara.category }}</p>
           <p class="text-muted">
-            {{ tglPanjang(String(acara.start_datetime ?? '').slice(0, 10)) }}
+            {{ tglPanjang(tglWIB(acara.start_datetime)) }}
           </p>
           <p class="text-muted">
             Venue: {{ acara.venue || '—' }} · PIC: {{ acara.pic || '—' }}
