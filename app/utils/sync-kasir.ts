@@ -11,19 +11,19 @@
 // `kompas_save` lock with the day's own version (`If-Match`), so no API
 // change was needed.
 //
-// Formula note: the freeze uses the SAME functions the shared PerformaKasir
-// reads live (`omsetKasir`, cashier-variant `potonganHari`), so a synced day
-// shows exactly what the live computation showed — no step at the cutoff.
-// (The legacy omset page froze with its page-local Kompas-variant formula;
-// in Vue both consumers share one component on the cashier variant, so the
-// freeze follows the component. K-04 stays untouched for unsynced days.)
+// Formula note: the freeze uses the legacy omset formula exactly (`snapKasir`
+// omset :2971-2976 = `omsetKasir` + Kompas-variant `potonganHariKompas`, the
+// full amount). The old Office still writes `bdSync` on the same day rows, so
+// both apps must freeze the same numbers (owner decision, 10 Oct 2026).
+// Days before the cutoff keep the live cashier variant (K-04 untouched), so a
+// free-entry tiket row reads differently once synced — as it does in legacy.
 //
 // Pure functions only: no Vue, no API. Imports only the two rule files
 // (`porsi-pic.ts` must stay import-free for `tools/uji-porsi-pic.mjs` —
 // importing FROM it here does not affect that).
 
 import { kNum } from './kompas'
-import { omsetKasir, potonganHari, type BarisPotong, type HariKompas } from './porsi-pic'
+import { omsetKasir, potonganHari, potonganHariKompas, type BarisPotong, type HariKompas } from './porsi-pic'
 
 /** The freeze applies from this date on (owner decision, 8 Oct 2026). Older months keep live computation. */
 export const SYNC_KASIR_MULAI = '2026-10-01'
@@ -62,12 +62,15 @@ interface BdBuatSidik {
  * reading the freeze until Sync ulang.
  */
 export function sidikBd(bd: BdBuatSidik | null | undefined): string {
-  return JSON.stringify({ m: bd?.marketing, e: bd?.event, k: bd?.kasir, s: bd?.self })
+  // Same defaults as legacy (`bd.event||[]` …): a freeze written by the old
+  // Office must read as "sudah" here when nothing changed.
+  return JSON.stringify({ m: bd?.marketing || [], e: bd?.event || [], k: bd?.kasir || [], s: bd?.self || {} })
 }
 
 /**
  * Freeze the per-cashier realisasi from the SAVED breakdown (`snapKasir`,
- * omset :2971-2976): OFF cashiers contribute 0, the rest `omsetKasir − potong`.
+ * omset :2971-2976): OFF cashiers contribute 0, the rest `omsetKasir − potong`
+ * with the Kompas-variant deduction (`potonganHariKompas`), as legacy does.
  */
 export function snapKasir(bd: BdBuatSidik | null | undefined): BekuKasir[] {
   const d: HariKompas = { date: '', bd: { marketing: (bd?.marketing ?? []) as BarisPotong[] } }
@@ -78,7 +81,7 @@ export function snapKasir(bd: BdBuatSidik | null | undefined): BekuKasir[] {
       out.push({ kasirId: id, off: true, real: 0, potong: 0 })
       continue
     }
-    const potong = potonganHari(d, id)
+    const potong = potonganHariKompas(d, id)
     out.push({ kasirId: id, off: false, real: omsetKasir(r) - potong, potong })
   }
   return out
