@@ -141,6 +141,21 @@ const daftarSemua = computed(() => saringDanaMasuk(tx.value, saringEfektif.value
 const ringkas = computed(() => ringkasDanaMasuk(daftarSemua.value))
 const daftar = computed(() => saringDanaMasuk(tx.value, saringEfektif.value, true))
 
+// Two Total DP cards, one per date basis (old 4a2edc6). Both run through the
+// same list + filters, only the basis differs; rejected transfers never count.
+// The 'masuk' basis falls back to the booking date when the transfer date is
+// still unread (txTanggal), and those fallback rows are named on its card.
+const saringReservasi = computed(() => ({ ...saringEfektif.value, basis: 'reservasi' as const }))
+const saringMasuk = computed(() => ({ ...saringEfektif.value, basis: 'masuk' as const }))
+const perRes = computed(() => saringDanaMasuk(tx.value, saringReservasi.value, false).filter(x => x.p.tfStatus !== 'rejected'))
+const perMasuk = computed(() => saringDanaMasuk(tx.value, saringMasuk.value, false).filter(x => x.p.tfStatus !== 'rejected'))
+const totalPerRes = computed(() => perRes.value.reduce((a, x) => a + txNominal(x), 0))
+const totalPerMasuk = computed(() => perMasuk.value.reduce((a, x) => a + txNominal(x), 0))
+const cadMasuk = computed(() => perMasuk.value.filter(x => !x.p.tfDate).length)
+const labRentang = computed(() => (saring.dari || saring.sampai
+  ? `${saring.dari ? tglPendek(saring.dari) : 'awal'} – ${saring.sampai ? tglPendek(saring.sampai) : 'sekarang'}`
+  : 'semua tanggal'))
+
 const semuaBank = computed(() => [...new Set(tx.value.map(txBank).filter(Boolean))].sort())
 
 /** Rows riding on the booking date because their transfer date is still unread (`:9383-9388`). */
@@ -1096,6 +1111,22 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           @click="refresh()"
         />
       </p>
+
+      <!-- Two Total DP cards, one per date basis (old 4a2edc6). Above the recap. -->
+      <AppStatGrid>
+        <AppStat
+          label="Total DP · menurut Tgl Reservasi"
+          icon="i-lucide-calendar"
+          :value="rp(totalPerRes)"
+          :sub="`${angka(perRes.length)} transfer untuk reservasi yang jadwal makannya ${labRentang}`"
+        />
+        <AppStat
+          label="Total DP · menurut Tgl Uang Masuk"
+          icon="i-lucide-banknote"
+          :value="rp(totalPerMasuk)"
+          :sub="`${angka(perMasuk.length)} transfer yang uangnya masuk ${labRentang}${cadMasuk ? ` · ${angka(cadMasuk)} memakai tgl reservasi (tgl transfer belum terbaca)` : ''}`"
+        />
+      </AppStatGrid>
 
       <!-- The old six cards (:9428-9436). -->
       <AppStatGrid>
