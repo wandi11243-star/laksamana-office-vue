@@ -960,6 +960,17 @@ scan/tab tak punya kembaran server), dan ekspor CSV-nya berkolom transfer, bukan
 selalu tampil di keempat tabel (nav tidak lagi sembunyi saat satu halaman). Layar lain (analitik, denah, antrean,
 lencana) memuat seperti dulu.
 
+### J.6 Sinkron Office 5–9 Okt 2026 — VUE-2 dua kartu Total DP (2026-10-10, branch `feat/reservasi-total-dp`)
+
+Sumber Office lama: commit `4a2edc6` (`deploy/reservasi/index.html`: `finTglSaring(x, basis)`,
+`financeList(applyTab, basis)`, dua kartu Total DP). Di `DanaMasukPanel` tambah dua kartu di atas
+kartu ringkas: "Total DP · menurut Tgl Reservasi" dan "Total DP · menurut Tgl Uang Masuk".
+Keduanya lewat `saringDanaMasuk()` yang sama (rentang, bank, saringan, kata kunci sama, tanpa tab),
+hanya basisnya dioper; yang ditolak tidak dihitung; basis uang masuk memakai tanggal reservasi
+sebagai cadangan bila tanggal transfer kosong (`txTanggal`) dan jumlah cadangannya disebut di kartu.
+Komponen dipakai Reservasi (`finance.vue`), Cashier (`cashier/dp.vue`), dan Kas (`finance/kas/dp.vue`)
+sehingga ketiganya ikut tampil tanpa perubahan halaman.
+
 ## K. Daftar uji cutover
 
 Bahasa user. Setiap aksi tulis diuji juga **silang**: ubah di Vue → terlihat di Office lama, dan sebaliknya.
