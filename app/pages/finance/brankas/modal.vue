@@ -15,6 +15,7 @@
 -->
 <script setup lang="ts">
 import { buatAkunInvestor, createVaultRec, deleteVaultRec, getVault, updateVaultRec } from '~/composables/useFinance'
+import { getRoster } from '~/composables/useCashier'
 import { isAdminOf } from '~/composables/useMe'
 import type { RosterUser } from '~/composables/useRoster'
 import { useBrankasIzin } from '~/utils/layar/finance'
@@ -290,7 +291,7 @@ async function akBukaForm(i: InvestorBrankas, mode: 'pilih' | 'buat') {
   akMemuat.value = true
   akUsersErr.value = ''
   try {
-    const rows = (await useApi()<Envelope<RosterUser[]>>('/account/roster')).data ?? []
+    const rows = await getRoster()
     akUsers.value = rows
       .filter(u => u.active !== false)
       .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')))
@@ -343,7 +344,8 @@ async function akKirim(i: InvestorBrankas) {
       akun = await buatAkunInvestor(badan)
     }
     catch (e) {
-      if (!(await tanganiKonflik(e, refresh))) toast.add({ title: `Gagal menyiapkan akun: ${pesanAkun(e)}`, color: 'error' })
+      // Unversioned call: no conflict to reload, only the plain reason.
+      toast.add({ title: `Gagal menyiapkan akun: ${pesanAkun(e)}`, color: 'error' })
       return
     }
     if (!akun) {
@@ -358,15 +360,18 @@ async function akKirim(i: InvestorBrankas) {
       await refresh()
     }
     catch (e2) {
-      if (!(await tanganiKonflik(e2, refresh))) {
+      const ditangani = await tanganiKonflik(e2, refresh)
+      if (mode === 'buat') {
+        // The account is already born (with the grant) — the link is what
+        // failed, conflict or not. A second create would birth a twin: link
+        // instead (old `akKirim` rollback).
         toast.add({
-          title: mode === 'buat'
-            // The account is already born (with the grant) — the link is what
-            // failed. A second create would birth a twin: link instead (old `akKirim` rollback).
-            ? `Akun "${akun.name}" SUDAH dibuat dan diberi hak investor, tapi tautannya belum tersimpan. Pakai Hubungkan akun yang ada lalu pilih akun itu — jangan buat akun kedua.`
-            : `Gagal menyimpan tautan: ${apiErrorMessage(e2)}`,
+          title: `Akun "${akun.name}" SUDAH dibuat dan diberi hak investor, tapi tautannya belum tersimpan. Pakai Hubungkan akun yang ada lalu pilih akun itu — jangan buat akun kedua.`,
           color: 'error',
         })
+      }
+      else if (!ditangani) {
+        toast.add({ title: `Gagal menyimpan tautan: ${apiErrorMessage(e2)}`, color: 'error' })
       }
     }
   }
