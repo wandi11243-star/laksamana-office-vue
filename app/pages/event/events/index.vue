@@ -4,8 +4,9 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { Acara } from '~/composables/useEvent'
+import type { Acara, OrderTiket, Refund } from '~/composables/useEvent'
 import { createEvent, removeEvent, updateEvent, useDaftarEvent } from '~/composables/useEvent'
+import { refundGantung } from '~/utils/event-refund'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka, hariIni, rupiah, tambahHari, tglPendek } from '~/utils/format'
@@ -25,7 +26,8 @@ const modePeriode = ref<'semua' | 'hari' | 'minggu' | 'bulan'>('semua')
 const cari = ref('')
 
 const { data: daftar, status, refresh } = useDaftarEvent<Acara>('events', {}, 'event-events')
-const { data: daftarOrder } = useDaftarEvent('orders', {}, 'event-events-orders')
+const { data: daftarOrder } = useDaftarEvent<OrderTiket>('orders', {}, 'event-events-orders')
+const { data: daftarRefund } = useDaftarEvent<Refund>('refunds', {}, 'event-events-refunds')
 
 const omzet = (id: string) => daftarOrder.value.rows
   .filter(o => (o.event_id as string) === id && (o.payment_status as string) === 'Paid')
@@ -93,10 +95,22 @@ async function simpan(body: Record<string, unknown>) {
 
 const hapusId = ref('')
 const sheetHapus = computed({ get: () => hapusId.value !== '', set: v => (hapusId.value = v ? hapusId.value : '') })
+// Paid orders block deletion (`hapusEvent :3024`): removing them would erase
+// the trail of money that really came in. A hanging refund is named when it
+// is the reason.
+const infoHapus = computed(() => {
+  const lunas = daftarOrder.value.rows.filter(o => o.event_id === hapusId.value && o.payment_status === 'Paid')
+  const gantungN = lunas.filter(o => daftarRefund.value.rows.some(r => r.order_id === o.id && refundGantung(r, o))).length
+  return {
+    judul: daftar.value.rows.find(e => e.id === hapusId.value)?.title ?? '',
+    lunas: lunas.length,
+    gantung: gantungN,
+  }
+})
 async function hapus() {
   const id = hapusId.value
   sheetHapus.value = false
-  if (!id) return
+  if (!id || infoHapus.value.lunas) return
   try {
     await removeEvent('events', id, daftar.value.versions[id])
     toast.add({ title: 'Event dihapus', color: 'success' })
@@ -270,11 +284,37 @@ async function hapus() {
       v-model:open="sheetHapus"
       title="Hapus event?"
     >
-      <p class="text-sm text-muted">
+      <p
+        v-if="infoHapus.lunas"
+        class="text-sm text-muted"
+      >
+        Event <b class="text-highlighted">{{ infoHapus.judul }}</b> sudah punya
+        <b class="text-highlighted num">{{ angka(infoHapus.lunas) }} pesanan lunas</b>.
+        Menghapusnya berarti menghapus jejak uang yang benar-benar masuk.
+      </p>
+      <p
+        v-if="infoHapus.gantung"
+        class="mt-2 text-sm text-muted"
+      >
+        <b class="text-highlighted num">{{ angka(infoHapus.gantung) }}</b> di antaranya refundnya sudah
+        disetujui tapi belum diselesaikan — buka Ticketing › Penjualan lalu tekan Selesaikan refund (manajemen).
+      </p>
+      <p
+        v-if="infoHapus.lunas"
+        class="mt-2 text-sm text-muted"
+      >
+        Kalau acaranya batal, selesaikan lewat refund pada pesanan itu dulu. Kalau cuma ingin
+        menyembunyikannya dari daftar aktif, ubah statusnya jadi Event Done.
+      </p>
+      <p
+        v-else
+        class="text-sm text-muted"
+      >
         Event ini dihapus. Jadwal, tiket & penjualan yang sudah ada tidak ikut terhapus otomatis.
       </p>
       <template #footer>
         <UButton
+          v-if="!infoHapus.lunas"
           color="error"
           @click="hapus()"
         >
@@ -285,7 +325,7 @@ async function hapus() {
           variant="outline"
           @click="sheetHapus = false"
         >
-          Batal
+          {{ infoHapus.lunas ? 'Tutup' : 'Batal' }}
         </UButton>
       </template>
     </ResponsiveSheet>

@@ -1,7 +1,7 @@
 # Event — inventaris migrasi
 
 Status: ⚠️ selesai dengan celah
-Terakhir diperbarui: 2026-09-29
+Terakhir diperbarui: 2026-10-10
 
 > **Triase 2026-09-29** — status di tabel E yang bertentangan dengan catatan ini: catatan ini yang berlaku.
 > Rincian: [`_pertanyaan.md`](_pertanyaan.md), [`_gap-api.md`](_gap-api.md).
@@ -442,12 +442,12 @@ rincian [id] tidak pernah tampil. Lihat laporan Lane B 2026-10-08.)
 | checkin | app/pages/event/checkin.vue | ✅ | GET /events; GET /tickets; GET /seats; GET /ticket-classes; GET /orders (cocokkan event via order, `event_id` diabaikan di /tickets); GET/POST /checkins (batal = baris koreksi `{batalDari}`, G-10) | pindai kamera Segera (butuh pustaka QR) |
 | pipeline | app/pages/event/pipeline.vue | ✅ | GET/PATCH /events | — |
 | planning | app/pages/event/planning.vue | ✅ | GET/POST/PATCH/DELETE /events | — |
-| events | app/pages/event/events/index.vue | ✅ | GET/POST/PUT/DELETE /events; GET /orders | — |
-| events rincian | app/pages/event/events/[id].vue | ✅ | GET/PATCH/DELETE /events/{id}; GET/PUT /event-details/{id} | — |
+| events | app/pages/event/events/index.vue | ✅ | GET/POST/PUT/DELETE /events; GET /orders; GET /refunds | hapus ditolak bila ada pesanan lunas; pesan menyebut refund gantung (`jalankanRefund` Office lama d7a682d) |
+| events rincian | app/pages/event/events/[id].vue | ✅ | GET/PATCH/DELETE /events/{id}; GET/PUT /event-details/{id}; GET /orders; GET /refunds | sama seperti daftar: tolak hapus + sebut refund gantung |
 | ticketing | app/pages/event/ticketing/index.vue | ✅ | GET /events; GET /ticket-classes; GET /tickets | — |
-| ticketing rincian | app/pages/event/ticketing/[id]/index.vue | ✅ | GET /events/{id}; GET/POST/PATCH/DELETE /ticket-classes; POST /orders; POST /tickets; PATCH /ticket-classes; GET/PATCH /refunds; GET /seats | editor denah kanvas Segera (build tersendiri) |
+| ticketing rincian | app/pages/event/ticketing/[id]/index.vue | ✅ | GET /events/{id}; GET/POST/PATCH/DELETE /ticket-classes; POST /orders; POST /tickets; PATCH /ticket-classes; GET/PATCH /refunds; GET /seats; PATCH /orders+/tickets+/seats saat setujui/selesaikan refund | kolom Refund pakai `refundAktif` + label gantung & Selesaikan (d7a682d); editor denah kanvas Segera (build tersendiri) |
 | ticketing kategori | app/pages/event/ticketing/[id]/[kelas].vue | ✅ | GET /events/{id}; GET /ticket-classes; GET /tickets | — |
-| approval | app/pages/event/approval.vue | ✅ | GET/PATCH /events; GET/PATCH /refunds | — |
+| approval | app/pages/event/approval.vue | ✅ | GET/PATCH /events; GET/PATCH /refunds; PATCH /orders+/tickets+/seats+/ticket-classes saat setujui/selesaikan (satu fungsi `app/utils/event-refund.ts`, d7a682d) | label "Disetujui · belum diselesaikan" + Selesaikan (manajemen) |
 | performa | app/pages/event/performa.vue | ✅ | GET /state | — |
 | perfomset | app/pages/event/perfomset.vue | ✅ | GET /kompas/performa/event (`from`/`to`; daftar PIC dari `data.pic` kompas); GET/PATCH /events (nominal) | impor performa-bonus.ts, tanpa salin |
 | report | app/pages/event/report.vue | ✅ | GET /state | kartu ikut legacy `renderReportEms` (tanpa "Keterisian"; kartu ke-4 = Avg harga tiket) |
