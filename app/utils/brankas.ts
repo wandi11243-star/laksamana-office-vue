@@ -153,6 +153,11 @@ export interface InvestorBrankas {
   targetDate?: string
   returns?: KembaliModal[]
   tambahan?: TambahanModal[]
+  /** Linked Office account (VUE-7b, old `akunHtml`): only the link is stored
+   * here — the grant itself lives in the account module and is never revoked
+   * by unlinking. */
+  akunId?: string
+  akunNama?: string
   [k: string]: unknown
 }
 

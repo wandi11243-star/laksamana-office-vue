@@ -449,7 +449,7 @@ Catatan uji API lokal 2026-10-08 (lane B2, `fix/api-finance`; lanjut dari `fix/a
 | brankas/saldo | `app/pages/finance/brankas/saldo.vue` | ✅ | sama + `aktualPerGrup` (cocok baris demi baris dengan Rekap) | — |
 | brankas/mutasi | `app/pages/finance/brankas/mutasi.vue` | ✅ | `GET/POST/PUT/DELETE /finance/vault/mutasi` (versi satu blob) + setoran cash dibaca dari Rekap | — |
 | brankas/pending | `app/pages/finance/brankas/pending.vue` | ✅ | `GET /kompas/state` (piutang; read-only) | — |
-| brankas/modal | `app/pages/finance/brankas/modal.vue` | ✅ | `GET/POST/PUT/DELETE /finance/vault/investor` (+ tambahan modal, versi satu blob) | — |
+| brankas/modal | `app/pages/finance/brankas/modal.vue` | ✅ (+ tautan akun) | `GET/POST/PUT/DELETE /finance/vault/investor` (+ tambahan modal, versi satu blob), `POST /account/investor-akun` + `GET /account/roster` untuk tautan akun | — |
 | brankas/pengaturan | `app/pages/finance/brankas/pengaturan.vue` | ✅ | `GET/PUT /finance/vault/setting` | — |
 | brankas/akses | `app/pages/finance/brankas/akses.vue` | ✅ | `GET /finance/vault/access`, `PUT /vault/access/matrix`, `PUT /vault/access/roles/{userId}`, `GET /account/modules/brankas/members` | — |
 | brankas/* sisa | — | ✅ 7/7 | | — |
@@ -519,6 +519,11 @@ Catatan build #41 (Brankas, 7/7 layar; branch `migrasi/finance-brankas` menumpuk
 - **Ditunda (dicatat):** nama penerima vendor di lembar pembayaran kini dibaca dari `GET /stock/vendors` di layar Kas › Planning Pembayaran (#102); unggah bukti/ttd tetap di luar layar ini (seperti kas).
 - Mock cek visual `/tmp/mock-api-brankas.mjs` (port 4014, di luar repo): vault + kompas/state dengan angka yang bisa dihitung tangan (BRI 9.694.000, UOB 23.700.000, Cash −1.500.000, likuid 34.894.000, piutang 650.000, kewajiban30 8.000.000, runway 2,3 bulan, gantung 5.000.000, 1 setoran tak dikenal, tiktokgo belum dipetakan).
 - Cek visual 2026-10-07 (mock 4014, tulis 403) sebagai `finance` (admin, 3 kunci) & `bos` (brankas saja): 7 layar di 1366 & 390 overflow 0, console bersih; angka cocok hitungan tangan; PUT setting ditolak 403 → toast tanpa crash; launcher 3 kartu "Buka panel"; pemegang 1 panel auto-redirect; sidebar hanya menu panel yang berhak. Insiden: dev sempat menunjuk dev-api (mock mati + env inline tak terbaca) — dihentikan, `.env` per-device dipakai, login diulang ke mock.
+
+Catatan build VUE-7b (akun investor; branch `feat/brankas-akun-investor`):
+- Tiap kartu investor di `modal.vue`: tertaut → "Akun Office: &lt;nama&gt;" + "Lepas tautan" (hanya membuang `akunId`/`akunNama` via tulisan vault `If-Match` + `tanganiKonflik`; grant TIDAK dicabut — disebut di konfirmasi); belum tertaut → "Buat akun baru" (nama, no HP, PIN 4–6 angka) + "Hubungkan akun yang ada" (pemilih dari `GET /account/roster`, hanya yang aktif, auto-pilih nama sama).
+- `POST /account/investor-akun` di `useFinance.ts` (`buatAkunInvestor`, kontrak account); galat `bad_pin`/`name_taken` diterjemahkan ke kalimat jelas. Tombol hanya untuk admin modul investor/brankas/finance (`akunBoleh`); gagal simpan tautan sesudah akun lahir diperingatkan tanpa membuat akun kedua.
+- Verifikasi (belum dijalankan atas permintaan user): `npm run lint/typecheck/build`, cek browser 390/1366 dengan mock.
 
 ## Konsolidasi untuk README & berkas bersama
 - Baris README: `| finance | [finance.md](finance.md) | ⚠️ selesai dengan celah | 29 (1 pemilih + 6 omset + 15 kas + 7 brankas) + 2 pengalih | 2 ❌ · 5 ⚠️ | 6 | omset/kas/brankas/rekap + kompas |`

@@ -264,6 +264,30 @@ export function putVaultRole(userId: string, role: string, versi: Versi | undefi
   return useApi()<Envelope<unknown>>(`/finance/vault/access/roles/${encodeURIComponent(userId)}`, { method: 'PUT', body: { role }, headers: versi === undefined ? undefined : ifMatch(versi) })
 }
 
+// ---------------------------------------------------------------- Investor account link (VUE-7b)
+//
+// The endpoint belongs to the ACCOUNT module (contract:
+// laksamana-api/docs/api/account.md "POST /account/investor-akun") and lives
+// here only because the brankas modal is its sole caller — same pattern as
+// `getRoster` living in useCashier.
+
+/** The Office account created or linked for an investor: `{id, name}` (never a PIN). */
+export interface AkunInvestor {
+  id: string
+  name: string
+}
+
+/**
+ * Create (`{name, noHp?, pin}`) or link (`{userId}`) an Office account for an
+ * investor. The account gets the `investor` module grant (never admin); the
+ * link itself (`akunId`/`akunNama`) is stored on the investor record by the
+ * caller, through the usual versioned vault write.
+ */
+export async function buatAkunInvestor(body: { userId: string } | { name: string, noHp?: string, pin: string }) {
+  const r = await useApi()<Envelope<AkunInvestor>>('/account/investor-akun', { method: 'POST', body })
+  return r.data
+}
+
 // ---------------------------------------------------------------- Invoices (panel Finance)
 
 export interface InvoiceReq {
