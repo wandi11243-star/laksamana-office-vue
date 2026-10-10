@@ -1,16 +1,19 @@
 <!--
   Investor Compass › Dividen. Capital returns recorded by the CFO in
-  Finance → Brankas → Pengembalian Modal, summed server-side — the figures
-  add up ALL investors, never one person's share.
+  Finance → Brankas → Pengembalian Modal, summed server-side. Since
+  6 Oct 2026 the server sends each viewer only their own records
+  (an investor admin sees every investor plus the Per Investor table).
 
   A backend that does not answer is NOT "never paid out": the two read very
-  differently, and only the second one triggers phone calls.
+  differently, and only the second one triggers phone calls. An account that
+  is not linked to any investor record is NEITHER of those: it says so.
 
-    laksamana-office/investor/index.html:1383-1424  renderDividen
+    laksamana-office/investor/index.html:1383-1470  renderDividen
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { useInvestorSummary } from '~/composables/useInvestor'
+import type { InvestorDividenPer } from '~/composables/useInvestor'
 import { rupiah, tglPanjang } from '~/utils/format'
 
 definePageMeta({ access: ['investor'] })
@@ -18,16 +21,36 @@ definePageMeta({ access: ['investor'] })
 const { data: balasan, status, error } = useInvestorSummary()
 const dividen = computed(() => balasan.value?.data?.dividen ?? null)
 const riwayat = computed(() => dividen.value?.riwayat ?? [])
+const per = computed(() => dividen.value?.per ?? [])
+/** Missing `semua` = an old server (before 6 Oct 2026), which sent every investor. */
+const semua = computed(() => !(dividen.value && dividen.value.semua === false))
+const belumTerhubung = computed(() => !!dividen.value && !semua.value && !per.value.length)
 const total = computed(() => Number(dividen.value?.total || 0))
 const modal = computed(() => Number(dividen.value?.modal || 0))
 const pct = computed(() => modal.value > 0 ? total.value / modal.value * 100 : null)
 const terakhir = computed(() => riwayat.value[0] ?? null)
+
+/** Per-investor rows with the computed cells the table needs (sisa, %, akun). */
+interface BarisPer extends InvestorDividenPer { sisa: number, persen: number | null, akun: boolean }
+const barisPer = computed<BarisPer[]>(() => per.value.map((p) => {
+  const m = Number(p.modal) || 0
+  const k = Number(p.kembali) || 0
+  return { ...p, sisa: Math.max(m - k, 0), persen: m > 0 ? k / m * 100 : null, akun: !!p.terhubung }
+}))
 
 interface BarisDividen { tgl: string, investor: string, nominal: number }
 const kolom = computed<TableColumn<BarisDividen>[]>(() => [
   { accessorKey: 'tgl', header: 'Tanggal' },
   { accessorKey: 'investor', header: 'Investor' },
   { accessorKey: 'nominal', header: 'Nominal' },
+])
+const kolomPer = computed<TableColumn<BarisPer>[]>(() => [
+  { accessorKey: 'nama', header: 'Investor' },
+  { accessorKey: 'modal', header: 'Modal masuk' },
+  { accessorKey: 'kembali', header: 'Dikembalikan' },
+  { accessorKey: 'sisa', header: 'Sisa' },
+  { accessorKey: 'persen', header: '%' },
+  { accessorKey: 'akun', header: 'Akun' },
 ])
 </script>
 
@@ -62,7 +85,18 @@ const kolom = computed<TableColumn<BarisDividen>[]>(() => [
     />
 
     <AppPanel
-      v-else-if="!riwayat.length"
+      v-else-if="belumTerhubung"
+      title="Akun ini belum terhubung ke data investor"
+      icon="i-lucide-link"
+    >
+      <p class="text-sm text-muted">
+        Modal dan dividen Anda dicatat Finance di <b>Brankas</b>. Akun ini belum ditautkan ke catatan
+        investor mana pun, jadi belum ada angka yang bisa ditampilkan. Hubungi Finance untuk menautkannya.
+      </p>
+    </AppPanel>
+
+    <AppPanel
+      v-else-if="!riwayat.length && !per.length"
       title="Belum ada pembagian yang dicatat"
       icon="i-lucide-hand-coins"
     >
@@ -112,11 +146,104 @@ const kolom = computed<TableColumn<BarisDividen>[]>(() => [
         variant="subtle"
         icon="i-lucide-info"
         :title="`${pct.toFixed(1).replace('.', ',')}% dari modal sudah dikembalikan.`"
-        description="Angka ini menjumlahkan SELURUH investor, bukan porsi satu orang — rincian per investor ada di catatan Finance."
+        :description="semua
+          ? `Angka ini menjumlahkan SELURUH investor (${per.length} orang) — rinciannya di tabel Per Investor di bawah.`
+          : 'Angka ini hanya modal dan pembagian milik Anda sendiri.'"
         class="mb-5"
       />
 
       <AppPanel
+        v-if="semua && per.length"
+        title="Per investor"
+        icon="i-lucide-users"
+        description="Hanya terlihat oleh admin · sumber: Brankas Finance"
+        flush
+      >
+        <UTable
+          class="hidden lg:block"
+          :data="barisPer"
+          :columns="kolomPer"
+          empty="Belum ada investor."
+        >
+          <template #nama-cell="{ row }">
+            <div>
+              <b>{{ row.original.nama || '—' }}</b>
+              <p
+                v-if="Number(row.original.kepemilikan)"
+                class="text-xs text-muted"
+              >
+                {{ row.original.kepemilikan }}% kepemilikan
+              </p>
+            </div>
+          </template>
+          <template #modal-cell="{ row }">
+            <span class="num">{{ rupiah(Number(row.original.modal) || 0) }}</span>
+          </template>
+          <template #kembali-cell="{ row }">
+            <span class="num">{{ rupiah(Number(row.original.kembali) || 0) }}</span>
+          </template>
+          <template #sisa-cell="{ row }">
+            <span class="num">{{ rupiah(row.original.sisa) }}</span>
+          </template>
+          <template #persen-cell="{ row }">
+            <span class="num">{{ row.original.persen == null ? '—' : `${row.original.persen.toFixed(1).replace('.', ',')}%` }}</span>
+          </template>
+          <template #akun-cell="{ row }">
+            <AppStatus
+              v-if="row.original.akun"
+              color="success"
+              size="sm"
+            >
+              Terhubung
+            </AppStatus>
+            <span
+              v-else
+              class="text-sm text-muted"
+            >Belum ditautkan</span>
+          </template>
+        </UTable>
+        <div class="divide-y divide-default lg:hidden">
+          <div
+            v-for="(p, i) in barisPer"
+            :key="i"
+            class="space-y-1 px-4 py-3"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <p class="truncate font-semibold text-highlighted">
+                  {{ p.nama || '—' }}
+                </p>
+                <p
+                  v-if="Number(p.kepemilikan)"
+                  class="text-xs text-muted"
+                >
+                  {{ p.kepemilikan }}% kepemilikan
+                </p>
+              </div>
+              <AppStatus
+                v-if="p.akun"
+                color="success"
+                size="sm"
+              >
+                Terhubung
+              </AppStatus>
+              <span
+                v-else
+                class="shrink-0 text-xs text-muted"
+              >Belum ditautkan</span>
+            </div>
+            <p class="text-sm text-muted num">
+              Modal {{ rupiah(Number(p.modal) || 0) }} · kembali {{ rupiah(Number(p.kembali) || 0) }} ·
+              sisa {{ rupiah(p.sisa) }}{{
+                p.persen == null ? '' : ` · ${p.persen.toFixed(1).replace('.', ',')}%`
+              }}
+            </p>
+          </div>
+        </div>
+      </AppPanel>
+
+      <AppPanel
+        v-if="riwayat.length"
         title="Riwayat pembagian"
         icon="i-lucide-history"
         description="Terbaru lebih dulu · sumber: Brankas Finance"
