@@ -206,7 +206,7 @@ useSegarSenyap(refresh, () => buka.value)
         <template v-if="dipisah">
           Terbuka di <b>Akan Datang</b>. Acara yang tanggalnya sudah lewat pindah ke <b>Sudah Lewat</b>.
         </template>
-        Hanya acara yang sudah pasti jalan — <b>Marketing:</b> Deal &amp; Event Done · <b>Event:</b> Upcoming, Today &amp; Finished ·
+        Hanya acara yang sudah pasti jalan — <b>Marketing:</b> Deal &amp; Event Done · <b>Event:</b> Approval, Upcoming &amp; Event Done ·
         <b>Reservasi VIP:</b> semua yang belum dibatalkan.
       </p>
     </AppPanel>

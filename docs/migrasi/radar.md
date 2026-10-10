@@ -94,3 +94,13 @@ Pertanyaan terbuka: **tidak ada** (kedua ⚠️ bersifat bentuk endpoint yang su
 - Vue: `useRadar.ts`, `utils/radar.ts`, `utils/layar/radar.ts`, komponen `components/radar/*`, enam halaman di `pages/radar/`. Kartu Radar di `utils/modul.ts` (grup Operasional) + shell di `modul-shell.ts`.
 - Dicek di browser headless dengan API tiruan (390px & 1366px): semua halaman merender tanpa galat. **Belum dicek dengan data dev sungguhan.**
 - Beda sengaja dari Office lama: Kalender Terpadu tetap kisi 7 kolom yang bisa digulir mendatar di HP (bukan AppList) — bentuk bulanannya yang dicari orang; Tabel di Daftar Event jatuh ke kartu di bawah `lg`.
+
+### Sinkron Office 5–9 Okt 2026 — VUE-5 label status Event (2026-10-10, branch `feat/sinkron-office-2026-10`)
+
+Sumber Office lama: commit `4ee871e` (`deploy/radar/index.html`: `ST_EVT_JALAN`).
+Teks penjelasan di `pages/radar/index.vue` dan `agenda.vue` ("Event: Upcoming, Today & Finished")
+menjadi "Event: Approval / Upcoming / Event Done". Penyaring status di klien tidak perlu diubah:
+`utils/radar.ts` tidak menyaring status Event (server yang menyaring), `agSelesai()` (`/done|finish/i`)
+sudah cocok dengan "Event Done", dan daftar status diambil dinamis dari data (`statusPasti()`).
+Catatan: penyaring server (API-3, `RadarRules::EVT_JALAN` di laksamana-api) masih daftar lama —
+acara "Approval"/"Event Done" baru tampil setelah API-3 digabung.
