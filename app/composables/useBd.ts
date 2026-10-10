@@ -457,12 +457,16 @@ export async function centangSub(t: BdTask, ix: number, on: boolean): Promise<bo
  * Delete a task and release it from its waiters (old `hapusTask`). A deleted
  * prerequisite never blocks (see `penghalang`), but a stray id in the data
  * would lie about the order one day.
+ *
+ * The API has no batch write here, so the task is deleted FIRST: if a later
+ * release fails, only a harmless stray id is left. Releasing first could
+ * strip the order from waiters of a task that then failed to delete.
  */
 export async function hapusTaskDenganUrutan(t: BdTask, semua: BdTask[]): Promise<boolean> {
   return bdSimpan(async () => {
+    await hapusBd('tasks', t.id, versiBaris(t))
     for (const d of penunggu(semua, t.id)) {
       await tambalBd<BdTask>('tasks', d.id, { dependsOn: deps(d).filter(x => x !== t.id) }, versiBaris(d))
     }
-    await hapusBd('tasks', t.id, versiBaris(t))
   }, 'Task dihapus')
 }
