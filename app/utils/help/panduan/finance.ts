@@ -25,7 +25,7 @@ export default {
           baris: [
             ['Dashboard', 'Dashboard Omset, Dashboard Analytics', 'Melihat. Dua halaman ini yang terbuka lebih dulu tiap pagi.'],
             ['Kas Kecil', 'Input Transaksi, Buku Kas Kecil, Pos & Kategori', 'Uang keluar-masuk kas kecil.'],
-            ['Pembayaran', 'Planning Pembayaran', 'Lembar transfer mingguan per rekening pembayar.'],
+            ['Pembayaran', 'Planning Pembayaran, Tagihan Rutin', 'Lembar transfer mingguan per rekening pembayar; langganan berulang dan jatuh temponya.'],
             ['Penjualan', 'Rekap Penjualan, Invoice & Kwitansi, Laporan Void', 'Mencocokkan POS dengan bank.'],
             ['Performa', 'Performa Marketing, Performa Event, Performa Kasir', 'Siapa diakui berapa, dan bonusnya.'],
           ] },
@@ -123,6 +123,35 @@ export default {
         { t: 'catatan', nada: 'info', judul: 'Chip arsip menyebut sisa yang belum terbayar',
           isi: 'Itu yang menahan pembayaran terlupakan: lembarnya turun dari layar dan tidak ada '
             + 'satu pun tempat yang menyebut masih ada sisa.' },
+      ],
+    },
+
+    {
+      id: 'tagihan', judul: 'Tagihan Rutin',
+      isi: [
+        { t: 'teks', isi: 'Langganan dan tagihan berulang — wifi, Claude, ChatGPT, Spotify, YouTube. '
+          + 'Halaman ini menjawab dua hal: kapan tiap tagihan jatuh tempo, dan berapa total '
+          + 'yang sudah dibayar.' },
+        { t: 'langkah', isi: [
+          'Buka *Tagihan Rutin*, tekan *Tambah tagihan*.',
+          'Isi nama, nominal, dibayar setiap berapa bulan, dan jatuh tempo TERDEKAT.',
+          'Saat membayar, tekan *Bayar* di baris tagihannya, periksa jatuh tempo dan nominalnya, lalu simpan.',
+          'Salah catat? Buka *Riwayat*, tekan *Batalkan* pada pembayarannya, tulis alasannya.',
+        ] },
+        { t: 'catatan', nada: 'info', judul: 'Total memakai nominal SAAT dibayar',
+          isi: 'Harga langganan bisa naik. Total dijumlahkan dari baris pembayaran yang benar-benar '
+            + 'dicatat, bukan harga sekarang dikali jumlah bulan — jadi mengubah nominal tagihan '
+            + 'tidak mengubah sejarah.' },
+        { t: 'catatan', nada: 'awas', judul: 'Jatuh tempo lampau yang belum dicatat terhitung terlambat',
+          isi: 'Karena itu isi jatuh tempo pertama dengan yang terdekat, bukan tanggal mulai '
+            + 'berlangganan dulu. Tagihan yang lupa dibayar dua bulan berbunyi "terlambat 2 periode".' },
+        { t: 'catatan', nada: 'info', judul: 'Tidak ada tombol hapus',
+          isi: 'Pembayaran yang salah dibatalkan (tetap terlihat, dicoret, tidak dijumlahkan). '
+            + 'Tagihan yang berhenti dinonaktifkan — riwayatnya tetap ada. Satu jatuh tempo hanya '
+            + 'bisa dibayar sekali; server menolak yang kedua dan menyebut siapa yang mencatat pertama.' },
+        { t: 'catatan', nada: 'info', judul: 'Terpisah dari Buku Kas Kecil',
+          isi: 'Langganan ini kebanyakan dibayar lewat kartu atau transfer, bukan dari laci kas kecil, '
+            + 'jadi pembayarannya tidak masuk Buku Kas Kecil.' },
       ],
     },
 

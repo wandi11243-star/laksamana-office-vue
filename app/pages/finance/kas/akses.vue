@@ -23,6 +23,7 @@ const HALAMAN: { key: string, label: string }[] = [
   { key: 'kk_input', label: 'Input Transaksi Kas Kecil' },
   { key: 'kk_buku', label: 'Buku Kas Kecil' },
   { key: 'kk_pos', label: 'Pos & Kategori' },
+  { key: 'tagihan', label: 'Tagihan Rutin' },
   { key: 'bayar', label: 'Planning Pembayaran' },
   { key: 'rekap', label: 'Rekap Penjualan' },
   { key: 'dp', label: 'Dana Masuk (DP)' },

@@ -19,13 +19,14 @@ const kasHal = (page: string) => (me: Me) =>
 const PERM_NONE = 0
 const PERM_VIEW = 1
 const PERM_EDIT = 2
-const AKS_HAL_ISI = ['kk_input', 'kk_buku', 'kk_pos', 'bayar', 'rekap', 'bri', 'invoice', 'akses']
+const AKS_HAL_ISI = ['kk_input', 'kk_buku', 'kk_pos', 'tagihan', 'bayar', 'rekap', 'bri', 'invoice', 'akses']
 const ROLE_KEYS = ['staf', 'manajemen', 'viewer']
 const ROLE_BAWAAN = 'staf'
 const DEFAULT_PERMS: Record<string, Record<string, number>> = {
   kk_input: { staf: PERM_EDIT, manajemen: PERM_NONE, viewer: PERM_NONE },
   kk_buku: { staf: PERM_EDIT, manajemen: PERM_VIEW, viewer: PERM_VIEW },
   kk_pos: { staf: PERM_EDIT, manajemen: PERM_NONE, viewer: PERM_NONE },
+  tagihan: { staf: PERM_EDIT, manajemen: PERM_VIEW, viewer: PERM_VIEW },
   bayar: { staf: PERM_EDIT, manajemen: PERM_VIEW, viewer: PERM_VIEW },
   rekap: { staf: PERM_EDIT, manajemen: PERM_VIEW, viewer: PERM_VIEW },
   dp: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_NONE },
@@ -184,6 +185,7 @@ export const LAYAR_FINANCE: Layar[] = [
   { key: 'kas_kk_buku', label: 'Buku Kas Kecil', desc: 'Semua transaksi berikut saldo berjalan tiap pos', icon: 'i-lucide-book-open', to: '/finance/kas', grup: 'Kas Kecil', boleh: kasHal('kk_buku') },
   { key: 'kas_kk_input', label: 'Input Transaksi Kas Kecil', desc: 'Satu baris = satu transaksi; tambah baris sebanyak yang perlu lalu simpan sekaligus', icon: 'i-lucide-pencil-line', to: '/finance/kas/input', grup: 'Kas Kecil', boleh: kasHal('kk_input') },
   { key: 'kas_kk_pos', label: 'Pos & Kategori', desc: 'Daftar pos pembayaran dan kategori belanja', icon: 'i-lucide-tags', to: '/finance/kas/pos', grup: 'Kas Kecil', boleh: kasHal('kk_pos') },
+  { key: 'kas_tagihan', label: 'Tagihan Rutin', desc: 'Langganan & tagihan berulang — kapan jatuh temponya, dan berapa yang sudah dibayar', icon: 'i-lucide-calendar-sync', to: '/finance/kas/tagihan', grup: 'Kas Kecil', boleh: kasHal('tagihan') },
   { key: 'kas_bayar', label: 'Planning Pembayaran', desc: 'Lembar transfer mingguan per rekening pembayar', icon: 'i-lucide-calendar-clock', to: '/finance/kas/bayar', grup: 'Kas Kecil', boleh: kasHal('bayar') },
   { key: 'kas_rekap', label: 'Rekap Penjualan', desc: 'Cocokkan POS dengan setoran bank — angka penjualannya after tax & service', icon: 'i-lucide-clipboard-check', to: '/finance/kas/rekap', grup: 'Kas Kecil', boleh: kasHal('rekap') },
   { key: 'kas_dp', label: 'Dana Masuk (DP)', desc: 'DP reservasi yang sudah masuk — halaman milik modul Reservasi', icon: 'i-lucide-wallet', to: '/finance/kas/dp', grup: 'Kas Kecil', boleh: kasHal('dp') },

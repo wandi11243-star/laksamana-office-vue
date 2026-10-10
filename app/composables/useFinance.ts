@@ -1,5 +1,6 @@
 import { ifMatch, versiDari, type Versi } from '~/utils/versi'
 import type { InvestorBrankas, MutasiBrankas, SettingBrankas } from '~/utils/brankas'
+import type { BayarTagihan, Tagihan } from '~/utils/tagihan'
 
 // Finance invoice calls used by reservasi's kwitansi flow.
 //
@@ -168,6 +169,39 @@ export async function getBayar() {
 }
 export function putBayar(bayar: RencanaBayar[], versi: Versi) {
   return useApi()<Envelope<unknown>>('/finance/petty-cash/payment-plan', { method: 'PUT', body: { bayar }, headers: ifMatch(versi) })
+}
+
+// ---------------------------------------------------------------- Tagihan Rutin (VUE-14, `/finance/tagihan`)
+//
+// No versioning (the legacy actions carry none); the one real race — two
+// people paying the same due date — is guarded by the server (422 naming who
+// paid first). No DELETE: payments are cancelled, tagihan deactivated. Until
+// the old PHP has created the tables the API answers 503 `tagihan_unavailable`.
+
+export type IsiTagihan = Pick<Tagihan, 'nama' | 'kategori' | 'nominal' | 'siklus' | 'mulai' | 'metode' | 'catatan'>
+export interface IsiBayarTagihan { periode: string, tglBayar: string, nominal: number, catatan: string }
+
+export async function getTagihan(): Promise<{ tagihan: Tagihan[], bayar: BayarTagihan[] }> {
+  const r = await useApi()<Envelope<{ tagihan?: Tagihan[], bayar?: BayarTagihan[] }>>('/finance/tagihan')
+  return {
+    tagihan: Array.isArray(r.data?.tagihan) ? r.data.tagihan : [],
+    bayar: Array.isArray(r.data?.bayar) ? r.data.bayar : [],
+  }
+}
+export function createTagihan(body: Partial<IsiTagihan>) {
+  return useApi()<Envelope<Tagihan>>('/finance/tagihan', { method: 'POST', body })
+}
+export function updateTagihan(id: number, body: Partial<IsiTagihan>) {
+  return useApi()<Envelope<Tagihan>>(`/finance/tagihan/${id}`, { method: 'PATCH', body })
+}
+export function setAktifTagihan(id: number, aktif: boolean) {
+  return useApi()<Envelope<Tagihan>>(`/finance/tagihan/${id}/active`, { method: 'PUT', body: { aktif } })
+}
+export function bayarTagihan(id: number, body: IsiBayarTagihan) {
+  return useApi()<Envelope<BayarTagihan>>(`/finance/tagihan/${id}/payments`, { method: 'POST', body })
+}
+export function batalBayarTagihan(id: number, alasan: string) {
+  return useApi()<Envelope<BayarTagihan>>(`/finance/tagihan/payments/${id}/cancel`, { method: 'POST', body: { alasan } })
 }
 
 // ---------------------------------------------------------------- Saldo wallet (G-06)
