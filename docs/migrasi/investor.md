@@ -108,6 +108,12 @@ Catatan build:
   - Pil tahun grafik dikunci eksplisit bila tinggal satu yang tampil (`disabled` + alasan + catatan "dikunci sampai ada data tahun lain") — mematikannya hanya akan mengosongkan grafik.
   - Baris kartu Omset kini bertingkat blok — segmen delta & target tak lagi menyambung saat wrap (1366 & 390).
   - Validasi berkas pindah ke dalam loop per berkas — Balance valid tetap tersimpan walau Ledger `.txt`; tiap kegagalan menyebut nama berkasnya.
+- Sinkron Office 5–9 Okt 2026 — VUE-8 per investor (2026-10-10, branch `feat/investor-per-investor`, butuh API-1 ✅ di `laksamana-api@eb69036`).
+  Sumber Office lama: commit `3d5d368` (`investor/index.html` `renderDividen`). `dividen.vue` memakai
+  penanda `semua` dari API: admin (`semua: true`) melihat tabel Per Investor (Modal Masuk /
+  Dikembalikan / Sisa / % / Akun terhubung); investor biasa hanya modal & dividennya sendiri.
+  Akun belum terhubung (`semua: false` + `per` kosong) dibedakan dari belum ada pembagian.
+  Tipe `InvestorDividen` di `useInvestor.ts` ditambah `per[]`, `semua`, `jumlahSemua`.
 
 ## K. Daftar uji cutover
 

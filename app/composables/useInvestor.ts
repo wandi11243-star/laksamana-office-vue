@@ -64,12 +64,27 @@ export interface InvestorLaporFile {
 }
 
 /** Capital returns recorded in Finance → Brankas. `gagal` = the Finance panel
- *  did not answer: NOT the same as "never paid out". */
+ *  did not answer: NOT the same as "never paid out". Since 6 Oct 2026 the
+ *  server filters per viewer: an investor admin gets every investor
+ *  (`semua: true` + the `per` table); anyone else only their own records
+ *  (`semua: false`). A non-empty `per` with no `semua: false` is an old server. */
+export interface InvestorDividenPer {
+  nama: string
+  modal: number
+  kembali: number
+  kali: number
+  kepemilikan: number
+  terhubung: boolean
+}
+
 export interface InvestorDividen {
   riwayat: { tgl: string, investor: string, nominal: number }[]
   total?: number
   modal?: number
   investor?: number
+  per?: InvestorDividenPer[]
+  semua?: boolean
+  jumlahSemua?: number | null
   gagal: boolean
 }
 
