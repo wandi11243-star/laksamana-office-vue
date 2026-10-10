@@ -1,21 +1,28 @@
 <!--
-  BD OS › Project detail (old `vProjectDetail`, deploy/bd/index.html:1948-1993).
-  Four numbers, task list, milestones (click to tick), description, coordination
-  and the related purchase orders. Hidden from the menu — opened from a card.
+  Task Management › Project detail (old `vProjectDetail`, deploy/bd/index.html:2730+).
+  Four numbers, task tabs (Kanban first — the 6 Oct 2026 request to open a
+  project as a board was never withdrawn — then Task & sub-task), milestones
+  (click to tick), description, coordination and the related purchase orders.
+  Hidden from the menu — opened from a card.
 -->
 <script setup lang="ts">
 import type { BdCoord, BdPo, BdProject, BdTask } from '~/composables/useBd'
-import { bdSimpan, bdTulisDiam, hapusBd, tambalBd, useBdState, versiBaris } from '~/composables/useBd'
 import {
-  cariAku, fDue, fRp, inisial, pics, projProgress, projTasks, selesai, todayISO,
+  bdSimpan, bdTulisDiam, centangSub, hapusBd, hapusTaskDenganUrutan, pesanHapusTask, tambalBd,
+  toggleTask, useBdState, versiBaris,
+} from '~/composables/useBd'
+import {
+  cariAku, fDue, fRp, inisial, pics, projProgress, projTasks, saringArsip, selesai, todayISO, urutDeadline,
+  type ModeArsip,
 } from '~/utils/bd-rumus'
 import { IKON_HEALTH, LABEL_HEALTH, WARNA_PO } from '~/utils/status-bd'
 import BdCoordSheet from '~/widgets/bd/BdCoordSheet.vue'
+import BdKanban from '~/widgets/bd/BdKanban.vue'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdPoSheet from '~/widgets/bd/BdPoSheet.vue'
 import BdProjectSheet from '~/widgets/bd/BdProjectSheet.vue'
-import BdTaskRow from '~/widgets/bd/BdTaskRow.vue'
 import BdTaskSheet from '~/widgets/bd/BdTaskSheet.vue'
+import BdTaskTree from '~/widgets/bd/BdTaskTree.vue'
 import { fTglP } from '~/utils/format'
 
 definePageMeta({ access: ['bd'] })
@@ -29,6 +36,10 @@ const p = computed<BdProject | undefined>(() => state.value.projects.find(x => x
 const people = computed(() => state.value.people)
 const aku = computed(() => cariAku(people.value, me.value))
 const tugas = computed(() => (p.value ? projTasks(state.value.tasks, p.value.id) : []))
+/** Detail tabs: Kanban first (the 6 Oct 2026 request was never withdrawn), then the tree. Timeline arrives in VUE-11. */
+const pdTab = ref<'kanban' | 'list'>('kanban')
+const pdArsip = ref<ModeArsip>('aktif')
+const tugasArsip = computed(() => saringArsip(tugas.value, pdArsip.value).slice().sort(urutDeadline))
 const pg = computed(() => (p.value ? projProgress(p.value, state.value.tasks) : 0))
 const sel = computed(() => tugas.value.filter(selesai).length)
 const sisaBudget = computed(() => (Number(p.value?.budget) || 0) - (Number(p.value?.spent) || 0))
@@ -67,17 +78,18 @@ function bukaTaskSheet(t: BdTask) {
   taskPilih.value = t
   bukaTask.value = true
 }
-function toggleTask(t: BdTask) {
-  const patch = selesai(t)
-    ? { status: 'To Do', progress: t.progress === 100 ? 0 : t.progress }
-    : { status: 'Done', progress: 100 }
-  bdTulisDiam(() => tambalBd<BdTask>('tasks', t.id, patch, versiBaris(t)))
+function toggle(t: BdTask) {
+  toggleTask(t, state.value.tasks)
 }
+function subToggle(t: BdTask, ix: number, on: boolean) {
+  centangSub(t, ix, on)
+}
+const pesanHapus = computed(() => (taskHapus.value ? pesanHapusTask(taskHapus.value, state.value.tasks) : ''))
 async function hapusTask() {
   const t = taskHapus.value
   if (!t) return
   taskHapus.value = null
-  await bdSimpan(() => hapusBd('tasks', t.id, versiBaris(t)), 'Task dihapus')
+  await hapusTaskDenganUrutan(t, state.value.tasks)
 }
 // Hapus project: sama seperti legacy `hapusProj` (deploy/bd/index.html:2064) —
 // task/PO/koordinasi hanya dilepas tautannya, tidak ikut terhapus.
@@ -176,29 +188,57 @@ function bukaPoSheet(o: BdPo) {
 
       <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div class="min-w-0">
+          <div class="mb-3 flex flex-wrap items-center gap-2">
+            <AppSeg
+              v-model="pdTab"
+              :options="[{ value: 'kanban', label: 'Kanban' }, { value: 'list', label: 'Task & sub-task' }]"
+              size="sm"
+            />
+            <div class="flex-1" />
+            <AppSeg
+              v-model="pdArsip"
+              :options="[{ value: 'aktif', label: `Aktif (${tugas.filter(t => !selesai(t)).length})` }, { value: 'arsip', label: `Arsip (${tugas.filter(selesai).length})` }, { value: 'semua', label: `Semua (${tugas.length})` }]"
+              size="sm"
+            />
+          </div>
+
+          <BdKanban
+            v-if="pdTab === 'kanban'"
+            :tasks="tugasArsip"
+            :semua="state.tasks"
+            :people="people"
+            :arsip="pdArsip"
+            :project-preset="p.id"
+            :pic-default="aku?.id"
+            :div-default="p.div"
+            @buka="bukaTaskSheet"
+            @toggle="toggle"
+            @hapus="taskHapus = $event"
+          />
+
           <AppPanel
-            title="Task di project ini"
+            v-else
+            title="Task & sub-task"
             icon="i-lucide-list-todo"
-            :count="tugas.length"
+            :count="tugasArsip.length"
+            flush
           >
-            <div class="divide-y divide-default">
-              <BdTaskRow
-                v-for="t in tugas"
-                :key="t.id"
-                :task="t"
-                :people="people"
-                hide-proj
-                @buka="bukaTaskSheet(t)"
-                @toggle="toggleTask(t)"
-                @hapus="taskHapus = t"
-              />
-              <p
-                v-if="!tugas.length"
-                class="py-6 text-center text-sm text-muted"
-              >
-                <b class="block text-highlighted">Belum ada task</b>Tambahkan task pertama lewat tombol di atas.
-              </p>
-            </div>
+            <BdTaskTree
+              :tasks="tugasArsip"
+              :semua="state.tasks"
+              :people="people"
+              @buka="bukaTaskSheet"
+              @toggle="toggle"
+              @hapus="taskHapus = $event"
+              @sub-toggle="subToggle"
+            />
+            <p
+              v-if="!tugasArsip.length"
+              class="py-6 text-center text-sm text-muted"
+            >
+              <b class="block text-highlighted">{{ tugas.length ? 'Tidak ada task di tampilan ini' : 'Belum ada task' }}</b>
+              {{ tugas.length ? 'Ganti ke "Semua" untuk melihat task yang sudah Done.' : 'Tambahkan task pertama lewat tombol + Task.' }}
+            </p>
           </AppPanel>
 
           <AppPanel
@@ -359,6 +399,7 @@ function bukaPoSheet(o: BdPo) {
       <BdTaskSheet
         v-model:open="bukaTask"
         :task="taskPilih"
+        :tasks="state.tasks"
         :preset-project="p.id"
         :projects="state.projects"
         :people="people"
@@ -381,7 +422,7 @@ function bukaPoSheet(o: BdPo) {
       <BdKonfirmasi
         v-model:open="hapusMau"
         title="Hapus task ini?"
-        description="Semua kru ikut kehilangan datanya."
+        :description="pesanHapus"
         @konfirmasi="hapusTask"
       />
       <BdKonfirmasi

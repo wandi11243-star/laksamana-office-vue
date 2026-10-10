@@ -18,6 +18,7 @@
 // (T-25 → per-record CRUD).
 import type { Versi } from '~/utils/versi'
 import { ifMatch, tanganiKonflik } from '~/utils/versi'
+import { cekBolehDone, deps, normalisasiStatus, penunggu, pesanTunggu, segarkanProgress, selesai } from '~/utils/bd-rumus'
 
 /** API resource names (`docs/api/bd.md:40`). */
 export type BdResource = 'people' | 'projects' | 'tasks' | 'routines' | 'coord-requests' | 'purchase-orders' | 'purchase-requests' | 'agenda'
@@ -41,6 +42,14 @@ export interface BdPerson {
 }
 
 export interface BdMilestone { t: string, date: string, done: boolean }
+
+/** One sub-task, stored INSIDE its task (`subtasks`), never its own table. `d` is the optional sub-task deadline. */
+export interface BdSubtask {
+  id?: string
+  t?: string
+  done?: boolean
+  d?: string
+}
 
 export interface BdProject {
   id: string
@@ -71,11 +80,19 @@ export interface BdTask {
   status: string
   priority: string
   type: string
+  /** Optional start; plotted on the Timeline (VUE-11). Later than the deadline is refused. */
+  start?: string
   deadline: string
   project: string | null
   important: boolean
   urgent: boolean
   progress: number
+  /** Sub-tasks (`subtasks [{id,t,done,d}]`), counted — never typed — into `progress`. */
+  subtasks?: BdSubtask[]
+  /** Ids of tasks that must be Done first. Only Done is held (`cekBolehDone`). */
+  dependsOn?: string[]
+  /** Stamped when the task becomes Done, dropped when reopened: a done deadline stops counting. */
+  doneAt?: string
   createdAt?: number
   updatedAt?: number
 }
@@ -251,10 +268,14 @@ export function normState(raw: unknown): BdState {
     for (const k of keys) if (Array.isArray(r[k])) return r[k] as T[]
     return []
   }
+  const tasks = arr<BdTask>('tasks')
+  // Read mapping (old `normalize`): Backlog → To Do, Waiting → Doing, unknown
+  // → To Do. A status without a column would lose its card without a trace.
+  for (const t of tasks) t.status = normalisasiStatus(t.status)
   return {
     people: arr<BdPerson>('people'),
     projects: arr<BdProject>('projects'),
-    tasks: arr<BdTask>('tasks'),
+    tasks,
     routines: arr<BdRoutine>('routines'),
     coord: arr<BdCoord>('coord', 'coord-requests'),
     po: arr<BdPo>('po', 'purchase-orders'),
@@ -386,4 +407,62 @@ export async function bdTulisDiam<T>(aksi: () => Promise<T>): Promise<boolean> {
     if (!(await tanganiKonflik(e, muatUlang))) toast?.add({ title: apiErrorMessage(e), color: 'error' })
     return false
   }
+}
+
+/**
+ * Flip a task Done ↔ To Do through the one guard (`toggleTask`, old
+ * `toggleTask`). Done runs `cekBolehDone` (a held Done only toasts, never
+ * writes); both directions go through `segarkanProgress`, so `doneAt` is
+ * stamped once and dropped on reopen. PUT carries the whole row: reopening
+ * must also drop `doneAt`, which a PATCH merge could not remove.
+ */
+export async function toggleTask(t: BdTask, semua: BdTask[]): Promise<boolean> {
+  const toast = toastBd()
+  const buka = selesai(t)
+  if (!buka) {
+    const cek = cekBolehDone(t, t.dependsOn, semua)
+    if (!cek.boleh) {
+      toast?.add({ title: pesanTunggu(t, cek.nama), color: 'error' })
+      return false
+    }
+  }
+  const body: Partial<BdTask> = { ...t, status: buka ? 'To Do' : 'Done' }
+  delete body.updatedAt
+  segarkanProgress(body)
+  return bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
+}
+
+/** Delete sentence for the confirm sheet: dependents are named by count. */
+export function pesanHapusTask(t: BdTask, semua: BdTask[]): string {
+  const n = penunggu(semua, t.id).length
+  return 'Semua kru ikut kehilangan datanya.'
+    + (n ? ` ${n} task lain menunggu task ini; urutannya ikut dilepas.` : '')
+}
+
+/**
+ * Tick a sub-task straight from its row (`subLangsung`): no Done gate here,
+ * then `segarkanProgress` recounts. PUT carries the whole row.
+ */
+export async function centangSub(t: BdTask, ix: number, on: boolean): Promise<boolean> {
+  const subs = [...(t.subtasks ?? [])]
+  if (!subs[ix]) return false
+  subs[ix] = { ...subs[ix], done: on }
+  const body: Partial<BdTask> = { ...t, subtasks: subs }
+  delete body.updatedAt
+  segarkanProgress(body)
+  return bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
+}
+
+/**
+ * Delete a task and release it from its waiters (old `hapusTask`). A deleted
+ * prerequisite never blocks (see `penghalang`), but a stray id in the data
+ * would lie about the order one day.
+ */
+export async function hapusTaskDenganUrutan(t: BdTask, semua: BdTask[]): Promise<boolean> {
+  return bdSimpan(async () => {
+    for (const d of penunggu(semua, t.id)) {
+      await tambalBd<BdTask>('tasks', d.id, { dependsOn: deps(d).filter(x => x !== t.id) }, versiBaris(d))
+    }
+    await hapusBd('tasks', t.id, versiBaris(t))
+  }, 'Task dihapus')
 }

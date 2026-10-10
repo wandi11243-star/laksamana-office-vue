@@ -1,14 +1,19 @@
 <!--
-  BD OS › Projects (old `vProjects`, deploy/bd/index.html:1891-1946).
+  Task Management › Projects (old `vProjects`, deploy/bd/index.html:2653-2703).
 
-  A kanban of the five stages. Moving a card to Completed closes all its tasks,
-  ONLY on that change; the filter narrows what is SHOWN, never what may be moved.
-  On a phone the board scrolls sideways and each card has a "Pindah stage" sheet.
+  Cards by default, most-attention first (overdue, off/at-risk, nearest
+  deadline); the stage Kanban stays as a switch. Moving a card to Completed
+  closes all its tasks, ONLY on that change; the filter narrows what is SHOWN,
+  never what may be moved. On a phone the board scrolls sideways and each card
+  has a "Pindah stage" sheet.
 -->
 <script setup lang="ts">
 import type { BdProject } from '~/composables/useBd'
 import { bdSimpan, tambalBd, useBdState, versiBaris } from '~/composables/useBd'
-import { OWNER_DIVS, PILIHAN_SEMUA, PROJ_STAGES, cariAku, lingkupIds, pics, saringLingkup, tasksPerluDitutup } from '~/utils/bd-rumus'
+import {
+  OWNER_DIVS, PILIHAN_SEMUA, PROJ_STAGES, cariAku, lingkupIds, pics, saringLingkup, tasksPerluDitutup, todayISO,
+  urutProjectPerhatian,
+} from '~/utils/bd-rumus'
 import BdPicFilter from '~/widgets/bd/BdPicFilter.vue'
 import BdProjCard from '~/widgets/bd/BdProjCard.vue'
 import BdProjectSheet from '~/widgets/bd/BdProjectSheet.vue'
@@ -18,7 +23,7 @@ definePageMeta({ access: ['bd'] })
 const me = useMe()
 const { data: state } = useBdState()
 const fPics = useState<string[]>('bd-fPics', () => [])
-const f = useState('bd-proj-filter', () => ({ scope: 'tim', div: PILIHAN_SEMUA }))
+const f = useState('bd-proj-filter', () => ({ scope: 'tim', div: PILIHAN_SEMUA, st: 'aktif', view: 'kartu' }))
 
 const people = computed(() => state.value.people)
 const aku = computed(() => cariAku(people.value, me.value))
@@ -27,8 +32,11 @@ const cocokPic = (o: { pics?: string[], pic?: string }) => !fPics.value.length |
 
 const base = computed(() => saringLingkup(state.value.projects, f.value.scope, lingkup.value, aku.value?.id)
   .filter(cocokPic)
-  .filter(p => f.value.div === PILIHAN_SEMUA || p.div === f.value.div))
+  .filter(p => f.value.div === PILIHAN_SEMUA || p.div === f.value.div)
+  .filter(p => f.value.st === 'semua' || (f.value.st === 'selesai' ? p.stage === 'Completed' : p.stage !== 'Completed')))
 const diStage = (st: string) => base.value.filter(p => p.stage === st)
+/** Cards, most-attention first (`vProjects` kartu view). */
+const kartu = computed(() => urutProjectPerhatian(base.value))
 
 const skop = [
   { value: 'tim', label: 'Tim saya' },
@@ -36,10 +44,10 @@ const skop = [
   { value: 'semua', label: 'Semua' },
 ]
 const opsiDiv = [{ value: PILIHAN_SEMUA, label: 'Semua divisi' }, ...OWNER_DIVS.map(d => ({ value: d, label: d }))]
-const resetAktif = computed(() => fPics.value.length || f.value.div !== PILIHAN_SEMUA || f.value.scope !== 'tim')
+const resetAktif = computed(() => fPics.value.length || f.value.div !== PILIHAN_SEMUA || f.value.scope !== 'tim' || f.value.st !== 'aktif')
 function reset() {
   fPics.value = []
-  f.value = { ...f.value, div: PILIHAN_SEMUA, scope: 'tim' }
+  f.value = { ...f.value, div: PILIHAN_SEMUA, scope: 'tim', st: 'aktif' }
 }
 
 // ---- move stage ----
@@ -49,7 +57,10 @@ async function pindahStage(p: BdProject, st: string) {
   const ikut = (st === 'Completed' && dulu !== 'Completed') ? tasksPerluDitutup(state.value.tasks, p.id) : []
   const aksi = async () => {
     await tambalBd<BdProject>('projects', p.id, { stage: st }, versiBaris(p))
-    for (const t of ikut) await tambalBd('tasks', t.id, { status: 'Done', progress: 100 }, versiBaris(t))
+    // Closing stamps Done + doneAt (old `tuntaskanTaskProject`): the deadline
+    // stops counting. ONLY on this change — a task reopened later is never
+    // closed again by itself.
+    for (const t of ikut) await tambalBd('tasks', t.id, { status: 'Done', progress: 100, doneAt: todayISO() }, versiBaris(t))
   }
   await bdSimpan(aksi, `Project dipindah ke ${st}` + (ikut.length ? ` — ${ikut.length} task ikut jadi Done` : ''))
 }
@@ -100,6 +111,11 @@ function buka(p: BdProject) {
     description="Pekerjaan besar berjangka + milestone."
   >
     <template #actions>
+      <AppSeg
+        v-model="f.view"
+        :options="[{ value: 'kartu', label: 'Kartu' }, { value: 'kanban', label: 'Kanban stage' }]"
+        size="sm"
+      />
       <UButton
         label="Project"
         icon="i-lucide-plus"
@@ -109,6 +125,13 @@ function buka(p: BdProject) {
 
     <AppPanel>
       <AppFilterGrid>
+        <UFormField label="Status">
+          <USelect
+            v-model="f.st"
+            :items="[{ value: 'aktif', label: 'Aktif' }, { value: 'selesai', label: 'Selesai' }, { value: 'semua', label: 'Semua' }]"
+            class="w-full"
+          />
+        </UFormField>
         <UFormField label="Lingkup">
           <USelect
             v-model="f.scope"
@@ -143,7 +166,25 @@ function buka(p: BdProject) {
       </div>
     </AppPanel>
 
-    <div class="grid auto-cols-[minmax(240px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-2">
+    <div
+      v-if="f.view === 'kartu'"
+      class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+    >
+      <BdProjCard
+        v-for="p in kartu"
+        :key="p.id"
+        :project="p"
+        :tasks="state.tasks"
+        :people="people"
+        @buka="buka(p)"
+        @pindah="bukaStage(p)"
+      />
+    </div>
+
+    <div
+      v-else
+      class="grid auto-cols-[minmax(240px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-2"
+    >
       <section
         v-for="st in PROJ_STAGES"
         :key="st"

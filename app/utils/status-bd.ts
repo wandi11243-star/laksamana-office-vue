@@ -4,13 +4,15 @@
 // tones of `AppStatus`. One source for every BD screen.
 export type WarnaStatusBd = 'success' | 'warning' | 'error' | 'info' | 'vip' | 'neutral' | 'gold'
 
-/** `STATUS_COLOR`. */
+/** `STATUS_COLOR` — the four columns (putaran keempat). Backlog/Waiting stay
+ * as safety entries: reads normalise them away, but a row that somehow still
+ * carries one must not lose its pill. */
 export const WARNA_TASK: Record<string, WarnaStatusBd> = {
   'Backlog': 'neutral',
   'To Do': 'info',
   'Doing': 'warning',
   'Waiting': 'vip',
-  'Review': 'info',
+  'Review': 'vip',
   'Done': 'success',
 }
 export const IKON_TASK: Record<string, string> = {

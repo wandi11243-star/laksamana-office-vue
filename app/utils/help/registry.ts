@@ -96,8 +96,8 @@ export const HELP_BAB: HelpBab[] = [
     ringkas: 'Posisi kas per bank, piutang, mutasi wallet, dan pengembalian modal.' },
   { izin: 'analytics', key: 'analytics', grup: 'bisnis', label: 'Analytics', menunggu: true,
     ringkas: 'Analisa penjualan dari berkas POS: menu, jam, meja, promo, dan void.' },
-  { izin: 'bd', key: 'bd', grup: 'bisnis', label: 'BD OS',
-    ringkas: 'Bizdev, project, purchase order, dan mitra.' },
+  { izin: 'bd', key: 'bd', grup: 'bisnis', label: 'Task Management',
+    ringkas: 'Task, project, purchase order, dan mitra.' },
   { izin: 'investor', key: 'investor', grup: 'bisnis', label: 'Investor Compass', menunggu: true,
     ringkas: 'Halaman investor: omset, target, dan laporan keuangan bulanan.' },
 

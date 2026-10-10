@@ -8,7 +8,7 @@
 <script setup lang="ts">
 import type { BdTask } from '~/composables/useBd'
 import {
-  bdTulisDiam, hapusBd, putSetelan, tambalBd, useBdSettings, useBdState, versiBaris, versiSetelan,
+  bdTulisDiam, hapusTaskDenganUrutan, pesanHapusTask, putSetelan, toggleTask, useBdSettings, useBdState, versiSetelan,
 } from '~/composables/useBd'
 import { catIniAku, cariAku, dalamLingkup, fRp, lewat, lingkupIds, selesai, todayISO } from '~/utils/bd-rumus'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
@@ -89,16 +89,14 @@ function buka(t: BdTask) {
   bukaTask.value = true
 }
 function toggle(t: BdTask) {
-  const patch = selesai(t)
-    ? { status: 'To Do', progress: t.progress === 100 ? 0 : t.progress }
-    : { status: 'Done', progress: 100 }
-  bdTulisDiam(() => tambalBd<BdTask>('tasks', t.id, patch, versiBaris(t)))
+  toggleTask(t, tasks.value)
 }
+const pesanHapus = computed(() => (taskHapus.value ? pesanHapusTask(taskHapus.value, tasks.value) : ''))
 async function hapus() {
   const t = taskHapus.value
   if (!t) return
   taskHapus.value = null
-  await bdTulisDiam(() => hapusBd('tasks', t.id, versiBaris(t)))
+  await hapusTaskDenganUrutan(t, tasks.value)
 }
 </script>
 
@@ -207,12 +205,12 @@ async function hapus() {
         >
           <template #actions>
             <UButton
-              label="Semua task"
+              label="My Task"
               trailing-icon="i-lucide-chevron-right"
               color="neutral"
               variant="outline"
               size="sm"
-              to="/bd/tasks"
+              to="/bd/mytask"
             />
           </template>
           <div class="divide-y divide-default">
@@ -345,6 +343,7 @@ async function hapus() {
     <BdTaskSheet
       v-model:open="bukaTask"
       :task="taskPilih"
+      :tasks="tasks"
       :projects="projects"
       :people="people"
       :aku="aku"
@@ -352,7 +351,7 @@ async function hapus() {
     <BdKonfirmasi
       v-model:open="hapusMau"
       title="Hapus task ini?"
-      description="Semua kru ikut kehilangan datanya."
+      :description="pesanHapus"
       @konfirmasi="hapus"
     />
   </AppPage>
