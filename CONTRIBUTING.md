@@ -96,7 +96,11 @@ sebelum menulis kode: itu inventaris layar, field, rumus, dan endpoint-nya.
 5. **Format angka, uang, tanggal** lewat `app/utils/format.ts` (`rupiah()`, `angka()`,
    `persen()`, `tglPendek()`, `tglPanjang()`, `jam()`, `hariIni()`), bukan `Intl` sendiri.
 6. **Widget beranda (opsional):** buat `app/widgets/<modul>/NamaWidget.vue` (sebuah `AppList`),
-   lalu daftarkan di `widgets` milik entri modul di `utils/modul.ts`.
+   lalu daftarkan di `widgets` milik entri modul di `utils/modul.ts`. Untuk satu baris angka hidup di
+   kartu "Dashboard tim", buat `Kartu<Modul>.vue` dan daftarkan di `kartu`. Tim mana yang melihat modul
+   ini di depan diatur di `utils/beranda-tim.ts`; timnya sendiri dikirim API (`me.tim`, dicocokkan dari
+   kolom Tim oleh `App\Support\Tim` di laksamana-api).
+   Modul yang belum siap dipakai diberi `nonaktif: true` di `utils/modul.ts`.
 7. **Admin modul:** `isAdminOf(me, '<modul>')` untuk menyembunyikan aksi admin. API tetap menolak,
    jadi ini hanya soal tampilan.
 8. **Rumus bersama** (`venue-layouts.ts`, `DanaMasukPanel`, `kwitansi.ts`, dst.) diimpor dari

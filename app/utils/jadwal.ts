@@ -278,7 +278,7 @@ export function rekapBulan(set: SettingJadwal, sel: PetaSel, uids: string[], mk:
 // ------------------------------------------------------------- access
 
 /** The roster row with the server-resolved Divisi (GET /jadwal/roster). */
-export type KruJadwal = RosterUser & { divisi: string }
+export type KruJadwal = RosterUser & { divisi: string, tim?: string[] }
 
 /** Office/Kantor staff: the Tim column names Office or Kantor (`stafKantor`, `:1286`). */
 export function stafKantor(keterangan: string | undefined): boolean {

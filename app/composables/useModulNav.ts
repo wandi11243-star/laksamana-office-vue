@@ -4,7 +4,7 @@ export function useModulNav() {
   const router = useRouter()
 
   const mine = computed(() => MODUL
-    .filter(m => hasAccess(me.value, m.access))
+    .filter(m => !m.nonaktif && hasAccess(me.value, m.access))
     .map(m => ({ ...m, to: `/${m.key}`, ready: router.getRoutes().some(r => r.path === `/${m.key}`) })))
 
   const grouped = computed(() => MODUL_GROUPS
