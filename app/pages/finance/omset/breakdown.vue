@@ -17,12 +17,20 @@
   events, Assisted VIP reservations, internal events from the Event module) and
   the `abaikan` edit of them. Rows are added manually here; `abaikan` is carried
   through untouched.
+
+  SYNC KE PERFORMA KASIR (VUE-6): the panel below freezes this day's per-cashier
+  realisasi as `bdSync` (next to `bd`, kept by `{...d}` on save). From
+  2026-10-01 Performa Kasir (Kas & Cashier) reads the freeze; the button is held
+  while edits are unsaved, `bdValid` is not true, a marketing/event row is <= 0,
+  or a shift is unset — re-checked on click, with a confirm naming the frozen
+  per-cashier numbers.
 -->
 <script setup lang="ts">
 import type { BarisBd, BarisHarian } from '~/utils/kompas'
 import { kNum, netOf, taxSvcOf, tagihanOf } from '~/utils/kompas'
 import type { PicKompas } from '~/utils/porsi-pic'
 import { obAktif, obTotal, potonganBarisKompas, potongKasirAktif } from '~/utils/porsi-pic'
+import { sidikBd, snapKasir, syncKasirBerlaku, type BdSync } from '~/utils/sync-kasir'
 import { fmtRp, fmtSel, jejakList, tambahJejak } from '~/utils/cashier'
 import { getDay, getKompasState, putDay } from '~/composables/useCashier'
 import { tanganiKonflik } from '~/utils/versi'
@@ -99,15 +107,15 @@ function tambahEv() {
 }
 function hapusMk(i: number) {
   const r = mk.value[i]
-  if (r?.srcId) abaikanSementara.push(String(r.srcId))
+  if (r?.srcId) abaikanSementara.value.push(String(r.srcId))
   mk.value.splice(i, 1)
 }
 function hapusEv(i: number) {
   const r = ev.value[i]
-  if (r?.srcId) abaikanSementara.push(String(r.srcId))
+  if (r?.srcId) abaikanSementara.value.push(String(r.srcId))
   ev.value.splice(i, 1)
 }
-const abaikanSementara: string[] = []
+const abaikanSementara = ref<string[]>([])
 function isiSisa(i: number) {
   const r = ks.value[i]
   if (!r || r.off) return
@@ -184,7 +192,7 @@ async function jalanSimpan() {
     event: ev.value,
     kasir: ks.value,
     self: { amount: kNum(so.value.amount), disc: kNum(so.value.disc) },
-    abaikan: [...new Set([...(((d.bd ?? {}) as { abaikan?: string[] }).abaikan ?? []), ...abaikanSementara])],
+    abaikan: [...new Set([...(((d.bd ?? {}) as { abaikan?: string[] }).abaikan ?? []), ...abaikanSementara.value])],
   }
   const baru: BarisHarian = { ...d, bd, bdValid: true, bdLog: tambahJejak({ log: d.bdLog }, me.value?.name ?? '') }
   const rowsBaru = [...rows.value.filter(r => r.date !== tanggal.value), baru]
@@ -207,6 +215,95 @@ async function jalanSimpan() {
 const labelKasirShift = (r: BarisBd) => {
   const s = Array.isArray(r.shift) ? r.shift.filter(Boolean) as string[] : []
   return s.length ? s.map(namaKasir).join(', ') : '— belum dipilih —'
+}
+
+// ---- Sync ke Performa Kasir (8 Okt 2026, commit Office lama 5731a23/1ca25f7) ----
+// The freeze (`bdSync`) lives NEXT TO `bd` on the day row; the breakdown save
+// above keeps it via `{...d}`. Performa Kasir (Kas & Cashier) reads the freeze
+// for days >= SYNC_KASIR_MULAI instead of computing live.
+
+/** The edited breakdown in exactly the shape `jalanSimpan` stores. */
+const bdForm = computed(() => {
+  const d = rec.value
+  return {
+    ...(d?.bd ?? {}),
+    marketing: mk.value,
+    event: ev.value,
+    kasir: ks.value,
+    self: { amount: kNum(so.value.amount), disc: kNum(so.value.disc) },
+    abaikan: [...new Set([...(((d?.bd ?? {}) as { abaikan?: string[] }).abaikan ?? []), ...abaikanSementara.value])],
+  }
+})
+/** Unsaved edits: the form no longer matches what the server holds. A stale
+ * mismatch only forces a save first (the safe direction); a real edit can
+ * never read as clean, so sync always freezes what was actually saved. */
+const kotor = computed(() => JSON.stringify(bdForm.value) !== JSON.stringify(rec.value?.bd ?? {}))
+
+const berlakuSync = computed(() => syncKasirBerlaku(tanggal.value))
+const bdSync = computed(() => {
+  const s = rec.value?.bdSync as BdSync | null | undefined
+  return s && typeof s === 'object' && Array.isArray(s.kasir) ? s : null
+})
+const sidikKini = computed(() => sidikBd(rec.value?.bd))
+const syncStatus = computed<'belum' | 'sudah' | 'berubah'>(() => {
+  if (!bdSync.value) return 'belum'
+  return bdSync.value.sidik === sidikKini.value ? 'sudah' : 'berubah'
+})
+const namaBarisSync = (r: BarisBd, list: PicKompas[]) =>
+  String(r.eventName || list.find(e => e.id === r.picId)?.name || '(tanpa nama)')
+/**
+ * Why the Sync button is held (`syncAlasan`, omset :4100-4110). Every reason
+ * is named; re-checked on click because `disabled` is bypassable. `belum`
+ * (the save gate) doubles as the shift gate: its `pembagi` is shift-based,
+ * identical to legacy `barisTanpaShift`.
+ */
+function alasanSync(): string[] {
+  const out: string[] = []
+  if (kotor.value) out.push('Ada isian yang belum disimpan — simpan breakdown dulu, baru sync.')
+  if (rec.value?.bdValid !== true) out.push('Breakdown belum valid — simpan dulu sampai berstatus valid.')
+  for (const r of mk.value) {
+    if (kNum(r.amount) <= 0) out.push(`Baris marketing "${namaBarisSync(r, mkList.value)}" bernominal ${fmtRp(kNum(r.amount))} — betulkan dulu.`)
+  }
+  for (const r of ev.value) {
+    if (kNum(r.amount) <= 0) out.push(`Baris event "${namaBarisSync(r, evList.value)}" bernominal ${fmtRp(kNum(r.amount))} — betulkan dulu.`)
+  }
+  if (belum.value.length) {
+    out.push(`${belum.value.length} baris marketing belum ditentukan kasir shift-nya (${belum.value.map(r => namaBarisSync(r, mkList.value)).join(', ')}).`)
+  }
+  return out
+}
+const alasanTampil = computed(() => (berlakuSync.value ? alasanSync() : []))
+
+const syncing = ref(false)
+async function jalanSync() {
+  const d = rec.value
+  if (!d || !data.value || syncing.value) return
+  if (!syncKasirBerlaku(tanggal.value)) return
+  const alasan = alasanSync()
+  if (alasan.length) {
+    toast.add({ title: 'Belum bisa di-sync', description: alasan.join(' '), color: 'warning' })
+    return
+  }
+  // Frozen from the SAVED breakdown (unsaved edits are blocked above), so the
+  // fingerprint below always matches what Performa will read back.
+  const beku = snapKasir(d.bd)
+  const baris = beku.map(b => `• ${namaKasir(b.kasirId)}: ${fmtRp(b.real)}${b.potong ? ` (potongan ${fmtRp(b.potong)})` : ''}${b.off ? ' — OFF' : ''}`).join('\n')
+  if (!confirm(`Sync ke Performa Kasir — ${tglPanjang(tanggal.value)}?\n\nAngka per kasir yang dibekukan:\n${baris}\n\nSesudah sync, Performa Kasir (Kas & Cashier) memakai angka ini sampai Sync ulang.`)) return
+  syncing.value = true
+  try {
+    const sync: BdSync = { at: Date.now(), by: me.value?.name ?? '', sidik: sidikBd(d.bd), kasir: beku }
+    const baru: BarisHarian = { ...d, bdSync: sync }
+    const rowsBaru = [...rows.value.filter(r => r.date !== tanggal.value), baru]
+    data.value.day = await putDay(tanggal.value, rowsBaru, data.value.day.version)
+    await refresh()
+    toast.add({ title: `Performa kasir ${tglPanjang(tanggal.value)} di-sync.`, color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    syncing.value = false
+  }
 }
 
 // Reka UI's SelectItem refuses an EMPTY value, so "not chosen yet" travels as a
@@ -762,6 +859,66 @@ const pilihKasirOb = (r: BarisBd, v: string) => set(r, 'obKasirId', v === KOSONG
         >
           Breakdown hari ini belum pernah disimpan, atau diatur sebelum jejaknya dicatat.
         </p>
+      </AppPanel>
+
+      <AppPanel
+        title="Sync ke Performa Kasir"
+        description="Bekukan angka realisasi per kasir hari ini untuk Performa Kasir (Kas & Cashier). Mulai 1 Oktober 2026 Performa membaca angka beku ini, bukan hitungan langsung — hari sebelumnya tetap dihitung langsung."
+      >
+        <UAlert
+          v-if="!berlakuSync"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-info"
+          title="Hari ini belum masuk masa sync."
+          description="Sync hanya untuk 1 Oktober 2026 ke atas; hari sebelumnya dihitung langsung seperti sekarang."
+        />
+        <template v-else>
+          <div class="flex flex-wrap items-center gap-3">
+            <AppStatus
+              :color="syncStatus === 'sudah' ? 'success' : 'warning'"
+              size="md"
+            >
+              {{ syncStatus === 'sudah' ? 'Sudah di-sync' : syncStatus === 'berubah' ? 'Breakdown berubah sesudah sync' : 'Belum di-sync' }}
+            </AppStatus>
+            <span
+              v-if="bdSync"
+              class="text-sm text-muted"
+            >oleh {{ bdSync.by || '—' }} · {{ bdSync.at ? new Date(bdSync.at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—' }}</span>
+            <div class="flex-1" />
+            <UButton
+              :label="syncStatus === 'sudah' ? 'Sync ulang' : 'Sync ke Performa Kasir'"
+              icon="i-lucide-refresh-cw"
+              :disabled="alasanTampil.length > 0"
+              :loading="syncing"
+              @click="jalanSync"
+            />
+          </div>
+          <UAlert
+            v-if="syncStatus === 'berubah'"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-triangle-alert"
+            title="Breakdown berubah sesudah sync — Performa masih memakai angka beku yang lama."
+            description="Tekan Sync ulang untuk membekukan angka yang sekarang."
+            class="mt-3"
+          />
+          <UAlert
+            v-if="alasanTampil.length"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-triangle-alert"
+            title="Belum bisa di-sync:"
+            :description="alasanTampil.join(' ')"
+            class="mt-3"
+          />
+          <p
+            v-else-if="syncStatus === 'belum'"
+            class="mt-3 text-sm text-muted"
+          >
+            Performa Kasir untuk hari ini masih kosong (belum dihitung) sampai di-sync.
+          </p>
+        </template>
       </AppPanel>
     </template>
 
