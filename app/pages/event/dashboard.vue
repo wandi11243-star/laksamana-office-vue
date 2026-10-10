@@ -8,7 +8,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { Acara } from '~/composables/useEvent'
 import { useStateEvent } from '~/composables/useEvent'
-import { angkaEms, omzetPerBulan, paxAcara, statusPengajuan } from '~/utils/event-hitung'
+import { angkaEms, omzetPerBulan, paxAcara, statusPengajuan, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { angka, hariIni, rupiah, tambahHari, tglPanjang } from '~/utils/format'
 import { STATUS_IKON_EVENT, STATUS_WARNA_EVENT } from '~/utils/status-event'
@@ -27,7 +27,7 @@ const PILIHAN_PERIODE = [
   { value: 'bulan', label: 'Bulan ini' },
 ] as { value: Periode, label: string }[]
 
-const tglAcara = (e: Acara) => String(e.start_datetime ?? '').slice(0, 10)
+const tglAcara = (e: Acara) => tglWIB(e.start_datetime)
 const dalamPeriode = (tgl: string) => {
   const h = hariIni()
   if (periode.value === 'hari') return tgl === h
@@ -360,7 +360,7 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
           </ULink>
         </template>
         <template #tanggal-cell="{ row }">
-          {{ tglPanjang(String(row.original.start_datetime ?? '').slice(0, 10)) }}
+          {{ tglPanjang(tglWIB(row.original.start_datetime)) }}
         </template>
         <template #venue-cell="{ row }">
           {{ row.original.venue || '—' }}

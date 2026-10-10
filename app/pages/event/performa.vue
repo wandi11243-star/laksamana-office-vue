@@ -7,7 +7,7 @@
 -->
 <script setup lang="ts">
 import { useStateEvent } from '~/composables/useEvent'
-import { angkaEms, EVT_STATUS_HASIL } from '~/utils/event-hitung'
+import { angkaEms, EVT_STATUS_HASIL, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { angka, persen, rupiah } from '~/utils/format'
 
@@ -31,7 +31,7 @@ const perAcara = computed<BarisAcara[]>(() => {
     return {
       id: e.id,
       judul: e.title,
-      tanggal: String(e.start_datetime ?? '').slice(0, 10),
+      tanggal: tglWIB(e.start_datetime),
       omzet: order.filter(o => o.event_id === e.id && o.payment_status === 'Paid').reduce((a, o) => a + (Number(o.total) || 0), 0),
       terjual: ks.reduce((a, c) => a + (Number(c.sold) || 0), 0),
       kuota: ks.reduce((a, c) => a + (Number(c.quota) || 0), 0),

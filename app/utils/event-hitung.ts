@@ -78,7 +78,7 @@ export function omzetPerBulan(
   order: Pick<OrderTiket, 'event_id' | 'payment_status' | 'total'>[],
   now = new Date(),
 ): { label: string, jt: number }[] {
-  const mulai = new Map(acara.map(e => [e.id, String(e.start_datetime ?? '').slice(0, 7)]))
+  const mulai = new Map(acara.map(e => [e.id, tglWIB(e.start_datetime).slice(0, 7)]))
   const perBulan = new Map<string, number>()
   for (const o of order) {
     if (o.payment_status !== 'Paid') continue
@@ -152,4 +152,108 @@ export function feeAngka(v: unknown): number {
 /** ROI of an idea, in percent (`:11130`). */
 export function roiIde(budget: number, potensi: number): number {
   return budget > 0 ? Math.round((potensi - budget) / budget * 100) : 0
+}
+
+// --- WIB wall-clock (commit 43f6851 in laksamana-office) ---
+// `start_datetime` is stored as a UTC instant ("2026-10-25T04:00:00.000Z" =
+// 11.00 WIB); old rows may also carry a zoneless local stamp
+// ("2026-10-25T11:00"). Slicing the raw string reads UTC: an 11.00 WIB show
+// displays as 04:00, and a past-midnight show lands on the previous day — at
+// a month edge, in the previous MONTH. Every screen reads dates through
+// these, never through a raw slice.
+
+const pad2 = (n: number) => String(n).padStart(2, '0')
+const POLA_TGL = /^\d{4}-\d{2}-\d{2}$/
+const POLA_BLN = /^\d{4}-\d{2}$/
+const ymd = (d: Date) => `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`
+
+/** `dtLokalInput(s)`: fill a datetime-local box with LOCAL time (zoned
+ *  instant → local `YYYY-MM-DDTHH:mm`; zoneless is already local and goes in
+ *  as-is). A raw zoned value makes the browser show an empty box. */
+export function dtLokalInput(s: unknown): string {
+  if (!s) return ''
+  const x = String(s)
+  if (!/(Z|[+-]\d{2}:?\d{2})$/.test(x)) return x.slice(0, 16)
+  const d = new Date(x)
+  if (Number.isNaN(d.getTime())) return x.slice(0, 16)
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}T${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+}
+
+/** `pevTglWIB(x)` (`:5181`): the WIB calendar date `YYYY-MM-DD` of a
+ *  start_datetime. Unparseable values fall back to the raw slice. */
+export function tglWIB(s: unknown): string {
+  const t = Date.parse(String(s ?? ''))
+  if (Number.isNaN(t)) return String(s ?? '').slice(0, 10)
+  return new Date(t + 7 * 3600 * 1000).toISOString().slice(0, 10)
+}
+
+/** WIB wall-clock `HH:mm` for display (the same local rule `fmtDateTime`
+ *  `:1744` uses — detail pages show the hour people actually gather). */
+export function jamWIB(s: unknown): string {
+  if (!s) return '—'
+  const d = new Date(String(s))
+  if (Number.isNaN(d.getTime())) return String(s).slice(11, 16) || '—'
+  return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`
+}
+
+/** The `saveEvent()` (`:6425`) write-back: a datetime-local value (local)
+ *  becomes the UTC instant the record keeps — the same rule that read it, so
+ *  Edit → Simpan round-trips without drifting. Empty stays empty: unlike the
+ *  old form this never invents "now" for a missing end time. */
+export function instanDariLokal(s: string): string {
+  if (!s) return ''
+  const d = new Date(s)
+  return Number.isNaN(d.getTime()) ? '' : d.toISOString()
+}
+
+/** `rentangPeriode(mode)` (`:6313`): the ONE range counter for the event module
+ *  — the event list shares it (the dashboard keeps its own presets), so "this
+ *  week" means the same everywhere here. `''` → no filter; `YYYY-MM-DD` →
+ *  that day; `YYYY-MM` → that month; `hari`/`minggu` (Monday–Sunday)/`bulan`.
+ *  Named per-module like `rentangPeriodeMkt`: `radar.ts` owns the bare name. */
+export function rentangPeriodeEvent(mode: string, now = new Date()): { a: string, b: string } | null {
+  if (!mode) return null
+  const m = String(mode)
+  if (POLA_TGL.test(m)) return { a: m, b: m }
+  if (POLA_BLN.test(m)) {
+    const akh = new Date(Number(m.slice(0, 4)), Number(m.slice(5, 7)), 0)
+    return { a: `${m}-01`, b: `${m}-${pad2(akh.getDate())}` }
+  }
+  if (m === 'hari') {
+    const t = ymd(now)
+    return { a: t, b: t }
+  }
+  if (m === 'minggu') {
+    const sen = new Date(now)
+    sen.setDate(now.getDate() - ((now.getDay() + 6) % 7))
+    const min = new Date(sen)
+    min.setDate(sen.getDate() + 6)
+    return { a: ymd(sen), b: ymd(min) }
+  }
+  const awal = new Date(now.getFullYear(), now.getMonth(), 1)
+  const akhir = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  return { a: ymd(awal), b: ymd(akhir) }
+}
+
+/** `periodeBulanAktif` (`:5080`): the month the picker shows — the chosen
+ *  `YYYY-MM` itself, else the current month. */
+export function bulanAktif(periode: string, now = new Date()): string {
+  const m = String(periode ?? '')
+  if (/^\d{4}-\d{2}/.test(m)) return m.slice(0, 7)
+  return `${now.getFullYear()}-${pad2(now.getMonth() + 1)}`
+}
+
+/** `periodeGeser` (`:5086`) without the `window[fn]` indirection: stepping
+ *  shifts the unit in use (a picked day steps a day, anything else a month);
+ *  from a fixed keyword it steps from the current month. Returns the new mode. */
+export function geserPeriode(aktif: string, arah: -1 | 1, now = new Date()): string {
+  const m = String(aktif ?? '')
+  if (POLA_TGL.test(m)) {
+    const d = new Date(`${m}T00:00:00`)
+    d.setDate(d.getDate() + arah)
+    return ymd(d)
+  }
+  const b = bulanAktif(m, now)
+  const d = new Date(Number(b.slice(0, 4)), Number(b.slice(5, 7)) - 1 + arah, 1)
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`
 }

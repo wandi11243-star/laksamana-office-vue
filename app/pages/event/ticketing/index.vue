@@ -6,7 +6,7 @@
 <script setup lang="ts">
 import type { Acara } from '~/composables/useEvent'
 import { useDaftarEvent } from '~/composables/useEvent'
-import { ringkasPenjualan } from '~/utils/event-hitung'
+import { ringkasPenjualan, tglWIB } from '~/utils/event-hitung'
 import { angka, rupiah } from '~/utils/format'
 
 definePageMeta({ access: ['event'] })
@@ -92,7 +92,7 @@ const progres = (e: Acara) => {
           {{ e.title }}
         </ULink>
         <p class="mt-0.5 text-xs text-muted">
-          {{ String(e.start_datetime ?? '').slice(0, 10) }} · {{ e.venue || '—' }}
+          {{ tglWIB(e.start_datetime) }} · {{ e.venue || '—' }}
         </p>
         <div class="mt-2 flex items-baseline justify-between text-sm">
           <span class="font-semibold text-highlighted num">{{ angka(progres(e).laku) }}/{{ angka(progres(e).kuota) }} ({{ progres(e).pct }}%)</span>

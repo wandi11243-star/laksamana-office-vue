@@ -16,6 +16,7 @@ import { bolehSetujui, peranEvent } from '~/utils/layar/event'
 import { angka, rupiah, tglPendek } from '~/utils/format'
 import type { HariBreakdown, PicBonus } from '~/utils/performa-bonus'
 import { bonusEvent, pbAgregasi } from '~/utils/performa-bonus'
+import { tglWIB } from '~/utils/event-hitung'
 import { tanganiKonflik } from '~/utils/versi'
 
 definePageMeta({ access: ['event'] })
@@ -237,7 +238,7 @@ async function simpanNominal(e: Acara, nilai: number) {
           </ULink>
         </template>
         <template #tanggal-cell="{ row }">
-          {{ tglPendek(String(row.original.start_datetime ?? '').slice(0, 10)) }}
+          {{ tglPendek(tglWIB(row.original.start_datetime)) }}
         </template>
         <template #nominal-cell="{ row }">
           <UInput
