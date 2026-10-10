@@ -8,11 +8,12 @@ import { inisial, pics, projProgress, sisaHari } from '~/utils/bd-rumus'
 import { IKON_HEALTH, LABEL_HEALTH, WARNA_HEALTH, divTone } from '~/utils/status-bd'
 import { fTglP } from '~/utils/format'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   project: BdProject
   tasks: BdTask[]
   people: BdPerson[]
-}>()
+  tampilkanPindah?: boolean
+}>(), { tampilkanPindah: true })
 const emit = defineEmits<{ buka: [], pindah: [] }>()
 
 const pg = computed(() => projProgress(props.project, props.tasks))
@@ -67,6 +68,7 @@ const dpakai = computed(() => pics(props.project).map(id => props.people.find(p 
       </span>
     </button>
     <UButton
+      v-if="tampilkanPindah"
       label="Pindah stage"
       icon="i-lucide-arrow-right-left"
       color="neutral"

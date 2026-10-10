@@ -379,12 +379,13 @@ Perbaikan di branch ini:
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
 | dashboard | `app/pages/bd/dashboard.vue` | ✅ | `GET /bd/state`, `GET/PUT /bd/settings/focus` | — |
-| tasks | `app/pages/bd/tasks.vue` | ✅ | `GET /bd/state`, `POST/PUT/PATCH/DELETE /bd/tasks` | — |
-| projects | `app/pages/bd/projects.vue` | ✅ | `GET /bd/state`, `POST/PUT/PATCH /bd/projects`, `PATCH /bd/tasks` | — |
-| projectDetail | `app/pages/bd/projects/[id].vue` | ✅ | `GET /bd/state`, `PATCH /bd/projects`, `/bd/tasks`, `/bd/coord-requests`, `/bd/purchase-orders` | — |
+| mytask | `app/pages/bd/mytask.vue` | ✅ (VUE-10) | `GET /bd/state`, `POST/PUT/PATCH/DELETE /bd/tasks` | — |
+| tasks | `app/pages/bd/tasks.vue` | ➡️ pengalih ke My Task (VUE-10) | — | Board & Tasks dicabut dari menu 7 Okt 2026 |
+| projects | `app/pages/bd/projects.vue` | ✅ (VUE-10: kartu + Kanban) | `GET /bd/state`, `POST/PUT/PATCH /bd/projects`, `PATCH /bd/tasks` | — |
+| projectDetail | `app/pages/bd/projects/[id].vue` | ✅ (VUE-10: tab Kanban + pohon) | `GET /bd/state`, `PATCH /bd/projects`, `/bd/tasks`, `/bd/coord-requests`, `/bd/purchase-orders` | tab Timeline di VUE-11 |
 | calendar | `app/pages/bd/calendar.vue` | ✅ | `GET /bd/state`, `POST/PUT/DELETE /bd/agenda`, `PATCH /bd/tasks` | — |
-| coord | `app/pages/bd/coord.vue` | ✅ | `GET /bd/state`, `POST/PUT/PATCH/DELETE /bd/coord-requests` | — |
-| routine | `app/pages/bd/routine.vue` | ✅ | `GET /bd/state`, `POST/PUT/DELETE /bd/routines` | — |
+| coord | `app/pages/bd/coord.vue` | ✅ (di luar menu, VUE-10) | `GET /bd/state`, `POST/PUT/PATCH/DELETE /bd/coord-requests` | dicabut dari menu 6 Okt 2026; data tetap |
+| routine | `app/pages/bd/routine.vue` | ✅ (di luar menu, VUE-10) | `GET /bd/state`, `POST/PUT/DELETE /bd/routines` | dicabut dari menu 6 Okt 2026; data tetap |
 | promo | `app/pages/bd/promo.vue` | ✅ | `GET/PUT /bd/settings/promos` | CSV ekspor/impor di browser, sesuai K-05 (1) |
 | purchasing | `app/pages/bd/purchasing/index.vue` | ✅ | `GET /bd/state`, `POST /bd/purchase-orders/batch`, `PATCH/DELETE /bd/purchase-orders`, `POST /bd/purchase-requests`, `GET/PUT /bd/settings/approverSets`, `GET /stock/vendors` (G-02, saran Vendor) | — |
 | prDetail | `app/pages/bd/purchasing/pr-[id].vue` | ✅ | `GET /bd/state`, `PATCH /bd/purchase-requests`, `PATCH /bd/purchase-orders`, `PUT /bd/purchase-orders/{id}/realisasi` | — |
@@ -404,6 +405,28 @@ Sumber Office lama: commit `51fcf91` (`deploy/bd/index.html`: `promoTemplate()`)
 tambah tombol "Template" di `#actions` yang mengunduh `template_promo.csv` berisi baris judul saja.
 Kolomnya dari `PROMO_CSV_KOL` yang sama dengan impor (hanya kolom ber-`b`, tanpa ID) — bukan
 ditulis manual. Toast menyebut format tanggal hari-bulan-tahun.
+
+### VUE-10 — BD jadi Task Management bagian 1 (branch `migrasi/bd-task-management`)
+
+Sumber Office lama: commit `9b51932`, `abcd462`, `002c91c`, `e865822`, `a211c19` — yang berlaku
+**putaran KEEMPAT** (bentuk "Armada", 7 Okt 2026).
+
+- **Nama tampilan → Task Management** (judul, sidebar, kartu Beranda, Help); kunci akses tetap `bd`.
+- **Status To Do / Doing / Review / Done** (`STATUS_FLOW`); baca menormalisasi (Backlog → To Do,
+  Waiting → Doing, tak dikenal → To Do — kartu tanpa kolom akan hilang tanpa tanda).
+  Done mencatat `doneAt` (dibuang saat dibuka lagi); deadline Done tampil hijau dan berhenti.
+- **Sub-task + urutan**: `subtasks [{id,t,done,d}]`, `dependsOn`, field task `start` — semuanya ikut
+  dalam baris task tanpa migrasi SQL. SATU penjaga `cekBolehDone()` dipakai tiga jalan ke Done
+  (centang baris, Simpan form, seret kartu); hanya Done yang ditahan; lingkaran ditolak di
+  pemilih; progres dihitung dari sub-task; hapus melepas dari yang menunggu.
+- **Menu**: My Task (List/Kanban, `mytask.vue` + `BdKanban`/`BdTaskTree`) menggantikan Board & Tasks
+  (`/bd/tasks` mengalihkan); Projects jadi kartu (bawaan) + Kanban stage; detail project bertab
+  Kanban (bawaan) + Task & sub-task. Koordinasi & Routine DICABUT dari menu — datanya tetap,
+  file-nya tetap bisa dibuka langsung.
+- **Tulisan**: PUT task selalu mengirim seluruh field yang dibaca (membuka dari Done juga
+  membuang `doneAt`, yang tak bisa dilakukan PATCH); tutup project ikut mencap `doneAt`.
+  `urutDeadline()` satu urutan baku; mulai > deadline ditolak di form.
+- **Belum dijalankan**: `npm run lint/typecheck/build`, cek browser 390/1366 dengan mock.
 
 ## K. Daftar uji cutover
 

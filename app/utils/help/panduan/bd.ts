@@ -1,48 +1,50 @@
 /*
-  PANDUAN: BD OS
+  PANDUAN: Task Management (dulu BD OS)
   ---------------------------------------------------------------------------
-  Kuncinya 'bd'. Nama menu disalin dari NAV di deploy/bd/index.html.
+  Kuncinya 'bd'. Nama menu disalin dari NAV di deploy/bd/index.html (putaran keempat).
 */
 import type { Panduan } from '../tipe'
 
 export default {
   key: 'bd',
-  ringkas: 'Ruang kerja tim Business Development: task berprioritas, project berjangka, '
-    + 'koordinasi ke divisi lain, promo, dan purchase order.',
+  ringkas: 'Ruang kerja tim: task berstatus, project berjangka, '
+    + 'promo, dan purchase order.',
   untuk: 'tim BD',
 
   bagian: [
 
     {
-      id: 'tentang', judul: 'Tentang BD OS',
+      id: 'tentang', judul: 'Tentang Task Management',
       isi: [
         { t: 'tabel',
           kepala: ['Kelompok', 'Menu', 'Isinya'],
           baris: [
-            ['Workspace', 'Dashboard, Tasks, Projects, Calendar', 'Pekerjaan sehari-hari.'],
-            ['Operasi', 'Koordinasi, Routine, Promotion, Purchasing', 'Yang menyentuh divisi lain.'],
+            ['Workspace', 'Dashboard, My Task, Projects, Calendar', 'Pekerjaan sehari-hari.'],
+            ['Operasi', 'Promotion, Purchasing', 'Yang menyentuh divisi lain.'],
             ['Tim', 'Kru BD', 'Anggota tim.'],
           ] },
-        { t: 'catatan', nada: 'info', judul: 'Tasks memakai prioritas Eisenhower',
-          isi: 'Penting × Mendesak. Empat kuadran, bukan satu daftar panjang — yang penting tapi '
-            + 'tidak mendesak justru yang paling sering hilang dari daftar biasa.' },
+        { t: 'catatan', nada: 'info', judul: 'Koordinasi & Routine tidak ada di menu',
+          isi: 'Keduanya dicabut dari menu, tapi datanya tetap tersimpan dan ikut tersimpan. '
+            + 'My Task menggantikan Board & Tasks: task milikmu, dilihat sebagai daftar atau Kanban.' },
       ],
     },
 
     {
-      id: 'kerja', judul: 'Task, Project, dan Routine',
+      id: 'kerja', judul: 'Task, sub-task, dan urutan',
       isi: [
         { t: 'tabel',
           kepala: ['Menu', 'Untuk apa', 'Bedanya'],
           baris: [
-            ['Tasks', 'Pekerjaan sekali jalan.', 'Selesai lalu ditutup.'],
+            ['My Task', 'Pekerjaan yang kamu pegang.', 'Daftar per grup atau Kanban To Do → Done.'],
             ['Projects', 'Pekerjaan besar berjangka.', 'Punya milestone, berlangsung berminggu-minggu.'],
-            ['Routine', 'Pekerjaan berulang.', 'Yang diukur KEPATUHANNYA, bukan selesainya.'],
           ] },
-        { t: 'catatan', nada: 'info', judul: 'Routine diukur berbeda',
-          isi: 'Yang dinilai bukan "sudah selesai atau belum" melainkan seberapa rutin ia '
-            + 'dikerjakan. Memasukkan pekerjaan berulang ke Tasks membuat daftarnya penuh baris '
-            + 'yang sama tiap minggu.' },
+        { t: 'catatan', nada: 'info', judul: 'Status: To Do, Doing, Review, Done',
+          isi: 'Task lama berstatus Backlog terbaca sebagai To Do, Waiting sebagai Doing. '
+            + 'Done mencatat tanggal selesainya; deadline task Done berhenti menghitung dan tampil hijau.' },
+        { t: 'catatan', nada: 'info', judul: 'Sub-task & urutan',
+          isi: 'Tiap task boleh punya sub-task (progres dihitung dari yang dicentang) dan menunggu '
+            + 'task lain. Yang ditahan hanya Done: task yang masih menunggu tidak bisa diselesaikan '
+            + 'sebelum prasyaratnya Done — mulai mengerjakannya tetap boleh.' },
       ],
     },
 
@@ -99,12 +101,12 @@ export default {
             ['Kolom vendor di form PO kosong',
               'Daftar vendor dari modul Stock belum termuat.',
               'Kotaknya tetap bisa diketik. Coba muat ulang halamannya.'],
-            ['Task saya hilang dari kuadran',
-              'Prioritasnya berubah, atau ia sudah ditandai selesai.',
-              'Periksa penyaringnya.'],
-            ['Routine terlihat selalu merah',
-              'Yang diukur kepatuhan, bukan penyelesaian.',
-              'Itu memang bentuknya. Kalau targetnya tidak realistis, ubah jadwalnya.'],
+            ['Task saya hilang dari daftar',
+              'Penyaringnya, atau ia sudah ditandai selesai.',
+              'Periksa penyaringnya; yang Done ada di Arsip Kanban.'],
+            ['Task tidak bisa di-Done-kan',
+              'Masih ada task prasyarat yang belum Done.',
+              'Namanya disebut di barisnya ("Menunggu …") — selesaikan itu dulu.'],
           ] },
       ],
     },

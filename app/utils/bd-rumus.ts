@@ -8,7 +8,7 @@
 // Dates always go through the local helpers below, never `Date#toISOString()`:
 // that is UTC and in WIB anything before 07:00 is reported as yesterday, which
 // would mark tasks overdue every morning (deploy/bd/index.html:767-772).
-import type { BdApproverSet, BdPo, BdPerson, BdPr, BdProject, BdTask } from '~/composables/useBd'
+import type { BdApproverSet, BdPo, BdPerson, BdPr, BdProject, BdSubtask, BdTask } from '~/composables/useBd'
 import { BLN, fTglP, hariIni } from '~/utils/format'
 
 // ─────────────────────────── organisation (deploy/bd/index.html:708-755) ──
@@ -16,8 +16,19 @@ import { BLN, fTglP, hariIni } from '~/utils/format'
 export const OWNER_DIVS = ['Business Development', 'Project', 'Purchasing']
 /** `COORD_DIVS` — the other divisions, the destinations of a coordination request. */
 export const COORD_DIVS = ['Kitchen', 'Bar', 'Marketing', 'Finance', 'Event', 'Floor', 'HR']
-/** `STATUS_FLOW`. */
-export const STATUS_FLOW = ['Backlog', 'To Do', 'Doing', 'Waiting', 'Review', 'Done']
+/** `STATUS_FLOW` — the four Kanban columns (putaran keempat, 7 Okt 2026). */
+export const STATUS_FLOW = ['To Do', 'Doing', 'Review', 'Done']
+/** `STATUS_LAMA` — read mapping for rows written before the fourth round. */
+export const STATUS_LAMA: Record<string, string> = { Backlog: 'To Do', Waiting: 'Doing' }
+/**
+ * `normalize` (status part) — an old or unknown status never leaves a card
+ * column-less: unknown statuses fall to To Do, where they are seen.
+ */
+export function normalisasiStatus(status?: string): string {
+  if (status && STATUS_LAMA[status]) return STATUS_LAMA[status]!
+  if (status && STATUS_FLOW.includes(status)) return status
+  return 'To Do'
+}
 /** `PRIORITAS`. */
 export const PRIORITAS = ['Urgent', 'High', 'Medium', 'Low']
 /** `PROJ_STAGES`. */
@@ -375,3 +386,162 @@ export function bacaMilestone(teks: string, lama?: { t: string, done?: boolean }
 }
 /** Milestones back to the textarea shape (`projModal`). */
 export const tulisMilestone = (m?: { t: string, date?: string }[]) => (m || []).map(x => `${x.t} | ${x.date || ''}`).join('\n')
+
+// ─────────────────────────── Task management (putaran keempat, 7 Okt 2026) ──
+// The module is no longer just a BD board: per project there are tasks, each
+// task may carry sub-tasks, and a task may wait on others (`dependsOn`). Both
+// ride INSIDE the task row (`subtasks`, `dependsOn`) — the API stores the
+// whole row as JSON in `data`, so no new field ever needs a SQL migration.
+
+/** `subs` — a task's sub-tasks, always an array. */
+export function subs(t: { subtasks?: BdSubtask[] | null } | null | undefined): BdSubtask[] {
+  return t && Array.isArray(t.subtasks) ? t.subtasks : []
+}
+/** `subHitung` — `{n, d}` = total / done. */
+export function subHitung(t: { subtasks?: BdSubtask[] | null } | null | undefined): { n: number, d: number } {
+  const s = subs(t)
+  return { n: s.length, d: s.filter(x => x && x.done).length }
+}
+/** `deps` — waited-on task ids, always an array. */
+export function deps(t: { dependsOn?: string[] | null } | null | undefined): string[] {
+  return t && Array.isArray(t.dependsOn) ? t.dependsOn : []
+}
+
+interface PunyaIdNamaStatus { id: string, name?: string, status?: string }
+
+/** `penghalang` — waited-on tasks that are still not Done. A prerequisite
+ * that was DELETED never blocks: a task locked by something nobody can open
+ * again would stay locked forever. */
+export function penghalang<T extends PunyaIdNamaStatus>(
+  t: { id?: string, dependsOn?: string[] | null } | null | undefined,
+  semua: T[],
+): T[] {
+  if (!t) return []
+  return deps(t)
+    .map(id => semua.find(x => x.id === id))
+    .filter((x): x is T => !!x && x.id !== t.id && x.status !== 'Done')
+}
+/** `penunggu` — tasks waiting on one id. Deleting a task releases them. */
+export function penunggu<T extends { id: string, dependsOn?: string[] | null }>(semua: T[], id: string): T[] {
+  return semua.filter(t => deps(t).includes(id))
+}
+/**
+ * `menungguTransitif` — whether task a waits on b directly or through a
+ * chain. Refuses circles: A waiting on B waiting on A means neither can ever
+ * be Done, and no screen could explain why.
+ */
+export function menungguTransitif(
+  semua: { id: string, dependsOn?: string[] | null }[],
+  aId: string,
+  bId: string,
+  seen?: Record<string, boolean>,
+): boolean {
+  const s = seen || {}
+  if (s[aId]) return false
+  s[aId] = true
+  return deps(semua.find(x => x.id === aId)).some(d => d === bId || menungguTransitif(semua, d, bId, s))
+}
+
+/** Short name for guard messages (`namaPendek`). */
+export const namaPendekTask = (t: { name?: string } | null | undefined) =>
+  `"${String(t?.name || '').slice(0, 40)}"`
+
+export interface HasilCekDone { boleh: boolean, nama: string[] }
+/**
+ * `cekBolehDone` — THE ONE guard on the road to Done, used by all three
+ * paths (the row checkbox, Save in the form, dropping a card). Only Done is
+ * held: starting (Doing) a waiting task stays allowed — preparation often
+ * runs in parallel. Returns the blockers; callers toast them with
+ * `pesanTunggu`.
+ */
+export function cekBolehDone<T extends PunyaIdNamaStatus>(
+  t: { id?: string, name?: string, dependsOn?: string[] | null } | null | undefined,
+  daftarDeps: string[] | null | undefined,
+  semua: T[],
+): HasilCekDone {
+  const h = (daftarDeps ?? deps(t))
+    .map(id => semua.find(x => x.id === id))
+    .filter((x): x is T => !!x && x.id !== t?.id && x.status !== 'Done')
+  return { boleh: !h.length, nama: h.map(x => namaPendekTask(x)) }
+}
+/** The refusal sentence for a held Done. */
+export const pesanTunggu = (t: { name?: string } | null | undefined, nama: string[]) =>
+  `${namaPendekTask(t)} belum bisa Done — selesaikan dulu: ${nama.join(', ')}`
+
+/**
+ * `segarkanProgress` — Done stamps `progress = 100` and `doneAt` (once: the
+ * deadline stops counting — "waktunya berhenti"); reopening drops `doneAt`.
+ * A task with sub-tasks is COUNTED from them, never typed; a sub-task-less
+ * task left at 100 by hand falls back to 0.
+ */
+export function segarkanProgress(t: { status?: string, progress?: number, doneAt?: string, subtasks?: BdSubtask[] | null }): void {
+  if (t.status === 'Done') {
+    t.progress = 100
+    if (!t.doneAt) t.doneAt = todayISO()
+    return
+  }
+  delete t.doneAt
+  const h = subHitung(t)
+  if (h.n) t.progress = Math.round((h.d / h.n) * 100)
+  else if (t.progress === 100) t.progress = 0
+}
+
+/**
+ * `urutDeadline` — THE ONE task order: nearest deadline on top, dateless at
+ * the bottom (a dateless task is not the most urgent), then the name so the
+ * order never reshuffles between renders.
+ */
+export function urutDeadline(a: { deadline?: string, name?: string }, b: { deadline?: string, name?: string }): number {
+  const da = a.deadline || '9999-99-99'
+  const db = b.deadline || '9999-99-99'
+  if (da !== db) return da < db ? -1 : 1
+  return String(a.name || '').localeCompare(String(b.name || ''))
+}
+
+export type ModeArsip = 'aktif' | 'arsip' | 'semua'
+/**
+ * `saringArsip` — Done IS the archive marker, not a new field: two markers
+ * for one state would drift (a task reopened from Done but still flagged
+ * archive vanishes from the board).
+ */
+export function saringArsip<T extends { status?: string }>(list: T[], mode: ModeArsip): T[] {
+  if (mode === 'arsip') return list.filter(t => t.status === 'Done')
+  if (mode === 'semua') return list
+  return list.filter(t => t.status !== 'Done')
+}
+
+export type SehatProject = 'done' | 'over' | 'on-track' | 'at-risk' | 'off-track'
+/** `projSehat` — attention state of one project. */
+export function sehatProject(p: { stage?: string, end?: string, health?: string }): { k: SehatProject } {
+  if (p.stage === 'Completed') return { k: 'done' }
+  if (p.end && sisaHari(p.end) < 0) return { k: 'over' }
+  const h = p.health
+  return { k: h === 'off-track' || h === 'at-risk' ? h : 'on-track' }
+}
+/**
+ * Projects most needing attention first: overdue, off/at-risk, nearest
+ * deadline (`vProjects` kartu view).
+ */
+export function urutProjectPerhatian<T extends { stage?: string, end?: string, health?: string }>(daftar: T[]): T[] {
+  const bobot: Record<SehatProject, number> = { 'over': 0, 'off-track': 1, 'at-risk': 2, 'on-track': 3, 'done': 4 }
+  return daftar.slice().sort((a, b) => {
+    const x = bobot[sehatProject(a).k]
+    const y = bobot[sehatProject(b).k]
+    if (x !== y) return x - y
+    return (a.end || '9999') < (b.end || '9999') ? -1 : 1
+  })
+}
+/**
+ * `waktuTerpakai` — how much of the start→deadline span has passed. Read
+ * against progress, it answers "on track or not".
+ */
+export function waktuTerpakai(p: { stage?: string, start?: string, end?: string }): string {
+  if (p.stage === 'Completed') return 'Selesai'
+  if (p.start && p.end && p.end > p.start) {
+    const tot = Math.round((+pDate(p.end) - +pDate(p.start)) / 86400000)
+    if (tot <= 0) return '—'
+    const jl = Math.round((+pDate(todayISO()) - +pDate(p.start)) / 86400000)
+    return `${Math.max(0, Math.min(100, Math.round((jl / tot) * 100)))}%`
+  }
+  return '—'
+}

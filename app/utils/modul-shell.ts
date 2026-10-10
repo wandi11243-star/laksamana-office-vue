@@ -108,7 +108,7 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     layar: LAYAR_HLIFE,
   },
   bd: {
-    subjudul: 'BD OS',
+    subjudul: 'Task Management',
     layar: LAYAR_BD,
   },
 
