@@ -64,16 +64,36 @@ async function putuskanRencana(e: Acara, setuju: boolean) {
     if (!(await tanganiKonflik(err, refresh))) toast.add({ title: apiErrorMessage(err), color: 'error' })
   }
 }
+// Rejecting asks for a reason first (`tolakRefund :10230`); the sheet emits it.
+const tolakRefund = ref<Refund | null>(null)
+const sheetTolak = computed({ get: () => tolakRefund.value !== null, set: v => (tolakRefund.value = v ? tolakRefund.value : null) })
+const ketTolak = computed(() => {
+  const o = orderDariId.value.get(tolakRefund.value?.order_id ?? '')
+  return o ? `${String(o.buyer_name ?? '')} · ${rupiah(Number(o.total) || 0)}` : undefined
+})
+const menolak = ref(false)
+async function jalanTolakRefund(alasan: string) {
+  const r = tolakRefund.value
+  if (!r || menolak.value) return
+  menolak.value = true
+  try {
+    await patchEvent('refunds', r.id, {
+      status: 'Rejected', penyetuju: namaSaya.value, alasan_tolak: alasan, decided_at: new Date().toISOString(), updatedAt: Date.now(),
+    }, daftarRefund.value.versions[r.id])
+    tolakRefund.value = null
+    toast.add({ title: 'Refund ditolak — alasannya tercatat.', color: 'success' })
+    await refreshRefund()
+  }
+  catch (err) {
+    if (!(await tanganiKonflik(err, refreshRefund))) toast.add({ title: apiErrorMessage(err), color: 'error' })
+  }
+  finally {
+    menolak.value = false
+  }
+}
 async function putuskanRefund(r: Refund, setuju: boolean) {
   if (!setuju) {
-    try {
-      await patchEvent('refunds', r.id, { status: 'Rejected', updatedAt: Date.now() }, daftarRefund.value.versions[r.id])
-      toast.add({ title: 'Refund ditolak', color: 'success' })
-      await refreshRefund()
-    }
-    catch (err) {
-      if (!(await tanganiKonflik(err, refreshRefund))) toast.add({ title: apiErrorMessage(err), color: 'error' })
-    }
+    tolakRefund.value = r
     return
   }
   // Approving runs the refund itself (`approveRefundYakin :10217`): the order
@@ -469,5 +489,12 @@ const lihatRefund = computed(() => tab.value !== 'rencana')
         </UButton>
       </template>
     </ResponsiveSheet>
+
+    <EventTolakRefund
+      v-model:open="sheetTolak"
+      :ket="ketTolak"
+      :sibuk="menolak"
+      @tolak="jalanTolakRefund"
+    />
   </AppPage>
 </template>

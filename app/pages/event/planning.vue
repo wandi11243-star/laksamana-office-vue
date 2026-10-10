@@ -8,12 +8,13 @@
   Idea Bank tab lives at /event/ideas; its route stays (`:2036`).
 -->
 <script setup lang="ts">
-import type { Acara } from '~/composables/useEvent'
+import type { Acara, OrderTiket, Refund } from '~/composables/useEvent'
 import { createEvent, patchEvent, removeEvent, useDaftarEvent } from '~/composables/useEvent'
 import { statusPengajuan, tglWIB } from '~/utils/event-hitung'
+import { refundGantung } from '~/utils/event-refund'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehSetujui, bolehUbahEvent, peranEvent } from '~/utils/layar/event'
-import { tglPanjang } from '~/utils/format'
+import { angka, tglPanjang } from '~/utils/format'
 import { PENGAJUAN_IKON, PENGAJUAN_WARNA } from '~/utils/status-event'
 import { tanganiKonflik } from '~/utils/versi'
 
@@ -120,10 +121,23 @@ async function putuskan(e: Acara, setuju: boolean) {
 
 const hapusId = ref('')
 const sheetHapus = computed({ get: () => hapusId.value !== '', set: v => (hapusId.value = v ? hapusId.value : '') })
+// Same guard as the event list (`hapusEvent :3024`): a plan that already sold
+// tickets keeps its paid orders, and a hanging refund is named as the reason.
+const { data: daftarOrder } = useDaftarEvent<OrderTiket>('orders', {}, 'event-planning-orders')
+const { data: daftarRefund } = useDaftarEvent<Refund>('refunds', {}, 'event-planning-refunds')
+const infoHapus = computed(() => {
+  const lunas = daftarOrder.value.rows.filter(o => o.event_id === hapusId.value && o.payment_status === 'Paid')
+  const gantungN = lunas.filter(o => daftarRefund.value.rows.some(r => r.order_id === o.id && refundGantung(r, o))).length
+  return {
+    judul: daftar.value.rows.find(e => e.id === hapusId.value)?.title ?? '',
+    lunas: lunas.length,
+    gantung: gantungN,
+  }
+})
 async function hapus() {
   const id = hapusId.value
   sheetHapus.value = false
-  if (!id) return
+  if (!id || infoHapus.value.lunas) return
   try {
     await removeEvent('events', id, daftar.value.versions[id])
     toast.add({ title: 'Rencana dihapus', color: 'success' })
@@ -322,11 +336,32 @@ async function hapus() {
       v-model:open="sheetHapus"
       title="Hapus rencana?"
     >
-      <p class="text-sm text-muted">
+      <template v-if="infoHapus.lunas">
+        <p class="text-sm text-muted">
+          Rencana <b class="text-highlighted">{{ infoHapus.judul }}</b> sudah punya
+          <b class="text-highlighted num">{{ angka(infoHapus.lunas) }} pesanan lunas</b>.
+          Menghapusnya berarti menghapus jejak uang yang benar-benar masuk.
+        </p>
+        <p
+          v-if="infoHapus.gantung"
+          class="mt-2 text-sm text-muted"
+        >
+          <b class="text-highlighted num">{{ angka(infoHapus.gantung) }}</b> di antaranya refundnya sudah
+          disetujui tapi belum diselesaikan — buka Ticketing › Penjualan lalu tekan Selesaikan refund (manajemen).
+        </p>
+        <p class="mt-2 text-sm text-muted">
+          Kalau acaranya batal, selesaikan lewat refund pada pesanan itu dulu.
+        </p>
+      </template>
+      <p
+        v-else
+        class="text-sm text-muted"
+      >
         Rencana ini dihapus permanen.
       </p>
       <template #footer>
         <UButton
+          v-if="!infoHapus.lunas"
           color="error"
           @click="hapus()"
         >
@@ -337,7 +372,7 @@ async function hapus() {
           variant="outline"
           @click="sheetHapus = false"
         >
-          Batal
+          {{ infoHapus.lunas ? 'Tutup' : 'Batal' }}
         </UButton>
       </template>
     </ResponsiveSheet>

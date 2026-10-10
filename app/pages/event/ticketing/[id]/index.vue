@@ -219,18 +219,39 @@ async function simpanJual() {
 // Approving runs the refund itself (`approveRefundYakin :10217`): the order
 // goes Refunded, its tickets Cancelled, seats & class quota back — never
 // just the request status.
+// Rejecting asks for a reason first (`tolakRefund :10230`); the sheet emits it.
+const tolakRid = ref('')
+const sheetTolak = computed({ get: () => tolakRid.value !== '', set: v => (tolakRid.value = v ? tolakRid.value : '') })
+const ketTolak = computed(() => {
+  const r = daftarRefund.value.rows.find(x => x.id === tolakRid.value)
+  const o = orderDariId.value.get(r?.order_id ?? '')
+  return o ? `${String(o.buyer_name ?? '')} · ${rupiah(Number(o.total) || 0)}` : undefined
+})
+const menolak = ref(false)
+async function jalanTolakRefund(alasan: string) {
+  const rid = tolakRid.value
+  if (!rid || menolak.value) return
+  menolak.value = true
+  try {
+    await patchEvent('refunds', rid, {
+      status: 'Rejected', penyetuju: namaSaya.value, alasan_tolak: alasan, decided_at: new Date().toISOString(), updatedAt: Date.now(),
+    }, daftarRefund.value.versions[rid])
+    tolakRid.value = ''
+    toast.add({ title: 'Refund ditolak — alasannya tercatat.', color: 'success' })
+    await refreshRefund()
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, refreshRefund))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    menolak.value = false
+  }
+}
 async function putuskanRefund(rid: string, setuju: boolean) {
   const r = daftarRefund.value.rows.find(x => x.id === rid)
   if (!r) return
   if (!setuju) {
-    try {
-      await patchEvent('refunds', rid, { status: 'Rejected', updatedAt: Date.now() }, daftarRefund.value.versions[rid])
-      toast.add({ title: 'Refund ditolak', color: 'success' })
-      await refreshRefund()
-    }
-    catch (e) {
-      if (!(await tanganiKonflik(e, refreshRefund))) toast.add({ title: apiErrorMessage(e), color: 'error' })
-    }
+    tolakRid.value = rid
     return
   }
   const order = orderDariId.value.get(r.order_id ?? '')
@@ -851,5 +872,12 @@ function unduhQR(t: Tiket) {
         </UButton>
       </template>
     </ResponsiveSheet>
+
+    <EventTolakRefund
+      v-model:open="sheetTolak"
+      :ket="ketTolak"
+      :sibuk="menolak"
+      @tolak="jalanTolakRefund"
+    />
   </AppPage>
 </template>
