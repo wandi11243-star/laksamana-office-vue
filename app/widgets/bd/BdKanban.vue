@@ -5,16 +5,21 @@
   from the board. Dropping onto Done runs the one guard (`cekBolehDone`);
   "+ Tambah kartu" births a row with empty sub-tasks and no order.
 
+  Cards are `BdKanbanCard` (old `boardCard`), not the list row: the row's
+  tick, edit and delete buttons left ~100px for the text in a 240px column and
+  pushed nowrap chips out of the card. While dragging, the dragged card fades
+  and the target column is highlighted (old `.dragging` / `.drop`).
+
   Shared by My Task and the project detail Kanban tab.
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
 import { bdTulisDiam, buatBd, ubahBd, versiBaris } from '~/composables/useBd'
 import {
-  OWNER_DIVS, STATUS_FLOW, cekBolehDone, penghalang, pesanTunggu, segarkanProgress, setPics, urutDeadline,
+  OWNER_DIVS, STATUS_FLOW, cekBolehDone, pesanTunggu, segarkanProgress, setPics, urutDeadline,
   type ModeArsip,
 } from '~/utils/bd-rumus'
-import BdTaskRow from '~/widgets/bd/BdTaskRow.vue'
+import BdKanbanCard from '~/widgets/bd/BdKanbanCard.vue'
 
 const props = withDefaults(defineProps<{
   tasks: BdTask[]
@@ -35,8 +40,7 @@ const props = withDefaults(defineProps<{
 })
 const emit = defineEmits<{
   buka: [t: BdTask]
-  toggle: [t: BdTask]
-  hapus: [t: BdTask]
+  subToggle: [t: BdTask, ix: number, on: boolean]
 }>()
 
 const toast = useToast()
@@ -48,17 +52,29 @@ const isiKolom = (st: string) => {
 }
 const arsipKolom = (st: string) => props.tasks.filter(t => (t.status || 'To Do') === st).length
 const namaProject = (id?: string | null) => props.projects?.find(p => p.id === id)?.name
-const hal = (t: BdTask) => penghalang(t, bank.value)
 
 // ---- drag between columns (desktop) ----
-let dragId: string | null = null
+const dragId = ref<string | null>(null)
+const kolomSasaran = ref<string | null>(null)
 function dragMulai(e: DragEvent, t: BdTask) {
-  dragId = t.id
+  dragId.value = t.id
+  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
   e.dataTransfer?.setData('text/plain', t.id)
 }
+function dragSelesai() {
+  dragId.value = null
+  kolomSasaran.value = null
+}
+function dragKeluar(e: DragEvent, st: string) {
+  // dragleave also fires when moving onto a child card; only clear when the
+  // pointer really left the column.
+  const ke = e.relatedTarget as Node | null
+  if (ke && (e.currentTarget as HTMLElement).contains(ke)) return
+  if (kolomSasaran.value === st) kolomSasaran.value = null
+}
 function dropKolom(st: string) {
-  const t = bank.value.find(x => x.id === dragId)
-  dragId = null
+  const t = bank.value.find(x => x.id === dragId.value)
+  dragSelesai()
   if (!t || t.status === st) return
   if (st === 'Done') {
     const cek = cekBolehDone(t, t.dependsOn, bank.value)
@@ -110,48 +126,31 @@ async function tambahKartu(st: string) {
     <section
       v-for="st in kolom"
       :key="st"
-      class="min-w-0 rounded-panel border border-default bg-muted/40"
-      @dragover.prevent
-      @drop="dropKolom(st)"
+      class="min-w-0 rounded-panel border bg-muted/40 transition-colors"
+      :class="kolomSasaran === st ? 'border-primary-400 bg-primary-50' : 'border-default'"
+      @dragover.prevent="kolomSasaran = st"
+      @dragleave="dragKeluar($event, st)"
+      @drop.prevent="dropKolom(st)"
     >
       <header class="flex items-center justify-between border-b border-default px-3 py-2">
         <span class="text-sm font-bold text-highlighted">{{ st }}</span>
         <span class="rounded-full bg-table-head px-2 py-0.5 text-xs font-bold text-table-head-text num">{{ arsipKolom(st) }}</span>
       </header>
       <div class="grid gap-2 p-2">
-        <div
+        <BdKanbanCard
           v-for="t in isiKolom(st)"
           :key="t.id"
+          :task="t"
+          :semua="bank"
+          :people="people"
+          :project-name="showProject ? namaProject(t.project) : undefined"
+          :dragging="dragId === t.id"
           draggable="true"
           @dragstart="dragMulai($event, t)"
-        >
-          <div
-            class="rounded-field border border-default bg-default"
-            :class="hal(t).length ? 'border-vip/50' : ''"
-          >
-            <p
-              v-if="hal(t).length"
-              class="flex items-center gap-1 px-3 pt-2 text-[11px] font-semibold text-vip"
-              :title="`Menunggu: ${hal(t).map(x => x.name).join(', ')}`"
-            >
-              <UIcon
-                name="i-lucide-lock"
-                class="size-3"
-              />
-              Menunggu {{ hal(t).length }}
-            </p>
-            <BdTaskRow
-              :task="t"
-              :people="people"
-              :project-name="showProject ? namaProject(t.project) : undefined"
-              :hide-proj="!showProject"
-              hide-quad
-              @buka="emit('buka', t)"
-              @toggle="emit('toggle', t)"
-              @hapus="emit('hapus', t)"
-            />
-          </div>
-        </div>
+          @dragend="dragSelesai"
+          @buka="emit('buka', t)"
+          @sub-toggle="(ix: number, on: boolean) => emit('subToggle', t, ix, on)"
+        />
         <div
           v-if="st === 'Done' && arsip === 'aktif'"
           class="rounded-field border border-dashed border-default px-3 py-4 text-center text-xs text-muted"

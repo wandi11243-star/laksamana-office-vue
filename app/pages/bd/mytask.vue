@@ -164,8 +164,7 @@ function subToggle(t: BdTask, ix: number, on: boolean) {
         :pic-default="aku?.id"
         :div-default="aku?.div"
         @buka="bukaSheet"
-        @toggle="toggle"
-        @hapus="taskHapus = $event"
+        @sub-toggle="subToggle"
       />
       <p
         v-if="!semua.length"

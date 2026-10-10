@@ -233,8 +233,7 @@ function bukaPoSheet(o: BdPo) {
             :pic-default="aku?.id"
             :div-default="p.div"
             @buka="bukaTaskSheet"
-            @toggle="toggle"
-            @hapus="taskHapus = $event"
+            @sub-toggle="subToggle"
           />
 
           <AppPanel
