@@ -12,14 +12,21 @@
   cashier's own restriction (non-admins see only their own name + `Semua`) is
   CASHIER-only — in Kas Kecil anyone who may open the page sees every name
   (`bolehSemua` prop), as the old finance screen did.
+
+  SYNC (VUE-6): from 2026-10-01 (`SYNC_KASIR_MULAI`, `utils/sync-kasir.ts`) the
+  per-day rows come from the `bdSync` freeze written by Breakdown Sumber, not
+  from live computation. A day with no (valid) freeze is NOT counted — it is
+  named in the "belum di-sync" warning. Compliment and Open Bill recognition
+  stay live, exactly as before.
 -->
 <script setup lang="ts">
 import type { ComplimentKasir } from '~/utils/cashier'
 import type { EmployeesKompas, HariKompas, KetMap, PicKompas } from '~/utils/porsi-pic'
 import {
   BONUS_KASIR, barisTanpaShift, bonusKasir, compFilterPic, compPotong, kasirMurni, kasirSaya,
-  omsetKasir, openBillList, potonganHari,
+  openBillList,
 } from '~/utils/porsi-pic'
+import { barisKasirPerforma, syncKasirBerlaku } from '~/utils/sync-kasir'
 import { getKompasState, getRoster, putEmployees } from '~/composables/useCashier'
 import { fmtRp } from '~/utils/cashier'
 import { hariIni, tglPanjang } from '~/utils/format'
@@ -112,28 +119,33 @@ const agg = computed<Record<string, RekapKasir>>(() => {
   for (const k of list.value) out[k.id] = { real: 0, masuk: 0, off: 0, potong: 0, comp: 0, hist: [], ob: [] }
   // Open Bill is collected from EVERY day of the range: it can land on a day
   // where the cashier has no revenue row at all. Never added to `real` — the
-  // money is already inside that day's gross (:3695-3703).
+  // money is already inside that day's gross (:3695-3703). Recognition stays
+  // LIVE even on synced days (like compliment, VUE-6): the freeze only holds
+  // the kasir rows, never OB.
   for (const d of days.value) {
     for (const x of openBillList(d)) {
       const a = out[x.kasirId]
       if (a) a.ob.push({ date: d.date, eventName: x.eventName, total: x.total })
     }
   }
+  // From SYNC_KASIR_MULAI the rows come from the `bdSync` freeze (null = the
+  // day is not counted yet, listed in `belumSync` below); before it, live
+  // computation exactly as before (K-04 untouched).
   for (const d of days.value) {
-    for (const r of d.bd?.kasir ?? []) {
-      const a = out[String(r.kasirId ?? '')]
+    const rows = barisKasirPerforma(d)
+    if (!rows) continue
+    for (const r of rows) {
+      const a = out[r.kasirId]
       if (!a) continue
       if (r.off) {
         a.off++
         a.hist.push({ date: d.date, real: 0, off: true })
         continue
       }
-      const potong = potonganHari(d, String(r.kasirId))
-      const real = omsetKasir(r) - potong
-      a.real += real
-      a.potong += potong
+      a.real += r.real
+      a.potong += r.potong
       a.masuk++
-      a.hist.push({ date: d.date, real, off: false })
+      a.hist.push({ date: d.date, real: r.real, off: false })
     }
   }
   for (const k of list.value) {
@@ -205,7 +217,14 @@ const kurang = computed(() => (bonus.value.next ? Math.max(0, bonus.value.next.m
 const ratarata = computed(() => (aktif.value.masuk > 0 ? aktif.value.real / aktif.value.masuk : 0))
 const compLuar = computed(() => aktif.value.hist.filter(h => h.extra).reduce((s, h) => s + h.real, 0))
 const obTotalSemua = computed(() => aktif.value.ob.reduce((s, x) => s + x.total, 0))
-const hariBelum = computed(() => days.value.filter(d => barisTanpaShift(d).length))
+/** Days from the cutoff on that are not synced yet: not counted above, named here (`peringatanSync`). */
+const belumSync = computed(() => days.value
+  .filter(d => syncKasirBerlaku(d.date) && barisKasirPerforma(d) === null)
+  .map(d => d.date))
+/** The "shift unset" ribbon is only for pre-cutoff days: synced days read the
+ * freeze, so a live missing shift changes nothing here (it still blocks the
+ * next sync on the breakdown page). */
+const hariBelum = computed(() => days.value.filter(d => !syncKasirBerlaku(d.date) && barisTanpaShift(d).length))
 </script>
 
 <template>
@@ -253,6 +272,15 @@ const hariBelum = computed(() => days.value.filter(d => barisTanpaShift(d).lengt
         icon="i-lucide-triangle-alert"
         :title="`${hariBelum.length} hari punya baris event yang belum ditentukan kasir shift-nya (${hariBelum.slice(0, 5).map(d => d.date).join(', ')}${hariBelum.length > 5 ? ', …' : ''}).`"
         description="Potongannya belum dibebankan ke kasir mana pun, jadi realisasi di bawah masih terlalu besar — atur di Breakdown Sumber pada modul Kompas untuk tanggal tersebut."
+        class="mb-2"
+      />
+      <UAlert
+        v-if="belumSync.length"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-cloud-off"
+        :title="`${belumSync.length} hari belum di-sync (${belumSync.slice(0, 5).join(', ')}${belumSync.length > 5 ? ', …' : ''}) — belum dihitung di bawah.`"
+        description="Tekan Sync di Breakdown Sumber Omset untuk tanggal tersebut; sampai itu Performa hari itu kosong."
         class="mb-2"
       />
       <p

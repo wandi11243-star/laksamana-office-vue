@@ -428,14 +428,14 @@ Catatan uji API lokal 2026-10-08 (lane B2, `fix/api-finance`; lanjut dari `fix/a
 | omset/piutang | `app/pages/finance/omset/piutang.vue` + `KompasPiutang.vue` | ✅ | `GET/PUT /kompas/sections/piutang`, `/owners`, `GET /account/roster` | — |
 | omset/compliment | `app/pages/finance/omset/compliment.vue` + `KompasCompliment.vue` | ✅ | `GET/PUT /kompas/sections/compliments`, `GET /kompas/reports/{date}`, roster | — |
 | omset/input | `app/pages/finance/omset/input.vue` | ✅ | `GET/PUT /kompas/days/{date}`, `GET /kompas/reports/{date}`, `/sections/piutang`, `GET /kompas/state` (pencapaian bulan) | — |
-| omset/breakdown | `app/pages/finance/omset/breakdown.vue` | ✅ | `GET/PUT /kompas/days/{date}`, `GET /kompas/state` (`employees`, `compliments`) | baris otomatis dari modul Marketing/Event (deal, VIP Assisted, event internal) menyusul saat modulnya ada; ditambah manual |
+| omset/breakdown | `app/pages/finance/omset/breakdown.vue` | ✅ (+ sync kasir) | `GET/PUT /kompas/days/{date}` (termasuk `bdSync` di samping `bd`, versi hari), `GET /kompas/state` (`employees`, `compliments`) | baris otomatis dari modul Marketing/Event (deal, VIP Assisted, event internal) menyusul saat modulnya ada; ditambah manual |
 | omset/akses | `app/pages/finance/omset/akses.vue` | ✅ | `GET /account/modules/kompas/members` | — |
 | kas/kk_buku | `app/pages/finance/kas/index.vue` | ✅ | `GET /finance/petty-cash/` (bootstrap; saldo dari seluruh riwayat), `GET/PATCH/DELETE /petty-cash/transactions/{id}` | — |
 | kas/kk_input | `app/pages/finance/kas/input.vue` | ✅ | `POST/PUT /petty-cash/transactions`, `GET /petty-cash/transactions/{id}` (versi) | panel PO BD (`poTulisRealisasi`) ditunda — baris diketik tangan |
 | kas/kk_pos | `app/pages/finance/kas/pos.vue` | ✅ | `GET/POST/PATCH/DELETE /petty-cash/sources` + `/categories` | — |
 | kas/dp | `app/pages/finance/kas/dp.vue` | ✅ | `DanaMasukPanel` (kontrak reservasi, pintu G-14) | — |
 | kas/bri | `app/pages/finance/kas/bri.vue` + `app/components/KompasBri.vue` | ✅ | `GET /kompas/bri?from&to`, `POST /kompas/bri`, `/bri/match`, `POST /bri/{id}/cancel`, `POST/DELETE /bri/ignored[/{dpId}]`; DP lewat pintu G-14 | — |
-| kas/kasir | `app/pages/finance/kas/kasir.vue` + `app/components/PerformaKasir.vue` | ✅ | `GET /kompas/state` (daily+bd, employees, compliments), `GET /account/roster` | — |
+| kas/kasir | `app/pages/finance/kas/kasir.vue` + `app/components/PerformaKasir.vue` | ✅ (+ baca bekuan sync) | `GET /kompas/state` (daily+bd+`bdSync`, employees, compliments), `GET /account/roster` | — |
 | kas/bayar | `app/pages/finance/kas/bayar.vue` | ✅ | `GET/PUT /finance/petty-cash/payment-plan`, `GET /finance/petty-cash/wallet-balances` (G-06), `GET /kompas/state` (penjualan kompas), `GET /stock/vendors` (G-02) | unggah bukti — ditunda & dicatat |
 | kas/rekap | `app/pages/finance/kas/rekap.vue` | ✅ | `GET /kompas/state` (reports, daily, piutang, rekap_setoran), `PUT /kompas/rekap` | — |
 | kas/voidb | `app/pages/finance/kas/void.vue` | ✅ | `GET /kompas/voids?from&to`; pembanding POS T-15 hanya bila ber-modul `analytics` | — |
@@ -519,6 +519,12 @@ Catatan build #41 (Brankas, 7/7 layar; branch `migrasi/finance-brankas` menumpuk
 - **Ditunda (dicatat):** nama penerima vendor di lembar pembayaran kini dibaca dari `GET /stock/vendors` di layar Kas › Planning Pembayaran (#102); unggah bukti/ttd tetap di luar layar ini (seperti kas).
 - Mock cek visual `/tmp/mock-api-brankas.mjs` (port 4014, di luar repo): vault + kompas/state dengan angka yang bisa dihitung tangan (BRI 9.694.000, UOB 23.700.000, Cash −1.500.000, likuid 34.894.000, piutang 650.000, kewajiban30 8.000.000, runway 2,3 bulan, gantung 5.000.000, 1 setoran tak dikenal, tiktokgo belum dipetakan).
 - Cek visual 2026-10-07 (mock 4014, tulis 403) sebagai `finance` (admin, 3 kunci) & `bos` (brankas saja): 7 layar di 1366 & 390 overflow 0, console bersih; angka cocok hitungan tangan; PUT setting ditolak 403 → toast tanpa crash; launcher 3 kartu "Buka panel"; pemegang 1 panel auto-redirect; sidebar hanya menu panel yang berhak. Insiden: dev sempat menunjuk dev-api (mock mati + env inline tak terbaca) — dihentikan, `.env` per-device dipakai, login diulang ke mock.
+
+Catatan build VUE-6 (Sync Performa Kasir; branch `feat/finance-sync-kasir`):
+- `app/utils/sync-kasir.ts` (milik finance/omset, PLAN.md §4) — SATU sumber `SYNC_KASIR_MULAI='2026-10-01'`, `sidikBd`, `snapKasir`, `barisKasirPerforma` (dulu berkas kembar di 3 file lama). Beku memakai rumus yang sama dengan komponen (`omsetKasir` + `potonganHari` varian cashier) supaya hari yang di-sync angkanya sama persis dengan hitungan langsung — legacy membekukan dengan rumus halaman Omset (varian Kompas); adaptasi disengaja ini dicatat di komentar file.
+- `omset/breakdown.vue`: panel Sync (status belum/sudah/berubah + oleh/kapan + tombol Sync/Sync ulang). Tombol ditahan + disebut tiap alasan: isian belum disimpan, `bdValid` belum true, baris marketing/event bernominal ≤ 0 (disebut namanya), shift belum diatur; dicek ulang saat diklik + konfirmasi menyebut angka beku per kasir. Tulis `bdSync` lewat `PUT /kompas/days/{tgl}` (rows apa adanya, `If-Match` versi hari) + `tanganiKonflik`.
+- `PerformaKasir.vue` (dipakai Kas & Cashier): hari ≥ 1 Okt 2026 memakai bekuan (tanpa bekuan = belum dihitung + disebut tanggalnya); hari lama hitung langsung seperti sekarang (K-04 tetap). Compliment + pengakuan Open Bill tetap live. Pita shift-hilang kini hanya untuk hari pra-cutoff.
+- Verifikasi (belum dijalankan atas permintaan user): `npm run lint/typecheck/build`, cek browser 390/1366 dengan mock, sync menyimpan `bdSync` + Performa memakai bekuan.
 
 ## Konsolidasi untuk README & berkas bersama
 - Baris README: `| finance | [finance.md](finance.md) | ⚠️ selesai dengan celah | 29 (1 pemilih + 6 omset + 15 kas + 7 brankas) + 2 pengalih | 2 ❌ · 5 ⚠️ | 6 | omset/kas/brankas/rekap + kompas |`

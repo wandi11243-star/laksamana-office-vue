@@ -336,7 +336,7 @@ LANJUTKAN DARI: tidak ada — 11/11 layar ✅ digabung ke main. G-19 (`dipakai[]
 | voidb | `app/pages/cashier/voidb.vue` | ✅ | `GET/POST /kompas/voids`, `PUT /kompas/voids/{id}`, `POST /kompas/voids/{id}/cancel`, `PUT /kompas/voids/settings` | — |
 | rokok | `app/pages/cashier/rokok.vue` | ✅ | `GET/PUT /kompas/sections/rokok` | — |
 | rokokrekap | `app/pages/cashier/rokokrekap.vue` | ✅ | `GET /kompas/sections/rokok`, `/sections/rokok_items` | — |
-| kasir | `app/pages/cashier/kasir.vue` | ✅ | `GET /kompas/state` (`daily[]` + `bd`, `employees`, `compliments` — `/daily?from&to` tidak membawa `bd`), `GET /account/roster`, sinkron PIC `PUT /kompas/sections/employees` (T-01 U2, hanya menambah) | — |
+| kasir | `app/pages/cashier/kasir.vue` | ✅ (+ baca bekuan sync) | `GET /kompas/state` (`daily[]` + `bd` + `bdSync`, `employees`, `compliments` — `/daily?from&to` tidak membawa `bd`), `GET /account/roster`, sinkron PIC `PUT /kompas/sections/employees` (T-01 U2, hanya menambah) | — |
 | dp | `app/pages/cashier/dp.vue` | ✅ | `DanaMasukPanel` (kontrak reservasi, pintu G-14) | — |
 | bri | `app/pages/cashier/bri.vue` | ✅ | `GET /kompas/bri?from&to`, `POST /kompas/bri`, `POST /kompas/bri/match`, `POST /kompas/bri/{id}/cancel`, `POST /kompas/bri/ignored` + `DELETE /bri/ignored/{dpId}`; DP lewat pintu G-14: `GET /reservasi/reservations`, `GET /reservasi/master/dpMethods`, `GET /reservasi/files/{key}`, `PATCH /reservasi/reservations/{id}` | — |
 | rokokset | `app/pages/cashier/rokokset.vue` | ✅ | `GET/PUT /kompas/sections/rokok_items` (`null` = kembali ke bawaan) | — |
@@ -431,8 +431,11 @@ Catatan uji API lokal 2026-10-08 (lane B2, `fix/api-cashier`):
   (cek 2026-09-15), breakdown hari berisi tidak lagi terbaca kosong; simpan breakdown 2026-10-07
   (Selisih Rp0, gate balance) lalu hapus hari itu via omset/input — kembali kosong tanpa sisa.
 
-## K. Daftar uji cutover (layar #26)
-Setiap aksi tulis diuji SILANG: ubah di Vue → terlihat di Office lama (Cashier & Finance › Omset), dan sebaliknya.
+Catatan build VUE-6 (Sync Performa Kasir; branch `feat/finance-sync-kasir`):
+- `app/components/PerformaKasir.vue` (dipakai Cashier & Kas): hari ≥ 1 Okt 2026 memakai bekuan `bdSync` dari `app/utils/sync-kasir.ts` (milik finance/omset); tanpa bekuan = belum dihitung + disebut tanggalnya. Hari lama hitung langsung (K-04 tetap); compliment + OB tetap live; pita shift-hilang hanya pra-cutoff.
+- Verifikasi (belum dijalankan atas permintaan user): `npm run lint/typecheck/build`, cek browser 390/1366.
+
+## K. Daftar uji cutover (layar #26)Setiap aksi tulis diuji SILANG: ubah di Vue → terlihat di Office lama (Cashier & Finance › Omset), dan sebaliknya.
 
 1. **Report Daily** — pilih tanggal hari ini, isi POS & Actual beberapa metode, tekan Submit. Pastikan angka sama di
    Report Daily Office lama dan di Finance › Rekap Penjualan. Isi MDR di Rekap Penjualan, lalu Update dari Vue:
