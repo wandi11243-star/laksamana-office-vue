@@ -5,7 +5,7 @@
   contract), Event pax (the event's capacity) and table-booking pax are three
   different crowds that happen to come on the same day. Only events that will
   actually happen count (the API filters: Marketing Deal / Event Done, Event
-  Upcoming / Today / Finished).
+  Approval / Upcoming / Event Done).
 
   The F&B filter narrows the Marketing/Event numbers AND the 14-day agenda,
   never the reservation numbers: a table booking has no F&B format, and
@@ -129,7 +129,7 @@ useSegarSenyap(refresh, () => buka.value)
     </AppStatGrid>
     <p class="-mt-3 mb-5 text-xs text-muted">
       Pax Event dan pax Marketing <b>tidak dijumlahkan</b> dengan pax reservasi meja — ketiganya rombongan berbeda.
-      Hanya acara yang sudah pasti jalan yang dihitung (Marketing: Deal / Event Done · Event: Upcoming / Today / Finished).
+      Hanya acara yang sudah pasti jalan yang dihitung (Marketing: Deal / Event Done · Event: Approval / Upcoming / Event Done).
       Periode: {{ labelPeriode(p) }}.
     </p>
 

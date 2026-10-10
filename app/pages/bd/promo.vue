@@ -9,7 +9,7 @@ import type { BdPromo } from '~/composables/useBd'
 import { bdSimpan, putSetelan, useBdSettings, versiSetelan } from '~/composables/useBd'
 import { PILIHAN_SEMUA, todayISO } from '~/utils/bd-rumus'
 import {
-  PROMO_OUTLET_BAWAAN, promoBuatBarisCsv, promoImporRencana, promoJam, promoSort,
+  PROMO_CSV_KOL, PROMO_OUTLET_BAWAAN, promoBuatBarisCsv, promoImporRencana, promoJam, promoSort,
 } from '~/utils/bd-promo'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdPromoSheet from '~/widgets/bd/BdPromoSheet.vue'
@@ -63,6 +63,15 @@ function ekspor() {
   }
   unduhCsv(promoBuatBarisCsv(terlihat.value), `promo_${todayISO()}.csv`)
   toastOk(`${terlihat.value.length} promo diunduh — buka di Excel, sunting, lalu Import untuk mengembalikannya.`)
+}
+
+// Empty template for new promos (old promoTemplate). Columns come from the
+// same list the import reads (only columns with a field, without ID): a
+// hand-written template would drift from what the import actually reads.
+function unduhTemplate() {
+  const kepala = PROMO_CSV_KOL.filter(k => k.b && k.b !== 'id').map(k => k.k)
+  unduhCsv([kepala], 'template_promo.csv')
+  toastOk('Template diunduh. Isi satu promo per baris — tanggal ditulis hari-bulan-tahun (mis. 17-08-2026) — lalu tekan Import Excel.')
 }
 
 interface Impor { baru: { nama: string, mulai: string, selesai: string, benefit: string }[], ubah: { id: string, lamaNama: string, isi: { nama: string, mulai: string, selesai: string, benefit: string } }[], lewat: { no: number, nama: string, sebab: string }[], berkas: string }
@@ -198,6 +207,14 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
     description="Promo yang berjalan & akan datang — otomatis terbaca seluruh kru di modul Radar."
   >
     <template #actions>
+      <UButton
+        label="Template"
+        icon="i-lucide-file-down"
+        color="neutral"
+        variant="outline"
+        title="Unduh lembar kosong untuk diisi promo baru, lalu Import"
+        @click="unduhTemplate"
+      />
       <UButton
         label="Export Excel"
         icon="i-lucide-download"

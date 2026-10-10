@@ -398,6 +398,13 @@ Catatan build (2026-10-01):
 - **Ditunda:** —
 - **Perlu ditindak lead:** entri `bd` di `app/utils/modul-shell.ts` (layar sidebar, tombol `+`, lonceng, `siapkan`) belum ditambahkan — di luar kepemilikan berkas agen `bd`. Halaman tetap dapat dibuka lewat rute `/bd/...`.
 
+### Sinkron Office 5–9 Okt 2026 — VUE-4 tombol Template (2026-10-10, branch `feat/sinkron-office-2026-10`)
+
+Sumber Office lama: commit `51fcf91` (`deploy/bd/index.html`: `promoTemplate()`). Di `promo.vue`
+tambah tombol "Template" di `#actions` yang mengunduh `template_promo.csv` berisi baris judul saja.
+Kolomnya dari `PROMO_CSV_KOL` yang sama dengan impor (hanya kolom ber-`b`, tanpa ID) — bukan
+ditulis manual. Toast menyebut format tanggal hari-bulan-tahun.
+
 ## K. Daftar uji cutover
 
 Daftar untuk **manusia** (agen tidak menjalankan app). Setiap butir **layar**: dibuka di
