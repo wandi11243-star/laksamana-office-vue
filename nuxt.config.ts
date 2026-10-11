@@ -35,6 +35,9 @@ export default defineNuxtConfig({
       apiBase: 'https://dev-api.laksamanamuda.id/api/v1',
       // The public website, for "Lihat di website" links (NUXT_PUBLIC_HOMEPAGE_BASE).
       homepageBase: 'https://laksamanamuda.id',
+      // n8n webhook that forwards a kwitansi PDF to the guest's WhatsApp
+      // (NUXT_PUBLIC_KWITANSI_WEBHOOK). Empty hides the send button.
+      kwitansiWebhook: '',
     },
   },
   devServer: { port: 3000 },

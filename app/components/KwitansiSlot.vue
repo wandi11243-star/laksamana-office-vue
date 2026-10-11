@@ -163,6 +163,76 @@ async function pdfGo() {
     toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
 }
+
+/** Render the sheet HTML to a PDF data URI in the browser (1 lib: html2pdf). */
+async function htmlKePdf(html: string): Promise<string> {
+  const doc = new DOMParser().parseFromString(html, 'text/html')
+  const style = doc.querySelector('style')?.textContent ?? ''
+  const body = doc.body.innerHTML
+  const styleEl = document.createElement('style')
+  styleEl.textContent = style
+  document.head.appendChild(styleEl)
+  const box = document.createElement('div')
+  box.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;background:#fff;'
+  box.innerHTML = body
+  document.body.appendChild(box)
+  try {
+    const { default: html2pdf } = await import('html2pdf.js')
+    return String(await html2pdf().set({
+      margin: 6,
+      image: { type: 'jpeg', quality: 0.92 },
+      html2canvas: { scale: 2, useCORS: true, backgroundColor: '#fff' },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    }).from(box).outputPdf('datauristring'))
+  }
+  finally {
+    box.remove()
+    styleEl.remove()
+  }
+}
+
+const kirimLoading = ref(false)
+
+/** Send the receipt to the guest's WhatsApp through the n8n webhook. */
+async function kirimGo() {
+  const r = props.reservasi
+  if (!r) return
+  const hook = String(useRuntimeConfig().public.kwitansiWebhook || '')
+  if (!hook) {
+    toast.add({ title: 'Kirim ke WhatsApp belum dikonfigurasi (NUXT_PUBLIC_KWITANSI_WEBHOOK).', color: 'error' })
+    return
+  }
+  if (!adaDp(r)) {
+    toast.add({ title: 'Tamu ini belum ada DP', color: 'error' })
+    return
+  }
+  // Prefer the guest's own WhatsApp conversation; fall back to the phone.
+  const conv = Number((r as unknown as { wa_conversation?: number }).wa_conversation || 0)
+  const phone = String(r.phone || '')
+  if (!conv && !phone) {
+    toast.add({ title: 'Tamu ini tidak punya nomor / percakapan WhatsApp.', color: 'error' })
+    return
+  }
+  kirimLoading.value = true
+  try {
+    const data = sudahTerbit.value ? (await berkasKwitansi(r.id)).data : null
+    const pdf = (await htmlKePdf(kwitansiHtml(kwitansiData(r, data)))).replace(/^data:application\/pdf;base64,/, '')
+    const res = await fetch(hook, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ resId: r.id, conversation_id: conv || undefined, phone, pdf_base64: pdf }),
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    await postAudit({ action: 'Kwitansi DP (WhatsApp)', detail: auditCetakKwitansi(r, sudahTerbit.value, data?.no || ''), res: r.id })
+    toast.add({ title: 'Kwitansi dikirim ke WhatsApp tamu.', color: 'success' })
+  }
+  catch (e) {
+    toast.add({ title: `Gagal mengirim kwitansi: ${apiErrorMessage(e)}`, color: 'error' })
+  }
+  finally {
+    kirimLoading.value = false
+  }
+}
 </script>
 
 <template>
@@ -232,6 +302,17 @@ async function pdfGo() {
       v-if="tahan && (bolehMinta || sudahTerbit)"
       class="text-xs text-muted"
     >{{ kwiTertahanTeks(tahan) }}. Verifikasi di halaman Dana Masuk (DP).</span>
+
+    <UButton
+      v-if="sudahTerbit || bolehLangsung"
+      label="Kirim ke customer"
+      icon="i-lucide-send"
+      color="primary"
+      variant="soft"
+      size="sm"
+      :loading="kirimLoading"
+      @click="kirimGo"
+    />
 
     <ResponsiveSheet
       v-model:open="sheetMinta"
