@@ -10,11 +10,13 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { JadwalTalent, TagihanTalent, Talent } from '~/composables/useEvent'
-import { createEvent, patchEvent, uploadFileEvent, useDaftarEvent } from '~/composables/useEvent'
+import { createEvent, fileEventUrl, patchEvent, uploadFileEvent, useDaftarEvent } from '~/composables/useEvent'
 import { feeAngka } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka, hariIni, rupiah, tambahHari, tglPendek } from '~/utils/format'
+import { ocrBaca } from '~/utils/ocr'
+import { parseTeksTransfer, type HasilParseTransfer } from '~/utils/ocr-transfer'
 import { BAYAR_IKON, BAYAR_WARNA } from '~/utils/status-event'
 import { tanganiKonflik } from '~/utils/versi'
 
@@ -26,7 +28,7 @@ const namaSaya = computed(() => me.value?.name ?? '')
 const bolehUbah = computed(() => bolehUbahEvent('fee', peranEvent(me.value)))
 
 type Mode = 'minggu' | 'bulan' | 'rentang'
-const mode = ref<Mode>('minggu')
+const mode = ref<Mode>('bulan')
 const MODES = [
   { value: 'minggu', label: 'Mingguan' },
   { value: 'bulan', label: 'Bulanan' },
@@ -61,6 +63,12 @@ function geser(n: number) {
     const d = new Date(y!, m! - 1 + n, 1)
     acuan.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
   }
+  else if (mode.value === 'rentang') {
+    // Shift by the range's own length, so ‹ › walk whole periods.
+    const lama = Math.max(1, Math.round((Date.parse(`${rentangSampai.value}T00:00:00`) - Date.parse(`${rentangDari.value}T00:00:00`)) / 86400000) + 1)
+    rentangDari.value = tambahHari(rentangDari.value, n * lama)
+    rentangSampai.value = tambahHari(rentangSampai.value, n * lama)
+  }
   else {
     acuan.value = tambahHari(acuan.value, n * 7)
   }
@@ -78,6 +86,8 @@ const bankTalent = (id: string) => {
 }
 
 // --- recap: Σ fee of Done schedules per talent (`:4045`) ---
+// Active talents with no show stay listed dimmed; an Inactive talent with
+// shows still counts — fee already earned does not vanish with the status.
 interface BarisFee { talent_id: string, hari: number, fee: number, tagihan: TagihanTalent | null }
 const rekap = computed<BarisFee[]>(() => {
   const m = new Map<string, BarisFee>()
@@ -89,13 +99,19 @@ const rekap = computed<BarisFee[]>(() => {
     b.fee += feeAngka(j.fee)
     m.set(j.talent_id, b)
   }
+  for (const t of daftarTalent.value.rows) {
+    if (t.status === 'Active' && !m.has(t.id)) m.set(t.id, { talent_id: t.id, hari: 0, fee: 0, tagihan: null })
+  }
   for (const b of m.values()) {
     b.tagihan = daftarTagihan.value.rows.find(p => p.talent_id === b.talent_id && p.period_month === periode.value.kunci) ?? null
   }
-  return [...m.values()].sort((a, b) => namaTalent(a.talent_id).localeCompare(namaTalent(b.talent_id)))
+  return [...m.values()].sort((a, b) => (b.hari - a.hari) || (b.fee - a.fee) || namaTalent(a.talent_id).localeCompare(namaTalent(b.talent_id)))
 })
 const totalHari = computed(() => rekap.value.reduce((a, b) => a + b.hari, 0))
 const totalFee = computed(() => rekap.value.reduce((a, b) => a + b.fee, 0))
+/** Done shows in the period with no fee written — they would pay out Rp0. */
+const tanpaFeeN = computed(() => daftarJadwal.value.rows.filter(j =>
+  j.status === 'Done' && j.date >= periode.value.dari && j.date <= periode.value.sampai && !feeAngka(j.fee)).length)
 
 const kolom: TableColumn<BarisFee>[] = [
   { id: 'talent', header: 'Talent' },
@@ -106,9 +122,24 @@ const kolom: TableColumn<BarisFee>[] = [
   { id: 'aksi', header: 'Aksi' },
 ]
 
-// --- generate payment (`genPayment :4097`) ---
-async function generate(b: BarisFee) {
+// --- generate payment (`genPayment :4097`): recap first, then `Proses Pembayaran` ---
+const genBuka = ref<BarisFee | null>(null)
+const sheetGen = computed({ get: () => genBuka.value !== null, set: (v: boolean) => {
+  if (!v) genBuka.value = null
+} })
+const genTanpaFee = computed(() => (genBuka.value
+  ? daftarJadwal.value.rows.filter(j => j.talent_id === genBuka.value!.talent_id && j.status === 'Done'
+    && j.date >= periode.value.dari && j.date <= periode.value.sampai && !feeAngka(j.fee)).length
+  : 0))
+const genRekening = computed(() => (genBuka.value ? bankTalent(genBuka.value.talent_id) : '—'))
+function generate(b: BarisFee) {
   if (b.tagihan) return
+  genBuka.value = b
+}
+async function prosesGenerate() {
+  const b = genBuka.value
+  if (!b || b.tagihan) return
+  genBuka.value = null
   try {
     await createEvent('talent-payments', {
       talent_id: b.talent_id,
@@ -133,12 +164,51 @@ const bayar = ref({ bank: '', nominal: 0, pic: '' })
 const berkasBukti = ref<File | null>(null)
 const inputBukti = ref<HTMLInputElement | null>(null)
 const membayar = ref(false)
+/** Machine reading of the proof: suggestions only, never filled in by itself. */
+const saran = ref<HasilParseTransfer | null>(null)
+const memindai = ref(false)
+const urlPilih = ref('')
 
 function bukaBayar(b: BarisFee) {
   bayarUntuk.value = b
   bayar.value = { bank: bankTalent(b.talent_id), nominal: b.fee, pic: namaSaya.value }
   berkasBukti.value = null
+  saran.value = null
   sheetBayar.value = true
+}
+watch(berkasBukti, (f) => {
+  if (urlPilih.value) URL.revokeObjectURL(urlPilih.value)
+  urlPilih.value = f && f.type.startsWith('image/') ? URL.createObjectURL(f) : ''
+  saran.value = null
+})
+const bacaBerkasUrl = (f: File): Promise<string> => new Promise((resolve, reject) => {
+  const fr = new FileReader()
+  fr.onload = () => resolve(String(fr.result))
+  fr.onerror = () => reject(fr.error)
+  fr.readAsDataURL(f)
+})
+async function pindaiBukti() {
+  const f = berkasBukti.value
+  if (!f || memindai.value) return
+  if (!f.type.startsWith('image/')) {
+    toast.add({ title: 'Hanya gambar yang bisa dipindai — PDF dibaca manual.', color: 'error' })
+    return
+  }
+  memindai.value = true
+  try {
+    const teks = await ocrBaca(await bacaBerkasUrl(f))
+    const hasil = parseTeksTransfer(teks)
+    saran.value = hasil
+    if (!hasil.amount && !hasil.bank && !hasil.name) {
+      toast.add({ title: 'Mesin tidak menemukan angka — isi manual.', color: 'warning' })
+    }
+  }
+  catch {
+    toast.add({ title: 'Gagal memindai — butuh internet untuk memuat mesin.', color: 'error' })
+  }
+  finally {
+    memindai.value = false
+  }
 }
 async function simpanBayar() {
   const b = bayarUntuk.value
@@ -183,6 +253,11 @@ async function simpanBayar() {
 async function setLunas(b: BarisFee) {
   const p = b.tagihan
   if (!p) return
+  if (!String(p.proof_key ?? '').trim()) {
+    toast.add({ title: 'Tagihan ini belum ada bukti transfer — catat lewat Bayar dulu baru tandai lunas.', color: 'error' })
+    return
+  }
+  if (!window.confirm(`Tandai lunas ${namaTalent(b.talent_id)} ${rupiah(Number(p.amount) || 0)}? Tidak bisa dibatalkan.`)) return
   try {
     await patchEvent('talent-payments', p.id, { status: 'Paid', updatedAt: Date.now() }, daftarTagihan.value.versions[p.id])
     toast.add({ title: 'Ditandai lunas', color: 'success' })
@@ -195,6 +270,7 @@ async function setLunas(b: BarisFee) {
 async function tolak(b: BarisFee) {
   const p = b.tagihan
   if (!p) return
+  if (!window.confirm(`Tolak pembayaran ${namaTalent(b.talent_id)} ${rupiah(Number(p.amount) || 0)}?`)) return
   try {
     await patchEvent('talent-payments', p.id, { status: 'Rejected', updatedAt: Date.now() }, daftarTagihan.value.versions[p.id])
     toast.add({ title: 'Pembayaran ditolak', color: 'success' })
@@ -210,11 +286,15 @@ const detailId = ref('')
 const detail = computed(() => rekap.value.find(b => b.talent_id === detailId.value) ?? null)
 const sheetDetail = computed({ get: () => detailId.value !== '', set: v => (detailId.value = v ? detailId.value : '') })
 const jadwalTalent = computed(() => daftarJadwal.value.rows
-  .filter(j => j.talent_id === detailId.value && j.status === 'Done' && j.date >= periode.value.dari && j.date <= periode.value.sampai)
+  .filter(j => j.talent_id === detailId.value && j.date >= periode.value.dari && j.date <= periode.value.sampai)
   .sort((a, b) => String(a.date ?? '').localeCompare(String(b.date ?? ''))))
+const jadwalDone = computed(() => jadwalTalent.value.filter(j => j.status === 'Done'))
+const feeBelum = computed(() => jadwalTalent.value.filter(j => j.status !== 'Done').reduce((a, j) => a + feeAngka(j.fee), 0))
+const namaHari = (tgl: string) => new Date(`${tgl}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'short' })
 </script>
 
 <template>
+  <EventGerbang lihat="fee">
   <AppPage
     title="Fee & pembayaran"
     description="Rekap otomatis show done × fee"
@@ -263,6 +343,11 @@ const jadwalTalent = computed(() => daftarJadwal.value.rows
         <span class="ms-auto flex gap-2">
           <span class="rounded-full bg-info/12 px-3 py-1 text-xs font-semibold text-info num">{{ angka(totalHari) }} hari tampil</span>
           <span class="rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold text-primary-800 num">{{ rupiah(totalFee) }}</span>
+          <span
+            v-if="tanpaFeeN"
+            class="rounded-full bg-error/12 px-3 py-1 text-xs font-semibold text-error num"
+            title="Show done yang fee-nya belum diisi — rekapnya kurang dari seharusnya"
+          >{{ tanpaFeeN }} tanpa fee</span>
         </span>
       </div>
     </AppPanel>
@@ -276,6 +361,7 @@ const jadwalTalent = computed(() => daftarJadwal.value.rows
         :columns="kolom"
         :data="rekap"
         :loading="status === 'pending'"
+        :meta="{ class: { tr: (row: { original: BarisFee }) => (row.original.hari ? '' : 'opacity-60') } }"
         class="hidden lg:block"
       >
         <template #talent-cell="{ row }">
@@ -311,7 +397,7 @@ const jadwalTalent = computed(() => daftarJadwal.value.rows
               Generate payment
             </UButton>
             <UButton
-              v-if="bolehUbah"
+              v-if="bolehUbah && row.original.tagihan && String(row.original.tagihan.status) === 'Waiting'"
               color="primary"
               variant="outline"
               size="sm"
@@ -367,7 +453,7 @@ const jadwalTalent = computed(() => daftarJadwal.value.rows
               Generate payment
             </UButton>
             <UButton
-              v-if="bolehUbah"
+              v-if="bolehUbah && b.tagihan && String(b.tagihan.status) === 'Waiting'"
               color="primary"
               variant="outline"
               size="sm"
@@ -383,6 +469,24 @@ const jadwalTalent = computed(() => daftarJadwal.value.rows
             >
               Detail
             </UButton>
+            <UButton
+              v-if="bolehUbah && b.tagihan && String(b.tagihan.status) !== 'Paid'"
+              color="success"
+              variant="ghost"
+              size="sm"
+              @click="setLunas(b)"
+            >
+              Set paid
+            </UButton>
+            <UButton
+              v-if="bolehUbah && b.tagihan && String(b.tagihan.status) !== 'Paid'"
+              color="error"
+              variant="ghost"
+              size="sm"
+              @click="tolak(b)"
+            >
+              Reject
+            </UButton>
           </span>
         </li>
       </ul>
@@ -395,8 +499,65 @@ const jadwalTalent = computed(() => daftarJadwal.value.rows
     </AppPanel>
 
     <p class="mt-3 text-xs text-muted">
-      Pemeriksaan bukti transfer otomatis (OCR) <span class="text-dimmed">Segera</span> — verifikasi dilakukan manual lewat Set paid / Reject.
+      Bukti transfer bisa dipindai mesin dari form Bayar (hasilnya saran yang perlu dicek ulang) — keputusan lunas/tolak tetap manual dan tercatat.
     </p>
+
+    <ResponsiveSheet
+      v-model:open="sheetGen"
+      title="Buat tagihan pembayaran"
+    >
+      <div
+        v-if="genBuka"
+        class="space-y-2 text-sm"
+      >
+        <div class="flex justify-between gap-3 border-b border-default py-1.5">
+          <span class="text-muted">Talent</span>
+          <b class="text-highlighted">{{ namaTalent(genBuka.talent_id) }}</b>
+        </div>
+        <div class="flex justify-between gap-3 border-b border-default py-1.5">
+          <span class="text-muted">Periode</span>
+          <span>{{ periode.label }}</span>
+        </div>
+        <div class="flex justify-between gap-3 border-b border-default py-1.5">
+          <span class="text-muted">Hari tampil</span>
+          <b class="num">{{ genBuka.hari }} hari</b>
+        </div>
+        <div class="flex justify-between gap-3 border-b border-default py-1.5">
+          <span class="text-muted">Total</span>
+          <b class="text-highlighted num">{{ rupiah(genBuka.fee) }}</b>
+        </div>
+        <div class="flex justify-between gap-3 border-b border-default py-1.5">
+          <span class="text-muted">Rekening</span>
+          <span>{{ genRekening }}</span>
+        </div>
+        <p
+          v-if="genTanpaFee"
+          class="rounded-lg border border-warning/40 bg-warning/10 p-2.5 text-warning"
+        >
+          {{ genTanpaFee }} show belum ada fee-nya — isi dulu di Talent Schedule, kalau tidak tagihan ini kurang bayar.
+        </p>
+        <p
+          v-if="genRekening === '—'"
+          class="rounded-lg border border-warning/40 bg-warning/10 p-2.5 text-warning"
+        >
+          Rekening talent kosong — fee tidak bisa ditransfer. Isi di Talent Management.
+        </p>
+      </div>
+      <template #footer>
+        <UButton
+          label="Nanti"
+          color="neutral"
+          variant="ghost"
+          size="xl"
+          @click="sheetGen = false"
+        />
+        <UButton
+          label="Proses pembayaran"
+          size="xl"
+          @click="prosesGenerate"
+        />
+      </template>
+    </ResponsiveSheet>
 
     <ResponsiveSheet
       v-model:open="sheetBayar"
@@ -437,6 +598,85 @@ const jadwalTalent = computed(() => daftarJadwal.value.rows
             class="text-sm"
             @change="berkasBukti = ($event.target as HTMLInputElement).files?.[0] ?? null"
           >
+          <img
+            v-if="urlPilih"
+            :src="urlPilih"
+            alt="Pratinjau bukti"
+            class="mt-2 max-h-48 rounded-lg border border-default"
+          >
+          <div
+            v-if="berkasBukti"
+            class="mt-2"
+          >
+            <UButton
+              label="Scan bukti"
+              icon="i-lucide-scan-line"
+              color="neutral"
+              variant="soft"
+              size="sm"
+              :loading="memindai"
+              :disabled="memindai"
+              @click="pindaiBukti"
+            />
+          </div>
+          <div
+            v-if="saran"
+            class="mt-2 space-y-1.5 rounded-lg border border-default bg-default p-2.5 text-xs"
+          >
+            <p class="font-semibold text-highlighted">
+              Hasil baca mesin — cek ulang, bukan isian:
+            </p>
+            <p
+              v-if="saran.amount > 0"
+              class="flex flex-wrap items-center gap-2"
+            >
+              <span>Nominal: <b class="num">{{ rupiah(saran.amount) }}</b></span>
+              <UButton
+                label="Pakai"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                @click="bayar.nominal = saran!.amount"
+              />
+              <span
+                v-if="Number(bayar.nominal) !== saran.amount"
+                class="font-semibold text-error"
+              >selisih dengan isian {{ rupiah(Number(bayar.nominal) || 0) }}</span>
+              <span
+                v-else
+                class="font-semibold text-success"
+              >cocok dengan isian</span>
+            </p>
+            <p
+              v-if="saran.bank"
+              class="flex flex-wrap items-center gap-2"
+            >
+              <span>Bank: <b>{{ saran.bank }}</b></span>
+              <UButton
+                label="Pakai"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                @click="bayar.bank = saran!.bank"
+              />
+            </p>
+            <p v-if="saran.name">
+              Nama pengirim: <b>{{ saran.name }}</b>
+            </p>
+            <p
+              v-if="!saran.amount && !saran.bank && !saran.name"
+              class="text-muted"
+            >
+              Tidak ada yang terbaca.
+            </p>
+          </div>
+          <a
+            v-if="bayarUntuk?.tagihan?.proof_key"
+            :href="fileEventUrl(String(bayarUntuk.tagihan.proof_key))"
+            target="_blank"
+            rel="noopener"
+            class="mt-2 inline-block text-xs font-semibold text-primary-700 underline"
+          >Lihat bukti tersimpan</a>
         </UFormField>
       </div>
       <template #footer>
@@ -461,25 +701,119 @@ const jadwalTalent = computed(() => daftarJadwal.value.rows
       v-model:open="sheetDetail"
       :title="detail ? `Riwayat ${namaTalent(detail.talent_id)}` : 'Riwayat'"
     >
+      <div
+        v-if="detail"
+        class="grid grid-cols-2 gap-2 text-sm"
+      >
+        <div class="rounded-field border border-default p-2.5">
+          <p class="text-xs text-muted">
+            Hari tampil
+          </p>
+          <b class="num">{{ detail.hari }}</b>
+        </div>
+        <div class="rounded-field border border-default p-2.5">
+          <p class="text-xs text-muted">
+            Total (rata-rata/hari)
+          </p>
+          <b class="num">{{ rupiah(detail.fee) }}</b>
+          <p class="text-xs text-muted num">
+            {{ detail.hari ? rupiah(Math.round(detail.fee / detail.hari)) : rupiah(0) }}/hari
+          </p>
+        </div>
+        <div class="rounded-field border border-default p-2.5">
+          <p class="text-xs text-muted">
+            Belum (tidak done)
+          </p>
+          <b class="num">{{ rupiah(feeBelum) }}</b>
+        </div>
+        <div class="rounded-field border border-default p-2.5">
+          <p class="text-xs text-muted">
+            Status tagihan
+          </p>
+          <b>{{ detail.tagihan?.status ?? 'Belum ditagih' }}</b>
+        </div>
+      </div>
+      <div
+        v-if="detail?.tagihan"
+        class="mt-3 space-y-1.5 rounded-field border border-default p-3 text-sm"
+      >
+        <div class="flex justify-between gap-3">
+          <span class="text-muted">Nominal tagihan</span>
+          <b class="num">{{ rupiah(Number(detail.tagihan.amount) || 0) }}</b>
+        </div>
+        <div
+          v-if="detail.tagihan.bank_tujuan"
+          class="flex justify-between gap-3"
+        >
+          <span class="text-muted">Bank tujuan</span>
+          <span>{{ detail.tagihan.bank_tujuan }}</span>
+        </div>
+        <div
+          v-if="detail.tagihan.pic_finance"
+          class="flex justify-between gap-3"
+        >
+          <span class="text-muted">PIC finance</span>
+          <span>{{ detail.tagihan.pic_finance }}</span>
+        </div>
+        <div class="flex flex-wrap gap-2 pt-1">
+          <a
+            v-if="detail.tagihan.proof_key"
+            :href="fileEventUrl(String(detail.tagihan.proof_key))"
+            target="_blank"
+            rel="noopener"
+            class="text-xs font-semibold text-primary-700 underline"
+          >Lihat bukti transfer</a>
+          <UButton
+            v-if="bolehUbah && String(detail.tagihan.status) === 'Waiting'"
+            label="Bayar / proses"
+            color="primary"
+            variant="outline"
+            size="sm"
+            @click="sheetDetail = false; bukaBayar(detail)"
+          />
+        </div>
+      </div>
       <ul
         v-if="detail"
-        class="divide-y divide-default"
+        class="mt-3 divide-y divide-default"
       >
         <li
           v-for="j in jadwalTalent"
           :key="j.id"
-          class="flex justify-between py-2 text-sm"
+          class="flex items-center justify-between gap-2 py-2 text-sm"
         >
-          <span class="text-highlighted">{{ tglPendek(j.date) }} · {{ j.type }}</span>
-          <span class="num">{{ rupiah(Number(j.fee) || 0) }}</span>
+          <span>
+            <b class="text-highlighted">{{ tglPendek(j.date) }}</b>
+            <span class="text-muted"> {{ namaHari(j.date) }} · {{ j.start_time }} · {{ j.type }}</span>
+          </span>
+          <span class="flex items-center gap-2">
+            <AppStatus
+              :color="j.status === 'Done' ? 'success' : j.status === 'Cancelled' ? 'neutral' : 'warning'"
+              size="sm"
+            >
+              {{ j.status }}
+            </AppStatus>
+            <span class="num">{{ rupiah(Number(j.fee) || 0) }}</span>
+          </span>
         </li>
       </ul>
-      <p
+      <div
         v-if="detail"
-        class="mt-2 text-right text-sm font-bold text-highlighted num"
+        class="mt-2 flex flex-wrap items-center justify-between gap-2"
       >
-        Total {{ rupiah(detail.fee) }}
-      </p>
+        <UButton
+          label="Buka schedule"
+          icon="i-lucide-calendar-days"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          to="/event/schedule"
+        />
+        <p class="text-sm font-bold text-highlighted num">
+          Total {{ rupiah(detail.fee) }}
+        </p>
+      </div>
     </ResponsiveSheet>
   </AppPage>
+  </EventGerbang>
 </template>
