@@ -14,10 +14,7 @@
 
   Correction vs the old client: dragging a card never checked edit_event, so
   anyone who could open the board could move a stage. It needs edit_event here.
-
-  Not here yet: "Ajukan Revisi" on a card and the Internal / Client / Draft
-  documents belong to the offer letter and brief (#59); the buttons show as
-  "Segera" until then.
+  Drag carries a dataTransfer payload (Firefox never fires drop without one).
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
@@ -73,6 +70,22 @@ const totalAktif = computed(() => aktif.value.reduce((a, e) => a + grand(e), 0))
 const kolom = computed(() => PIPE_COLS_MKT.map(c => ({ c, items: st.value.events.filter(e => kolomPipeMkt(e) === c && cocokPic(e)) })))
 const seret = ref<string | null>(null)
 const atas = ref<string | null>(null)
+/** A click fires right after a drop on the same card — swallow it once. */
+let klikHantu = false
+function seretMulai(ev: DragEvent, id: string) {
+  seret.value = id
+  klikHantu = false
+  // Firefox never fires drop without payload: the JS ref alone is not enough.
+  ev.dataTransfer?.setData('text/plain', id)
+  if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move'
+}
+function klikKartu(id: string) {
+  if (klikHantu) {
+    klikHantu = false
+    return
+  }
+  buka.value = buka.value === id ? '' : id
+}
 const pindah = ref<{ e: EventMkt, ke: string } | null>(null)
 const pindahBuka = computed({ get: () => !!pindah.value, set: (v) => {
   if (!v) pindah.value = null
@@ -86,10 +99,13 @@ function minta(e: EventMkt, ke: string) {
   if (tolak) return toast.add({ title: 'Belum bisa ke Quotation Terkirim', description: tolak, color: 'error' })
   pindah.value = { e, ke }
 }
-function lepas(col: string) {
+function lepas(ev: DragEvent, col: string) {
+  ev.preventDefault()
+  // Prefer the payload (survives across frames); fall back to the ref.
+  const id = ev.dataTransfer?.getData('text/plain') || seret.value
   atas.value = null
-  const id = seret.value
   seret.value = null
+  klikHantu = true
   const e = st.value.events.find(x => x.id === id)
   if (e) minta(e, col)
 }
@@ -114,6 +130,11 @@ async function pindahkan() {
   if (ingat) setTimeout(() => toast.add({ title: 'Data dasar belum lengkap', description: ingat, color: 'warning' }), 700)
 }
 const opsiPindah = (e: EventMkt) => [PIPE_COLS_MKT.filter(c => c !== kolomPipeMkt(e)).map(c => ({ label: c, onSelect: () => minta(e, c) }))]
+/** Old open-card "+ Ajukan Revisi": submitted offer, not yet a deal. */
+const bisaRevisi = (e: EventMkt) => {
+  const p = (e.penawaran ?? {}) as Record<string, unknown>
+  return String(p.status ?? '') === 'Terkirim' && !['Deal', 'Event Done', 'Lost'].includes(String(e.status ?? ''))
+}
 
 // ---- Daftar Event (pipeIsiEvents / paintEvents, :6718-6922) ----
 const AKTIF = '__aktif__'
@@ -284,7 +305,7 @@ const kosong = computed(() => {
           :class="atas === k.c ? 'border-primary-400 bg-primary-50' : 'border-default'"
           @dragover.prevent="atas = k.c"
           @dragleave="atas === k.c && (atas = null)"
-          @drop.prevent="lepas(k.c)"
+          @drop="lepas($event, k.c)"
         >
           <header class="flex items-center gap-2 px-3 py-2.5">
             <AppStatus
@@ -303,9 +324,9 @@ const kosong = computed(() => {
               :draggable="can('edit_event')"
               class="cursor-pointer rounded-field border bg-default p-2.5 shadow-panel"
               :class="[buka === e.id ? 'border-primary-400' : 'border-default hover:border-accented', seret === e.id ? 'opacity-40' : '']"
-              @dragstart="seret = e.id"
+              @dragstart="seretMulai($event, e.id)"
               @dragend="seret = null; atas = null"
-              @click="buka = buka === e.id ? '' : e.id"
+              @click="klikKartu(e.id)"
             >
               <p class="text-sm font-semibold text-highlighted">
                 {{ e.nama }}<span
@@ -318,7 +339,8 @@ const kosong = computed(() => {
               </p>
               <p
                 v-if="grand(e)"
-                class="num mt-1 text-xs font-semibold text-primary-700"
+                class="num mt-1 truncate text-xs font-semibold text-primary-700"
+                :title="rupiah(grand(e))"
               >
                 {{ rupiah(grand(e)) }}
               </p>
@@ -361,6 +383,14 @@ const kosong = computed(() => {
                       class="lg:hidden"
                     />
                   </UDropdownMenu>
+                  <UButton
+                    v-if="can('edit_event') && bisaRevisi(e)"
+                    label="Ajukan Revisi"
+                    size="xs"
+                    color="neutral"
+                    variant="outline"
+                    @click="router.push(`/marketing/event/${e.id}?revisi=1`)"
+                  />
                   <UButton
                     label="Buka Event"
                     size="xs"
