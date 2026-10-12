@@ -1,24 +1,19 @@
 <!--
   App shell, laid out like the old Office (DESIGN.md › Shell):
-  a 248px sidebar on the left and a top bar over the content. On a phone the
-  sidebar slides in from the hamburger; on a desktop the hamburger hides it.
+  a 248px sidebar on the left and a top bar over the content; the hamburger
+  hides the sidebar. Below lg the sidebar gives way to a bottom bar (AppNavBawah).
   Inside a module with its own chrome (utils/modul-shell.ts) the top bar carries
   the module's search, gold "+" and bell.
 -->
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core'
+
 const route = useRoute()
 const router = useRouter()
 const { key, shell } = useModulShell()
 
-const laci = ref(false)
+const desktop = useMediaQuery('(min-width: 1024px)')
 const sembunyi = ref(false)
-function toggleMenu() {
-  if (window.matchMedia('(min-width: 1024px)').matches) sembunyi.value = !sembunyi.value
-  else laci.value = !laci.value
-}
-watch(() => route.fullPath, () => {
-  laci.value = false
-})
 
 const q = ref('')
 watch(() => route.query.q, (v) => {
@@ -54,25 +49,12 @@ onBeforeUnmount(() => {
     :class="sembunyi ? 'lg:grid-cols-[0_1fr]' : 'lg:grid-cols-[248px_1fr]'"
   >
     <aside
-      class="sticky top-0 hidden h-dvh overflow-hidden border-e border-default lg:block"
+      v-if="desktop"
+      class="sticky top-0 h-dvh overflow-hidden border-e border-default"
       :class="sembunyi && 'invisible'"
     >
       <AppSidebar :key="key" />
     </aside>
-
-    <USlideover
-      v-model:open="laci"
-      side="left"
-      :ui="{ content: 'max-w-[280px]' }"
-      title="Menu"
-    >
-      <template #content>
-        <AppSidebar
-          :key="key"
-          @pilih="laci = false"
-        />
-      </template>
-    </USlideover>
 
     <div class="min-w-0">
       <header class="sticky top-0 z-10 flex items-center gap-2.5 border-b border-default bg-default/95 px-3 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur-sm lg:gap-3 lg:px-5">
@@ -81,8 +63,9 @@ onBeforeUnmount(() => {
           color="neutral"
           variant="outline"
           size="lg"
+          class="hidden lg:inline-flex"
           aria-label="Tampilkan atau sembunyikan menu"
-          @click="toggleMenu"
+          @click="sembunyi = !sembunyi"
         />
         <form
           v-if="shell?.cari"
@@ -115,9 +98,14 @@ onBeforeUnmount(() => {
         <AppTopAksi :key="key" />
       </header>
 
-      <main class="px-4 pb-[calc(2rem+env(safe-area-inset-bottom))] pt-5 lg:px-6 lg:pb-12 lg:pt-7 2xl:px-10">
+      <main class="px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 lg:px-6 lg:pb-12 lg:pt-7 2xl:px-10">
         <slot />
       </main>
     </div>
+
+    <AppNavBawah
+      v-if="!desktop"
+      :key="key"
+    />
   </div>
 </template>

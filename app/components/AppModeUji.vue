@@ -9,7 +9,7 @@ const ujiCoba = String(apiBase).includes('//dev-api.')
 <template>
   <div
     v-if="ujiCoba"
-    class="pointer-events-none fixed bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 rounded-full bg-warning px-3 py-1 text-xs font-semibold text-inverted shadow-md"
+    class="pointer-events-none fixed bottom-[calc(4.75rem+env(safe-area-inset-bottom))] lg:bottom-[max(0.75rem,env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 rounded-full bg-warning px-3 py-1 text-xs font-semibold text-inverted shadow-md"
     role="status"
   >
     Mode uji · data dev

@@ -75,7 +75,7 @@ Seperti Office lama (`deploy/reservasi/index.html:851-872`):
   emas bersudut, nama, peran di modul ini, tombol keluar.
 - **Di dalam modul**, sidebar berisi layar modul itu (dari `utils/layar/<modul>.ts`) plus "Beranda Office".
   Di Beranda, sidebar berisi daftar modul.
-- **Top bar**: tombol menu (desktop: sembunyikan sidebar; HP: buka laci), kotak cari bulat, lalu di kanan
+- **Top bar**: tombol menu (desktop saja: sembunyikan sidebar), kotak cari bulat, lalu di kanan
   tombol **`+` emas** (aksi paling sering modul) dan **lonceng** dengan titik merah.
 - Isi per modul ditulis di `app/utils/modul-shell.ts`: `subjudul`, `layar`, `cari`, `tambah`, `lonceng`,
   `peran`, `lencana` (badge), `siapkan` (memuat matriks peran sebelum menu digambar).
@@ -118,7 +118,7 @@ Komponen Nuxt UI lain dipakai langsung, tidak dibungkus. Ubah gaya bawaannya di 
 
 ## HP dan desktop
 
-- Titik pisah `lg` (1024px). Di bawahnya sidebar menjadi laci dari tombol menu; top bar tetap.
+- Titik pisah `lg` (1024px). Di bawahnya sidebar diganti bottom bar (`AppNavBawah`): satu ikon per grup layar yang membuka sheet berisi layarnya, layar tanpa grup langsung jadi ikon, maksimal 4 + "Lainnya" (sisa grup, Beranda Office, akun). Ikon grup di `utils/nav-bawah.ts`; top bar tetap.
 - Kartu statistik 2 kolom di HP. Tabel menjadi daftar kartu (nama tebal, satu baris keterangan, pil status).
 - Area sentuh minimal 44px. Tidak boleh ada geser ke samping di 390px.
 
