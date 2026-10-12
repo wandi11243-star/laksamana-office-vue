@@ -248,9 +248,10 @@ export async function mktSimpan<T>(aksi: () => Promise<T>, sukses?: string, jeja
   const muatUlang = () => refreshNuxtData('marketing-state')
   try {
     await aksi()
-    for (const j of jejak ? [jejak].flat() : []) await logMkt(j.refType, j.refId ?? '-', j.action, j.detail).catch(() => {})
-    await muatUlang()
+    // The write has landed: say so now, not after the (large) state reload.
     if (sukses) toast?.add({ title: sukses, color: 'success' })
+    await Promise.all((jejak ? [jejak].flat() : []).map(j => logMkt(j.refType, j.refId ?? '-', j.action, j.detail).catch(() => {})))
+    await muatUlang()
     return true
   }
   catch (e) {
@@ -485,8 +486,8 @@ export interface AcaraEmsMkt { id: string, tgl: string, nama: string, venue: str
 
 /**
  * GET /event/events?from&to — the Event module's own events, drawn as a separate
- * read-only band. Needs the `event` module; without it the calendar says so and
- * still draws the Marketing events (as before). `Planning` events are left out.
+ * read-only band. The list is open to `event` and `marketing` holders, so a
+ * Marketing account without the Event module sees it too. `Planning` events are left out.
  * The day is the LOCAL date of start_datetime — the old client sliced the UTC
  * string, which put an event before 07:00 WIB on the previous day.
  */

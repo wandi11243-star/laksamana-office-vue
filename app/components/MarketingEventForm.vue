@@ -1,5 +1,8 @@
 <!--
   Marketing › schema-driven detail sections (tabs 1–2, EVENT_SCHEMA D.1–D.11).
+  One card per section, head as the old renderEventTab: number, title,
+  question, fill bar and the "Tampil di PDF" tick (detail._pdfSec). The
+  finance section's body comes from the #finance slot.
   Edits the page draft in place ({atas, detail}); the page saves per tab with
   a versioned PATCH. Field shapes match the old collectField(): yn {v},
   timerange "HH:MM - HH:MM", cur/num numbers, multi arrays, files [{key,name}].
@@ -8,7 +11,7 @@
 import type { EventMkt } from '~/utils/marketing'
 import type { DrafEventMkt, FieldEventMkt, SeksiEventMkt } from '~/utils/marketing-event'
 import {
-  KUNCI_ATAS_EVENT_MKT, MAKS_BERKAS_MKT, condTerpenuhiMkt, ringkasNilaiMkt,
+  KUNCI_ATAS_EVENT_MKT, MAKS_BERKAS_MKT, condTerpenuhiMkt, progresSeksiMkt, ringkasNilaiMkt,
 } from '~/utils/marketing-event'
 import { berkasKeBase64, unggahBerkasMkt, urlBerkasMkt } from '~/composables/useMarketing'
 import { ynBool } from '~/utils/marketing-uang'
@@ -37,6 +40,13 @@ function tulis(k: string, v: unknown) {
 }
 const evGabung = computed(() => ({ ...props.ev, ...draft.value.atas, detail: draft.value.detail }) as EventMkt)
 const terlihat = (f: FieldEventMkt) => condTerpenuhiMkt(f, evGabung.value)
+const progres = (s: SeksiEventMkt) => progresSeksiMkt(evGabung.value, s)
+
+/** "Tampil di PDF" per section (old pdfSecOn): never ticked = printed. Saved with the tab. */
+const pdfAktif = (id: string) => ((draft.value.detail._pdfSec ?? {}) as Record<string, unknown>)[id] !== false
+function pdfSet(id: string, on: boolean) {
+  draft.value.detail._pdfSec = { ...((draft.value.detail._pdfSec ?? {}) as Record<string, unknown>), [id]: on }
+}
 const opsiSel = (f: FieldEventMkt): string[] => (f.o === 'fb' ? [...props.fbFormats, 'Lainnya'] : (f.o as string[]))
 
 const angka = (v: unknown) => {
@@ -123,19 +133,55 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
 </script>
 
 <template>
-  <div class="grid gap-5">
-    <div
+  <div>
+    <AppPanel
       v-for="s in seksi"
       :key="s.id"
     >
-      <AppSectionTitle
-        :title="`${s.n} · ${s.title}`"
-        class="mb-1"
+      <template #head>
+        <div class="flex min-w-0 flex-1 basis-72 items-start gap-3">
+          <span class="mt-0.5 shrink-0 rounded-md bg-primary-50 px-2 py-1 text-xs font-bold text-primary-700 num">{{ s.n }}</span>
+          <div class="min-w-0">
+            <h3 class="text-base font-semibold text-highlighted">
+              {{ s.title }}
+            </h3>
+            <p class="mt-0.5 text-sm text-muted">
+              {{ s.desc }}
+            </p>
+          </div>
+        </div>
+      </template>
+      <template #actions>
+        <span
+          v-if="progres(s).total"
+          class="flex items-center gap-2 text-xs text-muted num"
+          :title="`${progres(s).isi} dari ${progres(s).total} isian sudah terisi`"
+        >
+          <span class="h-1.5 w-16 overflow-hidden rounded-full bg-elevated">
+            <span
+              class="block h-full rounded-full"
+              :class="progres(s).isi === progres(s).total ? 'bg-success' : 'bg-primary-400'"
+              :style="{ width: `${Math.round(progres(s).isi / progres(s).total * 100)}%` }"
+            />
+          </span>
+          {{ progres(s).isi }}/{{ progres(s).total }}
+        </span>
+        <UCheckbox
+          v-if="bisaUbah"
+          :model-value="pdfAktif(s.id)"
+          label="Tampil di PDF"
+          title="Kalau dimatikan, seksi ini tidak ikut tercetak di Event Brief / PDF"
+          @update:model-value="pdfSet(s.id, !!$event)"
+        />
+      </template>
+      <slot
+        v-if="s.id === 'finance'"
+        name="finance"
       />
-      <p class="mb-3 text-xs text-muted">
-        {{ s.desc }}
-      </p>
-      <div class="grid gap-3 lg:grid-cols-2">
+      <div
+        v-else
+        class="grid gap-3 lg:grid-cols-2"
+      >
         <template
           v-for="f in s.fields"
           :key="f.k"
@@ -405,6 +451,6 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
           </div>
         </template>
       </div>
-    </div>
+    </AppPanel>
   </div>
 </template>

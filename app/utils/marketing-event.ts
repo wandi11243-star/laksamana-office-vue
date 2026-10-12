@@ -478,6 +478,23 @@ export const revisiBerikutMkt = (rev?: number) => (rev || 0) + 1
 
 // ---------------------------------------------------------------- delete
 
+/**
+ * Other booked events on the same day and area (bookingConflicts, :4716):
+ * Deal/Confirmed/Event Done only; an empty area or "Seluruh Area" always warns.
+ */
+export function bentrokJadwalMkt(ev: EventMkt, events: EventMkt[]): EventMkt[] {
+  if (!ev.tanggal) return []
+  const area = (x: EventMkt) => String((x.detail ?? {}).area ?? '')
+  const a = area(ev)
+  return events.filter((x) => {
+    if (x.id === ev.id || x.tanggal !== ev.tanggal) return false
+    if (!['Deal', 'Confirmed', 'Event Done'].includes(x.status)) return false
+    const b = area(x)
+    if (!a || !b || a === 'Seluruh Area' || b === 'Seluruh Area') return true
+    return a === b
+  })
+}
+
 export interface RingkasHapusMkt { kwitansi: string[], terbayar: number, nBayar: number, nFu: number }
 
 /** What the delete dialog shows: kwitansi numbers, money, FU count (:6373-6416). */
@@ -655,8 +672,10 @@ export function buildBriefDocMkt(ev: EventMkt, namaClient: string, st: SettingsM
     h.push(`<p>Marketing: ______ · Menyetujui: ______${pic ? ` · PIC acara: ${escHtml(pic)}` : ''}</p>`)
     return h.join('\n')
   }
+  const pdfSec = (d._pdfSec ?? {}) as Record<string, unknown>
   for (const s of SEKSI_EVENT_MKT) {
     if (s.id === 'finance') continue
+    if (pdfSec[s.id] === false) continue // switched off with "Tampil di PDF" (old pdfSecOn)
     const baris: string[] = []
     for (const fld of s.fields) {
       if (fld.t === 'head' || fld.t === 'mirror' || fld.t === 'salinlayout' || fld.t === 'mejalock') continue

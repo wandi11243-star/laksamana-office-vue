@@ -1,29 +1,37 @@
 <!--
-  Marketing › Detail Event (docs/migrasi/marketing.md D.4, issue #59): the full
-  four-tab form — 1 Informasi Dasar, 2 Operasional, 3 Finance, 4 Overview —
-  over sections D.1–D.11 with per-division visibility, the offer-letter card,
-  payment recording with mandatory proof, WhatsApp invoice + DP reminder, table
-  locks against Reservasi, and permanent delete by typed name.
+  Marketing › Detail Event (docs/migrasi/marketing.md D.4, issue #59), in the
+  old renderEventForm order: head (status/jenis/tanggal/pax + Brief, Catat FU,
+  Konfirmasi Deal, Tandai Selesai, Hapus), schedule-clash warning, stage
+  reminder with "Pindah ke", four money/readiness stats, the offer-letter card,
+  Pengakuan Omset, follow-up history, the fill summary, then the four tabs —
+  1 Informasi Dasar, 2 Operasional, 3 Finance, 4 Overview — one card per
+  section (D.1–D.11) with per-division visibility.
 
-  Every save is a versioned PATCH of {row keys, detail, payments}; 409/428
-  reloads through mktSimpan (marketing.md F.1).
+  Saving never waits for required fields: the old saveEventTab and its
+  autosave stored whatever was typed; required marks only guide. The one hard
+  stop left is the DP tick (MarketingFinanceEvent), as in the old app.
+  Only the open tab is drawn. Every save is a versioned PATCH of {row keys,
+  detail, payments}; 409/428 reloads through mktSimpan (marketing.md F.1).
 -->
 <script setup lang="ts">
 import type { EventMkt, SettingsMkt } from '~/utils/marketing'
 import {
-  TAHAP_TERBUKA_MKT, ingatTahapMkt, menuFixMkt, namaCocok,
-  pindahBolehMkt, rentangTglMkt, tugasDealMkt,
+  MENU_FIX_KOSONG_MKT, MENU_FIX_MKT, PIPE_COLS_MKT, TAHAP_TERBUKA_MKT, ingatTahapMkt, kategoriEventMkt, menuFixMkt, namaCocok,
+  pindahBolehMkt, rentangTglMkt, tglMkt, tugasDealMkt,
 } from '~/utils/marketing'
 import type { DrafEventMkt } from '~/utils/marketing-event'
 import {
-  KUNCI_ATAS_EVENT_MKT, kurangWajibMkt,
+  KUNCI_ATAS_EVENT_MKT, bentrokJadwalMkt,
   noKwitansiMkt, progresSeksiMkt, ringkasHapusMkt,
   ringkasNilaiMkt, seqBerikutMkt, sinkronDpMkt, tabTerlihatMkt, terlihatSeksiMkt,
 } from '~/utils/marketing-event'
-import { dpLabel, eventFinance, invStatus } from '~/utils/marketing-uang'
+import { dpLabel, eventFinance } from '~/utils/marketing-uang'
+import type { TemplateTugasMkt } from '~/utils/marketing-tugas'
+import { progresDivMkt } from '~/utils/marketing-tugas'
 import { ikonStatusMkt, warnaStatusMkt } from '~/utils/status-marketing'
 import { formatFbMkt, getDokumenMkt, hapusMkt, lepasKunciMejaMkt, mktSimpan, simpanDokumenMkt, tambalMkt, useAksesMkt, useStateMkt, versiDokumenMkt } from '~/composables/useMarketing'
-import { hariIni, rupiah } from '~/utils/format'
+import { rupiah } from '~/utils/format'
+import { rupiahRingkas } from '~/utils/hlife'
 
 definePageMeta({ access: ['marketing'] })
 
@@ -40,7 +48,8 @@ const revisiMinta = ref(route.query.revisi === '1')
 if (revisiMinta.value) router.replace({ query: { ...route.query, revisi: undefined } })
 const ev = computed(() => st.value.events.find(e => e.id === id.value) ?? null)
 const client = computed(() => st.value.clients.find(c => c.id === ev.value?.clientId))
-const fuEvent = computed(() => st.value.followups.filter(f => f.eventId === id.value).slice(-3).reverse())
+const namaUser = (uid?: string) => st.value.users.find(u => u.id === uid)?.name ?? uid ?? '—'
+const fuEvent = computed(() => st.value.followups.filter(f => f.eventId === id.value).sort((a, b) => String(b.at).localeCompare(String(a.at))))
 
 const divSaya = computed(() => saya.value?.user.div || '')
 const roleSaya = computed(() => saya.value?.user.role || '')
@@ -54,6 +63,7 @@ const seksiTab = (tabId: string) => {
   const t = tabs.value.find(x => x.id === tabId)
   return seksiLihat.value.filter(s => t?.secs.includes(s.id))
 }
+const tabKini = computed(() => tabs.value.find(t => t.id === tab.value) ?? null)
 /** The next visible tab, for "Simpan & Lanjut" on every form tab. */
 const tabLanjut = (tabId: string) => {
   const i = tabs.value.findIndex(t => t.id === tabId)
@@ -62,9 +72,20 @@ const tabLanjut = (tabId: string) => {
 }
 
 const uang = computed(() => (ev.value ? eventFinance(ev.value, st.value.settings) : null))
-const inv = computed(() => (ev.value ? invStatus(ev.value, st.value.settings, hariIni()) : ''))
 const bisaUbah = computed(() => can('edit_event'))
 const bisaVerif = computed(() => can('verify_payment'))
+const terbuka = computed(() => !!ev.value && TAHAP_TERBUKA_MKT.includes(ev.value.status))
+const bentrok = computed(() => (ev.value ? bentrokJadwalMkt(ev.value, st.value.events) : []))
+const sisaApprovalLama = computed(() => st.value.approvals.some(a => a.eventId === id.value && a.status === 'Pending'))
+
+/** Kesiapan Divisi (taskProgress, :5403): mean of each category's job progress. */
+const kesiapan = computed(() => {
+  const e = ev.value
+  if (!e) return { pct: 0, siap: 0, n: 0 }
+  const tpl = st.value.taskTemplates as unknown as TemplateTugasMkt[]
+  const p = kategoriEventMkt(e, formatFbMkt(st.value)).map(k => progresDivMkt(e, k, tpl))
+  return { pct: p.length ? Math.round(p.reduce((a, b) => a + b, 0) / p.length) : 0, siap: p.filter(x => x >= 100).length, n: p.length }
+})
 
 // ---- draft ----
 const draf = ref<DrafEventMkt>({ atas: {}, detail: {}, payments: [] })
@@ -83,6 +104,7 @@ watch(() => ev.value?.updatedAt, () => {
   draf.value = { atas, detail: { ...(e.detail ?? {}) }, payments: [...(e.payments ?? [])] }
   tandaiBersih()
 }, { immediate: true })
+const evDraf = computed(() => (ev.value ? { ...ev.value, ...draf.value.atas, detail: draf.value.detail } as EventMkt : null))
 
 // ---- autosave (old autoSaveBind): quiet, explicit on conflict, never finance ----
 const autoState = ref<'bersih' | 'menunggu' | 'menyimpan'>('bersih')
@@ -97,7 +119,7 @@ watch(draf, () => {
   }
   autoState.value = 'menunggu'
   clearTimeout(autoTimer)
-  autoTimer = setTimeout(simpanOtomatis, 700)
+  autoTimer = setTimeout(simpanOtomatis, 1200)
 }, { deep: true })
 async function simpanOtomatis() {
   const e = ev.value
@@ -108,8 +130,7 @@ async function simpanOtomatis() {
     autoState.value = 'bersih'
     return
   }
-  const kurang = kurangWajibMkt({ ...e, ...kirim.atas, detail: kirim.detail } as EventMkt, seksiTab(tab.value))
-  if (kurang.length) return // incomplete: wait for more typing, silently
+  // Half-filled is fine: the old autosave stored whatever was typed.
   autoState.value = 'menyimpan'
   try {
     await tambalMkt<EventMkt>('events', e.id, { ...kirim.atas, detail: kirim.detail, payments: kirim.payments }, e.updatedAt)
@@ -131,13 +152,7 @@ const sibuk = ref(false)
 async function simpan(tabId: string, lanjut?: string) {
   const e = ev.value
   if (!e || !bisaUbah.value) return
-  const kurang = tabId === 'finance'
-    ? []
-    : kurangWajibMkt({ ...e, ...draf.value.atas, detail: draf.value.detail } as EventMkt, tabId === 'overview' ? seksiLihat.value : seksiTab(tabId))
-  if (kurang.length) {
-    toast.add({ title: 'Belum lengkap', description: `Lengkapi dulu: ${kurang.slice(0, 3).join('; ')}${kurang.length > 3 ? ` (+${kurang.length - 3} lagi)` : ''}.`, color: 'error' })
-    return
-  }
+  clearTimeout(autoTimer)
   sibuk.value = true
   try {
     const patch: Record<string, unknown> = { ...draf.value.atas, detail: draf.value.detail, payments: draf.value.payments }
@@ -157,42 +172,68 @@ async function simpan(tabId: string, lanjut?: string) {
         }
       }
     }
+    const judul = tabs.value.find(t => t.id === tabId)?.title ?? ''
+    const grand = eventFinance({ ...e, detail: draf.value.detail, payments: patch.payments } as EventMkt, st.value.settings).grand
     const ok = await mktSimpan(
       () => tambalMkt<EventMkt>('events', e.id, patch, e.updatedAt),
-      tabId === 'finance' ? 'Finance tersimpan' : `Tab ${tabs.value.find(t => t.id === tabId)?.title ?? ''} tersimpan`,
-      { refType: 'event', refId: e.id, action: 'Detail event diubah', detail: `tab ${tabId}` },
+      tabId === 'finance' ? `Finance tersimpan · Grand Total ${rupiah(grand)}` : `${judul} disimpan`,
+      { refType: 'event', refId: e.id, action: `Detail diperbarui: ${judul}`, detail: `tab ${tabId}` },
     )
-    if (ok && lanjut) tab.value = lanjut
+    if (!ok) return
+    autoMati.value = false
+    if (lanjut) tab.value = lanjut
+    // Detailing never locks the stage, so remind (not on "Simpan & Lanjut": it breaks the flow).
+    else if (TAHAP_TERBUKA_MKT.includes(e.status)) setTimeout(() => toast.add({ title: 'Jangan lupa tahapnya', description: `Peluang masih "${e.status}". Perbarui tahap pipeline bila sudah ada kemajuan.` }), 700)
   }
   finally {
     sibuk.value = false
   }
 }
 
-// ---- Konfirmasi Deal (pipeline minta flow) ----
-const dealBuka = ref(false)
-function mintaDeal() {
+// ---- tahap: "Pindah ke" and Konfirmasi Deal share one confirm ----
+const tahapKe = ref<string | null>(null)
+const tahapBuka = computed({ get: () => !!tahapKe.value, set: (v) => {
+  if (!v) tahapKe.value = null
+} })
+function mintaTahap(ke: string) {
   const e = ev.value
-  if (!e || !bisaUbah.value) return
-  const tolak = pindahBolehMkt(e, 'Deal')
+  if (!e || !bisaUbah.value || e.status === ke) return
+  const tolak = pindahBolehMkt(e, ke)
   if (tolak) {
-    toast.add({ title: 'Belum bisa Deal', description: tolak, color: 'error' })
+    toast.add({ title: 'Belum bisa ke Quotation Terkirim', description: tolak, color: 'error' })
     return
   }
-  dealBuka.value = true
+  tahapKe.value = ke
 }
-async function pindahDeal() {
+async function pindahTahap() {
   const e = ev.value
-  if (!e) return
-  const ingat = ingatTahapMkt(e, 'Deal')
-  dealBuka.value = false
+  const ke = tahapKe.value
+  if (!e || !ke) return
+  const dari = e.status
+  const ingat = ingatTahapMkt(e, ke)
+  const ubah: Partial<EventMkt> = { pipeCol: ke, status: ke }
+  if (ke === 'Deal') ubah.tasks = tugasDealMkt(e, formatFbMkt(st.value))
+  tahapKe.value = null
   const ok = await mktSimpan(
-    () => tambalMkt<EventMkt>('events', e.id, { pipeCol: 'Deal', status: 'Deal', tasks: tugasDealMkt(e, formatFbMkt(st.value)) }, e.updatedAt),
-    undefined, { refType: 'event', refId: e.id, action: 'Pipeline dipindah', detail: `${e.status} → Deal` },
+    () => tambalMkt<EventMkt>('events', e.id, ubah, e.updatedAt),
+    ke === 'Deal' ? undefined : `Tahap diperbarui · ${dari} → ${ke}`,
+    { refType: 'event', refId: e.id, action: 'Tahap diubah', detail: `${dari} → ${ke}` },
   )
   if (!ok) return
-  toast.add({ title: 'Deal!', description: `${e.nama} masuk tahap eksekusi & handover divisi.`, color: 'success' })
+  if (ke === 'Deal') toast.add({ title: 'Deal!', description: `${e.nama} masuk tahap eksekusi & handover divisi.`, color: 'success' })
   if (ingat) setTimeout(() => toast.add({ title: 'Data dasar belum lengkap', description: ingat, color: 'warning' }), 700)
+}
+
+// ---- Pengakuan Omset (menuFixCard) ----
+const infoMenuFix = computed(() => MENU_FIX_MKT.find(x => x.v === menuFixMkt(ev.value)))
+async function setMenuFix(v: string) {
+  const e = ev.value
+  if (!e || !bisaUbah.value || menuFixMkt(e) === v) return
+  const t = MENU_FIX_MKT.find(x => x.v === v)?.t ?? '—'
+  await mktSimpan(
+    () => tambalMkt<EventMkt>('events', e.id, { menuFix: v } as Partial<EventMkt>, e.updatedAt),
+    `${t}.`, { refType: 'event', refId: e.id, action: 'Pengakuan omset diubah', detail: `${t} · ${e.nama}` },
+  )
 }
 
 // ---- Tandai Selesai ----
@@ -241,13 +282,40 @@ async function hapus() {
 const fuBuka = ref(false)
 const jumlahSurat = computed(() => st.value.events.filter(e => e.penawaran?.noSurat).length)
 const keBrief = (mode: string) => router.push({ path: '/marketing/brief', query: { id: id.value, mode } })
-const progresTab = (tabId: string) => {
-  const ss = tabId === 'overview' ? seksiLihat.value : seksiTab(tabId)
-  return ss.reduce((a, s) => {
-    const p = progresSeksiMkt({ ...(ev.value as EventMkt), ...draf.value.atas, detail: draf.value.detail } as EventMkt, s)
-    return { isi: a.isi + p.isi, total: a.total + p.total }
-  }, { isi: 0, total: 0 })
-}
+
+// ---- Ringkasan Pengisian (ringkasIsianHTML): live from the draft ----
+const ringkas = computed(() => {
+  const e = evDraf.value
+  if (!e) return null
+  const secs = tabs.value.filter(t => t.id !== 'overview').flatMap(t => seksiTab(t.id).map((s) => {
+    const p = progresSeksiMkt(e, s)
+    return { tab: t.id, id: s.id, n: s.n, title: s.title, ...p }
+  })).filter(s => s.total)
+  if (!secs.length) return null
+  const isi = secs.reduce((a, s) => a + s.isi, 0)
+  const total = secs.reduce((a, s) => a + s.total, 0)
+  return { secs, isi, total, pct: total ? Math.round(isi / total * 100) : 0, kurang: secs.filter(s => s.isi < s.total).length }
+})
+
+// ---- Overview (renderOverview): a read-only summary document ----
+const overview = computed(() => {
+  const e = ev.value
+  if (!e) return { secs: [], isi: 0, total: 0 }
+  let isi = 0
+  let total = 0
+  const secs = seksiLihat.value.map((s) => {
+    const p = progresSeksiMkt(e, s)
+    isi += p.isi
+    total += p.total
+    const baris = s.fields
+      .filter(f => !['head', 'mirror', 'salinlayout', 'mejalock'].includes(f.t) && f.k !== 'highlight')
+      .map(f => ({ k: f.k, l: f.l, v: ringkasNilaiMkt(f.t, (e.detail ?? {})[f.k] ?? (e as unknown as Record<string, unknown>)[f.k]) }))
+      .filter(b => b.v)
+    return { id: s.id, n: s.n, title: s.title, baris }
+  }).filter(s => s.baris.length)
+  return { secs, isi, total }
+})
+const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').trim())
 </script>
 
 <template>
@@ -268,12 +336,42 @@ const progresTab = (tabId: string) => {
         @click="keBrief('internal')"
       />
       <UButton
-        v-if="bisaUbah && TAHAP_TERBUKA_MKT.includes(ev.status)"
+        v-if="bisaUbah && terbuka"
         label="Catat FU"
         icon="i-lucide-phone-call"
         color="neutral"
         variant="outline"
         @click="fuBuka = true"
+      />
+      <AppStatus
+        v-if="sisaApprovalLama"
+        color="warning"
+        icon="i-lucide-hourglass"
+      >
+        Sisa approval lama menunggu
+      </AppStatus>
+      <UButton
+        v-if="bisaUbah && !['Confirmed', 'Deal', 'Event Done', 'Lost'].includes(ev.status)"
+        label="Konfirmasi Deal"
+        icon="i-lucide-check"
+        @click="mintaTahap('Deal')"
+      />
+      <UButton
+        v-if="bisaUbah && ['Confirmed', 'Deal'].includes(ev.status)"
+        label="Tandai Event Selesai"
+        icon="i-lucide-flag"
+        color="neutral"
+        variant="outline"
+        @click="selesaiBuka = true"
+      />
+      <UButton
+        v-if="can('del_event')"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="outline"
+        aria-label="Hapus event permanen"
+        title="Hapus event permanen"
+        @click="hapusBuka = true; hapusNama = ''"
       />
     </template>
 
@@ -305,36 +403,111 @@ const progresTab = (tabId: string) => {
           variant="soft"
         />
         <UBadge
+          :label="tglMkt(ev.tanggal)"
+          color="neutral"
+          variant="soft"
+        />
+        <UBadge
           :label="`${ev.pax || 0} pax`"
           color="neutral"
           variant="soft"
         />
-        <AppStatus
-          v-if="!menuFixMkt(ev)"
-          color="warning"
-          icon="i-lucide-circle-help"
-        >
-          Menu belum ditentukan
-        </AppStatus>
       </div>
 
-      <AppPanel
-        v-if="uang"
-        title="Keuangan"
-        class="mb-5"
+      <!-- double booking (bookingConflicts) -->
+      <UAlert
+        v-if="bentrok.length"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="`Bentrok jadwal — ${bentrok.length} event lain di tanggal yang sama`"
+        class="mb-4"
       >
-        <div class="flex flex-wrap gap-x-6 gap-y-1 text-sm">
-          <p><span class="text-muted">Grand total </span><b class="num">{{ rupiah(uang.grand) }}</b></p>
-          <p><span class="text-muted">{{ dpLabel(uang) }}&nbsp;</span><b class="num">{{ rupiah(uang.dp) }}</b></p>
-          <p><span class="text-muted">Terbayar </span><b class="num">{{ rupiah(uang.paid) }}</b></p>
-          <p><span class="text-muted">Sisa </span><b class="num">{{ rupiah(uang.remaining) }}</b></p>
-          <p><span class="text-muted">Invoice </span><b>{{ inv }}</b></p>
+        <template #description>
+          <p>
+            <template
+              v-for="(x, i) in bentrok"
+              :key="x.id"
+            >
+              {{ i ? " · " : "" }}
+              <NuxtLink
+                :to="`/marketing/event/${x.id}`"
+                class="underline"
+              >{{ x.nama }}</NuxtLink>
+              ({{ (x.detail ?? {}).area || 'area belum diisi' }} · {{ x.status }})
+            </template>
+          </p>
+          <p class="mt-1">
+            Cek ulang area/lantai sebelum konfirmasi supaya tidak dobel booking.
+          </p>
+        </template>
+      </UAlert>
+
+      <!-- stage reminder: detailing never locks the stage -->
+      <div
+        v-if="terbuka"
+        class="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-panel border border-warning/40 bg-warning/10 px-4 py-3"
+      >
+        <div class="flex items-start gap-2.5">
+          <UIcon
+            name="i-lucide-triangle-alert"
+            class="mt-0.5 size-5 shrink-0 text-warning"
+          />
+          <div>
+            <b class="text-sm text-highlighted">Peluang masih di tahap {{ ev.status }}</b>
+            <p class="text-xs text-muted">
+              Boleh diisi kapan saja — tapi kalau sudah ada kemajuan, jangan lupa perbarui tahapnya.
+            </p>
+          </div>
         </div>
-      </AppPanel>
+        <div
+          v-if="bisaUbah"
+          class="flex items-center gap-2"
+        >
+          <span class="text-xs text-muted">Pindah ke</span>
+          <USelect
+            :model-value="ev.status"
+            :items="PIPE_COLS_MKT.map(c => String(c))"
+            class="w-48"
+            @update:model-value="mintaTahap(String($event))"
+          />
+        </div>
+      </div>
+
+      <AppStatGrid v-if="uang">
+        <AppStat
+          label="Grand Total"
+          :value="rupiahRingkas(uang.grand)"
+          :sub="rupiah(uang.grand)"
+          icon="i-lucide-receipt"
+        />
+        <AppStat
+          :label="dpLabel(uang)"
+          :value="rupiahRingkas(uang.dp)"
+          :sub="uang.paid >= uang.dp ? 'Terpenuhi' : 'Belum masuk'"
+          icon="i-lucide-wallet"
+          :tone="uang.paid >= uang.dp ? 'success' : 'warning'"
+        />
+        <AppStat
+          label="Sisa Tagihan"
+          :value="rupiahRingkas(uang.remaining)"
+          :sub="`terbayar ${rupiahRingkas(uang.paid)} dari ${rupiahRingkas(uang.grand)}`"
+          icon="i-lucide-hourglass"
+          :tone="uang.remaining > 0 ? 'error' : 'success'"
+        />
+        <AppStat
+          label="Kesiapan Divisi"
+          :value="`${kesiapan.pct}%`"
+          :sub="`${kesiapan.siap}/${kesiapan.n} kategori`"
+          icon="i-lucide-list-checks"
+          tone="info"
+        />
+      </AppStatGrid>
 
       <MarketingPenawaran
         v-if="canView('pipeline')"
         :key="`pen-${ev.updatedAt}`"
+        v-model:revisi="revisiMinta"
         :ev="ev"
         :settings="st.settings"
         :jumlah-surat="jumlahSurat"
@@ -344,10 +517,125 @@ const progresTab = (tabId: string) => {
         :bisa-putus="can('approve')"
         :saya-id="saya?.user.id ?? ''"
         :saya-nama="saya?.user.name ?? ''"
-        v-model:revisi="revisiMinta"
         class="mb-5"
-        @deal="mintaDeal"
+        @deal="mintaTahap('Deal')"
       />
+
+      <AppPanel
+        title="Pengakuan Omset"
+        icon="i-lucide-banknote"
+      >
+        <template #actions>
+          <AppStatus
+            v-if="infoMenuFix"
+            color="success"
+            icon="i-lucide-check"
+          >
+            {{ infoMenuFix.t }}
+          </AppStatus>
+          <AppStatus
+            v-else
+            color="warning"
+            icon="i-lucide-circle-help"
+          >
+            Menu belum ditentukan
+          </AppStatus>
+        </template>
+        <AppSeg
+          :model-value="menuFixMkt(ev)"
+          :options="MENU_FIX_MKT.map(x => ({ value: x.v as string, label: x.t }))"
+          :class="bisaUbah ? '' : 'pointer-events-none opacity-70'"
+          @update:model-value="setMenuFix(String($event))"
+        />
+        <p
+          v-if="infoMenuFix"
+          class="mt-2 text-xs text-muted"
+        >
+          {{ infoMenuFix.d }}
+        </p>
+        <p
+          v-else
+          class="mt-2 text-xs text-warning"
+        >
+          <b>Belum ditentukan.</b> {{ MENU_FIX_KOSONG_MKT }}
+        </p>
+      </AppPanel>
+
+      <AppPanel
+        title="Riwayat Follow Up"
+        :count="fuEvent.length"
+      >
+        <p
+          v-if="!fuEvent.length"
+          class="text-sm text-muted"
+        >
+          Belum ada follow up untuk peluang ini.
+        </p>
+        <ol
+          v-else
+          class="grid gap-3 border-l-2 border-default pl-4"
+        >
+          <li
+            v-for="f in fuEvent"
+            :key="f.id"
+            class="text-sm"
+          >
+            <p class="text-xs text-muted num">
+              {{ String(f.at).replace('T', ' ').slice(0, 16) }} · {{ namaUser(f.by) }}
+            </p>
+            <p class="font-medium text-highlighted">
+              {{ f.action }} → {{ f.hasil }}
+            </p>
+            <p
+              v-if="f.note"
+              class="text-muted"
+            >
+              {{ f.note }}
+            </p>
+          </li>
+        </ol>
+      </AppPanel>
+
+      <AppPanel v-if="ringkas">
+        <div class="flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <p class="text-xs font-bold uppercase tracking-wider text-primary-700">
+              Ringkasan pengisian
+            </p>
+            <p class="mt-1 num">
+              <b class="text-3xl text-highlighted">{{ ringkas.isi }}</b><span class="text-muted">/{{ ringkas.total }}</span>
+              <span class="ml-2 text-sm font-semibold text-primary-700">{{ ringkas.pct }}%</span>
+            </p>
+          </div>
+          <p class="text-sm text-muted">
+            {{ ringkas.kurang ? `${ringkas.kurang} seksi masih ada yang kosong` : 'Semua isian sudah lengkap' }}
+          </p>
+        </div>
+        <div class="mt-3 h-1.5 overflow-hidden rounded-full bg-elevated">
+          <div
+            class="h-full rounded-full bg-primary-400"
+            :style="{ width: `${ringkas.pct}%` }"
+          />
+        </div>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <button
+            v-for="s in ringkas.secs"
+            :key="s.id"
+            type="button"
+            class="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition hover:bg-elevated"
+            :class="s.isi >= s.total ? 'border-success/40' : s.isi === 0 ? 'border-error/40' : 'border-warning/40'"
+            :title="`${s.title} — ${s.isi} dari ${s.total} isian terisi`"
+            @click="tab = s.tab"
+          >
+            <span class="font-bold text-primary-700 num">{{ s.n }}</span>
+            <span class="text-highlighted">{{ s.title }}</span>
+            <span
+              class="num"
+              :class="s.isi >= s.total ? 'text-success' : s.isi === 0 ? 'text-error' : 'text-warning'"
+            >{{ s.isi }}/{{ s.total }}</span>
+          </button>
+        </div>
+      </AppPanel>
 
       <AppSeg
         v-model="tab"
@@ -355,198 +643,177 @@ const progresTab = (tabId: string) => {
         class="mb-5"
       />
 
-      <template
-        v-for="t in tabs"
-        :key="t.id"
-      >
-        <div v-show="tab === t.id">
-          <template v-if="t.id === 'finance'">
-            <MarketingFinanceEvent
-              :key="`fin-${ev.updatedAt}`"
-              v-model:draft="draf"
-              :ev="ev"
-              :nama-client="client?.nama ?? ''"
-              :client-hp="client?.hp ?? ''"
-              :settings="st.settings"
-              :bisa-ubah="bisaUbah"
-              :bisa-verif="bisaVerif"
-              :saya-nama="saya?.user.name ?? ''"
-            />
-            <div
-              v-if="bisaUbah"
-              class="mt-4 flex flex-wrap gap-2"
-            >
-              <UButton
-                label="Simpan Finance"
-                :loading="sibuk"
-                @click="simpan('finance')"
+      <template v-if="tabKini">
+        <!-- 4 · Overview: the summary document, read-only -->
+        <AppPanel v-if="tabKini.id === 'overview'">
+          <div class="flex flex-wrap items-start justify-between gap-3 border-b border-default pb-3">
+            <div>
+              <p class="font-semibold text-highlighted">
+                Laksamana Muda
+              </p>
+              <p class="text-xs tracking-wider text-muted">
+                COFFEE &amp; LIVE SPACE
+              </p>
+            </div>
+            <div class="text-right">
+              <p class="text-xs font-bold uppercase tracking-wider text-primary-700">
+                Rangkuman event
+              </p>
+              <p class="font-semibold text-highlighted">
+                {{ ev.nama || '—' }}
+              </p>
+              <p class="text-sm text-muted">
+                {{ rentangTglMkt(ev) }}
+              </p>
+            </div>
+          </div>
+          <div class="grid gap-x-6 gap-y-1 border-b border-default py-3 text-sm sm:grid-cols-2">
+            <p><b>Client</b> · {{ client?.nama ?? '—' }}{{ client?.perusahaan ? ` — ${client.perusahaan}` : '' }}</p>
+            <p><b>Marketing PIC</b> · {{ namaUser(ev.mktPIC) }}</p>
+            <p><b>Jenis</b> · {{ ev.jenis || '—' }}</p>
+            <p><b>Estimasi</b> · {{ ev.pax || '—' }} pax</p>
+          </div>
+          <div class="flex items-center gap-3 py-3 text-sm">
+            <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-elevated">
+              <div
+                class="h-full rounded-full bg-primary-400"
+                :style="{ width: `${overview.total ? Math.round(overview.isi / overview.total * 100) : 0}%` }"
               />
             </div>
-          </template>
-          <template v-else-if="t.id === 'overview'">
-            <div class="grid gap-5">
-              <AppPanel
-                v-for="s in seksiLihat"
-                :key="s.id"
-                :title="`${s.n} · ${s.title}`"
-              >
-                <dl
-                  v-if="s.id !== 'finance' || roleSaya !== 'operational'"
-                  class="grid gap-x-4 gap-y-1.5 text-sm lg:grid-cols-2"
-                >
-                  <template
-                    v-for="f in s.fields.filter(x => !['head', 'mirror', 'salinlayout'].includes(x.t))"
-                    :key="f.k"
-                  >
-                    <div
-                      v-if="ringkasNilaiMkt(f.t, (ev.detail ?? {})[f.k] ?? (ev as unknown as Record<string, unknown>)[f.k])"
-                      class="grid grid-cols-[10rem_1fr] gap-2"
-                    >
-                      <dt class="text-muted">
-                        {{ f.l }}
-                      </dt>
-                      <dd class="whitespace-pre-line">
-                        {{ ringkasNilaiMkt(f.t, (ev.detail ?? {})[f.k] ?? (ev as unknown as Record<string, unknown>)[f.k]) }}
-                      </dd>
-                    </div>
-                  </template>
-                </dl>
-                <p class="mt-2 text-xs text-muted">
-                  Terisi {{ progresSeksiMkt(ev, s).isi }}/{{ progresSeksiMkt(ev, s).total }}
-                </p>
-              </AppPanel>
-              <AppPanel title="Tindak lanjut">
-                <div class="flex flex-wrap gap-2">
-                  <UButton
-                    icon="i-lucide-users"
-                    color="neutral"
-                    variant="outline"
-                    size="sm"
-                    label="Internal"
-                    @click="keBrief('internal')"
-                  />
-                  <UButton
-                    icon="i-lucide-handshake"
-                    color="neutral"
-                    variant="outline"
-                    size="sm"
-                    label="Client"
-                    @click="keBrief('client')"
-                  />
-                  <UButton
-                    icon="i-lucide-file-edit"
-                    color="neutral"
-                    variant="outline"
-                    size="sm"
-                    label="Draft"
-                    @click="keBrief('quote')"
-                  />
-                  <UButton
-                    v-if="bisaUbah && !['Event Done', 'Lost'].includes(ev.status)"
-                    icon="i-lucide-flag"
-                    color="neutral"
-                    variant="outline"
-                    size="sm"
-                    label="Tandai Selesai"
-                    @click="selesaiBuka = true"
-                  />
-                  <UButton
-                    v-if="can('del_event')"
-                    icon="i-lucide-trash-2"
-                    color="error"
-                    variant="outline"
-                    size="sm"
-                    label="Hapus Event"
-                    @click="hapusBuka = true; hapusNama = ''"
-                  />
-                </div>
-                <ul
-                  v-if="fuEvent.length"
-                  class="mt-3 grid gap-1.5 text-sm"
-                >
-                  <li
-                    v-for="f in fuEvent"
-                    :key="f.id"
-                    class="text-muted"
-                  >
-                    <b class="text-highlighted">{{ f.action }}</b> · {{ f.hasil }} — {{ f.note }}
-                  </li>
-                </ul>
-              </AppPanel>
-            </div>
-          </template>
-          <template v-else>
-            <MarketingEventForm
-              :key="`${t.id}-${ev.updatedAt}`"
-              v-model:draft="draf"
-              :ev="ev"
-              :seksi="seksiTab(t.id)"
-              :bisa-ubah="bisaUbah"
-              :fb-formats="formatFbMkt(st)"
-              :staff-names="st.users.map(u => u.name)"
-              :events="st.events"
-            />
-            <div
-              v-if="bisaUbah"
-              class="mt-4 flex flex-wrap gap-2"
-            >
-              <UButton
-                :label="`Simpan ${t.title}`"
-                :loading="sibuk"
-                @click="simpan(t.id)"
-              />
-              <UButton
-                v-if="tabLanjut(t.id)"
-                :label="`Simpan & Lanjut · ${tabLanjut(t.id)!.title}`"
-                color="neutral"
-                variant="outline"
-                :loading="sibuk"
-                @click="simpan(t.id, tabLanjut(t.id)!.id)"
-              />
-            </div>
-            <p
-              v-if="autoState === 'menyimpan'"
-              class="mt-2 text-xs text-muted"
-            >
-              Menyimpan…
+            <span class="num"><b>{{ overview.isi }}</b> dari {{ overview.total }} isian terisi</span>
+          </div>
+          <div
+            v-if="sorot"
+            class="mb-4 rounded-md border border-primary-200 bg-primary-50 px-4 py-3 text-sm"
+          >
+            <p class="text-xs font-bold uppercase tracking-wider text-primary-700">
+              Poin penting
             </p>
-            <p
-              v-else-if="autoMati"
-              class="mt-2 text-xs text-warning"
-            >
-              Auto nonaktif — data berubah di tempat lain.
+            <p class="whitespace-pre-line">
+              {{ sorot }}
             </p>
-            <p
-              v-else-if="autoWaktu"
-              class="mt-2 text-xs text-muted"
-            >
-              Otomatis tersimpan {{ autoWaktu }}
-            </p>
-          </template>
-          <p class="mt-2 text-xs text-muted">
-            Terisi {{ progresTab(t.id).isi }}/{{ progresTab(t.id).total }} isian tab ini.
+          </div>
+          <p
+            v-if="!overview.secs.length"
+            class="text-sm text-muted"
+          >
+            Belum ada isian sama sekali.
           </p>
-        </div>
+          <section
+            v-for="s in overview.secs"
+            :key="s.id"
+            class="mt-4"
+          >
+            <AppSectionTitle :title="`${s.n} · ${s.title}`" />
+            <dl class="grid gap-y-1.5 text-sm">
+              <div
+                v-for="b in s.baris"
+                :key="b.k"
+                class="grid gap-1 sm:grid-cols-[14rem_1fr] sm:gap-3"
+              >
+                <dt class="text-muted">
+                  {{ b.l }}
+                </dt>
+                <dd class="whitespace-pre-line">
+                  {{ b.v }}
+                </dd>
+              </div>
+            </dl>
+          </section>
+        </AppPanel>
+
+        <!-- 1–3 · form tabs: one card per section, one save row for the tab -->
+        <template v-else>
+          <MarketingEventForm
+            :key="`${tabKini.id}-${ev.updatedAt}`"
+            v-model:draft="draf"
+            :ev="ev"
+            :seksi="seksiTab(tabKini.id)"
+            :bisa-ubah="bisaUbah"
+            :fb-formats="formatFbMkt(st)"
+            :staff-names="st.users.map(u => u.name)"
+            :events="st.events"
+          >
+            <template #finance>
+              <MarketingFinanceEvent
+                :key="`fin-${ev.updatedAt}`"
+                v-model:draft="draf"
+                :ev="ev"
+                :nama-client="client?.nama ?? ''"
+                :client-hp="client?.hp ?? ''"
+                :settings="st.settings"
+                :bisa-ubah="bisaUbah"
+                :bisa-verif="bisaVerif"
+                :saya-nama="saya?.user.name ?? ''"
+              />
+            </template>
+          </MarketingEventForm>
+          <div
+            v-if="bisaUbah"
+            class="flex flex-wrap items-center justify-end gap-2"
+          >
+            <span
+              v-if="autoState === 'menyimpan'"
+              class="text-xs text-muted"
+            >Menyimpan…</span>
+            <span
+              v-else-if="autoMati"
+              class="text-xs text-warning"
+            >Auto nonaktif — data berubah di tempat lain.</span>
+            <span
+              v-else-if="autoWaktu && tabKini.id !== 'finance'"
+              class="text-xs text-muted"
+            >Tersimpan otomatis {{ autoWaktu }}</span>
+            <UButton
+              :label="`Simpan ${tabKini.title}`"
+              icon="i-lucide-check"
+              color="neutral"
+              variant="outline"
+              :loading="sibuk"
+              @click="simpan(tabKini.id)"
+            />
+            <UButton
+              v-if="tabLanjut(tabKini.id)"
+              :label="`Simpan & Lanjut · ${tabLanjut(tabKini.id)!.title}`"
+              trailing-icon="i-lucide-chevron-right"
+              :loading="sibuk"
+              @click="simpan(tabKini.id, tabLanjut(tabKini.id)!.id)"
+            />
+          </div>
+        </template>
       </template>
 
       <ResponsiveSheet
-        v-model:open="dealBuka"
-        title="Konfirmasi Deal?"
+        v-model:open="tahapBuka"
+        :title="tahapKe === 'Deal' ? 'Konfirmasi Deal?' : `Ubah tahap ke ${tahapKe}?`"
         :description="ev.nama"
       >
         <p class="text-sm text-muted">
-          Event masuk tahap eksekusi & handover divisi. Tahap selalu boleh naik — datanya dilengkapi menyusul.
+          Tahapnya berubah dari <b>{{ ev.status }}</b> jadi <b>{{ tahapKe }}</b>.
+          <template v-if="tahapKe === 'Deal'">
+            Event masuk tahap eksekusi & task handover per divisi ikut dibuat.
+          </template>
+          <template v-if="tahapKe === 'Lost'">
+            Event ini berhenti dihitung sebagai peluang aktif.
+          </template>
         </p>
+        <UAlert
+          v-if="tahapKe === 'Deal' && bentrok.length"
+          color="error"
+          variant="subtle"
+          class="mt-3"
+          :description="`Bentrok jadwal dengan ${bentrok.map(x => x.nama).join(', ')}. Cek ulang area sebelum Deal.`"
+        />
         <div class="mt-4 flex justify-end gap-2">
           <UButton
             label="Batal"
             color="neutral"
             variant="ghost"
-            @click="dealBuka = false"
+            @click="tahapKe = null"
           />
           <UButton
-            label="Ya, Deal"
-            @click="pindahDeal"
+            :label="tahapKe === 'Deal' ? 'Ya, Deal' : 'Ya, ubah'"
+            @click="pindahTahap"
           />
         </div>
       </ResponsiveSheet>
