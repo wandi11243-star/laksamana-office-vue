@@ -16,7 +16,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { Reservasi } from '~/composables/useReservasi'
 import { useDaftarReservasi, useDenah, useRingkasanTamu } from '~/composables/useReservasi'
 import { lantaiMap } from '~/utils/venue-layouts'
-import { bolehBuka, roleReservasi } from '~/utils/layar/reservasi'
+import { bolehAksi, bolehBuka, roleReservasi } from '~/utils/layar/reservasi'
 import { angka, hariIni, tglPendek } from '~/utils/format'
 import { fmtMenit } from '~/utils/kunci-meja'
 import { tampilPhone } from '~/utils/dp-reservasi'
@@ -68,7 +68,7 @@ const saringServer = computed(() => ({
   status: statusAkhir.value !== SEMUA ? statusAkhir.value : undefined,
 }))
 
-const { data: semua, status } = useDaftarReservasi(dari, sampai, 'reservasi-riwayat', saringServer)
+const { data: semua, status, refresh } = useDaftarReservasi(dari, sampai, 'reservasi-riwayat', saringServer)
 
 /** Whole-history guest map, before the period start. Empty in "Semua" mode: the window IS the whole table there. */
 const { data: ringkasan } = useRingkasanTamu(dari, 'reservasi-tamu-riwayat')
@@ -123,9 +123,33 @@ function ekspor() {
 // --- the table -------------------------------------------------------------------
 
 const warnaStatus = STATUS_WARNA
-const router = useRouter()
 /** "28 Sep 2026", the old archive's date. */
 const tglPanjangPendek = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+
+// --- the detail sheet ----------------------------------------------------------
+// Like the old archive, a row opens the detail popup (openDetail), not the
+// edit form: info + DP + receipt first, edit behind one button.
+const bolehEdit = computed(() => bolehAksi('input', role.value))
+const bolehFinance = computed(() => bolehAksi('finance', role.value))
+const bolehMaster = computed(() => bolehAksi('master', role.value))
+
+const detailId = ref('')
+const sheetDetail = ref(false)
+const sheetTambahDp = ref(false)
+const sheetEditCepat = ref(false)
+const sheetKirimWa = ref(false)
+const detail = computed(() => (semua.value ?? []).find(r => r.id === detailId.value) ?? null)
+const detailProfil = computed(() => {
+  const r = detail.value
+  if (!r) return null
+  if (!dari.value) return profilTamu(semua.value ?? [], r.phone)
+  return profilTamuGabung(ringkasan.value ?? new Map(), semua.value ?? [], r.phone, dari.value)
+})
+
+function bukaDetail(r: Reservasi) {
+  detailId.value = r.id
+  sheetDetail.value = true
+}
 
 const kolom = computed<TableColumn<Reservasi>[]>(() => [
   { accessorKey: 'date', header: 'Tanggal' },
@@ -249,7 +273,7 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
           :loading="status === 'pending'"
           :meta="{ class: { tr: 'cursor-pointer' } }"
           empty="Belum ada riwayat."
-          @select="(_e: Event, row: { original: Reservasi }) => router.push(`/reservasi/input?id=${row.original.id}`)"
+          @select="(_e: Event, row: { original: Reservasi }) => bukaDetail(row.original)"
         >
           <template #date-cell="{ row }">
             <span class="text-highlighted">{{ tglPanjangPendek(row.original.date) }}</span>
@@ -331,11 +355,12 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
         </UTable>
 
         <div class="divide-y divide-default lg:hidden">
-          <NuxtLink
+          <button
             v-for="r in halaman"
             :key="r.id"
-            :to="`/reservasi/input?id=${r.id}`"
-            class="flex items-start justify-between gap-3 px-4 py-3 hover:bg-muted/60"
+            type="button"
+            class="flex w-full items-start justify-between gap-3 px-4 py-3 text-start hover:bg-muted/60"
+            @click="bukaDetail(r)"
           >
             <div class="min-w-0">
               <p class="truncate font-semibold text-highlighted">{{ r.name }}</p>
@@ -347,7 +372,7 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
             >
               {{ r.status }}
             </AppStatus>
-          </NuxtLink>
+          </button>
           <p
             v-if="!halaman.length"
             class="px-4 py-6 text-center text-muted"
@@ -392,6 +417,75 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
           Pencarian & status dipersempit di server; halaman & ekspor CSV di browser — aturan arsip ("sudah lewat atau sudah tutup") hanya ada di layar ini.
         </p>
       </AppPanel>
+
+      <ResponsiveSheet
+        v-model:open="sheetDetail"
+        :title="detail?.name ?? 'Detail reservasi'"
+        :description="detail ? `${tglPendek(detail.date)} · ${detail.time} · meja ${detail.table || '—'} · ${detail.pax} pax` : ''"
+      >
+        <ReservasiDetailInfo
+          v-if="detail"
+          :r="detail"
+          :profil="detailProfil"
+          :boleh-minta-kwitansi="bolehFinance"
+          :boleh-langsung-kwitansi="bolehMaster"
+          :boleh-ubah-gelombang="bolehEdit"
+          @berubah="refresh"
+        />
+        <template #footer>
+          <UButton
+            v-if="bolehFinance && detail"
+            label="Tambah DP"
+            icon="i-lucide-plus"
+            size="xl"
+            title="Tamu bayar DP lagi — upload bukti transfernya"
+            @click="sheetDetail = false; sheetTambahDp = true"
+          />
+          <UButton
+            v-if="detail"
+            label="Kirim WA"
+            icon="i-lucide-message-circle"
+            color="success"
+            size="xl"
+            @click="sheetKirimWa = true"
+          />
+          <UButton
+            v-if="bolehEdit && detail"
+            label="Edit cepat"
+            icon="i-lucide-zap"
+            color="neutral"
+            variant="ghost"
+            size="xl"
+            @click="sheetEditCepat = true"
+          />
+          <UButton
+            label="Tutup"
+            color="neutral"
+            variant="soft"
+            size="xl"
+            @click="sheetDetail = false"
+          />
+        </template>
+      </ResponsiveSheet>
+
+      <ReservasiTambahDp
+        v-model:open="sheetTambahDp"
+        :r="detail"
+        :boleh-simpan="bolehFinance"
+        @tersimpan="refresh"
+        @konflik="refresh"
+      />
+      <ReservasiEditCepat
+        v-model:open="sheetEditCepat"
+        :r="detail"
+        :boleh-simpan="bolehEdit"
+        @tersimpan="refresh"
+        @konflik="refresh"
+      />
+      <ReservasiKirimWa
+        v-model:open="sheetKirimWa"
+        :r="detail"
+      />
     </template>
     <p
       v-else

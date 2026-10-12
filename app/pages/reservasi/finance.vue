@@ -11,6 +11,9 @@ definePageMeta({ access: ['reservasi'] })
 
 const me = useMe()
 const role = computed(() => roleReservasi(me.value))
+const route = useRoute()
+/** A reservation detail links here with `?q=` (name/HP search). */
+const cariAwal = computed(() => (typeof route.query.q === 'string' ? route.query.q : ''))
 </script>
 
 <template>
@@ -24,6 +27,7 @@ const role = computed(() => roleReservasi(me.value))
       :boleh-hapus="bolehAksi('financeDelete', role)"
       :boleh-hapus-demo="bolehAksi('financeDelete', role)"
       :boleh-kwitansi-langsung="bolehAksi('master', role)"
+      :cari-awal="cariAwal"
     />
     <p
       v-else

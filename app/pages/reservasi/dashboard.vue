@@ -47,6 +47,8 @@ const { master, versi: versiDenah, layouts: secLayouts, layoutOverrides: secOv1,
 const namaSaya = computed(() => me.value?.name ?? '')
 const role = computed(() => roleReservasi(me.value))
 const bolehEdit = computed(() => bolehAksi('input', role.value))
+const bolehFinance = computed(() => bolehAksi('finance', role.value))
+const bolehMaster = computed(() => bolehAksi('master', role.value))
 
 // --- the window ---------------------------------------------------------------
 // The dashboard always draws the day-of map, so that date has to be inside the
@@ -70,7 +72,7 @@ const filter = reactive({
   status: SEMUA,
   category: SEMUA,
   lantai: SEMUA,
-  kursi: '',
+  kursi: SEMUA,
   dp: SEMUA,
   pic: SEMUA,
   ctype: SEMUA,
@@ -163,6 +165,13 @@ const saringan = computed(() => {
       return lantais.has(mau)
     })
   }
+  // Free seats need the occupancy map, so they filter last too (`:5821-5826`).
+  if (saringAktif(F.kursi)) {
+    r = r.filter((x) => {
+      const s = sisaKursiRes(x) ?? 0
+      return F.kursi === 'ada' ? s > 0 : !(s > 0)
+    })
+  }
   return r.sort((a, b) => (a.date + a.time).localeCompare(b.date + b.time))
 })
 
@@ -246,10 +255,13 @@ watch(() => route.query, (q) => {
   }
 }, { immediate: true })
 const filterAktif = computed(() => filter.mode !== 'day' || filter.date !== hariIni() || !!filter.fromHour || !!filter.toHour
-  || saringAktif(filter.status) || saringAktif(filter.category) || saringAktif(filter.lantai) || !!filter.kursi || saringAktif(filter.dp) || saringAktif(filter.pic) || saringAktif(filter.ctype) || !!filter.q || !!cari.value)
+  || saringAktif(filter.status) || saringAktif(filter.category) || saringAktif(filter.lantai) || saringAktif(filter.kursi) || saringAktif(filter.dp) || saringAktif(filter.pic) || saringAktif(filter.ctype) || !!filter.q || !!cari.value)
 function resetFilter() {
-  Object.assign(filter, { mode: 'day', date: hariIni(), month: hariIni().slice(0, 7), year: new Date().getFullYear(), from: hariIni(), to: hariIni(), fromHour: '', toHour: '', status: SEMUA, category: SEMUA, lantai: SEMUA, kursi: '', dp: SEMUA, pic: SEMUA, ctype: SEMUA, q: '' })
+  Object.assign(filter, { mode: 'day', date: hariIni(), month: hariIni().slice(0, 7), year: new Date().getFullYear(), from: hariIni(), to: hariIni(), fromHour: '', toHour: '', status: SEMUA, category: SEMUA, lantai: SEMUA, kursi: SEMUA, dp: SEMUA, pic: SEMUA, ctype: SEMUA, q: '' })
   cari.value = ''
+  // The map and the queue only ever describe one day: resetting leaves them
+  // on today too, like the old `recapReset` (`:5714-5718`).
+  tglDenah.value = hariIni()
 }
 
 // --- the table (`:5467+`) -----------------------------------------------------
@@ -299,7 +311,7 @@ const qServer = computed(() => {
 const pakaiServer = computed(() => tab.value === 'list' && urutBawaan.value
   && saringAktif(filter.status) && !saringAktif(filter.category) && !saringAktif(filter.dp)
   && !saringAktif(filter.pic) && !filter.fromHour && !filter.toHour && !saringAktif(filter.lantai)
-  && !filter.kursi && !saringAktif(filter.ctype) && qServer.value !== null)
+  && !saringAktif(filter.kursi) && !saringAktif(filter.ctype) && qServer.value !== null)
 
 /** The table's period as plain bounds — the server has no day/month/year modes. */
 const rentangServer = computed(() => {
@@ -824,8 +836,13 @@ async function patch(r: Reservasi, fields: Partial<Reservasi>, pesan: string) {
 
 const aksiId = ref('')
 const sheetAksi = ref(false)
+const sheetTambahDp = ref(false)
+const sheetEditCepat = ref(false)
+const sheetKirimWa = ref(false)
 const aksi = computed(() => baris(aksiId.value))
 const aksiDuduk = computed(() => !!aksi.value && isSeated(aksi.value))
+/** Whole-history guest profile of the open booking, for the "Tipe tamu" row (old `customerProfile`). */
+const aksiProfil = computed(() => (aksi.value ? profilBaris(aksi.value.phone) : null))
 
 /** Past the arrival time and not here yet — the shortcut to a follow-up message. */
 const aksiTelat = computed(() => {
@@ -1425,7 +1442,7 @@ onBeforeUnmount(() => document.removeEventListener('visibilitychange', saatKemba
 
 /** A filter that hides part of the rows must not be used to add guests or move tables. */
 const saringBerlaku = computed(() => !!(filter.fromHour || filter.toHour || saringAktif(filter.status) || saringAktif(filter.category)
-  || saringAktif(filter.lantai) || filter.kursi || saringAktif(filter.dp) || saringAktif(filter.pic) || saringAktif(filter.ctype) || filter.q || cari.value || filter.mode !== 'day'))
+  || saringAktif(filter.lantai) || saringAktif(filter.kursi) || saringAktif(filter.dp) || saringAktif(filter.pic) || saringAktif(filter.ctype) || filter.q || cari.value || filter.mode !== 'day'))
 
 const tglPanjangLama = (tgl: string) => new Date(`${tgl}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })
 
@@ -1642,6 +1659,13 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
             class="w-full"
           />
         </UFormField>
+        <UFormField label="Sisa kursi">
+          <USelect
+            v-model="filter.kursi"
+            :items="[{ value: SEMUA, label: 'Semua' }, { value: 'ada', label: 'Masih ada kursi kosong' }, { value: 'penuh', label: 'Kursi sudah penuh' }]"
+            class="w-full"
+          />
+        </UFormField>
         <UFormField label="DP">
           <USelect
             v-model="filter.dp"
@@ -1660,6 +1684,14 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           <USelect
             v-model="filter.ctype"
             :items="[{ value: SEMUA, label: 'Semua' }, { value: 'Baru', label: 'Baru' }, { value: 'Loyal', label: 'Loyal atau repeat' }, { value: 'Member', label: 'Member' }]"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField label="Cari nama/HP">
+          <UInput
+            v-model="filter.q"
+            placeholder="Nama / No. HP"
+            icon="i-lucide-search"
             class="w-full"
           />
         </UFormField>
@@ -2722,19 +2754,27 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
     <ResponsiveSheet
       v-model:open="sheetAksi"
       :title="aksi?.name ?? 'Detail reservasi'"
-      :description="aksi ? `${aksi.date} ${aksi.time} · meja ${aksi.table || '—'} · ${aksi.pax} pax` : ''"
+      :description="aksi ? `${tglPendek(aksi.date)} · ${aksi.time} · meja ${aksi.table || '—'} · ${aksi.pax} pax` : ''"
     >
       <div
         v-if="aksi"
-        class="space-y-2"
+        class="space-y-4"
       >
-        <p class="text-sm text-muted">
-          <AppStatus :color="statusWarna[aksi.status]">
-            {{ aksi.status }}
-          </AppStatus>
-          <span v-if="aksiDuduk"> · sudah masuk {{ arrivedPax(aksi) }} dari {{ aksi.pax }} orang</span>
-        </p>
-        <div class="flex flex-col gap-2">
+        <ReservasiDetailInfo
+          :r="aksi"
+          :profil="aksiProfil"
+          :boleh-minta-kwitansi="bolehFinance"
+          :boleh-langsung-kwitansi="bolehMaster"
+          :boleh-ubah-gelombang="bolehEdit"
+          @berubah="refresh"
+        />
+
+        <div>
+          <AppSectionTitle
+            title="Aksi cepat"
+            icon="i-lucide-zap"
+          />
+          <div class="flex flex-col gap-2">
           <UButton
             v-if="bolehEdit && ['Pending', 'Confirmed'].includes(aksi.status)"
             label="Tandai datang"
@@ -2825,12 +2865,37 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         </div>
         <p
           v-if="sisaMejaAksi"
-          class="text-sm text-muted"
+          class="mt-2 text-sm text-muted"
         >
           Meja {{ sisaMejaAksi.id }} masih punya {{ sisaMejaAksi.sisa }} kursi kosong.
         </p>
+        </div>
       </div>
       <template #footer>
+        <UButton
+          v-if="bolehFinance"
+          label="Tambah DP"
+          icon="i-lucide-plus"
+          size="xl"
+          title="Tamu bayar DP lagi — upload bukti transfernya"
+          @click="sheetAksi = false; sheetTambahDp = true"
+        />
+        <UButton
+          label="Kirim WA"
+          icon="i-lucide-message-circle"
+          color="success"
+          size="xl"
+          @click="sheetKirimWa = true"
+        />
+        <UButton
+          v-if="bolehEdit"
+          label="Edit cepat"
+          icon="i-lucide-zap"
+          color="neutral"
+          variant="ghost"
+          size="xl"
+          @click="sheetEditCepat = true"
+        />
         <UButton
           label="Tutup"
           color="neutral"
@@ -2840,6 +2905,25 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         />
       </template>
     </ResponsiveSheet>
+
+    <ReservasiTambahDp
+      v-model:open="sheetTambahDp"
+      :r="aksi"
+      :boleh-simpan="bolehFinance"
+      @tersimpan="refresh"
+      @konflik="refresh"
+    />
+    <ReservasiEditCepat
+      v-model:open="sheetEditCepat"
+      :r="aksi"
+      :boleh-simpan="bolehEdit"
+      @tersimpan="refresh"
+      @konflik="refresh"
+    />
+    <ReservasiKirimWa
+      v-model:open="sheetKirimWa"
+      :r="aksi"
+    />
 
     <ResponsiveSheet
       v-model:open="sheetDatang"

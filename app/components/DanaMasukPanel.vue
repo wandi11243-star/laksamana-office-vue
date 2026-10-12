@@ -47,12 +47,15 @@ const props = withDefaults(defineProps<{
   /** Manager/admin direct-print path (old ROLE_KWI_LANGSUNG). The host page sets it from its role matrix. */
   bolehKwitansiLangsung?: boolean
   sumberAwal?: 'reservasi' | 'event'
+  /** Pre-fill the search (and open the whole table): a detail sheet links here with `?q=`. */
+  cariAwal?: string
 }>(), {
   bolehVerifikasi: false,
   bolehHapus: false,
   bolehHapusDemo: false,
   bolehKwitansiLangsung: false,
   sumberAwal: 'reservasi',
+  cariAwal: '',
 })
 
 const { bolehVerifikasi, bolehHapus, bolehHapusDemo, bolehKwitansiLangsung } = props
@@ -81,12 +84,21 @@ const bolehHapusDemoEfektif = computed(() => bolehHapusDemo && !lewatPintuDanaMa
 const SEMUA = 'semua'
 const saring = reactive<SaringDanaMasuk>({
   basis: 'reservasi',
-  dari: hariIni(),
-  sampai: hariIni(),
+  // A pre-filled search means "find this booking": the whole table, not today.
+  dari: props.cariAwal ? '' : hariIni(),
+  sampai: props.cariAwal ? '' : hariIni(),
   bank: SEMUA,
   status: SEMUA,
-  q: '',
+  q: props.cariAwal,
   tab: 'perlu',
+})
+/** A later `?q=` (same page, another booking) re-aims the search the same way. */
+watch(() => props.cariAwal, (q) => {
+  if (q) {
+    saring.q = q
+    saring.dari = ''
+    saring.sampai = ''
+  }
 })
 const saringEfektif = computed(() => ({ ...saring, bank: saring.bank === SEMUA ? '' : saring.bank }))
 
