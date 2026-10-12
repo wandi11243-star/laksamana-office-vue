@@ -129,7 +129,9 @@ async function jatuhkan(ev: DragEvent, tahap: string) {
         @dragover.prevent
         @drop="jatuhkan($event, s)"
       >
-        <ul class="space-y-2">
+        <!-- Each stage scrolls on its own: a full column never pushes the others down. -->
+        <div class="max-h-[60vh] overflow-y-auto pr-0.5">
+          <ul class="space-y-2">
           <li
             v-for="e in (perTahap.get(s) ?? [])"
             :key="e.id"
@@ -165,6 +167,7 @@ async function jatuhkan(ev: DragEvent, tahap: string) {
         >
           Kosong
         </p>
+        </div>
       </AppPanel>
     </div>
 
