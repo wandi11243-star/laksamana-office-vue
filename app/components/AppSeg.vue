@@ -3,7 +3,7 @@
   Waiting list, Harian / Bulanan, Weekday / Weekend / Lantai 2). The chosen
   segment is a white chip with gold words.
 -->
-<script setup lang="ts" generic="T extends string | number">
+<script setup lang="ts" generic="T extends string | number | boolean">
 defineProps<{
   options: { value: T, label: string, icon?: string, badge?: number }[]
   size?: 'sm' | 'md'

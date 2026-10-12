@@ -637,11 +637,12 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
         </div>
       </AppPanel>
 
-      <AppSeg
-        v-model="tab"
-        :options="tabs.map(t => ({ value: t.id, label: `${t.n}. ${t.title}` }))"
-        class="mb-5"
-      />
+      <div class="sticky top-[52px] z-[5] -mx-4 mb-5 bg-default/95 px-4 py-2 backdrop-blur-sm lg:-mx-6 lg:top-[60px] lg:px-6 2xl:-mx-10 2xl:px-10">
+        <AppSeg
+          v-model="tab"
+          :options="tabs.map(t => ({ value: t.id, label: `${t.n}. ${t.title}` }))"
+        />
+      </div>
 
       <template v-if="tabKini">
         <!-- 4 · Overview: the summary document, read-only -->

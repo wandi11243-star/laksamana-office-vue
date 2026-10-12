@@ -309,20 +309,22 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
               />
               <div
                 v-else-if="f.t === 'ynnote'"
-                class="grid gap-2"
+                class="flex flex-wrap items-start gap-2.5"
               >
-                <AppPilihan
+                <AppSeg
                   :model-value="ynnoteV(f)"
                   :options="[{ value: true, label: 'Ya' }, { value: false, label: 'Tidak' }]"
-                  :name="`yn-${f.k}`"
+                  size="sm"
+                  :class="['shrink-0', bisaUbah ? '' : 'pointer-events-none opacity-70']"
                   @update:model-value="ynnoteSet(f, $event as boolean | undefined, ynnoteN(f))"
                 />
                 <UTextarea
                   :model-value="ynnoteN(f)"
-                  placeholder="Catatan / detail (opsional)"
+                  placeholder="Catatan / detail (opsional) — boleh beberapa baris"
                   :disabled="!bisaUbah"
                   :rows="1"
                   autoresize
+                  class="min-w-40 flex-1"
                   @update:model-value="ynnoteSet(f, ynnoteV(f), String($event))"
                 />
               </div>
