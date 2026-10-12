@@ -26,6 +26,8 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{ deal: [] }>()
+/** Open the revision sheet from outside (kanban shortcut via ?revisi=1). */
+const revisiMinta = defineModel<boolean>('revisi', { default: false })
 const toast = useToast()
 
 const pen = computed<PenawaranMkt>(() => props.ev.penawaran ?? {})
@@ -151,6 +153,12 @@ const revisiBuka = ref(false)
 const revisiAlasan = ref('')
 const revisiPdf = ref<File | null>(null)
 const revisiSibuk = ref(false)
+watch(revisiMinta, (v) => {
+  if (v) {
+    revisiBuka.value = true
+    revisiMinta.value = false
+  }
+}, { immediate: true })
 async function kirimRevisi() {
   const alasan = revisiAlasan.value.trim()
   if (!alasan) {

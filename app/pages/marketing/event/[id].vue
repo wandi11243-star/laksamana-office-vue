@@ -34,6 +34,10 @@ const { data: st, status } = useStateMkt()
 const { saya, can, canView } = useAksesMkt()
 
 const id = computed(() => String(route.params.id))
+
+/** Kanban shortcut (?revisi=1) opens the revision sheet at once. */
+const revisiMinta = ref(route.query.revisi === '1')
+if (revisiMinta.value) router.replace({ query: { ...route.query, revisi: undefined } })
 const ev = computed(() => st.value.events.find(e => e.id === id.value) ?? null)
 const client = computed(() => st.value.clients.find(c => c.id === ev.value?.clientId))
 const fuEvent = computed(() => st.value.followups.filter(f => f.eventId === id.value).slice(-3).reverse())
@@ -50,6 +54,12 @@ const seksiTab = (tabId: string) => {
   const t = tabs.value.find(x => x.id === tabId)
   return seksiLihat.value.filter(s => t?.secs.includes(s.id))
 }
+/** The next visible tab, for "Simpan & Lanjut" on every form tab. */
+const tabLanjut = (tabId: string) => {
+  const i = tabs.value.findIndex(t => t.id === tabId)
+  const nx = tabs.value[i + 1]
+  return nx && nx.id !== tabId ? nx : null
+}
 
 const uang = computed(() => (ev.value ? eventFinance(ev.value, st.value.settings) : null))
 const inv = computed(() => (ev.value ? invStatus(ev.value, st.value.settings, hariIni()) : ''))
@@ -58,13 +68,64 @@ const bisaVerif = computed(() => can('verify_payment'))
 
 // ---- draft ----
 const draf = ref<DrafEventMkt>({ atas: {}, detail: {}, payments: [] })
+// Snapshot of the last SAVED draft: autosave fires only on real drift, and a
+// server reload never clobbers keystrokes typed after the last save.
+const drafBersih = ref('')
+const tandaiBersih = () => {
+  drafBersih.value = JSON.stringify(draf.value)
+}
 watch(() => ev.value?.updatedAt, () => {
   const e = ev.value
   if (!e) return
+  if (drafBersih.value !== '' && JSON.stringify(draf.value) !== drafBersih.value) return
   const atas: Record<string, unknown> = {}
   for (const k of KUNCI_ATAS_EVENT_MKT) atas[k] = (e as unknown as Record<string, unknown>)[k]
   draf.value = { atas, detail: { ...(e.detail ?? {}) }, payments: [...(e.payments ?? [])] }
+  tandaiBersih()
 }, { immediate: true })
+
+// ---- autosave (old autoSaveBind): quiet, explicit on conflict, never finance ----
+const autoState = ref<'bersih' | 'menunggu' | 'menyimpan'>('bersih')
+const autoMati = ref(false)
+const autoWaktu = ref('')
+let autoTimer: ReturnType<typeof setTimeout> | undefined
+onScopeDispose(() => clearTimeout(autoTimer))
+watch(draf, () => {
+  if (autoMati.value || JSON.stringify(draf.value) === drafBersih.value) {
+    if (JSON.stringify(draf.value) === drafBersih.value) autoState.value = 'bersih'
+    return
+  }
+  autoState.value = 'menunggu'
+  clearTimeout(autoTimer)
+  autoTimer = setTimeout(simpanOtomatis, 700)
+}, { deep: true })
+async function simpanOtomatis() {
+  const e = ev.value
+  // Finance owns side effects (kwitansi numbers) — never autosaved. Overview is read-only.
+  if (!e || !bisaUbah.value || autoMati.value || ['finance', 'overview'].includes(tab.value)) return
+  const kirim = JSON.parse(JSON.stringify(draf.value)) as DrafEventMkt
+  if (JSON.stringify(kirim) === drafBersih.value) {
+    autoState.value = 'bersih'
+    return
+  }
+  const kurang = kurangWajibMkt({ ...e, ...kirim.atas, detail: kirim.detail } as EventMkt, seksiTab(tab.value))
+  if (kurang.length) return // incomplete: wait for more typing, silently
+  autoState.value = 'menyimpan'
+  try {
+    await tambalMkt<EventMkt>('events', e.id, { ...kirim.atas, detail: kirim.detail, payments: kirim.payments }, e.updatedAt)
+    drafBersih.value = JSON.stringify(kirim)
+    autoState.value = 'bersih'
+    autoWaktu.value = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
+    await refreshNuxtData('marketing-state')
+  }
+  catch {
+    // Someone saved in between: stop auto, say so loudly, keep the typing.
+    // Nothing is overwritten and nothing is retried silently.
+    autoMati.value = true
+    autoState.value = 'bersih'
+    toast.add({ title: 'Auto nonaktif — data berubah di tempat lain', description: 'Ketik ulang Simpan manual untuk menimpa, atau muat ulang dulu.', color: 'warning' })
+  }
+}
 
 const sibuk = ref(false)
 async function simpan(tabId: string, lanjut?: string) {
@@ -283,6 +344,7 @@ const progresTab = (tabId: string) => {
         :bisa-putus="can('approve')"
         :saya-id="saya?.user.id ?? ''"
         :saya-nama="saya?.user.name ?? ''"
+        v-model:revisi="revisiMinta"
         class="mb-5"
         @deal="mintaDeal"
       />
@@ -434,14 +496,32 @@ const progresTab = (tabId: string) => {
                 @click="simpan(t.id)"
               />
               <UButton
-                v-if="t.id === 'basic'"
-                label="Simpan & Lanjut · Operasional"
+                v-if="tabLanjut(t.id)"
+                :label="`Simpan & Lanjut · ${tabLanjut(t.id)!.title}`"
                 color="neutral"
                 variant="outline"
                 :loading="sibuk"
-                @click="simpan('basic', 'operasional')"
+                @click="simpan(t.id, tabLanjut(t.id)!.id)"
               />
             </div>
+            <p
+              v-if="autoState === 'menyimpan'"
+              class="mt-2 text-xs text-muted"
+            >
+              Menyimpan…
+            </p>
+            <p
+              v-else-if="autoMati"
+              class="mt-2 text-xs text-warning"
+            >
+              Auto nonaktif — data berubah di tempat lain.
+            </p>
+            <p
+              v-else-if="autoWaktu"
+              class="mt-2 text-xs text-muted"
+            >
+              Otomatis tersimpan {{ autoWaktu }}
+            </p>
           </template>
           <p class="mt-2 text-xs text-muted">
             Terisi {{ progresTab(t.id).isi }}/{{ progresTab(t.id).total }} isian tab ini.

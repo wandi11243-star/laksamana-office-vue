@@ -31,19 +31,33 @@ const { can, saya } = useAksesMkt()
 const hari = hariIni()
 
 const layak = computed(() => layakTagihMkt(st.value.events))
-const nDraft = computed(() => st.value.events.filter(e => !['Confirmed', 'Deal', 'Event Done'].includes(e.status)).length)
 const uang = (e: EventMkt) => eventFinance(e, st.value.settings)
 const inv = (e: EventMkt) => invStatus(e, st.value.settings, hari)
-const rekap = computed(() => rekapInvoiceMkt(layak.value.map((e) => {
+/** A Draft invoice is not billable yet: hidden from the list like the old
+ *  screen, with an honest note instead of silent absence. */
+const tampil = computed(() => layak.value.filter(e => inv(e) !== 'Draft'))
+const nDraft = computed(() => layak.value.filter(e => inv(e) === 'Draft'))
+/** Submitted offers the client has not decided on: pipeline, never piutang. */
+const potensi = computed(() => st.value.events.filter((e) => {
+  const p = (e.penawaran ?? {}) as Record<string, unknown>
+  return String(p.status ?? '') === 'Terkirim'
+}))
+const potensiNilai = computed(() => potensi.value.reduce((a, e) => a + eventFinance(e, st.value.settings).grand, 0))
+const rekap = computed(() => rekapInvoiceMkt(tampil.value.map((e) => {
   const f = uang(e)
   return { inv: inv(e), remaining: f.remaining, paid: f.paid }
-}), nDraft.value))
+}), nDraft.value.length))
 const namaClient = (id: string) => st.value.clients.find(c => c.id === id)?.nama ?? '—'
 const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ?? '—'
 
 // ---- tabs ----
 const tab = useState<TabBayarMkt>('mkt-inv-tab', () => 'semua')
-const daftar = computed(() => layak.value.filter(e => kelompokBayarMkt(tab.value, { inv: inv(e), remaining: uang(e).remaining, paid: uang(e).paid })))
+const daftar = computed(() => tampil.value.filter(e => kelompokBayarMkt(tab.value, { inv: inv(e), remaining: uang(e).remaining, paid: uang(e).paid })))
+const kosongTab = computed(() => tab.value === 'lunas'
+  ? 'Belum ada tagihan yang tertutup penuh.'
+  : tab.value === 'dp'
+    ? 'Belum ada tagihan yang sudah menerima sebagian pembayaran.'
+    : 'Semua tagihan sudah menerima pembayaran — tidak ada yang kosong.')
 
 // ---- official-invoice statuses (muatInvMkt: one request for the whole list) ----
 const peta = ref<Record<string, StatusInvMkt>>({})
@@ -51,7 +65,7 @@ const memuat = ref(false)
 const galat = ref('')
 async function muat() {
   const ids: string[] = []
-  for (const e of layak.value) {
+  for (const e of tampil.value) {
     for (const j of ['dp', 'lunas'] as const) {
       const rid = resIdInvMkt(e.id, j)
       if (peta.value[rid] === undefined) ids.push(rid)
@@ -154,7 +168,7 @@ const KOL: KolomMkt<EventMkt>[] = [
   { k: 'sisa', t: 'Sisa', v: e => uang(e).remaining },
   { k: 'status', t: 'Status', v: e => inv(e) },
 ]
-const tbl = useTabelMkt<EventMkt>('invoices', KOL, () => `${tab.value}${layak.value.length}`)
+const tbl = useTabelMkt<EventMkt>('invoices', KOL, () => `${tab.value}${tampil.value.length}`)
 const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
 const keFinance = (e: EventMkt) => router.push(`/marketing/event/${e.id}?tab=finance`)
 const pdfKind = (e: EventMkt): 'INV_DP' | 'INV_LUNAS' | null => {
@@ -197,11 +211,27 @@ const cetak = () => window.print()
         <AppStat
           label="Draft"
           :value="String(rekap.draft)"
-          context="Disembunyikan dari daftar"
+          context="Deal/Event Done tapi invoice belum terbit — disembunyikan dari daftar"
           tone="gold"
           icon="i-lucide-file-text"
         />
+        <AppStat
+          label="Potensi"
+          :value="rupiah(potensiNilai)"
+          :context="`${potensi.length} penawaran terkirim belum diputuskan — bukan piutang`"
+          tone="info"
+          icon="i-lucide-send"
+        />
       </AppStatGrid>
+
+      <UAlert
+        v-if="nDraft.length"
+        color="warning"
+        variant="subtle"
+        class="mb-4"
+        :title="`${nDraft.length} event Deal / Event Done tidak ditampilkan karena invoice-nya masih Draft`"
+        :description="`Lengkapi dari tab Finance event-nya — begitu terbit, barisnya muncul di sini: ${nDraft.slice(0, 8).map(e => e.nama || namaClient(e.clientId)).join(', ')}${nDraft.length > 8 ? ' …' : ''}`"
+      />
 
       <AppPanel
         v-if="galat"
@@ -238,6 +268,7 @@ const cetak = () => window.print()
           class="p-8 text-center text-sm text-muted"
         >
           <b class="block text-base text-highlighted">Tidak ada invoice di tab ini</b>
+          <span class="text-sm text-muted">{{ kosongTab }}</span>
         </div>
         <template v-else>
           <UTable

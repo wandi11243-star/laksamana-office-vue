@@ -14,6 +14,7 @@ import type { ClientMkt, EventMkt, SettingsMkt } from '~/utils/marketing'
 import { STATUS_OMSET_MKT, TAHAP_TERBUKA_MKT, hariAntaraMkt } from '~/utils/marketing'
 import type { UangEventMkt } from '~/utils/marketing-uang'
 import { eventFinance, invStatus } from '~/utils/marketing-uang'
+import { rupiah } from '~/utils/format'
 
 // ---------------------------------------------------------------- invoices
 
@@ -261,7 +262,7 @@ export function pengingatMkt(events: EventMkt[], clients: ClientMkt[], st: Setti
   const live: PengingatMkt[] = []
   const nama = (id: string) => clients.find(c => c.id === id)?.nama ?? '—'
   for (const e of events.filter(x => ['Confirmed', 'Deal'].includes(x.status) && eventFinance(x, st).paid === 0))
-    live.push({ type: 'dp', title: 'DP belum masuk', body: `${e.nama} — DP belum diverifikasi.`, link: `/marketing/event/${e.id}` })
+    live.push({ type: 'dp', title: 'DP belum masuk', body: `${e.nama} — DP ${rupiah(eventFinance(e, st).dp)} belum diverifikasi.`, link: `/marketing/event/${e.id}` })
   for (const e of events) {
     const d = hariAntaraMkt(hari, String(e.tanggal ?? ''))
     if (['Confirmed', 'Deal'].includes(e.status) && d >= 0 && d <= 7)

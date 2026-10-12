@@ -9,6 +9,7 @@
 -->
 <script setup lang="ts">
 import type { ModeBriefMkt } from '~/utils/marketing-event'
+import type { EventMkt } from '~/utils/marketing'
 import { buildBriefDocMkt } from '~/utils/marketing-event'
 import { urlBerkasMkt, useStateMkt } from '~/composables/useMarketing'
 
@@ -40,6 +41,18 @@ const daftar = computed(() => {
   return semua.filter(e => [e.nama, clientNama(e.clientId), e.jenis, e.tanggal].join(' ').toLowerCase().includes(s))
 })
 const clientNama = (cid: string) => st.value.clients.find(c => c.id === cid)?.nama ?? '—'
+/** Month separators when listing by date, like the old table. */
+const fmtBulan = (ym: string) => new Date(`${ym}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
+const grupBulan = computed(() => {
+  const m = new Map<string, EventMkt[]>()
+  for (const e of daftar.value) {
+    const k = String(e.tanggal ?? '').slice(0, 7) || 'tanpa-tanggal'
+    const l = m.get(k) ?? []
+    l.push(e)
+    m.set(k, l)
+  }
+  return [...m.entries()].map(([k, items]) => ({ k, label: k === 'tanpa-tanggal' ? 'Tanpa tanggal' : fmtBulan(k), items }))
+})
 const keDok = (eid: string, m: ModeBriefMkt) => router.push({ path: '/marketing/brief', query: { id: eid, mode: m } })
 
 const judulMode = computed(() => (mode.value === 'client' ? 'Konfirmasi Detail Acara' : mode.value === 'quote' ? 'Draft Negosiasi (bukan surat resmi)' : 'Briefing Internal'))
@@ -108,9 +121,16 @@ function cetak() {
               class="w-full"
             />
           </template>
-          <div class="hidden lg:block">
-            <UTable
-              :data="daftar"
+          <div
+            v-for="g in grupBulan"
+            :key="g.k"
+          >
+            <p class="px-4 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-muted">
+              {{ g.label }}
+            </p>
+            <div class="hidden lg:block">
+              <UTable
+                :data="g.items"
               :columns="[
                 { accessorKey: 'nama', header: 'Event' },
                 { accessorKey: 'clientId', header: 'Client' },
@@ -157,13 +177,23 @@ function cetak() {
               </template>
             </UTable>
           </div>
-          <AppList class="lg:hidden">
-            <AppListRow
-              v-for="e in daftar"
-              :key="e.id"
-              :title="e.nama"
-              :description="`${clientNama(e.clientId)} · ${e.tanggal ?? ''} · ${e.status}`"
+          </div>
+          <AppList
+            class="lg:hidden"
+          >
+            <template
+              v-for="g in grupBulan"
+              :key="g.k"
             >
+              <p class="px-4 pb-1 pt-3 text-xs font-bold uppercase tracking-wide text-muted">
+                {{ g.label }}
+              </p>
+              <AppListRow
+                v-for="e in g.items"
+                :key="e.id"
+                :title="e.nama"
+                :description="`${clientNama(e.clientId)} · ${e.tanggal ?? ''} · ${e.status}`"
+              >
               <template #trailing>
                 <div class="flex gap-1">
                   <UButton
@@ -190,6 +220,7 @@ function cetak() {
                 </div>
               </template>
             </AppListRow>
+            </template>
           </AppList>
         </AppPanel>
       </template>

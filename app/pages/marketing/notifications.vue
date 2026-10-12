@@ -6,7 +6,7 @@
 -->
 <script setup lang="ts">
 import type { NotifMkt } from '~/utils/marketing-keuangan'
-import { belumDibacaMkt, linkNotifMkt, pengingatMkt } from '~/utils/marketing-keuangan'
+import { belumDibacaMkt, laluMkt, linkNotifMkt, pengingatMkt } from '~/utils/marketing-keuangan'
 import { mktSimpan, tandaiDibacaMkt, useStateMkt } from '~/composables/useMarketing'
 import { hariIni } from '~/utils/format'
 
@@ -133,7 +133,7 @@ async function tandaiSemua() {
                 <b class="block text-sm text-highlighted">{{ n.title ?? n.type }}</b>
                 <span class="block truncate text-xs text-muted">{{ n.body }}</span>
               </span>
-              <span class="shrink-0 text-xs text-muted">{{ n.at }}</span>
+              <span class="shrink-0 text-xs text-muted">{{ laluMkt(n.at) }}</span>
             </button>
           </li>
         </ul>

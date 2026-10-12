@@ -8,6 +8,7 @@
 -->
 <script setup lang="ts">
 import type { KolomMkt, VipMkt } from '~/utils/marketing'
+import type { Reservasi } from '~/composables/useReservasi'
 import type { JenisVipMkt, PeriodeVipMkt } from '~/utils/marketing-vip'
 import {
   jamAtau00Mkt, mejaTerpakaiVipMkt, penggunaDariNamaMkt, vipBelumNominalMkt, vipCocokJenisMkt, vipStatusBayarMkt, vipStatusPulihMkt,
@@ -126,6 +127,19 @@ async function simpanForm(v: VipMkt) {
 // ---- detail ----
 const lihatId = ref<string | null>(null)
 const lihat = computed(() => st.value.vip.find(v => v.id === lihatId.value) ?? null)
+/** The linked Reservasi row: the receipt attaches to it, like the old slot. */
+const rsvLihat = ref<Reservasi | null>(null)
+watch(() => lihat.value?.resId, async (rid) => {
+  rsvLihat.value = null
+  if (!rid) return
+  try {
+    const r = await useApi()<Envelope<Reservasi>>(`/reservasi/reservations/${encodeURIComponent(rid)}`)
+    rsvLihat.value = r.data ?? null
+  }
+  catch {
+    rsvLihat.value = null
+  }
+}, { immediate: true })
 async function kunciTersimpan(meja: string[], resId: string) {
   const v = lihat.value
   if (!v) return
@@ -689,6 +703,28 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
           </dt>
           <dd>{{ rupiah(vipDpTotalMkt(lihat)) }}</dd>
         </dl>
+        <div
+          v-if="lihat && vipDpTotalMkt(lihat) > 0"
+          class="mt-3"
+        >
+          <KwitansiSlot
+            :res-id="lihat.resId || ''"
+            :reservasi="rsvLihat"
+            :boleh-minta="bisaUbah"
+          />
+        </div>
+        <p
+          v-else-if="lihat && !lihat.resId"
+          class="mt-3 text-xs text-muted"
+        >
+          Kunci dulu ke modul Reservasi — kwitansi menempel pada baris reservasinya.
+        </p>
+        <p
+          v-else-if="lihat"
+          class="mt-3 text-xs text-muted"
+        >
+          Belum ada DP yang bisa dikwitansikan.
+        </p>
         <div
           v-if="lihat && bisaUbah && !lihat.batalAt"
           class="mt-3"

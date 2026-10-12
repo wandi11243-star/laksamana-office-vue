@@ -42,13 +42,16 @@ async function muat() {
   galat.value = ''
   try {
     const api = useApi()
-    const [master, daftarRes] = await Promise.all([
+    const [master, daftarRes, dineEst] = await Promise.all([
       api<Envelope<{ tables?: string[] }>>('/reservasi/master/tables').catch(() => null),
       // A day either side: a 01:00 booking holds its table from 22:00 the night before.
       api<Envelope<Record<string, unknown>[]>>('/reservasi/reservations', { query: { from: tambahHari(props.vip.tanggal, -1), to: tambahHari(props.vip.tanggal, 1), perPage: 1000 } }).catch(() => null),
+      // Seating estimate from the venue master (old vipDineEst), 180 fallback.
+      api<Envelope<number>>('/reservasi/master/dineEstMin').catch(() => null),
     ])
+    const estimasi = Number(dineEst?.data) > 0 ? Number(dineEst?.data) : 180
     daftar.value = master?.data?.tables ?? []
-    terpakai.value = mejaTerpakaiVipMkt(daftarRes?.data ?? [], props.vip.tanggal, jam.value, resId.value)
+    terpakai.value = mejaTerpakaiVipMkt(daftarRes?.data ?? [], props.vip.tanggal, jam.value, resId.value, estimasi)
     pilih.value = [...(props.vip.meja ?? [])]
     if (!daftar.value.length) galat.value = 'Modul Reservasi belum punya daftar meja. Isi dulu di sana.'
   }

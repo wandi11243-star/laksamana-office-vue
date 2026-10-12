@@ -11,7 +11,7 @@ import {
   buatMkt, logMkt, mktSimpan, tambalMkt, useAksesMkt, useStateMkt, useTabelMkt,
 } from '~/composables/useMarketing'
 import type { EventMkt, KolomMkt } from '~/utils/marketing'
-import { rupiah } from '~/utils/format'
+import { rupiah, tglPendek } from '~/utils/format'
 
 definePageMeta({ access: ['marketing'] })
 
@@ -45,6 +45,9 @@ async function kirimPutus() {
     return
   }
   if (r.kind === 'pen') {
+    // A decided offer moves its event too: rejected slides back to Prospect,
+    // an approved Lead/Prospect steps up to Approval — otherwise the board lies.
+    const tahap = !setuju ? 'Prospect' : ['Lead', 'Prospect'].includes(String(r.ev.status ?? '')) ? 'Approval' : undefined
     const ok = await mktSimpan(
       () => tambalMkt<EventMkt>('events', r.ev.id, {
         penawaran: {
@@ -53,6 +56,7 @@ async function kirimPutus() {
           approvedBy: saya.value?.user.id ?? '', approvedAt: new Date().toISOString(),
           rejectNote: setuju ? '' : tolakNote.value.trim(),
         },
+        ...(tahap ? { status: tahap, pipeCol: tahap } : {}),
       }, r.ev.updatedAt),
       setuju ? 'Penawaran disetujui' : 'Penawaran ditolak',
       { refType: 'event', refId: r.ev.id, action: setuju ? 'menyetujui penawaran' : 'menolak penawaran', detail: r.perkara },
@@ -168,6 +172,7 @@ const warnaAntri = (r: BarisApprovalMkt) => {
               { accessorKey: 'nilai', header: 'Nilai' },
               { accessorKey: 'pada', header: 'Diajukan' },
               { accessorKey: 'status', header: 'Status' },
+              { id: 'putus', header: 'Diputuskan' },
               { id: 'aksi', header: 'Aksi' },
             ]"
             class="hidden lg:block"
@@ -207,6 +212,9 @@ const warnaAntri = (r: BarisApprovalMkt) => {
                 {{ row.original.status }}
               </AppStatus>
             </template>
+            <template #putus-cell="{ row }">
+              <span class="text-xs text-muted num">{{ row.original.putusPada ? tglPendek(row.original.putusPada) : '—' }}</span>
+            </template>
             <template #aksi-cell="{ row }">
               <div
                 v-if="bisaPutus && row.original.antri"
@@ -244,7 +252,7 @@ const warnaAntri = (r: BarisApprovalMkt) => {
                 {{ r.ev.nama }}
               </NuxtLink>
               <p class="text-xs text-muted">
-                {{ r.jenis }} · {{ r.perkara }} · <span class="num">{{ rupiah(r.nilai) }}</span>
+                {{ r.jenis }} · {{ r.perkara }} · <span class="num">{{ rupiah(r.nilai) }}</span><span v-if="r.putusPada"> · diputus {{ tglPendek(r.putusPada) }}</span>
               </p>
               <div class="mt-1 flex flex-wrap items-center gap-1">
                 <AppStatus
@@ -291,6 +299,12 @@ const warnaAntri = (r: BarisApprovalMkt) => {
           class="mb-3 text-sm text-muted"
         >
           Peluang otomatis dianggap batal (pindah ke tahap Lost), supaya event tidak nyangkut dan lolos ke invoice.
+        </p>
+        <p
+          v-if="putus && !putus.setuju && putus.r.kind === 'pen'"
+          class="mb-3 text-sm text-muted"
+        >
+          Event turun kembali ke tahap Prospect.
         </p>
         <UFormField
           v-if="putus && !putus.setuju"
