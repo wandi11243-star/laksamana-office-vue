@@ -188,6 +188,7 @@ async function hapus() {
 </script>
 
 <template>
+  <EventGerbang lihat="talents">
   <AppPage
     title="Talent management"
     description="Kelola profil, jadwal & fee talent"
@@ -490,4 +491,5 @@ async function hapus() {
       </template>
     </ResponsiveSheet>
   </AppPage>
+  </EventGerbang>
 </template>

@@ -203,6 +203,7 @@ function cekToken() {
 </script>
 
 <template>
+  <EventGerbang lihat="checkin">
   <AppPage
     title="Check-in"
     description="Scan QR · kursi terisi langsung"
@@ -491,4 +492,5 @@ function cekToken() {
       </template>
     </ResponsiveSheet>
   </AppPage>
+  </EventGerbang>
 </template>

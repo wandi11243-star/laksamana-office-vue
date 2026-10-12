@@ -143,6 +143,7 @@ async function simpanEval() {
 </script>
 
 <template>
+  <EventGerbang lihat="planning">
   <AppPage
     title="Event idea bank"
     description="Database ide event + evaluasi"
@@ -442,4 +443,5 @@ async function simpanEval() {
       </template>
     </ResponsiveSheet>
   </AppPage>
+  </EventGerbang>
 </template>

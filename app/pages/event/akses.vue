@@ -51,6 +51,7 @@ function kembalikan() {
 </script>
 
 <template>
+  <EventGerbang lihat="akses">
   <AppPage
     title="Hak akses"
     description="Siapa berperan apa, dan peran itu boleh membuka apa"
@@ -167,4 +168,5 @@ function kembalikan() {
       </div>
     </AppPanel>
   </AppPage>
+  </EventGerbang>
 </template>

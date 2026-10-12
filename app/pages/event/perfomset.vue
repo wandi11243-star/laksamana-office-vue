@@ -88,6 +88,7 @@ async function simpanNominal(e: Acara, nilai: number) {
 </script>
 
 <template>
+  <EventGerbang lihat="perfomset">
   <AppPage
     title="Performa omset & bonus"
     description="Omset yang diakui tiap PIC event berikut skema bonusnya"
@@ -291,4 +292,5 @@ async function simpanNominal(e: Acara, nilai: number) {
       </div>
     </AppPanel>
   </AppPage>
+  </EventGerbang>
 </template>

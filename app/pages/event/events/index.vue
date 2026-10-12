@@ -136,6 +136,7 @@ async function hapus() {
 </script>
 
 <template>
+  <EventGerbang lihat="events">
   <AppPage
     title="Event management"
     description="Event yang sudah disetujui manajemen"
@@ -366,4 +367,5 @@ async function hapus() {
       </template>
     </ResponsiveSheet>
   </AppPage>
+  </EventGerbang>
 </template>

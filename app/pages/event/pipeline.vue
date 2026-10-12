@@ -95,6 +95,7 @@ async function jatuhkan(ev: DragEvent, tahap: string) {
 </script>
 
 <template>
+  <EventGerbang lihat="pipeline">
   <AppPage
     title="Event pipeline"
     description="Geser kartu antar tahap saat statusnya berubah"
@@ -231,4 +232,5 @@ async function jatuhkan(ev: DragEvent, tahap: string) {
       </template>
     </ResponsiveSheet>
   </AppPage>
+  </EventGerbang>
 </template>

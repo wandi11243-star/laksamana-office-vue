@@ -156,6 +156,7 @@ const DOK_LABEL = { ktp: 'KTP', npwp: 'NPWP', contract: 'Contract', portfolio: '
 </script>
 
 <template>
+  <EventGerbang lihat="talents">
   <AppPage
     title="Rincian talent"
     description="Profil, pembayaran, dokumen & riwayat tampil"
@@ -476,4 +477,5 @@ const DOK_LABEL = { ktp: 'KTP', npwp: 'NPWP', contract: 'Contract', portfolio: '
       Talent tidak ditemukan.
     </p>
   </AppPage>
+  </EventGerbang>
 </template>

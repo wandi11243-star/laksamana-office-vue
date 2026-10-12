@@ -168,6 +168,7 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
 </script>
 
 <template>
+  <EventGerbang lihat="events">
   <AppPage
     title="Rincian event"
     :description="String(acara?.title ?? '')"
@@ -772,4 +773,5 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
       </template>
     </ResponsiveSheet>
   </AppPage>
+  </EventGerbang>
 </template>

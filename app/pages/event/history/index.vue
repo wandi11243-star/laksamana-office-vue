@@ -65,6 +65,7 @@ async function buatSerupa(e: Acara) {
 </script>
 
 <template>
+  <EventGerbang lihat="events">
   <AppPage
     title="Event history"
     description="Arsip event selesai (read-only)"
@@ -158,4 +159,5 @@ async function buatSerupa(e: Acara) {
       Arsip masih kosong.
     </p>
   </AppPage>
+  </EventGerbang>
 </template>

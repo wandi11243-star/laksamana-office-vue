@@ -44,6 +44,7 @@ const pl = computed(() => {
 </script>
 
 <template>
+  <EventGerbang lihat="events">
   <AppPage
     :title="String(acara?.title ?? 'Arsip event')"
     description="Pencapaian & laba-rugi event selesai"
@@ -128,4 +129,5 @@ const pl = computed(() => {
       </template>
     </template>
   </AppPage>
+  </EventGerbang>
 </template>

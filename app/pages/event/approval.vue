@@ -173,6 +173,7 @@ const lihatRefund = computed(() => tab.value !== 'rencana')
 </script>
 
 <template>
+  <EventGerbang lihat="approval">
   <AppPage
     title="Approval flow"
     description="Meja putusan manajemen"
@@ -497,4 +498,5 @@ const lihatRefund = computed(() => tab.value !== 'rencana')
       @tolak="jalanTolakRefund"
     />
   </AppPage>
+  </EventGerbang>
 </template>

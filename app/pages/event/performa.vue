@@ -56,6 +56,7 @@ const perTalent = computed<BarisTalent[]>(() => {
 </script>
 
 <template>
+  <EventGerbang lihat="performa">
   <AppPage
     title="Event performance"
     description="Ukur hasil event & talent secara objektif"
@@ -207,4 +208,5 @@ const perTalent = computed<BarisTalent[]>(() => {
       </p>
     </AppPanel>
   </AppPage>
+  </EventGerbang>
 </template>

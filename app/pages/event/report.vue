@@ -28,6 +28,7 @@ const avgHargaTiket = computed(() => ringkas.value.terjual ? Math.round(ringkas.
 </script>
 
 <template>
+  <EventGerbang lihat="report">
   <AppPage
     title="Report & analytics"
     description="Laporan omzet, tiket & kehadiran"
@@ -103,4 +104,5 @@ const avgHargaTiket = computed(() => ringkas.value.terjual ? Math.round(ringkas.
       />
     </AppStatGrid>
   </AppPage>
+  </EventGerbang>
 </template>
