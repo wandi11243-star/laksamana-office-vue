@@ -13,9 +13,10 @@
 <script setup lang="ts">
 import type { Acara, JadwalTalent } from '~/composables/useEvent'
 import { useStateEvent } from '~/composables/useEvent'
-import { paxAcara, tglWIB } from '~/utils/event-hitung'
+import { jamWIB, paxAcara, tglWIB } from '~/utils/event-hitung'
+import { STATUS_IKON_EVENT, STATUS_WARNA_EVENT } from '~/utils/status-event'
 import { apiErrorMessage } from '~/composables/useApi'
-import { angka, hariIni, tglPanjang } from '~/utils/format'
+import { angka, hariIni, rupiah, tglPanjang } from '~/utils/format'
 
 definePageMeta({ access: ['event'] })
 
@@ -48,8 +49,8 @@ const bulanSampai = computed(() => {
 })
 
 // --- cross-module sources (read-only, fail-closed) ---
-interface MktEvent { id: string, title?: string, nama?: string, tanggal?: string, date?: string, status?: string, pax?: number }
-interface RsvRow { id: string, name: string, date: string, time?: string, pax: number, status: string }
+interface MktEvent { id: string, title?: string, nama?: string, tanggal?: string, date?: string, status?: string, pax?: number, client?: string, clientId?: string }
+interface RsvRow { id: string, name: string, date: string, time?: string, pax: number, status: string, table?: string, vip?: boolean }
 
 const mkt = ref<MktEvent[]>([])
 const rsv = ref<RsvRow[]>([])
@@ -71,7 +72,8 @@ async function muatSilang() {
   }
   try {
     const r = await api<Envelope<RsvRow[]>>('/reservasi/reservations', { query: { from: bulanDari.value, to: bulanSampai.value } })
-    rsv.value = (r.data ?? []).filter(r => !['Cancelled', 'No-show'].includes(r.status))
+    // Cancelled/no-show come in several spellings — none of them will be seated.
+    rsv.value = (r.data ?? []).filter(r => !['cancelled', 'no-show', 'noshow', 'batal'].includes(String(r.status ?? '').toLowerCase()))
   }
   catch {
     rsvGagal.value = true
@@ -97,6 +99,9 @@ const semuaItem = computed<ItemCal[]>(() => {
     }
   }
   for (const x of s.value?.calendarExtra ?? []) {
+    // A `Reservation` row here would double-count the real bookings read from
+    // the Reservasi module — drop it on purpose.
+    if (String(x.type ?? '').toLowerCase() === 'reservation') continue
     if (x.date >= bulanDari.value && x.date <= bulanSampai.value) {
       keluar.push({ tgl: x.date, tipe: (x.type === 'Birthday' ? 'Birthday' : 'Holiday'), judul: x.title })
     }
@@ -119,7 +124,7 @@ const perTanggal = computed(() => {
   return m
 })
 
-// "N pax bulan ini" ribbon (`:11047`)
+// "N pax bulan ini" ribbon (`:11047`): follows the type filter, like the old total.
 const paxBulan = computed(() => {
   const kelas = s.value?.ticketClasses ?? []
   let ems = 0
@@ -129,8 +134,41 @@ const paxBulan = computed(() => {
   }
   const mktPax = mkt.value.reduce((a, e) => a + (Number(e.pax) || 0), 0)
   const rsvPax = rsv.value.reduce((a, r) => a + (Number(r.pax) || 0), 0)
-  return { ems, mkt: mktPax, rsv: rsvPax, total: ems + mktPax + rsvPax }
+  const total = tipe.value === 'all' ? ems + mktPax + rsvPax
+    : tipe.value === 'Event' ? ems
+      : tipe.value === 'Marketing' ? mktPax
+        : tipe.value === 'Reservation' ? rsvPax : 0
+  return { ems, mkt: mktPax, rsv: rsvPax, total }
 })
+
+/** Non-booking rows share the 4-cut; bookings collapse into one summary row below them. */
+const biasaHari = (tgl: string) => (perTanggal.value.get(tgl) ?? []).filter(i => i.tipe !== 'Reservation')
+const rsvHari = (tgl: string) => (perTanggal.value.get(tgl) ?? [])
+  .filter(i => i.tipe === 'Reservation')
+  .sort((a, b) => String(a.rsv?.time ?? '').localeCompare(String(b.rsv?.time ?? '')))
+const ringkasRsv = (tgl: string) => {
+  const rows = rsvHari(tgl)
+  return { n: rows.length, pax: rows.reduce((a, i) => a + (Number(i.rsv?.pax) || 0), 0) }
+}
+/** Legend counts, unfiltered by the type dropdown: schedules, marketing events, days holding reservations. */
+const hitungJadwal = computed(() => (s.value?.schedules ?? [])
+  .filter(j => j.date >= bulanDari.value && j.date <= bulanSampai.value && j.status !== 'Cancelled').length)
+const hitungMkt = computed(() => mkt.value.length)
+const hitungHariRsv = computed(() => new Set(rsv.value.map(r => r.date)).size)
+
+// --- rich popups (`:11229-11285`, `:11047-11065`) ---
+const kelas = computed(() => s.value?.ticketClasses ?? [])
+const lunasSemua = computed(() => (s.value?.orders ?? []).filter(o => o.payment_status === 'Paid'))
+const tiketEv = (id: string) => kelas.value.filter(c => c.event_id === id)
+const lakuEv = (id: string) => tiketEv(id).reduce((a, c) => a + (Number(c.sold) || 0), 0)
+const kuotaEv = (id: string) => tiketEv(id).reduce((a, c) => a + (Number(c.quota) || 0), 0)
+const omzetEv = (id: string) => lunasSemua.value.filter(o => o.event_id === id).reduce((a, o) => a + (Number(o.total) || 0), 0)
+const talentJadwal = (talentId?: string) => (s.value?.talents ?? []).find(t => t.id === talentId) ?? null
+const waNo = (p?: string | null) => {
+  let x = String(p ?? '').replace(/\D/g, '')
+  if (x.startsWith('0')) x = `62${x.slice(1)}`
+  return x
+}
 
 const DOW = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
 const selBulan = computed(() => {
@@ -173,9 +211,22 @@ function bukaItem(i: ItemCal) {
   itemAktif.value = i
   sheet.value = true
 }
+
+/** One summary row per day opens that day's bookings (`rsvHariPopupEms`). */
+const rsvTgl = ref<string | null>(null)
+const rsvSheet = computed({
+  get: () => rsvTgl.value !== null,
+  set: (v: boolean) => {
+    if (!v) rsvTgl.value = null
+  },
+})
+function bukaHariRsv(tgl: string) {
+  rsvTgl.value = tgl
+}
 </script>
 
 <template>
+  <EventGerbang lihat="calendar">
   <AppPage
     title="Event calendar"
     description="Kalender terpadu multi-sumber"
@@ -245,12 +296,28 @@ function bukaItem(i: ItemCal) {
       </div>
       <div class="mt-2 flex flex-wrap gap-1.5 text-[11px]">
         <span
-          v-for="t in (['Event', 'Entertainment', 'Marketing', 'Reservation'] as TipeCal[])"
-          :key="t"
           class="rounded-full px-2 py-0.5 font-semibold"
-          :class="WARNA_TIPE[t]"
+          :class="WARNA_TIPE['Event']"
         >
-          {{ t }}
+          Event
+        </span>
+        <span
+          class="rounded-full px-2 py-0.5 font-semibold"
+          :class="WARNA_TIPE['Entertainment']"
+        >
+          Talent ({{ hitungJadwal }})
+        </span>
+        <span
+          class="rounded-full px-2 py-0.5 font-semibold"
+          :class="WARNA_TIPE['Marketing']"
+        >
+          Marketing ({{ hitungMkt }})
+        </span>
+        <span
+          class="rounded-full px-2 py-0.5 font-semibold"
+          :class="WARNA_TIPE['Reservation']"
+        >
+          Reservasi ({{ hitungHariRsv }} hari)
         </span>
       </div>
     </AppPanel>
@@ -281,23 +348,40 @@ function bukaItem(i: ItemCal) {
           >{{ sel.num }}</span>
           <ul class="mt-1 space-y-0.5">
             <li
-              v-for="(it, i) in (perTanggal.get(sel.tgl) ?? []).slice(0, 4)"
+              v-for="(it, i) in biasaHari(sel.tgl).slice(0, 4)"
               :key="i"
             >
               <button
+                v-if="it.tipe !== 'Holiday' && it.tipe !== 'Birthday'"
                 type="button"
                 class="block w-full truncate rounded px-1 py-0.5 text-left text-[11px] font-medium"
                 :class="WARNA_TIPE[it.tipe]"
                 @click="bukaItem(it)"
               >
-                {{ it.judul }}
+                {{ it.judul }}<template v-if="it.tipe === 'Event'"> · <b class="num">{{ angka(lakuEv(it.acara?.id ?? '')) }} pax</b></template><template v-else-if="it.tipe === 'Marketing' && it.mkt?.pax"> · <b class="num">{{ angka(Number(it.mkt.pax) || 0) }} pax</b></template>
               </button>
+              <span
+                v-else
+                class="block truncate rounded px-1 py-0.5 text-left text-[11px] font-medium"
+                :class="WARNA_TIPE[it.tipe]"
+              >{{ it.judul }}</span>
             </li>
             <li
-              v-if="(perTanggal.get(sel.tgl) ?? []).length > 4"
+              v-if="biasaHari(sel.tgl).length > 4"
               class="px-1 text-[11px] text-muted num"
             >
-              +{{ (perTanggal.get(sel.tgl) ?? []).length - 4 }} lagi
+              +{{ biasaHari(sel.tgl).length - 4 }} lagi
+            </li>
+            <li v-if="ringkasRsv(sel.tgl).n">
+              <button
+                type="button"
+                class="block w-full truncate rounded px-1 py-0.5 text-left text-[11px] font-medium"
+                :class="WARNA_TIPE['Reservation']"
+                :title="`${ringkasRsv(sel.tgl).n} reservasi hari ini`"
+                @click="bukaHariRsv(sel.tgl)"
+              >
+                {{ ringkasRsv(sel.tgl).n }} reservasi · <b class="num">{{ angka(ringkasRsv(sel.tgl).pax) }} pax</b>
+              </button>
             </li>
           </ul>
         </div>
@@ -315,48 +399,168 @@ function bukaItem(i: ItemCal) {
         <p class="text-muted">
           {{ tglPanjang(itemAktif.tgl) }} · {{ itemAktif.tipe }}
         </p>
-        <p v-if="itemAktif.sub">
-          {{ itemAktif.sub }}
-        </p>
         <template v-if="itemAktif.acara">
-          <p>Venue: {{ itemAktif.acara.venue || '—' }} · PIC: {{ itemAktif.acara.pic || '—' }}</p>
+          <div class="space-y-1.5">
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Waktu</span>
+              <b>{{ jamWIB(itemAktif.acara.start_datetime) }}{{ itemAktif.acara.end_datetime ? `–${jamWIB(itemAktif.acara.end_datetime)}` : '' }} WIB</b>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Lokasi</span>
+              <span>{{ itemAktif.acara.venue || '—' }}</span>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">PIC</span>
+              <span>{{ itemAktif.acara.pic || '—' }}</span>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Tiket</span>
+              <span class="num">{{ angka(lakuEv(itemAktif.acara.id)) }} / {{ angka(kuotaEv(itemAktif.acara.id)) }} terjual</span>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Omzet lunas</span>
+              <b class="num">{{ rupiah(omzetEv(itemAktif.acara.id)) }}</b>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              <AppStatus
+                v-if="itemAktif.acara.category"
+                color="gold"
+                size="sm"
+              >
+                {{ itemAktif.acara.category }}
+              </AppStatus>
+              <AppStatus
+                :color="STATUS_WARNA_EVENT[String(itemAktif.acara.status)] ?? 'neutral'"
+                :icon="STATUS_IKON_EVENT[String(itemAktif.acara.status)]"
+                size="sm"
+              >
+                {{ String(itemAktif.acara.status) }}
+              </AppStatus>
+            </div>
+          </div>
           <UButton
             :to="`/event/events/${itemAktif.acara.id}`"
             color="primary"
             @click="sheet = false"
           >
-            Buka event
+            Buka detail event
           </UButton>
         </template>
-        <template v-else-if="itemAktif.rsv">
-          <p class="text-muted">
-            Reservasi — read-only di sini.
-          </p>
+        <template v-else-if="itemAktif.jadwal">
+          <div class="space-y-1.5">
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Tanggal</span>
+              <b>{{ tglPanjang(itemAktif.jadwal.date) }}</b>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Jam</span>
+              <span>{{ itemAktif.jadwal.start_time || '—' }}–{{ itemAktif.jadwal.end_time || '—' }}</span>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Jenis</span>
+              <span>{{ itemAktif.jadwal.type || '—' }}</span>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Fee</span>
+              <b class="num">{{ rupiah(Number(itemAktif.jadwal.fee) || 0) }}</b>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Kontak WA</span>
+              <a
+                v-if="waNo(talentJadwal(itemAktif.jadwal.talent_id)?.whatsapp || talentJadwal(itemAktif.jadwal.talent_id)?.phone)"
+                :href="`https://wa.me/${waNo(talentJadwal(itemAktif.jadwal.talent_id)?.whatsapp || talentJadwal(itemAktif.jadwal.talent_id)?.phone)}`"
+                target="_blank"
+                rel="noopener"
+                class="font-semibold text-primary-700 underline"
+              >{{ talentJadwal(itemAktif.jadwal.talent_id)?.whatsapp || talentJadwal(itemAktif.jadwal.talent_id)?.phone }}</a>
+              <span v-else>—</span>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Status</span>
+              <AppStatus size="sm">
+                {{ itemAktif.jadwal.status || '—' }}
+              </AppStatus>
+            </div>
+          </div>
           <UButton
-            to="/reservasi/dashboard"
+            to="/event/schedule"
             color="neutral"
             variant="outline"
             @click="sheet = false"
           >
-            Buka modul reservasi
+            Buka talent schedule
           </UButton>
         </template>
-        <p
-          v-else
-          class="text-muted"
+        <template v-else-if="itemAktif.mkt">
+          <div class="space-y-1.5">
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Tanggal</span>
+              <b>{{ tglPanjang(itemAktif.tgl) }}</b>
+            </div>
+            <div
+              v-if="itemAktif.mkt.client"
+              class="flex justify-between gap-3 border-b border-default pb-1.5"
+            >
+              <span class="text-muted">Klien</span>
+              <span>{{ itemAktif.mkt.client }}</span>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Status</span>
+              <span>{{ itemAktif.mkt.status || '—' }}</span>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Estimasi tamu</span>
+              <b class="num">{{ angka(Number(itemAktif.mkt.pax) || 0) }} pax</b>
+            </div>
+          </div>
+          <p class="text-xs text-dimmed">
+            Event marketing — read-only di sini.
+          </p>
+        </template>
+      </div>
+    </ResponsiveSheet>
+
+    <ResponsiveSheet
+      v-model:open="rsvSheet"
+      :title="`Reservasi · ${rsvTgl ? tglPanjang(rsvTgl) : ''}`"
+    >
+      <div
+        v-if="rsvTgl"
+        class="space-y-1.5 text-sm"
+      >
+        <div
+          v-for="i in rsvHari(rsvTgl)"
+          :key="i.rsv?.id"
+          class="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-b border-default py-1.5"
         >
-          {{ itemAktif.tipe === 'Marketing' ? 'Event marketing — read-only di sini.' : itemAktif.tipe === 'Entertainment' ? `Jam ${itemAktif.jadwal?.start_time ?? ''}–${itemAktif.jadwal?.end_time ?? ''}` : 'Hari libur / ulang tahun.' }}
+          <b class="num">{{ i.rsv?.time || '—' }}</b>
+          <b class="min-w-0 flex-1 text-highlighted">{{ i.rsv?.name }}</b>
+          <span class="num">{{ i.rsv?.pax }} pax</span>
+          <span class="text-muted">{{ i.rsv?.table || '—' }}</span>
+          <span class="text-muted">{{ i.rsv?.status }}</span>
+          <AppStatus
+            v-if="i.rsv?.vip"
+            color="vip"
+            icon="i-lucide-crown"
+            size="sm"
+          >
+            VIP
+          </AppStatus>
+        </div>
+        <p class="pt-1 text-xs text-muted num">
+          Total {{ angka(ringkasRsv(rsvTgl).pax) }} pax dari {{ ringkasRsv(rsvTgl).n }} reservasi
         </p>
         <UButton
-          v-if="itemAktif.jadwal"
-          :to="`/event/schedule`"
+          to="/reservasi/dashboard"
+          target="_blank"
           color="neutral"
           variant="outline"
-          @click="sheet = false"
+          @click="rsvTgl = null"
         >
-          Buka jadwal talent
+          Buka modul reservasi
         </UButton>
       </div>
     </ResponsiveSheet>
   </AppPage>
+  </EventGerbang>
 </template>

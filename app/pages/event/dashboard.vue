@@ -8,9 +8,9 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { Acara } from '~/composables/useEvent'
 import { useStateEvent } from '~/composables/useEvent'
-import { angkaEms, omzetPerBulan, paxAcara, statusPengajuan, tglWIB } from '~/utils/event-hitung'
+import { angkaEms, bulanAktif, geserPeriode, jamWIB, omzetPerBulan, paxAcara, rentangPeriodeEvent, statusPengajuan, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
-import { angka, hariIni, rupiah, tambahHari, tglPanjang } from '~/utils/format'
+import { angka, hariIni, rupiah, tglPanjang } from '~/utils/format'
 import { STATUS_IKON_EVENT, STATUS_WARNA_EVENT } from '~/utils/status-event'
 
 definePageMeta({ access: ['event'] })
@@ -18,22 +18,49 @@ definePageMeta({ access: ['event'] })
 const { data: state, status, refresh, error } = useStateEvent()
 const s = computed(() => state.value?.data ?? null)
 
-type Periode = '' | 'hari' | 'minggu' | 'bulan'
-const periode = ref<Periode>('')
+/** The dashboard opens on the current state, not the whole archive (`:2379-2383`).
+ *  A picked `YYYY-MM` or `YYYY-MM-DD` is a period too, like the old band. */
+const periode = ref('bulan')
 const PILIHAN_PERIODE = [
   { value: '', label: 'Semua' },
   { value: 'hari', label: 'Hari ini' },
   { value: 'minggu', label: 'Minggu ini' },
   { value: 'bulan', label: 'Bulan ini' },
-] as { value: Periode, label: string }[]
+]
+/** Stepping shifts the unit in use: a picked day steps a day, else a month. */
+const geser = (arah: -1 | 1) => {
+  periode.value = geserPeriode(periode.value, arah)
+}
+const bulanPick = computed({
+  get: () => bulanAktif(periode.value),
+  set: (v: string) => {
+    if (v) periode.value = v
+  },
+})
+const tglPick = computed({
+  get: () => (/^\d{4}-\d{2}-\d{2}$/.test(periode.value) ? periode.value : ''),
+  set: (v: string) => {
+    if (v) periode.value = v
+  },
+})
+/** What the picked period means, written out: a percent without it cannot be acted on. */
+const labelPeriode = computed(() => {
+  const m = periode.value
+  if (/^\d{4}-\d{2}-\d{2}$/.test(m)) {
+    return new Date(`${m}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })
+  }
+  if (/^\d{4}-\d{2}$/.test(m)) {
+    return new Date(`${m}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
+  }
+  return (PILIHAN_PERIODE.find(p => p.value === m) ?? PILIHAN_PERIODE[0]!).label
+})
 
 const tglAcara = (e: Acara) => tglWIB(e.start_datetime)
+/** Same range the event list uses, so two screens never disagree on one day. */
 const dalamPeriode = (tgl: string) => {
-  const h = hariIni()
-  if (periode.value === 'hari') return tgl === h
-  if (periode.value === 'minggu') return tgl >= h && tgl <= tambahHari(h, 6)
-  if (periode.value === 'bulan') return tgl.slice(0, 7) === h.slice(0, 7)
-  return true
+  const r = rentangPeriodeEvent(periode.value)
+  if (!r) return true
+  return tgl >= r.a && tgl <= r.b
 }
 
 const acara = computed(() => (s.value?.events ?? []).filter(e => dalamPeriode(tglAcara(e))))
@@ -50,9 +77,14 @@ const STATUS_KARTU = ['Planning', 'Prospect', 'Approval', 'Upcoming'] as const
 const toneKartu = (st: string) => STATUS_WARNA_EVENT[st] === 'neutral' ? 'gold' : STATUS_WARNA_EVENT[st]!
 
 // --- the eight stat cards (`:2368-2383`) ---
-const upcoming = computed(() => acara.value.filter(e => e.status === 'Upcoming').length)
-const hariIniN = computed(() => (s.value?.events ?? []).filter(e => tglAcara(e) === hariIni()).length)
+// Global figures, like the old screen: only the status cards above follow the period.
+const semuaAcara = computed(() => s.value?.events ?? [])
+const upcomingSemua = computed(() => semuaAcara.value.filter(e => e.status === 'Upcoming'))
+const upcoming = computed(() => upcomingSemua.value.length)
+const todayEv = computed(() => upcomingSemua.value.filter(e => tglAcara(e) === hariIni()))
+const hariIniN = computed(() => todayEv.value.length)
 const talentHariIni = computed(() => jadwal.value.filter(j => j.date === hariIni()).length)
+const talentAktifN = computed(() => talent.value.filter(t => t.status === 'Active').length)
 const uangMasuk = computed(() => order.value.filter(o => o.payment_status === 'Paid').reduce((a, o) => a + (Number(o.total) || 0), 0))
 const hadir = computed(() => (s.value?.checkins ?? []).filter(c => (c.result ?? 'Valid') === 'Valid').length)
 const tiketTerjual = computed(() => kelas.value.reduce((a, c) => a + (Number(c.sold) || 0), 0))
@@ -115,25 +147,43 @@ const palingBanyakMasuk = computed(() => {
 })
 
 // --- attention cards (`kartuPerhatian :2293`) ---
+/** Days left count by WIB calendar date, never by millisecond rounding. */
+const sisaHari = (iso?: string | null) => {
+  if (!iso) return 999
+  const a = tglWIB(iso)
+  const h = hariIni()
+  if (!a) return 999
+  return Math.round((Date.parse(`${a}T00:00:00Z`) - Date.parse(`${h}T00:00:00Z`)) / 86400000)
+}
 const perhatian = computed(() => {
   const keluar: { tone: 'warning' | 'error', judul: string, desc: string, to: string }[] = []
   const h = hariIni()
-  for (const e of s.value?.events ?? []) {
-    if (e.status === 'Upcoming' && tglAcara(e) >= h && !(e.pic || '').trim()) {
-      keluar.push({ tone: 'error', judul: 'Event tanpa PIC', desc: `${e.title} — PIC wajib diisi sebelum jalan`, to: `/event/events/${e.id}` })
+  const detail = s.value?.eventDetails ?? {}
+  for (const e of semuaAcara.value) {
+    if (e.status !== 'Upcoming' || tglAcara(e) < h) continue
+    const sisa = sisaHari(e.start_datetime)
+    if (sisa <= 7 && !(e.pic || '').trim()) {
+      keluar.push({ tone: 'error', judul: 'Event tanpa PIC', desc: `${e.title} tinggal ${sisa <= 0 ? 'hari ini' : `${sisa} hari lagi`}`, to: `/event/events/${e.id}` })
     }
+    if (sisa <= 3) {
+      const belum = (detail[e.id]?.tasks ?? []).filter(t => !t.done).length
+      if (belum) keluar.push({ tone: 'warning', judul: `${belum} task belum selesai`, desc: `${e.title} — ${sisa <= 0 ? 'hari ini' : `${sisa} hari lagi`}`, to: `/event/events/${e.id}` })
+    }
+  }
+  for (const e of semuaAcara.value) {
+    if (!e.is_ticketed || e.status !== 'Upcoming') continue
     const ks = kelas.value.filter(c => c.event_id === e.id)
     const kuota = ks.reduce((a, c) => a + (Number(c.quota) || 0), 0)
     const laku = ks.reduce((a, c) => a + (Number(c.sold) || 0), 0)
-    if (kuota > 0 && laku / kuota >= 0.9 && e.status === 'Upcoming') {
+    if (kuota > 0 && laku / kuota >= 0.9) {
       keluar.push({ tone: 'warning', judul: 'Tiket hampir habis', desc: `${e.title} — ${laku}/${kuota} terjual`, to: `/event/ticketing/${e.id}` })
     }
   }
-  const belumBayar = tagihan.value.filter(p => (p.status ?? '') !== 'Paid').length
+  const belumBayar = tagihan.value.filter(p => p.status === 'Waiting').length
   if (belumBayar) keluar.push({ tone: 'warning', judul: `${belumBayar} pembayaran talent menunggu`, desc: 'Belum ditandai lunas', to: '/event/fee' })
   const tanpaRek = talent.value.filter(t => t.status === 'Active' && !(t.bank_account || '').trim()).length
   if (tanpaRek) keluar.push({ tone: 'warning', judul: `${tanpaRek} talent tanpa rekening`, desc: 'Fee tidak bisa ditransfer', to: '/event/talents' })
-  const menunggu = (s.value?.events ?? []).filter(e => statusPengajuan({ pengajuan: e.pengajuan }) === 'Menunggu').length
+  const menunggu = semuaAcara.value.filter(e => statusPengajuan({ pengajuan: e.pengajuan }) === 'Menunggu').length
   if (menunggu) keluar.push({ tone: 'warning', judul: `${menunggu} rencana menunggu keputusan`, desc: 'Perlu putusan manajemen', to: '/event/approval' })
   return keluar
 })
@@ -143,10 +193,9 @@ const grafik = computed(() => omzetPerBulan(6, s.value?.events ?? [], order.valu
 const maksGrafik = computed(() => Math.max(1, ...grafik.value.map(g => g.jt)))
 
 // --- nearest-events table (`:2404-2413`) ---
-const terdekat = computed(() => [...(s.value?.events ?? [])]
+const terdekat = computed(() => [...semuaAcara.value]
   .filter(e => e.status === 'Upcoming')
-  .sort((a, b) => String(a.start_datetime ?? '').localeCompare(String(b.start_datetime ?? '')))
-  .slice(0, 10))
+  .sort((a, b) => String(a.start_datetime ?? '').localeCompare(String(b.start_datetime ?? ''))))
 
 const kolom: TableColumn<Acara>[] = [
   { id: 'acara', header: 'Event' },
@@ -161,6 +210,7 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
 </script>
 
 <template>
+  <EventGerbang lihat="dashboard">
   <AppPage
     title="Dashboard"
     :description="`Ringkasan operasional · ${tglPanjang(hariIni())}`"
@@ -186,12 +236,20 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
     />
 
     <AppPanel
-      v-if="perhatian.length"
       title="Perlu perhatian"
       icon="i-lucide-triangle-alert"
       class="mb-4"
     >
-      <ul class="grid gap-2 lg:grid-cols-2">
+      <p
+        v-if="!perhatian.length"
+        class="text-sm text-muted"
+      >
+        Tidak ada yang perlu ditindak hari ini.
+      </p>
+      <ul
+        v-else
+        class="grid gap-2 lg:grid-cols-2"
+      >
         <li
           v-for="(p, i) in perhatian"
           :key="i"
@@ -219,10 +277,50 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
       icon="i-lucide-calendar"
       class="mb-4"
     >
-      <AppChips
-        v-model="periode"
-        :options="PILIHAN_PERIODE"
-      />
+      <div class="flex flex-wrap items-center gap-2">
+        <AppChips
+          v-model="periode"
+          :options="PILIHAN_PERIODE"
+        />
+        <UButton
+          icon="i-lucide-chevron-left"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          aria-label="Periode sebelumnya"
+          title="Geser mundur"
+          @click="geser(-1)"
+        />
+        <UInput
+          v-model="bulanPick"
+          type="month"
+          size="sm"
+          title="Pilih bulan"
+          class="w-40"
+        />
+        <UButton
+          icon="i-lucide-chevron-right"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          aria-label="Periode berikutnya"
+          title="Geser maju"
+          @click="geser(1)"
+        />
+        <UInput
+          v-model="tglPick"
+          type="date"
+          size="sm"
+          title="Atau pilih satu tanggal"
+          class="w-40"
+        />
+        <AppStatus size="sm">
+          {{ acara.length }} event
+        </AppStatus>
+        <AppStatus size="sm">
+          {{ labelPeriode }}
+        </AppStatus>
+      </div>
     </AppPanel>
 
     <AppSectionTitle title="Status event" />
@@ -242,48 +340,56 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
       <AppStat
         label="Upcoming events"
         :value="upcoming"
+        sub="event akan datang"
         icon="i-lucide-party-popper"
         tone="vip"
       />
       <AppStat
         label="Event hari ini"
         :value="hariIniN"
+        :sub="todayEv.map(e => e.title).join(', ') || '—'"
         icon="i-lucide-calendar-check"
         tone="info"
       />
       <AppStat
         label="Talent hari ini"
         :value="talentHariIni"
+        :sub="talentHariIni ? 'terjadwal manggung' : 'tidak ada jadwal'"
         icon="i-lucide-mic-vocal"
         tone="info"
       />
       <AppStat
         label="Uang masuk tiket"
         :value="rupiah(uangMasuk)"
+        :sub="`${angka(tiketTerjual)} tiket terjual`"
         icon="i-lucide-banknote"
         tone="gold"
       />
       <AppStat
         label="Attendance"
         :value="angka(hadir)"
+        sub="sudah check-in"
         icon="i-lucide-scan-line"
         tone="success"
       />
       <AppStat
         label="Keterisian"
         :value="`${keterisian}%`"
+        :sub="`dari ${angka(tiket.length)} tiket`"
         icon="i-lucide-armchair"
         tone="success"
       />
       <AppStat
         label="Avg ticket price"
         :value="rupiah(hargaRata)"
+        sub="rata-rata"
         icon="i-lucide-tag"
         tone="gold"
       />
       <AppStat
         label="Total talent"
-        :value="talent.length"
+        :value="talentAktifN"
+        sub="aktif"
         icon="i-lucide-users"
         tone="info"
       />
@@ -318,7 +424,7 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
       <AppStat
         label="Tiket terjual yang hadir"
         :value="`${ringkas.hadirPct}%`"
-        :sub="`${angka(ringkas.hadir)} dari ${angka(ringkas.tiket)} tiket`"
+        :sub="`${angka(ringkas.hadir)} dari ${angka(ringkas.tiket)} tiket · ${labelPeriode}`"
         icon="i-lucide-ticket-check"
         tone="info"
       />
@@ -360,7 +466,7 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
           </ULink>
         </template>
         <template #tanggal-cell="{ row }">
-          {{ tglPanjang(tglWIB(row.original.start_datetime)) }}
+          {{ tglPanjang(tglWIB(row.original.start_datetime)) }} · {{ jamWIB(row.original.start_datetime) }} WIB
         </template>
         <template #venue-cell="{ row }">
           {{ row.original.venue || '—' }}
@@ -391,7 +497,7 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
             class="block px-4 py-3"
           >
             <b class="block truncate text-sm text-highlighted">{{ e.title }}</b>
-            <span class="mt-0.5 block text-xs text-muted">{{ tglPanjang(tglAcara(e)) }} · {{ e.venue || '—' }} · {{ e.pic || '—' }}</span>
+            <span class="mt-0.5 block text-xs text-muted">{{ tglPanjang(tglAcara(e)) }} · {{ jamWIB(e.start_datetime) }} WIB · {{ e.venue || '—' }} · {{ e.pic || '—' }}</span>
             <span class="mt-1.5 flex items-center gap-2">
               <AppStatus
                 :color="STATUS_WARNA_EVENT[String(e.status)] ?? 'neutral'"
@@ -414,4 +520,5 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
       </p>
     </AppPanel>
   </AppPage>
+  </EventGerbang>
 </template>
