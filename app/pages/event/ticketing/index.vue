@@ -44,6 +44,7 @@ const progres = (e: Acara) => {
 </script>
 
 <template>
+  <EventGerbang lihat="ticketing">
   <AppPage
     title="Ticketing"
     description="Event ber-tiket yang sudah disetujui"
@@ -135,4 +136,5 @@ const progres = (e: Acara) => {
       Belum ada event ber-tiket di sini.
     </p>
   </AppPage>
+  </EventGerbang>
 </template>

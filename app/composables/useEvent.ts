@@ -114,6 +114,7 @@ export interface TagihanTalent {
   status: string
   proof_key?: string
   pic_finance?: string
+  bank_tujuan?: string
   createdAt: number
   updatedAt: number
   [key: string]: unknown

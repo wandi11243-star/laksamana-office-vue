@@ -34,6 +34,7 @@ watch(list, () => {
 </script>
 
 <template>
+  <EventGerbang lihat="ticketing">
   <AppPage
     :title="String(kelas?.name ?? 'Kategori tiket')"
     :description="String(acara?.title ?? '')"
@@ -113,4 +114,5 @@ watch(list, () => {
       </div>
     </AppPanel>
   </AppPage>
+  </EventGerbang>
 </template>

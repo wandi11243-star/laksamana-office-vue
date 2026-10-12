@@ -16,6 +16,7 @@ import type { RefundBaris } from '~/utils/event-refund'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehSetujui, bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka, rupiah } from '~/utils/format'
+import { qrSvg } from '~/utils/qr'
 import { tanganiKonflik } from '~/utils/versi'
 
 definePageMeta({ access: ['event'] })
@@ -63,13 +64,10 @@ const gantung = (r: RefundBaris) => refundGantung(r, orderDariId.value.get(r.ord
 const refundUntukOrder = (oid: string) =>
   refundAktif(oid, daftarRefund.value.rows)
   ?? daftarRefund.value.rows.filter(r => r.order_id === oid).slice(-1)[0]
-const refundUntukTiket = (t: Tiket) => {
-  const oid = String(t.order_id ?? t.order_item_id ?? '')
-  return oid ? refundUntukOrder(oid) : undefined
-}
 
 const kelas = computed(() => [...daftarKelas.value.rows].sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0)))
 const ringkas = computed(() => ringkasPenjualan(id.value, daftarTiket.value.rows, daftarKelas.value.rows))
+const pesananLunas = computed(() => daftarOrder.value.rows.filter(o => o.payment_status === 'Paid').length)
 
 const kursi = computed(() => {
   const m = new Map<string, { total: number, terjual: number }>()
@@ -161,6 +159,11 @@ async function hapusKelas() {
 // --- sell (`jualBody :6808`, `doPurchase :9802`) ---
 const jual = ref({ class_id: '', name: '', phone: '+628', email: '' })
 const menjual = ref(false)
+const sisaKelas = (k: KelasTiket) => (Number(k.quota) || 0) - (Number(k.sold) || 0)
+const totalJual = computed(() => {
+  const k = kelas.value.find(x => x.id === jual.value.class_id)
+  return k ? Number(k.price) || 0 : 0
+})
 const uid = () => `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 9)}`
 async function simpanJual() {
   const k = kelas.value.find(x => x.id === jual.value.class_id)
@@ -215,51 +218,65 @@ async function simpanJual() {
   }
 }
 
-// --- refunds (`requestRefund/submitRefund/approveRefund/tolakRefund :9981`) ---
+// --- refunds: filing lives here, deciding lives in Approval Flow ---
 // Approving runs the refund itself (`approveRefundYakin :10217`): the order
 // goes Refunded, its tickets Cancelled, seats & class quota back — never
-// just the request status.
-// Rejecting asks for a reason first (`tolakRefund :10230`); the sheet emits it.
-const tolakRid = ref('')
-const sheetTolak = computed({ get: () => tolakRid.value !== '', set: v => (tolakRid.value = v ? tolakRid.value : '') })
-const ketTolak = computed(() => {
-  const r = daftarRefund.value.rows.find(x => x.id === tolakRid.value)
-  const o = orderDariId.value.get(r?.order_id ?? '')
-  return o ? `${String(o.buyer_name ?? '')} · ${rupiah(Number(o.total) || 0)}` : undefined
-})
-const menolak = ref(false)
-async function jalanTolakRefund(alasan: string) {
-  const rid = tolakRid.value
-  if (!rid || menolak.value) return
-  menolak.value = true
+// just the request status. Rejecting asks for a reason first (`tolakRefund
+// :10230`); both happen in Approval, never from the sales board (:7384-7391).
+// Repair for approvals from the old version that only flipped the request
+// status (`selesaikanRefund :10187`): runs the same execution, keeps Approved.
+// --- request refund (`requestRefund/submitRefund :10100`): one living request
+// per order. Deciding stays in Approval Flow; sales only files the request.
+const refundOrderId = ref('')
+const alasanRefund = ref('')
+const sheetRefund = computed({ get: () => refundOrderId.value !== '', set: v => (refundOrderId.value = v ? refundOrderId.value : '') })
+const orderRefund = computed(() => orderDariId.value.get(refundOrderId.value))
+function bukaRefund(orderId: string) {
+  const hidup = refundAktif(orderId, daftarRefund.value.rows)
+  if (hidup) {
+    toast.add({
+      title: hidup.status === 'Pending'
+        ? 'Refund untuk order ini sudah diajukan — menunggu persetujuan.'
+        : 'Refund untuk order ini sudah disetujui.',
+      color: 'warning',
+    })
+    return
+  }
+  refundOrderId.value = orderId
+  alasanRefund.value = ''
+}
+async function ajukanRefund() {
+  const oid = refundOrderId.value
+  const alasan = alasanRefund.value.trim()
+  if (!oid) return
+  if (!alasan) {
+    toast.add({ title: 'Alasan wajib diisi.', color: 'error' })
+    return
+  }
+  if (refundAktif(oid, daftarRefund.value.rows)) {
+    toast.add({ title: 'Refund untuk order ini sudah ada.', color: 'warning' })
+    sheetRefund.value = false
+    return
+  }
+  const o = orderDariId.value.get(oid)
   try {
-    await patchEvent('refunds', rid, {
-      status: 'Rejected', penyetuju: namaSaya.value, alasan_tolak: alasan, decided_at: new Date().toISOString(), updatedAt: Date.now(),
-    }, daftarRefund.value.versions[rid])
-    tolakRid.value = ''
-    toast.add({ title: 'Refund ditolak — alasannya tercatat.', color: 'success' })
+    await createEvent('refunds', {
+      order_id: oid,
+      event_id: o?.event_id ?? id.value,
+      reason: alasan,
+      status: 'Pending',
+      oleh: namaSaya.value,
+      requested_at: new Date().toISOString(),
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    })
+    sheetRefund.value = false
+    toast.add({ title: 'Refund diajukan — menunggu keputusan manajemen di Approval Flow.', color: 'success' })
     await refreshRefund()
   }
   catch (e) {
     if (!(await tanganiKonflik(e, refreshRefund))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
-  finally {
-    menolak.value = false
-  }
-}
-async function putuskanRefund(rid: string, setuju: boolean) {
-  const r = daftarRefund.value.rows.find(x => x.id === rid)
-  if (!r) return
-  if (!setuju) {
-    tolakRid.value = rid
-    return
-  }
-  const order = orderDariId.value.get(r.order_id ?? '')
-  if (!order) {
-    toast.add({ title: 'Pesanannya sudah tidak ada.', color: 'error' })
-    return
-  }
-  await eksekusiRefund(r, order, false)
 }
 
 async function eksekusiRefund(r: Refund, order: OrderTiket, selesaikanMode: boolean) {
@@ -304,25 +321,151 @@ async function selesaikan() {
   if (!r || !order) return
   await eksekusiRefund(r, order, true)
 }
-const antreRefund = computed(() => daftarRefund.value.rows.filter(r => (r.status ?? '') === 'Pending'))
+
+// --- sales board: one row per ORDER (`:7341`), newest first ---
+const SALES_PER_HAL = 10
+const halSales = ref(1)
+const barisOrder = computed(() => [...daftarOrder.value.rows]
+  .filter(o => o.event_id === id.value)
+  .sort((a, b) => String(b.created ?? '').localeCompare(String(a.created ?? ''))))
+const maxHalSales = computed(() => Math.max(1, Math.ceil(barisOrder.value.length / SALES_PER_HAL)))
+const orderTampil = computed(() => barisOrder.value.slice((halSales.value - 1) * SALES_PER_HAL, halSales.value * SALES_PER_HAL))
+watch(barisOrder, () => {
+  halSales.value = Math.min(halSales.value, maxHalSales.value)
+})
+const tiketOrder = (oid: string) => daftarTiket.value.rows.filter(t => String(t.order_id ?? t.order_item_id ?? '') === oid)
+const refundOrder = (oid: string) => refundUntukOrder(oid)
+/** Seats grouped, not listed per ticket: one table of 6 reads "5 (6 tamu)". */
+const kursiOrder = (tks: Tiket[]) => {
+  const jml = new Map<string, number>()
+  const urut: string[] = []
+  for (const t of tks) {
+    if (!t.seat_id) continue
+    const st = daftarKursi.value.rows.find(x => String(x.id) === String(t.seat_id))
+    const label = String((st as Record<string, unknown> | undefined)?.table_no ?? (st as Record<string, unknown> | undefined)?.seat_no ?? '')
+    if (!label) continue
+    if (!jml.has(label)) {
+      jml.set(label, 0)
+      urut.push(label)
+    }
+    jml.set(label, (jml.get(label) ?? 0) + 1)
+  }
+  return urut.map(l => ((jml.get(l) ?? 0) > 1 ? `${l} (${jml.get(l)} tamu)` : l))
+}
+const masukOrder = (tks: Tiket[]) => tks.filter(t => t.status === 'Checked-In').length
+const warnaBayar = (s?: string) => (s === 'Paid' ? 'success' : s === 'Waiting' ? 'warning' : 'neutral') as const
+const bisaAjukanRefund = (o: OrderTiket) => tiketOrder(o.id).length > 0 && !refundAktif(o.id, daftarRefund.value.rows) && o.payment_status !== 'Refunded'
+const fmtTanggalJam = (s?: string | null) => {
+  if (!s) return '-'
+  const d = new Date(s)
+  if (Number.isNaN(+d)) return String(s)
+  return `${d.toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} WIB`
+}
+
+// --- e-ticket (`showETicket :9995`): preview + QR PNG + WA template ---
+const etiket = ref<Tiket | null>(null)
+const sheetEtiket = computed({ get: () => etiket.value !== null, set: (v: boolean) => {
+  if (!v) etiket.value = null
+} })
+const etiketKelas = computed(() => daftarKelas.value.rows.find(c => c.id === etiket.value?.ticket_class_id) ?? null)
+const etiketOrder = computed(() => (etiket.value
+  ? orderDariId.value.get(String(etiket.value.order_id ?? etiket.value.order_item_id ?? ''))
+  : undefined))
+const etiketKursi = computed(() => {
+  const sid = etiket.value?.seat_id
+  if (!sid) return ''
+  const st = daftarKursi.value.rows.find(x => String(x.id) === String(sid))
+  return String((st as Record<string, unknown> | undefined)?.table_no ?? (st as Record<string, unknown> | undefined)?.seat_no ?? '')
+})
+const etiketQr = computed(() => {
+  if (!etiket.value) return ''
+  try {
+    return qrSvg(etiket.value.qr_token, 240)
+  }
+  catch {
+    return ''
+  }
+})
+const etiketNo = computed(() => String((etiket.value as Record<string, unknown> | null)?.ticket_number ?? etiket.value?.qr_token ?? ''))
+function salinToken() {
+  if (!etiket.value) return
+  navigator.clipboard?.writeText(etiket.value.qr_token)
+    .then(() => toast.add({ title: 'QR token disalin — pakai di menu Check-In.', color: 'success' }))
+    .catch(() => toast.add({ title: 'Gagal menyalin.', color: 'error' }))
+}
 
 function kirimWA(t: Tiket) {
-  const nama = String((t as Record<string, unknown>).buyer_name ?? '')
-  const hp = String((t as Record<string, unknown>).buyer_phone ?? '')
-  const teks = `Halo Kak ${nama}!\n\nE-ticket *${String(acara.value?.title ?? '')}*:\nKode: ${t.qr_token}\nKelas: ${daftarKelas.value.rows.find(c => c.id === t.ticket_class_id)?.name ?? ''}\n\nTunjukkan kode ini di pintu masuk. Sampai jumpa!`
-  window.open(`https://wa.me/${hp.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(teks)}`, '_blank')
+  const o = orderDariId.value.get(String(t.order_id ?? t.order_item_id ?? ''))
+  const c = daftarKelas.value.rows.find(x => x.id === t.ticket_class_id)
+  const seat = labelKursiTiket(t.seat_id)
+  const baris = [
+    `Halo ${String(o?.buyer_name ?? '')}, berikut e-ticket Anda:`,
+    '',
+    `Nama           : ${String(o?.buyer_name ?? '')}`,
+    `Nomor Tiket    : ${String((t as Record<string, unknown>).ticket_number ?? t.qr_token)}`,
+    `Jam            : ${fmtTanggalJam(String((acara.value as Record<string, unknown> | undefined)?.start_datetime ?? ''))}`,
+    `Kategori Tiket : ${c?.name ?? '-'}`,
+  ]
+  if (seat) baris.push(`Seat           : ${seat}`)
+  baris.push(
+    `Venue          : ${String((acara.value as Record<string, unknown> | undefined)?.venue ?? '-')}`,
+    '',
+    'Tunjukkan QR code (gambar terlampir) saat check-in.',
+    'QR berlaku sekali pakai.',
+    '',
+    'Laksamana Muda Coffee & Live Space',
+  )
+  const nomor = String(o?.buyer_phone ?? '').replace(/[^0-9]/g, '').replace(/^0/, '62')
+  if (!nomor) {
+    toast.add({ title: 'Nomor WhatsApp pembeli kosong.', color: 'error' })
+    return
+  }
+  window.open(`https://wa.me/${nomor}?text=${encodeURIComponent(baris.join('\n'))}`, '_blank', 'noopener')
+  toast.add({ title: 'WhatsApp dibuka — jangan lupa lampirkan gambar QR-nya.' })
 }
+/** QR disimpan sebagai PNG 600px supaya gampang dilampirkan di WhatsApp atau email. */
 function unduhQR(t: Tiket) {
-  const blob = new Blob([`LAKSAMANA MUDA E-TICKET\n${String(acara.value?.title ?? '')}\nKode: ${t.qr_token}\n`], { type: 'text/plain;charset=utf-8' })
-  const a = document.createElement('a')
-  a.href = URL.createObjectURL(blob)
-  a.download = `eticket-${t.qr_token}.txt`
-  a.click()
-  URL.revokeObjectURL(a.href)
+  let svg = ''
+  try {
+    svg = qrSvg(t.qr_token, 600)
+  }
+  catch {
+    toast.add({ title: 'Token terlalu panjang untuk QR.', color: 'error' })
+    return
+  }
+  const img = new Image()
+  img.onload = () => {
+    const cv = document.createElement('canvas')
+    cv.width = cv.height = 600
+    const cx = cv.getContext('2d')
+    if (!cx) return
+    cx.fillStyle = '#fff'
+    cx.fillRect(0, 0, 600, 600)
+    cx.drawImage(img, 0, 0)
+    cv.toBlob((b) => {
+      if (!b) return
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(b)
+      const no = String((t as Record<string, unknown>).ticket_number ?? t.qr_token)
+      a.download = `QR-${no}.png`
+      a.click()
+      setTimeout(() => URL.revokeObjectURL(a.href), 4000)
+      toast.add({ title: `QR tersimpan sebagai ${a.download}`, color: 'success' })
+    })
+  }
+  img.onerror = () => toast.add({ title: 'Gagal menyiapkan gambar QR.', color: 'error' })
+  img.src = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svg)))}`
+}
+/** One seat label for WA and e-ticket (table_no wins over the raw seat number). */
+function labelKursiTiket(sid?: string) {
+  if (!sid) return ''
+  const st = daftarKursi.value.rows.find(x => String(x.id) === String(sid))
+  return String((st as Record<string, unknown> | undefined)?.table_no ?? (st as Record<string, unknown> | undefined)?.seat_no ?? '')
 }
 </script>
 
 <template>
+  <EventGerbang lihat="ticketing">
   <AppPage
     :title="String(acara?.title ?? 'Ticketing')"
     description="Kelas, denah, penjualan & refund"
@@ -470,7 +613,7 @@ function unduhQR(t: Tiket) {
           <UFormField label="Tiket">
             <USelect
               v-model="jual.class_id"
-              :items="kelas.map(k => ({ value: k.id, label: `${k.name} — ${rupiah(Number(k.price) || 0)}${(Number(k.quota) || 0) - (Number(k.sold) || 0) <= 0 ? ' (HABIS)' : ''}`, disabled: (Number(k.quota) || 0) - (Number(k.sold) || 0) <= 0 }))"
+              :items="kelas.map(k => ({ value: k.id, label: `${k.name} — ${rupiah(Number(k.price) || 0)} (${sisaKelas(k) <= 0 ? 'HABIS' : `${sisaKelas(k)} tersisa`})`, disabled: sisaKelas(k) <= 0 }))"
               placeholder="Pilih kelas…"
               class="w-full"
             />
@@ -501,6 +644,12 @@ function unduhQR(t: Tiket) {
             />
           </UFormField>
         </div>
+        <p
+          v-if="jual.class_id"
+          class="mt-2 text-sm text-muted num"
+        >
+          Total: <b class="text-highlighted">{{ rupiah(totalJual) }}</b>
+        </p>
         <UButton
           color="primary"
           :loading="menjual"
@@ -517,6 +666,7 @@ function unduhQR(t: Tiket) {
         <AppStat
           label="Omzet"
           :value="rupiah(ringkas.omzet)"
+          :sub=" pesananLunas ? `rata ${rupiah(Math.round(ringkas.omzet / pesananLunas))} · ${angka(pesananLunas)} pesanan` : 'belum ada pesanan lunas'"
           icon="i-lucide-banknote"
           tone="gold"
         />
@@ -531,6 +681,12 @@ function unduhQR(t: Tiket) {
           :value="rupiah(ringkas.dikembalikan)"
           icon="i-lucide-undo-2"
           tone="error"
+        />
+        <AppStat
+          label="Pesanan"
+          :value="angka(barisOrder.length)"
+          icon="i-lucide-receipt-text"
+          tone="info"
         />
       </AppStatGrid>
       <AppPanel
@@ -547,62 +703,70 @@ function unduhQR(t: Tiket) {
         />
       </AppPanel>
       <AppPanel
-        v-if="bolehUbah && antreRefund.length"
-        title="Refund menunggu"
-        icon="i-lucide-undo-2"
-        class="mb-4"
-      >
-        <ul class="space-y-2">
-          <li
-            v-for="r in antreRefund"
-            :key="r.id"
-            class="flex flex-wrap items-center gap-2 rounded-field border border-default px-3 py-2 text-sm"
-          >
-            <span class="flex-1"><b class="text-highlighted num">{{ rupiah(Number(r.amount) || 0) }}</b> · <span class="text-muted">{{ String(r.reason ?? '') }}</span></span>
-            <UButton
-              color="success"
-              size="sm"
-              @click="putuskanRefund(r.id, true)"
-            >
-              Setujui
-            </UButton>
-            <UButton
-              color="error"
-              variant="outline"
-              size="sm"
-              @click="putuskanRefund(r.id, false)"
-            >
-              Tolak
-            </UButton>
-          </li>
-        </ul>
-      </AppPanel>
-      <AppPanel
         title="Daftar pembeli"
         icon="i-lucide-users"
         flush
       >
         <UTable
-          :columns="[{ id: 'nama', header: 'Pembeli' }, { id: 'kelas', header: 'Kelas' }, { id: 'kode', header: 'Kode' }, { id: 'refund', header: 'Refund' }, { id: 'aksi', header: 'E-ticket' }]"
-          :data="daftarTiket.rows"
+          :columns="[
+            { id: 'nama', header: 'Pembeli' },
+            { id: 'kontak', header: 'Kontak' },
+            { id: 'tiket', header: 'Tiket' },
+            { id: 'kursi', header: 'Kursi' },
+            { id: 'total', header: 'Total' },
+            { id: 'bayar', header: 'Bayar' },
+            { id: 'refund', header: 'Refund' },
+            { id: 'hadir', header: 'Check-in' },
+            { id: 'aksi', header: '' },
+          ]"
+          :data="orderTampil"
           class="hidden lg:block"
+          :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
         >
           <template #nama-cell="{ row }">
-            <b class="text-highlighted">{{ String((row.original as Record<string, unknown>).buyer_name ?? '—') }}</b>
+            <b class="text-highlighted">{{ String(row.original.buyer_name ?? '—') }}</b>
+            <span class="block text-xs text-muted">{{ fmtTanggalJam(row.original.created) }}<template v-if="String(row.original.recorded_by ?? '')"> · {{ String(row.original.recorded_by) === 'Website' ? 'Website' : `oleh ${String(row.original.recorded_by)}` }}</template></span>
+            <span
+              v-if="String(row.original.payment_ref ?? '')"
+              class="block text-xs text-muted"
+            >{{ String(row.original.payment_ref) }}</span>
           </template>
-          <template #kelas-cell="{ row }">
-            {{ daftarKelas.rows.find(c => c.id === row.original.ticket_class_id)?.name ?? '—' }}
+          <template #kontak-cell="{ row }">
+            <span class="block text-xs">{{ String(row.original.buyer_phone ?? '—') }}</span>
+            <span class="block text-xs text-muted">{{ String(row.original.buyer_email ?? '—') }}</span>
           </template>
-          <template #kode-cell="{ row }">
-            <span class="text-xs">{{ row.original.qr_token }}</span>
+          <template #tiket-cell="{ row }">
+            <span>{{ daftarKelas.rows.find(c => c.id === tiketOrder(row.original.id)[0]?.ticket_class_id)?.name ?? '—' }}</span>
+            <AppStatus
+              v-if="tiketOrder(row.original.id).length > 1"
+              color="info"
+              size="sm"
+              class="ms-1.5"
+            >
+              {{ tiketOrder(row.original.id).length }} tiket
+            </AppStatus>
+          </template>
+          <template #kursi-cell="{ row }">
+            <span class="text-xs">{{ kursiOrder(tiketOrder(row.original.id)).join(', ') || '—' }}</span>
+          </template>
+          <template #total-cell="{ row }">
+            <b class="num">{{ rupiah(Number(row.original.total) || 0) }}</b>
+          </template>
+          <template #bayar-cell="{ row }">
+            <AppStatus
+              :color="warnaBayar(String(row.original.payment_status ?? ''))"
+              size="sm"
+            >
+              {{ String(row.original.payment_status ?? '—') }}
+            </AppStatus>
           </template>
           <template #refund-cell="{ row }">
             <span
-              v-if="!refundUntukTiket(row.original)"
+              v-if="!refundOrder(row.original.id)"
               class="text-muted"
             >—</span>
             <AppStatus
-              v-else-if="String(refundUntukTiket(row.original)?.status ?? '') === 'Pending'"
+              v-else-if="String(refundOrder(row.original.id)?.status ?? '') === 'Pending'"
               color="warning"
               icon="i-lucide-hourglass"
               size="sm"
@@ -610,7 +774,7 @@ function unduhQR(t: Tiket) {
               On process
             </AppStatus>
             <span
-              v-else-if="gantung(refundUntukTiket(row.original)!)"
+              v-else-if="gantung(refundOrder(row.original.id)!)"
               class="flex flex-wrap items-center gap-1.5"
             >
               <AppStatus
@@ -625,7 +789,7 @@ function unduhQR(t: Tiket) {
                 color="neutral"
                 variant="outline"
                 size="sm"
-                @click="selesaikanId = refundUntukTiket(row.original)!.id"
+                @click="selesaikanId = refundOrder(row.original.id)!.id"
               >
                 Selesaikan refund
               </UButton>
@@ -635,7 +799,7 @@ function unduhQR(t: Tiket) {
               >manajemen perlu menekan Selesaikan refund</span>
             </span>
             <AppStatus
-              v-else-if="String(refundUntukTiket(row.original)?.status ?? '') === 'Approved'"
+              v-else-if="String(refundOrder(row.original.id)?.status ?? '') === 'Approved'"
               color="success"
               icon="i-lucide-check"
               size="sm"
@@ -650,93 +814,244 @@ function unduhQR(t: Tiket) {
             >
               Ditolak
             </AppStatus>
+            <UButton
+              v-if="refundOrder(row.original.id)?.status === 'Pending'"
+              label="diputus di Approval Flow"
+              color="neutral"
+              variant="link"
+              size="xs"
+              to="/event/approval"
+            />
+          </template>
+          <template #hadir-cell="{ row }">
+            <span class="text-xs num">{{ masukOrder(tiketOrder(row.original.id)) ? `${masukOrder(tiketOrder(row.original.id))}/${tiketOrder(row.original.id).length}` : '—' }}</span>
           </template>
           <template #aksi-cell="{ row }">
-            <span class="flex gap-1">
-              <UButton
-                color="success"
-                variant="ghost"
-                size="sm"
-                icon="i-lucide-message-circle"
-                @click="kirimWA(row.original)"
-              />
+            <span
+              v-if="tiketOrder(row.original.id).length"
+              class="flex gap-1"
+            >
               <UButton
                 color="neutral"
                 variant="ghost"
                 size="sm"
-                icon="i-lucide-download"
-                @click="unduhQR(row.original)"
+                label="E-Ticket"
+                @click="etiket = tiketOrder(row.original.id)[0]!"
+              />
+              <UButton
+                v-if="bisaAjukanRefund(row.original)"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                label="Refund"
+                @click="bukaRefund(row.original.id)"
               />
             </span>
           </template>
         </UTable>
+        <p
+          v-if="!barisOrder.length"
+          class="px-4 py-6 text-center text-sm text-dimmed"
+        >
+          Belum ada pembeli.
+        </p>
+        <div
+          v-else
+          class="flex flex-wrap items-center justify-between gap-3 border-t border-default px-4 py-3 text-sm text-muted"
+        >
+          <span class="num">{{ (halSales - 1) * SALES_PER_HAL + 1 }}–{{ Math.min(halSales * SALES_PER_HAL, barisOrder.length) }} dari {{ angka(barisOrder.length) }} pesanan</span>
+          <div class="flex items-center gap-2">
+            <UButton
+              icon="i-lucide-chevron-left"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              aria-label="Halaman sebelumnya"
+              :disabled="halSales <= 1"
+              @click="halSales--"
+            />
+            <span class="num">Hal {{ halSales }} / {{ maxHalSales }}</span>
+            <UButton
+              icon="i-lucide-chevron-right"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              aria-label="Halaman berikutnya"
+              :disabled="halSales >= maxHalSales"
+              @click="halSales++"
+            />
+          </div>
+        </div>
         <ul class="divide-y divide-default lg:hidden">
           <li
-            v-for="t in daftarTiket.rows"
-            :key="t.id"
-            class="flex items-center gap-2 px-4 py-2.5 text-sm"
+            v-for="o in orderTampil"
+            :key="o.id"
+            class="px-4 py-2.5 text-sm"
           >
-            <span class="min-w-0 flex-1">
-              <b class="block truncate text-highlighted">{{ String((t as Record<string, unknown>).buyer_name ?? '—') }}</b>
-              <span class="block truncate text-xs text-muted">{{ t.qr_token }}</span>
-              <span
-                v-if="refundUntukTiket(t)"
-                class="mt-1 flex flex-wrap items-center gap-1.5"
-              >
-                <AppStatus
-                  v-if="String(refundUntukTiket(t)?.status ?? '') === 'Pending'"
-                  color="warning"
-                  icon="i-lucide-hourglass"
-                  size="sm"
-                >
-                  On process
-                </AppStatus>
-                <AppStatus
-                  v-else-if="gantung(refundUntukTiket(t)!)"
-                  color="warning"
-                  icon="i-lucide-hourglass"
-                  size="sm"
-                >
-                  Disetujui · belum diselesaikan
-                </AppStatus>
-                <AppStatus
-                  v-else-if="String(refundUntukTiket(t)?.status ?? '') === 'Approved'"
-                  color="success"
-                  icon="i-lucide-check"
-                  size="sm"
-                >
-                  Refunded
-                </AppStatus>
-                <AppStatus
-                  v-else
-                  color="neutral"
-                  icon="i-lucide-x"
-                  size="sm"
-                >
-                  Ditolak
-                </AppStatus>
-                <UButton
-                  v-if="gantung(refundUntukTiket(t)!) && manajemen"
-                  color="neutral"
-                  variant="outline"
-                  size="sm"
-                  @click="selesaikanId = refundUntukTiket(t)!.id"
-                >
-                  Selesaikan refund
-                </UButton>
-              </span>
+            <span class="flex items-start justify-between gap-2">
+              <b class="min-w-0 truncate text-highlighted">{{ String(o.buyer_name ?? '—') }}</b>
+              <b class="shrink-0 num">{{ rupiah(Number(o.total) || 0) }}</b>
             </span>
-            <UButton
-              color="success"
-              variant="ghost"
-              size="sm"
-              icon="i-lucide-message-circle"
-              @click="kirimWA(t)"
-            />
+            <span class="mt-0.5 block truncate text-xs text-muted">{{ daftarKelas.rows.find(c => c.id === tiketOrder(o.id)[0]?.ticket_class_id)?.name ?? '—' }} · {{ fmtTanggalJam(o.created) }}</span>
+            <span
+              v-if="refundOrder(o.id)"
+              class="mt-1 flex flex-wrap items-center gap-1.5"
+            >
+              <AppStatus
+                v-if="String(refundOrder(o.id)?.status ?? '') === 'Pending'"
+                color="warning"
+                icon="i-lucide-hourglass"
+                size="sm"
+              >
+                On process
+              </AppStatus>
+              <AppStatus
+                v-else-if="gantung(refundOrder(o.id)!)"
+                color="warning"
+                icon="i-lucide-hourglass"
+                size="sm"
+              >
+                Disetujui · belum diselesaikan
+              </AppStatus>
+              <AppStatus
+                v-else-if="String(refundOrder(o.id)?.status ?? '') === 'Approved'"
+                color="success"
+                icon="i-lucide-check"
+                size="sm"
+              >
+                Refunded
+              </AppStatus>
+              <AppStatus
+                v-else
+                color="neutral"
+                icon="i-lucide-x"
+                size="sm"
+              >
+                Ditolak
+              </AppStatus>
+            </span>
+            <span class="mt-1.5 flex flex-wrap gap-1.5">
+              <UButton
+                v-if="tiketOrder(o.id).length"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                label="E-Ticket"
+                @click="etiket = tiketOrder(o.id)[0]!"
+              />
+              <UButton
+                v-if="bisaAjukanRefund(o)"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                label="Refund"
+                @click="bukaRefund(o.id)"
+              />
+            </span>
           </li>
         </ul>
       </AppPanel>
     </template>
+
+    <ResponsiveSheet
+      v-model:open="sheetEtiket"
+      title="E-Ticket"
+    >
+      <div
+        v-if="etiket"
+        class="space-y-3"
+      >
+        <div class="flex flex-wrap gap-5">
+          <div class="text-center">
+            <div
+              v-if="etiketQr"
+              class="inline-block overflow-hidden rounded-lg border border-default bg-white p-2"
+              v-html="etiketQr"
+            />
+            <p class="mt-1 text-xs text-muted num">
+              {{ etiketNo }}
+            </p>
+            <AppStatus
+              :color="etiket.status === 'Checked-In' ? 'success' : 'neutral'"
+              size="sm"
+              class="mt-1"
+            >
+              {{ etiket.status ?? '—' }}
+            </AppStatus>
+          </div>
+          <div class="min-w-52 flex-1 space-y-1.5 text-sm">
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Event</span>
+              <b class="text-right text-highlighted">{{ String((acara as Record<string, unknown> | undefined)?.title ?? '—') }}</b>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Nama</span>
+              <span>{{ String(etiketOrder?.buyer_name ?? '—') }}</span>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Class</span>
+              <span>{{ etiketKelas?.name ?? '—' }}</span>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Seat</span>
+              <span>{{ etiketKursi || 'Standing' }}</span>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Venue</span>
+              <span>{{ String((acara as Record<string, unknown> | undefined)?.venue ?? '—') }}</span>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">Waktu</span>
+              <span>{{ fmtTanggalJam(String((acara as Record<string, unknown> | undefined)?.start_datetime ?? '')) }}</span>
+            </div>
+            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <span class="text-muted">QR Token</span>
+              <span class="break-all text-xs num">{{ etiket.qr_token }}</span>
+            </div>
+          </div>
+        </div>
+        <p class="text-xs text-muted">
+          QR single-use. Tunjukkan saat check-in.
+        </p>
+        <div class="rounded-field border border-default bg-muted p-2.5 text-xs text-muted">
+          Pembeli membuka barcode-nya sendiri di <b>laksamanamuda.id/ticketing</b> — daftar atau masuk memakai email
+          <b class="break-all">{{ String(etiketOrder?.buyer_email ?? '—') }}</b>, tiketnya langsung muncul di menu
+          <b>Tiket Saya</b>.
+          <template v-if="!etiketOrder?.buyer_email">
+            <span class="font-semibold text-error">Pesanan ini belum ada emailnya — pembeli tidak akan bisa menemukannya.</span>
+          </template>
+        </div>
+      </div>
+      <template #footer>
+        <UButton
+          label="Salin token"
+          color="neutral"
+          variant="outline"
+          size="xl"
+          @click="salinToken"
+        />
+        <UButton
+          label="Unduh QR"
+          color="neutral"
+          variant="outline"
+          size="xl"
+          @click="etiket && unduhQR(etiket)"
+        />
+        <UButton
+          label="Kirim WA"
+          color="success"
+          size="xl"
+          @click="etiket && kirimWA(etiket)"
+        />
+        <UButton
+          label="Tutup"
+          color="neutral"
+          variant="soft"
+          size="xl"
+          @click="sheetEtiket = false"
+        />
+      </template>
+    </ResponsiveSheet>
 
     <ResponsiveSheet
       v-model:open="sheetKelas"
@@ -873,11 +1188,36 @@ function unduhQR(t: Tiket) {
       </template>
     </ResponsiveSheet>
 
-    <EventTolakRefund
-      v-model:open="sheetTolak"
-      :ket="ketTolak"
-      :sibuk="menolak"
-      @tolak="jalanTolakRefund"
-    />
+    <ResponsiveSheet
+      v-model:open="sheetRefund"
+      title="Ajukan refund"
+      :description="orderRefund ? `${String(orderRefund.buyer_name ?? '')} · ${rupiah(Number(orderRefund.total) || 0)}` : ''"
+    >
+      <UFormField
+        label="Alasan refund"
+        required
+        help="Setelah diajukan, statusnya menunggu persetujuan. Pengajuan hanya bisa sekali per order."
+      >
+        <UTextarea
+          v-model="alasanRefund"
+          :rows="3"
+          placeholder="mis. acara bentrok, tiket dobel"
+          class="w-full"
+        />
+      </UFormField>
+      <template #footer>
+        <UButton
+          label="Ajukan"
+          @click="ajukanRefund"
+        />
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="outline"
+          @click="sheetRefund = false"
+        />
+      </template>
+    </ResponsiveSheet>
   </AppPage>
+  </EventGerbang>
 </template>
