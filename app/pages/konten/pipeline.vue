@@ -62,6 +62,7 @@ async function lepas(col: string) {
 </script>
 
 <template>
+  <KontenGerbang lihat="pipeline">
   <AppPage
     title="Content Pipeline"
     description="Geser kartu antar kolom untuk update status"
@@ -228,4 +229,5 @@ async function lepas(col: string) {
       </p>
     </div>
   </AppPage>
+  </KontenGerbang>
 </template>

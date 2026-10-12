@@ -43,6 +43,7 @@ function buka(a: AssetKonten) {
 </script>
 
 <template>
+  <KontenGerbang lihat="assets">
   <AppPage
     title="Asset Management"
     :description="`${st.assets.length} asset tersimpan - foto, video, desain, template`"
@@ -142,4 +143,5 @@ function buka(a: AssetKonten) {
       :asset="asset"
     />
   </AppPage>
+  </KontenGerbang>
 </template>

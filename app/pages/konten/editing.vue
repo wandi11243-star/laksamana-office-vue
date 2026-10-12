@@ -8,6 +8,7 @@ const { data: st, error } = useStateKonten()
 </script>
 
 <template>
+  <KontenGerbang lihat="editing">
   <AppPage
     title="Editing Queue"
     description="Antrian video - konten yang ditandai butuh editing. Tandai selesai bila video final siap."
@@ -22,4 +23,5 @@ const { data: st, error } = useStateKonten()
     <KontenBrandBar :brands="st.brands" />
     <KontenAntrian kind="edit" />
   </AppPage>
+  </KontenGerbang>
 </template>

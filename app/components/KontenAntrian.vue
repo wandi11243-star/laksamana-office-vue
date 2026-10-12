@@ -27,6 +27,7 @@ import { UButton } from '#components'
 const props = defineProps<{ kind: ProdKind }>()
 
 const router = useRouter()
+const route = useRoute()
 const toast = useToast()
 const { data: st } = useStateKonten()
 const { saya, can } = useAksesKonten()
@@ -113,6 +114,16 @@ function tambah() {
   tugas.value = null
   tugasBuka.value = true
 }
+/** Deep link from the dashboard / calendar agenda (?buka=): open the task form itself. */
+watch([() => route.query.buka, () => st.value.prodTasks.length], () => {
+  const id = typeof route.query.buka === 'string' ? route.query.buka : ''
+  if (!id) return
+  const t = st.value.prodTasks.find(x => x.id === id && x.kind === props.kind)
+  if (!t) return
+  tugas.value = t
+  tugasBuka.value = true
+  router.replace({ query: { ...route.query, buka: undefined } })
+}, { immediate: true })
 function buka(r: BarisAntrian) {
   if (r.src === 'content') return router.push(`/konten/detail/${r.id}`)
   if (r.src === 'mkt') {
@@ -250,6 +261,7 @@ watch(reqBuka, async (r) => {
           class="hidden lg:block"
           :data="halaman"
           :columns="kolom"
+          :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
         >
           <template #prio-cell="{ row }">
             <AppStatus

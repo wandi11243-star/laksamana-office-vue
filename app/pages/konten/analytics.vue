@@ -14,6 +14,7 @@ const content = computed(() => saringBrand(st.value.content, brand.value))
 </script>
 
 <template>
+  <KontenGerbang lihat="analytics">
   <AppPage
     title="Performa Konten"
     description="Reach, Engagement Rate, Virality Index, CTA Click Rate & Content Pillar"
@@ -28,4 +29,5 @@ const content = computed(() => saringBrand(st.value.content, brand.value))
     <KontenBrandBar :brands="st.brands" />
     <KontenPerformaPanel :content="content" />
   </AppPage>
+  </KontenGerbang>
 </template>

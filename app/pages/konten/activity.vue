@@ -16,6 +16,7 @@ const waktu = (v?: number) => (v ? new Date(v).toLocaleString('id-ID', { day: 'n
 </script>
 
 <template>
+  <KontenGerbang lihat="activity">
   <AppPage
     title="Activity Log"
     :description="`${st.logs.length} aktivitas tercatat - jejak audit`"
@@ -61,4 +62,5 @@ const waktu = (v?: number) => (v ? new Date(v).toLocaleString('id-ID', { day: 'n
       </ul>
     </AppPanel>
   </AppPage>
+  </KontenGerbang>
 </template>

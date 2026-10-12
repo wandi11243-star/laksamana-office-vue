@@ -69,10 +69,11 @@ const legenda = [
   { k: 'visit', l: 'Kunjungan KOL & Medpar' },
 ] as const
 
-/** Where an event leads (old calOpenEvent): content → detail, visit → KOL, task → its queue. */
+/** Where an event leads (old calOpenEvent): content → detail, visit → its form, task → its form. */
 function buka(e: AcaraKalender) {
   if (e.cid) return router.push(`/konten/detail/${e.cid}`)
-  if (e.vid) return router.push('/konten/kol')
+  if (e.vid) return router.push(`/konten/kol?tab=visit&buka=${e.vid}`)
+  if (e.kind && e.tid) return router.push(`/konten/${PROD_TYPES[e.kind].view}?buka=${e.tid}`)
   if (e.kind) return router.push(`/konten/${PROD_TYPES[e.kind].view}`)
   return router.push('/konten/shooting')
 }
@@ -123,6 +124,7 @@ async function lepas(tgl: string) {
 </script>
 
 <template>
+  <KontenGerbang lihat="calendar">
   <AppPage
     title="Content Calendar"
     description="Jadwal tayang lintas brand"
@@ -275,4 +277,5 @@ async function lepas(tgl: string) {
       </ul>
     </ResponsiveSheet>
   </AppPage>
+  </KontenGerbang>
 </template>

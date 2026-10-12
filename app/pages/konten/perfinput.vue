@@ -79,6 +79,7 @@ const kolom: TableColumn<PerfBaris>[] = [
 </script>
 
 <template>
+  <KontenGerbang lihat="perfinput">
   <AppPage
     title="Input Performa"
     description="Angka insight tiap platform — reach, impression, likes, komentar, share, save, dan klik CTA. Yang tampil hanya konten berstatus Posted: performa konten yang belum tayang tidak ada di platform mana pun."
@@ -149,6 +150,7 @@ const kolom: TableColumn<PerfBaris>[] = [
           class="hidden lg:block"
           :data="halaman"
           :columns="kolom"
+          :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
         >
           <template #konten-cell="{ row }">
             <button
@@ -262,4 +264,5 @@ const kolom: TableColumn<PerfBaris>[] = [
       :item="formItem"
     />
   </AppPage>
+  </KontenGerbang>
 </template>

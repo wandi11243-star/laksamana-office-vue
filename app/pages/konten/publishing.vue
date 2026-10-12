@@ -50,6 +50,7 @@ function bukaTayang(c: KontenItem) {
 </script>
 
 <template>
+  <KontenGerbang lihat="publishing">
   <AppPage
     title="Publishing"
     description="Catatan publikasi aktual"
@@ -173,4 +174,5 @@ function bukaTayang(c: KontenItem) {
       :item="tayangItem"
     />
   </AppPage>
+  </KontenGerbang>
 </template>

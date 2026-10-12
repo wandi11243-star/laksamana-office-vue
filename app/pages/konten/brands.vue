@@ -30,6 +30,7 @@ function bukaForm(b?: BrandKonten) {
 </script>
 
 <template>
+  <KontenGerbang lihat="brands">
   <AppPage
     title="Brand Management"
     :description="`${st.brands.length} brand dikelola`"
@@ -177,4 +178,5 @@ function bukaForm(b?: BrandKonten) {
       :brand="brandItem"
     />
   </AppPage>
+  </KontenGerbang>
 </template>

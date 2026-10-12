@@ -13,9 +13,10 @@
   (renderPerfBlock, from performa-konten.ts).
 -->
 <script setup lang="ts">
+import type { ComponentPublicInstance } from 'vue'
 import type { KontenItem, ProdKind } from '~/utils/konten'
 import {
-  PIPELINE_KONTEN, PRINT_TYPES, PRIORITY_KONTEN, PROD_KINDS, PROD_TYPES, contentDetail, contentPlatforms, contentRefs,
+  PIPELINE_KONTEN, PRINT_TYPES, PRIORITY_KONTEN, PROD_KINDS, PROD_TYPES, ROLES_KONTEN, contentDetail, contentPlatforms, contentRefs,
   contentTypes, kruDisebut, potongMention, printTypes, statusGeser, sudahArsip,
 } from '~/utils/konten'
 import { ikonStatusKonten, warnaPrioKonten, warnaStatusKonten } from '~/utils/status-konten'
@@ -41,6 +42,11 @@ const checklist = computed(() => c.value?.checklist ?? [])
 const chkDone = computed(() => checklist.value.filter(x => x.done).length)
 const refsLink = computed(() => contentRefs(c.value).filter(r => r.t !== 'img'))
 const refsImg = computed(() => contentRefs(c.value).filter(r => r.t === 'img'))
+/** In-app zoom of a reference photo (old viewImage). */
+const zoomImg = ref<{ v: string, n?: string } | null>(null)
+const zoomBuka = computed({ get: () => !!zoomImg.value, set: (v: boolean) => {
+  if (!v) zoomImg.value = null
+} })
 const detail = computed(() => contentDetail(c.value))
 const namaKru = computed(() => st.value.users.map(u => u.name))
 const lalu = (ts?: number) => {
@@ -107,8 +113,93 @@ async function addChk() {
   if (await setChecklist([...checklist.value, { t, done: false }])) chkBaru.value = ''
 }
 
-// ---- discussion (:2452-2461): mentions = "@<full name>", notified one by one ----
+// ---- discussion (:2452-2461, mention scan :2394-2435): mentions = "@<full name>", notified one by one ----
 const komentar = ref('')
+const bungkusKomentar = ref<ComponentPublicInstance | null>(null)
+const elKomentar = () => {
+  const root = bungkusKomentar.value?.$el as HTMLElement | undefined
+  return root?.querySelector('input') ?? null
+}
+/** Popup state: query behind the cursor, its start, the highlighted row. */
+const mntBuka = ref(false)
+const mntIdx = ref(0)
+const mntQuery = ref('')
+const mntAwal = ref(-1)
+const inisial = (nama?: string) => String(nama ?? '').split(/\s+/).filter(Boolean).map(w => w[0]).join('').slice(0, 2).toUpperCase()
+/** Full name, any word start, or initials — like the old mentionCandidates (:2386-2393). */
+const mntCalon = computed(() => {
+  const q = mntQuery.value.toLowerCase()
+  return st.value.users.filter(u => u.id !== saya.value?.user.id && u.name
+    && (!q || u.name.toLowerCase().includes(q)
+      || u.name.toLowerCase().split(/\s+/).some(w => w.startsWith(q))
+      || inisial(u.name).toLowerCase().startsWith(q))).slice(0, 6)
+})
+const peranSingkat = (u: { roles?: string[], division?: string }) =>
+  (u.roles ?? []).map(r => ROLES_KONTEN[r as keyof typeof ROLES_KONTEN]?.label).filter(Boolean).join(', ')
+  || u.division || ''
+/** On each keystroke: when the cursor sits behind "@…", show the crew list. */
+function pindaiMention() {
+  const el = elKomentar()
+  if (!el || typeof el.selectionStart !== 'number') {
+    mntBuka.value = false
+    return
+  }
+  const m = el.value.slice(0, el.selectionStart).match(/(?:^|\s)@([^@\s]{0,24})$/)
+  if (!m) {
+    mntBuka.value = false
+    return
+  }
+  mntQuery.value = m[1] ?? ''
+  mntAwal.value = (el.selectionStart ?? 0) - mntQuery.value.length - 1
+  mntIdx.value = 0
+  mntBuka.value = mntCalon.value.length > 0
+}
+/** Insert "@Full Name " over the "@query" being typed (old pickMention). */
+function pilihMention(u: { id: string, name?: string }) {
+  const el = elKomentar()
+  const awal = mntAwal.value
+  if (!u.name || awal < 0) {
+    mntBuka.value = false
+    return
+  }
+  const teks = el?.value ?? komentar.value
+  const pos = el?.selectionStart ?? teks.length
+  const caret = awal + u.name.length + 2
+  komentar.value = `${teks.slice(0, awal)}@${u.name} ${teks.slice(pos)}`
+  mntBuka.value = false
+  nextTick(() => {
+    const ulang = elKomentar()
+    if (!ulang) return
+    ulang.focus()
+    ulang.setSelectionRange(caret, caret)
+  })
+}
+function onTombolKomentar(e: KeyboardEvent) {
+  if (mntBuka.value && mntCalon.value.length) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault()
+      mntIdx.value = (mntIdx.value + 1) % mntCalon.value.length
+      return
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault()
+      mntIdx.value = (mntIdx.value - 1 + mntCalon.value.length) % mntCalon.value.length
+      return
+    }
+    if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault()
+      const u = mntCalon.value[mntIdx.value]
+      if (u) pilihMention(u)
+      return
+    }
+    if (e.key === 'Escape') {
+      e.preventDefault()
+      mntBuka.value = false
+      return
+    }
+  }
+  if (e.key === 'Enter') kirimKomentar()
+}
 async function kirimKomentar() {
   const text = komentar.value.trim()
   if (!text || !c.value) return
@@ -118,10 +209,8 @@ async function kirimKomentar() {
   if (await tambal({ comments }, undefined, 'berkomentar di')) {
     for (const uid of mentions) notifKonten('mention', `${namaUser(saya_)} menyebut ${namaUser(uid)} di diskusi "${c.value.title}"`, uid)
     komentar.value = ''
+    mntBuka.value = false
   }
-}
-const sebut = (nama: string) => {
-  komentar.value = `${komentar.value}${komentar.value && !komentar.value.endsWith(' ') ? ' ' : ''}@${nama} `
 }
 
 // ---- publish (:2470-2477): KontenTayangSheet ----
@@ -307,21 +396,42 @@ const setelahSimpan = (nid: string) => router.replace(`/konten/detail/${nid}`)
         v-if="refsImg.length"
         class="mt-3 flex flex-wrap gap-2"
       >
-        <a
+        <button
           v-for="(r, i) in refsImg"
           :key="i"
-          :href="r.v"
-          target="_blank"
-          rel="noopener"
+          type="button"
+          :title="`Perbesar ${r.n || 'referensi'}`"
+          @click="zoomImg = { v: r.v, n: r.n }"
         >
           <img
             :src="r.v"
             :alt="r.n || 'Referensi'"
             class="size-24 rounded-field border border-default object-cover"
           >
-        </a>
+        </button>
       </div>
     </AppPanel>
+
+    <ResponsiveSheet
+      v-model:open="zoomBuka"
+      :title="zoomImg?.n || 'Referensi'"
+    >
+      <img
+        v-if="zoomImg"
+        :src="zoomImg.v"
+        :alt="zoomImg.n || 'Referensi'"
+        class="w-full rounded-lg border border-default"
+      >
+      <template #footer>
+        <UButton
+          label="Tutup"
+          color="neutral"
+          variant="soft"
+          size="xl"
+          @click="zoomImg = null"
+        />
+      </template>
+    </ResponsiveSheet>
 
     <AppPanel
       v-if="detail"
@@ -528,10 +638,13 @@ const setelahSimpan = (nid: string) => router.replace(`/konten/detail/${nid}`)
       </ul>
       <div class="mt-3 flex items-start gap-2">
         <UInput
+          ref="bungkusKomentar"
           v-model="komentar"
           placeholder="Tulis komentar… ketik @ untuk mention"
           class="flex-1"
-          @keydown.enter="kirimKomentar"
+          @keydown="onTombolKomentar"
+          @input="pindaiMention"
+          @click="pindaiMention"
         />
         <UButton
           label="Kirim"
@@ -539,18 +652,28 @@ const setelahSimpan = (nid: string) => router.replace(`/konten/detail/${nid}`)
         />
       </div>
       <div
-        v-if="komentar.endsWith('@')"
-        class="mt-2 flex flex-wrap gap-1.5"
+        v-if="mntBuka && mntCalon.length"
+        class="mt-2 overflow-hidden rounded-field border border-default"
       >
-        <UButton
-          v-for="u in st.users.filter(x => x.id !== saya?.user.id)"
+        <button
+          v-for="(u, i) in mntCalon"
           :key="u.id"
-          :label="u.name"
-          size="xs"
-          color="neutral"
-          variant="outline"
-          @click="komentar = komentar.slice(0, -1); sebut(u.name)"
-        />
+          type="button"
+          class="flex w-full items-center gap-2 px-3 py-2 text-start text-sm hover:bg-muted"
+          :class="i === mntIdx ? 'bg-muted' : ''"
+          @mousedown.prevent
+          @click="pilihMention(u)"
+          @mousemove="mntIdx = i"
+        >
+          <span class="flex size-7 flex-none items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700">{{ inisial(u.name) }}</span>
+          <span class="min-w-0">
+            <b class="block truncate">{{ u.name }}</b>
+            <span
+              v-if="peranSingkat(u)"
+              class="block truncate text-xs text-muted"
+            >{{ peranSingkat(u) }}</span>
+          </span>
+        </button>
       </div>
     </AppPanel>
 

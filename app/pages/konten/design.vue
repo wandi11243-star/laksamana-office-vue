@@ -8,6 +8,7 @@ const { data: st, error } = useStateKonten()
 </script>
 
 <template>
+  <KontenGerbang lihat="design">
   <AppPage
     title="Design Queue"
     description="Antrian desain - konten yang ditandai butuh desain. Tandai selesai bila sudah dikerjakan."
@@ -22,4 +23,5 @@ const { data: st, error } = useStateKonten()
     <KontenBrandBar :brands="st.brands" />
     <KontenAntrian kind="design" />
   </AppPage>
+  </KontenGerbang>
 </template>

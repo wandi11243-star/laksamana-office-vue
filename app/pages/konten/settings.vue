@@ -128,6 +128,7 @@ const katalog = computed(() => ROLE_KEYS_KONTEN.map(r => ({
 </script>
 
 <template>
+  <KontenGerbang lihat="settings">
   <AppPage
     title="Pengaturan"
     description="Konfigurasi sistem, daftar kru & hak akses"
@@ -291,6 +292,7 @@ const katalog = computed(() => ROLE_KEYS_KONTEN.map(r => ({
           class="hidden md:block"
           :data="halaman"
           :columns="kolomKru"
+          :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
         >
           <template #kru-cell="{ row }">
             <b>{{ row.original.name }}</b>
@@ -507,4 +509,5 @@ const katalog = computed(() => ROLE_KEYS_KONTEN.map(r => ({
       @konfirmasi="resetPerm"
     />
   </AppPage>
+  </KontenGerbang>
 </template>

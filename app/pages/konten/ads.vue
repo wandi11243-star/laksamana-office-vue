@@ -24,7 +24,11 @@ const { data: st, error, status } = useStateKonten()
 const { can } = useAksesKonten()
 const brand = useBrandKonten()
 const toast = useToast()
-useStatusIklanOtomatis()
+// Date-bound statuses are corrected on every visit (old ran on each VIEWS.ads
+// render), not once per session: an ad dating out mid-session would stay stale.
+watch(status, (s) => {
+  if (s === 'success' && can('ads')) void perbaruiStatusIklanOtomatis()
+}, { immediate: true })
 
 const adsScope = computed(() => saringBrand(st.value.ads, brand.value))
 const fundScope = computed(() => saringBrand(st.value.adFunds, brand.value))
@@ -137,6 +141,7 @@ function bukaDana(x?: DanaIklan) {
 </script>
 
 <template>
+  <KontenGerbang lihat="ads">
   <AppPage
     title="Ads Management"
     description="Dana masuk = budget - Buat iklan = rincian dana keluar (incl. PPN 11%)"
@@ -228,6 +233,7 @@ function bukaDana(x?: DanaIklan) {
         <UTable
           :data="halamanB"
           :columns="kolomB"
+          :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
         >
           <template #bulan-cell="{ row }">
             <b :class="row.original.ym === ADS_TANPA_TGL ? 'text-warning' : ''">{{ labelBulanIklan(row.original.ym) }}</b>
@@ -319,6 +325,7 @@ function bukaDana(x?: DanaIklan) {
           class="hidden lg:block"
           :data="halamanA"
           :columns="kolomA"
+          :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
         >
           <template #nama-cell="{ row }">
             <button
@@ -446,7 +453,7 @@ function bukaDana(x?: DanaIklan) {
         <UTable
           :data="halamanF"
           :columns="kolomF"
-          :ui="{ tr: can('ads') ? 'cursor-pointer' : '' }"
+          :ui="{ tr: can('ads') ? 'cursor-pointer' : '', th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
           @select="(_e: Event, row: { original: DanaIklan }) => can('ads') && bukaDana(row.original)"
         >
           <template #tgl-cell="{ row }">
@@ -480,4 +487,5 @@ function bukaDana(x?: DanaIklan) {
       :dana="danaItem"
     />
   </AppPage>
+  </KontenGerbang>
 </template>

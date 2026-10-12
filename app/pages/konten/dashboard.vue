@@ -13,7 +13,7 @@
     once per session by useStatusIklanOtomatis (#50), only for ads editors.
 -->
 <script setup lang="ts">
-import type { AcaraKalender } from '~/utils/konten'
+import type { AcaraKalender, FilterKalender } from '~/utils/konten'
 import { pkAggER, pkKumpul, pkPersen, pkUrutKonten } from '~/utils/performa-konten'
 import {
   DEADLINE_DEKAT, PROD_TYPES, acaraKalender, contentPlatforms, sisaHariKonten, sudahArsip, tugasSaya,
@@ -48,27 +48,32 @@ const myDekat = computed(() => my.value.filter(x => x.sisa != null && x.sisa >= 
 const approvalPending = computed(() => kontenBrand.value.filter(c => c.status === 'Approval'))
 const top = computed(() => pkUrutKonten(pkKumpul(posted.value).konten, 'reach').slice(0, 5))
 
-const semuaFilter = { publish: true, shoot: true, design: true, edit: true, visit: true }
+/** The calendar legend toggles, shared with the Calendar page: turning a kind
+ *  off there hides it here too (old collectCalEvents + calFilter). */
+const fKal = useState<FilterKalender>('konten-cal-filter', () => ({ publish: true, shoot: true, design: true, edit: true, visit: true }))
 const agenda = computed(() => acaraKalender({
   content: kontenBrand.value,
   prodTasks: saringBrand(st.value.prodTasks, brand.value),
   shootings: saringBrand(st.value.shootings, brand.value),
   visits: saringBrand(st.value.visits, brand.value),
   namaKol: id => st.value.kols.find(k => k.id === id)?.name ?? '',
-}, semuaFilter).filter(e => e.date === hari).sort((a, b) => String(a.time).localeCompare(String(b.time))))
+}, fKal.value).filter(e => e.date === hari).sort((a, b) => String(a.time).localeCompare(String(b.time))))
 
 const namaBrand = (id?: string) => st.value.brands.find(b => b.id === id)?.name.split(' (')[0] ?? ''
 const sapaan = computed(() => String(saya.value?.user.name || me.value?.name || '').split(' ')[0])
 
-/** Where an agenda row leads (old calOpenEvent): content → detail, task → its queue, visit → KOL. */
+/** Where an agenda row leads (old calOpenEvent): content → detail, visit → its
+ *  form, standalone task → its form, shooting → queue. */
 function tujuanAcara(e: AcaraKalender): string {
   if (e.cid) return `/konten/detail/${e.cid}`
-  if (e.vid) return '/konten/kol'
+  if (e.vid) return `/konten/kol?tab=visit&buka=${e.vid}`
+  if (e.kind && e.tid) return `/konten/${PROD_TYPES[e.kind].view}?buka=${e.tid}`
   if (e.kind) return `/konten/${PROD_TYPES[e.kind].view}`
   return '/konten/shooting'
 }
 function tujuanTugas(x: { jenis: string, kind?: keyof typeof PROD_TYPES, ref: string }) {
-  return x.jenis === 'mandiri' && x.kind ? `/konten/${PROD_TYPES[x.kind].view}` : `/konten/detail/${x.ref}`
+  if (x.jenis === 'mandiri' && x.kind) return `/konten/${PROD_TYPES[x.kind].view}?buka=${x.ref}`
+  return `/konten/detail/${x.ref}`
 }
 </script>
 

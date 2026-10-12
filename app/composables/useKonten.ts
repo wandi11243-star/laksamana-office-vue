@@ -350,31 +350,41 @@ export const useKeadaanPk = (kunci = 'konten-pk') =>
 /**
  * Ad statuses follow their dates (old autoUpdateStatuses, :1635, run when the
  * Panel opened): ended / active / draft from start & end, a manual "paused"
- * untouched. Here: once per session, after the state loaded, only for whoever
- * may edit `ads` (a viewer opening the dashboard should not write), silently —
- * one PATCH per changed ad with its version, a failure just leaves the old
- * status for the next session.
+ * untouched. One PATCH per changed ad with its version; a failure just leaves
+ * the old status. Returns how many changed.
+ */
+export async function perbaruiStatusIklanOtomatis(): Promise<number> {
+  const { data } = useStateKonten()
+  const hari = hariIni()
+  const ubah = data.value.ads.map(a => ({ a, s: statusIklanOtomatis(a, hari) })).filter(x => x.s)
+  let n = 0
+  for (const { a, s: baru } of ubah) {
+    try {
+      await tambalKonten<IklanKonten>('ads', a.id, { status: baru! }, a.updatedAt)
+      n++
+    }
+    catch {
+      // stale or refused: the next run tries again
+    }
+  }
+  if (n) await refreshNuxtData('konten-state')
+  return n
+}
+
+/**
+ * The session guard around the run above: once per session, only for whoever
+ * may edit `ads` (a viewer opening the dashboard should not write), silently.
+ * The ads page itself runs every mount instead, so a status dating out
+ * mid-session is corrected when its manager looks.
  */
 export function useStatusIklanOtomatis() {
-  const { data, status } = useStateKonten()
+  const { status } = useStateKonten()
   const { can } = useAksesKonten()
   const sudah = useState('konten-iklan-status', () => false)
-  watch([status, () => data.value.ads.length, () => can('ads')], async ([s]) => {
+  watch([status, () => can('ads')], async ([s]) => {
     if (sudah.value || s !== 'success' || !can('ads')) return
     sudah.value = true
-    const hari = hariIni()
-    const ubah = data.value.ads.map(a => ({ a, s: statusIklanOtomatis(a, hari) })).filter(x => x.s)
-    let n = 0
-    for (const { a, s: baru } of ubah) {
-      try {
-        await tambalKonten<IklanKonten>('ads', a.id, { status: baru! }, a.updatedAt)
-        n++
-      }
-      catch {
-        // stale or refused: the next session tries again
-      }
-    }
-    if (n) await refreshNuxtData('konten-state')
+    await perbaruiStatusIklanOtomatis()
   }, { immediate: true })
 }
 

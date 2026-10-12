@@ -14,6 +14,7 @@ const tasks = computed(() => saringBrand(st.value.prodTasks, brand.value))
 </script>
 
 <template>
+  <KontenGerbang lihat="designperf">
   <AppPage
     title="Performa Desain"
     description="Virality konten berdesain & jumlah desain selesai per kategori"
@@ -31,4 +32,5 @@ const tasks = computed(() => saringBrand(st.value.prodTasks, brand.value))
       :tasks="tasks"
     />
   </AppPage>
+  </KontenGerbang>
 </template>

@@ -83,6 +83,7 @@ function buka(a: IklanKonten) {
 </script>
 
 <template>
+  <KontenGerbang lihat="chats">
   <AppPage
     title="Report Percakapan"
     description="Rekap chat / percakapan hasil dari iklan"
@@ -255,6 +256,7 @@ function buka(a: IklanKonten) {
           class="hidden lg:block"
           :data="halaman"
           :columns="kolom"
+          :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
         >
           <template #no-cell="{ row }">
             <span class="font-display text-lg text-primary-700">{{ (hal - 1) * per + row.index + 1 }}</span>
@@ -343,6 +345,7 @@ function buka(a: IklanKonten) {
           v-else
           :data="r.perVideo"
           :columns="kolomGrup('Video')"
+          :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
         >
           <template #key-cell="{ row }">
             <template v-if="row.original.url">
@@ -389,6 +392,7 @@ function buka(a: IklanKonten) {
           v-else
           :data="r.perPlat"
           :columns="kolomGrup('Platform')"
+          :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
         >
           <template #key-cell="{ row }">
             <UBadge
@@ -416,4 +420,5 @@ function buka(a: IklanKonten) {
       :iklan="iklanItem"
     />
   </AppPage>
+  </KontenGerbang>
 </template>

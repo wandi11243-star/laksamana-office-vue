@@ -138,6 +138,17 @@ function bukaVisit(v?: VisitPenuh) {
   visitId.value = v?.id ?? ''
   visitBuka.value = true
 }
+/** Deep link from the dashboard / calendar agenda (?tab=visit&buka=): open the visit form itself. */
+watch([() => route.query.buka, () => visits.value.length], () => {
+  if (tab.value !== 'visit') return
+  const id = typeof route.query.buka === 'string' ? route.query.buka : ''
+  if (!id) return
+  const v = visits.value.find(x => x.id === id)
+  if (!v) return
+  visitId.value = v.id
+  visitBuka.value = true
+  router.replace({ query: { ...route.query, buka: undefined } })
+}, { immediate: true })
 async function setStatus(v: VisitPenuh, s: string) {
   if (!VISIT_STATUS[s] || s === v.status) return
   const judul = v.title || undanganVisit(v).map(namaKol)[0] || 'Event'
@@ -158,6 +169,7 @@ const kolomV: TableColumn<VisitPenuh>[] = [
 </script>
 
 <template>
+  <KontenGerbang lihat="kol">
   <AppPage
     title="KOL & Medpar Management"
     :description="tab === 'db' ? `${nKol} KOL - ${nMp} Media Partner - database talent & partner` : `${visits.length} event - kunjungan KOL & Medpar masuk ke Kalender`"
@@ -250,6 +262,7 @@ const kolomV: TableColumn<VisitPenuh>[] = [
             class="hidden lg:block"
             :data="halamanK"
             :columns="kolomK"
+            :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
           >
             <template #nama-cell="{ row }">
               <button
@@ -480,6 +493,7 @@ const kolomV: TableColumn<VisitPenuh>[] = [
             class="hidden lg:block"
             :data="halamanV"
             :columns="kolomV"
+            :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
           >
             <template #event-cell="{ row }">
               <button
@@ -643,4 +657,5 @@ const kolomV: TableColumn<VisitPenuh>[] = [
       </div>
     </ResponsiveSheet>
   </AppPage>
+  </KontenGerbang>
 </template>

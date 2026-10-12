@@ -9,6 +9,7 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
+import { useMediaQuery } from '@vueuse/core'
 import type { FilterPlanning, KontenItem } from '~/utils/konten'
 import {
   PILLARS, PLATFORM_KONTEN, PRIORITY_KONTEN, STATUS_KONTEN, contentPlatforms, contentTypeLabel, filterPlanningBawaan,
@@ -83,7 +84,13 @@ function reset() {
 
 const namaBrand = (id?: string) => st.value.brands.find(b => b.id === id)?.name.split(' (')[0] ?? ''
 const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ?? ''
+const inisial = (n?: string) => String(n ?? '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
 const buka = (c: KontenItem) => router.push(`/konten/detail/${c.id}`)
+
+/** Below 1536px Tayang rides under Deadline, so all nine columns fit without
+ *  a sideways scroll (DESIGN.md rule 6, same as Dashboard Reservasi). */
+const lebar = useMediaQuery('(min-width: 1536px)')
+const kolomTampil = computed(() => ({ tayang: lebar.value }))
 
 const kolom: TableColumn<KontenItem>[] = [
   { id: 'konten', header: 'Konten' },
@@ -99,6 +106,7 @@ const kolom: TableColumn<KontenItem>[] = [
 </script>
 
 <template>
+  <KontenGerbang lihat="planning">
   <AppPage
     title="Content Planning"
     :description="`${semua.length} total konten - ${semua.filter(c => c.status === 'Posted').length} tayang${f.arsip === 'aktif' && arsipN ? ` · ${arsipN} diarsipkan (tayang/batal)` : ''}`"
@@ -209,15 +217,16 @@ const kolom: TableColumn<KontenItem>[] = [
           class="hidden lg:block"
           :data="halaman"
           :columns="kolom"
-          :ui="{ tr: 'cursor-pointer' }"
+          :column-visibility="kolomTampil"
+          :ui="{ tr: 'cursor-pointer', th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
           @select="(_e: Event, row: { original: KontenItem }) => buka(row.original)"
         >
           <template #konten-cell="{ row }">
             <b class="text-highlighted">{{ row.original.title || '(tanpa judul)' }}</b>
-            <span class="block text-xs text-muted">{{ contentTypeLabel(row.original) }}<template v-if="printTypes(row.original).length"> - cetak {{ printTypes(row.original).join(' + ') }}</template></span>
+            <span class="block text-xs font-normal text-muted">{{ contentTypeLabel(row.original) }}<template v-if="printTypes(row.original).length"> - cetak {{ printTypes(row.original).join(' + ') }}</template></span>
           </template>
           <template #brand-cell="{ row }">
-            {{ namaBrand(row.original.brand) }}
+            {{ namaBrand(row.original.brand) || '-' }}
           </template>
           <template #platform-cell="{ row }">
             <span class="flex flex-wrap gap-1">
@@ -231,11 +240,27 @@ const kolom: TableColumn<KontenItem>[] = [
               />
             </span>
           </template>
+          <template #pillar-cell="{ row }">
+            <AppStatus
+              v-if="row.original.pillar"
+              color="gold"
+              size="sm"
+            >
+              {{ row.original.pillar }}
+            </AppStatus>
+            <span
+              v-else
+              class="text-dimmed"
+            >-</span>
+          </template>
           <template #pic-cell="{ row }">
             <span
               v-if="row.original.pic"
-              class="text-sm"
-            >{{ namaUser(row.original.pic).split(' ')[0] || '-' }}</span>
+              class="inline-flex items-center gap-1.5"
+            >
+              <span class="flex size-6 flex-none items-center justify-center rounded-full bg-primary-100 text-[11px] font-bold text-primary-700">{{ inisial(namaUser(row.original.pic)) }}</span>
+              <span>{{ namaUser(row.original.pic).split(' ')[0] || '-' }}</span>
+            </span>
             <span
               v-else
               class="text-dimmed"
@@ -263,6 +288,10 @@ const kolom: TableColumn<KontenItem>[] = [
               :tgl="row.original.deadline"
               :selesai="sudahArsip(row.original)"
             />
+            <span
+              v-if="!lebar"
+              class="mt-0.5 block text-xs text-muted num"
+            >Tayang {{ row.original.publishDate ? fTglP(row.original.publishDate) : '-' }}</span>
           </template>
           <template #tayang-cell="{ row }">
             <span class="num text-xs">{{ row.original.publishDate ? fTglP(row.original.publishDate) : '-' }}</span>
@@ -315,4 +344,5 @@ const kolom: TableColumn<KontenItem>[] = [
       </template>
     </AppPanel>
   </AppPage>
+  </KontenGerbang>
 </template>

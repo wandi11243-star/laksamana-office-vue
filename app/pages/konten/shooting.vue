@@ -8,6 +8,7 @@ const { data: st, error } = useStateKonten()
 </script>
 
 <template>
+  <KontenGerbang lihat="shooting">
   <AppPage
     title="Shooting Schedule"
     description="Jadwal rekam - dari kebutuhan konten & jadwal mandiri. Tandai selesai bila sudah dieksekusi."
@@ -22,4 +23,5 @@ const { data: st, error } = useStateKonten()
     <KontenBrandBar :brands="st.brands" />
     <KontenAntrian kind="shoot" />
   </AppPage>
+  </KontenGerbang>
 </template>

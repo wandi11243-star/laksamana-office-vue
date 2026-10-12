@@ -53,6 +53,7 @@ function mintaRevisi(c: KontenItem) {
 </script>
 
 <template>
+  <KontenGerbang lihat="approval">
   <AppPage
     title="Approval"
     :description="`${list.length} konten menunggu approval`"
@@ -194,4 +195,5 @@ function mintaRevisi(c: KontenItem) {
       :item="revisiItem"
     />
   </AppPage>
+  </KontenGerbang>
 </template>
