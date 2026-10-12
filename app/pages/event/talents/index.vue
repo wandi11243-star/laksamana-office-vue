@@ -211,24 +211,28 @@ async function hapus() {
             v-model="q"
             placeholder="Cari nama talent…"
             icon="i-lucide-search"
+            class="w-full"
           />
         </UFormField>
         <UFormField label="Kategori">
           <USelect
             v-model="fKategori"
             :items="[{ value: SEMUA, label: 'Semua kategori' }, ...TAL_CATS.map(c => ({ value: c, label: c }))]"
+            class="w-full"
           />
         </UFormField>
         <UFormField label="Status talent">
           <USelect
             v-model="fStatus"
             :items="[{ value: SEMUA, label: 'Semua status talent' }, ...OPSI_STATUS]"
+            class="w-full"
           />
         </UFormField>
         <UFormField label="Kontrak">
           <USelect
             v-model="fKontrak"
             :items="[{ value: SEMUA, label: 'Semua kontrak' }, ...OPSI_KONTRAK]"
+            class="w-full"
           />
         </UFormField>
       </AppFilterGrid>
