@@ -189,8 +189,7 @@ function bukaPoSheet(o: BdPo) {
         />
       </AppStatGrid>
 
-      <div class="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div class="min-w-0">
+      <div class="grid gap-5">
           <div class="mb-3 flex flex-wrap items-center gap-2">
             <AppSeg
               v-model="pdTab"
@@ -342,71 +341,68 @@ function bukaPoSheet(o: BdPo) {
                 </p>
               </div>
             </AppPanel>
+
+            <AppPanel
+              title="Milestone"
+              icon="i-lucide-flag"
+              :count="(p.milestones || []).length"
+            >
+              <div class="grid gap-2">
+                <button
+                  v-for="(m, i) in p.milestones || []"
+                  :key="i"
+                  type="button"
+                  class="flex items-start gap-2 rounded-field border p-2.5 text-start transition-colors"
+                  :class="m.done ? 'border-success/40 bg-success/10' : 'border-default hover:border-accented'"
+                  @click="toggleMilestone(i)"
+                >
+                  <span
+                    class="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border"
+                    :class="m.done ? 'border-success bg-success text-white' : 'border-default bg-default'"
+                  >
+                    <UIcon
+                      v-if="m.done"
+                      name="i-lucide-check"
+                      class="size-3"
+                    />
+                  </span>
+                  <span>
+                    <span class="block font-semibold text-highlighted">{{ m.t }}</span>
+                    <span class="text-xs text-muted">{{ fTglP(m.date) }}</span>
+                  </span>
+                </button>
+                <p
+                  v-if="!(p.milestones || []).length"
+                  class="py-4 text-center text-sm text-muted"
+                >
+                  Belum ada milestone — tambahkan lewat tombol Edit.
+                </p>
+              </div>
+            </AppPanel>
+
+            <AppPanel
+              title="PIC"
+              icon="i-lucide-users"
+            >
+              <div class="flex flex-wrap gap-2">
+                <span
+                  v-for="x in dpakai"
+                  :key="x!.id"
+                  class="inline-flex items-center gap-1.5 rounded-full border border-default px-2.5 py-1 text-[13px] font-semibold"
+                >
+                  <span class="flex size-5 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-primary-800">{{ inisial(x!.name) }}</span>
+                  {{ x!.name }}
+                </span>
+                <span
+                  v-if="!dpakai.length"
+                  class="text-sm text-muted"
+                >Belum ditentukan.</span>
+              </div>
+            </AppPanel>
           </div>
         </div>
 
-        <div class="min-w-0">
-          <AppPanel
-            title="Milestone"
-            icon="i-lucide-flag"
-            :count="(p.milestones || []).length"
-          >
-            <div class="grid gap-2">
-              <button
-                v-for="(m, i) in p.milestones || []"
-                :key="i"
-                type="button"
-                class="flex items-start gap-2 rounded-field border p-2.5 text-start transition-colors"
-                :class="m.done ? 'border-success/40 bg-success/10' : 'border-default hover:border-accented'"
-                @click="toggleMilestone(i)"
-              >
-                <span
-                  class="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border"
-                  :class="m.done ? 'border-success bg-success text-white' : 'border-default bg-default'"
-                >
-                  <UIcon
-                    v-if="m.done"
-                    name="i-lucide-check"
-                    class="size-3"
-                  />
-                </span>
-                <span>
-                  <span class="block font-semibold text-highlighted">{{ m.t }}</span>
-                  <span class="text-xs text-muted">{{ fTglP(m.date) }}</span>
-                </span>
-              </button>
-              <p
-                v-if="!(p.milestones || []).length"
-                class="py-4 text-center text-sm text-muted"
-              >
-                Belum ada milestone — tambahkan lewat tombol Edit.
-              </p>
-            </div>
-          </AppPanel>
-
-          <AppPanel
-            title="PIC"
-            icon="i-lucide-users"
-          >
-            <div class="flex flex-wrap gap-2">
-              <span
-                v-for="x in dpakai"
-                :key="x!.id"
-                class="inline-flex items-center gap-1.5 rounded-full border border-default px-2.5 py-1 text-[13px] font-semibold"
-              >
-                <span class="flex size-5 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-primary-800">{{ inisial(x!.name) }}</span>
-                {{ x!.name }}
-              </span>
-              <span
-                v-if="!dpakai.length"
-                class="text-sm text-muted"
-              >Belum ditentukan.</span>
-            </div>
-          </AppPanel>
-        </div>
-      </div>
-
-      <BdProjectSheet
+        <BdProjectSheet
         v-model:open="bukaProject"
         :project="p"
         :projects="state.projects"
