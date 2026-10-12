@@ -7,13 +7,13 @@
 <script setup lang="ts">
 const props = defineProps<{
   /** View key of app/utils/layar/konten.ts (planning, shooting, ads, …). */
-  layar: string
+  lihat: string
 }>()
 
 const { error, status } = useStateKonten()
 const { saya, canView } = useAksesKonten()
 const siap = computed(() => status.value === 'success' || !!error.value)
-const boleh = computed(() => canView(props.layar))
+const boleh = computed(() => canView(props.lihat))
 </script>
 
 <template>

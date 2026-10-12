@@ -9,11 +9,11 @@ import { bolehBukaEvent, peranEvent } from '~/utils/layar/event'
 
 const props = defineProps<{
   /** Screen key of app/utils/layar/event.ts (talents, ticketing, …). */
-  layar: string
+  lihat: string
 }>()
 
 const me = useMe()
-const boleh = computed(() => bolehBukaEvent(props.layar, peranEvent(me.value)))
+const boleh = computed(() => bolehBukaEvent(props.lihat, peranEvent(me.value)))
 </script>
 
 <template>
