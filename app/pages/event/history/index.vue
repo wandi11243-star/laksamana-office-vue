@@ -66,98 +66,98 @@ async function buatSerupa(e: Acara) {
 
 <template>
   <EventGerbang lihat="events">
-  <AppPage
-    title="Event history"
-    description="Arsip event selesai (read-only)"
-    :back="{ label: 'Perencanaan', to: '/event/planning' }"
-  >
-    <template #actions>
-      <UButton
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-refresh-cw"
-        :loading="status === 'pending'"
-        @click="refresh()"
-      >
-        Muat ulang
-      </UButton>
-    </template>
-
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="soft"
-      :title="apiErrorMessage(error)"
-      class="mb-4"
-    />
-
-    <AppPanel class="mb-4">
-      <AppFilterGrid>
-        <UFormField label="Tahun">
-          <USelect
-            v-model="fTahun"
-            :items="[{ value: 'semua', label: 'Semua tahun' }, ...tahunAda.map(t => ({ value: t, label: t }))]"
-          />
-        </UFormField>
-        <UFormField label="Kategori">
-          <USelect
-            v-model="fKategori"
-            :items="[{ value: 'semua', label: 'Semua kategori' }, ...kategoriAda.map(c => ({ value: c, label: c }))]"
-          />
-        </UFormField>
-      </AppFilterGrid>
-    </AppPanel>
-
-    <div
-      v-if="status === 'pending'"
-      class="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
+    <AppPage
+      title="Event history"
+      description="Arsip event selesai (read-only)"
+      :back="{ label: 'Perencanaan', to: '/event/planning' }"
     >
-      <USkeleton
-        v-for="i in 3"
-        :key="i"
-        class="h-40"
-      />
-    </div>
-    <div
-      v-else
-      class="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
-    >
-      <AppPanel
-        v-for="e in arsip"
-        :key="e.id"
-      >
-        <ULink
-          :to="`/event/history/${e.id}`"
-          class="block truncate text-base font-bold text-highlighted hover:text-primary-700"
-        >
-          {{ e.title }}
-        </ULink>
-        <p class="mt-0.5 text-xs text-muted">
-          {{ tglPanjang(tglWIB(e.start_datetime)) }} · {{ e.venue || '—' }}
-        </p>
-        <p class="mt-1.5 text-sm num">
-          {{ rupiah(ringkas(e).omzet) }} ·
-          {{ angka(ringkas(e).tiketSah) }} terjual
-        </p>
+      <template #actions>
         <UButton
-          v-if="bolehUbah"
           color="neutral"
           variant="outline"
-          size="sm"
-          icon="i-lucide-rotate-ccw"
-          class="mt-2"
-          @click="buatSerupa(e)"
+          icon="i-lucide-refresh-cw"
+          :loading="status === 'pending'"
+          @click="refresh()"
         >
-          Buat event serupa
+          Muat ulang
         </UButton>
+      </template>
+
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="soft"
+        :title="apiErrorMessage(error)"
+        class="mb-4"
+      />
+
+      <AppPanel class="mb-4">
+        <AppFilterGrid>
+          <UFormField label="Tahun">
+            <USelect
+              v-model="fTahun"
+              :items="[{ value: 'semua', label: 'Semua tahun' }, ...tahunAda.map(t => ({ value: t, label: t }))]"
+            />
+          </UFormField>
+          <UFormField label="Kategori">
+            <USelect
+              v-model="fKategori"
+              :items="[{ value: 'semua', label: 'Semua kategori' }, ...kategoriAda.map(c => ({ value: c, label: c }))]"
+            />
+          </UFormField>
+        </AppFilterGrid>
       </AppPanel>
-    </div>
-    <p
-      v-if="!arsip.length && status !== 'pending'"
-      class="py-10 text-center text-sm text-dimmed"
-    >
-      Arsip masih kosong.
-    </p>
-  </AppPage>
+
+      <div
+        v-if="status === 'pending'"
+        class="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
+      >
+        <USkeleton
+          v-for="i in 3"
+          :key="i"
+          class="h-40"
+        />
+      </div>
+      <div
+        v-else
+        class="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
+      >
+        <AppPanel
+          v-for="e in arsip"
+          :key="e.id"
+        >
+          <ULink
+            :to="`/event/history/${e.id}`"
+            class="block truncate text-base font-bold text-highlighted hover:text-primary-700"
+          >
+            {{ e.title }}
+          </ULink>
+          <p class="mt-0.5 text-xs text-muted">
+            {{ tglPanjang(tglWIB(e.start_datetime)) }} · {{ e.venue || '—' }}
+          </p>
+          <p class="mt-1.5 text-sm num">
+            {{ rupiah(ringkas(e).omzet) }} ·
+            {{ angka(ringkas(e).tiketSah) }} terjual
+          </p>
+          <UButton
+            v-if="bolehUbah"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            icon="i-lucide-rotate-ccw"
+            class="mt-2"
+            @click="buatSerupa(e)"
+          >
+            Buat event serupa
+          </UButton>
+        </AppPanel>
+      </div>
+      <p
+        v-if="!arsip.length && status !== 'pending'"
+        class="py-10 text-center text-sm text-dimmed"
+      >
+        Arsip masih kosong.
+      </p>
+    </AppPage>
   </EventGerbang>
 </template>

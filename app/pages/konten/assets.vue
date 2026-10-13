@@ -44,104 +44,104 @@ function buka(a: AssetKonten) {
 
 <template>
   <KontenGerbang lihat="assets">
-  <AppPage
-    title="Asset Management"
-    :description="`${st.assets.length} asset tersimpan - foto, video, desain, template`"
-  >
-    <template
-      v-if="can('assets')"
-      #actions
+    <AppPage
+      title="Asset Management"
+      :description="`${st.assets.length} asset tersimpan - foto, video, desain, template`"
     >
-      <UButton
-        label="Tambah Asset"
-        icon="i-lucide-plus"
-        @click="tambah"
-      />
-    </template>
-
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="subtle"
-      icon="i-lucide-triangle-alert"
-      :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
-    />
-    <KontenBrandBar :brands="st.brands" />
-
-    <AppChips
-      v-model="kat"
-      :options="opsiKat"
-      class="mb-4"
-    />
-
-    <div
-      v-if="list.length"
-      class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
-    >
-      <div
-        v-for="a in list"
-        :key="a.id"
-        role="link"
-        tabindex="0"
-        class="cursor-pointer rounded-panel border border-default bg-default p-4 shadow-panel hover:border-accented"
-        :title="a.link || 'Belum ada link'"
-        @click="buka(a)"
-        @keydown.enter="buka(a)"
+      <template
+        v-if="can('assets')"
+        #actions
       >
-        <div class="mb-2.5 flex items-center gap-2.5">
-          <span class="flex size-11 shrink-0 items-center justify-center rounded-field bg-muted">
-            <UIcon
-              :name="IKON[a.category ?? ''] ?? 'i-lucide-folder'"
-              class="size-5 text-primary-700"
+        <UButton
+          label="Tambah Asset"
+          icon="i-lucide-plus"
+          @click="tambah"
+        />
+      </template>
+
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
+      />
+      <KontenBrandBar :brands="st.brands" />
+
+      <AppChips
+        v-model="kat"
+        :options="opsiKat"
+        class="mb-4"
+      />
+
+      <div
+        v-if="list.length"
+        class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+      >
+        <div
+          v-for="a in list"
+          :key="a.id"
+          role="link"
+          tabindex="0"
+          class="cursor-pointer rounded-panel border border-default bg-default p-4 shadow-panel hover:border-accented"
+          :title="a.link || 'Belum ada link'"
+          @click="buka(a)"
+          @keydown.enter="buka(a)"
+        >
+          <div class="mb-2.5 flex items-center gap-2.5">
+            <span class="flex size-11 shrink-0 items-center justify-center rounded-field bg-muted">
+              <UIcon
+                :name="IKON[a.category ?? ''] ?? 'i-lucide-folder'"
+                class="size-5 text-primary-700"
+              />
+            </span>
+            <span class="min-w-0">
+              <b class="block truncate text-sm text-highlighted">{{ a.name }}</b>
+              <span class="text-xs text-muted">{{ a.category }} - {{ a.version || 'v1' }}</span>
+            </span>
+          </div>
+          <div class="mb-2.5 flex flex-wrap items-center gap-1">
+            <span class="text-xs text-muted">{{ namaBrand(a.brand) }}</span>
+            <UBadge
+              v-for="t in (a.tags ?? []).slice(0, 3)"
+              :key="t"
+              :label="`#${t}`"
+              color="neutral"
+              variant="soft"
+              size="sm"
             />
-          </span>
-          <span class="min-w-0">
-            <b class="block truncate text-sm text-highlighted">{{ a.name }}</b>
-            <span class="text-xs text-muted">{{ a.category }} - {{ a.version || 'v1' }}</span>
-          </span>
-        </div>
-        <div class="mb-2.5 flex flex-wrap items-center gap-1">
-          <span class="text-xs text-muted">{{ namaBrand(a.brand) }}</span>
-          <UBadge
-            v-for="t in (a.tags ?? []).slice(0, 3)"
-            :key="t"
-            :label="`#${t}`"
+          </div>
+          <div class="flex items-center justify-between text-xs text-muted">
+            <span>{{ namaUser(a.by).split(' ')[0] }}</span>
+            <span>{{ lamaKonten(a.at) }}</span>
+          </div>
+          <UButton
+            v-if="can('assets')"
+            label="Edit"
+            icon="i-lucide-pencil"
             color="neutral"
-            variant="soft"
+            variant="ghost"
             size="sm"
+            block
+            class="mt-2.5"
+            @click.stop="edit(a)"
           />
         </div>
-        <div class="flex items-center justify-between text-xs text-muted">
-          <span>{{ namaUser(a.by).split(' ')[0] }}</span>
-          <span>{{ lamaKonten(a.at) }}</span>
-        </div>
-        <UButton
-          v-if="can('assets')"
-          label="Edit"
-          icon="i-lucide-pencil"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          block
-          class="mt-2.5"
-          @click.stop="edit(a)"
-        />
       </div>
-    </div>
-    <AppPanel v-else>
-      <p class="py-6 text-center text-sm text-muted">
-        <UIcon
-          name="i-lucide-folder"
-          class="mb-1 size-7"
-        />
-        <b class="block text-base text-highlighted">Belum ada asset</b>
-      </p>
-    </AppPanel>
+      <AppPanel v-else>
+        <p class="py-6 text-center text-sm text-muted">
+          <UIcon
+            name="i-lucide-folder"
+            class="mb-1 size-7"
+          />
+          <b class="block text-base text-highlighted">Belum ada asset</b>
+        </p>
+      </AppPanel>
 
-    <KontenAssetForm
-      v-model:open="formBuka"
-      :asset="asset"
-    />
-  </AppPage>
+      <KontenAssetForm
+        v-model:open="formBuka"
+        :asset="asset"
+      />
+    </AppPage>
   </KontenGerbang>
 </template>

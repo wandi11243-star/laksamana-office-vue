@@ -107,242 +107,242 @@ const kolom: TableColumn<KontenItem>[] = [
 
 <template>
   <KontenGerbang lihat="planning">
-  <AppPage
-    title="Content Planning"
-    :description="`${semua.length} total konten - ${semua.filter(c => c.status === 'Posted').length} tayang${f.arsip === 'aktif' && arsipN ? ` · ${arsipN} diarsipkan (tayang/batal)` : ''}`"
-  >
-    <template
-      v-if="can('content')"
-      #actions
+    <AppPage
+      title="Content Planning"
+      :description="`${semua.length} total konten - ${semua.filter(c => c.status === 'Posted').length} tayang${f.arsip === 'aktif' && arsipN ? ` · ${arsipN} diarsipkan (tayang/batal)` : ''}`"
     >
-      <UButton
-        label="Konten baru"
-        icon="i-lucide-plus"
-        to="/konten/detail/baru"
-      />
-    </template>
-
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="subtle"
-      icon="i-lucide-triangle-alert"
-      :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
-    />
-
-    <KontenBrandBar :brands="st.brands" />
-
-    <AppPanel>
-      <AppFilterGrid>
-        <UFormField label="Cari">
-          <UInput
-            v-model="f.q"
-            placeholder="Cari judul / caption…"
-            icon="i-lucide-search"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Arsip">
-          <USelect
-            v-model="fArsip"
-            :items="opsiArsip"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Status">
-          <USelect
-            v-model="fStatus"
-            :items="opsiStatus"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Platform">
-          <USelect
-            v-model="fPlatform"
-            :items="opsiPlatform"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Pillar">
-          <USelect
-            v-model="fPillar"
-            :items="opsiPillar"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="PIC">
-          <USelect
-            v-model="fPic"
-            :items="opsiPic"
-            class="w-full"
-          />
-        </UFormField>
-      </AppFilterGrid>
-      <div class="mt-3">
-        <UButton
-          label="Reset"
-          icon="i-lucide-rotate-ccw"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          @click="reset"
-        />
-      </div>
-    </AppPanel>
-
-    <AppPanel
-      title="Daftar konten"
-      icon="i-lucide-list"
-      :count="list.length"
-      flush
-      :class="status === 'pending' ? 'opacity-60' : ''"
-    >
-      <div
-        v-if="!list.length"
-        class="p-8 text-center"
+      <template
+        v-if="can('content')"
+        #actions
       >
-        <UIcon
-          name="i-lucide-clipboard-list"
-          class="mx-auto size-7 text-dimmed"
-        />
-        <p class="mt-2 font-semibold">
-          Belum ada konten
-        </p>
-        <p class="text-sm text-muted">
-          Mulai dengan membuat konten baru.
-        </p>
-      </div>
-      <template v-else>
-        <UTable
-          class="hidden lg:block"
-          :data="halaman"
-          :columns="kolom"
-          :column-visibility="kolomTampil"
-          :ui="{ tr: 'cursor-pointer', th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
-          @select="(_e: Event, row: { original: KontenItem }) => buka(row.original)"
-        >
-          <template #konten-cell="{ row }">
-            <b class="text-highlighted">{{ row.original.title || '(tanpa judul)' }}</b>
-            <span class="block text-xs font-normal text-muted">{{ contentTypeLabel(row.original) }}<template v-if="printTypes(row.original).length"> - cetak {{ printTypes(row.original).join(' + ') }}</template></span>
-          </template>
-          <template #brand-cell="{ row }">
-            {{ namaBrand(row.original.brand) || '-' }}
-          </template>
-          <template #platform-cell="{ row }">
-            <span class="flex flex-wrap gap-1">
-              <UBadge
-                v-for="p in contentPlatforms(row.original).slice(0, 3)"
-                :key="p"
-                :label="p"
-                color="neutral"
-                variant="soft"
-                size="sm"
-              />
-            </span>
-          </template>
-          <template #pillar-cell="{ row }">
-            <AppStatus
-              v-if="row.original.pillar"
-              color="gold"
-              size="sm"
-            >
-              {{ row.original.pillar }}
-            </AppStatus>
-            <span
-              v-else
-              class="text-dimmed"
-            >-</span>
-          </template>
-          <template #pic-cell="{ row }">
-            <span
-              v-if="row.original.pic"
-              class="inline-flex items-center gap-1.5"
-            >
-              <span class="flex size-6 flex-none items-center justify-center rounded-full bg-primary-100 text-[11px] font-bold text-primary-700">{{ inisial(namaUser(row.original.pic)) }}</span>
-              <span>{{ namaUser(row.original.pic).split(' ')[0] || '-' }}</span>
-            </span>
-            <span
-              v-else
-              class="text-dimmed"
-            >-</span>
-          </template>
-          <template #status-cell="{ row }">
-            <AppStatus
-              :color="warnaStatusKonten(row.original.status)"
-              :icon="ikonStatusKonten(row.original.status)"
-              size="sm"
-            >
-              {{ row.original.status }}
-            </AppStatus>
-          </template>
-          <template #prio-cell="{ row }">
-            <AppStatus
-              :color="warnaPrioKonten(row.original.priority)"
-              size="sm"
-            >
-              {{ PRIORITY_KONTEN[row.original.priority || 'medium']?.label }}
-            </AppStatus>
-          </template>
-          <template #deadline-cell="{ row }">
-            <KontenDeadline
-              :tgl="row.original.deadline"
-              :selesai="sudahArsip(row.original)"
-            />
-            <span
-              v-if="!lebar"
-              class="mt-0.5 block text-xs text-muted num"
-            >Tayang {{ row.original.publishDate ? fTglP(row.original.publishDate) : '-' }}</span>
-          </template>
-          <template #tayang-cell="{ row }">
-            <span class="num text-xs">{{ row.original.publishDate ? fTglP(row.original.publishDate) : '-' }}</span>
-          </template>
-        </UTable>
-
-        <ul class="divide-y divide-default lg:hidden">
-          <li
-            v-for="c in halaman"
-            :key="c.id"
-          >
-            <NuxtLink
-              :to="`/konten/detail/${c.id}`"
-              class="block p-4 hover:bg-muted"
-            >
-              <div class="flex items-start justify-between gap-2">
-                <b class="min-w-0 text-highlighted">{{ c.title || '(tanpa judul)' }}</b>
-                <KontenDeadline
-                  :tgl="c.deadline"
-                  :selesai="sudahArsip(c)"
-                />
-              </div>
-              <p class="mt-0.5 text-xs text-muted">
-                {{ [namaBrand(c.brand), contentPlatforms(c).join(' · '), c.pillar, namaUser(c.pic).split(' ')[0]].filter(Boolean).join(' · ') }}
-              </p>
-              <div class="mt-1.5 flex flex-wrap gap-1.5">
-                <AppStatus
-                  :color="warnaStatusKonten(c.status)"
-                  :icon="ikonStatusKonten(c.status)"
-                  size="sm"
-                >
-                  {{ c.status }}
-                </AppStatus>
-                <AppStatus
-                  :color="warnaPrioKonten(c.priority)"
-                  size="sm"
-                >
-                  {{ PRIORITY_KONTEN[c.priority || 'medium']?.label }}
-                </AppStatus>
-              </div>
-            </NuxtLink>
-          </li>
-        </ul>
-        <KontenPager
-          v-model:hal="hal"
-          v-model:per="per"
-          :total="list.length"
-          satuan="konten"
+        <UButton
+          label="Konten baru"
+          icon="i-lucide-plus"
+          to="/konten/detail/baru"
         />
       </template>
-    </AppPanel>
-  </AppPage>
+
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
+      />
+
+      <KontenBrandBar :brands="st.brands" />
+
+      <AppPanel>
+        <AppFilterGrid>
+          <UFormField label="Cari">
+            <UInput
+              v-model="f.q"
+              placeholder="Cari judul / caption…"
+              icon="i-lucide-search"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Arsip">
+            <USelect
+              v-model="fArsip"
+              :items="opsiArsip"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Status">
+            <USelect
+              v-model="fStatus"
+              :items="opsiStatus"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Platform">
+            <USelect
+              v-model="fPlatform"
+              :items="opsiPlatform"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Pillar">
+            <USelect
+              v-model="fPillar"
+              :items="opsiPillar"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="PIC">
+            <USelect
+              v-model="fPic"
+              :items="opsiPic"
+              class="w-full"
+            />
+          </UFormField>
+        </AppFilterGrid>
+        <div class="mt-3">
+          <UButton
+            label="Reset"
+            icon="i-lucide-rotate-ccw"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            @click="reset"
+          />
+        </div>
+      </AppPanel>
+
+      <AppPanel
+        title="Daftar konten"
+        icon="i-lucide-list"
+        :count="list.length"
+        flush
+        :class="status === 'pending' ? 'opacity-60' : ''"
+      >
+        <div
+          v-if="!list.length"
+          class="p-8 text-center"
+        >
+          <UIcon
+            name="i-lucide-clipboard-list"
+            class="mx-auto size-7 text-dimmed"
+          />
+          <p class="mt-2 font-semibold">
+            Belum ada konten
+          </p>
+          <p class="text-sm text-muted">
+            Mulai dengan membuat konten baru.
+          </p>
+        </div>
+        <template v-else>
+          <UTable
+            class="hidden lg:block"
+            :data="halaman"
+            :columns="kolom"
+            :column-visibility="kolomTampil"
+            :ui="{ tr: 'cursor-pointer', th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
+            @select="(_e: Event, row: { original: KontenItem }) => buka(row.original)"
+          >
+            <template #konten-cell="{ row }">
+              <b class="text-highlighted">{{ row.original.title || '(tanpa judul)' }}</b>
+              <span class="block text-xs font-normal text-muted">{{ contentTypeLabel(row.original) }}<template v-if="printTypes(row.original).length"> - cetak {{ printTypes(row.original).join(' + ') }}</template></span>
+            </template>
+            <template #brand-cell="{ row }">
+              {{ namaBrand(row.original.brand) || '-' }}
+            </template>
+            <template #platform-cell="{ row }">
+              <span class="flex flex-wrap gap-1">
+                <UBadge
+                  v-for="p in contentPlatforms(row.original).slice(0, 3)"
+                  :key="p"
+                  :label="p"
+                  color="neutral"
+                  variant="soft"
+                  size="sm"
+                />
+              </span>
+            </template>
+            <template #pillar-cell="{ row }">
+              <AppStatus
+                v-if="row.original.pillar"
+                color="gold"
+                size="sm"
+              >
+                {{ row.original.pillar }}
+              </AppStatus>
+              <span
+                v-else
+                class="text-dimmed"
+              >-</span>
+            </template>
+            <template #pic-cell="{ row }">
+              <span
+                v-if="row.original.pic"
+                class="inline-flex items-center gap-1.5"
+              >
+                <span class="flex size-6 flex-none items-center justify-center rounded-full bg-primary-100 text-[11px] font-bold text-primary-700">{{ inisial(namaUser(row.original.pic)) }}</span>
+                <span>{{ namaUser(row.original.pic).split(' ')[0] || '-' }}</span>
+              </span>
+              <span
+                v-else
+                class="text-dimmed"
+              >-</span>
+            </template>
+            <template #status-cell="{ row }">
+              <AppStatus
+                :color="warnaStatusKonten(row.original.status)"
+                :icon="ikonStatusKonten(row.original.status)"
+                size="sm"
+              >
+                {{ row.original.status }}
+              </AppStatus>
+            </template>
+            <template #prio-cell="{ row }">
+              <AppStatus
+                :color="warnaPrioKonten(row.original.priority)"
+                size="sm"
+              >
+                {{ PRIORITY_KONTEN[row.original.priority || 'medium']?.label }}
+              </AppStatus>
+            </template>
+            <template #deadline-cell="{ row }">
+              <KontenDeadline
+                :tgl="row.original.deadline"
+                :selesai="sudahArsip(row.original)"
+              />
+              <span
+                v-if="!lebar"
+                class="mt-0.5 block text-xs text-muted num"
+              >Tayang {{ row.original.publishDate ? fTglP(row.original.publishDate) : '-' }}</span>
+            </template>
+            <template #tayang-cell="{ row }">
+              <span class="num text-xs">{{ row.original.publishDate ? fTglP(row.original.publishDate) : '-' }}</span>
+            </template>
+          </UTable>
+
+          <ul class="divide-y divide-default lg:hidden">
+            <li
+              v-for="c in halaman"
+              :key="c.id"
+            >
+              <NuxtLink
+                :to="`/konten/detail/${c.id}`"
+                class="block p-4 hover:bg-muted"
+              >
+                <div class="flex items-start justify-between gap-2">
+                  <b class="min-w-0 text-highlighted">{{ c.title || '(tanpa judul)' }}</b>
+                  <KontenDeadline
+                    :tgl="c.deadline"
+                    :selesai="sudahArsip(c)"
+                  />
+                </div>
+                <p class="mt-0.5 text-xs text-muted">
+                  {{ [namaBrand(c.brand), contentPlatforms(c).join(' · '), c.pillar, namaUser(c.pic).split(' ')[0]].filter(Boolean).join(' · ') }}
+                </p>
+                <div class="mt-1.5 flex flex-wrap gap-1.5">
+                  <AppStatus
+                    :color="warnaStatusKonten(c.status)"
+                    :icon="ikonStatusKonten(c.status)"
+                    size="sm"
+                  >
+                    {{ c.status }}
+                  </AppStatus>
+                  <AppStatus
+                    :color="warnaPrioKonten(c.priority)"
+                    size="sm"
+                  >
+                    {{ PRIORITY_KONTEN[c.priority || 'medium']?.label }}
+                  </AppStatus>
+                </div>
+              </NuxtLink>
+            </li>
+          </ul>
+          <KontenPager
+            v-model:hal="hal"
+            v-model:per="per"
+            :total="list.length"
+            satuan="konten"
+          />
+        </template>
+      </AppPanel>
+    </AppPage>
   </KontenGerbang>
 </template>

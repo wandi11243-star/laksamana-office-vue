@@ -45,89 +45,89 @@ const pl = computed(() => {
 
 <template>
   <EventGerbang lihat="events">
-  <AppPage
-    :title="String(acara?.title ?? 'Arsip event')"
-    description="Pencapaian & laba-rugi event selesai"
-    :back="{ label: 'History', to: '/event/history' }"
-  >
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="soft"
-      :title="apiErrorMessage(error)"
-      class="mb-4"
-    />
-    <template v-if="acara">
-      <AppPanel
-        title="Informasi dasar"
-        icon="i-lucide-info"
+    <AppPage
+      :title="String(acara?.title ?? 'Arsip event')"
+      description="Pencapaian & laba-rugi event selesai"
+      :back="{ label: 'History', to: '/event/history' }"
+    >
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="soft"
+        :title="apiErrorMessage(error)"
         class="mb-4"
-      >
-        <div class="grid gap-x-6 gap-y-2 text-sm lg:grid-cols-2">
-          <p><b class="text-highlighted">{{ acara.title }}</b> · {{ acara.category }}</p>
-          <p class="text-muted">
-            {{ tglPanjang(tglWIB(acara.start_datetime)) }}
-          </p>
-          <p class="text-muted">
-            Venue: {{ acara.venue || '—' }} · PIC: {{ acara.pic || '—' }}
-          </p>
-        </div>
-      </AppPanel>
+      />
+      <template v-if="acara">
+        <AppPanel
+          title="Informasi dasar"
+          icon="i-lucide-info"
+          class="mb-4"
+        >
+          <div class="grid gap-x-6 gap-y-2 text-sm lg:grid-cols-2">
+            <p><b class="text-highlighted">{{ acara.title }}</b> · {{ acara.category }}</p>
+            <p class="text-muted">
+              {{ tglPanjang(tglWIB(acara.start_datetime)) }}
+            </p>
+            <p class="text-muted">
+              Venue: {{ acara.venue || '—' }} · PIC: {{ acara.pic || '—' }}
+            </p>
+          </div>
+        </AppPanel>
 
-      <AppSectionTitle title="Pencapaian" />
-      <AppStatGrid class="mb-4">
-        <AppStat
-          label="Omzet tiket"
-          :value="rupiah(ringkas.omzet)"
-          icon="i-lucide-banknote"
-          tone="gold"
-        />
-        <AppStat
-          label="Tiket terjual"
-          :value="angka(ringkas.tiketSah)"
-          icon="i-lucide-ticket"
-          tone="info"
-        />
-        <AppStat
-          label="Hadir hari-H"
-          :value="angka(hadir)"
-          icon="i-lucide-scan-line"
-          tone="success"
-        />
-        <AppStat
-          label="Kategori terlaku"
-          :value="ringkas.perKelas[0]?.nama ?? '—'"
-          :sub="ringkas.perKelas[0] ? `${angka(ringkas.perKelas[0].n)} tiket` : ''"
-          icon="i-lucide-trophy"
-          tone="vip"
-          wrap
-        />
-      </AppStatGrid>
-
-      <template v-if="budget.length">
-        <AppSectionTitle title="Laba-rugi" />
-        <AppStatGrid>
+        <AppSectionTitle title="Pencapaian" />
+        <AppStatGrid class="mb-4">
           <AppStat
-            label="Income"
-            :value="rupiah(pl.income)"
-            icon="i-lucide-trending-up"
+            label="Omzet tiket"
+            :value="rupiah(ringkas.omzet)"
+            icon="i-lucide-banknote"
+            tone="gold"
+          />
+          <AppStat
+            label="Tiket terjual"
+            :value="angka(ringkas.tiketSah)"
+            icon="i-lucide-ticket"
+            tone="info"
+          />
+          <AppStat
+            label="Hadir hari-H"
+            :value="angka(hadir)"
+            icon="i-lucide-scan-line"
             tone="success"
           />
           <AppStat
-            label="Expense"
-            :value="rupiah(pl.expense)"
-            icon="i-lucide-trending-down"
-            tone="error"
-          />
-          <AppStat
-            label="Profit"
-            :value="rupiah(pl.profit)"
-            icon="i-lucide-wallet"
-            :tone="pl.profit >= 0 ? 'success' : 'error'"
+            label="Kategori terlaku"
+            :value="ringkas.perKelas[0]?.nama ?? '—'"
+            :sub="ringkas.perKelas[0] ? `${angka(ringkas.perKelas[0].n)} tiket` : ''"
+            icon="i-lucide-trophy"
+            tone="vip"
+            wrap
           />
         </AppStatGrid>
+
+        <template v-if="budget.length">
+          <AppSectionTitle title="Laba-rugi" />
+          <AppStatGrid>
+            <AppStat
+              label="Income"
+              :value="rupiah(pl.income)"
+              icon="i-lucide-trending-up"
+              tone="success"
+            />
+            <AppStat
+              label="Expense"
+              :value="rupiah(pl.expense)"
+              icon="i-lucide-trending-down"
+              tone="error"
+            />
+            <AppStat
+              label="Profit"
+              :value="rupiah(pl.profit)"
+              icon="i-lucide-wallet"
+              :tone="pl.profit >= 0 ? 'success' : 'error'"
+            />
+          </AppStatGrid>
+        </template>
       </template>
-    </template>
-  </AppPage>
+    </AppPage>
   </EventGerbang>
 </template>

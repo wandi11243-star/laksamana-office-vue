@@ -321,6 +321,10 @@ export function useBdSettings() {
 
 const headers = (versi?: Versi) => (versi === undefined ? undefined : ifMatch(versi))
 
+/** GET /bd/purchase-orders | purchase-requests — also open to `finance` (Kas Kecil PO panel). */
+export const daftarBd = <T>(resource: 'purchase-orders' | 'purchase-requests') =>
+  useApi()<Envelope<T[]>>(`/bd/${resource}`)
+
 /** POST /bd/{resource} — `id` is optional; the server generates one when absent. */
 export const buatBd = <T>(resource: BdResource, body: Partial<T>) =>
   useApi()<Envelope<T>>(`/bd/${resource}`, { method: 'POST', body })

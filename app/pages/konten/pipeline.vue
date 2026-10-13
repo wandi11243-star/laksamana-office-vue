@@ -63,131 +63,67 @@ async function lepas(col: string) {
 
 <template>
   <KontenGerbang lihat="pipeline">
-  <AppPage
-    title="Content Pipeline"
-    description="Geser kartu antar kolom untuk update status"
-  >
-    <template
-      v-if="can('content')"
-      #actions
+    <AppPage
+      title="Content Pipeline"
+      description="Geser kartu antar kolom untuk update status"
     >
-      <UButton
-        label="Konten baru"
-        icon="i-lucide-plus"
-        to="/konten/detail/baru"
-      />
-    </template>
-
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="subtle"
-      icon="i-lucide-triangle-alert"
-      :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
-    />
-
-    <KontenBrandBar :brands="st.brands" />
-
-    <AppPanel>
-      <div class="flex flex-wrap items-center gap-3">
-        <USelect
-          v-model="fPic"
-          :items="opsiPic"
-          class="w-64 max-w-full"
-          aria-label="PIC"
-        />
+      <template
+        v-if="can('content')"
+        #actions
+      >
         <UButton
-          v-if="pic"
-          label="Reset"
-          icon="i-lucide-rotate-ccw"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          @click="pic = ''"
+          label="Konten baru"
+          icon="i-lucide-plus"
+          to="/konten/detail/baru"
         />
-        <span class="ml-auto text-xs text-muted">{{ nAktif }} konten aktif<template v-if="pic"> · {{ pic === '__none__' ? 'belum ada PIC' : namaUser(pic) }}</template></span>
-      </div>
-    </AppPanel>
+      </template>
 
-    <!-- Desktop: the board. -->
-    <div
-      class="hidden gap-3 overflow-x-auto pb-2 lg:flex"
-      :class="status === 'pending' ? 'opacity-60' : ''"
-    >
-      <section
-        v-for="k in kolom"
-        :key="k.s"
-        class="flex w-60 flex-none flex-col rounded-panel border bg-muted"
-        :class="atas === k.s ? 'border-primary-400 bg-primary-50' : 'border-default'"
-        @dragover.prevent="atas = k.s"
-        @dragleave="atas === k.s && (atas = null)"
-        @drop.prevent="lepas(k.s)"
-      >
-        <header class="flex items-center gap-2 px-3 py-2.5">
-          <AppStatus
-            :color="warnaStatusKonten(k.s)"
-            :icon="ikonStatusKonten(k.s)"
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
+      />
+
+      <KontenBrandBar :brands="st.brands" />
+
+      <AppPanel>
+        <div class="flex flex-wrap items-center gap-3">
+          <USelect
+            v-model="fPic"
+            :items="opsiPic"
+            class="w-64 max-w-full"
+            aria-label="PIC"
+          />
+          <UButton
+            v-if="pic"
+            label="Reset"
+            icon="i-lucide-rotate-ccw"
+            color="neutral"
+            variant="outline"
             size="sm"
-          >
-            {{ k.s }}
-          </AppStatus>
-          <span class="num ml-auto rounded-full bg-default px-2 text-xs font-bold">{{ k.items.length }}</span>
-        </header>
-        <div class="flex min-h-24 flex-1 flex-col gap-2 px-2 pb-2">
-          <NuxtLink
-            v-for="c in k.items"
-            :key="c.id"
-            :to="`/konten/detail/${c.id}`"
-            draggable="true"
-            class="block cursor-grab rounded-field border border-default bg-default p-2.5 shadow-panel hover:border-accented"
-            :class="seret === c.id ? 'opacity-50' : ''"
-            @dragstart="seret = c.id"
-            @dragend="seret = null; atas = null"
-          >
-            <p class="truncate text-[11px] text-muted">
-              {{ [namaBrand(c.brand), contentPlatforms(c).slice(0, 2).join(' · ')].filter(Boolean).join(' · ') }}
-            </p>
-            <p class="mt-0.5 line-clamp-2 text-sm font-semibold text-highlighted">
-              {{ c.title || '(tanpa judul)' }}
-            </p>
-            <div class="mt-2 flex items-center justify-between gap-2">
-              <KontenDeadline
-                :tgl="c.deadline"
-                :selesai="sudahArsip(c)"
-              />
-              <span
-                v-if="c.pic"
-                class="flex size-6 items-center justify-center rounded-md bg-primary-100 text-[10px] font-bold text-primary-800"
-                :title="namaUser(c.pic)"
-              >{{ inisial(namaUser(c.pic) || '?') }}</span>
-              <UBadge
-                v-else
-                label="Belum ada PIC"
-                color="neutral"
-                variant="soft"
-                size="sm"
-              />
-            </div>
-          </NuxtLink>
-          <p
-            v-if="!k.items.length"
-            class="py-4 text-center text-xs text-dimmed"
-          >
-            -
-          </p>
+            @click="pic = ''"
+          />
+          <span class="ml-auto text-xs text-muted">{{ nAktif }} konten aktif<template v-if="pic"> · {{ pic === '__none__' ? 'belum ada PIC' : namaUser(pic) }}</template></span>
         </div>
-      </section>
-    </div>
+      </AppPanel>
 
-    <!-- Phone: grouped list. -->
-    <div class="space-y-3 lg:hidden">
-      <AppPanel
-        v-for="k in kolom.filter(x => x.items.length)"
-        :key="k.s"
-        flush
+      <!-- Desktop: the board. -->
+      <div
+        class="hidden gap-3 overflow-x-auto pb-2 lg:flex"
+        :class="status === 'pending' ? 'opacity-60' : ''"
       >
-        <template #head>
-          <div class="flex items-center gap-2 px-4 pt-3">
+        <section
+          v-for="k in kolom"
+          :key="k.s"
+          class="flex w-60 flex-none flex-col rounded-panel border bg-muted"
+          :class="atas === k.s ? 'border-primary-400 bg-primary-50' : 'border-default'"
+          @dragover.prevent="atas = k.s"
+          @dragleave="atas === k.s && (atas = null)"
+          @drop.prevent="lepas(k.s)"
+        >
+          <header class="flex items-center gap-2 px-3 py-2.5">
             <AppStatus
               :color="warnaStatusKonten(k.s)"
               :icon="ikonStatusKonten(k.s)"
@@ -195,39 +131,103 @@ async function lepas(col: string) {
             >
               {{ k.s }}
             </AppStatus>
-            <span class="num text-xs text-muted">{{ k.items.length }}</span>
-          </div>
-        </template>
-        <ul class="divide-y divide-default">
-          <li
-            v-for="c in k.items"
-            :key="c.id"
-          >
+            <span class="num ml-auto rounded-full bg-default px-2 text-xs font-bold">{{ k.items.length }}</span>
+          </header>
+          <div class="flex min-h-24 flex-1 flex-col gap-2 px-2 pb-2">
             <NuxtLink
+              v-for="c in k.items"
+              :key="c.id"
               :to="`/konten/detail/${c.id}`"
-              class="flex items-start justify-between gap-2 p-4 hover:bg-muted"
+              draggable="true"
+              class="block cursor-grab rounded-field border border-default bg-default p-2.5 shadow-panel hover:border-accented"
+              :class="seret === c.id ? 'opacity-50' : ''"
+              @dragstart="seret = c.id"
+              @dragend="seret = null; atas = null"
             >
-              <div class="min-w-0">
-                <b class="text-highlighted">{{ c.title || '(tanpa judul)' }}</b>
-                <p class="text-xs text-muted">
-                  {{ [namaBrand(c.brand), contentPlatforms(c).join(' · '), namaUser(c.pic).split(' ')[0] || 'Belum ada PIC'].filter(Boolean).join(' · ') }}
-                </p>
+              <p class="truncate text-[11px] text-muted">
+                {{ [namaBrand(c.brand), contentPlatforms(c).slice(0, 2).join(' · ')].filter(Boolean).join(' · ') }}
+              </p>
+              <p class="mt-0.5 line-clamp-2 text-sm font-semibold text-highlighted">
+                {{ c.title || '(tanpa judul)' }}
+              </p>
+              <div class="mt-2 flex items-center justify-between gap-2">
+                <KontenDeadline
+                  :tgl="c.deadline"
+                  :selesai="sudahArsip(c)"
+                />
+                <span
+                  v-if="c.pic"
+                  class="flex size-6 items-center justify-center rounded-md bg-primary-100 text-[10px] font-bold text-primary-800"
+                  :title="namaUser(c.pic)"
+                >{{ inisial(namaUser(c.pic) || '?') }}</span>
+                <UBadge
+                  v-else
+                  label="Belum ada PIC"
+                  color="neutral"
+                  variant="soft"
+                  size="sm"
+                />
               </div>
-              <KontenDeadline
-                :tgl="c.deadline"
-                :selesai="sudahArsip(c)"
-              />
             </NuxtLink>
-          </li>
-        </ul>
-      </AppPanel>
-      <p
-        v-if="!tersaring.length"
-        class="p-6 text-center text-sm text-muted"
-      >
-        Belum ada konten.
-      </p>
-    </div>
-  </AppPage>
+            <p
+              v-if="!k.items.length"
+              class="py-4 text-center text-xs text-dimmed"
+            >
+              -
+            </p>
+          </div>
+        </section>
+      </div>
+
+      <!-- Phone: grouped list. -->
+      <div class="space-y-3 lg:hidden">
+        <AppPanel
+          v-for="k in kolom.filter(x => x.items.length)"
+          :key="k.s"
+          flush
+        >
+          <template #head>
+            <div class="flex items-center gap-2 px-4 pt-3">
+              <AppStatus
+                :color="warnaStatusKonten(k.s)"
+                :icon="ikonStatusKonten(k.s)"
+                size="sm"
+              >
+                {{ k.s }}
+              </AppStatus>
+              <span class="num text-xs text-muted">{{ k.items.length }}</span>
+            </div>
+          </template>
+          <ul class="divide-y divide-default">
+            <li
+              v-for="c in k.items"
+              :key="c.id"
+            >
+              <NuxtLink
+                :to="`/konten/detail/${c.id}`"
+                class="flex items-start justify-between gap-2 p-4 hover:bg-muted"
+              >
+                <div class="min-w-0">
+                  <b class="text-highlighted">{{ c.title || '(tanpa judul)' }}</b>
+                  <p class="text-xs text-muted">
+                    {{ [namaBrand(c.brand), contentPlatforms(c).join(' · '), namaUser(c.pic).split(' ')[0] || 'Belum ada PIC'].filter(Boolean).join(' · ') }}
+                  </p>
+                </div>
+                <KontenDeadline
+                  :tgl="c.deadline"
+                  :selesai="sudahArsip(c)"
+                />
+              </NuxtLink>
+            </li>
+          </ul>
+        </AppPanel>
+        <p
+          v-if="!tersaring.length"
+          class="p-6 text-center text-sm text-muted"
+        >
+          Belum ada konten.
+        </p>
+      </div>
+    </AppPage>
   </KontenGerbang>
 </template>

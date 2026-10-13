@@ -9,19 +9,19 @@ const { data: st, error } = useStateKonten()
 
 <template>
   <KontenGerbang lihat="shooting">
-  <AppPage
-    title="Shooting Schedule"
-    description="Jadwal rekam - dari kebutuhan konten & jadwal mandiri. Tandai selesai bila sudah dieksekusi."
-  >
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="subtle"
-      icon="i-lucide-triangle-alert"
-      :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
-    />
-    <KontenBrandBar :brands="st.brands" />
-    <KontenAntrian kind="shoot" />
-  </AppPage>
+    <AppPage
+      title="Shooting Schedule"
+      description="Jadwal rekam - dari kebutuhan konten & jadwal mandiri. Tandai selesai bila sudah dieksekusi."
+    >
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
+      />
+      <KontenBrandBar :brands="st.brands" />
+      <KontenAntrian kind="shoot" />
+    </AppPage>
   </KontenGerbang>
 </template>

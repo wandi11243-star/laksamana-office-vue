@@ -190,219 +190,219 @@ function bukaPoSheet(o: BdPo) {
       </AppStatGrid>
 
       <div class="grid gap-5">
-          <div class="mb-3 flex flex-wrap items-center gap-2">
-            <AppSeg
-              v-model="pdTab"
-              :options="[{ value: 'kanban', label: 'Kanban' }, { value: 'list', label: 'Task & sub-task' }, { value: 'timeline', label: 'Timeline' }]"
-              size="sm"
-            />
-            <div class="flex-1" />
-            <AppSeg
-              v-if="pdTab === 'timeline'"
-              v-model="pdZoom"
-              :options="[{ value: 'day', label: 'Hari' }, { value: 'week', label: 'Minggu' }, { value: 'month', label: 'Bulan' }]"
-              size="sm"
-            />
-            <AppSeg
-              v-else
-              v-model="pdArsip"
-              :options="[{ value: 'aktif', label: `Aktif (${tugas.filter(t => !selesai(t)).length})` }, { value: 'arsip', label: `Arsip (${tugas.filter(selesai).length})` }, { value: 'semua', label: `Semua (${tugas.length})` }]"
-              size="sm"
-            />
-          </div>
-
-          <BdGantt
-            v-if="pdTab === 'timeline'"
-            :projects="[p]"
-            :tasks="state.tasks"
-            :people="people"
-            scoped
-            :zoom="pdZoom"
-            @buka-task="bukaTaskSheet"
-            @sub-toggle="subToggle"
+        <div class="mb-3 flex flex-wrap items-center gap-2">
+          <AppSeg
+            v-model="pdTab"
+            :options="[{ value: 'kanban', label: 'Kanban' }, { value: 'list', label: 'Task & sub-task' }, { value: 'timeline', label: 'Timeline' }]"
+            size="sm"
           />
+          <div class="flex-1" />
+          <AppSeg
+            v-if="pdTab === 'timeline'"
+            v-model="pdZoom"
+            :options="[{ value: 'day', label: 'Hari' }, { value: 'week', label: 'Minggu' }, { value: 'month', label: 'Bulan' }]"
+            size="sm"
+          />
+          <AppSeg
+            v-else
+            v-model="pdArsip"
+            :options="[{ value: 'aktif', label: `Aktif (${tugas.filter(t => !selesai(t)).length})` }, { value: 'arsip', label: `Arsip (${tugas.filter(selesai).length})` }, { value: 'semua', label: `Semua (${tugas.length})` }]"
+            size="sm"
+          />
+        </div>
 
-          <BdKanban
-            v-else-if="pdTab === 'kanban'"
+        <BdGantt
+          v-if="pdTab === 'timeline'"
+          :projects="[p]"
+          :tasks="state.tasks"
+          :people="people"
+          scoped
+          :zoom="pdZoom"
+          @buka-task="bukaTaskSheet"
+          @sub-toggle="subToggle"
+        />
+
+        <BdKanban
+          v-else-if="pdTab === 'kanban'"
+          :tasks="tugasArsip"
+          :semua="state.tasks"
+          :people="people"
+          :arsip="pdArsip"
+          :project-preset="p.id"
+          :pic-default="aku?.id"
+          :div-default="p.div"
+          @buka="bukaTaskSheet"
+          @sub-toggle="subToggle"
+        />
+
+        <AppPanel
+          v-else
+          title="Task & sub-task"
+          icon="i-lucide-list-todo"
+          :count="tugasArsip.length"
+          flush
+        >
+          <BdTaskTree
             :tasks="tugasArsip"
             :semua="state.tasks"
             :people="people"
-            :arsip="pdArsip"
-            :project-preset="p.id"
-            :pic-default="aku?.id"
-            :div-default="p.div"
             @buka="bukaTaskSheet"
+            @toggle="toggle"
+            @hapus="taskHapus = $event"
             @sub-toggle="subToggle"
           />
-
-          <AppPanel
-            v-else
-            title="Task & sub-task"
-            icon="i-lucide-list-todo"
-            :count="tugasArsip.length"
-            flush
+          <p
+            v-if="!tugasArsip.length"
+            class="py-6 text-center text-sm text-muted"
           >
-            <BdTaskTree
-              :tasks="tugasArsip"
-              :semua="state.tasks"
-              :people="people"
-              @buka="bukaTaskSheet"
-              @toggle="toggle"
-              @hapus="taskHapus = $event"
-              @sub-toggle="subToggle"
-            />
-            <p
-              v-if="!tugasArsip.length"
-              class="py-6 text-center text-sm text-muted"
-            >
-              <b class="block text-highlighted">{{ tugas.length ? 'Tidak ada task di tampilan ini' : 'Belum ada task' }}</b>
-              {{ tugas.length ? 'Ganti ke "Semua" untuk melihat task yang sudah Done.' : 'Tambahkan task pertama lewat tombol + Task.' }}
-            </p>
-          </AppPanel>
+            <b class="block text-highlighted">{{ tugas.length ? 'Tidak ada task di tampilan ini' : 'Belum ada task' }}</b>
+            {{ tugas.length ? 'Ganti ke "Semua" untuk melihat task yang sudah Done.' : 'Tambahkan task pertama lewat tombol + Task.' }}
+          </p>
+        </AppPanel>
 
+        <AppPanel
+          v-if="p.desc"
+          title="Deskripsi"
+          icon="i-lucide-align-left"
+        >
+          <p class="whitespace-pre-wrap text-sm text-default">
+            {{ p.desc }}
+          </p>
+        </AppPanel>
+
+        <div class="grid gap-5 lg:grid-cols-2">
           <AppPanel
-            v-if="p.desc"
-            title="Deskripsi"
-            icon="i-lucide-align-left"
+            title="Koordinasi divisi lain"
+            icon="i-lucide-handshake"
+            :count="coord.length"
           >
-            <p class="whitespace-pre-wrap text-sm text-default">
-              {{ p.desc }}
-            </p>
-          </AppPanel>
-
-          <div class="grid gap-5 lg:grid-cols-2">
-            <AppPanel
-              title="Koordinasi divisi lain"
-              icon="i-lucide-handshake"
-              :count="coord.length"
-            >
-              <div class="divide-y divide-default">
-                <button
-                  v-for="c in coord"
-                  :key="c.id"
-                  type="button"
-                  class="w-full px-1 py-2.5 text-start hover:bg-elevated/50"
-                  @click="bukaCoordSheet(c)"
-                >
-                  <span class="block truncate font-semibold text-highlighted">{{ c.title }}</span>
-                  <span class="mt-1 flex flex-wrap items-center gap-1.5">
-                    <AppStatus size="sm">
-                      {{ c.status }}
-                    </AppStatus>
-                    <AppStatus size="sm">
-                      → {{ c.toDiv }}
-                    </AppStatus>
-                    <AppStatus
-                      size="sm"
-                      :color="c.status !== 'Selesai' && c.due && c.due < todayISO() ? 'error' : 'neutral'"
-                    >
-                      {{ fDue(c.due) }}
-                    </AppStatus>
-                  </span>
-                </button>
-                <p
-                  v-if="!coord.length"
-                  class="py-4 text-center text-sm text-muted"
-                >
-                  Tidak ada koordinasi
-                </p>
-              </div>
-            </AppPanel>
-
-            <AppPanel
-              title="Purchase order terkait"
-              icon="i-lucide-shopping-cart"
-              :count="po.length"
-            >
-              <div class="divide-y divide-default">
-                <button
-                  v-for="o in po"
-                  :key="o.id"
-                  type="button"
-                  class="w-full px-1 py-2.5 text-start hover:bg-elevated/50"
-                  @click="bukaPoSheet(o)"
-                >
-                  <span class="block truncate font-semibold text-highlighted">{{ o.item }}</span>
-                  <span class="mt-1 flex flex-wrap items-center gap-1.5">
-                    <AppStatus
-                      size="sm"
-                      :color="WARNA_PO[o.status] || 'neutral'"
-                    >
-                      {{ o.status }}
-                    </AppStatus>
-                    <AppStatus size="sm">{{ fRp(o.amount) }}</AppStatus>
-                  </span>
-                </button>
-                <p
-                  v-if="!po.length"
-                  class="py-4 text-center text-sm text-muted"
-                >
-                  Tidak ada PO
-                </p>
-              </div>
-            </AppPanel>
-
-            <AppPanel
-              title="Milestone"
-              icon="i-lucide-flag"
-              :count="(p.milestones || []).length"
-            >
-              <div class="grid gap-2">
-                <button
-                  v-for="(m, i) in p.milestones || []"
-                  :key="i"
-                  type="button"
-                  class="flex items-start gap-2 rounded-field border p-2.5 text-start transition-colors"
-                  :class="m.done ? 'border-success/40 bg-success/10' : 'border-default hover:border-accented'"
-                  @click="toggleMilestone(i)"
-                >
-                  <span
-                    class="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border"
-                    :class="m.done ? 'border-success bg-success text-white' : 'border-default bg-default'"
+            <div class="divide-y divide-default">
+              <button
+                v-for="c in coord"
+                :key="c.id"
+                type="button"
+                class="w-full px-1 py-2.5 text-start hover:bg-elevated/50"
+                @click="bukaCoordSheet(c)"
+              >
+                <span class="block truncate font-semibold text-highlighted">{{ c.title }}</span>
+                <span class="mt-1 flex flex-wrap items-center gap-1.5">
+                  <AppStatus size="sm">
+                    {{ c.status }}
+                  </AppStatus>
+                  <AppStatus size="sm">
+                    → {{ c.toDiv }}
+                  </AppStatus>
+                  <AppStatus
+                    size="sm"
+                    :color="c.status !== 'Selesai' && c.due && c.due < todayISO() ? 'error' : 'neutral'"
                   >
-                    <UIcon
-                      v-if="m.done"
-                      name="i-lucide-check"
-                      class="size-3"
-                    />
-                  </span>
-                  <span>
-                    <span class="block font-semibold text-highlighted">{{ m.t }}</span>
-                    <span class="text-xs text-muted">{{ fTglP(m.date) }}</span>
-                  </span>
-                </button>
-                <p
-                  v-if="!(p.milestones || []).length"
-                  class="py-4 text-center text-sm text-muted"
-                >
-                  Belum ada milestone — tambahkan lewat tombol Edit.
-                </p>
-              </div>
-            </AppPanel>
-
-            <AppPanel
-              title="PIC"
-              icon="i-lucide-users"
-            >
-              <div class="flex flex-wrap gap-2">
-                <span
-                  v-for="x in dpakai"
-                  :key="x!.id"
-                  class="inline-flex items-center gap-1.5 rounded-full border border-default px-2.5 py-1 text-[13px] font-semibold"
-                >
-                  <span class="flex size-5 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-primary-800">{{ inisial(x!.name) }}</span>
-                  {{ x!.name }}
+                    {{ fDue(c.due) }}
+                  </AppStatus>
                 </span>
-                <span
-                  v-if="!dpakai.length"
-                  class="text-sm text-muted"
-                >Belum ditentukan.</span>
-              </div>
-            </AppPanel>
-          </div>
-        </div>
+              </button>
+              <p
+                v-if="!coord.length"
+                class="py-4 text-center text-sm text-muted"
+              >
+                Tidak ada koordinasi
+              </p>
+            </div>
+          </AppPanel>
 
-        <BdProjectSheet
+          <AppPanel
+            title="Purchase order terkait"
+            icon="i-lucide-shopping-cart"
+            :count="po.length"
+          >
+            <div class="divide-y divide-default">
+              <button
+                v-for="o in po"
+                :key="o.id"
+                type="button"
+                class="w-full px-1 py-2.5 text-start hover:bg-elevated/50"
+                @click="bukaPoSheet(o)"
+              >
+                <span class="block truncate font-semibold text-highlighted">{{ o.item }}</span>
+                <span class="mt-1 flex flex-wrap items-center gap-1.5">
+                  <AppStatus
+                    size="sm"
+                    :color="WARNA_PO[o.status] || 'neutral'"
+                  >
+                    {{ o.status }}
+                  </AppStatus>
+                  <AppStatus size="sm">{{ fRp(o.amount) }}</AppStatus>
+                </span>
+              </button>
+              <p
+                v-if="!po.length"
+                class="py-4 text-center text-sm text-muted"
+              >
+                Tidak ada PO
+              </p>
+            </div>
+          </AppPanel>
+
+          <AppPanel
+            title="Milestone"
+            icon="i-lucide-flag"
+            :count="(p.milestones || []).length"
+          >
+            <div class="grid gap-2">
+              <button
+                v-for="(m, i) in p.milestones || []"
+                :key="i"
+                type="button"
+                class="flex items-start gap-2 rounded-field border p-2.5 text-start transition-colors"
+                :class="m.done ? 'border-success/40 bg-success/10' : 'border-default hover:border-accented'"
+                @click="toggleMilestone(i)"
+              >
+                <span
+                  class="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border"
+                  :class="m.done ? 'border-success bg-success text-white' : 'border-default bg-default'"
+                >
+                  <UIcon
+                    v-if="m.done"
+                    name="i-lucide-check"
+                    class="size-3"
+                  />
+                </span>
+                <span>
+                  <span class="block font-semibold text-highlighted">{{ m.t }}</span>
+                  <span class="text-xs text-muted">{{ fTglP(m.date) }}</span>
+                </span>
+              </button>
+              <p
+                v-if="!(p.milestones || []).length"
+                class="py-4 text-center text-sm text-muted"
+              >
+                Belum ada milestone — tambahkan lewat tombol Edit.
+              </p>
+            </div>
+          </AppPanel>
+
+          <AppPanel
+            title="PIC"
+            icon="i-lucide-users"
+          >
+            <div class="flex flex-wrap gap-2">
+              <span
+                v-for="x in dpakai"
+                :key="x!.id"
+                class="inline-flex items-center gap-1.5 rounded-full border border-default px-2.5 py-1 text-[13px] font-semibold"
+              >
+                <span class="flex size-5 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-primary-800">{{ inisial(x!.name) }}</span>
+                {{ x!.name }}
+              </span>
+              <span
+                v-if="!dpakai.length"
+                class="text-sm text-muted"
+              >Belum ditentukan.</span>
+            </div>
+          </AppPanel>
+        </div>
+      </div>
+
+      <BdProjectSheet
         v-model:open="bukaProject"
         :project="p"
         :projects="state.projects"

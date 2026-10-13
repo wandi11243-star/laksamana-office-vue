@@ -17,50 +17,50 @@ const waktu = (v?: number) => (v ? new Date(v).toLocaleString('id-ID', { day: 'n
 
 <template>
   <KontenGerbang lihat="activity">
-  <AppPage
-    title="Activity Log"
-    :description="`${st.logs.length} aktivitas tercatat - jejak audit`"
-  >
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="subtle"
-      icon="i-lucide-triangle-alert"
-      :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
-    />
-    <AppPanel flush>
-      <p
-        v-if="!logs.length"
-        class="p-6 text-center text-sm text-muted"
-      >
-        {{ status === 'pending' ? 'Memuat…' : 'Belum ada aktivitas.' }}
-      </p>
-      <ul
-        v-else
-        class="divide-y divide-default"
-      >
-        <li
-          v-for="(l, i) in logs.slice(0, 80)"
-          :key="l.id ?? i"
-          class="flex gap-3 px-4 py-3"
+    <AppPage
+      title="Activity Log"
+      :description="`${st.logs.length} aktivitas tercatat - jejak audit`"
+    >
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
+      />
+      <AppPanel flush>
+        <p
+          v-if="!logs.length"
+          class="p-6 text-center text-sm text-muted"
         >
-          <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-700">
-            {{ namaUser(l.by).slice(0, 1).toUpperCase() }}
-          </span>
-          <div class="min-w-0 text-sm">
-            <p>
-              <b>{{ namaUser(l.by) }}</b> {{ l.action }}{{ l.target ? ' ' : '' }}<span
-                v-if="l.target"
-                class="text-primary-700"
-              >{{ l.target }}</span>
-            </p>
-            <p class="text-xs text-muted">
-              {{ waktu(l.at) }} - {{ lamaKonten(l.at) }}
-            </p>
-          </div>
-        </li>
-      </ul>
-    </AppPanel>
-  </AppPage>
+          {{ status === 'pending' ? 'Memuat…' : 'Belum ada aktivitas.' }}
+        </p>
+        <ul
+          v-else
+          class="divide-y divide-default"
+        >
+          <li
+            v-for="(l, i) in logs.slice(0, 80)"
+            :key="l.id ?? i"
+            class="flex gap-3 px-4 py-3"
+          >
+            <span class="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary-50 text-xs font-bold text-primary-700">
+              {{ namaUser(l.by).slice(0, 1).toUpperCase() }}
+            </span>
+            <div class="min-w-0 text-sm">
+              <p>
+                <b>{{ namaUser(l.by) }}</b> {{ l.action }}{{ l.target ? ' ' : '' }}<span
+                  v-if="l.target"
+                  class="text-primary-700"
+                >{{ l.target }}</span>
+              </p>
+              <p class="text-xs text-muted">
+                {{ waktu(l.at) }} - {{ lamaKonten(l.at) }}
+              </p>
+            </div>
+          </li>
+        </ul>
+      </AppPanel>
+    </AppPage>
   </KontenGerbang>
 </template>

@@ -34,7 +34,11 @@ const bulan = ref(hariIni().slice(0, 7))
 const tapis = ref('semua')
 const cari = ref('')
 const hal = ref(1)
-const PER_HAL = 25
+const perHal = ref(25)
+const halBelum = ref(1)
+const perBelum = ref(25)
+const halLuar = ref(1)
+const perLuar = ref(25)
 
 const { data, status, error, refresh } = useAsyncData(props.kunci ?? 'cashier-bri', async () => {
   const r = rentangBulan(bulan.value)
@@ -97,12 +101,9 @@ const usulan = computed(() => cbUsulan(rows.value.filter(belumCocok), bulanDps.v
 const usulanPasti = computed(() => Object.keys(usulan.value).filter(i => usulan.value[i]!.babak.pasti))
 const usulanKira = computed(() => Object.keys(usulan.value).filter(i => !usulan.value[i]!.babak.pasti))
 const tampil = computed(() => filterBarisGab(gab.value, tapis.value, cari.value))
-const totalHal = computed(() => Math.max(1, Math.ceil(tampil.value.length / PER_HAL)))
-const halaman = computed(() => {
-  const p = Math.min(Math.max(1, hal.value), totalHal.value)
-  const mulai = (p - 1) * PER_HAL
-  return { p, mulai, akhir: Math.min(mulai + PER_HAL, tampil.value.length), rows: tampil.value.slice(mulai, mulai + PER_HAL) }
-})
+const halaman = computed(() => ({ rows: tampil.value.slice((hal.value - 1) * perHal.value, hal.value * perHal.value) }))
+const belumRows = computed(() => belum.value.slice((halBelum.value - 1) * perBelum.value, halBelum.value * perBelum.value))
+const luarRows = computed(() => luar.value.slice((halLuar.value - 1) * perLuar.value, halLuar.value * perLuar.value))
 const tab = computed(() => [
   { value: 'semua', label: `Semua (${gab.value.length})` },
   { value: 'rsv', label: `Dari reservasi (${stats.value.rsv.n})` },
@@ -112,9 +113,6 @@ const tab = computed(() => [
 ])
 watch([tapis, cari], () => {
   hal.value = 1
-})
-watch(totalHal, (t) => {
-  if (hal.value > t) hal.value = t
 })
 
 function isiPesan(msg: string) {
@@ -459,19 +457,72 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
 <template>
   <AppPage
     title="Pencocokan QRIS BRI"
-    description="Dana masuk rekening BRI dicocokkan ke DP reservasi."
+    description="Mutasi masuk rekening BRI dicocokkan ke DP reservasi."
   >
+    <template #actions>
+      <UInput
+        v-model="bulan"
+        type="month"
+        size="sm"
+        class="w-40"
+      />
+    </template>
+    <UAlert
+      v-if="error"
+      color="error"
+      variant="subtle"
+      icon="i-lucide-triangle-alert"
+      :title="`Daftar mutasi tidak terbaca: ${apiErrorMessage(error)}.`"
+    />
+    <UAlert
+      v-if="stats.tanpaTgl"
+      color="info"
+      variant="subtle"
+      icon="i-lucide-info"
+      :title="`${stats.tanpaTgl} transaksi tidak punya tanggal transfer`"
+      description="Barisnya berdiri di paling bawah, di luar urutan waktu. Itu baris lama dari jalur unggah mutasi bank yang sudah dicabut — bukan data yang hilang."
+      class="mb-3"
+    />
+    <p
+      v-if="status === 'pending'"
+      class="text-sm text-muted"
+    >
+      Memuat…
+    </p>
+
+    <AppStatGrid>
+      <AppStat
+        label="Dana masuk BRI"
+        icon="i-lucide-banknote"
+        :value="fmtRp(stats.dana.total)"
+        :sub="`${stats.dana.n} transaksi${stats.dana.batal ? ` · ${stats.dana.batal} dibatalkan / tidak valid, tidak dihitung` : ''}`"
+      />
+      <AppStat
+        label="Dari reservasi"
+        icon="i-lucide-calendar-check"
+        :value="fmtRp(stats.rsv.total)"
+        :sub="`${stats.rsv.n} transaksi — sudah disambungkan ke DP`"
+        tone="success"
+      />
+      <AppStat
+        label="Di luar reservasi"
+        icon="i-lucide-circle-slash"
+        :value="fmtRp(stats.luar.total)"
+        :sub="`${stats.luar.n} transaksi, bukan DP reservasi`"
+      />
+      <AppStat
+        label="Belum ketahuan"
+        icon="i-lucide-circle-help"
+        :value="fmtRp(stats.belum.total)"
+        :sub="`${stats.belum.n} baris yang belum disambungkan ke mana pun`"
+        :tone="stats.belum.n ? 'warning' : undefined"
+      />
+    </AppStatGrid>
     <AppPanel
-      title="Dana masuk BRI"
-      :description="`Menampilkan ${labelBulanYm(bulan)}. Satu baris = satu uang yang dinyatakan masuk; DP reservasi disambungkan ke barisnya lewat tombol Cocokkan.`"
+      title="Menambah Dana Masuk"
+      description="Satu baris = satu uang yang kamu lihat masuk di rekening. Kalau uangnya DP reservasi, sambungkan sesudahnya lewat tombol Cocokkan."
     >
       <template #actions>
-        <UInput
-          v-model="bulan"
-          type="month"
-          size="sm"
-          class="w-40"
-        />
         <UButton
           label="Muat ulang"
           icon="i-lucide-refresh-cw"
@@ -480,60 +531,25 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
           size="sm"
           @click="refresh()"
         />
+        <UButton
+          v-if="izinUbah"
+          label="Tambah dana masuk"
+          icon="i-lucide-plus"
+          size="sm"
+          @click="bukaTambah"
+        />
       </template>
-
-      <UAlert
-        v-if="error"
-        color="error"
-        variant="subtle"
-        icon="i-lucide-triangle-alert"
-        :title="`Daftar mutasi tidak terbaca: ${apiErrorMessage(error)}.`"
-      />
-      <UAlert
-        v-if="stats.tanpaTgl"
-        color="info"
-        variant="subtle"
-        icon="i-lucide-info"
-        :title="`${stats.tanpaTgl} transaksi tidak punya tanggal transfer`"
-        description="Barisnya berdiri di paling bawah, di luar urutan waktu. Itu baris lama dari jalur unggah mutasi bank yang sudah dicabut — bukan data yang hilang."
-        class="mb-3"
-      />
-      <p
-        v-if="status === 'pending'"
-        class="text-sm text-muted"
-      >
-        Memuat…
+      <p class="text-sm text-muted">
+        Daftar di bawah berisi uang yang orang nyatakan masuk — diketik dari mutasi bank, bukan disalin dari bukti bayar.
+        DP reservasi disambungkan ke barisnya; yang belum tersambung berdiri di kartu di bawah tabel, berikut tombol
+        untuk mencatatnya sekali klik.
       </p>
+    </AppPanel>
 
-      <AppStatGrid>
-        <AppStat
-          label="Dana masuk BRI"
-          icon="i-lucide-banknote"
-          :value="fmtRp(stats.dana.total)"
-          :sub="`${stats.dana.n} transaksi${stats.dana.batal ? ` · ${stats.dana.batal} dibatalkan / tidak valid, tidak dihitung` : ''}`"
-        />
-        <AppStat
-          label="Dari reservasi"
-          icon="i-lucide-calendar-check"
-          :value="fmtRp(stats.rsv.total)"
-          :sub="`${stats.rsv.n} transaksi — sudah disambungkan ke DP`"
-          tone="success"
-        />
-        <AppStat
-          label="Di luar reservasi"
-          icon="i-lucide-circle-slash"
-          :value="fmtRp(stats.luar.total)"
-          :sub="`${stats.luar.n} transaksi, bukan DP reservasi`"
-        />
-        <AppStat
-          label="Belum ketahuan"
-          icon="i-lucide-circle-help"
-          :value="fmtRp(stats.belum.total)"
-          :sub="`${stats.belum.n} baris yang belum disambungkan ke mana pun`"
-          :tone="stats.belum.n ? 'warning' : undefined"
-        />
-      </AppStatGrid>
-
+    <AppPanel
+      :title="`Dana Masuk BRI — ${labelBulanYm(bulan)}`"
+      description="Satu baris = satu uang yang dinyatakan masuk, urut waktu masuknya. DP reservasi tidak lahir jadi baris di sini — ia disambungkan ke barisnya lewat tombol Cocokkan."
+    >
       <div class="mb-3 flex flex-wrap items-center gap-2">
         <AppSeg
           v-model="tapis"
@@ -882,48 +898,11 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
         </p>
       </div>
 
-      <div
-        v-if="totalHal > 1"
-        class="mt-3 flex flex-wrap items-center justify-between gap-2"
-      >
-        <UButton
-          label="‹ Sebelumnya"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          :disabled="halaman.p <= 1"
-          @click="hal = halaman.p - 1"
-        />
-        <span class="text-xs text-muted">Menampilkan {{ halaman.mulai + 1 }}–{{ halaman.akhir }} dari {{ tampil.length }} baris</span>
-        <UButton
-          label="Berikutnya ›"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          :disabled="halaman.p >= totalHal"
-          @click="hal = halaman.p + 1"
-        />
-      </div>
-    </AppPanel>
-
-    <AppPanel
-      title="Tambah dana masuk"
-      description="Satu baris = satu uang yang kamu lihat masuk di rekening. Kalau uangnya DP reservasi, sambungkan sesudahnya lewat tombol Cocokkan."
-    >
-      <template #actions>
-        <UButton
-          v-if="izinUbah"
-          label="+ Tambah dana masuk"
-          icon="i-lucide-plus"
-          size="sm"
-          @click="bukaTambah"
-        />
-      </template>
-      <p class="text-sm text-muted">
-        Daftar di atas berisi uang yang orang nyatakan masuk — diketik dari mutasi bank, bukan disalin dari bukti bayar.
-        DP reservasi disambungkan ke barisnya; yang belum tersambung berdiri di kartu di bawah tabel, berikut tombol
-        untuk mencatatnya sekali klik.
-      </p>
+      <AppPager
+        v-model:page="hal"
+        v-model:per="perHal"
+        :total="tampil.length"
+      />
     </AppPanel>
 
     <AppPanel
@@ -941,7 +920,7 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
         class="divide-y divide-default"
       >
         <div
-          v-for="d in belum"
+          v-for="d in belumRows"
           :key="d.dpId"
           class="flex flex-wrap items-center justify-between gap-2 py-2"
         >
@@ -982,6 +961,12 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
           </div>
         </div>
       </div>
+      <AppPager
+        v-if="belum.length"
+        v-model:page="halBelum"
+        v-model:per="perBelum"
+        :total="belum.length"
+      />
 
       <template v-if="nisan.length">
         <AppSectionTitle
@@ -1024,7 +1009,7 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
     >
       <div class="divide-y divide-default">
         <div
-          v-for="d in luar"
+          v-for="d in luarRows"
           :key="d.dpId"
           class="flex flex-wrap items-center justify-between gap-2 py-2"
         >
@@ -1056,6 +1041,11 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
           </div>
         </div>
       </div>
+      <AppPager
+        v-model:page="halLuar"
+        v-model:per="perLuar"
+        :total="luar.length"
+      />
       <p class="mt-3 text-sm text-muted">
         Kalau uangnya sebenarnya masuk BRI, betulkan metode DP itu di sini — barisnya muncul di daftar begitu itu beres.
       </p>

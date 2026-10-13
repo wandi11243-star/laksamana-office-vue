@@ -134,9 +134,12 @@ const paxBulan = computed(() => {
   }
   const mktPax = mkt.value.reduce((a, e) => a + (Number(e.pax) || 0), 0)
   const rsvPax = rsv.value.reduce((a, r) => a + (Number(r.pax) || 0), 0)
-  const total = tipe.value === 'all' ? ems + mktPax + rsvPax
-    : tipe.value === 'Event' ? ems
-      : tipe.value === 'Marketing' ? mktPax
+  const total = tipe.value === 'all'
+    ? ems + mktPax + rsvPax
+    : tipe.value === 'Event'
+      ? ems
+      : tipe.value === 'Marketing'
+        ? mktPax
         : tipe.value === 'Reservation' ? rsvPax : 0
   return { ems, mkt: mktPax, rsv: rsvPax, total }
 })
@@ -227,340 +230,344 @@ function bukaHariRsv(tgl: string) {
 
 <template>
   <EventGerbang lihat="calendar">
-  <AppPage
-    title="Event calendar"
-    description="Kalender terpadu multi-sumber"
-  >
-    <template #actions>
-      <UButton
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-refresh-cw"
-        :loading="status === 'pending' || memuatSilang"
-        @click="() => { refresh(); muatSilang() }"
-      >
-        Muat ulang
-      </UButton>
-    </template>
-
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="soft"
-      :title="apiErrorMessage(error)"
-      class="mb-4"
-    />
-    <UAlert
-      v-if="mktGagal || rsvGagal"
-      color="warning"
-      variant="soft"
-      title="Sumber lintas modul tidak terbaca"
-      :description="`Kalender menampilkan data event saja.${mktGagal ? ' Marketing gagal dimuat.' : ''}${rsvGagal ? ' Reservasi gagal dimuat.' : ''}`"
-      class="mb-4"
-      :actions="[{ label: 'Coba lagi', onClick: () => muatSilang() }]"
-    />
-
-    <AppPanel class="mb-4">
-      <div class="flex flex-wrap items-center gap-2">
-        <UButton
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-chevron-left"
-          @click="geserBulan(-1)"
-        />
-        <b class="min-w-28 text-center text-highlighted">{{ labelBulan }}</b>
-        <UButton
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-chevron-right"
-          @click="geserBulan(1)"
-        />
-        <UButton
-          color="neutral"
-          variant="outline"
-          @click="bulan = hariIni().slice(0, 7)"
-        >
-          Hari ini
-        </UButton>
-        <USelect
-          v-model="tipe"
-          :items="PILIHAN_TIPE"
-          class="w-44"
-        />
-        <span
-          class="ms-auto rounded-full bg-info/12 px-3 py-1 text-xs font-semibold text-info num"
-          :title="`EMS ${angka(paxBulan.ems)} · Marketing ${angka(paxBulan.mkt)} · Reservasi ${angka(paxBulan.rsv)}`"
-        >
-          {{ angka(paxBulan.total) }} pax bulan ini
-        </span>
-      </div>
-      <div class="mt-2 flex flex-wrap gap-1.5 text-[11px]">
-        <span
-          class="rounded-full px-2 py-0.5 font-semibold"
-          :class="WARNA_TIPE['Event']"
-        >
-          Event
-        </span>
-        <span
-          class="rounded-full px-2 py-0.5 font-semibold"
-          :class="WARNA_TIPE['Entertainment']"
-        >
-          Talent ({{ hitungJadwal }})
-        </span>
-        <span
-          class="rounded-full px-2 py-0.5 font-semibold"
-          :class="WARNA_TIPE['Marketing']"
-        >
-          Marketing ({{ hitungMkt }})
-        </span>
-        <span
-          class="rounded-full px-2 py-0.5 font-semibold"
-          :class="WARNA_TIPE['Reservation']"
-        >
-          Reservasi ({{ hitungHariRsv }} hari)
-        </span>
-      </div>
-    </AppPanel>
-
-    <AppPanel flush>
-      <div class="grid grid-cols-7 border-b border-default">
-        <div
-          v-for="d in DOW"
-          :key="d"
-          class="px-1 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-muted"
-        >
-          {{ d }}
-        </div>
-      </div>
-      <div class="grid grid-cols-7">
-        <div
-          v-for="sel in selBulan"
-          :key="sel.tgl"
-          class="min-h-16 border-b border-e border-default p-1 align-top last:border-e-0 sm:min-h-24 sm:p-1.5"
-          :class="sel.dalam ? '' : 'bg-muted/50'"
-        >
-          <span
-            class="text-xs font-semibold num"
-            :class="[
-              sel.tgl === hariIni() ? 'rounded-full bg-primary px-1.5 py-0.5 text-white' : 'text-muted',
-              sel.dalam ? '' : 'opacity-50',
-            ]"
-          >{{ sel.num }}</span>
-          <ul class="mt-1 space-y-0.5">
-            <li
-              v-for="(it, i) in biasaHari(sel.tgl).slice(0, 4)"
-              :key="i"
-            >
-              <button
-                v-if="it.tipe !== 'Holiday' && it.tipe !== 'Birthday'"
-                type="button"
-                class="block w-full truncate rounded px-1 py-0.5 text-left text-[11px] font-medium"
-                :class="WARNA_TIPE[it.tipe]"
-                @click="bukaItem(it)"
-              >
-                {{ it.judul }}<template v-if="it.tipe === 'Event'"> · <b class="num">{{ angka(lakuEv(it.acara?.id ?? '')) }} pax</b></template><template v-else-if="it.tipe === 'Marketing' && it.mkt?.pax"> · <b class="num">{{ angka(Number(it.mkt.pax) || 0) }} pax</b></template>
-              </button>
-              <span
-                v-else
-                class="block truncate rounded px-1 py-0.5 text-left text-[11px] font-medium"
-                :class="WARNA_TIPE[it.tipe]"
-              >{{ it.judul }}</span>
-            </li>
-            <li
-              v-if="biasaHari(sel.tgl).length > 4"
-              class="px-1 text-[11px] text-muted num"
-            >
-              +{{ biasaHari(sel.tgl).length - 4 }} lagi
-            </li>
-            <li v-if="ringkasRsv(sel.tgl).n">
-              <button
-                type="button"
-                class="block w-full truncate rounded px-1 py-0.5 text-left text-[11px] font-medium"
-                :class="WARNA_TIPE['Reservation']"
-                :title="`${ringkasRsv(sel.tgl).n} reservasi hari ini`"
-                @click="bukaHariRsv(sel.tgl)"
-              >
-                {{ ringkasRsv(sel.tgl).n }} reservasi · <b class="num">{{ angka(ringkasRsv(sel.tgl).pax) }} pax</b>
-              </button>
-            </li>
-          </ul>
-        </div>
-      </div>
-    </AppPanel>
-
-    <ResponsiveSheet
-      v-model:open="sheet"
-      :title="itemAktif?.judul ?? 'Detail'"
+    <AppPage
+      title="Event calendar"
+      description="Kalender terpadu multi-sumber"
     >
-      <div
-        v-if="itemAktif"
-        class="space-y-2 text-sm"
-      >
-        <p class="text-muted">
-          {{ tglPanjang(itemAktif.tgl) }} · {{ itemAktif.tipe }}
-        </p>
-        <template v-if="itemAktif.acara">
-          <div class="space-y-1.5">
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Waktu</span>
-              <b>{{ jamWIB(itemAktif.acara.start_datetime) }}{{ itemAktif.acara.end_datetime ? `–${jamWIB(itemAktif.acara.end_datetime)}` : '' }} WIB</b>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Lokasi</span>
-              <span>{{ itemAktif.acara.venue || '—' }}</span>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">PIC</span>
-              <span>{{ itemAktif.acara.pic || '—' }}</span>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Tiket</span>
-              <span class="num">{{ angka(lakuEv(itemAktif.acara.id)) }} / {{ angka(kuotaEv(itemAktif.acara.id)) }} terjual</span>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Omzet lunas</span>
-              <b class="num">{{ rupiah(omzetEv(itemAktif.acara.id)) }}</b>
-            </div>
-            <div class="flex flex-wrap gap-1.5">
-              <AppStatus
-                v-if="itemAktif.acara.category"
-                color="gold"
-                size="sm"
-              >
-                {{ itemAktif.acara.category }}
-              </AppStatus>
-              <AppStatus
-                :color="STATUS_WARNA_EVENT[String(itemAktif.acara.status)] ?? 'neutral'"
-                :icon="STATUS_IKON_EVENT[String(itemAktif.acara.status)]"
-                size="sm"
-              >
-                {{ String(itemAktif.acara.status) }}
-              </AppStatus>
-            </div>
-          </div>
+      <template #actions>
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-refresh-cw"
+          :loading="status === 'pending' || memuatSilang"
+          @click="() => { refresh(); muatSilang() }"
+        >
+          Muat ulang
+        </UButton>
+      </template>
+
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="soft"
+        :title="apiErrorMessage(error)"
+        class="mb-4"
+      />
+      <UAlert
+        v-if="mktGagal || rsvGagal"
+        color="warning"
+        variant="soft"
+        title="Sumber lintas modul tidak terbaca"
+        :description="`Kalender menampilkan data event saja.${mktGagal ? ' Marketing gagal dimuat.' : ''}${rsvGagal ? ' Reservasi gagal dimuat.' : ''}`"
+        class="mb-4"
+        :actions="[{ label: 'Coba lagi', onClick: () => muatSilang() }]"
+      />
+
+      <AppPanel class="mb-4">
+        <div class="flex flex-wrap items-center gap-2">
           <UButton
-            :to="`/event/events/${itemAktif.acara.id}`"
-            color="primary"
-            @click="sheet = false"
-          >
-            Buka detail event
-          </UButton>
-        </template>
-        <template v-else-if="itemAktif.jadwal">
-          <div class="space-y-1.5">
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Tanggal</span>
-              <b>{{ tglPanjang(itemAktif.jadwal.date) }}</b>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Jam</span>
-              <span>{{ itemAktif.jadwal.start_time || '—' }}–{{ itemAktif.jadwal.end_time || '—' }}</span>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Jenis</span>
-              <span>{{ itemAktif.jadwal.type || '—' }}</span>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Fee</span>
-              <b class="num">{{ rupiah(Number(itemAktif.jadwal.fee) || 0) }}</b>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Kontak WA</span>
-              <a
-                v-if="waNo(talentJadwal(itemAktif.jadwal.talent_id)?.whatsapp || talentJadwal(itemAktif.jadwal.talent_id)?.phone)"
-                :href="`https://wa.me/${waNo(talentJadwal(itemAktif.jadwal.talent_id)?.whatsapp || talentJadwal(itemAktif.jadwal.talent_id)?.phone)}`"
-                target="_blank"
-                rel="noopener"
-                class="font-semibold text-primary-700 underline"
-              >{{ talentJadwal(itemAktif.jadwal.talent_id)?.whatsapp || talentJadwal(itemAktif.jadwal.talent_id)?.phone }}</a>
-              <span v-else>—</span>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Status</span>
-              <AppStatus size="sm">
-                {{ itemAktif.jadwal.status || '—' }}
-              </AppStatus>
-            </div>
-          </div>
-          <UButton
-            to="/event/schedule"
             color="neutral"
             variant="outline"
-            @click="sheet = false"
+            icon="i-lucide-chevron-left"
+            @click="geserBulan(-1)"
+          />
+          <b class="min-w-28 text-center text-highlighted">{{ labelBulan }}</b>
+          <UButton
+            color="neutral"
+            variant="outline"
+            icon="i-lucide-chevron-right"
+            @click="geserBulan(1)"
+          />
+          <UButton
+            color="neutral"
+            variant="outline"
+            @click="bulan = hariIni().slice(0, 7)"
           >
-            Buka talent schedule
+            Hari ini
           </UButton>
-        </template>
-        <template v-else-if="itemAktif.mkt">
-          <div class="space-y-1.5">
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Tanggal</span>
-              <b>{{ tglPanjang(itemAktif.tgl) }}</b>
-            </div>
-            <div
-              v-if="itemAktif.mkt.client"
-              class="flex justify-between gap-3 border-b border-default pb-1.5"
-            >
-              <span class="text-muted">Klien</span>
-              <span>{{ itemAktif.mkt.client }}</span>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Status</span>
-              <span>{{ itemAktif.mkt.status || '—' }}</span>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Estimasi tamu</span>
-              <b class="num">{{ angka(Number(itemAktif.mkt.pax) || 0) }} pax</b>
-            </div>
-          </div>
-          <p class="text-xs text-dimmed">
-            Event marketing — read-only di sini.
-          </p>
-        </template>
-      </div>
-    </ResponsiveSheet>
+          <USelect
+            v-model="tipe"
+            :items="PILIHAN_TIPE"
+            class="w-44"
+          />
+          <span
+            class="ms-auto rounded-full bg-info/12 px-3 py-1 text-xs font-semibold text-info num"
+            :title="`EMS ${angka(paxBulan.ems)} · Marketing ${angka(paxBulan.mkt)} · Reservasi ${angka(paxBulan.rsv)}`"
+          >
+            {{ angka(paxBulan.total) }} pax bulan ini
+          </span>
+        </div>
+        <div class="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+          <span
+            class="rounded-full px-2 py-0.5 font-semibold"
+            :class="WARNA_TIPE['Event']"
+          >
+            Event
+          </span>
+          <span
+            class="rounded-full px-2 py-0.5 font-semibold"
+            :class="WARNA_TIPE['Entertainment']"
+          >
+            Talent ({{ hitungJadwal }})
+          </span>
+          <span
+            class="rounded-full px-2 py-0.5 font-semibold"
+            :class="WARNA_TIPE['Marketing']"
+          >
+            Marketing ({{ hitungMkt }})
+          </span>
+          <span
+            class="rounded-full px-2 py-0.5 font-semibold"
+            :class="WARNA_TIPE['Reservation']"
+          >
+            Reservasi ({{ hitungHariRsv }} hari)
+          </span>
+        </div>
+      </AppPanel>
 
-    <ResponsiveSheet
-      v-model:open="rsvSheet"
-      :title="`Reservasi · ${rsvTgl ? tglPanjang(rsvTgl) : ''}`"
-    >
-      <div
-        v-if="rsvTgl"
-        class="space-y-1.5 text-sm"
+      <AppPanel flush>
+        <div class="grid grid-cols-7 border-b border-default">
+          <div
+            v-for="d in DOW"
+            :key="d"
+            class="px-1 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-muted"
+          >
+            {{ d }}
+          </div>
+        </div>
+        <div class="grid grid-cols-7">
+          <div
+            v-for="sel in selBulan"
+            :key="sel.tgl"
+            class="min-h-16 border-b border-e border-default p-1 align-top last:border-e-0 sm:min-h-24 sm:p-1.5"
+            :class="sel.dalam ? '' : 'bg-muted/50'"
+          >
+            <span
+              class="text-xs font-semibold num"
+              :class="[
+                sel.tgl === hariIni() ? 'rounded-full bg-primary px-1.5 py-0.5 text-white' : 'text-muted',
+                sel.dalam ? '' : 'opacity-50',
+              ]"
+            >{{ sel.num }}</span>
+            <ul class="mt-1 space-y-0.5">
+              <li
+                v-for="(it, i) in biasaHari(sel.tgl).slice(0, 4)"
+                :key="i"
+              >
+                <button
+                  v-if="it.tipe !== 'Holiday' && it.tipe !== 'Birthday'"
+                  type="button"
+                  class="block w-full truncate rounded px-1 py-0.5 text-left text-[11px] font-medium"
+                  :class="WARNA_TIPE[it.tipe]"
+                  @click="bukaItem(it)"
+                >
+                  {{ it.judul }}<template v-if="it.tipe === 'Event'">
+                    · <b class="num">{{ angka(lakuEv(it.acara?.id ?? '')) }} pax</b>
+                  </template><template v-else-if="it.tipe === 'Marketing' && it.mkt?.pax">
+                    · <b class="num">{{ angka(Number(it.mkt.pax) || 0) }} pax</b>
+                  </template>
+                </button>
+                <span
+                  v-else
+                  class="block truncate rounded px-1 py-0.5 text-left text-[11px] font-medium"
+                  :class="WARNA_TIPE[it.tipe]"
+                >{{ it.judul }}</span>
+              </li>
+              <li
+                v-if="biasaHari(sel.tgl).length > 4"
+                class="px-1 text-[11px] text-muted num"
+              >
+                +{{ biasaHari(sel.tgl).length - 4 }} lagi
+              </li>
+              <li v-if="ringkasRsv(sel.tgl).n">
+                <button
+                  type="button"
+                  class="block w-full truncate rounded px-1 py-0.5 text-left text-[11px] font-medium"
+                  :class="WARNA_TIPE['Reservation']"
+                  :title="`${ringkasRsv(sel.tgl).n} reservasi hari ini`"
+                  @click="bukaHariRsv(sel.tgl)"
+                >
+                  {{ ringkasRsv(sel.tgl).n }} reservasi · <b class="num">{{ angka(ringkasRsv(sel.tgl).pax) }} pax</b>
+                </button>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </AppPanel>
+
+      <ResponsiveSheet
+        v-model:open="sheet"
+        :title="itemAktif?.judul ?? 'Detail'"
       >
         <div
-          v-for="i in rsvHari(rsvTgl)"
-          :key="i.rsv?.id"
-          class="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-b border-default py-1.5"
+          v-if="itemAktif"
+          class="space-y-2 text-sm"
         >
-          <b class="num">{{ i.rsv?.time || '—' }}</b>
-          <b class="min-w-0 flex-1 text-highlighted">{{ i.rsv?.name }}</b>
-          <span class="num">{{ i.rsv?.pax }} pax</span>
-          <span class="text-muted">{{ i.rsv?.table || '—' }}</span>
-          <span class="text-muted">{{ i.rsv?.status }}</span>
-          <AppStatus
-            v-if="i.rsv?.vip"
-            color="vip"
-            icon="i-lucide-crown"
-            size="sm"
-          >
-            VIP
-          </AppStatus>
+          <p class="text-muted">
+            {{ tglPanjang(itemAktif.tgl) }} · {{ itemAktif.tipe }}
+          </p>
+          <template v-if="itemAktif.acara">
+            <div class="space-y-1.5">
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Waktu</span>
+                <b>{{ jamWIB(itemAktif.acara.start_datetime) }}{{ itemAktif.acara.end_datetime ? `–${jamWIB(itemAktif.acara.end_datetime)}` : '' }} WIB</b>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Lokasi</span>
+                <span>{{ itemAktif.acara.venue || '—' }}</span>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">PIC</span>
+                <span>{{ itemAktif.acara.pic || '—' }}</span>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Tiket</span>
+                <span class="num">{{ angka(lakuEv(itemAktif.acara.id)) }} / {{ angka(kuotaEv(itemAktif.acara.id)) }} terjual</span>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Omzet lunas</span>
+                <b class="num">{{ rupiah(omzetEv(itemAktif.acara.id)) }}</b>
+              </div>
+              <div class="flex flex-wrap gap-1.5">
+                <AppStatus
+                  v-if="itemAktif.acara.category"
+                  color="gold"
+                  size="sm"
+                >
+                  {{ itemAktif.acara.category }}
+                </AppStatus>
+                <AppStatus
+                  :color="STATUS_WARNA_EVENT[String(itemAktif.acara.status)] ?? 'neutral'"
+                  :icon="STATUS_IKON_EVENT[String(itemAktif.acara.status)]"
+                  size="sm"
+                >
+                  {{ String(itemAktif.acara.status) }}
+                </AppStatus>
+              </div>
+            </div>
+            <UButton
+              :to="`/event/events/${itemAktif.acara.id}`"
+              color="primary"
+              @click="sheet = false"
+            >
+              Buka detail event
+            </UButton>
+          </template>
+          <template v-else-if="itemAktif.jadwal">
+            <div class="space-y-1.5">
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Tanggal</span>
+                <b>{{ tglPanjang(itemAktif.jadwal.date) }}</b>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Jam</span>
+                <span>{{ itemAktif.jadwal.start_time || '—' }}–{{ itemAktif.jadwal.end_time || '—' }}</span>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Jenis</span>
+                <span>{{ itemAktif.jadwal.type || '—' }}</span>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Fee</span>
+                <b class="num">{{ rupiah(Number(itemAktif.jadwal.fee) || 0) }}</b>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Kontak WA</span>
+                <a
+                  v-if="waNo(talentJadwal(itemAktif.jadwal.talent_id)?.whatsapp || talentJadwal(itemAktif.jadwal.talent_id)?.phone)"
+                  :href="`https://wa.me/${waNo(talentJadwal(itemAktif.jadwal.talent_id)?.whatsapp || talentJadwal(itemAktif.jadwal.talent_id)?.phone)}`"
+                  target="_blank"
+                  rel="noopener"
+                  class="font-semibold text-primary-700 underline"
+                >{{ talentJadwal(itemAktif.jadwal.talent_id)?.whatsapp || talentJadwal(itemAktif.jadwal.talent_id)?.phone }}</a>
+                <span v-else>—</span>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Status</span>
+                <AppStatus size="sm">
+                  {{ itemAktif.jadwal.status || '—' }}
+                </AppStatus>
+              </div>
+            </div>
+            <UButton
+              to="/event/schedule"
+              color="neutral"
+              variant="outline"
+              @click="sheet = false"
+            >
+              Buka talent schedule
+            </UButton>
+          </template>
+          <template v-else-if="itemAktif.mkt">
+            <div class="space-y-1.5">
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Tanggal</span>
+                <b>{{ tglPanjang(itemAktif.tgl) }}</b>
+              </div>
+              <div
+                v-if="itemAktif.mkt.client"
+                class="flex justify-between gap-3 border-b border-default pb-1.5"
+              >
+                <span class="text-muted">Klien</span>
+                <span>{{ itemAktif.mkt.client }}</span>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Status</span>
+                <span>{{ itemAktif.mkt.status || '—' }}</span>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Estimasi tamu</span>
+                <b class="num">{{ angka(Number(itemAktif.mkt.pax) || 0) }} pax</b>
+              </div>
+            </div>
+            <p class="text-xs text-dimmed">
+              Event marketing — read-only di sini.
+            </p>
+          </template>
         </div>
-        <p class="pt-1 text-xs text-muted num">
-          Total {{ angka(ringkasRsv(rsvTgl).pax) }} pax dari {{ ringkasRsv(rsvTgl).n }} reservasi
-        </p>
-        <UButton
-          to="/reservasi/dashboard"
-          target="_blank"
-          color="neutral"
-          variant="outline"
-          @click="rsvTgl = null"
+      </ResponsiveSheet>
+
+      <ResponsiveSheet
+        v-model:open="rsvSheet"
+        :title="`Reservasi · ${rsvTgl ? tglPanjang(rsvTgl) : ''}`"
+      >
+        <div
+          v-if="rsvTgl"
+          class="space-y-1.5 text-sm"
         >
-          Buka modul reservasi
-        </UButton>
-      </div>
-    </ResponsiveSheet>
-  </AppPage>
+          <div
+            v-for="i in rsvHari(rsvTgl)"
+            :key="i.rsv?.id"
+            class="flex flex-wrap items-center gap-x-3 gap-y-0.5 border-b border-default py-1.5"
+          >
+            <b class="num">{{ i.rsv?.time || '—' }}</b>
+            <b class="min-w-0 flex-1 text-highlighted">{{ i.rsv?.name }}</b>
+            <span class="num">{{ i.rsv?.pax }} pax</span>
+            <span class="text-muted">{{ i.rsv?.table || '—' }}</span>
+            <span class="text-muted">{{ i.rsv?.status }}</span>
+            <AppStatus
+              v-if="i.rsv?.vip"
+              color="vip"
+              icon="i-lucide-crown"
+              size="sm"
+            >
+              VIP
+            </AppStatus>
+          </div>
+          <p class="pt-1 text-xs text-muted num">
+            Total {{ angka(ringkasRsv(rsvTgl).pax) }} pax dari {{ ringkasRsv(rsvTgl).n }} reservasi
+          </p>
+          <UButton
+            to="/reservasi/dashboard"
+            target="_blank"
+            color="neutral"
+            variant="outline"
+            @click="rsvTgl = null"
+          >
+            Buka modul reservasi
+          </UButton>
+        </div>
+      </ResponsiveSheet>
+    </AppPage>
   </EventGerbang>
 </template>

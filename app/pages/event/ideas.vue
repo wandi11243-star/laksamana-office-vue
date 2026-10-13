@@ -144,304 +144,304 @@ async function simpanEval() {
 
 <template>
   <EventGerbang lihat="planning">
-  <AppPage
-    title="Event idea bank"
-    description="Database ide event + evaluasi"
-    :back="{ label: 'Perencanaan', to: '/event/planning' }"
-  >
-    <template #actions>
-      <UButton
-        v-if="bolehUbah"
-        color="primary"
-        icon="i-lucide-plus"
-        @click="bukaBaru()"
-      >
-        Ide baru
-      </UButton>
-    </template>
-
-    <AppPanel class="mb-4">
-      <AppFilterGrid>
-        <UFormField label="Kategori">
-          <USelect
-            v-model="fKategori"
-            :items="[{ value: 'semua', label: 'Semua kategori' }, ...IDEA_CATS.map(c => ({ value: c, label: c }))]"
-          />
-        </UFormField>
-        <UFormField label="Frekuensi">
-          <USelect
-            v-model="fFrekuensi"
-            :items="[{ value: 'semua', label: 'Semua frekuensi' }, ...FREQS.map(f => ({ value: f, label: f }))]"
-          />
-        </UFormField>
-      </AppFilterGrid>
-    </AppPanel>
-
-    <div
-      v-if="status === 'pending'"
-      class="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
+    <AppPage
+      title="Event idea bank"
+      description="Database ide event + evaluasi"
+      :back="{ label: 'Perencanaan', to: '/event/planning' }"
     >
-      <USkeleton
-        v-for="i in 3"
-        :key="i"
-        class="h-44"
-      />
-    </div>
-    <div
-      v-else
-      class="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
-    >
-      <AppPanel
-        v-for="i in list"
-        :key="i.id"
-      >
-        <b class="block truncate text-base text-highlighted">{{ i.name }}</b>
-        <p class="mt-0.5 text-xs text-muted">
-          {{ i.category }} · {{ i.frequency }} · {{ i.difficulty }}
-        </p>
-        <div class="mt-2 flex items-baseline justify-between text-sm">
-          <span class="text-muted num">Budget {{ rupiah(Number(i.budget) || 0) }}</span>
-          <b
-            class="num"
-            :class="roiIde(Number(i.budget) || 0, Number(i.potential_revenue) || 0) >= 0 ? 'text-success' : 'text-error'"
-          >ROI {{ roiIde(Number(i.budget) || 0, Number(i.potential_revenue) || 0) }}%</b>
-        </div>
-        <p
-          v-if="(i.evaluations ?? []).length"
-          class="mt-1 text-xs text-muted num"
-        >
-          {{ (i.evaluations ?? []).length }} evaluasi · terakhir skor {{ (i.evaluations ?? []).at(-1)?.skor }}
-        </p>
-        <div
+      <template #actions>
+        <UButton
           v-if="bolehUbah"
-          class="mt-2.5 flex flex-wrap gap-1.5"
+          color="primary"
+          icon="i-lucide-plus"
+          @click="bukaBaru()"
         >
+          Ide baru
+        </UButton>
+      </template>
+
+      <AppPanel class="mb-4">
+        <AppFilterGrid>
+          <UFormField label="Kategori">
+            <USelect
+              v-model="fKategori"
+              :items="[{ value: 'semua', label: 'Semua kategori' }, ...IDEA_CATS.map(c => ({ value: c, label: c }))]"
+            />
+          </UFormField>
+          <UFormField label="Frekuensi">
+            <USelect
+              v-model="fFrekuensi"
+              :items="[{ value: 'semua', label: 'Semua frekuensi' }, ...FREQS.map(f => ({ value: f, label: f }))]"
+            />
+          </UFormField>
+        </AppFilterGrid>
+      </AppPanel>
+
+      <div
+        v-if="status === 'pending'"
+        class="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
+      >
+        <USkeleton
+          v-for="i in 3"
+          :key="i"
+          class="h-44"
+        />
+      </div>
+      <div
+        v-else
+        class="grid gap-3 md:grid-cols-2 xl:grid-cols-3"
+      >
+        <AppPanel
+          v-for="i in list"
+          :key="i.id"
+        >
+          <b class="block truncate text-base text-highlighted">{{ i.name }}</b>
+          <p class="mt-0.5 text-xs text-muted">
+            {{ i.category }} · {{ i.frequency }} · {{ i.difficulty }}
+          </p>
+          <div class="mt-2 flex items-baseline justify-between text-sm">
+            <span class="text-muted num">Budget {{ rupiah(Number(i.budget) || 0) }}</span>
+            <b
+              class="num"
+              :class="roiIde(Number(i.budget) || 0, Number(i.potential_revenue) || 0) >= 0 ? 'text-success' : 'text-error'"
+            >ROI {{ roiIde(Number(i.budget) || 0, Number(i.potential_revenue) || 0) }}%</b>
+          </div>
+          <p
+            v-if="(i.evaluations ?? []).length"
+            class="mt-1 text-xs text-muted num"
+          >
+            {{ (i.evaluations ?? []).length }} evaluasi · terakhir skor {{ (i.evaluations ?? []).at(-1)?.skor }}
+          </p>
+          <div
+            v-if="bolehUbah"
+            class="mt-2.5 flex flex-wrap gap-1.5"
+          >
+            <UButton
+              color="primary"
+              variant="outline"
+              size="sm"
+              icon="i-lucide-arrow-right"
+              @click="buatEvent(i)"
+            >
+              Buat event
+            </UButton>
+            <UButton
+              color="neutral"
+              variant="outline"
+              size="sm"
+              @click="bukaEval(i)"
+            >
+              Evaluasi
+            </UButton>
+            <UButton
+              color="error"
+              variant="ghost"
+              size="sm"
+              icon="i-lucide-trash-2"
+              @click="hapusId = i.id"
+            />
+          </div>
+        </AppPanel>
+      </div>
+      <p
+        v-if="!list.length && status !== 'pending'"
+        class="py-10 text-center text-sm text-dimmed"
+      >
+        Belum ada ide di saringan ini.
+      </p>
+
+      <ResponsiveSheet
+        v-model:open="sheet"
+        :title="ideId ? 'Edit ide' : 'Ide baru'"
+      >
+        <div class="grid gap-3 lg:grid-cols-2">
+          <UFormField
+            label="Nama"
+            required
+            class="lg:col-span-2"
+          >
+            <UInput
+              v-model="fi.name"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Kategori">
+            <USelect
+              v-model="fi.category"
+              :items="IDEA_CATS.map(c => ({ value: c, label: c }))"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Frekuensi">
+            <USelect
+              v-model="fi.frequency"
+              :items="FREQS.map(f => ({ value: f, label: f }))"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Target market">
+            <UInput
+              v-model="fi.target"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Difficulty">
+            <USelect
+              v-model="fi.difficulty"
+              :items="['Easy', 'Medium', 'Hard'].map(d => ({ value: d, label: d }))"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Budget">
+            <UInput
+              v-model.number="fi.budget"
+              type="number"
+              min="0"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Potensi uang masuk">
+            <UInput
+              v-model.number="fi.potential_revenue"
+              type="number"
+              min="0"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField
+            label="Deskripsi"
+            class="lg:col-span-2"
+          >
+            <UTextarea
+              v-model="fi.description"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+        <template #footer>
           <UButton
             color="primary"
-            variant="outline"
-            size="sm"
-            icon="i-lucide-arrow-right"
-            @click="buatEvent(i)"
+            @click="simpan()"
           >
-            Buat event
+            Simpan ide
           </UButton>
           <UButton
             color="neutral"
             variant="outline"
-            size="sm"
-            @click="bukaEval(i)"
+            @click="sheet = false"
           >
-            Evaluasi
+            Batal
+          </UButton>
+        </template>
+      </ResponsiveSheet>
+
+      <ResponsiveSheet
+        v-model:open="sheetEval"
+        :title="`Evaluasi ${ideEval?.name ?? ''}`"
+      >
+        <div class="grid gap-3 lg:grid-cols-2">
+          <UFormField label="Tanggal pelaksanaan">
+            <UInput
+              v-model="fe.date"
+              type="date"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Omzet">
+            <UInput
+              v-model.number="fe.omzet"
+              type="number"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Jumlah hadir">
+            <UInput
+              v-model.number="fe.hadir"
+              type="number"
+              min="0"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Biaya aktual">
+            <UInput
+              v-model.number="fe.biaya"
+              type="number"
+              min="0"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Skor keseluruhan (1–10)">
+            <UInput
+              v-model.number="fe.skor"
+              type="number"
+              min="1"
+              max="10"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Layak diulang?">
+            <USelect
+              v-model="fe.ulang"
+              :items="['Ya', 'Perlu perbaikan', 'Tidak'].map(u => ({ value: u, label: u }))"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Yang berjalan baik">
+            <UTextarea
+              v-model="fe.baik"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Yang perlu diperbaiki">
+            <UTextarea
+              v-model="fe.perbaiki"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+        <p class="mt-2 text-sm text-muted num">
+          Profit: {{ rupiah(fe.omzet - fe.biaya) }}
+        </p>
+        <template #footer>
+          <UButton
+            color="primary"
+            @click="simpanEval()"
+          >
+            Simpan evaluasi
           </UButton>
           <UButton
+            color="neutral"
+            variant="outline"
+            @click="sheetEval = false"
+          >
+            Batal
+          </UButton>
+        </template>
+      </ResponsiveSheet>
+
+      <ResponsiveSheet
+        v-model:open="sheetHapus"
+        title="Hapus ide?"
+      >
+        <p class="text-sm text-muted">
+          Ide ini dihapus permanen.
+        </p>
+        <template #footer>
+          <UButton
             color="error"
-            variant="ghost"
-            size="sm"
-            icon="i-lucide-trash-2"
-            @click="hapusId = i.id"
-          />
-        </div>
-      </AppPanel>
-    </div>
-    <p
-      v-if="!list.length && status !== 'pending'"
-      class="py-10 text-center text-sm text-dimmed"
-    >
-      Belum ada ide di saringan ini.
-    </p>
-
-    <ResponsiveSheet
-      v-model:open="sheet"
-      :title="ideId ? 'Edit ide' : 'Ide baru'"
-    >
-      <div class="grid gap-3 lg:grid-cols-2">
-        <UFormField
-          label="Nama"
-          required
-          class="lg:col-span-2"
-        >
-          <UInput
-            v-model="fi.name"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Kategori">
-          <USelect
-            v-model="fi.category"
-            :items="IDEA_CATS.map(c => ({ value: c, label: c }))"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Frekuensi">
-          <USelect
-            v-model="fi.frequency"
-            :items="FREQS.map(f => ({ value: f, label: f }))"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Target market">
-          <UInput
-            v-model="fi.target"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Difficulty">
-          <USelect
-            v-model="fi.difficulty"
-            :items="['Easy', 'Medium', 'Hard'].map(d => ({ value: d, label: d }))"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Budget">
-          <UInput
-            v-model.number="fi.budget"
-            type="number"
-            min="0"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Potensi uang masuk">
-          <UInput
-            v-model.number="fi.potential_revenue"
-            type="number"
-            min="0"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          label="Deskripsi"
-          class="lg:col-span-2"
-        >
-          <UTextarea
-            v-model="fi.description"
-            class="w-full"
-          />
-        </UFormField>
-      </div>
-      <template #footer>
-        <UButton
-          color="primary"
-          @click="simpan()"
-        >
-          Simpan ide
-        </UButton>
-        <UButton
-          color="neutral"
-          variant="outline"
-          @click="sheet = false"
-        >
-          Batal
-        </UButton>
-      </template>
-    </ResponsiveSheet>
-
-    <ResponsiveSheet
-      v-model:open="sheetEval"
-      :title="`Evaluasi ${ideEval?.name ?? ''}`"
-    >
-      <div class="grid gap-3 lg:grid-cols-2">
-        <UFormField label="Tanggal pelaksanaan">
-          <UInput
-            v-model="fe.date"
-            type="date"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Omzet">
-          <UInput
-            v-model.number="fe.omzet"
-            type="number"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Jumlah hadir">
-          <UInput
-            v-model.number="fe.hadir"
-            type="number"
-            min="0"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Biaya aktual">
-          <UInput
-            v-model.number="fe.biaya"
-            type="number"
-            min="0"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Skor keseluruhan (1–10)">
-          <UInput
-            v-model.number="fe.skor"
-            type="number"
-            min="1"
-            max="10"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Layak diulang?">
-          <USelect
-            v-model="fe.ulang"
-            :items="['Ya', 'Perlu perbaikan', 'Tidak'].map(u => ({ value: u, label: u }))"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Yang berjalan baik">
-          <UTextarea
-            v-model="fe.baik"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Yang perlu diperbaiki">
-          <UTextarea
-            v-model="fe.perbaiki"
-            class="w-full"
-          />
-        </UFormField>
-      </div>
-      <p class="mt-2 text-sm text-muted num">
-        Profit: {{ rupiah(fe.omzet - fe.biaya) }}
-      </p>
-      <template #footer>
-        <UButton
-          color="primary"
-          @click="simpanEval()"
-        >
-          Simpan evaluasi
-        </UButton>
-        <UButton
-          color="neutral"
-          variant="outline"
-          @click="sheetEval = false"
-        >
-          Batal
-        </UButton>
-      </template>
-    </ResponsiveSheet>
-
-    <ResponsiveSheet
-      v-model:open="sheetHapus"
-      title="Hapus ide?"
-    >
-      <p class="text-sm text-muted">
-        Ide ini dihapus permanen.
-      </p>
-      <template #footer>
-        <UButton
-          color="error"
-          @click="hapus()"
-        >
-          Ya, hapus
-        </UButton>
-        <UButton
-          color="neutral"
-          variant="outline"
-          @click="sheetHapus = false"
-        >
-          Batal
-        </UButton>
-      </template>
-    </ResponsiveSheet>
-  </AppPage>
+            @click="hapus()"
+          >
+            Ya, hapus
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="outline"
+            @click="sheetHapus = false"
+          >
+            Batal
+          </UButton>
+        </template>
+      </ResponsiveSheet>
+    </AppPage>
   </EventGerbang>
 </template>

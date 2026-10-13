@@ -157,325 +157,325 @@ const DOK_LABEL = { ktp: 'KTP', npwp: 'NPWP', contract: 'Contract', portfolio: '
 
 <template>
   <EventGerbang lihat="talents">
-  <AppPage
-    title="Rincian talent"
-    description="Profil, pembayaran, dokumen & riwayat tampil"
-    :back="{ label: 'Talent', to: '/event/talents' }"
-  >
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="soft"
-      :title="apiErrorMessage(error)"
-      class="mb-4"
-    />
-    <template v-if="talent">
-      <AppPanel
-        title="Basic information"
-        icon="i-lucide-id-card"
+    <AppPage
+      title="Rincian talent"
+      description="Profil, pembayaran, dokumen & riwayat tampil"
+      :back="{ label: 'Talent', to: '/event/talents' }"
+    >
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="soft"
+        :title="apiErrorMessage(error)"
         class="mb-4"
-      >
-        <template #actions>
-          <UButton
-            v-if="bolehUbah && !modeEdit"
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-pencil"
-            @click="mulaiEdit()"
-          >
-            Edit
-          </UButton>
-        </template>
-        <div
-          v-if="!modeEdit"
-          class="grid gap-x-6 gap-y-2 text-sm lg:grid-cols-2"
+      />
+      <template v-if="talent">
+        <AppPanel
+          title="Basic information"
+          icon="i-lucide-id-card"
+          class="mb-4"
         >
-          <p><b class="text-highlighted">{{ talent.name }}</b> · {{ talent.category }}</p>
-          <p class="text-muted">
-            {{ talent.phone }} · {{ talent.whatsapp || '—' }}
-          </p>
-          <p class="text-muted">
-            {{ talent.email || '—' }} · {{ talent.instagram || '—' }}
-          </p>
-          <p class="text-muted">
-            Manager: {{ talent.manager_name || '—' }}
-          </p>
-          <p>
-            <AppStatus
-              :color="TALENT_WARNA[String(talent.status)] ?? 'neutral'"
-              :icon="TALENT_IKON[String(talent.status)]"
-              size="sm"
-            >
-              {{ talent.status }}
-            </AppStatus>
-          </p>
-          <p
-            v-if="talent.notes"
-            class="text-muted lg:col-span-2"
-          >
-            {{ talent.notes }}
-          </p>
-        </div>
-        <div
-          v-else
-          class="grid gap-3 lg:grid-cols-2"
-        >
-          <UFormField label="Nama">
-            <UInput
-              v-model="draft.name"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Phone">
-            <UInput
-              v-model="draft.phone"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="WhatsApp">
-            <UInput
-              v-model="draft.whatsapp"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Instagram">
-            <UInput
-              v-model="draft.instagram"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Email">
-            <UInput
-              v-model="draft.email"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Manager">
-            <UInput
-              v-model="draft.manager_name"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField
-            label="Notes"
-            class="lg:col-span-2"
-          >
-            <UTextarea
-              v-model="draft.notes"
-              class="w-full"
-            />
-          </UFormField>
-          <div class="flex gap-2 lg:col-span-2">
+          <template #actions>
             <UButton
-              color="primary"
-              @click="simpanInline()"
-            >
-              Simpan
-            </UButton>
-            <UButton
+              v-if="bolehUbah && !modeEdit"
               color="neutral"
               variant="outline"
-              @click="modeEdit = false"
+              icon="i-lucide-pencil"
+              @click="mulaiEdit()"
             >
-              Batal
+              Edit
             </UButton>
-          </div>
-        </div>
-      </AppPanel>
-
-      <AppPanel
-        title="Pembayaran"
-        icon="i-lucide-banknote"
-        class="mb-4"
-      >
-        <dl class="grid gap-x-6 gap-y-2 text-sm lg:grid-cols-2">
-          <div class="flex justify-between gap-3">
-            <dt class="text-muted">
-              Default fee
-            </dt>
-            <dd class="font-semibold text-highlighted num">
-              {{ rupiah(Number(talent.default_fee) || 0) }}
-            </dd>
-          </div>
-          <div class="flex justify-between gap-3">
-            <dt class="text-muted">
-              Bank
-            </dt>
-            <dd class="font-semibold text-highlighted">
-              {{ talent.bank_name || '—' }} {{ talent.bank_account || '' }}
-            </dd>
-          </div>
-        </dl>
-      </AppPanel>
-
-      <AppPanel
-        title="Documents"
-        icon="i-lucide-folder-open"
-        class="mb-4"
-      >
-        <input
-          ref="inputBerkas"
-          type="file"
-          accept=".jpg,.jpeg,.png,.webp,.gif,.pdf"
-          class="hidden"
-          @change="unggahDok($event)"
-        >
-        <ul class="grid gap-2 lg:grid-cols-2">
-          <li
-            v-for="k in (['ktp', 'npwp', 'contract'] as const)"
-            :key="k"
-            class="flex items-center justify-between gap-2 rounded-field border border-default px-3 py-2 text-sm"
+          </template>
+          <div
+            v-if="!modeEdit"
+            class="grid gap-x-6 gap-y-2 text-sm lg:grid-cols-2"
           >
-            <span><b class="text-highlighted">{{ DOK_LABEL[k] }}</b> · <span class="text-muted">{{ (talent.docs?.[k] as Berkas | null)?.name ?? 'belum ada' }}</span></span>
-            <span class="flex gap-1">
-              <UButton
-                v-if="bolehUbah"
-                color="neutral"
-                variant="ghost"
+            <p><b class="text-highlighted">{{ talent.name }}</b> · {{ talent.category }}</p>
+            <p class="text-muted">
+              {{ talent.phone }} · {{ talent.whatsapp || '—' }}
+            </p>
+            <p class="text-muted">
+              {{ talent.email || '—' }} · {{ talent.instagram || '—' }}
+            </p>
+            <p class="text-muted">
+              Manager: {{ talent.manager_name || '—' }}
+            </p>
+            <p>
+              <AppStatus
+                :color="TALENT_WARNA[String(talent.status)] ?? 'neutral'"
+                :icon="TALENT_IKON[String(talent.status)]"
                 size="sm"
-                icon="i-lucide-upload"
-                :loading="mengunggah"
-                @click="pilihDok(k)"
               >
-                {{ (talent.docs?.[k] as Berkas | null) ? 'Ganti' : 'Unggah' }}
+                {{ talent.status }}
+              </AppStatus>
+            </p>
+            <p
+              v-if="talent.notes"
+              class="text-muted lg:col-span-2"
+            >
+              {{ talent.notes }}
+            </p>
+          </div>
+          <div
+            v-else
+            class="grid gap-3 lg:grid-cols-2"
+          >
+            <UFormField label="Nama">
+              <UInput
+                v-model="draft.name"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="Phone">
+              <UInput
+                v-model="draft.phone"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="WhatsApp">
+              <UInput
+                v-model="draft.whatsapp"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="Instagram">
+              <UInput
+                v-model="draft.instagram"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="Email">
+              <UInput
+                v-model="draft.email"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="Manager">
+              <UInput
+                v-model="draft.manager_name"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField
+              label="Notes"
+              class="lg:col-span-2"
+            >
+              <UTextarea
+                v-model="draft.notes"
+                class="w-full"
+              />
+            </UFormField>
+            <div class="flex gap-2 lg:col-span-2">
+              <UButton
+                color="primary"
+                @click="simpanInline()"
+              >
+                Simpan
               </UButton>
               <UButton
-                v-if="bolehUbah && (talent.docs?.[k] as Berkas | null)"
-                color="error"
-                variant="ghost"
-                size="sm"
-                icon="i-lucide-trash-2"
-                @click="hapusDok(k)"
-              />
-            </span>
-          </li>
-        </ul>
-        <div class="mt-3">
-          <p class="mb-1 text-xs font-bold uppercase tracking-wide text-muted">
-            Portfolio ({{ (talent.docs?.portfolio ?? []).length }} berkas)
-          </p>
-          <ul
-            v-if="(talent.docs?.portfolio ?? []).length"
-            class="grid gap-2 lg:grid-cols-2"
+                color="neutral"
+                variant="outline"
+                @click="modeEdit = false"
+              >
+                Batal
+              </UButton>
+            </div>
+          </div>
+        </AppPanel>
+
+        <AppPanel
+          title="Pembayaran"
+          icon="i-lucide-banknote"
+          class="mb-4"
+        >
+          <dl class="grid gap-x-6 gap-y-2 text-sm lg:grid-cols-2">
+            <div class="flex justify-between gap-3">
+              <dt class="text-muted">
+                Default fee
+              </dt>
+              <dd class="font-semibold text-highlighted num">
+                {{ rupiah(Number(talent.default_fee) || 0) }}
+              </dd>
+            </div>
+            <div class="flex justify-between gap-3">
+              <dt class="text-muted">
+                Bank
+              </dt>
+              <dd class="font-semibold text-highlighted">
+                {{ talent.bank_name || '—' }} {{ talent.bank_account || '' }}
+              </dd>
+            </div>
+          </dl>
+        </AppPanel>
+
+        <AppPanel
+          title="Documents"
+          icon="i-lucide-folder-open"
+          class="mb-4"
+        >
+          <input
+            ref="inputBerkas"
+            type="file"
+            accept=".jpg,.jpeg,.png,.webp,.gif,.pdf"
+            class="hidden"
+            @change="unggahDok($event)"
           >
+          <ul class="grid gap-2 lg:grid-cols-2">
             <li
-              v-for="(b, i) in (talent.docs?.portfolio ?? [])"
-              :key="i"
+              v-for="k in (['ktp', 'npwp', 'contract'] as const)"
+              :key="k"
               class="flex items-center justify-between gap-2 rounded-field border border-default px-3 py-2 text-sm"
             >
-              <span class="truncate text-muted">{{ b.name }}</span>
-              <UButton
-                v-if="bolehUbah"
-                color="error"
-                variant="ghost"
-                size="sm"
-                icon="i-lucide-trash-2"
-                @click="hapusDok('ktp', i)"
-              />
+              <span><b class="text-highlighted">{{ DOK_LABEL[k] }}</b> · <span class="text-muted">{{ (talent.docs?.[k] as Berkas | null)?.name ?? 'belum ada' }}</span></span>
+              <span class="flex gap-1">
+                <UButton
+                  v-if="bolehUbah"
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  icon="i-lucide-upload"
+                  :loading="mengunggah"
+                  @click="pilihDok(k)"
+                >
+                  {{ (talent.docs?.[k] as Berkas | null) ? 'Ganti' : 'Unggah' }}
+                </UButton>
+                <UButton
+                  v-if="bolehUbah && (talent.docs?.[k] as Berkas | null)"
+                  color="error"
+                  variant="ghost"
+                  size="sm"
+                  icon="i-lucide-trash-2"
+                  @click="hapusDok(k)"
+                />
+              </span>
             </li>
           </ul>
-          <UButton
-            v-if="bolehUbah"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            icon="i-lucide-upload"
-            class="mt-2"
-            @click="pilihDok('portfolio')"
-          >
-            Unggah portfolio
-          </UButton>
-        </div>
-      </AppPanel>
-
-      <AppPanel
-        title="Performance history"
-        icon="i-lucide-history"
-        flush
-        class="mb-4"
-      >
-        <UTable
-          :columns="[{ id: 'tgl', header: 'Tanggal' }, { id: 'show', header: 'Jenis show' }, { id: 'jam', header: 'Jam' }, { id: 'fee', header: 'Fee' }, { id: 'bayar', header: 'Status bayar' }]"
-          :data="riwayat"
-          class="hidden lg:block"
-        >
-          <template #tgl-cell="{ row }">
-            {{ tglPendek(row.original.date) }}
-          </template>
-          <template #show-cell="{ row }">
-            {{ row.original.type || '—' }}
-          </template>
-          <template #jam-cell="{ row }">
-            {{ row.original.start_time }}–{{ row.original.end_time }}
-          </template>
-          <template #fee-cell="{ row }">
-            <span class="num">{{ rupiah(Number(row.original.fee) || 0) }}</span>
-          </template>
-          <template #bayar-cell="{ row }">
-            <AppStatus
-              :color="row.original.lunas ? 'success' : 'warning'"
-              :icon="row.original.lunas ? 'i-lucide-check' : 'i-lucide-hourglass'"
-              size="sm"
+          <div class="mt-3">
+            <p class="mb-1 text-xs font-bold uppercase tracking-wide text-muted">
+              Portfolio ({{ (talent.docs?.portfolio ?? []).length }} berkas)
+            </p>
+            <ul
+              v-if="(talent.docs?.portfolio ?? []).length"
+              class="grid gap-2 lg:grid-cols-2"
             >
-              {{ row.original.lunas ? 'Lunas' : 'Menunggu' }}
-            </AppStatus>
-          </template>
-        </UTable>
-        <ul class="divide-y divide-default lg:hidden">
-          <li
-            v-for="j in riwayat"
-            :key="j.id"
-            class="px-4 py-2.5 text-sm"
-          >
-            <b class="text-highlighted">{{ tglPendek(j.date) }}</b> · {{ j.type }} · <span class="num">{{ rupiah(Number(j.fee) || 0) }}</span>
-          </li>
-        </ul>
-        <p
-          v-if="!riwayat.length"
-          class="px-4 py-6 text-center text-sm text-dimmed"
-        >
-          Belum ada riwayat tampil.
-        </p>
-      </AppPanel>
+              <li
+                v-for="(b, i) in (talent.docs?.portfolio ?? [])"
+                :key="i"
+                class="flex items-center justify-between gap-2 rounded-field border border-default px-3 py-2 text-sm"
+              >
+                <span class="truncate text-muted">{{ b.name }}</span>
+                <UButton
+                  v-if="bolehUbah"
+                  color="error"
+                  variant="ghost"
+                  size="sm"
+                  icon="i-lucide-trash-2"
+                  @click="hapusDok('ktp', i)"
+                />
+              </li>
+            </ul>
+            <UButton
+              v-if="bolehUbah"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              icon="i-lucide-upload"
+              class="mt-2"
+              @click="pilihDok('portfolio')"
+            >
+              Unggah portfolio
+            </UButton>
+          </div>
+        </AppPanel>
 
-      <AppPanel
-        title="Monthly income"
-        icon="i-lucide-wallet"
-        flush
-      >
-        <UTable
-          :columns="[{ id: 'bulan', header: 'Bulan' }, { id: 'show', header: 'Jumlah show' }, { id: 'fee', header: 'Total fee' }]"
-          :data="perBulan"
-          class="hidden lg:block"
+        <AppPanel
+          title="Performance history"
+          icon="i-lucide-history"
+          flush
+          class="mb-4"
         >
-          <template #bulan-cell="{ row }">
-            {{ labelBulan(row.original.bulan) }}
-          </template>
-          <template #show-cell="{ row }">
-            <span class="num">{{ angka(row.original.show) }}</span>
-          </template>
-          <template #fee-cell="{ row }">
-            <span class="num">{{ rupiah(row.original.fee) }}</span>
-          </template>
-        </UTable>
-        <ul class="divide-y divide-default lg:hidden">
-          <li
-            v-for="b in perBulan"
-            :key="b.bulan"
-            class="flex justify-between px-4 py-2.5 text-sm"
+          <UTable
+            :columns="[{ id: 'tgl', header: 'Tanggal' }, { id: 'show', header: 'Jenis show' }, { id: 'jam', header: 'Jam' }, { id: 'fee', header: 'Fee' }, { id: 'bayar', header: 'Status bayar' }]"
+            :data="riwayat"
+            class="hidden lg:block"
           >
-            <b class="text-highlighted">{{ labelBulan(b.bulan) }}</b>
-            <span class="num">{{ b.show }} show · {{ rupiah(b.fee) }}</span>
-          </li>
-        </ul>
-      </AppPanel>
-    </template>
-    <p
-      v-else-if="status !== 'pending'"
-      class="py-10 text-center text-sm text-dimmed"
-    >
-      Talent tidak ditemukan.
-    </p>
-  </AppPage>
+            <template #tgl-cell="{ row }">
+              {{ tglPendek(row.original.date) }}
+            </template>
+            <template #show-cell="{ row }">
+              {{ row.original.type || '—' }}
+            </template>
+            <template #jam-cell="{ row }">
+              {{ row.original.start_time }}–{{ row.original.end_time }}
+            </template>
+            <template #fee-cell="{ row }">
+              <span class="num">{{ rupiah(Number(row.original.fee) || 0) }}</span>
+            </template>
+            <template #bayar-cell="{ row }">
+              <AppStatus
+                :color="row.original.lunas ? 'success' : 'warning'"
+                :icon="row.original.lunas ? 'i-lucide-check' : 'i-lucide-hourglass'"
+                size="sm"
+              >
+                {{ row.original.lunas ? 'Lunas' : 'Menunggu' }}
+              </AppStatus>
+            </template>
+          </UTable>
+          <ul class="divide-y divide-default lg:hidden">
+            <li
+              v-for="j in riwayat"
+              :key="j.id"
+              class="px-4 py-2.5 text-sm"
+            >
+              <b class="text-highlighted">{{ tglPendek(j.date) }}</b> · {{ j.type }} · <span class="num">{{ rupiah(Number(j.fee) || 0) }}</span>
+            </li>
+          </ul>
+          <p
+            v-if="!riwayat.length"
+            class="px-4 py-6 text-center text-sm text-dimmed"
+          >
+            Belum ada riwayat tampil.
+          </p>
+        </AppPanel>
+
+        <AppPanel
+          title="Monthly income"
+          icon="i-lucide-wallet"
+          flush
+        >
+          <UTable
+            :columns="[{ id: 'bulan', header: 'Bulan' }, { id: 'show', header: 'Jumlah show' }, { id: 'fee', header: 'Total fee' }]"
+            :data="perBulan"
+            class="hidden lg:block"
+          >
+            <template #bulan-cell="{ row }">
+              {{ labelBulan(row.original.bulan) }}
+            </template>
+            <template #show-cell="{ row }">
+              <span class="num">{{ angka(row.original.show) }}</span>
+            </template>
+            <template #fee-cell="{ row }">
+              <span class="num">{{ rupiah(row.original.fee) }}</span>
+            </template>
+          </UTable>
+          <ul class="divide-y divide-default lg:hidden">
+            <li
+              v-for="b in perBulan"
+              :key="b.bulan"
+              class="flex justify-between px-4 py-2.5 text-sm"
+            >
+              <b class="text-highlighted">{{ labelBulan(b.bulan) }}</b>
+              <span class="num">{{ b.show }} show · {{ rupiah(b.fee) }}</span>
+            </li>
+          </ul>
+        </AppPanel>
+      </template>
+      <p
+        v-else-if="status !== 'pending'"
+        class="py-10 text-center text-sm text-dimmed"
+      >
+        Talent tidak ditemukan.
+      </p>
+    </AppPage>
   </EventGerbang>
 </template>

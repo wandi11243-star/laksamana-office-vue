@@ -35,84 +35,84 @@ watch(list, () => {
 
 <template>
   <EventGerbang lihat="ticketing">
-  <AppPage
-    :title="String(kelas?.name ?? 'Kategori tiket')"
-    :description="String(acara?.title ?? '')"
-    :back="{ label: 'Ticketing', to: `/event/ticketing/${id}` }"
-  >
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="soft"
-      :title="apiErrorMessage(error)"
-      class="mb-4"
-    />
-    <AppStatGrid class="mb-4">
-      <AppStat
-        label="Terjual"
-        :value="angka(Number(kelas?.sold) || 0)"
-        icon="i-lucide-ticket-check"
-        tone="success"
-      />
-      <AppStat
-        label="Kuota"
-        :value="angka(Number(kelas?.quota) || 0)"
-        icon="i-lucide-tickets"
-        tone="info"
-      />
-      <AppStat
-        label="Harga"
-        :value="rupiah(Number(kelas?.price) || 0)"
-        icon="i-lucide-tag"
-        tone="gold"
-      />
-    </AppStatGrid>
-    <AppPanel
-      title="Penjualan kategori ini"
-      icon="i-lucide-users"
-      flush
+    <AppPage
+      :title="String(kelas?.name ?? 'Kategori tiket')"
+      :description="String(acara?.title ?? '')"
+      :back="{ label: 'Ticketing', to: `/event/ticketing/${id}` }"
     >
-      <ul
-        v-if="status !== 'pending'"
-        class="divide-y divide-default"
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="soft"
+        :title="apiErrorMessage(error)"
+        class="mb-4"
+      />
+      <AppStatGrid class="mb-4">
+        <AppStat
+          label="Terjual"
+          :value="angka(Number(kelas?.sold) || 0)"
+          icon="i-lucide-ticket-check"
+          tone="success"
+        />
+        <AppStat
+          label="Kuota"
+          :value="angka(Number(kelas?.quota) || 0)"
+          icon="i-lucide-tickets"
+          tone="info"
+        />
+        <AppStat
+          label="Harga"
+          :value="rupiah(Number(kelas?.price) || 0)"
+          icon="i-lucide-tag"
+          tone="gold"
+        />
+      </AppStatGrid>
+      <AppPanel
+        title="Penjualan kategori ini"
+        icon="i-lucide-users"
+        flush
       >
-        <li
-          v-for="t in halaman"
-          :key="t.id"
-          class="flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+        <ul
+          v-if="status !== 'pending'"
+          class="divide-y divide-default"
         >
-          <b class="truncate text-highlighted">{{ String((t as Record<string, unknown>).buyer_name ?? t.qr_token) }}</b>
-          <span class="shrink-0 text-xs text-muted">{{ t.qr_token }}</span>
-        </li>
-      </ul>
-      <p
-        v-if="!list.length && status !== 'pending'"
-        class="px-4 py-6 text-center text-sm text-dimmed"
-      >
-        Belum ada penjualan di kategori ini.
-      </p>
-      <div class="flex items-center justify-between px-4 py-3 text-xs text-muted">
-        <span class="num">{{ list.length ? `${(hal - 1) * PER_HAL + 1}–${Math.min(hal * PER_HAL, list.length)} dari ${angka(list.length)}` : '0 dari 0' }}</span>
-        <span class="flex gap-1">
-          <UButton
-            color="neutral"
-            variant="outline"
-            size="sm"
-            icon="i-lucide-chevron-left"
-            :disabled="hal <= 1"
-            @click="hal--"
-          />
-          <UButton
-            color="neutral"
-            variant="outline"
-            size="sm"
-            icon="i-lucide-chevron-right"
-            :disabled="hal >= maxHal"
-            @click="hal++"
-          />
-        </span>
-      </div>
-    </AppPanel>
-  </AppPage>
+          <li
+            v-for="t in halaman"
+            :key="t.id"
+            class="flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
+          >
+            <b class="truncate text-highlighted">{{ String((t as Record<string, unknown>).buyer_name ?? t.qr_token) }}</b>
+            <span class="shrink-0 text-xs text-muted">{{ t.qr_token }}</span>
+          </li>
+        </ul>
+        <p
+          v-if="!list.length && status !== 'pending'"
+          class="px-4 py-6 text-center text-sm text-dimmed"
+        >
+          Belum ada penjualan di kategori ini.
+        </p>
+        <div class="flex items-center justify-between px-4 py-3 text-xs text-muted">
+          <span class="num">{{ list.length ? `${(hal - 1) * PER_HAL + 1}–${Math.min(hal * PER_HAL, list.length)} dari ${angka(list.length)}` : '0 dari 0' }}</span>
+          <span class="flex gap-1">
+            <UButton
+              color="neutral"
+              variant="outline"
+              size="sm"
+              icon="i-lucide-chevron-left"
+              :disabled="hal <= 1"
+              @click="hal--"
+            />
+            <UButton
+              color="neutral"
+              variant="outline"
+              size="sm"
+              icon="i-lucide-chevron-right"
+              :disabled="hal >= maxHal"
+              @click="hal++"
+            />
+          </span>
+        </div>
+      </AppPanel>
+    </AppPage>
   </EventGerbang>
 </template>

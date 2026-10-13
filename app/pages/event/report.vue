@@ -138,235 +138,235 @@ const fmtTgl = (iso: string) => {
 
 <template>
   <EventGerbang lihat="report">
-  <AppPage
-    title="Report & analytics"
-    description="Laporan omzet, tiket & kehadiran"
-  >
-    <template #actions>
-      <UButton
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-refresh-cw"
-        :loading="status === 'pending'"
-        @click="refresh()"
-      >
-        Muat ulang
-      </UButton>
-    </template>
-
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="soft"
-      :title="apiErrorMessage(error)"
-      class="mb-4"
-    />
-
-    <AppPanel
-      title="Periode"
-      icon="i-lucide-calendar"
-      class="mb-4"
+    <AppPage
+      title="Report & analytics"
+      description="Laporan omzet, tiket & kehadiran"
     >
-      <div class="flex flex-wrap items-center gap-2">
-        <AppChips
-          v-model="periode"
-          :options="PILIHAN_PERIODE"
-        />
+      <template #actions>
         <UButton
-          icon="i-lucide-chevron-left"
           color="neutral"
           variant="outline"
-          size="sm"
-          aria-label="Periode sebelumnya"
-          title="Geser mundur"
-          @click="geser(-1)"
-        />
-        <UInput
-          v-model="bulanPick"
-          type="month"
-          size="sm"
-          title="Pilih bulan"
-          class="w-40"
-        />
-        <UButton
-          icon="i-lucide-chevron-right"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          aria-label="Periode berikutnya"
-          title="Geser maju"
-          @click="geser(1)"
-        />
-        <UInput
-          v-model="tglPick"
-          type="date"
-          size="sm"
-          title="Atau pilih satu tanggal"
-          class="w-40"
-        />
-        <AppStatus size="sm">
-          {{ acara.length }} event
-        </AppStatus>
-        <AppStatus size="sm">
-          {{ labelPeriode }}
-        </AppStatus>
-      </div>
-    </AppPanel>
-
-    <AppStatGrid class="mb-5">
-      <AppStat
-        label="Total omzet"
-        :value="rupiah(omzet)"
-        sub="pesanan lunas"
-        icon="i-lucide-banknote"
-        tone="gold"
-      />
-      <AppStat
-        label="Tiket terbit"
-        :value="angka(tiket.length)"
-        sub="e-ticket dibuat"
-        icon="i-lucide-ticket"
-        tone="info"
-      />
-      <AppStat
-        label="Hadir"
-        :value="angka(hadir)"
-        :sub="`${hadirPct}% dari tiket terbit`"
-        icon="i-lucide-scan-line"
-        tone="success"
-      />
-      <AppStat
-        label="Avg harga tiket"
-        :value="rupiah(avgHarga)"
-        sub="per tiket terjual"
-        icon="i-lucide-tag"
-        tone="info"
-      />
-    </AppStatGrid>
-
-    <AppPanel
-      title="Omzet 6 bulan (juta)"
-      icon="i-lucide-chart-column"
-      class="mb-4"
-    >
-      <div class="flex h-56 items-end gap-3 sm:gap-4">
-        <div
-          v-for="g in grafik"
-          :key="g.label"
-          class="flex min-w-0 flex-1 flex-col items-center justify-end gap-1 self-stretch"
+          icon="i-lucide-refresh-cw"
+          :loading="status === 'pending'"
+          @click="refresh()"
         >
-          <b class="text-xs num sm:text-sm">{{ g.jt }}jt</b>
-          <div
-            class="w-full max-w-24 rounded-t-lg bg-primary"
-            :style="{ height: `${Math.round(g.jt / maksGrafik * 100)}%` }"
-            :title="`Rp ${angka(g.jt)} jt`"
+          Muat ulang
+        </UButton>
+      </template>
+
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="soft"
+        :title="apiErrorMessage(error)"
+        class="mb-4"
+      />
+
+      <AppPanel
+        title="Periode"
+        icon="i-lucide-calendar"
+        class="mb-4"
+      >
+        <div class="flex flex-wrap items-center gap-2">
+          <AppChips
+            v-model="periode"
+            :options="PILIHAN_PERIODE"
           />
-          <span class="text-xs text-muted">{{ g.label }}</span>
+          <UButton
+            icon="i-lucide-chevron-left"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            aria-label="Periode sebelumnya"
+            title="Geser mundur"
+            @click="geser(-1)"
+          />
+          <UInput
+            v-model="bulanPick"
+            type="month"
+            size="sm"
+            title="Pilih bulan"
+            class="w-40"
+          />
+          <UButton
+            icon="i-lucide-chevron-right"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            aria-label="Periode berikutnya"
+            title="Geser maju"
+            @click="geser(1)"
+          />
+          <UInput
+            v-model="tglPick"
+            type="date"
+            size="sm"
+            title="Atau pilih satu tanggal"
+            class="w-40"
+          />
+          <AppStatus size="sm">
+            {{ acara.length }} event
+          </AppStatus>
+          <AppStatus size="sm">
+            {{ labelPeriode }}
+          </AppStatus>
         </div>
-      </div>
-    </AppPanel>
+      </AppPanel>
 
-    <AppPanel
-      title="Per kategori event"
-      icon="i-lucide-tags"
-      class="mb-4"
-      flush
-    >
-      <p
-        v-if="!perKategori.length"
-        class="px-4 py-6 text-center text-sm text-dimmed"
-      >
-        Belum ada event pada periode ini.
-      </p>
-      <UTable
-        v-else
-        :columns="[{ id: 'nama', header: 'Kategori' }, { id: 'n', header: 'Event' }, { id: 'v', header: 'Omzet' }]"
-        :data="perKategori"
-        :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
-        class="hidden lg:block"
-      >
-        <template #n-cell="{ row }">
-          <span class="num">{{ angka(row.original.n) }}</span>
-        </template>
-        <template #v-cell="{ row }">
-          <b class="num">{{ rupiah(row.original.v) }}</b>
-        </template>
-      </UTable>
-      <ul class="divide-y divide-default lg:hidden">
-        <li
-          v-for="k in perKategori"
-          :key="k.nama"
-          class="flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
-        >
-          <span><b class="text-highlighted">{{ k.nama }}</b> <span class="text-muted num">· {{ k.n }} event</span></span>
-          <b class="num">{{ rupiah(k.v) }}</b>
-        </li>
-      </ul>
-    </AppPanel>
+      <AppStatGrid class="mb-5">
+        <AppStat
+          label="Total omzet"
+          :value="rupiah(omzet)"
+          sub="pesanan lunas"
+          icon="i-lucide-banknote"
+          tone="gold"
+        />
+        <AppStat
+          label="Tiket terbit"
+          :value="angka(tiket.length)"
+          sub="e-ticket dibuat"
+          icon="i-lucide-ticket"
+          tone="info"
+        />
+        <AppStat
+          label="Hadir"
+          :value="angka(hadir)"
+          :sub="`${hadirPct}% dari tiket terbit`"
+          icon="i-lucide-scan-line"
+          tone="success"
+        />
+        <AppStat
+          label="Avg harga tiket"
+          :value="rupiah(avgHarga)"
+          sub="per tiket terjual"
+          icon="i-lucide-tag"
+          tone="info"
+        />
+      </AppStatGrid>
 
-    <AppPanel
-      title="Rincian per event"
-      icon="i-lucide-list"
-      flush
-    >
-      <p
-        v-if="!rincian.length"
-        class="px-4 py-6 text-center text-sm text-dimmed"
+      <AppPanel
+        title="Omzet 6 bulan (juta)"
+        icon="i-lucide-chart-column"
+        class="mb-4"
       >
-        Belum ada event pada periode ini.
-      </p>
-      <UTable
-        v-else
-        :columns="kolomRincian"
-        :data="rincian"
-        :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
-        class="hidden lg:block"
-      >
-        <template #acara-cell="{ row }">
-          <ULink
-            :to="`/event/ticketing/${row.original.id}`"
-            class="font-semibold text-highlighted hover:text-primary-700"
+        <div class="flex h-56 items-end gap-3 sm:gap-4">
+          <div
+            v-for="g in grafik"
+            :key="g.label"
+            class="flex min-w-0 flex-1 flex-col items-center justify-end gap-1 self-stretch"
           >
-            {{ row.original.judul }}
-          </ULink>
-          <span class="block text-xs text-muted">{{ fmtTgl(row.original.tanggal) }}</span>
-        </template>
-        <template #top-cell="{ row }">
-          <b
-            v-if="row.original.top !== '—'"
-            class="text-highlighted"
-          >{{ row.original.top }}</b>
-          <span
-            v-else
-            class="text-dimmed"
-          >—</span>
-        </template>
-        <template #terjual-cell="{ row }">
-          <b class="num">{{ angka(row.original.terjual) }}</b>
-        </template>
-        <template #hadir-cell="{ row }">
-          <span class="num">{{ angka(row.original.hadir) }} dari {{ angka(row.original.tiket) }} e-ticket · {{ row.original.hadirPct }}%</span>
-        </template>
-        <template #omzet-cell="{ row }">
-          <b class="num">{{ rupiah(row.original.omzet) }}</b>
-        </template>
-      </UTable>
-      <ul class="divide-y divide-default lg:hidden">
-        <li
-          v-for="r in rincian"
-          :key="r.id"
-          class="px-4 py-2.5 text-sm"
+            <b class="text-xs num sm:text-sm">{{ g.jt }}jt</b>
+            <div
+              class="w-full max-w-24 rounded-t-lg bg-primary"
+              :style="{ height: `${Math.round(g.jt / maksGrafik * 100)}%` }"
+              :title="`Rp ${angka(g.jt)} jt`"
+            />
+            <span class="text-xs text-muted">{{ g.label }}</span>
+          </div>
+        </div>
+      </AppPanel>
+
+      <AppPanel
+        title="Per kategori event"
+        icon="i-lucide-tags"
+        class="mb-4"
+        flush
+      >
+        <p
+          v-if="!perKategori.length"
+          class="px-4 py-6 text-center text-sm text-dimmed"
         >
-          <ULink
-            :to="`/event/ticketing/${r.id}`"
-            class="font-semibold text-highlighted"
+          Belum ada event pada periode ini.
+        </p>
+        <UTable
+          v-else
+          :columns="[{ id: 'nama', header: 'Kategori' }, { id: 'n', header: 'Event' }, { id: 'v', header: 'Omzet' }]"
+          :data="perKategori"
+          :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
+          class="hidden lg:block"
+        >
+          <template #n-cell="{ row }">
+            <span class="num">{{ angka(row.original.n) }}</span>
+          </template>
+          <template #v-cell="{ row }">
+            <b class="num">{{ rupiah(row.original.v) }}</b>
+          </template>
+        </UTable>
+        <ul class="divide-y divide-default lg:hidden">
+          <li
+            v-for="k in perKategori"
+            :key="k.nama"
+            class="flex items-center justify-between gap-2 px-4 py-2.5 text-sm"
           >
-            {{ r.judul }}
-          </ULink>
-          <span class="mt-0.5 block text-xs text-muted num">{{ fmtTgl(r.tanggal) }} · {{ r.top }} · {{ r.terjual }} terjual · {{ r.hadir }}/{{ r.tiket }} hadir · {{ rupiah(r.omzet) }}</span>
-        </li>
-      </ul>
-    </AppPanel>
-  </AppPage>
+            <span><b class="text-highlighted">{{ k.nama }}</b> <span class="text-muted num">· {{ k.n }} event</span></span>
+            <b class="num">{{ rupiah(k.v) }}</b>
+          </li>
+        </ul>
+      </AppPanel>
+
+      <AppPanel
+        title="Rincian per event"
+        icon="i-lucide-list"
+        flush
+      >
+        <p
+          v-if="!rincian.length"
+          class="px-4 py-6 text-center text-sm text-dimmed"
+        >
+          Belum ada event pada periode ini.
+        </p>
+        <UTable
+          v-else
+          :columns="kolomRincian"
+          :data="rincian"
+          :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
+          class="hidden lg:block"
+        >
+          <template #acara-cell="{ row }">
+            <ULink
+              :to="`/event/ticketing/${row.original.id}`"
+              class="font-semibold text-highlighted hover:text-primary-700"
+            >
+              {{ row.original.judul }}
+            </ULink>
+            <span class="block text-xs text-muted">{{ fmtTgl(row.original.tanggal) }}</span>
+          </template>
+          <template #top-cell="{ row }">
+            <b
+              v-if="row.original.top !== '—'"
+              class="text-highlighted"
+            >{{ row.original.top }}</b>
+            <span
+              v-else
+              class="text-dimmed"
+            >—</span>
+          </template>
+          <template #terjual-cell="{ row }">
+            <b class="num">{{ angka(row.original.terjual) }}</b>
+          </template>
+          <template #hadir-cell="{ row }">
+            <span class="num">{{ angka(row.original.hadir) }} dari {{ angka(row.original.tiket) }} e-ticket · {{ row.original.hadirPct }}%</span>
+          </template>
+          <template #omzet-cell="{ row }">
+            <b class="num">{{ rupiah(row.original.omzet) }}</b>
+          </template>
+        </UTable>
+        <ul class="divide-y divide-default lg:hidden">
+          <li
+            v-for="r in rincian"
+            :key="r.id"
+            class="px-4 py-2.5 text-sm"
+          >
+            <ULink
+              :to="`/event/ticketing/${r.id}`"
+              class="font-semibold text-highlighted"
+            >
+              {{ r.judul }}
+            </ULink>
+            <span class="mt-0.5 block text-xs text-muted num">{{ fmtTgl(r.tanggal) }} · {{ r.top }} · {{ r.terjual }} terjual · {{ r.hadir }}/{{ r.tiket }} hadir · {{ rupiah(r.omzet) }}</span>
+          </li>
+        </ul>
+      </AppPanel>
+    </AppPage>
   </EventGerbang>
 </template>

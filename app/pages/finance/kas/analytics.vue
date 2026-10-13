@@ -72,6 +72,25 @@ const kompo = computed(() => {
   ]
 })
 const realTotal = computed(() => hari.value.reduce((s, d) => s + netOf(d), 0))
+
+/** Kontribusi Marketing / Event: porsi PIC per person, in roster order (old per-divisi bar charts). */
+function kontribusi(divi: 'marketing' | 'event') {
+  const roster = data.value?.value.employees?.[divi] ?? []
+  const nilai = new Map<string, number>()
+  for (const d of hari.value) {
+    for (const r of d.bd?.[divi] ?? []) {
+      const id = String(r.picId ?? '')
+      if (id) nilai.set(id, (nilai.get(id) ?? 0) + porsiPicKompas(r, divi))
+    }
+  }
+  return roster.map(e => ({ nama: e.name, omset: nilai.get(String(e.id)) ?? 0 })).filter(x => x.omset > 0)
+}
+const byMarketing = computed(() => kontribusi('marketing'))
+const byEvent = computed(() => kontribusi('event'))
+const maxOf = (rows: { omset: number }[]) => Math.max(1, ...rows.map(r => r.omset))
+/** Cashiers in roster order, as the old chart drew them. */
+const kasirRoster = computed(() => kasirList.value.map(k => byKasir.value.find(x => x.nama === k.name) ?? { nama: k.name, omset: 0, disc: 0 }))
+const labelBulan = computed(() => new Date(`${periode.value}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }))
 </script>
 
 <template>
@@ -149,27 +168,98 @@ const realTotal = computed(() => hari.value.reduce((s, d) => s + netOf(d), 0))
         </AppPanel>
       </div>
 
-      <AppPanel
-        title="Kontribusi per kasir"
-        description="Omset bruto (sebelum diskon) tiap kasir bulan ini."
-      >
-        <AppBar
-          v-for="k in byKasir"
-          :key="k.nama"
-          :label="k.nama"
-          :value="fmtRp(k.omset)"
-          :persen="(k.omset / maxOmset) * 100"
-        />
-        <p
-          v-if="!byKasir.length"
-          class="rounded-field bg-muted px-3 py-6 text-center text-sm text-muted"
+      <div class="mt-5 grid items-start gap-5 lg:grid-cols-3">
+        <AppPanel
+          title="Kontribusi Marketing"
+          description="per marketing"
         >
-          Belum ada baris kasir bulan ini.
-        </p>
+          <AppBar
+            v-for="k in byMarketing"
+            :key="k.nama"
+            :label="k.nama"
+            :value="fmtRp(k.omset)"
+            :persen="(k.omset / maxOf(byMarketing)) * 100"
+            tone="info"
+          />
+          <p
+            v-if="!byMarketing.length"
+            class="py-6 text-center text-sm text-muted"
+          >
+            Belum ada data
+          </p>
+        </AppPanel>
+        <AppPanel
+          title="Kontribusi Event"
+          description="per PIC event"
+        >
+          <AppBar
+            v-for="k in byEvent"
+            :key="k.nama"
+            :label="k.nama"
+            :value="fmtRp(k.omset)"
+            :persen="(k.omset / maxOf(byEvent)) * 100"
+            tone="vip"
+          />
+          <p
+            v-if="!byEvent.length"
+            class="py-6 text-center text-sm text-muted"
+          >
+            Belum ada data
+          </p>
+        </AppPanel>
+        <AppPanel
+          title="Kontribusi Kasir"
+          description="per kasir"
+        >
+          <AppBar
+            v-for="k in kasirRoster"
+            :key="k.nama"
+            :label="k.nama"
+            :value="fmtRp(k.omset)"
+            :persen="(k.omset / maxOmset) * 100"
+            tone="success"
+          />
+          <p
+            v-if="!kasirRoster.length"
+            class="py-6 text-center text-sm text-muted"
+          >
+            Belum ada baris kasir bulan ini.
+          </p>
+        </AppPanel>
+      </div>
+
+      <AppPanel
+        :title="`Self Order — ${labelBulan}`"
+        icon="i-lucide-smartphone"
+        class="mt-5"
+      >
+        <template #description>
+          Tamu memesan sendiri lewat barcode, tanpa dilayani kasir. Nominalnya <b>bagian dari</b> omset net, bukan tambahan di atasnya —
+          jadi persentase di bawah menunjukkan seberapa besar penjualan yang sudah berpindah ke jalur mandiri.
+        </template>
+        <div class="grid gap-3 sm:grid-cols-3">
+          <AppStat
+            label="Omset self order"
+            :value="fmtRp(src.self)"
+            sub="akumulasi periode ini"
+            class="bg-primary-50"
+          />
+          <AppStat
+            label="Porsi dari omset net"
+            :value="`${(realTotal > 0 ? (src.self / realTotal) * 100 : 0).toFixed(1)}%`"
+            :sub="`dari ${fmtRp(realTotal)} omset net`"
+          />
+          <AppStat
+            label="Rata-rata per hari"
+            :value="fmtRp(hari.length ? src.self / hari.length : 0)"
+            :sub="`${hari.length} hari terinput`"
+          />
+        </div>
       </AppPanel>
 
       <AppPanel
-        title="Diskon diberikan per kasir"
+        class="mt-5"
+        title="Diskon Diberikan per Kasir"
         :description="`Total diskon input ${fmtRp(discInput)} · tercatat per kasir ${fmtRp(totDisc)}${selDisc !== 0 ? ` — selisih ${fmtRp(Math.abs(selDisc))} ${selDisc > 0 ? 'belum ditulis atas nama kasir mana pun' : 'kelebihan atribusi'}` : ' — cocok'}.`"
       >
         <AppBar

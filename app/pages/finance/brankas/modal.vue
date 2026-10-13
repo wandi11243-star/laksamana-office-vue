@@ -309,7 +309,7 @@ async function akBukaForm(i: InvestorBrankas, mode: 'pilih' | 'buat') {
 function pesanAkun(e: unknown): string {
   const kode = apiErrorCode(e)
   if (kode === 'bad_pin') return 'PIN harus 4–6 angka.'
-  if (kode === 'name_taken') return 'Nama itu sudah dipakai akun lain — pakai Hubungkan akun yang ada, atau pakai nama lain.'
+  if (kode === 'name_taken') return 'Nama itu sudah dipakai akun lain — pilih "Hubungkan akun yang sudah ada", atau pakai nama lain.'
   return apiErrorMessage(e)
 }
 
@@ -355,7 +355,7 @@ async function akKirim(i: InvestorBrankas) {
     const obj = { ...i, akunId: String(akun.id), akunNama: String(akun.name) }
     try {
       await updateVaultRec('investor', String(i.id), obj as never, vaultData.value.version ?? '', 'PUT')
-      toast.add({ title: `Akun Office "${akun.name}" tertaut ke ${i.name}.`, color: 'success' })
+      toast.add({ title: `Akun ${akun.name} terhubung.`, color: 'success' })
       akBuka.value = null
       await refresh()
     }
@@ -366,7 +366,7 @@ async function akKirim(i: InvestorBrankas) {
         // failed, conflict or not. A second create would birth a twin: link
         // instead (old `akKirim` rollback).
         toast.add({
-          title: `Akun "${akun.name}" SUDAH dibuat dan diberi hak investor, tapi tautannya belum tersimpan. Pakai Hubungkan akun yang ada lalu pilih akun itu — jangan buat akun kedua.`,
+          title: `Akun "${akun.name}" SUDAH dibuat dan diberi hak investor, tapi tautannya belum tersimpan. Pakai "Hubungkan akun yang sudah ada" lalu pilih akun itu — jangan buat akun kedua.`,
           color: 'error',
         })
       }
@@ -382,7 +382,7 @@ async function akKirim(i: InvestorBrankas) {
 
 async function akLepas(i: InvestorBrankas) {
   if (!akunBoleh.value) return
-  if (!confirm(`Lepas tautan akun "${String(i.akunNama || i.akunId)}" dari ${String(i.name)}?\n\nHanya tautannya yang dibuang — hak akses investor akun itu TIDAK dicabut (urusannya di Kelola Akses).`)) return
+  if (!confirm(`Lepas tautan akun "${String(i.akunNama || i.akunId)}" dari investor ${String(i.name)}?\n\nAkun Office-nya TIDAK dihapus dan akses modul Investor-nya TIDAK dicabut (itu lewat Kelola Akses). Sesudah dilepas, akun itu cuma melihat "belum terhubung" di Investor Compass.`)) return
   const obj = { ...i }
   delete obj.akunId
   delete obj.akunNama
@@ -535,9 +535,12 @@ async function akLepas(i: InvestorBrankas) {
 
         <div class="border-t border-default px-4 py-3 lg:px-5">
           <template v-if="i.akunId">
-            <p class="text-sm text-highlighted">
-              <b>Akun Office:</b> {{ String(i.akunNama || i.akunId) }}
-            </p>
+            <UAlert
+              color="info"
+              variant="subtle"
+              icon="i-lucide-link"
+              :title="`Akun Office: ${String(i.akunNama || i.akunId)} — investor ini bisa masuk ke Investor Compass dan hanya melihat modal & dividennya sendiri.`"
+            />
             <div
               v-if="akunBoleh"
               class="mt-2"
@@ -553,29 +556,34 @@ async function akLepas(i: InvestorBrankas) {
             </div>
           </template>
           <template v-else-if="akunBoleh">
+            <b class="text-sm text-highlighted">Akun Office</b>
+            <p
+              v-if="akBuka?.iv !== String(i.id)"
+              class="mb-2 text-[12px] text-muted"
+            >
+              Belum terhubung. Tautkan supaya <b>{{ String(i.name) }}</b> bisa masuk ke Investor Compass dan hanya melihat modal & dividennya sendiri.
+            </p>
             <div
               v-if="akBuka?.iv !== String(i.id)"
               class="flex flex-wrap gap-2"
             >
               <UButton
-                label="Buat akun baru"
-                size="sm"
-                color="neutral"
-                variant="outline"
-                icon="i-lucide-user-plus"
-                @click="akBukaForm(i, 'buat')"
-              />
-              <UButton
-                label="Hubungkan akun yang ada"
+                label="Hubungkan akun yang sudah ada"
                 size="sm"
                 color="neutral"
                 variant="outline"
                 icon="i-lucide-link"
                 @click="akBukaForm(i, 'pilih')"
               />
+              <UButton
+                label="Buat akun baru"
+                size="sm"
+                icon="i-lucide-user-plus"
+                @click="akBukaForm(i, 'buat')"
+              />
             </div>
             <template v-else-if="akBuka.mode === 'pilih'">
-              <b class="text-sm text-highlighted">Hubungkan akun yang ada</b>
+              <b class="text-sm text-highlighted">Hubungkan akun yang sudah ada</b>
               <p class="mb-2 text-[12px] text-muted">
                 Akun yang dipilih diberi hak modul investor (tidak pernah admin); nama dan PIN-nya tidak diubah.
               </p>
@@ -624,10 +632,10 @@ async function akLepas(i: InvestorBrankas) {
             <template v-else>
               <b class="text-sm text-highlighted">Buat akun baru</b>
               <p class="mb-2 text-[12px] text-muted">
-                Akun langsung aktif dengan hak modul investor. PIN tidak disimpan di layar ini — sampaikan langsung ke investornya.
+                Investor masuk ke Investor Compass dengan nama akun + PIN ini. Sampaikan PIN-nya langsung ke orangnya — layar ini tidak menyimpannya.
               </p>
               <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                <UFormField label="Nama">
+                <UFormField label="Nama akun">
                   <UInput
                     v-model="akDraf.nama"
                     placeholder="Nama akun"
@@ -647,13 +655,13 @@ async function akLepas(i: InvestorBrankas) {
                     v-model="akDraf.pin"
                     inputmode="numeric"
                     maxlength="6"
-                    placeholder="••••"
+                    placeholder="mis. 482913"
                     class="w-full"
                   />
                 </UFormField>
                 <div class="flex items-end gap-2">
                   <UButton
-                    label="Buat & tautkan"
+                    label="Buat Akun"
                     size="sm"
                     :loading="sibuk"
                     @click="akKirim(i)"
@@ -673,7 +681,7 @@ async function akLepas(i: InvestorBrankas) {
             v-else
             class="text-sm text-muted"
           >
-            Belum terhubung ke akun Office — yang bisa menautkan admin modul investor, brankas, atau finance.
+            Belum terhubung ke akun Office — investor ini belum bisa masuk ke Investor Compass. Yang bisa menautkan admin modul investor, brankas, atau finance.
           </p>
         </div>
 

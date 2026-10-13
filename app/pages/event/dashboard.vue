@@ -211,314 +211,314 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
 
 <template>
   <EventGerbang lihat="dashboard">
-  <AppPage
-    title="Dashboard"
-    :description="`Ringkasan operasional · ${tglPanjang(hariIni())}`"
-  >
-    <template #actions>
-      <UButton
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-refresh-cw"
-        :loading="status === 'pending'"
-        @click="refresh()"
-      >
-        Muat ulang
-      </UButton>
-    </template>
-
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="soft"
-      :title="apiErrorMessage(error)"
-      class="mb-4"
-    />
-
-    <AppPanel
-      title="Perlu perhatian"
-      icon="i-lucide-triangle-alert"
-      class="mb-4"
+    <AppPage
+      title="Dashboard"
+      :description="`Ringkasan operasional · ${tglPanjang(hariIni())}`"
     >
-      <p
-        v-if="!perhatian.length"
-        class="text-sm text-muted"
-      >
-        Tidak ada yang perlu ditindak hari ini.
-      </p>
-      <ul
-        v-else
-        class="grid gap-2 lg:grid-cols-2"
-      >
-        <li
-          v-for="(p, i) in perhatian"
-          :key="i"
+      <template #actions>
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-refresh-cw"
+          :loading="status === 'pending'"
+          @click="refresh()"
         >
-          <ULink
-            :to="p.to"
-            class="flex items-center gap-3 rounded-field border border-default px-3 py-2 hover:border-primary"
-          >
-            <UIcon
-              :name="p.tone === 'error' ? 'i-lucide-octagon-alert' : 'i-lucide-triangle-alert'"
-              :class="p.tone === 'error' ? 'text-error' : 'text-warning'"
-              class="size-5 shrink-0"
-            />
-            <span class="min-w-0">
-              <b class="block truncate text-sm text-highlighted">{{ p.judul }}</b>
-              <span class="block truncate text-xs text-muted">{{ p.desc }}</span>
-            </span>
-          </ULink>
-        </li>
-      </ul>
-    </AppPanel>
+          Muat ulang
+        </UButton>
+      </template>
 
-    <AppPanel
-      title="Periode"
-      icon="i-lucide-calendar"
-      class="mb-4"
-    >
-      <div class="flex flex-wrap items-center gap-2">
-        <AppChips
-          v-model="periode"
-          :options="PILIHAN_PERIODE"
-        />
-        <UButton
-          icon="i-lucide-chevron-left"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          aria-label="Periode sebelumnya"
-          title="Geser mundur"
-          @click="geser(-1)"
-        />
-        <UInput
-          v-model="bulanPick"
-          type="month"
-          size="sm"
-          title="Pilih bulan"
-          class="w-40"
-        />
-        <UButton
-          icon="i-lucide-chevron-right"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          aria-label="Periode berikutnya"
-          title="Geser maju"
-          @click="geser(1)"
-        />
-        <UInput
-          v-model="tglPick"
-          type="date"
-          size="sm"
-          title="Atau pilih satu tanggal"
-          class="w-40"
-        />
-        <AppStatus size="sm">
-          {{ acara.length }} event
-        </AppStatus>
-        <AppStatus size="sm">
-          {{ labelPeriode }}
-        </AppStatus>
-      </div>
-    </AppPanel>
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="soft"
+        :title="apiErrorMessage(error)"
+        class="mb-4"
+      />
 
-    <AppSectionTitle title="Status event" />
-    <AppStatGrid class="mb-5">
-      <AppStat
-        v-for="st in STATUS_KARTU"
-        :key="st"
-        :label="st"
-        :value="acara.filter(e => e.status === st).length"
-        :icon="STATUS_IKON_EVENT[st]"
-        :tone="toneKartu(st)"
-      />
-    </AppStatGrid>
-
-    <AppSectionTitle title="Angka utama" />
-    <AppStatGrid class="mb-5">
-      <AppStat
-        label="Upcoming events"
-        :value="upcoming"
-        sub="event akan datang"
-        icon="i-lucide-party-popper"
-        tone="vip"
-      />
-      <AppStat
-        label="Event hari ini"
-        :value="hariIniN"
-        :sub="todayEv.map(e => e.title).join(', ') || '—'"
-        icon="i-lucide-calendar-check"
-        tone="info"
-      />
-      <AppStat
-        label="Talent hari ini"
-        :value="talentHariIni"
-        :sub="talentHariIni ? 'terjadwal manggung' : 'tidak ada jadwal'"
-        icon="i-lucide-mic-vocal"
-        tone="info"
-      />
-      <AppStat
-        label="Uang masuk tiket"
-        :value="rupiah(uangMasuk)"
-        :sub="`${angka(tiketTerjual)} tiket terjual`"
-        icon="i-lucide-banknote"
-        tone="gold"
-      />
-      <AppStat
-        label="Attendance"
-        :value="angka(hadir)"
-        sub="sudah check-in"
-        icon="i-lucide-scan-line"
-        tone="success"
-      />
-      <AppStat
-        label="Keterisian"
-        :value="`${keterisian}%`"
-        :sub="`dari ${angka(tiket.length)} tiket`"
-        icon="i-lucide-armchair"
-        tone="success"
-      />
-      <AppStat
-        label="Avg ticket price"
-        :value="rupiah(hargaRata)"
-        sub="rata-rata"
-        icon="i-lucide-tag"
-        tone="gold"
-      />
-      <AppStat
-        label="Total talent"
-        :value="talentAktifN"
-        sub="aktif"
-        icon="i-lucide-users"
-        tone="info"
-      />
-    </AppStatGrid>
-
-    <AppSectionTitle title="Insight" />
-    <AppStatGrid class="mb-5">
-      <AppStat
-        label="Best selling event"
-        :value="acaraTerlaris.acara?.title ?? '—'"
-        :sub="acaraTerlaris.acara ? rupiah(acaraTerlaris.rp) : ''"
-        icon="i-lucide-trophy"
-        tone="gold"
-        wrap
-      />
-      <AppStat
-        label="Most active talent"
-        :value="talentAktif.talent?.name ?? '—'"
-        :sub="talentAktif.talent ? `${talentAktif.n} show selesai` : ''"
-        icon="i-lucide-star"
-        tone="vip"
-        wrap
-      />
-      <AppStat
-        label="Event paling banyak masuk"
-        :value="palingBanyakMasuk.acara?.title ?? '—'"
-        :sub="palingBanyakMasuk.acara ? `${angka(palingBanyakMasuk.n)} check-in` : ''"
-        icon="i-lucide-door-open"
-        tone="success"
-        wrap
-      />
-      <AppStat
-        label="Tiket terjual yang hadir"
-        :value="`${ringkas.hadirPct}%`"
-        :sub="`${angka(ringkas.hadir)} dari ${angka(ringkas.tiket)} tiket · ${labelPeriode}`"
-        icon="i-lucide-ticket-check"
-        tone="info"
-      />
-    </AppStatGrid>
-
-    <AppPanel
-      title="Uang masuk per event (6 bulan)"
-      icon="i-lucide-chart-column"
-      class="mb-4"
-    >
-      <p class="mb-3 text-xs text-muted">
-        Pesanan lunas saja, dipetakan ke bulan mulai event, dalam juta rupiah.
-      </p>
-      <AppBar
-        v-for="g in grafik"
-        :key="g.label"
-        :label="g.label"
-        :value="`Rp ${g.jt} jt`"
-        :persen="maksGrafik ? Math.round(g.jt / maksGrafik * 100) : 0"
-      />
-    </AppPanel>
-
-    <AppPanel
-      title="Event terdekat"
-      icon="i-lucide-calendar-clock"
-      flush
-    >
-      <UTable
-        :columns="kolom"
-        :data="terdekat"
-        class="hidden lg:block"
+      <AppPanel
+        title="Perlu perhatian"
+        icon="i-lucide-triangle-alert"
+        class="mb-4"
       >
-        <template #acara-cell="{ row }">
-          <ULink
-            :to="`/event/events/${row.original.id}`"
-            class="font-semibold text-highlighted hover:text-primary-700"
+        <p
+          v-if="!perhatian.length"
+          class="text-sm text-muted"
+        >
+          Tidak ada yang perlu ditindak hari ini.
+        </p>
+        <ul
+          v-else
+          class="grid gap-2 lg:grid-cols-2"
+        >
+          <li
+            v-for="(p, i) in perhatian"
+            :key="i"
           >
-            {{ row.original.title }}
-          </ULink>
-        </template>
-        <template #tanggal-cell="{ row }">
-          {{ tglPanjang(tglWIB(row.original.start_datetime)) }} · {{ jamWIB(row.original.start_datetime) }} WIB
-        </template>
-        <template #venue-cell="{ row }">
-          {{ row.original.venue || '—' }}
-        </template>
-        <template #pic-cell="{ row }">
-          {{ row.original.pic || '—' }}
-        </template>
-        <template #status-cell="{ row }">
-          <AppStatus
-            :color="STATUS_WARNA_EVENT[String(row.original.status)] ?? 'neutral'"
-            :icon="STATUS_IKON_EVENT[String(row.original.status)]"
+            <ULink
+              :to="p.to"
+              class="flex items-center gap-3 rounded-field border border-default px-3 py-2 hover:border-primary"
+            >
+              <UIcon
+                :name="p.tone === 'error' ? 'i-lucide-octagon-alert' : 'i-lucide-triangle-alert'"
+                :class="p.tone === 'error' ? 'text-error' : 'text-warning'"
+                class="size-5 shrink-0"
+              />
+              <span class="min-w-0">
+                <b class="block truncate text-sm text-highlighted">{{ p.judul }}</b>
+                <span class="block truncate text-xs text-muted">{{ p.desc }}</span>
+              </span>
+            </ULink>
+          </li>
+        </ul>
+      </AppPanel>
+
+      <AppPanel
+        title="Periode"
+        icon="i-lucide-calendar"
+        class="mb-4"
+      >
+        <div class="flex flex-wrap items-center gap-2">
+          <AppChips
+            v-model="periode"
+            :options="PILIHAN_PERIODE"
+          />
+          <UButton
+            icon="i-lucide-chevron-left"
+            color="neutral"
+            variant="outline"
             size="sm"
-          >
-            {{ String(row.original.status) }}
+            aria-label="Periode sebelumnya"
+            title="Geser mundur"
+            @click="geser(-1)"
+          />
+          <UInput
+            v-model="bulanPick"
+            type="month"
+            size="sm"
+            title="Pilih bulan"
+            class="w-40"
+          />
+          <UButton
+            icon="i-lucide-chevron-right"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            aria-label="Periode berikutnya"
+            title="Geser maju"
+            @click="geser(1)"
+          />
+          <UInput
+            v-model="tglPick"
+            type="date"
+            size="sm"
+            title="Atau pilih satu tanggal"
+            class="w-40"
+          />
+          <AppStatus size="sm">
+            {{ acara.length }} event
           </AppStatus>
-        </template>
-        <template #tiket-cell="{ row }">
-          {{ row.original.is_ticketed ? `${angka(paxAcara(row.original, kelas))} terjual` : '—' }}
-        </template>
-      </UTable>
-      <ul class="divide-y divide-default lg:hidden">
-        <li
-          v-for="e in terdekat"
-          :key="e.id"
-        >
-          <ULink
-            :to="`/event/events/${e.id}`"
-            class="block px-4 py-3"
-          >
-            <b class="block truncate text-sm text-highlighted">{{ e.title }}</b>
-            <span class="mt-0.5 block text-xs text-muted">{{ tglPanjang(tglAcara(e)) }} · {{ jamWIB(e.start_datetime) }} WIB · {{ e.venue || '—' }} · {{ e.pic || '—' }}</span>
-            <span class="mt-1.5 flex items-center gap-2">
-              <AppStatus
-                :color="STATUS_WARNA_EVENT[String(e.status)] ?? 'neutral'"
-                :icon="STATUS_IKON_EVENT[String(e.status)]"
-                size="sm"
-              >{{ String(e.status) }}</AppStatus>
-              <span
-                v-if="e.is_ticketed"
-                class="text-xs text-muted num"
-              >{{ angka(paxAcara(e, kelas)) }} terjual</span>
-            </span>
-          </ULink>
-        </li>
-      </ul>
-      <p
-        v-if="!terdekat.length"
-        class="px-4 py-6 text-center text-sm text-dimmed"
+          <AppStatus size="sm">
+            {{ labelPeriode }}
+          </AppStatus>
+        </div>
+      </AppPanel>
+
+      <AppSectionTitle title="Status event" />
+      <AppStatGrid class="mb-5">
+        <AppStat
+          v-for="st in STATUS_KARTU"
+          :key="st"
+          :label="st"
+          :value="acara.filter(e => e.status === st).length"
+          :icon="STATUS_IKON_EVENT[st]"
+          :tone="toneKartu(st)"
+        />
+      </AppStatGrid>
+
+      <AppSectionTitle title="Angka utama" />
+      <AppStatGrid class="mb-5">
+        <AppStat
+          label="Upcoming events"
+          :value="upcoming"
+          sub="event akan datang"
+          icon="i-lucide-party-popper"
+          tone="vip"
+        />
+        <AppStat
+          label="Event hari ini"
+          :value="hariIniN"
+          :sub="todayEv.map(e => e.title).join(', ') || '—'"
+          icon="i-lucide-calendar-check"
+          tone="info"
+        />
+        <AppStat
+          label="Talent hari ini"
+          :value="talentHariIni"
+          :sub="talentHariIni ? 'terjadwal manggung' : 'tidak ada jadwal'"
+          icon="i-lucide-mic-vocal"
+          tone="info"
+        />
+        <AppStat
+          label="Uang masuk tiket"
+          :value="rupiah(uangMasuk)"
+          :sub="`${angka(tiketTerjual)} tiket terjual`"
+          icon="i-lucide-banknote"
+          tone="gold"
+        />
+        <AppStat
+          label="Attendance"
+          :value="angka(hadir)"
+          sub="sudah check-in"
+          icon="i-lucide-scan-line"
+          tone="success"
+        />
+        <AppStat
+          label="Keterisian"
+          :value="`${keterisian}%`"
+          :sub="`dari ${angka(tiket.length)} tiket`"
+          icon="i-lucide-armchair"
+          tone="success"
+        />
+        <AppStat
+          label="Avg ticket price"
+          :value="rupiah(hargaRata)"
+          sub="rata-rata"
+          icon="i-lucide-tag"
+          tone="gold"
+        />
+        <AppStat
+          label="Total talent"
+          :value="talentAktifN"
+          sub="aktif"
+          icon="i-lucide-users"
+          tone="info"
+        />
+      </AppStatGrid>
+
+      <AppSectionTitle title="Insight" />
+      <AppStatGrid class="mb-5">
+        <AppStat
+          label="Best selling event"
+          :value="acaraTerlaris.acara?.title ?? '—'"
+          :sub="acaraTerlaris.acara ? rupiah(acaraTerlaris.rp) : ''"
+          icon="i-lucide-trophy"
+          tone="gold"
+          wrap
+        />
+        <AppStat
+          label="Most active talent"
+          :value="talentAktif.talent?.name ?? '—'"
+          :sub="talentAktif.talent ? `${talentAktif.n} show selesai` : ''"
+          icon="i-lucide-star"
+          tone="vip"
+          wrap
+        />
+        <AppStat
+          label="Event paling banyak masuk"
+          :value="palingBanyakMasuk.acara?.title ?? '—'"
+          :sub="palingBanyakMasuk.acara ? `${angka(palingBanyakMasuk.n)} check-in` : ''"
+          icon="i-lucide-door-open"
+          tone="success"
+          wrap
+        />
+        <AppStat
+          label="Tiket terjual yang hadir"
+          :value="`${ringkas.hadirPct}%`"
+          :sub="`${angka(ringkas.hadir)} dari ${angka(ringkas.tiket)} tiket · ${labelPeriode}`"
+          icon="i-lucide-ticket-check"
+          tone="info"
+        />
+      </AppStatGrid>
+
+      <AppPanel
+        title="Uang masuk per event (6 bulan)"
+        icon="i-lucide-chart-column"
+        class="mb-4"
       >
-        Belum ada event upcoming.
-      </p>
-    </AppPanel>
-  </AppPage>
+        <p class="mb-3 text-xs text-muted">
+          Pesanan lunas saja, dipetakan ke bulan mulai event, dalam juta rupiah.
+        </p>
+        <AppBar
+          v-for="g in grafik"
+          :key="g.label"
+          :label="g.label"
+          :value="`Rp ${g.jt} jt`"
+          :persen="maksGrafik ? Math.round(g.jt / maksGrafik * 100) : 0"
+        />
+      </AppPanel>
+
+      <AppPanel
+        title="Event terdekat"
+        icon="i-lucide-calendar-clock"
+        flush
+      >
+        <UTable
+          :columns="kolom"
+          :data="terdekat"
+          class="hidden lg:block"
+        >
+          <template #acara-cell="{ row }">
+            <ULink
+              :to="`/event/events/${row.original.id}`"
+              class="font-semibold text-highlighted hover:text-primary-700"
+            >
+              {{ row.original.title }}
+            </ULink>
+          </template>
+          <template #tanggal-cell="{ row }">
+            {{ tglPanjang(tglWIB(row.original.start_datetime)) }} · {{ jamWIB(row.original.start_datetime) }} WIB
+          </template>
+          <template #venue-cell="{ row }">
+            {{ row.original.venue || '—' }}
+          </template>
+          <template #pic-cell="{ row }">
+            {{ row.original.pic || '—' }}
+          </template>
+          <template #status-cell="{ row }">
+            <AppStatus
+              :color="STATUS_WARNA_EVENT[String(row.original.status)] ?? 'neutral'"
+              :icon="STATUS_IKON_EVENT[String(row.original.status)]"
+              size="sm"
+            >
+              {{ String(row.original.status) }}
+            </AppStatus>
+          </template>
+          <template #tiket-cell="{ row }">
+            {{ row.original.is_ticketed ? `${angka(paxAcara(row.original, kelas))} terjual` : '—' }}
+          </template>
+        </UTable>
+        <ul class="divide-y divide-default lg:hidden">
+          <li
+            v-for="e in terdekat"
+            :key="e.id"
+          >
+            <ULink
+              :to="`/event/events/${e.id}`"
+              class="block px-4 py-3"
+            >
+              <b class="block truncate text-sm text-highlighted">{{ e.title }}</b>
+              <span class="mt-0.5 block text-xs text-muted">{{ tglPanjang(tglAcara(e)) }} · {{ jamWIB(e.start_datetime) }} WIB · {{ e.venue || '—' }} · {{ e.pic || '—' }}</span>
+              <span class="mt-1.5 flex items-center gap-2">
+                <AppStatus
+                  :color="STATUS_WARNA_EVENT[String(e.status)] ?? 'neutral'"
+                  :icon="STATUS_IKON_EVENT[String(e.status)]"
+                  size="sm"
+                >{{ String(e.status) }}</AppStatus>
+                <span
+                  v-if="e.is_ticketed"
+                  class="text-xs text-muted num"
+                >{{ angka(paxAcara(e, kelas)) }} terjual</span>
+              </span>
+            </ULink>
+          </li>
+        </ul>
+        <p
+          v-if="!terdekat.length"
+          class="px-4 py-6 text-center text-sm text-dimmed"
+        >
+          Belum ada event upcoming.
+        </p>
+      </AppPanel>
+    </AppPage>
   </EventGerbang>
 </template>

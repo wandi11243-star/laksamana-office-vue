@@ -211,7 +211,7 @@ export function qrMatrix(text: string): number[][] {
   // The mask with the smallest penalty wins.
   const rumus = [
     (r: number, c: number) => (r + c) % 2 === 0,
-    (r: number, c: number) => r % 2 === 0,
+    (r: number, _c: number) => r % 2 === 0,
     (r: number, c: number) => c % 3 === 0,
     (r: number, c: number) => (r + c) % 3 === 0,
     (r: number, c: number) => (((r >> 1) + Math.floor(c / 3)) % 2) === 0,

@@ -315,7 +315,9 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
           v-if="dpNominal"
           class="mt-1 text-xs text-muted"
         >
-          {{ rekeningDp(r).join(' · ') || 'rekening belum diisi' }}<template v-if="(r.dps?.length ?? 0) > 1"> · dicicil {{ r.dps.length }}×</template>
+          {{ rekeningDp(r).join(' · ') || 'rekening belum diisi' }}<template v-if="(r.dps?.length ?? 0) > 1">
+            · dicicil {{ r.dps.length }}×
+          </template>
         </p>
         <div
           v-if="dpNominal"
@@ -427,7 +429,11 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
           />
         </div>
         <p class="text-xs text-muted">
-          Total masuk: <b class="text-highlighted">{{ arrivedPax(r) }}</b> dari {{ r.pax }} pax<template v-if="remainingPax(r)"> — sisa <b class="text-highlighted">{{ remainingPax(r) }}</b> orang</template><template v-else> — lengkap</template>
+          Total masuk: <b class="text-highlighted">{{ arrivedPax(r) }}</b> dari {{ r.pax }} pax<template v-if="remainingPax(r)">
+            — sisa <b class="text-highlighted">{{ remainingPax(r) }}</b> orang
+          </template><template v-else>
+            — lengkap
+          </template>
         </p>
       </div>
     </div>

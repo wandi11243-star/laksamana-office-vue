@@ -204,293 +204,293 @@ function cekToken() {
 
 <template>
   <EventGerbang lihat="checkin">
-  <AppPage
-    title="Check-in"
-    description="Scan QR · kursi terisi langsung"
-  >
-    <template #actions>
-      <USelect
-        v-model="eventId"
-        :items="berTiket.map(e => ({ value: e.id, label: e.title }))"
-        placeholder="Pilih event"
-        class="w-56"
-      />
-    </template>
-
-    <AppStatGrid class="mb-4">
-      <AppStat
-        label="Total tiket"
-        :value="angka(tiket.length)"
-        icon="i-lucide-ticket"
-        tone="info"
-      />
-      <AppStat
-        label="Checked-in"
-        :value="angka(masuk)"
-        icon="i-lucide-scan-line"
-        tone="success"
-      />
-      <AppStat
-        label="Keterisian"
-        :value="persen(keterisian / 100)"
-        icon="i-lucide-armchair"
-        tone="gold"
-      />
-    </AppStatGrid>
-
-    <div class="grid gap-4 lg:grid-cols-2">
-      <AppPanel
-        title="Kursi terisi langsung"
-        icon="i-lucide-armchair"
-      >
-        <p class="mb-2 text-xs text-muted num">
-          {{ angka(kursiTerisi.size) }} kursi terisi dari {{ angka(daftarKursi.rows.length) }} titik denah
-        </p>
-        <ul
-          v-if="kursiTerisi.size"
-          class="max-h-56 space-y-1 overflow-y-auto text-sm"
-        >
-          <li
-            v-for="[sid, n] in [...kursiTerisi.entries()].slice(0, 30)"
-            :key="sid"
-            class="flex justify-between rounded-field bg-success/12 px-2.5 py-1"
-          >
-            <b class="text-success">{{ sid }}</b>
-            <span class="text-muted num">{{ n }} masuk</span>
-          </li>
-        </ul>
-        <p
-          v-else
-          class="py-4 text-center text-sm text-dimmed"
-        >
-          Belum ada kursi terisi.
-        </p>
-      </AppPanel>
-
-      <AppPanel
-        title="Scanner QR"
-        icon="i-lucide-scan-line"
-      >
-        <div class="flex gap-2">
-          <UInput
-            v-model="token"
-            placeholder="Tempel token QR…"
-            icon="i-lucide-clipboard-paste"
-            class="flex-1"
-          />
-          <UButton
-            color="primary"
-            @click="cekToken()"
-          >
-            Cek token ini
-          </UButton>
-        </div>
-        <div
-          v-if="hasilToken !== undefined"
-          class="mt-3"
-        >
-          <UAlert
-            v-if="hasilToken === null"
-            color="error"
-            variant="soft"
-            title="Token tidak dikenal di event ini"
-          />
-          <div
-            v-else-if="hasilToken"
-            class="flex items-center justify-between gap-2 rounded-field border border-default px-3 py-2 text-sm"
-          >
-            <span><b class="text-highlighted">{{ namaTamu(hasilToken) }}</b> · {{ namaKelas(hasilToken.ticket_class_id) }}</span>
-            <UButton
-              v-if="bolehUbah && !idCheckin.has(hasilToken.id)"
-              color="success"
-              size="sm"
-              @click="checkin(hasilToken!)"
-            >
-              Check-in
-            </UButton>
-            <AppStatus
-              v-else-if="idCheckin.has(hasilToken.id)"
-              color="success"
-              icon="i-lucide-check"
-              size="sm"
-            >
-              Sudah datang
-            </AppStatus>
-          </div>
-        </div>
-        <p class="mt-3 text-xs text-muted">
-          Pindai kamera <span class="text-dimmed">Segera</span> — butuh pustaka QR. Tempel token manual bisa dipakai sekarang.
-        </p>
-      </AppPanel>
-    </div>
-
-    <AppPanel
-      title="Daftar tamu"
-      icon="i-lucide-clipboard-list"
-      flush
-      class="mt-4"
+    <AppPage
+      title="Check-in"
+      description="Scan QR · kursi terisi langsung"
     >
-      <template #head>
-        <div class="flex flex-wrap items-center gap-2 px-4 pt-3">
-          <AppChips
-            v-model="chip"
-            :options="CHIPS"
-          />
-          <USelect
-            v-model="fKelas"
-            :items="[{ value: 'semua', label: 'Semua kelas' }, ...daftarKelas.rows.map(c => ({ value: c.id, label: c.name }))]"
-            class="w-44"
-          />
-          <UInput
-            v-model="cari"
-            placeholder="Cari nama / token…"
-            icon="i-lucide-search"
-            class="min-w-44 flex-1"
-          />
-        </div>
+      <template #actions>
+        <USelect
+          v-model="eventId"
+          :items="berTiket.map(e => ({ value: e.id, label: e.title }))"
+          placeholder="Pilih event"
+          class="w-56"
+        />
       </template>
-      <UTable
-        :columns="kolom"
-        :data="halaman"
-        :loading="status === 'pending'"
-        class="mt-3 hidden lg:block"
-      >
-        <template #tamu-cell="{ row }">
-          <b class="text-highlighted">{{ namaTamu(row.original) }}</b>
-        </template>
-        <template #kelas-cell="{ row }">
-          {{ namaKelas(row.original.ticket_class_id) }}
-        </template>
-        <template #kursi-cell="{ row }">
-          {{ row.original.seat_id || '—' }}
-        </template>
-        <template #status-cell="{ row }">
-          <AppStatus
-            :color="idCheckin.has(row.original.id) ? CHECKIN_WARNA['Valid']! : CHECKIN_WARNA['Belum datang']!"
-            :icon="idCheckin.has(row.original.id) ? CHECKIN_IKON['Valid'] : CHECKIN_IKON['Belum datang']"
-            size="sm"
+
+      <AppStatGrid class="mb-4">
+        <AppStat
+          label="Total tiket"
+          :value="angka(tiket.length)"
+          icon="i-lucide-ticket"
+          tone="info"
+        />
+        <AppStat
+          label="Checked-in"
+          :value="angka(masuk)"
+          icon="i-lucide-scan-line"
+          tone="success"
+        />
+        <AppStat
+          label="Keterisian"
+          :value="persen(keterisian / 100)"
+          icon="i-lucide-armchair"
+          tone="gold"
+        />
+      </AppStatGrid>
+
+      <div class="grid gap-4 lg:grid-cols-2">
+        <AppPanel
+          title="Kursi terisi langsung"
+          icon="i-lucide-armchair"
+        >
+          <p class="mb-2 text-xs text-muted num">
+            {{ angka(kursiTerisi.size) }} kursi terisi dari {{ angka(daftarKursi.rows.length) }} titik denah
+          </p>
+          <ul
+            v-if="kursiTerisi.size"
+            class="max-h-56 space-y-1 overflow-y-auto text-sm"
           >
-            {{ idCheckin.has(row.original.id) ? 'Sudah datang' : 'Belum datang' }}
-          </AppStatus>
-        </template>
-        <template #aksi-cell="{ row }">
-          <span class="flex gap-1">
+            <li
+              v-for="[sid, n] in [...kursiTerisi.entries()].slice(0, 30)"
+              :key="sid"
+              class="flex justify-between rounded-field bg-success/12 px-2.5 py-1"
+            >
+              <b class="text-success">{{ sid }}</b>
+              <span class="text-muted num">{{ n }} masuk</span>
+            </li>
+          </ul>
+          <p
+            v-else
+            class="py-4 text-center text-sm text-dimmed"
+          >
+            Belum ada kursi terisi.
+          </p>
+        </AppPanel>
+
+        <AppPanel
+          title="Scanner QR"
+          icon="i-lucide-scan-line"
+        >
+          <div class="flex gap-2">
+            <UInput
+              v-model="token"
+              placeholder="Tempel token QR…"
+              icon="i-lucide-clipboard-paste"
+              class="flex-1"
+            />
             <UButton
-              v-if="bolehUbah && !idCheckin.has(row.original.id)"
+              color="primary"
+              @click="cekToken()"
+            >
+              Cek token ini
+            </UButton>
+          </div>
+          <div
+            v-if="hasilToken !== undefined"
+            class="mt-3"
+          >
+            <UAlert
+              v-if="hasilToken === null"
+              color="error"
+              variant="soft"
+              title="Token tidak dikenal di event ini"
+            />
+            <div
+              v-else-if="hasilToken"
+              class="flex items-center justify-between gap-2 rounded-field border border-default px-3 py-2 text-sm"
+            >
+              <span><b class="text-highlighted">{{ namaTamu(hasilToken) }}</b> · {{ namaKelas(hasilToken.ticket_class_id) }}</span>
+              <UButton
+                v-if="bolehUbah && !idCheckin.has(hasilToken.id)"
+                color="success"
+                size="sm"
+                @click="checkin(hasilToken!)"
+              >
+                Check-in
+              </UButton>
+              <AppStatus
+                v-else-if="idCheckin.has(hasilToken.id)"
+                color="success"
+                icon="i-lucide-check"
+                size="sm"
+              >
+                Sudah datang
+              </AppStatus>
+            </div>
+          </div>
+          <p class="mt-3 text-xs text-muted">
+            Pindai kamera <span class="text-dimmed">Segera</span> — butuh pustaka QR. Tempel token manual bisa dipakai sekarang.
+          </p>
+        </AppPanel>
+      </div>
+
+      <AppPanel
+        title="Daftar tamu"
+        icon="i-lucide-clipboard-list"
+        flush
+        class="mt-4"
+      >
+        <template #head>
+          <div class="flex flex-wrap items-center gap-2 px-4 pt-3">
+            <AppChips
+              v-model="chip"
+              :options="CHIPS"
+            />
+            <USelect
+              v-model="fKelas"
+              :items="[{ value: 'semua', label: 'Semua kelas' }, ...daftarKelas.rows.map(c => ({ value: c.id, label: c.name }))]"
+              class="w-44"
+            />
+            <UInput
+              v-model="cari"
+              placeholder="Cari nama / token…"
+              icon="i-lucide-search"
+              class="min-w-44 flex-1"
+            />
+          </div>
+        </template>
+        <UTable
+          :columns="kolom"
+          :data="halaman"
+          :loading="status === 'pending'"
+          class="mt-3 hidden lg:block"
+        >
+          <template #tamu-cell="{ row }">
+            <b class="text-highlighted">{{ namaTamu(row.original) }}</b>
+          </template>
+          <template #kelas-cell="{ row }">
+            {{ namaKelas(row.original.ticket_class_id) }}
+          </template>
+          <template #kursi-cell="{ row }">
+            {{ row.original.seat_id || '—' }}
+          </template>
+          <template #status-cell="{ row }">
+            <AppStatus
+              :color="idCheckin.has(row.original.id) ? CHECKIN_WARNA['Valid']! : CHECKIN_WARNA['Belum datang']!"
+              :icon="idCheckin.has(row.original.id) ? CHECKIN_IKON['Valid'] : CHECKIN_IKON['Belum datang']"
+              size="sm"
+            >
+              {{ idCheckin.has(row.original.id) ? 'Sudah datang' : 'Belum datang' }}
+            </AppStatus>
+          </template>
+          <template #aksi-cell="{ row }">
+            <span class="flex gap-1">
+              <UButton
+                v-if="bolehUbah && !idCheckin.has(row.original.id)"
+                color="success"
+                variant="outline"
+                size="sm"
+                @click="checkin(row.original)"
+              >
+                Check-in
+              </UButton>
+              <UButton
+                v-if="bolehUbah && idCheckin.has(row.original.id)"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                @click="mintaBatal(row.original)"
+              >
+                Batalkan
+              </UButton>
+            </span>
+          </template>
+        </UTable>
+        <ul class="divide-y divide-default lg:hidden">
+          <li
+            v-for="t in halaman"
+            :key="t.id"
+            class="flex items-center gap-2 px-4 py-2.5"
+          >
+            <span class="min-w-0 flex-1">
+              <b class="block truncate text-sm text-highlighted">{{ namaTamu(t) }}</b>
+              <span class="block truncate text-xs text-muted">{{ namaKelas(t.ticket_class_id) }}{{ t.seat_id ? ` · ${t.seat_id}` : '' }}</span>
+            </span>
+            <UButton
+              v-if="bolehUbah && !idCheckin.has(t.id)"
               color="success"
               variant="outline"
               size="sm"
-              @click="checkin(row.original)"
+              @click="checkin(t)"
             >
               Check-in
             </UButton>
+            <span
+              v-else-if="idCheckin.has(t.id)"
+              class="flex items-center gap-1"
+            >
+              <AppStatus
+                color="success"
+                icon="i-lucide-check"
+                size="sm"
+              >
+                Sudah datang
+              </AppStatus>
+              <UButton
+                v-if="bolehUbah"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                @click="mintaBatal(t)"
+              >
+                Batalkan
+              </UButton>
+            </span>
+          </li>
+        </ul>
+        <div class="flex items-center justify-between px-4 py-3 text-xs text-muted">
+          <span class="num">{{ daftar.length ? `${(hal - 1) * PER_HAL + 1}–${Math.min(hal * PER_HAL, daftar.length)} dari ${angka(daftar.length)}` : '0 dari 0' }}</span>
+          <span class="flex gap-1">
             <UButton
-              v-if="bolehUbah && idCheckin.has(row.original.id)"
               color="neutral"
-              variant="ghost"
+              variant="outline"
               size="sm"
-              @click="mintaBatal(row.original)"
-            >
-              Batalkan
-            </UButton>
-          </span>
-        </template>
-      </UTable>
-      <ul class="divide-y divide-default lg:hidden">
-        <li
-          v-for="t in halaman"
-          :key="t.id"
-          class="flex items-center gap-2 px-4 py-2.5"
-        >
-          <span class="min-w-0 flex-1">
-            <b class="block truncate text-sm text-highlighted">{{ namaTamu(t) }}</b>
-            <span class="block truncate text-xs text-muted">{{ namaKelas(t.ticket_class_id) }}{{ t.seat_id ? ` · ${t.seat_id}` : '' }}</span>
-          </span>
-          <UButton
-            v-if="bolehUbah && !idCheckin.has(t.id)"
-            color="success"
-            variant="outline"
-            size="sm"
-            @click="checkin(t)"
-          >
-            Check-in
-          </UButton>
-          <span
-            v-else-if="idCheckin.has(t.id)"
-            class="flex items-center gap-1"
-          >
-            <AppStatus
-              color="success"
-              icon="i-lucide-check"
-              size="sm"
-            >
-              Sudah datang
-            </AppStatus>
+              icon="i-lucide-chevron-left"
+              :disabled="hal <= 1"
+              @click="hal--"
+            />
             <UButton
-              v-if="bolehUbah"
               color="neutral"
-              variant="ghost"
+              variant="outline"
               size="sm"
-              @click="mintaBatal(t)"
-            >
-              Batalkan
-            </UButton>
+              icon="i-lucide-chevron-right"
+              :disabled="hal >= maxHal"
+              @click="hal++"
+            />
           </span>
-        </li>
-      </ul>
-      <div class="flex items-center justify-between px-4 py-3 text-xs text-muted">
-        <span class="num">{{ daftar.length ? `${(hal - 1) * PER_HAL + 1}–${Math.min(hal * PER_HAL, daftar.length)} dari ${angka(daftar.length)}` : '0 dari 0' }}</span>
-        <span class="flex gap-1">
-          <UButton
-            color="neutral"
-            variant="outline"
-            size="sm"
-            icon="i-lucide-chevron-left"
-            :disabled="hal <= 1"
-            @click="hal--"
-          />
-          <UButton
-            color="neutral"
-            variant="outline"
-            size="sm"
-            icon="i-lucide-chevron-right"
-            :disabled="hal >= maxHal"
-            @click="hal++"
-          />
-        </span>
-      </div>
-    </AppPanel>
+        </div>
+      </AppPanel>
 
-    <ResponsiveSheet
-      :open="batalTarget !== null"
-      title="Batalkan check-in?"
-      @update:open="(v: boolean) => { if (!v) batalTarget = null }"
-    >
-      <p class="text-sm text-muted">
-        Kedatangan <b class="text-highlighted">{{ batalTarget ? namaTamu(batalTarget) : '' }}</b>
-        dibatalkan, dan tiketnya kembali berlaku seperti belum dipakai.
-        Jejak check-in tetap tersimpan.
-      </p>
-      <p class="mt-2 text-xs text-muted">
-        Pakai ini kalau tadi salah orang atau salah pindai.
-      </p>
-      <template #footer>
-        <UButton
-          color="error"
-          :loading="batalSedang"
-          @click="batalkan()"
-        >
-          Ya, batalkan
-        </UButton>
-        <UButton
-          color="neutral"
-          variant="outline"
-          @click="batalTarget = null"
-        >
-          Tidak jadi
-        </UButton>
-      </template>
-    </ResponsiveSheet>
-  </AppPage>
+      <ResponsiveSheet
+        :open="batalTarget !== null"
+        title="Batalkan check-in?"
+        @update:open="(v: boolean) => { if (!v) batalTarget = null }"
+      >
+        <p class="text-sm text-muted">
+          Kedatangan <b class="text-highlighted">{{ batalTarget ? namaTamu(batalTarget) : '' }}</b>
+          dibatalkan, dan tiketnya kembali berlaku seperti belum dipakai.
+          Jejak check-in tetap tersimpan.
+        </p>
+        <p class="mt-2 text-xs text-muted">
+          Pakai ini kalau tadi salah orang atau salah pindai.
+        </p>
+        <template #footer>
+          <UButton
+            color="error"
+            :loading="batalSedang"
+            @click="batalkan()"
+          >
+            Ya, batalkan
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="outline"
+            @click="batalTarget = null"
+          >
+            Tidak jadi
+          </UButton>
+        </template>
+      </ResponsiveSheet>
+    </AppPage>
   </EventGerbang>
 </template>
