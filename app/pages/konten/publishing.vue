@@ -51,128 +51,128 @@ function bukaTayang(c: KontenItem) {
 
 <template>
   <KontenGerbang lihat="publishing">
-  <AppPage
-    title="Publishing"
-    description="Catatan publikasi aktual"
-  >
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="subtle"
-      icon="i-lucide-triangle-alert"
-      :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
-    />
-
-    <KontenBrandBar :brands="st.brands" />
-
-    <div
-      class="grid items-start gap-4 lg:grid-cols-2"
-      :class="status === 'pending' ? 'opacity-60' : ''"
+    <AppPage
+      title="Publishing"
+      description="Catatan publikasi aktual"
     >
-      <AppPanel
-        title="Terjadwal"
-        icon="i-lucide-calendar-clock"
-        :count="terjadwal.length"
-        flush
-      >
-        <p
-          v-if="!terjadwal.length"
-          class="p-6 text-center text-sm text-muted"
-        >
-          Tidak ada yang terjadwal.
-        </p>
-        <ul
-          v-else
-          class="divide-y divide-default"
-        >
-          <li
-            v-for="c in terjadwal"
-            :key="c.id"
-            class="flex items-center gap-3 px-4 py-3"
-          >
-            <NuxtLink
-              :to="`/konten/detail/${c.id}`"
-              class="min-w-0 flex-1"
-            >
-              <p class="truncate text-sm font-semibold text-highlighted">{{ c.title || '(tanpa judul)' }}</p>
-              <p class="truncate text-xs text-muted">
-                {{ [namaBrand(c.brand), contentPlatforms(c).slice(0, 3).join(' · ')].filter(Boolean).join(' · ') }}
-                <template v-if="c.publishDate"> - {{ fTglP(c.publishDate) }} {{ c.publishTime || '' }}</template>
-              </p>
-            </NuxtLink>
-            <span
-              v-if="c.publishDate"
-              class="num shrink-0 text-xs"
-              :class="lewat(c) ? 'font-bold text-error' : 'text-primary-700'"
-              :title="lewat(c) ? 'Lewat tanggal tayang' : undefined"
-            >{{ lewat(c) ? fTglP(c.publishDate) : relHariKonten(c.publishDate) }}</span>
-            <UButton
-              v-if="can('publish')"
-              label="Tayang"
-              icon="i-lucide-check"
-              size="sm"
-              class="shrink-0"
-              @click="bukaTayang(c)"
-            />
-          </li>
-        </ul>
-      </AppPanel>
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
+      />
 
-      <AppPanel
-        title="Sudah tayang"
-        icon="i-lucide-circle-check"
-        :count="tayang.length"
-        flush
-      >
-        <p
-          v-if="!tayang.length"
-          class="p-6 text-center text-sm text-muted"
-        >
-          Belum ada yang tayang.
-        </p>
-        <ul
-          v-else
-          class="divide-y divide-default"
-        >
-          <li
-            v-for="c in tayang.slice(0, 10)"
-            :key="c.id"
-            class="flex items-center gap-3 px-4 py-3"
-          >
-            <NuxtLink
-              :to="`/konten/detail/${c.id}`"
-              class="min-w-0 flex-1"
-            >
-              <p class="truncate text-sm font-semibold text-highlighted">{{ c.title || '(tanpa judul)' }}</p>
-              <p class="truncate text-xs text-muted">
-                {{ [namaBrand(c.brand), contentPlatforms(c).slice(0, 3).join(' · ')].filter(Boolean).join(' · ') }} - {{ fWaktu(c.publishRecord?.at) }}
-              </p>
-            </NuxtLink>
-            <span
-              v-if="reach(c)"
-              class="num shrink-0 text-xs text-primary-700"
-            >{{ angka(reach(c)) }} reach</span>
-            <UButton
-              v-if="adaUrl(c.publishRecord?.url)"
-              :to="c.publishRecord?.url"
-              target="_blank"
-              rel="noopener"
-              icon="i-lucide-external-link"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              aria-label="Buka konten"
-              class="shrink-0"
-            />
-          </li>
-        </ul>
-      </AppPanel>
-    </div>
+      <KontenBrandBar :brands="st.brands" />
 
-    <KontenTayangSheet
-      v-model:open="tayangBuka"
-      :item="tayangItem"
-    />
-  </AppPage>
+      <div
+        class="grid items-start gap-4 lg:grid-cols-2"
+        :class="status === 'pending' ? 'opacity-60' : ''"
+      >
+        <AppPanel
+          title="Terjadwal"
+          icon="i-lucide-calendar-clock"
+          :count="terjadwal.length"
+          flush
+        >
+          <p
+            v-if="!terjadwal.length"
+            class="p-6 text-center text-sm text-muted"
+          >
+            Tidak ada yang terjadwal.
+          </p>
+          <ul
+            v-else
+            class="divide-y divide-default"
+          >
+            <li
+              v-for="c in terjadwal"
+              :key="c.id"
+              class="flex items-center gap-3 px-4 py-3"
+            >
+              <NuxtLink
+                :to="`/konten/detail/${c.id}`"
+                class="min-w-0 flex-1"
+              >
+                <p class="truncate text-sm font-semibold text-highlighted">{{ c.title || '(tanpa judul)' }}</p>
+                <p class="truncate text-xs text-muted">
+                  {{ [namaBrand(c.brand), contentPlatforms(c).slice(0, 3).join(' · ')].filter(Boolean).join(' · ') }}
+                  <template v-if="c.publishDate"> - {{ fTglP(c.publishDate) }} {{ c.publishTime || '' }}</template>
+                </p>
+              </NuxtLink>
+              <span
+                v-if="c.publishDate"
+                class="num shrink-0 text-xs"
+                :class="lewat(c) ? 'font-bold text-error' : 'text-primary-700'"
+                :title="lewat(c) ? 'Lewat tanggal tayang' : undefined"
+              >{{ lewat(c) ? fTglP(c.publishDate) : relHariKonten(c.publishDate) }}</span>
+              <UButton
+                v-if="can('publish')"
+                label="Tayang"
+                icon="i-lucide-check"
+                size="sm"
+                class="shrink-0"
+                @click="bukaTayang(c)"
+              />
+            </li>
+          </ul>
+        </AppPanel>
+
+        <AppPanel
+          title="Sudah tayang"
+          icon="i-lucide-circle-check"
+          :count="tayang.length"
+          flush
+        >
+          <p
+            v-if="!tayang.length"
+            class="p-6 text-center text-sm text-muted"
+          >
+            Belum ada yang tayang.
+          </p>
+          <ul
+            v-else
+            class="divide-y divide-default"
+          >
+            <li
+              v-for="c in tayang.slice(0, 10)"
+              :key="c.id"
+              class="flex items-center gap-3 px-4 py-3"
+            >
+              <NuxtLink
+                :to="`/konten/detail/${c.id}`"
+                class="min-w-0 flex-1"
+              >
+                <p class="truncate text-sm font-semibold text-highlighted">{{ c.title || '(tanpa judul)' }}</p>
+                <p class="truncate text-xs text-muted">
+                  {{ [namaBrand(c.brand), contentPlatforms(c).slice(0, 3).join(' · ')].filter(Boolean).join(' · ') }} - {{ fWaktu(c.publishRecord?.at) }}
+                </p>
+              </NuxtLink>
+              <span
+                v-if="reach(c)"
+                class="num shrink-0 text-xs text-primary-700"
+              >{{ angka(reach(c)) }} reach</span>
+              <UButton
+                v-if="adaUrl(c.publishRecord?.url)"
+                :to="c.publishRecord?.url"
+                target="_blank"
+                rel="noopener"
+                icon="i-lucide-external-link"
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                aria-label="Buka konten"
+                class="shrink-0"
+              />
+            </li>
+          </ul>
+        </AppPanel>
+      </div>
+
+      <KontenTayangSheet
+        v-model:open="tayangBuka"
+        :item="tayangItem"
+      />
+    </AppPage>
   </KontenGerbang>
 </template>

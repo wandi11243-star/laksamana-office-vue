@@ -15,19 +15,19 @@ const content = computed(() => saringBrand(st.value.content, brand.value))
 
 <template>
   <KontenGerbang lihat="analytics">
-  <AppPage
-    title="Performa Konten"
-    description="Reach, Engagement Rate, Virality Index, CTA Click Rate & Content Pillar"
-  >
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="subtle"
-      icon="i-lucide-triangle-alert"
-      :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
-    />
-    <KontenBrandBar :brands="st.brands" />
-    <KontenPerformaPanel :content="content" />
-  </AppPage>
+    <AppPage
+      title="Performa Konten"
+      description="Reach, Engagement Rate, Virality Index, CTA Click Rate & Content Pillar"
+    >
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
+      />
+      <KontenBrandBar :brands="st.brands" />
+      <KontenPerformaPanel :content="content" />
+    </AppPage>
   </KontenGerbang>
 </template>

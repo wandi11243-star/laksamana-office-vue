@@ -15,22 +15,22 @@ const tasks = computed(() => saringBrand(st.value.prodTasks, brand.value))
 
 <template>
   <KontenGerbang lihat="designperf">
-  <AppPage
-    title="Performa Desain"
-    description="Virality konten berdesain & jumlah desain selesai per kategori"
-  >
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="subtle"
-      icon="i-lucide-triangle-alert"
-      :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
-    />
-    <KontenBrandBar :brands="st.brands" />
-    <KontenDesainPanel
-      :content="content"
-      :tasks="tasks"
-    />
-  </AppPage>
+    <AppPage
+      title="Performa Desain"
+      description="Virality konten berdesain & jumlah desain selesai per kategori"
+    >
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
+      />
+      <KontenBrandBar :brands="st.brands" />
+      <KontenDesainPanel
+        :content="content"
+        :tasks="tasks"
+      />
+    </AppPage>
   </KontenGerbang>
 </template>

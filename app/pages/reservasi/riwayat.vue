@@ -363,8 +363,12 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
             @click="bukaDetail(r)"
           >
             <div class="min-w-0">
-              <p class="truncate font-semibold text-highlighted">{{ r.name }}</p>
-              <p class="text-sm text-muted num">{{ tglPendek(r.date) }} {{ r.time }} · meja {{ r.table || '—' }} · {{ r.pax }} pax</p>
+              <p class="truncate font-semibold text-highlighted">
+                {{ r.name }}
+              </p>
+              <p class="text-sm text-muted num">
+                {{ tglPendek(r.date) }} {{ r.time }} · meja {{ r.table || '—' }} · {{ r.pax }} pax
+              </p>
             </div>
             <AppStatus
               :color="warnaStatus[r.status] ?? 'neutral'"

@@ -466,455 +466,340 @@ function labelKursiTiket(sid?: string) {
 
 <template>
   <EventGerbang lihat="ticketing">
-  <AppPage
-    :title="String(acara?.title ?? 'Ticketing')"
-    description="Kelas, denah, penjualan & refund"
-    :back="{ label: 'Ticketing', to: '/event/ticketing' }"
-  >
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="soft"
-      :title="apiErrorMessage(error)"
-      class="mb-4"
-    />
-    <div class="mb-4">
-      <AppSeg
-        v-model="tab"
-        :options="TABS"
-      />
-    </div>
-
-    <template v-if="tab === 'kelas'">
-      <AppPanel
-        title="Kelas tiket"
-        icon="i-lucide-ticket"
-        flush
-      >
-        <template #actions>
-          <UButton
-            v-if="bolehUbah"
-            color="primary"
-            size="sm"
-            icon="i-lucide-plus"
-            @click="bukaKelasBaru()"
-          >
-            Kelas tiket baru
-          </UButton>
-        </template>
-        <UTable
-          :columns="[{ id: 'nama', header: 'Nama + benefit' }, { id: 'harga', header: 'Harga' }, { id: 'kuota', header: 'Kuota' }, { id: 'laku', header: 'Terjual' }, { id: 'masa', header: 'Masa jual' }, { id: 'duduk', header: 'Tempat duduk' }, ...(bolehUbah ? [{ id: 'aksi', header: '' }] : [])]"
-          :data="kelas"
-          :loading="status === 'pending'"
-          class="hidden lg:block"
-        >
-          <template #nama-cell="{ row }">
-            <ULink
-              :to="`/event/ticketing/${id}/${row.original.id}`"
-              class="font-semibold text-highlighted hover:text-primary-700"
-            >
-              {{ row.original.name }}
-            </ULink>
-            <span
-              v-if="row.original.benefit"
-              class="block text-xs text-muted"
-            >{{ row.original.benefit }}</span>
-          </template>
-          <template #harga-cell="{ row }">
-            <span class="num">{{ rupiah(Number(row.original.price) || 0) }}</span>
-          </template>
-          <template #kuota-cell="{ row }">
-            <span class="num">{{ angka(Number(row.original.quota) || 0) }}</span>
-          </template>
-          <template #laku-cell="{ row }">
-            <span class="num">{{ angka(Number(row.original.sold) || 0) }}</span>
-          </template>
-          <template #masa-cell="{ row }">
-            {{ row.original.sale_start || '—' }}–{{ row.original.sale_end || '—' }}
-          </template>
-          <template #duduk-cell="{ row }">
-            {{ row.original.seating || 'Bebas berdiri' }}
-          </template>
-          <template #aksi-cell="{ row }">
-            <span class="flex gap-1">
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                icon="i-lucide-pencil"
-                @click="bukaKelasSunting(row.original)"
-              />
-              <UButton
-                color="error"
-                variant="ghost"
-                size="sm"
-                icon="i-lucide-x"
-                @click="hapusKelasId = row.original.id"
-              />
-            </span>
-          </template>
-        </UTable>
-        <ul class="divide-y divide-default lg:hidden">
-          <li
-            v-for="k in kelas"
-            :key="k.id"
-          >
-            <ULink
-              :to="`/event/ticketing/${id}/${k.id}`"
-              class="block px-4 py-3"
-            >
-              <b class="block text-sm text-highlighted">{{ k.name }}</b>
-              <span class="mt-0.5 block text-xs text-muted num">{{ rupiah(Number(k.price) || 0) }} · {{ angka(Number(k.sold) || 0) }}/{{ angka(Number(k.quota) || 0) }} terjual</span>
-            </ULink>
-          </li>
-        </ul>
-      </AppPanel>
-    </template>
-
-    <template v-else-if="tab === 'denah'">
-      <AppPanel
-        title="Denah & booking"
-        icon="i-lucide-armchair"
-      >
-        <ul class="grid gap-2 lg:grid-cols-2">
-          <li
-            v-for="k in kelas"
-            :key="k.id"
-            class="rounded-field border border-default px-3 py-2 text-sm"
-          >
-            <b class="text-highlighted">{{ k.name }}</b>
-            <span class="mt-0.5 block text-xs text-muted num">
-              {{ (kursi.get(k.id)?.terjual ?? 0) }} terjual dari {{ (kursi.get(k.id)?.total ?? 0) }} titik
-            </span>
-          </li>
-        </ul>
-        <p
-          v-if="!kelas.length"
-          class="py-4 text-center text-sm text-dimmed"
-        >
-          Belum ada kelas tiket.
-        </p>
-        <UAlert
-          color="info"
-          variant="soft"
-          title="Editor denah kanvas Segera"
-          description="Denah 2 lantai, template, drag & mode jual butuh build tersendiri. Penjualan tanpa nomor kursi jalan penuh di tab Jual tiket."
-          class="mt-3"
-        />
-      </AppPanel>
-    </template>
-
-    <template v-else-if="tab === 'jual'">
-      <AppPanel
-        title="Jual tiket"
-        icon="i-lucide-cash-register"
-      >
-        <div class="grid gap-3 lg:grid-cols-2">
-          <UFormField label="Tiket">
-            <USelect
-              v-model="jual.class_id"
-              :items="kelas.map(k => ({ value: k.id, label: `${k.name} — ${rupiah(Number(k.price) || 0)} (${sisaKelas(k) <= 0 ? 'HABIS' : `${sisaKelas(k)} tersisa`})`, disabled: sisaKelas(k) <= 0 }))"
-              placeholder="Pilih kelas…"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField
-            label="Nama"
-            required
-          >
-            <UInput
-              v-model="jual.name"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField
-            label="No. HP"
-            required
-          >
-            <UInput
-              v-model="jual.phone"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Email">
-            <UInput
-              v-model="jual.email"
-              type="email"
-              class="w-full"
-            />
-          </UFormField>
-        </div>
-        <p
-          v-if="jual.class_id"
-          class="mt-2 text-sm text-muted num"
-        >
-          Total: <b class="text-highlighted">{{ rupiah(totalJual) }}</b>
-        </p>
-        <UButton
-          color="primary"
-          :loading="menjual"
-          class="mt-3"
-          @click="simpanJual()"
-        >
-          Simpan & tandai lunas
-        </UButton>
-      </AppPanel>
-    </template>
-
-    <template v-else>
-      <AppStatGrid class="mb-4">
-        <AppStat
-          label="Omzet"
-          :value="rupiah(ringkas.omzet)"
-          :sub=" pesananLunas ? `rata ${rupiah(Math.round(ringkas.omzet / pesananLunas))} · ${angka(pesananLunas)} pesanan` : 'belum ada pesanan lunas'"
-          icon="i-lucide-banknote"
-          tone="gold"
-        />
-        <AppStat
-          label="Tiket sah"
-          :value="angka(ringkas.tiketSah)"
-          icon="i-lucide-ticket-check"
-          tone="success"
-        />
-        <AppStat
-          label="Dikembalikan"
-          :value="rupiah(ringkas.dikembalikan)"
-          icon="i-lucide-undo-2"
-          tone="error"
-        />
-        <AppStat
-          label="Pesanan"
-          :value="angka(barisOrder.length)"
-          icon="i-lucide-receipt-text"
-          tone="info"
-        />
-      </AppStatGrid>
-      <AppPanel
-        title="Ringkasan per kategori"
-        icon="i-lucide-chart-column"
+    <AppPage
+      :title="String(acara?.title ?? 'Ticketing')"
+      description="Kelas, denah, penjualan & refund"
+      :back="{ label: 'Ticketing', to: '/event/ticketing' }"
+    >
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="soft"
+        :title="apiErrorMessage(error)"
         class="mb-4"
-      >
-        <AppBar
-          v-for="k in ringkas.perKelas"
-          :key="k.nama"
-          :label="k.nama"
-          :value="`${angka(k.n)} · ${rupiah(k.rp)}`"
-          :persen="ringkas.tiketSah ? Math.round(k.n / ringkas.tiketSah * 100) : 0"
+      />
+      <div class="mb-4">
+        <AppSeg
+          v-model="tab"
+          :options="TABS"
         />
-      </AppPanel>
-      <AppPanel
-        title="Daftar pembeli"
-        icon="i-lucide-users"
-        flush
-      >
-        <UTable
-          :columns="[
-            { id: 'nama', header: 'Pembeli' },
-            { id: 'kontak', header: 'Kontak' },
-            { id: 'tiket', header: 'Tiket' },
-            { id: 'kursi', header: 'Kursi' },
-            { id: 'total', header: 'Total' },
-            { id: 'bayar', header: 'Bayar' },
-            { id: 'refund', header: 'Refund' },
-            { id: 'hadir', header: 'Check-in' },
-            { id: 'aksi', header: '' },
-          ]"
-          :data="orderTampil"
-          class="hidden lg:block"
-          :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
+      </div>
+
+      <template v-if="tab === 'kelas'">
+        <AppPanel
+          title="Kelas tiket"
+          icon="i-lucide-ticket"
+          flush
         >
-          <template #nama-cell="{ row }">
-            <b class="text-highlighted">{{ String(row.original.buyer_name ?? '—') }}</b>
-            <span class="block text-xs text-muted">{{ fmtTanggalJam(row.original.created) }}<template v-if="String(row.original.recorded_by ?? '')"> · {{ String(row.original.recorded_by) === 'Website' ? 'Website' : `oleh ${String(row.original.recorded_by)}` }}</template></span>
-            <span
-              v-if="String(row.original.payment_ref ?? '')"
-              class="block text-xs text-muted"
-            >{{ String(row.original.payment_ref) }}</span>
-          </template>
-          <template #kontak-cell="{ row }">
-            <span class="block text-xs">{{ String(row.original.buyer_phone ?? '—') }}</span>
-            <span class="block text-xs text-muted">{{ String(row.original.buyer_email ?? '—') }}</span>
-          </template>
-          <template #tiket-cell="{ row }">
-            <span>{{ daftarKelas.rows.find(c => c.id === tiketOrder(row.original.id)[0]?.ticket_class_id)?.name ?? '—' }}</span>
-            <AppStatus
-              v-if="tiketOrder(row.original.id).length > 1"
-              color="info"
-              size="sm"
-              class="ms-1.5"
-            >
-              {{ tiketOrder(row.original.id).length }} tiket
-            </AppStatus>
-          </template>
-          <template #kursi-cell="{ row }">
-            <span class="text-xs">{{ kursiOrder(tiketOrder(row.original.id)).join(', ') || '—' }}</span>
-          </template>
-          <template #total-cell="{ row }">
-            <b class="num">{{ rupiah(Number(row.original.total) || 0) }}</b>
-          </template>
-          <template #bayar-cell="{ row }">
-            <AppStatus
-              :color="warnaBayar(String(row.original.payment_status ?? ''))"
-              size="sm"
-            >
-              {{ String(row.original.payment_status ?? '—') }}
-            </AppStatus>
-          </template>
-          <template #refund-cell="{ row }">
-            <span
-              v-if="!refundOrder(row.original.id)"
-              class="text-muted"
-            >—</span>
-            <AppStatus
-              v-else-if="String(refundOrder(row.original.id)?.status ?? '') === 'Pending'"
-              color="warning"
-              icon="i-lucide-hourglass"
-              size="sm"
-            >
-              On process
-            </AppStatus>
-            <span
-              v-else-if="gantung(refundOrder(row.original.id)!)"
-              class="flex flex-wrap items-center gap-1.5"
-            >
-              <AppStatus
-                color="warning"
-                icon="i-lucide-hourglass"
-                size="sm"
-              >
-                Disetujui · belum diselesaikan
-              </AppStatus>
-              <UButton
-                v-if="manajemen"
-                color="neutral"
-                variant="outline"
-                size="sm"
-                @click="selesaikanId = refundOrder(row.original.id)!.id"
-              >
-                Selesaikan refund
-              </UButton>
-              <span
-                v-else
-                class="text-xs text-muted"
-              >manajemen perlu menekan Selesaikan refund</span>
-            </span>
-            <AppStatus
-              v-else-if="String(refundOrder(row.original.id)?.status ?? '') === 'Approved'"
-              color="success"
-              icon="i-lucide-check"
-              size="sm"
-            >
-              Refunded
-            </AppStatus>
-            <AppStatus
-              v-else
-              color="neutral"
-              icon="i-lucide-x"
-              size="sm"
-            >
-              Ditolak
-            </AppStatus>
+          <template #actions>
             <UButton
-              v-if="refundOrder(row.original.id)?.status === 'Pending'"
-              label="diputus di Approval Flow"
-              color="neutral"
-              variant="link"
-              size="xs"
-              to="/event/approval"
-            />
-          </template>
-          <template #hadir-cell="{ row }">
-            <span class="text-xs num">{{ masukOrder(tiketOrder(row.original.id)) ? `${masukOrder(tiketOrder(row.original.id))}/${tiketOrder(row.original.id).length}` : '—' }}</span>
-          </template>
-          <template #aksi-cell="{ row }">
-            <span
-              v-if="tiketOrder(row.original.id).length"
-              class="flex gap-1"
+              v-if="bolehUbah"
+              color="primary"
+              size="sm"
+              icon="i-lucide-plus"
+              @click="bukaKelasBaru()"
             >
-              <UButton
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                label="E-Ticket"
-                @click="etiket = tiketOrder(row.original.id)[0]!"
-              />
-              <UButton
-                v-if="bisaAjukanRefund(row.original)"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                label="Refund"
-                @click="bukaRefund(row.original.id)"
-              />
-            </span>
+              Kelas tiket baru
+            </UButton>
           </template>
-        </UTable>
-        <p
-          v-if="!barisOrder.length"
-          class="px-4 py-6 text-center text-sm text-dimmed"
-        >
-          Belum ada pembeli.
-        </p>
-        <div
-          v-else
-          class="flex flex-wrap items-center justify-between gap-3 border-t border-default px-4 py-3 text-sm text-muted"
-        >
-          <span class="num">{{ (halSales - 1) * SALES_PER_HAL + 1 }}–{{ Math.min(halSales * SALES_PER_HAL, barisOrder.length) }} dari {{ angka(barisOrder.length) }} pesanan</span>
-          <div class="flex items-center gap-2">
-            <UButton
-              icon="i-lucide-chevron-left"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              aria-label="Halaman sebelumnya"
-              :disabled="halSales <= 1"
-              @click="halSales--"
-            />
-            <span class="num">Hal {{ halSales }} / {{ maxHalSales }}</span>
-            <UButton
-              icon="i-lucide-chevron-right"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              aria-label="Halaman berikutnya"
-              :disabled="halSales >= maxHalSales"
-              @click="halSales++"
-            />
-          </div>
-        </div>
-        <ul class="divide-y divide-default lg:hidden">
-          <li
-            v-for="o in orderTampil"
-            :key="o.id"
-            class="px-4 py-2.5 text-sm"
+          <UTable
+            :columns="[{ id: 'nama', header: 'Nama + benefit' }, { id: 'harga', header: 'Harga' }, { id: 'kuota', header: 'Kuota' }, { id: 'laku', header: 'Terjual' }, { id: 'masa', header: 'Masa jual' }, { id: 'duduk', header: 'Tempat duduk' }, ...(bolehUbah ? [{ id: 'aksi', header: '' }] : [])]"
+            :data="kelas"
+            :loading="status === 'pending'"
+            class="hidden lg:block"
           >
-            <span class="flex items-start justify-between gap-2">
-              <b class="min-w-0 truncate text-highlighted">{{ String(o.buyer_name ?? '—') }}</b>
-              <b class="shrink-0 num">{{ rupiah(Number(o.total) || 0) }}</b>
-            </span>
-            <span class="mt-0.5 block truncate text-xs text-muted">{{ daftarKelas.rows.find(c => c.id === tiketOrder(o.id)[0]?.ticket_class_id)?.name ?? '—' }} · {{ fmtTanggalJam(o.created) }}</span>
-            <span
-              v-if="refundOrder(o.id)"
-              class="mt-1 flex flex-wrap items-center gap-1.5"
+            <template #nama-cell="{ row }">
+              <ULink
+                :to="`/event/ticketing/${id}/${row.original.id}`"
+                class="font-semibold text-highlighted hover:text-primary-700"
+              >
+                {{ row.original.name }}
+              </ULink>
+              <span
+                v-if="row.original.benefit"
+                class="block text-xs text-muted"
+              >{{ row.original.benefit }}</span>
+            </template>
+            <template #harga-cell="{ row }">
+              <span class="num">{{ rupiah(Number(row.original.price) || 0) }}</span>
+            </template>
+            <template #kuota-cell="{ row }">
+              <span class="num">{{ angka(Number(row.original.quota) || 0) }}</span>
+            </template>
+            <template #laku-cell="{ row }">
+              <span class="num">{{ angka(Number(row.original.sold) || 0) }}</span>
+            </template>
+            <template #masa-cell="{ row }">
+              {{ row.original.sale_start || '—' }}–{{ row.original.sale_end || '—' }}
+            </template>
+            <template #duduk-cell="{ row }">
+              {{ row.original.seating || 'Bebas berdiri' }}
+            </template>
+            <template #aksi-cell="{ row }">
+              <span class="flex gap-1">
+                <UButton
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  icon="i-lucide-pencil"
+                  @click="bukaKelasSunting(row.original)"
+                />
+                <UButton
+                  color="error"
+                  variant="ghost"
+                  size="sm"
+                  icon="i-lucide-x"
+                  @click="hapusKelasId = row.original.id"
+                />
+              </span>
+            </template>
+          </UTable>
+          <ul class="divide-y divide-default lg:hidden">
+            <li
+              v-for="k in kelas"
+              :key="k.id"
             >
+              <ULink
+                :to="`/event/ticketing/${id}/${k.id}`"
+                class="block px-4 py-3"
+              >
+                <b class="block text-sm text-highlighted">{{ k.name }}</b>
+                <span class="mt-0.5 block text-xs text-muted num">{{ rupiah(Number(k.price) || 0) }} · {{ angka(Number(k.sold) || 0) }}/{{ angka(Number(k.quota) || 0) }} terjual</span>
+              </ULink>
+            </li>
+          </ul>
+        </AppPanel>
+      </template>
+
+      <template v-else-if="tab === 'denah'">
+        <AppPanel
+          title="Denah & booking"
+          icon="i-lucide-armchair"
+        >
+          <ul class="grid gap-2 lg:grid-cols-2">
+            <li
+              v-for="k in kelas"
+              :key="k.id"
+              class="rounded-field border border-default px-3 py-2 text-sm"
+            >
+              <b class="text-highlighted">{{ k.name }}</b>
+              <span class="mt-0.5 block text-xs text-muted num">
+                {{ (kursi.get(k.id)?.terjual ?? 0) }} terjual dari {{ (kursi.get(k.id)?.total ?? 0) }} titik
+              </span>
+            </li>
+          </ul>
+          <p
+            v-if="!kelas.length"
+            class="py-4 text-center text-sm text-dimmed"
+          >
+            Belum ada kelas tiket.
+          </p>
+          <UAlert
+            color="info"
+            variant="soft"
+            title="Editor denah kanvas Segera"
+            description="Denah 2 lantai, template, drag & mode jual butuh build tersendiri. Penjualan tanpa nomor kursi jalan penuh di tab Jual tiket."
+            class="mt-3"
+          />
+        </AppPanel>
+      </template>
+
+      <template v-else-if="tab === 'jual'">
+        <AppPanel
+          title="Jual tiket"
+          icon="i-lucide-cash-register"
+        >
+          <div class="grid gap-3 lg:grid-cols-2">
+            <UFormField label="Tiket">
+              <USelect
+                v-model="jual.class_id"
+                :items="kelas.map(k => ({ value: k.id, label: `${k.name} — ${rupiah(Number(k.price) || 0)} (${sisaKelas(k) <= 0 ? 'HABIS' : `${sisaKelas(k)} tersisa`})`, disabled: sisaKelas(k) <= 0 }))"
+                placeholder="Pilih kelas…"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField
+              label="Nama"
+              required
+            >
+              <UInput
+                v-model="jual.name"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField
+              label="No. HP"
+              required
+            >
+              <UInput
+                v-model="jual.phone"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="Email">
+              <UInput
+                v-model="jual.email"
+                type="email"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+          <p
+            v-if="jual.class_id"
+            class="mt-2 text-sm text-muted num"
+          >
+            Total: <b class="text-highlighted">{{ rupiah(totalJual) }}</b>
+          </p>
+          <UButton
+            color="primary"
+            :loading="menjual"
+            class="mt-3"
+            @click="simpanJual()"
+          >
+            Simpan & tandai lunas
+          </UButton>
+        </AppPanel>
+      </template>
+
+      <template v-else>
+        <AppStatGrid class="mb-4">
+          <AppStat
+            label="Omzet"
+            :value="rupiah(ringkas.omzet)"
+            :sub=" pesananLunas ? `rata ${rupiah(Math.round(ringkas.omzet / pesananLunas))} · ${angka(pesananLunas)} pesanan` : 'belum ada pesanan lunas'"
+            icon="i-lucide-banknote"
+            tone="gold"
+          />
+          <AppStat
+            label="Tiket sah"
+            :value="angka(ringkas.tiketSah)"
+            icon="i-lucide-ticket-check"
+            tone="success"
+          />
+          <AppStat
+            label="Dikembalikan"
+            :value="rupiah(ringkas.dikembalikan)"
+            icon="i-lucide-undo-2"
+            tone="error"
+          />
+          <AppStat
+            label="Pesanan"
+            :value="angka(barisOrder.length)"
+            icon="i-lucide-receipt-text"
+            tone="info"
+          />
+        </AppStatGrid>
+        <AppPanel
+          title="Ringkasan per kategori"
+          icon="i-lucide-chart-column"
+          class="mb-4"
+        >
+          <AppBar
+            v-for="k in ringkas.perKelas"
+            :key="k.nama"
+            :label="k.nama"
+            :value="`${angka(k.n)} · ${rupiah(k.rp)}`"
+            :persen="ringkas.tiketSah ? Math.round(k.n / ringkas.tiketSah * 100) : 0"
+          />
+        </AppPanel>
+        <AppPanel
+          title="Daftar pembeli"
+          icon="i-lucide-users"
+          flush
+        >
+          <UTable
+            :columns="[
+              { id: 'nama', header: 'Pembeli' },
+              { id: 'kontak', header: 'Kontak' },
+              { id: 'tiket', header: 'Tiket' },
+              { id: 'kursi', header: 'Kursi' },
+              { id: 'total', header: 'Total' },
+              { id: 'bayar', header: 'Bayar' },
+              { id: 'refund', header: 'Refund' },
+              { id: 'hadir', header: 'Check-in' },
+              { id: 'aksi', header: '' },
+            ]"
+            :data="orderTampil"
+            class="hidden lg:block"
+            :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
+          >
+            <template #nama-cell="{ row }">
+              <b class="text-highlighted">{{ String(row.original.buyer_name ?? '—') }}</b>
+              <span class="block text-xs text-muted">{{ fmtTanggalJam(row.original.created) }}<template v-if="String(row.original.recorded_by ?? '')"> · {{ String(row.original.recorded_by) === 'Website' ? 'Website' : `oleh ${String(row.original.recorded_by)}` }}</template></span>
+              <span
+                v-if="String(row.original.payment_ref ?? '')"
+                class="block text-xs text-muted"
+              >{{ String(row.original.payment_ref) }}</span>
+            </template>
+            <template #kontak-cell="{ row }">
+              <span class="block text-xs">{{ String(row.original.buyer_phone ?? '—') }}</span>
+              <span class="block text-xs text-muted">{{ String(row.original.buyer_email ?? '—') }}</span>
+            </template>
+            <template #tiket-cell="{ row }">
+              <span>{{ daftarKelas.rows.find(c => c.id === tiketOrder(row.original.id)[0]?.ticket_class_id)?.name ?? '—' }}</span>
               <AppStatus
-                v-if="String(refundOrder(o.id)?.status ?? '') === 'Pending'"
+                v-if="tiketOrder(row.original.id).length > 1"
+                color="info"
+                size="sm"
+                class="ms-1.5"
+              >
+                {{ tiketOrder(row.original.id).length }} tiket
+              </AppStatus>
+            </template>
+            <template #kursi-cell="{ row }">
+              <span class="text-xs">{{ kursiOrder(tiketOrder(row.original.id)).join(', ') || '—' }}</span>
+            </template>
+            <template #total-cell="{ row }">
+              <b class="num">{{ rupiah(Number(row.original.total) || 0) }}</b>
+            </template>
+            <template #bayar-cell="{ row }">
+              <AppStatus
+                :color="warnaBayar(String(row.original.payment_status ?? ''))"
+                size="sm"
+              >
+                {{ String(row.original.payment_status ?? '—') }}
+              </AppStatus>
+            </template>
+            <template #refund-cell="{ row }">
+              <span
+                v-if="!refundOrder(row.original.id)"
+                class="text-muted"
+              >—</span>
+              <AppStatus
+                v-else-if="String(refundOrder(row.original.id)?.status ?? '') === 'Pending'"
                 color="warning"
                 icon="i-lucide-hourglass"
                 size="sm"
               >
                 On process
               </AppStatus>
-              <AppStatus
-                v-else-if="gantung(refundOrder(o.id)!)"
-                color="warning"
-                icon="i-lucide-hourglass"
-                size="sm"
+              <span
+                v-else-if="gantung(refundOrder(row.original.id)!)"
+                class="flex flex-wrap items-center gap-1.5"
               >
-                Disetujui · belum diselesaikan
-              </AppStatus>
+                <AppStatus
+                  color="warning"
+                  icon="i-lucide-hourglass"
+                  size="sm"
+                >
+                  Disetujui · belum diselesaikan
+                </AppStatus>
+                <UButton
+                  v-if="manajemen"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  @click="selesaikanId = refundOrder(row.original.id)!.id"
+                >
+                  Selesaikan refund
+                </UButton>
+                <span
+                  v-else
+                  class="text-xs text-muted"
+                >manajemen perlu menekan Selesaikan refund</span>
+              </span>
               <AppStatus
-                v-else-if="String(refundOrder(o.id)?.status ?? '') === 'Approved'"
+                v-else-if="String(refundOrder(row.original.id)?.status ?? '') === 'Approved'"
                 color="success"
                 icon="i-lucide-check"
                 size="sm"
@@ -929,295 +814,412 @@ function labelKursiTiket(sid?: string) {
               >
                 Ditolak
               </AppStatus>
-            </span>
-            <span class="mt-1.5 flex flex-wrap gap-1.5">
               <UButton
-                v-if="tiketOrder(o.id).length"
+                v-if="refundOrder(row.original.id)?.status === 'Pending'"
+                label="diputus di Approval Flow"
                 color="neutral"
-                variant="ghost"
-                size="sm"
-                label="E-Ticket"
-                @click="etiket = tiketOrder(o.id)[0]!"
+                variant="link"
+                size="xs"
+                to="/event/approval"
               />
+            </template>
+            <template #hadir-cell="{ row }">
+              <span class="text-xs num">{{ masukOrder(tiketOrder(row.original.id)) ? `${masukOrder(tiketOrder(row.original.id))}/${tiketOrder(row.original.id).length}` : '—' }}</span>
+            </template>
+            <template #aksi-cell="{ row }">
+              <span
+                v-if="tiketOrder(row.original.id).length"
+                class="flex gap-1"
+              >
+                <UButton
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  label="E-Ticket"
+                  @click="etiket = tiketOrder(row.original.id)[0]!"
+                />
+                <UButton
+                  v-if="bisaAjukanRefund(row.original)"
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  label="Refund"
+                  @click="bukaRefund(row.original.id)"
+                />
+              </span>
+            </template>
+          </UTable>
+          <p
+            v-if="!barisOrder.length"
+            class="px-4 py-6 text-center text-sm text-dimmed"
+          >
+            Belum ada pembeli.
+          </p>
+          <div
+            v-else
+            class="flex flex-wrap items-center justify-between gap-3 border-t border-default px-4 py-3 text-sm text-muted"
+          >
+            <span class="num">{{ (halSales - 1) * SALES_PER_HAL + 1 }}–{{ Math.min(halSales * SALES_PER_HAL, barisOrder.length) }} dari {{ angka(barisOrder.length) }} pesanan</span>
+            <div class="flex items-center gap-2">
               <UButton
-                v-if="bisaAjukanRefund(o)"
+                icon="i-lucide-chevron-left"
                 color="neutral"
-                variant="ghost"
+                variant="outline"
                 size="sm"
-                label="Refund"
-                @click="bukaRefund(o.id)"
+                aria-label="Halaman sebelumnya"
+                :disabled="halSales <= 1"
+                @click="halSales--"
               />
-            </span>
-          </li>
-        </ul>
-      </AppPanel>
-    </template>
-
-    <ResponsiveSheet
-      v-model:open="sheetEtiket"
-      title="E-Ticket"
-    >
-      <div
-        v-if="etiket"
-        class="space-y-3"
-      >
-        <div class="flex flex-wrap gap-5">
-          <div class="text-center">
-            <div
-              v-if="etiketQr"
-              class="inline-block overflow-hidden rounded-lg border border-default bg-white p-2"
-              v-html="etiketQr"
-            />
-            <p class="mt-1 text-xs text-muted num">
-              {{ etiketNo }}
-            </p>
-            <AppStatus
-              :color="etiket.status === 'Checked-In' ? 'success' : 'neutral'"
-              size="sm"
-              class="mt-1"
+              <span class="num">Hal {{ halSales }} / {{ maxHalSales }}</span>
+              <UButton
+                icon="i-lucide-chevron-right"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                aria-label="Halaman berikutnya"
+                :disabled="halSales >= maxHalSales"
+                @click="halSales++"
+              />
+            </div>
+          </div>
+          <ul class="divide-y divide-default lg:hidden">
+            <li
+              v-for="o in orderTampil"
+              :key="o.id"
+              class="px-4 py-2.5 text-sm"
             >
-              {{ etiket.status ?? '—' }}
-            </AppStatus>
-          </div>
-          <div class="min-w-52 flex-1 space-y-1.5 text-sm">
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Event</span>
-              <b class="text-right text-highlighted">{{ String((acara as Record<string, unknown> | undefined)?.title ?? '—') }}</b>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Nama</span>
-              <span>{{ String(etiketOrder?.buyer_name ?? '—') }}</span>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Class</span>
-              <span>{{ etiketKelas?.name ?? '—' }}</span>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Seat</span>
-              <span>{{ etiketKursi || 'Standing' }}</span>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Venue</span>
-              <span>{{ String((acara as Record<string, unknown> | undefined)?.venue ?? '—') }}</span>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">Waktu</span>
-              <span>{{ fmtTanggalJam(String((acara as Record<string, unknown> | undefined)?.start_datetime ?? '')) }}</span>
-            </div>
-            <div class="flex justify-between gap-3 border-b border-default pb-1.5">
-              <span class="text-muted">QR Token</span>
-              <span class="break-all text-xs num">{{ etiket.qr_token }}</span>
-            </div>
-          </div>
-        </div>
-        <p class="text-xs text-muted">
-          QR single-use. Tunjukkan saat check-in.
-        </p>
-        <div class="rounded-field border border-default bg-muted p-2.5 text-xs text-muted">
-          Pembeli membuka barcode-nya sendiri di <b>laksamanamuda.id/ticketing</b> — daftar atau masuk memakai email
-          <b class="break-all">{{ String(etiketOrder?.buyer_email ?? '—') }}</b>, tiketnya langsung muncul di menu
-          <b>Tiket Saya</b>.
-          <template v-if="!etiketOrder?.buyer_email">
-            <span class="font-semibold text-error">Pesanan ini belum ada emailnya — pembeli tidak akan bisa menemukannya.</span>
-          </template>
-        </div>
-      </div>
-      <template #footer>
-        <UButton
-          label="Salin token"
-          color="neutral"
-          variant="outline"
-          size="xl"
-          @click="salinToken"
-        />
-        <UButton
-          label="Unduh QR"
-          color="neutral"
-          variant="outline"
-          size="xl"
-          @click="etiket && unduhQR(etiket)"
-        />
-        <UButton
-          label="Kirim WA"
-          color="success"
-          size="xl"
-          @click="etiket && kirimWA(etiket)"
-        />
-        <UButton
-          label="Tutup"
-          color="neutral"
-          variant="soft"
-          size="xl"
-          @click="sheetEtiket = false"
-        />
+              <span class="flex items-start justify-between gap-2">
+                <b class="min-w-0 truncate text-highlighted">{{ String(o.buyer_name ?? '—') }}</b>
+                <b class="shrink-0 num">{{ rupiah(Number(o.total) || 0) }}</b>
+              </span>
+              <span class="mt-0.5 block truncate text-xs text-muted">{{ daftarKelas.rows.find(c => c.id === tiketOrder(o.id)[0]?.ticket_class_id)?.name ?? '—' }} · {{ fmtTanggalJam(o.created) }}</span>
+              <span
+                v-if="refundOrder(o.id)"
+                class="mt-1 flex flex-wrap items-center gap-1.5"
+              >
+                <AppStatus
+                  v-if="String(refundOrder(o.id)?.status ?? '') === 'Pending'"
+                  color="warning"
+                  icon="i-lucide-hourglass"
+                  size="sm"
+                >
+                  On process
+                </AppStatus>
+                <AppStatus
+                  v-else-if="gantung(refundOrder(o.id)!)"
+                  color="warning"
+                  icon="i-lucide-hourglass"
+                  size="sm"
+                >
+                  Disetujui · belum diselesaikan
+                </AppStatus>
+                <AppStatus
+                  v-else-if="String(refundOrder(o.id)?.status ?? '') === 'Approved'"
+                  color="success"
+                  icon="i-lucide-check"
+                  size="sm"
+                >
+                  Refunded
+                </AppStatus>
+                <AppStatus
+                  v-else
+                  color="neutral"
+                  icon="i-lucide-x"
+                  size="sm"
+                >
+                  Ditolak
+                </AppStatus>
+              </span>
+              <span class="mt-1.5 flex flex-wrap gap-1.5">
+                <UButton
+                  v-if="tiketOrder(o.id).length"
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  label="E-Ticket"
+                  @click="etiket = tiketOrder(o.id)[0]!"
+                />
+                <UButton
+                  v-if="bisaAjukanRefund(o)"
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  label="Refund"
+                  @click="bukaRefund(o.id)"
+                />
+              </span>
+            </li>
+          </ul>
+        </AppPanel>
       </template>
-    </ResponsiveSheet>
 
-    <ResponsiveSheet
-      v-model:open="sheetKelas"
-      :title="kelasId ? 'Edit kelas tiket' : 'Kelas tiket baru'"
-    >
-      <div class="grid gap-3">
+      <ResponsiveSheet
+        v-model:open="sheetEtiket"
+        title="E-Ticket"
+      >
+        <div
+          v-if="etiket"
+          class="space-y-3"
+        >
+          <div class="flex flex-wrap gap-5">
+            <div class="text-center">
+              <!-- eslint-disable vue/no-v-html — etiketQr dibangun sendiri oleh qrSvg() lokal, bukan input user -->
+              <div
+                v-if="etiketQr"
+                class="inline-block overflow-hidden rounded-lg border border-default bg-white p-2"
+                v-html="etiketQr"
+              />
+              <!-- eslint-enable vue/no-v-html -->
+              <p class="mt-1 text-xs text-muted num">
+                {{ etiketNo }}
+              </p>
+              <AppStatus
+                :color="etiket.status === 'Checked-In' ? 'success' : 'neutral'"
+                size="sm"
+                class="mt-1"
+              >
+                {{ etiket.status ?? '—' }}
+              </AppStatus>
+            </div>
+            <div class="min-w-52 flex-1 space-y-1.5 text-sm">
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Event</span>
+                <b class="text-right text-highlighted">{{ String((acara as Record<string, unknown> | undefined)?.title ?? '—') }}</b>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Nama</span>
+                <span>{{ String(etiketOrder?.buyer_name ?? '—') }}</span>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Class</span>
+                <span>{{ etiketKelas?.name ?? '—' }}</span>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Seat</span>
+                <span>{{ etiketKursi || 'Standing' }}</span>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Venue</span>
+                <span>{{ String((acara as Record<string, unknown> | undefined)?.venue ?? '—') }}</span>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">Waktu</span>
+                <span>{{ fmtTanggalJam(String((acara as Record<string, unknown> | undefined)?.start_datetime ?? '')) }}</span>
+              </div>
+              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+                <span class="text-muted">QR Token</span>
+                <span class="break-all text-xs num">{{ etiket.qr_token }}</span>
+              </div>
+            </div>
+          </div>
+          <p class="text-xs text-muted">
+            QR single-use. Tunjukkan saat check-in.
+          </p>
+          <div class="rounded-field border border-default bg-muted p-2.5 text-xs text-muted">
+            Pembeli membuka barcode-nya sendiri di <b>laksamanamuda.id/ticketing</b> — daftar atau masuk memakai email
+            <b class="break-all">{{ String(etiketOrder?.buyer_email ?? '—') }}</b>, tiketnya langsung muncul di menu
+            <b>Tiket Saya</b>.
+            <template v-if="!etiketOrder?.buyer_email">
+              <span class="font-semibold text-error">Pesanan ini belum ada emailnya — pembeli tidak akan bisa menemukannya.</span>
+            </template>
+          </div>
+        </div>
+        <template #footer>
+          <UButton
+            label="Salin token"
+            color="neutral"
+            variant="outline"
+            size="xl"
+            @click="salinToken"
+          />
+          <UButton
+            label="Unduh QR"
+            color="neutral"
+            variant="outline"
+            size="xl"
+            @click="etiket && unduhQR(etiket)"
+          />
+          <UButton
+            label="Kirim WA"
+            color="success"
+            size="xl"
+            @click="etiket && kirimWA(etiket)"
+          />
+          <UButton
+            label="Tutup"
+            color="neutral"
+            variant="soft"
+            size="xl"
+            @click="sheetEtiket = false"
+          />
+        </template>
+      </ResponsiveSheet>
+
+      <ResponsiveSheet
+        v-model:open="sheetKelas"
+        :title="kelasId ? 'Edit kelas tiket' : 'Kelas tiket baru'"
+      >
+        <div class="grid gap-3">
+          <UFormField
+            label="Nama"
+            required
+          >
+            <UInput
+              v-model="fk.name"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Benefit">
+            <UInput
+              v-model="fk.benefit"
+              class="w-full"
+            />
+          </UFormField>
+          <div class="grid grid-cols-2 gap-3">
+            <UFormField label="Harga">
+              <UInput
+                v-model.number="fk.price"
+                type="number"
+                min="0"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="Kuota">
+              <UInput
+                v-model.number="fk.quota"
+                type="number"
+                min="0"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="Mulai jual">
+              <UInput
+                v-model="fk.sale_start"
+                type="date"
+                class="w-full"
+              />
+            </UFormField>
+            <UFormField label="Akhir jual">
+              <UInput
+                v-model="fk.sale_end"
+                type="date"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+          <UFormField label="Tempat duduk">
+            <USelect
+              v-model="fk.seating"
+              :items="[{ value: 'Bebas berdiri', label: 'Bebas berdiri' }, { value: 'Kursi bernomor', label: 'Kursi bernomor' }]"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+        <template #footer>
+          <UButton
+            color="primary"
+            @click="simpanKelas()"
+          >
+            Simpan kelas
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="outline"
+            @click="sheetKelas = false"
+          >
+            Batal
+          </UButton>
+        </template>
+      </ResponsiveSheet>
+
+      <ResponsiveSheet
+        v-model:open="sheetHapusKelas"
+        title="Hapus kelas tiket?"
+      >
+        <p class="text-sm text-muted">
+          Kelas ini dihapus. Tiket yang sudah terjual tidak ikut terhapus.
+        </p>
+        <template #footer>
+          <UButton
+            color="error"
+            @click="hapusKelas()"
+          >
+            Ya, hapus
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="outline"
+            @click="sheetHapusKelas = false"
+          >
+            Batal
+          </UButton>
+        </template>
+      </ResponsiveSheet>
+
+      <ResponsiveSheet
+        v-model:open="sheetSelesaikan"
+        title="Selesaikan refund"
+      >
+        <div
+          v-if="refundDipilih && orderDipilih"
+          class="grid gap-1.5 text-sm"
+        >
+          <p><span class="text-muted">Pembeli:</span> <b class="text-highlighted">{{ String((orderDipilih as Record<string, unknown>).buyer_name ?? '—') }}</b></p>
+          <p><span class="text-muted">Nominal:</span> <b class="text-highlighted num">{{ rupiah(Number((orderDipilih as Record<string, unknown>).total) || 0) }}</b></p>
+          <p><span class="text-muted">Alasan:</span> {{ String(refundDipilih.reason ?? '—') }}</p>
+          <p class="text-muted">
+            Refund ini sudah disetujui, tapi oleh versi lama yang tidak ikut membatalkan tiketnya.
+            Menyelesaikannya: pesanan jadi Refunded, tiket dibatalkan, kursinya dilepas, dan kuota kelasnya kembali.
+            Tidak bisa dibatalkan.
+          </p>
+        </div>
+        <template #footer>
+          <UButton
+            color="primary"
+            @click="selesaikan()"
+          >
+            Selesaikan
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="outline"
+            @click="sheetSelesaikan = false"
+          >
+            Batal
+          </UButton>
+        </template>
+      </ResponsiveSheet>
+
+      <ResponsiveSheet
+        v-model:open="sheetRefund"
+        title="Ajukan refund"
+        :description="orderRefund ? `${String(orderRefund.buyer_name ?? '')} · ${rupiah(Number(orderRefund.total) || 0)}` : ''"
+      >
         <UFormField
-          label="Nama"
+          label="Alasan refund"
           required
+          help="Setelah diajukan, statusnya menunggu persetujuan. Pengajuan hanya bisa sekali per order."
         >
-          <UInput
-            v-model="fk.name"
+          <UTextarea
+            v-model="alasanRefund"
+            :rows="3"
+            placeholder="mis. acara bentrok, tiket dobel"
             class="w-full"
           />
         </UFormField>
-        <UFormField label="Benefit">
-          <UInput
-            v-model="fk.benefit"
-            class="w-full"
+        <template #footer>
+          <UButton
+            label="Ajukan"
+            @click="ajukanRefund"
           />
-        </UFormField>
-        <div class="grid grid-cols-2 gap-3">
-          <UFormField label="Harga">
-            <UInput
-              v-model.number="fk.price"
-              type="number"
-              min="0"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Kuota">
-            <UInput
-              v-model.number="fk.quota"
-              type="number"
-              min="0"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Mulai jual">
-            <UInput
-              v-model="fk.sale_start"
-              type="date"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Akhir jual">
-            <UInput
-              v-model="fk.sale_end"
-              type="date"
-              class="w-full"
-            />
-          </UFormField>
-        </div>
-        <UFormField label="Tempat duduk">
-          <USelect
-            v-model="fk.seating"
-            :items="[{ value: 'Bebas berdiri', label: 'Bebas berdiri' }, { value: 'Kursi bernomor', label: 'Kursi bernomor' }]"
-            class="w-full"
+          <UButton
+            label="Batal"
+            color="neutral"
+            variant="outline"
+            @click="sheetRefund = false"
           />
-        </UFormField>
-      </div>
-      <template #footer>
-        <UButton
-          color="primary"
-          @click="simpanKelas()"
-        >
-          Simpan kelas
-        </UButton>
-        <UButton
-          color="neutral"
-          variant="outline"
-          @click="sheetKelas = false"
-        >
-          Batal
-        </UButton>
-      </template>
-    </ResponsiveSheet>
-
-    <ResponsiveSheet
-      v-model:open="sheetHapusKelas"
-      title="Hapus kelas tiket?"
-    >
-      <p class="text-sm text-muted">
-        Kelas ini dihapus. Tiket yang sudah terjual tidak ikut terhapus.
-      </p>
-      <template #footer>
-        <UButton
-          color="error"
-          @click="hapusKelas()"
-        >
-          Ya, hapus
-        </UButton>
-        <UButton
-          color="neutral"
-          variant="outline"
-          @click="sheetHapusKelas = false"
-        >
-          Batal
-        </UButton>
-      </template>
-    </ResponsiveSheet>
-
-    <ResponsiveSheet
-      v-model:open="sheetSelesaikan"
-      title="Selesaikan refund"
-    >
-      <div
-        v-if="refundDipilih && orderDipilih"
-        class="grid gap-1.5 text-sm"
-      >
-        <p><span class="text-muted">Pembeli:</span> <b class="text-highlighted">{{ String((orderDipilih as Record<string, unknown>).buyer_name ?? '—') }}</b></p>
-        <p><span class="text-muted">Nominal:</span> <b class="text-highlighted num">{{ rupiah(Number((orderDipilih as Record<string, unknown>).total) || 0) }}</b></p>
-        <p><span class="text-muted">Alasan:</span> {{ String(refundDipilih.reason ?? '—') }}</p>
-        <p class="text-muted">
-          Refund ini sudah disetujui, tapi oleh versi lama yang tidak ikut membatalkan tiketnya.
-          Menyelesaikannya: pesanan jadi Refunded, tiket dibatalkan, kursinya dilepas, dan kuota kelasnya kembali.
-          Tidak bisa dibatalkan.
-        </p>
-      </div>
-      <template #footer>
-        <UButton
-          color="primary"
-          @click="selesaikan()"
-        >
-          Selesaikan
-        </UButton>
-        <UButton
-          color="neutral"
-          variant="outline"
-          @click="sheetSelesaikan = false"
-        >
-          Batal
-        </UButton>
-      </template>
-    </ResponsiveSheet>
-
-    <ResponsiveSheet
-      v-model:open="sheetRefund"
-      title="Ajukan refund"
-      :description="orderRefund ? `${String(orderRefund.buyer_name ?? '')} · ${rupiah(Number(orderRefund.total) || 0)}` : ''"
-    >
-      <UFormField
-        label="Alasan refund"
-        required
-        help="Setelah diajukan, statusnya menunggu persetujuan. Pengajuan hanya bisa sekali per order."
-      >
-        <UTextarea
-          v-model="alasanRefund"
-          :rows="3"
-          placeholder="mis. acara bentrok, tiket dobel"
-          class="w-full"
-        />
-      </UFormField>
-      <template #footer>
-        <UButton
-          label="Ajukan"
-          @click="ajukanRefund"
-        />
-        <UButton
-          label="Batal"
-          color="neutral"
-          variant="outline"
-          @click="sheetRefund = false"
-        />
-      </template>
-    </ResponsiveSheet>
-  </AppPage>
+        </template>
+      </ResponsiveSheet>
+    </AppPage>
   </EventGerbang>
 </template>

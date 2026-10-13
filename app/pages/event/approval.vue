@@ -174,104 +174,192 @@ const lihatRefund = computed(() => tab.value !== 'rencana')
 
 <template>
   <EventGerbang lihat="approval">
-  <AppPage
-    title="Approval flow"
-    description="Meja putusan manajemen"
-  >
-    <template #actions>
-      <UButton
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-refresh-cw"
-        :loading="status === 'pending'"
-        @click="muatUlang()"
-      >
-        Muat ulang
-      </UButton>
-    </template>
-
-    <AppStatGrid class="mb-4">
-      <AppStat
-        label="Rencana menunggu"
-        :value="angka(antreRencana.length)"
-        icon="i-lucide-hourglass"
-        tone="warning"
-      />
-      <AppStat
-        label="Refund menunggu"
-        :value="angka(antreRefund.length)"
-        icon="i-lucide-undo-2"
-        tone="warning"
-      />
-      <AppStat
-        label="Nilai refund tertahan"
-        :value="rupiah(nilaiTertahan)"
-        icon="i-lucide-banknote"
-        tone="error"
-      />
-    </AppStatGrid>
-
-    <div class="mb-4 flex flex-wrap gap-2">
-      <AppSeg
-        v-model="tab"
-        :options="[
-          { value: 'semua', label: 'Semua' },
-          { value: 'rencana', label: `Rencana event (${antreRencana.length})` },
-          { value: 'refund', label: `Refund e-ticket (${antreRefund.length})` },
-        ]"
-      />
-      <AppSeg
-        v-model="riwayat"
-        :options="[{ value: 'antri', label: 'Antrian' }, { value: 'sudah', label: 'Riwayat approval' }]"
-        size="sm"
-      />
-    </div>
-
-    <AppPanel
-      v-if="lihatRencana"
-      title="Rencana event"
-      icon="i-lucide-clipboard-list"
-      flush
-      class="mb-4"
+    <AppPage
+      title="Approval flow"
+      description="Meja putusan manajemen"
     >
-      <UTable
-        :columns="[{ id: 'rencana', header: 'Rencana' }, { id: 'tanggal', header: 'Tanggal' }, { id: 'oleh', header: 'Diajukan oleh' }, { id: 'aksi', header: 'Putusan' }]"
-        :data="riwayat === 'antri' ? antreRencana : sudahRencana"
-        class="hidden lg:block"
+      <template #actions>
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-refresh-cw"
+          :loading="status === 'pending'"
+          @click="muatUlang()"
+        >
+          Muat ulang
+        </UButton>
+      </template>
+
+      <AppStatGrid class="mb-4">
+        <AppStat
+          label="Rencana menunggu"
+          :value="angka(antreRencana.length)"
+          icon="i-lucide-hourglass"
+          tone="warning"
+        />
+        <AppStat
+          label="Refund menunggu"
+          :value="angka(antreRefund.length)"
+          icon="i-lucide-undo-2"
+          tone="warning"
+        />
+        <AppStat
+          label="Nilai refund tertahan"
+          :value="rupiah(nilaiTertahan)"
+          icon="i-lucide-banknote"
+          tone="error"
+        />
+      </AppStatGrid>
+
+      <div class="mb-4 flex flex-wrap gap-2">
+        <AppSeg
+          v-model="tab"
+          :options="[
+            { value: 'semua', label: 'Semua' },
+            { value: 'rencana', label: `Rencana event (${antreRencana.length})` },
+            { value: 'refund', label: `Refund e-ticket (${antreRefund.length})` },
+          ]"
+        />
+        <AppSeg
+          v-model="riwayat"
+          :options="[{ value: 'antri', label: 'Antrian' }, { value: 'sudah', label: 'Riwayat approval' }]"
+          size="sm"
+        />
+      </div>
+
+      <AppPanel
+        v-if="lihatRencana"
+        title="Rencana event"
+        icon="i-lucide-clipboard-list"
+        flush
+        class="mb-4"
       >
-        <template #rencana-cell="{ row }">
-          <ULink
-            :to="`/event/events/${row.original.id}`"
-            class="font-semibold text-highlighted hover:text-primary-700"
-          >
-            {{ row.original.title }}
-          </ULink>
-          <span class="block text-xs text-muted">{{ row.original.venue || '—' }}</span>
-        </template>
-        <template #tanggal-cell="{ row }">
-          {{ tglPendek(tglWIB(row.original.start_datetime)) }}
-        </template>
-        <template #oleh-cell="{ row }">
-          {{ row.original.pengajuan?.oleh || '—' }}
-        </template>
-        <template #aksi-cell="{ row }">
-          <span
-            v-if="riwayat === 'antri'"
-            class="flex gap-1"
-          >
-            <UButton
+        <UTable
+          :columns="[{ id: 'rencana', header: 'Rencana' }, { id: 'tanggal', header: 'Tanggal' }, { id: 'oleh', header: 'Diajukan oleh' }, { id: 'aksi', header: 'Putusan' }]"
+          :data="riwayat === 'antri' ? antreRencana : sudahRencana"
+          class="hidden lg:block"
+        >
+          <template #rencana-cell="{ row }">
+            <ULink
               :to="`/event/events/${row.original.id}`"
-              color="neutral"
-              variant="outline"
+              class="font-semibold text-highlighted hover:text-primary-700"
+            >
+              {{ row.original.title }}
+            </ULink>
+            <span class="block text-xs text-muted">{{ row.original.venue || '—' }}</span>
+          </template>
+          <template #tanggal-cell="{ row }">
+            {{ tglPendek(tglWIB(row.original.start_datetime)) }}
+          </template>
+          <template #oleh-cell="{ row }">
+            {{ row.original.pengajuan?.oleh || '—' }}
+          </template>
+          <template #aksi-cell="{ row }">
+            <span
+              v-if="riwayat === 'antri'"
+              class="flex gap-1"
+            >
+              <UButton
+                :to="`/event/events/${row.original.id}`"
+                color="neutral"
+                variant="outline"
+                size="sm"
+              >
+                Buka
+              </UButton>
+              <template v-if="manajemen">
+                <UButton
+                  color="success"
+                  size="sm"
+                  @click="putuskanRencana(row.original, true)"
+                >
+                  Setujui
+                </UButton>
+                <UButton
+                  color="error"
+                  variant="outline"
+                  size="sm"
+                  @click="putuskanRencana(row.original, false)"
+                >
+                  Tolak
+                </UButton>
+              </template>
+            </span>
+            <AppStatus
+              v-else
+              :color="PENGAJUAN_WARNA[statusPengajuan({ pengajuan: row.original.pengajuan })] ?? 'neutral'"
+              :icon="PENGAJUAN_IKON[statusPengajuan({ pengajuan: row.original.pengajuan })]"
               size="sm"
             >
-              Buka
-            </UButton>
-            <template v-if="manajemen">
+              {{ statusPengajuan({ pengajuan: row.original.pengajuan }) }}
+            </AppStatus>
+          </template>
+        </UTable>
+        <ul class="divide-y divide-default lg:hidden">
+          <li
+            v-for="e in (riwayat === 'antri' ? antreRencana : sudahRencana)"
+            :key="e.id"
+            class="px-4 py-3"
+          >
+            <b class="block text-sm text-highlighted">{{ e.title }}</b>
+            <span class="mt-0.5 block text-xs text-muted">{{ tglPendek(tglWIB(e.start_datetime)) }} · {{ e.pengajuan?.oleh || '—' }}</span>
+            <span
+              v-if="riwayat === 'antri'"
+              class="mt-1.5 flex gap-1.5"
+            >
+              <UButton
+                :to="`/event/events/${e.id}`"
+                color="neutral"
+                variant="outline"
+                size="sm"
+              >Buka</UButton>
+              <template v-if="manajemen">
+                <UButton
+                  color="success"
+                  size="sm"
+                  @click="putuskanRencana(e, true)"
+                >Setujui</UButton>
+                <UButton
+                  color="error"
+                  variant="outline"
+                  size="sm"
+                  @click="putuskanRencana(e, false)"
+                >Tolak</UButton>
+              </template>
+            </span>
+          </li>
+        </ul>
+      </AppPanel>
+
+      <AppPanel
+        v-if="lihatRefund"
+        title="Refund e-ticket"
+        icon="i-lucide-undo-2"
+        flush
+      >
+        <UTable
+          :columns="[{ id: 'tiket', header: 'Tiket' }, { id: 'nilai', header: 'Nilai' }, { id: 'alasan', header: 'Alasan' }, { id: 'aksi', header: 'Putusan' }]"
+          :data="riwayat === 'antri' ? antreRefund : sudahRefund"
+          class="hidden lg:block"
+        >
+          <template #tiket-cell="{ row }">
+            {{ row.original.ticket_id || row.original.order_id || row.original.id }}
+          </template>
+          <template #nilai-cell="{ row }">
+            <span class="num">{{ rupiah(Number(row.original.amount) || 0) }}</span>
+          </template>
+          <template #alasan-cell="{ row }">
+            {{ String(row.original.reason ?? '') }}
+          </template>
+          <template #aksi-cell="{ row }">
+            <span
+              v-if="riwayat === 'antri' && manajemen"
+              class="flex gap-1"
+            >
               <UButton
                 color="success"
                 size="sm"
-                @click="putuskanRencana(row.original, true)"
+                @click="putuskanRefund(row.original, true)"
               >
                 Setujui
               </UButton>
@@ -279,224 +367,136 @@ const lihatRefund = computed(() => tab.value !== 'rencana')
                 color="error"
                 variant="outline"
                 size="sm"
-                @click="putuskanRencana(row.original, false)"
+                @click="putuskanRefund(row.original, false)"
               >
                 Tolak
               </UButton>
-            </template>
-          </span>
-          <AppStatus
-            v-else
-            :color="PENGAJUAN_WARNA[statusPengajuan({ pengajuan: row.original.pengajuan })] ?? 'neutral'"
-            :icon="PENGAJUAN_IKON[statusPengajuan({ pengajuan: row.original.pengajuan })]"
-            size="sm"
-          >
-            {{ statusPengajuan({ pengajuan: row.original.pengajuan }) }}
-          </AppStatus>
-        </template>
-      </UTable>
-      <ul class="divide-y divide-default lg:hidden">
-        <li
-          v-for="e in (riwayat === 'antri' ? antreRencana : sudahRencana)"
-          :key="e.id"
-          class="px-4 py-3"
-        >
-          <b class="block text-sm text-highlighted">{{ e.title }}</b>
-          <span class="mt-0.5 block text-xs text-muted">{{ tglPendek(tglWIB(e.start_datetime)) }} · {{ e.pengajuan?.oleh || '—' }}</span>
-          <span
-            v-if="riwayat === 'antri'"
-            class="mt-1.5 flex gap-1.5"
-          >
-            <UButton
-              :to="`/event/events/${e.id}`"
-              color="neutral"
-              variant="outline"
+            </span>
+            <span
+              v-else-if="gantung(row.original)"
+              class="flex flex-wrap items-center gap-1.5"
+            >
+              <AppStatus
+                color="warning"
+                icon="i-lucide-hourglass"
+                size="sm"
+              >
+                Disetujui · belum diselesaikan
+              </AppStatus>
+              <UButton
+                v-if="manajemen"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                @click="selesaikanId = row.original.id"
+              >
+                Selesaikan refund
+              </UButton>
+            </span>
+            <AppStatus
+              v-else
+              :color="row.original.status === 'Approved' ? 'success' : 'error'"
+              :icon="row.original.status === 'Approved' ? 'i-lucide-check' : 'i-lucide-x'"
               size="sm"
-            >Buka</UButton>
-            <template v-if="manajemen">
+            >
+              {{ row.original.status }}
+            </AppStatus>
+          </template>
+        </UTable>
+        <ul class="divide-y divide-default lg:hidden">
+          <li
+            v-for="r in (riwayat === 'antri' ? antreRefund : sudahRefund)"
+            :key="r.id"
+            class="px-4 py-3 text-sm"
+          >
+            <b class="text-highlighted num">{{ rupiah(Number(r.amount) || 0) }}</b> · {{ String(r.reason ?? '') }}
+            <span
+              v-if="gantung(r) && riwayat !== 'antri'"
+              class="mt-1 flex flex-wrap items-center gap-1.5"
+            >
+              <AppStatus
+                color="warning"
+                icon="i-lucide-hourglass"
+                size="sm"
+              >
+                Disetujui · belum diselesaikan
+              </AppStatus>
+              <UButton
+                v-if="manajemen"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                @click="selesaikanId = r.id"
+              >
+                Selesaikan refund
+              </UButton>
+            </span>
+            <span
+              v-if="riwayat === 'antri' && manajemen"
+              class="mt-1.5 flex gap-1.5"
+            >
               <UButton
                 color="success"
                 size="sm"
-                @click="putuskanRencana(e, true)"
+                @click="putuskanRefund(r, true)"
               >Setujui</UButton>
               <UButton
                 color="error"
                 variant="outline"
                 size="sm"
-                @click="putuskanRencana(e, false)"
+                @click="putuskanRefund(r, false)"
               >Tolak</UButton>
-            </template>
-          </span>
-        </li>
-      </ul>
-    </AppPanel>
-
-    <AppPanel
-      v-if="lihatRefund"
-      title="Refund e-ticket"
-      icon="i-lucide-undo-2"
-      flush
-    >
-      <UTable
-        :columns="[{ id: 'tiket', header: 'Tiket' }, { id: 'nilai', header: 'Nilai' }, { id: 'alasan', header: 'Alasan' }, { id: 'aksi', header: 'Putusan' }]"
-        :data="riwayat === 'antri' ? antreRefund : sudahRefund"
-        class="hidden lg:block"
-      >
-        <template #tiket-cell="{ row }">
-          {{ row.original.ticket_id || row.original.order_id || row.original.id }}
-        </template>
-        <template #nilai-cell="{ row }">
-          <span class="num">{{ rupiah(Number(row.original.amount) || 0) }}</span>
-        </template>
-        <template #alasan-cell="{ row }">
-          {{ String(row.original.reason ?? '') }}
-        </template>
-        <template #aksi-cell="{ row }">
-          <span
-            v-if="riwayat === 'antri' && manajemen"
-            class="flex gap-1"
-          >
-            <UButton
-              color="success"
-              size="sm"
-              @click="putuskanRefund(row.original, true)"
-            >
-              Setujui
-            </UButton>
-            <UButton
-              color="error"
-              variant="outline"
-              size="sm"
-              @click="putuskanRefund(row.original, false)"
-            >
-              Tolak
-            </UButton>
-          </span>
-          <span
-            v-else-if="gantung(row.original)"
-            class="flex flex-wrap items-center gap-1.5"
-          >
-            <AppStatus
-              color="warning"
-              icon="i-lucide-hourglass"
-              size="sm"
-            >
-              Disetujui · belum diselesaikan
-            </AppStatus>
-            <UButton
-              v-if="manajemen"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              @click="selesaikanId = row.original.id"
-            >
-              Selesaikan refund
-            </UButton>
-          </span>
-          <AppStatus
-            v-else
-            :color="row.original.status === 'Approved' ? 'success' : 'error'"
-            :icon="row.original.status === 'Approved' ? 'i-lucide-check' : 'i-lucide-x'"
-            size="sm"
-          >
-            {{ row.original.status }}
-          </AppStatus>
-        </template>
-      </UTable>
-      <ul class="divide-y divide-default lg:hidden">
-        <li
-          v-for="r in (riwayat === 'antri' ? antreRefund : sudahRefund)"
-          :key="r.id"
-          class="px-4 py-3 text-sm"
+            </span>
+          </li>
+        </ul>
+        <p
+          v-if="!(riwayat === 'antri' ? antreRefund : sudahRefund).length"
+          class="px-4 py-6 text-center text-sm text-dimmed"
         >
-          <b class="text-highlighted num">{{ rupiah(Number(r.amount) || 0) }}</b> · {{ String(r.reason ?? '') }}
-          <span
-            v-if="gantung(r) && riwayat !== 'antri'"
-            class="mt-1 flex flex-wrap items-center gap-1.5"
-          >
-            <AppStatus
-              color="warning"
-              icon="i-lucide-hourglass"
-              size="sm"
-            >
-              Disetujui · belum diselesaikan
-            </AppStatus>
-            <UButton
-              v-if="manajemen"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              @click="selesaikanId = r.id"
-            >
-              Selesaikan refund
-            </UButton>
-          </span>
-          <span
-            v-if="riwayat === 'antri' && manajemen"
-            class="mt-1.5 flex gap-1.5"
-          >
-            <UButton
-              color="success"
-              size="sm"
-              @click="putuskanRefund(r, true)"
-            >Setujui</UButton>
-            <UButton
-              color="error"
-              variant="outline"
-              size="sm"
-              @click="putuskanRefund(r, false)"
-            >Tolak</UButton>
-          </span>
-        </li>
-      </ul>
-      <p
-        v-if="!(riwayat === 'antri' ? antreRefund : sudahRefund).length"
-        class="px-4 py-6 text-center text-sm text-dimmed"
-      >
-        Tidak ada refund di sini.
-      </p>
-    </AppPanel>
-
-    <ResponsiveSheet
-      v-model:open="sheetSelesaikan"
-      title="Selesaikan refund"
-    >
-      <div
-        v-if="refundDipilih && orderDipilih"
-        class="grid gap-1.5 text-sm"
-      >
-        <p><span class="text-muted">Pembeli:</span> <b class="text-highlighted">{{ String((orderDipilih as Record<string, unknown>).buyer_name ?? '—') }}</b></p>
-        <p><span class="text-muted">Nominal:</span> <b class="text-highlighted num">{{ rupiah(Number((orderDipilih as Record<string, unknown>).total) || 0) }}</b></p>
-        <p><span class="text-muted">Alasan:</span> {{ String(refundDipilih.reason ?? '—') }}</p>
-        <p class="text-muted">
-          Refund ini sudah disetujui, tapi oleh versi lama yang tidak ikut membatalkan tiketnya.
-          Menyelesaikannya: pesanan jadi Refunded, tiket dibatalkan, kursinya dilepas, dan kuota kelasnya kembali.
-          Tidak bisa dibatalkan.
+          Tidak ada refund di sini.
         </p>
-      </div>
-      <template #footer>
-        <UButton
-          color="primary"
-          @click="selesaikan()"
-        >
-          Selesaikan
-        </UButton>
-        <UButton
-          color="neutral"
-          variant="outline"
-          @click="sheetSelesaikan = false"
-        >
-          Batal
-        </UButton>
-      </template>
-    </ResponsiveSheet>
+      </AppPanel>
 
-    <EventTolakRefund
-      v-model:open="sheetTolak"
-      :ket="ketTolak"
-      :sibuk="menolak"
-      @tolak="jalanTolakRefund"
-    />
-  </AppPage>
+      <ResponsiveSheet
+        v-model:open="sheetSelesaikan"
+        title="Selesaikan refund"
+      >
+        <div
+          v-if="refundDipilih && orderDipilih"
+          class="grid gap-1.5 text-sm"
+        >
+          <p><span class="text-muted">Pembeli:</span> <b class="text-highlighted">{{ String((orderDipilih as Record<string, unknown>).buyer_name ?? '—') }}</b></p>
+          <p><span class="text-muted">Nominal:</span> <b class="text-highlighted num">{{ rupiah(Number((orderDipilih as Record<string, unknown>).total) || 0) }}</b></p>
+          <p><span class="text-muted">Alasan:</span> {{ String(refundDipilih.reason ?? '—') }}</p>
+          <p class="text-muted">
+            Refund ini sudah disetujui, tapi oleh versi lama yang tidak ikut membatalkan tiketnya.
+            Menyelesaikannya: pesanan jadi Refunded, tiket dibatalkan, kursinya dilepas, dan kuota kelasnya kembali.
+            Tidak bisa dibatalkan.
+          </p>
+        </div>
+        <template #footer>
+          <UButton
+            color="primary"
+            @click="selesaikan()"
+          >
+            Selesaikan
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="outline"
+            @click="sheetSelesaikan = false"
+          >
+            Batal
+          </UButton>
+        </template>
+      </ResponsiveSheet>
+
+      <EventTolakRefund
+        v-model:open="sheetTolak"
+        :ket="ketTolak"
+        :sibuk="menolak"
+        @tolak="jalanTolakRefund"
+      />
+    </AppPage>
   </EventGerbang>
 </template>

@@ -137,235 +137,235 @@ async function hapus() {
 
 <template>
   <EventGerbang lihat="events">
-  <AppPage
-    title="Event management"
-    description="Event yang sudah disetujui manajemen"
-  >
-    <template #actions>
-      <UButton
-        v-if="bolehUbah"
-        color="primary"
-        icon="i-lucide-plus"
-        @click="bukaBaru()"
-      >
-        Event baru
-      </UButton>
-    </template>
-
-    <AppPanel class="mb-4">
-      <div class="flex flex-wrap items-center gap-2">
-        <AppSeg
-          v-model="tabStatus"
-          :options="TABS.map(t => ({ value: t, label: t }))"
-        />
-        <AppSeg
-          v-model="modePeriode"
-          :options="[
-            { value: '', label: 'Semua' },
-            { value: 'hari', label: 'Hari ini' },
-            { value: 'minggu', label: 'Minggu ini' },
-            { value: 'bulan', label: 'Bulan ini' },
-          ]"
-          size="sm"
-        />
-        <UButton
-          color="neutral"
-          variant="outline"
-          size="sm"
-          icon="i-lucide-chevron-left"
-          title="Bulan sebelumnya"
-          @click="geserBulan(-1)"
-        />
-        <UInput
-          :model-value="bulanAktif(modePeriode)"
-          type="month"
-          title="Pilih bulan"
-          class="w-auto"
-          @update:model-value="(v) => { if (v) aturPeriode(String(v)) }"
-        />
-        <UButton
-          color="neutral"
-          variant="outline"
-          size="sm"
-          icon="i-lucide-chevron-right"
-          title="Bulan berikutnya"
-          @click="geserBulan(1)"
-        />
-      </div>
-      <div class="mt-2 flex items-center gap-2">
-        <UInput
-          v-model="cari"
-          placeholder="Cari event, venue, atau PIC…"
-          icon="i-lucide-search"
-          class="max-w-md flex-1"
-        />
-        <span class="ms-auto text-xs text-muted num">{{ angka(list.length) }} dari {{ angka(daftar.rows.length) }} event</span>
-      </div>
-    </AppPanel>
-
-    <AppPanel
-      title="Daftar event"
-      icon="i-lucide-party-popper"
-      flush
+    <AppPage
+      title="Event management"
+      description="Event yang sudah disetujui manajemen"
     >
-      <UTable
-        :columns="kolom"
-        :data="list"
-        :loading="status === 'pending'"
-        class="hidden lg:block"
-      >
-        <template #acara-cell="{ row }">
-          <ULink
-            :to="`/event/events/${row.original.id}`"
-            class="flex items-center gap-2"
-          >
-            <b class="text-highlighted">{{ row.original.title }}</b>
-            <span class="text-xs text-muted">{{ row.original.category }}</span>
-          </ULink>
-        </template>
-        <template #tanggal-cell="{ row }">
-          {{ tglPendek(tglWIB(row.original.start_datetime)) }}
-        </template>
-        <template #venue-cell="{ row }">
-          {{ row.original.venue || '—' }}
-        </template>
-        <template #pic-cell="{ row }">
-          {{ row.original.pic || '—' }}
-        </template>
-        <template #tiket-cell="{ row }">
-          <ULink
-            v-if="row.original.is_ticketed"
-            :to="`/event/ticketing/${row.original.id}`"
-            class="text-primary-700 num"
-          >
-            Kelola
-          </ULink>
-          <span v-else>—</span>
-        </template>
-        <template #omzet-cell="{ row }">
-          <span class="num">{{ rupiah(omzet(row.original.id)) }}</span>
-        </template>
-        <template #status-cell="{ row }">
-          <AppStatus
-            :color="STATUS_WARNA_EVENT[String(row.original.status)] ?? 'neutral'"
-            :icon="STATUS_IKON_EVENT[String(row.original.status)]"
-            size="sm"
-          >
-            {{ row.original.status }}
-          </AppStatus>
-        </template>
-        <template #aksi-cell="{ row }">
-          <span class="flex gap-1">
-            <UButton
-              v-if="bolehUbah"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-pencil"
-              @click="bukaSunting(row.original)"
-            />
-            <UButton
-              v-if="bolehUbah"
-              color="error"
-              variant="ghost"
-              icon="i-lucide-trash-2"
-              @click="hapusId = row.original.id"
-            />
-          </span>
-        </template>
-      </UTable>
-      <ul class="divide-y divide-default lg:hidden">
-        <li
-          v-for="e in list"
-          :key="e.id"
-        >
-          <ULink
-            :to="`/event/events/${e.id}`"
-            class="block px-4 py-3"
-          >
-            <b class="block truncate text-sm text-highlighted">{{ e.title }}</b>
-            <span class="mt-0.5 block text-xs text-muted">{{ tglPendek(tglWIB(e.start_datetime)) }} · {{ e.venue || '—' }} · {{ e.pic || '—' }}</span>
-            <span class="mt-1.5 flex items-center gap-2">
-              <AppStatus
-                :color="STATUS_WARNA_EVENT[String(e.status)] ?? 'neutral'"
-                :icon="STATUS_IKON_EVENT[String(e.status)]"
-                size="sm"
-              >
-                {{ e.status }}
-              </AppStatus>
-              <span class="text-xs text-muted num">{{ rupiah(omzet(e.id)) }}</span>
-            </span>
-          </ULink>
-        </li>
-      </ul>
-      <p
-        v-if="!list.length && status !== 'pending'"
-        class="px-4 py-6 text-center text-sm text-dimmed"
-      >
-        Tidak ada event yang cocok.
-      </p>
-    </AppPanel>
-
-    <ResponsiveSheet
-      v-model:open="sheet"
-      :title="sunting ? 'Edit event' : 'Event baru'"
-    >
-      <EventForm
-        :awal="sunting ?? undefined"
-        :pic-terkunci="namaSaya"
-        @simpan="simpan($event)"
-        @batal="sheet = false"
-      />
-    </ResponsiveSheet>
-
-    <ResponsiveSheet
-      v-model:open="sheetHapus"
-      title="Hapus event?"
-    >
-      <p
-        v-if="infoHapus.lunas"
-        class="text-sm text-muted"
-      >
-        Event <b class="text-highlighted">{{ infoHapus.judul }}</b> sudah punya
-        <b class="text-highlighted num">{{ angka(infoHapus.lunas) }} pesanan lunas</b>.
-        Menghapusnya berarti menghapus jejak uang yang benar-benar masuk.
-      </p>
-      <p
-        v-if="infoHapus.gantung"
-        class="mt-2 text-sm text-muted"
-      >
-        <b class="text-highlighted num">{{ angka(infoHapus.gantung) }}</b> di antaranya refundnya sudah
-        disetujui tapi belum diselesaikan — buka Ticketing › Penjualan lalu tekan Selesaikan refund (manajemen).
-      </p>
-      <p
-        v-if="infoHapus.lunas"
-        class="mt-2 text-sm text-muted"
-      >
-        Kalau acaranya batal, selesaikan lewat refund pada pesanan itu dulu. Kalau cuma ingin
-        menyembunyikannya dari daftar aktif, ubah statusnya jadi Event Done.
-      </p>
-      <p
-        v-else
-        class="text-sm text-muted"
-      >
-        Event ini dihapus. Jadwal, tiket & penjualan yang sudah ada tidak ikut terhapus otomatis.
-      </p>
-      <template #footer>
+      <template #actions>
         <UButton
-          v-if="!infoHapus.lunas"
-          color="error"
-          @click="hapus()"
+          v-if="bolehUbah"
+          color="primary"
+          icon="i-lucide-plus"
+          @click="bukaBaru()"
         >
-          Ya, hapus
-        </UButton>
-        <UButton
-          color="neutral"
-          variant="outline"
-          @click="sheetHapus = false"
-        >
-          {{ infoHapus.lunas ? 'Tutup' : 'Batal' }}
+          Event baru
         </UButton>
       </template>
-    </ResponsiveSheet>
-  </AppPage>
+
+      <AppPanel class="mb-4">
+        <div class="flex flex-wrap items-center gap-2">
+          <AppSeg
+            v-model="tabStatus"
+            :options="TABS.map(t => ({ value: t, label: t }))"
+          />
+          <AppSeg
+            v-model="modePeriode"
+            :options="[
+              { value: '', label: 'Semua' },
+              { value: 'hari', label: 'Hari ini' },
+              { value: 'minggu', label: 'Minggu ini' },
+              { value: 'bulan', label: 'Bulan ini' },
+            ]"
+            size="sm"
+          />
+          <UButton
+            color="neutral"
+            variant="outline"
+            size="sm"
+            icon="i-lucide-chevron-left"
+            title="Bulan sebelumnya"
+            @click="geserBulan(-1)"
+          />
+          <UInput
+            :model-value="bulanAktif(modePeriode)"
+            type="month"
+            title="Pilih bulan"
+            class="w-auto"
+            @update:model-value="(v) => { if (v) aturPeriode(String(v)) }"
+          />
+          <UButton
+            color="neutral"
+            variant="outline"
+            size="sm"
+            icon="i-lucide-chevron-right"
+            title="Bulan berikutnya"
+            @click="geserBulan(1)"
+          />
+        </div>
+        <div class="mt-2 flex items-center gap-2">
+          <UInput
+            v-model="cari"
+            placeholder="Cari event, venue, atau PIC…"
+            icon="i-lucide-search"
+            class="max-w-md flex-1"
+          />
+          <span class="ms-auto text-xs text-muted num">{{ angka(list.length) }} dari {{ angka(daftar.rows.length) }} event</span>
+        </div>
+      </AppPanel>
+
+      <AppPanel
+        title="Daftar event"
+        icon="i-lucide-party-popper"
+        flush
+      >
+        <UTable
+          :columns="kolom"
+          :data="list"
+          :loading="status === 'pending'"
+          class="hidden lg:block"
+        >
+          <template #acara-cell="{ row }">
+            <ULink
+              :to="`/event/events/${row.original.id}`"
+              class="flex items-center gap-2"
+            >
+              <b class="text-highlighted">{{ row.original.title }}</b>
+              <span class="text-xs text-muted">{{ row.original.category }}</span>
+            </ULink>
+          </template>
+          <template #tanggal-cell="{ row }">
+            {{ tglPendek(tglWIB(row.original.start_datetime)) }}
+          </template>
+          <template #venue-cell="{ row }">
+            {{ row.original.venue || '—' }}
+          </template>
+          <template #pic-cell="{ row }">
+            {{ row.original.pic || '—' }}
+          </template>
+          <template #tiket-cell="{ row }">
+            <ULink
+              v-if="row.original.is_ticketed"
+              :to="`/event/ticketing/${row.original.id}`"
+              class="text-primary-700 num"
+            >
+              Kelola
+            </ULink>
+            <span v-else>—</span>
+          </template>
+          <template #omzet-cell="{ row }">
+            <span class="num">{{ rupiah(omzet(row.original.id)) }}</span>
+          </template>
+          <template #status-cell="{ row }">
+            <AppStatus
+              :color="STATUS_WARNA_EVENT[String(row.original.status)] ?? 'neutral'"
+              :icon="STATUS_IKON_EVENT[String(row.original.status)]"
+              size="sm"
+            >
+              {{ row.original.status }}
+            </AppStatus>
+          </template>
+          <template #aksi-cell="{ row }">
+            <span class="flex gap-1">
+              <UButton
+                v-if="bolehUbah"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-pencil"
+                @click="bukaSunting(row.original)"
+              />
+              <UButton
+                v-if="bolehUbah"
+                color="error"
+                variant="ghost"
+                icon="i-lucide-trash-2"
+                @click="hapusId = row.original.id"
+              />
+            </span>
+          </template>
+        </UTable>
+        <ul class="divide-y divide-default lg:hidden">
+          <li
+            v-for="e in list"
+            :key="e.id"
+          >
+            <ULink
+              :to="`/event/events/${e.id}`"
+              class="block px-4 py-3"
+            >
+              <b class="block truncate text-sm text-highlighted">{{ e.title }}</b>
+              <span class="mt-0.5 block text-xs text-muted">{{ tglPendek(tglWIB(e.start_datetime)) }} · {{ e.venue || '—' }} · {{ e.pic || '—' }}</span>
+              <span class="mt-1.5 flex items-center gap-2">
+                <AppStatus
+                  :color="STATUS_WARNA_EVENT[String(e.status)] ?? 'neutral'"
+                  :icon="STATUS_IKON_EVENT[String(e.status)]"
+                  size="sm"
+                >
+                  {{ e.status }}
+                </AppStatus>
+                <span class="text-xs text-muted num">{{ rupiah(omzet(e.id)) }}</span>
+              </span>
+            </ULink>
+          </li>
+        </ul>
+        <p
+          v-if="!list.length && status !== 'pending'"
+          class="px-4 py-6 text-center text-sm text-dimmed"
+        >
+          Tidak ada event yang cocok.
+        </p>
+      </AppPanel>
+
+      <ResponsiveSheet
+        v-model:open="sheet"
+        :title="sunting ? 'Edit event' : 'Event baru'"
+      >
+        <EventForm
+          :awal="sunting ?? undefined"
+          :pic-terkunci="namaSaya"
+          @simpan="simpan($event)"
+          @batal="sheet = false"
+        />
+      </ResponsiveSheet>
+
+      <ResponsiveSheet
+        v-model:open="sheetHapus"
+        title="Hapus event?"
+      >
+        <p
+          v-if="infoHapus.lunas"
+          class="text-sm text-muted"
+        >
+          Event <b class="text-highlighted">{{ infoHapus.judul }}</b> sudah punya
+          <b class="text-highlighted num">{{ angka(infoHapus.lunas) }} pesanan lunas</b>.
+          Menghapusnya berarti menghapus jejak uang yang benar-benar masuk.
+        </p>
+        <p
+          v-if="infoHapus.gantung"
+          class="mt-2 text-sm text-muted"
+        >
+          <b class="text-highlighted num">{{ angka(infoHapus.gantung) }}</b> di antaranya refundnya sudah
+          disetujui tapi belum diselesaikan — buka Ticketing › Penjualan lalu tekan Selesaikan refund (manajemen).
+        </p>
+        <p
+          v-if="infoHapus.lunas"
+          class="mt-2 text-sm text-muted"
+        >
+          Kalau acaranya batal, selesaikan lewat refund pada pesanan itu dulu. Kalau cuma ingin
+          menyembunyikannya dari daftar aktif, ubah statusnya jadi Event Done.
+        </p>
+        <p
+          v-else
+          class="text-sm text-muted"
+        >
+          Event ini dihapus. Jadwal, tiket & penjualan yang sudah ada tidak ikut terhapus otomatis.
+        </p>
+        <template #footer>
+          <UButton
+            v-if="!infoHapus.lunas"
+            color="error"
+            @click="hapus()"
+          >
+            Ya, hapus
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="outline"
+            @click="sheetHapus = false"
+          >
+            {{ infoHapus.lunas ? 'Tutup' : 'Batal' }}
+          </UButton>
+        </template>
+      </ResponsiveSheet>
+    </AppPage>
   </EventGerbang>
 </template>

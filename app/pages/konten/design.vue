@@ -9,19 +9,19 @@ const { data: st, error } = useStateKonten()
 
 <template>
   <KontenGerbang lihat="design">
-  <AppPage
-    title="Design Queue"
-    description="Antrian desain - konten yang ditandai butuh desain. Tandai selesai bila sudah dikerjakan."
-  >
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="subtle"
-      icon="i-lucide-triangle-alert"
-      :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
-    />
-    <KontenBrandBar :brands="st.brands" />
-    <KontenAntrian kind="design" />
-  </AppPage>
+    <AppPage
+      title="Design Queue"
+      description="Antrian desain - konten yang ditandai butuh desain. Tandai selesai bila sudah dikerjakan."
+    >
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
+      />
+      <KontenBrandBar :brands="st.brands" />
+      <KontenAntrian kind="design" />
+    </AppPage>
   </KontenGerbang>
 </template>

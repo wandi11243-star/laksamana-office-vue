@@ -131,52 +131,52 @@ function cetak() {
             <div class="hidden lg:block">
               <UTable
                 :data="g.items"
-              :columns="[
-                { accessorKey: 'nama', header: 'Event' },
-                { accessorKey: 'clientId', header: 'Client' },
-                { accessorKey: 'tanggal', header: 'Tanggal' },
-                { accessorKey: 'status', header: 'Status' },
-                { id: 'aksi', header: 'Generate' },
-              ]"
-            >
-              <template #nama-cell="{ row }">
-                <NuxtLink
-                  :to="`/marketing/event/${row.original.id}`"
-                  class="text-primary-700 underline"
-                >
-                  {{ row.original.nama }}
-                </NuxtLink>
-              </template>
-              <template #clientId-cell="{ row }">
-                {{ clientNama(row.original.clientId) }}
-              </template>
-              <template #aksi-cell="{ row }">
-                <div class="flex gap-1">
-                  <UButton
-                    size="xs"
-                    color="neutral"
-                    variant="outline"
-                    label="Internal"
-                    @click="keDok(row.original.id, 'internal')"
-                  />
-                  <UButton
-                    size="xs"
-                    color="neutral"
-                    variant="outline"
-                    label="Client"
-                    @click="keDok(row.original.id, 'client')"
-                  />
-                  <UButton
-                    size="xs"
-                    color="neutral"
-                    variant="outline"
-                    label="Draft"
-                    @click="keDok(row.original.id, 'quote')"
-                  />
-                </div>
-              </template>
-            </UTable>
-          </div>
+                :columns="[
+                  { accessorKey: 'nama', header: 'Event' },
+                  { accessorKey: 'clientId', header: 'Client' },
+                  { accessorKey: 'tanggal', header: 'Tanggal' },
+                  { accessorKey: 'status', header: 'Status' },
+                  { id: 'aksi', header: 'Generate' },
+                ]"
+              >
+                <template #nama-cell="{ row }">
+                  <NuxtLink
+                    :to="`/marketing/event/${row.original.id}`"
+                    class="text-primary-700 underline"
+                  >
+                    {{ row.original.nama }}
+                  </NuxtLink>
+                </template>
+                <template #clientId-cell="{ row }">
+                  {{ clientNama(row.original.clientId) }}
+                </template>
+                <template #aksi-cell="{ row }">
+                  <div class="flex gap-1">
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="outline"
+                      label="Internal"
+                      @click="keDok(row.original.id, 'internal')"
+                    />
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="outline"
+                      label="Client"
+                      @click="keDok(row.original.id, 'client')"
+                    />
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="outline"
+                      label="Draft"
+                      @click="keDok(row.original.id, 'quote')"
+                    />
+                  </div>
+                </template>
+              </UTable>
+            </div>
           </div>
           <AppList
             class="lg:hidden"
@@ -194,32 +194,32 @@ function cetak() {
                 :title="e.nama"
                 :description="`${clientNama(e.clientId)} · ${e.tanggal ?? ''} · ${e.status}`"
               >
-              <template #trailing>
-                <div class="flex gap-1">
-                  <UButton
-                    size="xs"
-                    color="neutral"
-                    variant="outline"
-                    label="Internal"
-                    @click="keDok(e.id, 'internal')"
-                  />
-                  <UButton
-                    size="xs"
-                    color="neutral"
-                    variant="outline"
-                    label="Client"
-                    @click="keDok(e.id, 'client')"
-                  />
-                  <UButton
-                    size="xs"
-                    color="neutral"
-                    variant="outline"
-                    label="Draft"
-                    @click="keDok(e.id, 'quote')"
-                  />
-                </div>
-              </template>
-            </AppListRow>
+                <template #trailing>
+                  <div class="flex gap-1">
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="outline"
+                      label="Internal"
+                      @click="keDok(e.id, 'internal')"
+                    />
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="outline"
+                      label="Client"
+                      @click="keDok(e.id, 'client')"
+                    />
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="outline"
+                      label="Draft"
+                      @click="keDok(e.id, 'quote')"
+                    />
+                  </div>
+                </template>
+              </AppListRow>
             </template>
           </AppList>
         </AppPanel>

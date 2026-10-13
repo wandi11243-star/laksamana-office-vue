@@ -57,156 +57,156 @@ const perTalent = computed<BarisTalent[]>(() => {
 
 <template>
   <EventGerbang lihat="performa">
-  <AppPage
-    title="Event performance"
-    description="Ukur hasil event & talent secara objektif"
-  >
-    <template #actions>
-      <UButton
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-refresh-cw"
-        :loading="status === 'pending'"
-        @click="refresh()"
-      >
-        Muat ulang
-      </UButton>
-    </template>
-
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="soft"
-      :title="apiErrorMessage(error)"
-      class="mb-4"
-    />
-
-    <AppStatGrid class="mb-4">
-      <AppStat
-        label="Event hasil"
-        :value="angka(ringkas.hasil)"
-        icon="i-lucide-party-popper"
-        tone="vip"
-      />
-      <AppStat
-        label="Omzet"
-        :value="rupiah(ringkas.omzet)"
-        icon="i-lucide-banknote"
-        tone="gold"
-      />
-      <AppStat
-        label="Terjual / kuota"
-        :value="`${angka(ringkas.terjual)} / ${angka(ringkas.kuota)}`"
-        icon="i-lucide-ticket"
-        tone="info"
-      />
-      <AppStat
-        label="Keterisian"
-        :value="persen(ringkas.kuota ? ringkas.terjual / ringkas.kuota : 0)"
-        icon="i-lucide-armchair"
-        tone="success"
-      />
-      <AppStat
-        label="Hadir / tiket"
-        :value="`${angka(ringkas.hadir)} / ${angka(ringkas.tiket)}`"
-        icon="i-lucide-scan-line"
-        tone="success"
-      />
-      <AppStat
-        label="Kehadiran"
-        :value="persen(ringkas.tiket ? ringkas.hadir / ringkas.tiket : 0)"
-        icon="i-lucide-door-open"
-        tone="info"
-      />
-    </AppStatGrid>
-
-    <AppPanel
-      title="Hasil per event"
-      icon="i-lucide-chart-column"
-      flush
-      class="mb-4"
+    <AppPage
+      title="Event performance"
+      description="Ukur hasil event & talent secara objektif"
     >
-      <UTable
-        :columns="[{ id: 'acara', header: 'Event' }, { id: 'omzet', header: 'Omzet' }, { id: 'jual', header: 'Terjual' }, { id: 'isi', header: 'Isi' }, { id: 'hadir', header: 'Hadir' }]"
-        :data="perAcara"
-        class="hidden lg:block"
-      >
-        <template #acara-cell="{ row }">
-          <ULink
-            :to="`/event/events/${row.original.id}`"
-            class="font-semibold text-highlighted hover:text-primary-700"
-          >
-            {{ row.original.judul }}
-          </ULink>
-          <span class="block text-xs text-muted">{{ row.original.tanggal }}</span>
-        </template>
-        <template #omzet-cell="{ row }">
-          <span class="num">{{ rupiah(row.original.omzet) }}</span>
-        </template>
-        <template #jual-cell="{ row }">
-          <span class="num">{{ angka(row.original.terjual) }}/{{ angka(row.original.kuota) }}</span>
-        </template>
-        <template #isi-cell="{ row }">
-          <span class="num">{{ row.original.kuota ? Math.round(row.original.terjual / row.original.kuota * 100) : 0 }}%</span>
-        </template>
-        <template #hadir-cell="{ row }">
-          <span class="num">{{ angka(row.original.hadir) }}/{{ angka(row.original.tiket) }}</span>
-        </template>
-      </UTable>
-      <ul class="divide-y divide-default lg:hidden">
-        <li
-          v-for="r in perAcara"
-          :key="r.id"
-          class="px-4 py-2.5 text-sm"
+      <template #actions>
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-refresh-cw"
+          :loading="status === 'pending'"
+          @click="refresh()"
         >
-          <b class="block truncate text-highlighted">{{ r.judul }}</b>
-          <span class="block text-xs text-muted num">{{ rupiah(r.omzet) }} · {{ angka(r.terjual) }}/{{ angka(r.kuota) }} · hadir {{ angka(r.hadir) }}/{{ angka(r.tiket) }}</span>
-        </li>
-      </ul>
-    </AppPanel>
+          Muat ulang
+        </UButton>
+      </template>
 
-    <AppPanel
-      title="Hasil per talent"
-      icon="i-lucide-mic-vocal"
-      flush
-    >
-      <UTable
-        :columns="[{ id: 'nama', header: 'Talent' }, { id: 'show', header: 'Show done' }, { id: 'fee', header: 'Total fee' }]"
-        :data="perTalent"
-        class="hidden lg:block"
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="soft"
+        :title="apiErrorMessage(error)"
+        class="mb-4"
+      />
+
+      <AppStatGrid class="mb-4">
+        <AppStat
+          label="Event hasil"
+          :value="angka(ringkas.hasil)"
+          icon="i-lucide-party-popper"
+          tone="vip"
+        />
+        <AppStat
+          label="Omzet"
+          :value="rupiah(ringkas.omzet)"
+          icon="i-lucide-banknote"
+          tone="gold"
+        />
+        <AppStat
+          label="Terjual / kuota"
+          :value="`${angka(ringkas.terjual)} / ${angka(ringkas.kuota)}`"
+          icon="i-lucide-ticket"
+          tone="info"
+        />
+        <AppStat
+          label="Keterisian"
+          :value="persen(ringkas.kuota ? ringkas.terjual / ringkas.kuota : 0)"
+          icon="i-lucide-armchair"
+          tone="success"
+        />
+        <AppStat
+          label="Hadir / tiket"
+          :value="`${angka(ringkas.hadir)} / ${angka(ringkas.tiket)}`"
+          icon="i-lucide-scan-line"
+          tone="success"
+        />
+        <AppStat
+          label="Kehadiran"
+          :value="persen(ringkas.tiket ? ringkas.hadir / ringkas.tiket : 0)"
+          icon="i-lucide-door-open"
+          tone="info"
+        />
+      </AppStatGrid>
+
+      <AppPanel
+        title="Hasil per event"
+        icon="i-lucide-chart-column"
+        flush
+        class="mb-4"
       >
-        <template #nama-cell="{ row }">
-          <ULink
-            :to="`/event/talents/${row.original.id}`"
-            class="font-semibold text-highlighted hover:text-primary-700"
-          >
-            {{ row.original.nama }}
-          </ULink>
-        </template>
-        <template #show-cell="{ row }">
-          <span class="num">{{ angka(row.original.show) }}</span>
-        </template>
-        <template #fee-cell="{ row }">
-          <span class="num">{{ rupiah(row.original.fee) }}</span>
-        </template>
-      </UTable>
-      <ul class="divide-y divide-default lg:hidden">
-        <li
-          v-for="r in perTalent"
-          :key="r.id"
-          class="flex justify-between px-4 py-2.5 text-sm"
+        <UTable
+          :columns="[{ id: 'acara', header: 'Event' }, { id: 'omzet', header: 'Omzet' }, { id: 'jual', header: 'Terjual' }, { id: 'isi', header: 'Isi' }, { id: 'hadir', header: 'Hadir' }]"
+          :data="perAcara"
+          class="hidden lg:block"
         >
-          <b class="text-highlighted">{{ r.nama }}</b>
-          <span class="num">{{ r.show }} show · {{ rupiah(r.fee) }}</span>
-        </li>
-      </ul>
-      <p
-        v-if="!perTalent.length"
-        class="px-4 py-6 text-center text-sm text-dimmed"
+          <template #acara-cell="{ row }">
+            <ULink
+              :to="`/event/events/${row.original.id}`"
+              class="font-semibold text-highlighted hover:text-primary-700"
+            >
+              {{ row.original.judul }}
+            </ULink>
+            <span class="block text-xs text-muted">{{ row.original.tanggal }}</span>
+          </template>
+          <template #omzet-cell="{ row }">
+            <span class="num">{{ rupiah(row.original.omzet) }}</span>
+          </template>
+          <template #jual-cell="{ row }">
+            <span class="num">{{ angka(row.original.terjual) }}/{{ angka(row.original.kuota) }}</span>
+          </template>
+          <template #isi-cell="{ row }">
+            <span class="num">{{ row.original.kuota ? Math.round(row.original.terjual / row.original.kuota * 100) : 0 }}%</span>
+          </template>
+          <template #hadir-cell="{ row }">
+            <span class="num">{{ angka(row.original.hadir) }}/{{ angka(row.original.tiket) }}</span>
+          </template>
+        </UTable>
+        <ul class="divide-y divide-default lg:hidden">
+          <li
+            v-for="r in perAcara"
+            :key="r.id"
+            class="px-4 py-2.5 text-sm"
+          >
+            <b class="block truncate text-highlighted">{{ r.judul }}</b>
+            <span class="block text-xs text-muted num">{{ rupiah(r.omzet) }} · {{ angka(r.terjual) }}/{{ angka(r.kuota) }} · hadir {{ angka(r.hadir) }}/{{ angka(r.tiket) }}</span>
+          </li>
+        </ul>
+      </AppPanel>
+
+      <AppPanel
+        title="Hasil per talent"
+        icon="i-lucide-mic-vocal"
+        flush
       >
-        Belum ada show done.
-      </p>
-    </AppPanel>
-  </AppPage>
+        <UTable
+          :columns="[{ id: 'nama', header: 'Talent' }, { id: 'show', header: 'Show done' }, { id: 'fee', header: 'Total fee' }]"
+          :data="perTalent"
+          class="hidden lg:block"
+        >
+          <template #nama-cell="{ row }">
+            <ULink
+              :to="`/event/talents/${row.original.id}`"
+              class="font-semibold text-highlighted hover:text-primary-700"
+            >
+              {{ row.original.nama }}
+            </ULink>
+          </template>
+          <template #show-cell="{ row }">
+            <span class="num">{{ angka(row.original.show) }}</span>
+          </template>
+          <template #fee-cell="{ row }">
+            <span class="num">{{ rupiah(row.original.fee) }}</span>
+          </template>
+        </UTable>
+        <ul class="divide-y divide-default lg:hidden">
+          <li
+            v-for="r in perTalent"
+            :key="r.id"
+            class="flex justify-between px-4 py-2.5 text-sm"
+          >
+            <b class="text-highlighted">{{ r.nama }}</b>
+            <span class="num">{{ r.show }} show · {{ rupiah(r.fee) }}</span>
+          </li>
+        </ul>
+        <p
+          v-if="!perTalent.length"
+          class="px-4 py-6 text-center text-sm text-dimmed"
+        >
+          Belum ada show done.
+        </p>
+      </AppPanel>
+    </AppPage>
   </EventGerbang>
 </template>

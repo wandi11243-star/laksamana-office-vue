@@ -169,609 +169,609 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
 
 <template>
   <EventGerbang lihat="events">
-  <AppPage
-    title="Rincian event"
-    :description="String(acara?.title ?? '')"
-    :back="{ label: 'Event', to: '/event/events' }"
-  >
-    <template
-      v-if="acara"
-      #actions
+    <AppPage
+      title="Rincian event"
+      :description="String(acara?.title ?? '')"
+      :back="{ label: 'Event', to: '/event/events' }"
     >
-      <USelect
-        v-if="bolehUbah && !terkunci"
-        :model-value="String(acara.status)"
-        :items="[...new Set([...EVT_STATUS, String(acara.status)])].map(s => ({ value: s, label: s }))"
-        class="w-40"
-        @update:model-value="(v) => setStatus(String(v))"
-      />
-      <UButton
-        v-if="bolehUbah && !terkunci"
-        color="neutral"
-        variant="outline"
-        icon="i-lucide-pencil"
-        @click="sheetEdit = true"
-      >
-        Edit
-      </UButton>
-      <UButton
-        v-if="bolehUbah && !terkunci"
-        color="error"
-        variant="outline"
-        icon="i-lucide-trash-2"
-        @click="sheetHapus = true"
-      >
-        Hapus
-      </UButton>
-    </template>
-
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="soft"
-      :title="apiErrorMessage(error)"
-      class="mb-4"
-    />
-
-    <template v-if="acara">
-      <AppPanel
-        title="Informasi dasar"
-        icon="i-lucide-info"
-        class="mb-4"
-      >
-        <div class="grid gap-x-6 gap-y-2 text-sm lg:grid-cols-2">
-          <p><b class="text-highlighted">{{ acara.title }}</b> · {{ acara.category }}</p>
-          <p class="text-muted">
-            {{ tglPanjang(tglWIB(acara.start_datetime)) }} · {{ jamWIB(acara.start_datetime) }}
-          </p>
-          <p class="text-muted">
-            Venue: {{ acara.venue || '—' }} · Kapasitas: {{ angka(Number(acara.capacity) || 0) }}
-          </p>
-          <p class="text-muted">
-            PIC: {{ acara.pic || '—' }} · Tema: {{ acara.theme || '—' }}
-          </p>
-          <p>
-            <AppStatus
-              :color="STATUS_WARNA_EVENT[String(acara.status)] ?? 'neutral'"
-              :icon="STATUS_IKON_EVENT[String(acara.status)]"
-              size="sm"
-            >
-              {{ String(acara.status) }}
-            </AppStatus>
-          </p>
-          <p
-            v-if="acara.description"
-            class="text-muted lg:col-span-2"
-          >
-            {{ acara.description }}
-          </p>
-        </div>
-      </AppPanel>
-
-      <AppPanel
-        title="Timeline event"
-        icon="i-lucide-timer"
-        class="mb-4"
-      >
-        <ul class="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4">
-          <li
-            v-for="fase in TIMELINE_PHASES"
-            :key="fase"
-          >
-            <label class="flex cursor-pointer items-center gap-2 rounded-field border border-default px-2.5 py-1.5 text-sm">
-              <UCheckbox
-                :model-value="!!(detail.timeline ?? {})[fase]"
-                :disabled="!bolehUbah || terkunci"
-                @update:model-value="toggleFase(fase)"
-              />
-              <span :class="(detail.timeline ?? {})[fase] ? 'text-highlighted' : 'text-muted'">{{ fase }}</span>
-            </label>
-          </li>
-        </ul>
-      </AppPanel>
-
-      <AppPanel
-        :title="SEKSI_JUDUL.rundown.judul"
-        :icon="SEKSI_JUDUL.rundown.ikon"
-        flush
-        class="mb-4"
-      >
-        <template #actions>
-          <UButton
-            v-if="bolehUbah && !terkunci"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            icon="i-lucide-plus"
-            @click="tambahBaris('rundown')"
-          >
-            Baris
-          </UButton>
-        </template>
-        <UTable
-          :columns="[{ id: 'jam', header: 'Jam' }, { id: 'acara', header: 'Kegiatan' }, { id: 'pic', header: 'PIC' }, { id: 'cat', header: 'Catatan' }, ...(bolehUbah && !terkunci ? [{ id: 'aksi', header: '' }] : [])]"
-          :data="detail.rundown ?? []"
-          class="hidden lg:block"
-        >
-          <template #jam-cell="{ row }">
-            <span class="flex items-center gap-1">
-              <UInput
-                v-model="row.original.time"
-                type="time"
-                size="sm"
-                :disabled="!bolehUbah || terkunci"
-                @change="simpanDetail(() => {}, 'Rundown disimpan')"
-              />
-              <span class="text-muted">–</span>
-              <UInput
-                v-model="row.original.endtime"
-                type="time"
-                size="sm"
-                :disabled="!bolehUbah || terkunci"
-                @change="simpanDetail(() => {}, 'Rundown disimpan')"
-              />
-            </span>
-          </template>
-          <template #acara-cell="{ row }">
-            <UInput
-              v-model="row.original.activity"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              class="w-full"
-              @change="simpanDetail(() => {}, 'Rundown disimpan')"
-            />
-          </template>
-          <template #pic-cell="{ row }">
-            <UInput
-              v-model="row.original.pic"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              @change="simpanDetail(() => {}, 'Rundown disimpan')"
-            />
-          </template>
-          <template #cat-cell="{ row }">
-            <UInput
-              v-model="row.original.notes"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              class="w-full"
-              @change="simpanDetail(() => {}, 'Rundown disimpan')"
-            />
-          </template>
-          <template #aksi-cell="{ row }">
-            <UButton
-              color="error"
-              variant="ghost"
-              size="sm"
-              icon="i-lucide-trash-2"
-              @click="hapusBaris('rundown', row.original)"
-            />
-          </template>
-        </UTable>
-        <ul class="divide-y divide-default lg:hidden">
-          <li
-            v-for="(r, i) in (detail.rundown ?? [])"
-            :key="i"
-            class="px-4 py-2.5 text-sm"
-          >
-            <b class="text-highlighted">{{ r.time }}{{ r.endtime ? `–${r.endtime}` : '' }}</b> {{ r.activity }}
-            <span class="block text-xs text-muted">{{ r.pic }}{{ r.notes ? ` · ${r.notes}` : '' }}</span>
-          </li>
-        </ul>
-      </AppPanel>
-
-      <AppPanel
-        :title="SEKSI_JUDUL.vendors.judul"
-        :icon="SEKSI_JUDUL.vendors.ikon"
-        flush
-        class="mb-4"
-      >
-        <template #actions>
-          <UButton
-            v-if="bolehUbah && !terkunci"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            icon="i-lucide-plus"
-            @click="tambahBaris('vendors')"
-          >
-            Vendor
-          </UButton>
-        </template>
-        <UTable
-          :columns="[{ id: 'nama', header: 'Vendor' }, { id: 'pic', header: 'PIC' }, { id: 'hp', header: 'Telepon' }, { id: 'biaya', header: 'Biaya' }, { id: 'st', header: 'Status' }, ...(bolehUbah && !terkunci ? [{ id: 'aksi', header: '' }] : [])]"
-          :data="detail.vendors ?? []"
-          class="hidden lg:block"
-        >
-          <template #nama-cell="{ row }">
-            <UInput
-              v-model="row.original.name"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              @change="simpanDetail(() => {}, 'Vendor disimpan')"
-            />
-          </template>
-          <template #pic-cell="{ row }">
-            <UInput
-              v-model="row.original.pic"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              @change="simpanDetail(() => {}, 'Vendor disimpan')"
-            />
-          </template>
-          <template #hp-cell="{ row }">
-            <UInput
-              v-model="row.original.phone"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              @change="simpanDetail(() => {}, 'Vendor disimpan')"
-            />
-          </template>
-          <template #biaya-cell="{ row }">
-            <UInput
-              v-model.number="row.original.cost"
-              type="number"
-              min="0"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              @change="simpanDetail(() => {}, 'Vendor disimpan')"
-            />
-          </template>
-          <template #st-cell="{ row }">
-            <USelect
-              v-model="row.original.status"
-              :items="STATUS_SEKSI.map(s => ({ value: s, label: s }))"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              @update:model-value="simpanDetail(() => {}, 'Vendor disimpan')"
-            />
-          </template>
-          <template #aksi-cell="{ row }">
-            <UButton
-              color="error"
-              variant="ghost"
-              size="sm"
-              icon="i-lucide-trash-2"
-              @click="hapusBaris('vendors', row.original)"
-            />
-          </template>
-        </UTable>
-        <ul class="divide-y divide-default lg:hidden">
-          <li
-            v-for="(v, i) in (detail.vendors ?? [])"
-            :key="i"
-            class="px-4 py-2.5 text-sm"
-          >
-            <b class="text-highlighted">{{ v.name || 'Tanpa nama' }}</b> · <span class="num">{{ rupiah(Number(v.cost) || 0) }}</span>
-            <span class="block text-xs text-muted">{{ v.status }} · {{ v.pic }}</span>
-          </li>
-        </ul>
-      </AppPanel>
-
-      <AppPanel
-        :title="SEKSI_JUDUL.budget.judul"
-        :icon="SEKSI_JUDUL.budget.ikon"
-        class="mb-4"
-      >
-        <template #actions>
-          <UButton
-            v-if="bolehUbah && !terkunci"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            icon="i-lucide-plus"
-            @click="tambahBaris('budget')"
-          >
-            Baris
-          </UButton>
-        </template>
-        <AppStatGrid class="mb-3">
-          <AppStat
-            label="Income (actual)"
-            :value="rupiah(statBudget.income)"
-            icon="i-lucide-trending-up"
-            tone="success"
-          />
-          <AppStat
-            label="Expense (actual)"
-            :value="rupiah(statBudget.expense)"
-            icon="i-lucide-trending-down"
-            tone="error"
-          />
-          <AppStat
-            label="Profit"
-            :value="rupiah(statBudget.profit)"
-            icon="i-lucide-wallet"
-            :tone="statBudget.profit >= 0 ? 'success' : 'error'"
-          />
-        </AppStatGrid>
-        <UTable
-          :columns="[{ id: 'item', header: 'Item' }, { id: 'tipe', header: 'Tipe' }, { id: 'anggaran', header: 'Budget' }, { id: 'aktual', header: 'Actual' }, { id: 'var', header: 'Var' }, ...(bolehUbah && !terkunci ? [{ id: 'aksi', header: '' }] : [])]"
-          :data="detail.budget ?? []"
-          class="hidden lg:block"
-        >
-          <template #item-cell="{ row }">
-            <UInput
-              v-model="row.original.item"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              @change="simpanDetail(() => {}, 'Budget disimpan')"
-            />
-          </template>
-          <template #tipe-cell="{ row }">
-            <USelect
-              v-model="row.original.type"
-              :items="[{ value: 'Expense', label: 'Expense' }, { value: 'Income', label: 'Income' }]"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              @update:model-value="simpanDetail(() => {}, 'Budget disimpan')"
-            />
-          </template>
-          <template #anggaran-cell="{ row }">
-            <UInput
-              v-model.number="row.original.budget"
-              type="number"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              @change="simpanDetail(() => {}, 'Budget disimpan')"
-            />
-          </template>
-          <template #aktual-cell="{ row }">
-            <UInput
-              v-model.number="row.original.actual"
-              type="number"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              @change="simpanDetail(() => {}, 'Budget disimpan')"
-            />
-          </template>
-          <template #var-cell="{ row }">
-            <b
-              class="num"
-              :class="varians(Number(row.original.budget) || 0, Number(row.original.actual) || 0) > 0 ? 'text-error' : 'text-success'"
-            >{{ rupiah(varians(Number(row.original.budget) || 0, Number(row.original.actual) || 0)) }}</b>
-          </template>
-          <template #aksi-cell="{ row }">
-            <UButton
-              color="error"
-              variant="ghost"
-              size="sm"
-              icon="i-lucide-trash-2"
-              @click="hapusBaris('budget', row.original)"
-            />
-          </template>
-        </UTable>
-        <ul class="divide-y divide-default lg:hidden">
-          <li
-            v-for="(b, i) in (detail.budget ?? [])"
-            :key="i"
-            class="px-4 py-2.5 text-sm"
-          >
-            <b class="text-highlighted">{{ b.item || 'Tanpa nama' }}</b> · {{ b.type }} · <span class="num">{{ rupiah(Number(b.actual) || 0) }}</span>
-          </li>
-        </ul>
-      </AppPanel>
-
-      <AppPanel
-        :title="SEKSI_JUDUL.sponsors.judul"
-        :icon="SEKSI_JUDUL.sponsors.ikon"
-        flush
-        class="mb-4"
-      >
-        <template #actions>
-          <UButton
-            v-if="bolehUbah && !terkunci"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            icon="i-lucide-plus"
-            @click="tambahBaris('sponsors')"
-          >
-            Sponsor
-          </UButton>
-        </template>
-        <UTable
-          :columns="[{ id: 'nama', header: 'Sponsor' }, { id: 'paket', header: 'Paket' }, { id: 'nom', header: 'Nominal' }, { id: 'st', header: 'Status' }, ...(bolehUbah && !terkunci ? [{ id: 'aksi', header: '' }] : [])]"
-          :data="detail.sponsors ?? []"
-          class="hidden lg:block"
-        >
-          <template #nama-cell="{ row }">
-            <UInput
-              v-model="row.original.name"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              @change="simpanDetail(() => {}, 'Sponsor disimpan')"
-            />
-          </template>
-          <template #paket-cell="{ row }">
-            <UInput
-              v-model="row.original.package"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              @change="simpanDetail(() => {}, 'Sponsor disimpan')"
-            />
-          </template>
-          <template #nom-cell="{ row }">
-            <UInput
-              v-model.number="row.original.nominal"
-              type="number"
-              min="0"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              @change="simpanDetail(() => {}, 'Sponsor disimpan')"
-            />
-          </template>
-          <template #st-cell="{ row }">
-            <USelect
-              v-model="row.original.status"
-              :items="STATUS_SEKSI.map(s => ({ value: s, label: s }))"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              @update:model-value="simpanDetail(() => {}, 'Sponsor disimpan')"
-            />
-          </template>
-          <template #aksi-cell="{ row }">
-            <UButton
-              color="error"
-              variant="ghost"
-              size="sm"
-              icon="i-lucide-trash-2"
-              @click="hapusBaris('sponsors', row.original)"
-            />
-          </template>
-        </UTable>
-        <p class="px-4 py-2.5 text-right text-sm">
-          Total sponsor masuk: <b class="text-highlighted num">{{ rupiah(totalSponsor) }}</b>
-        </p>
-      </AppPanel>
-
-      <AppPanel
-        :title="SEKSI_JUDUL.tasks.judul"
-        :icon="SEKSI_JUDUL.tasks.ikon"
-        class="mb-4"
-      >
-        <template #actions>
-          <UButton
-            v-if="bolehUbah && !terkunci"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            icon="i-lucide-plus"
-            @click="tambahBaris('tasks')"
-          >
-            Task
-          </UButton>
-        </template>
-        <ul class="space-y-1.5">
-          <li
-            v-for="(t, i) in (detail.tasks ?? [])"
-            :key="i"
-            class="flex items-center gap-2 rounded-field border border-default px-2.5 py-1.5 text-sm"
-          >
-            <UCheckbox
-              v-model="t.done"
-              :disabled="!bolehUbah || terkunci"
-              @update:model-value="simpanDetail(() => {}, 'Task diperbarui')"
-            />
-            <UInput
-              v-model="t.title"
-              size="sm"
-              placeholder="Judul task"
-              :disabled="!bolehUbah || terkunci"
-              class="flex-1"
-              @change="simpanDetail(() => {}, 'Task diperbarui')"
-            />
-            <UInput
-              v-model="t.assignee"
-              size="sm"
-              placeholder="Penanggung jawab"
-              :disabled="!bolehUbah || terkunci"
-              class="hidden w-36 sm:block"
-              @change="simpanDetail(() => {}, 'Task diperbarui')"
-            />
-            <UInput
-              v-model="t.due"
-              type="date"
-              size="sm"
-              :disabled="!bolehUbah || terkunci"
-              class="hidden w-36 md:block"
-              @change="simpanDetail(() => {}, 'Task diperbarui')"
-            />
-            <UButton
-              v-if="bolehUbah && !terkunci"
-              color="error"
-              variant="ghost"
-              size="sm"
-              icon="i-lucide-trash-2"
-              @click="hapusBaris('tasks', i)"
-            />
-          </li>
-        </ul>
-        <p
-          v-if="!(detail.tasks ?? []).length"
-          class="py-4 text-center text-sm text-dimmed"
-        >
-          Belum ada task.
-        </p>
-      </AppPanel>
-
-      <AppPanel
-        v-if="acara.is_ticketed"
-        title="Ticketing"
-        icon="i-lucide-ticket"
-      >
-        <UButton
-          :to="`/event/ticketing/${id}`"
-          color="primary"
-          icon="i-lucide-arrow-right"
-        >
-          Kelola ticketing
-        </UButton>
-      </AppPanel>
-    </template>
-
-    <ResponsiveSheet
-      v-model:open="sheetEdit"
-      title="Edit event"
-    >
-      <EventForm
+      <template
         v-if="acara"
-        :awal="acara as never"
-        :pic-terkunci="namaSaya"
-        @simpan="simpanEdit($event)"
-        @batal="sheetEdit = false"
-      />
-    </ResponsiveSheet>
-
-    <ResponsiveSheet
-      v-model:open="sheetHapus"
-      title="Hapus event?"
-    >
-      <p
-        v-if="infoHapus.lunas"
-        class="text-sm text-muted"
+        #actions
       >
-        Event <b class="text-highlighted">{{ String(acara?.title ?? '') }}</b> sudah punya
-        <b class="text-highlighted num">{{ angka(infoHapus.lunas) }} pesanan lunas</b>.
-        Menghapusnya berarti menghapus jejak uang yang benar-benar masuk.
-      </p>
-      <p
-        v-if="infoHapus.gantung"
-        class="mt-2 text-sm text-muted"
-      >
-        <b class="text-highlighted num">{{ angka(infoHapus.gantung) }}</b> di antaranya refundnya sudah
-        disetujui tapi belum diselesaikan — buka Ticketing › Penjualan lalu tekan Selesaikan refund (manajemen).
-      </p>
-      <p
-        v-if="infoHapus.lunas"
-        class="mt-2 text-sm text-muted"
-      >
-        Kalau acaranya batal, selesaikan lewat refund pada pesanan itu dulu. Kalau cuma ingin
-        menyembunyikannya dari daftar aktif, ubah statusnya jadi Event Done.
-      </p>
-      <p
-        v-else
-        class="text-sm text-muted"
-      >
-        Event ini dihapus. Rincian (rundown, vendor, budget, sponsor, task) ikut terhapus.
-      </p>
-      <template #footer>
+        <USelect
+          v-if="bolehUbah && !terkunci"
+          :model-value="String(acara.status)"
+          :items="[...new Set([...EVT_STATUS, String(acara.status)])].map(s => ({ value: s, label: s }))"
+          class="w-40"
+          @update:model-value="(v) => setStatus(String(v))"
+        />
         <UButton
-          v-if="!infoHapus.lunas"
-          color="error"
-          @click="hapus()"
-        >
-          Ya, hapus
-        </UButton>
-        <UButton
+          v-if="bolehUbah && !terkunci"
           color="neutral"
           variant="outline"
-          @click="sheetHapus = false"
+          icon="i-lucide-pencil"
+          @click="sheetEdit = true"
         >
-          {{ infoHapus.lunas ? 'Tutup' : 'Batal' }}
+          Edit
+        </UButton>
+        <UButton
+          v-if="bolehUbah && !terkunci"
+          color="error"
+          variant="outline"
+          icon="i-lucide-trash-2"
+          @click="sheetHapus = true"
+        >
+          Hapus
         </UButton>
       </template>
-    </ResponsiveSheet>
-  </AppPage>
+
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="soft"
+        :title="apiErrorMessage(error)"
+        class="mb-4"
+      />
+
+      <template v-if="acara">
+        <AppPanel
+          title="Informasi dasar"
+          icon="i-lucide-info"
+          class="mb-4"
+        >
+          <div class="grid gap-x-6 gap-y-2 text-sm lg:grid-cols-2">
+            <p><b class="text-highlighted">{{ acara.title }}</b> · {{ acara.category }}</p>
+            <p class="text-muted">
+              {{ tglPanjang(tglWIB(acara.start_datetime)) }} · {{ jamWIB(acara.start_datetime) }}
+            </p>
+            <p class="text-muted">
+              Venue: {{ acara.venue || '—' }} · Kapasitas: {{ angka(Number(acara.capacity) || 0) }}
+            </p>
+            <p class="text-muted">
+              PIC: {{ acara.pic || '—' }} · Tema: {{ acara.theme || '—' }}
+            </p>
+            <p>
+              <AppStatus
+                :color="STATUS_WARNA_EVENT[String(acara.status)] ?? 'neutral'"
+                :icon="STATUS_IKON_EVENT[String(acara.status)]"
+                size="sm"
+              >
+                {{ String(acara.status) }}
+              </AppStatus>
+            </p>
+            <p
+              v-if="acara.description"
+              class="text-muted lg:col-span-2"
+            >
+              {{ acara.description }}
+            </p>
+          </div>
+        </AppPanel>
+
+        <AppPanel
+          title="Timeline event"
+          icon="i-lucide-timer"
+          class="mb-4"
+        >
+          <ul class="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4">
+            <li
+              v-for="fase in TIMELINE_PHASES"
+              :key="fase"
+            >
+              <label class="flex cursor-pointer items-center gap-2 rounded-field border border-default px-2.5 py-1.5 text-sm">
+                <UCheckbox
+                  :model-value="!!(detail.timeline ?? {})[fase]"
+                  :disabled="!bolehUbah || terkunci"
+                  @update:model-value="toggleFase(fase)"
+                />
+                <span :class="(detail.timeline ?? {})[fase] ? 'text-highlighted' : 'text-muted'">{{ fase }}</span>
+              </label>
+            </li>
+          </ul>
+        </AppPanel>
+
+        <AppPanel
+          :title="SEKSI_JUDUL.rundown.judul"
+          :icon="SEKSI_JUDUL.rundown.ikon"
+          flush
+          class="mb-4"
+        >
+          <template #actions>
+            <UButton
+              v-if="bolehUbah && !terkunci"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              icon="i-lucide-plus"
+              @click="tambahBaris('rundown')"
+            >
+              Baris
+            </UButton>
+          </template>
+          <UTable
+            :columns="[{ id: 'jam', header: 'Jam' }, { id: 'acara', header: 'Kegiatan' }, { id: 'pic', header: 'PIC' }, { id: 'cat', header: 'Catatan' }, ...(bolehUbah && !terkunci ? [{ id: 'aksi', header: '' }] : [])]"
+            :data="detail.rundown ?? []"
+            class="hidden lg:block"
+          >
+            <template #jam-cell="{ row }">
+              <span class="flex items-center gap-1">
+                <UInput
+                  v-model="row.original.time"
+                  type="time"
+                  size="sm"
+                  :disabled="!bolehUbah || terkunci"
+                  @change="simpanDetail(() => {}, 'Rundown disimpan')"
+                />
+                <span class="text-muted">–</span>
+                <UInput
+                  v-model="row.original.endtime"
+                  type="time"
+                  size="sm"
+                  :disabled="!bolehUbah || terkunci"
+                  @change="simpanDetail(() => {}, 'Rundown disimpan')"
+                />
+              </span>
+            </template>
+            <template #acara-cell="{ row }">
+              <UInput
+                v-model="row.original.activity"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                class="w-full"
+                @change="simpanDetail(() => {}, 'Rundown disimpan')"
+              />
+            </template>
+            <template #pic-cell="{ row }">
+              <UInput
+                v-model="row.original.pic"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                @change="simpanDetail(() => {}, 'Rundown disimpan')"
+              />
+            </template>
+            <template #cat-cell="{ row }">
+              <UInput
+                v-model="row.original.notes"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                class="w-full"
+                @change="simpanDetail(() => {}, 'Rundown disimpan')"
+              />
+            </template>
+            <template #aksi-cell="{ row }">
+              <UButton
+                color="error"
+                variant="ghost"
+                size="sm"
+                icon="i-lucide-trash-2"
+                @click="hapusBaris('rundown', row.original)"
+              />
+            </template>
+          </UTable>
+          <ul class="divide-y divide-default lg:hidden">
+            <li
+              v-for="(r, i) in (detail.rundown ?? [])"
+              :key="i"
+              class="px-4 py-2.5 text-sm"
+            >
+              <b class="text-highlighted">{{ r.time }}{{ r.endtime ? `–${r.endtime}` : '' }}</b> {{ r.activity }}
+              <span class="block text-xs text-muted">{{ r.pic }}{{ r.notes ? ` · ${r.notes}` : '' }}</span>
+            </li>
+          </ul>
+        </AppPanel>
+
+        <AppPanel
+          :title="SEKSI_JUDUL.vendors.judul"
+          :icon="SEKSI_JUDUL.vendors.ikon"
+          flush
+          class="mb-4"
+        >
+          <template #actions>
+            <UButton
+              v-if="bolehUbah && !terkunci"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              icon="i-lucide-plus"
+              @click="tambahBaris('vendors')"
+            >
+              Vendor
+            </UButton>
+          </template>
+          <UTable
+            :columns="[{ id: 'nama', header: 'Vendor' }, { id: 'pic', header: 'PIC' }, { id: 'hp', header: 'Telepon' }, { id: 'biaya', header: 'Biaya' }, { id: 'st', header: 'Status' }, ...(bolehUbah && !terkunci ? [{ id: 'aksi', header: '' }] : [])]"
+            :data="detail.vendors ?? []"
+            class="hidden lg:block"
+          >
+            <template #nama-cell="{ row }">
+              <UInput
+                v-model="row.original.name"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                @change="simpanDetail(() => {}, 'Vendor disimpan')"
+              />
+            </template>
+            <template #pic-cell="{ row }">
+              <UInput
+                v-model="row.original.pic"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                @change="simpanDetail(() => {}, 'Vendor disimpan')"
+              />
+            </template>
+            <template #hp-cell="{ row }">
+              <UInput
+                v-model="row.original.phone"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                @change="simpanDetail(() => {}, 'Vendor disimpan')"
+              />
+            </template>
+            <template #biaya-cell="{ row }">
+              <UInput
+                v-model.number="row.original.cost"
+                type="number"
+                min="0"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                @change="simpanDetail(() => {}, 'Vendor disimpan')"
+              />
+            </template>
+            <template #st-cell="{ row }">
+              <USelect
+                v-model="row.original.status"
+                :items="STATUS_SEKSI.map(s => ({ value: s, label: s }))"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                @update:model-value="simpanDetail(() => {}, 'Vendor disimpan')"
+              />
+            </template>
+            <template #aksi-cell="{ row }">
+              <UButton
+                color="error"
+                variant="ghost"
+                size="sm"
+                icon="i-lucide-trash-2"
+                @click="hapusBaris('vendors', row.original)"
+              />
+            </template>
+          </UTable>
+          <ul class="divide-y divide-default lg:hidden">
+            <li
+              v-for="(v, i) in (detail.vendors ?? [])"
+              :key="i"
+              class="px-4 py-2.5 text-sm"
+            >
+              <b class="text-highlighted">{{ v.name || 'Tanpa nama' }}</b> · <span class="num">{{ rupiah(Number(v.cost) || 0) }}</span>
+              <span class="block text-xs text-muted">{{ v.status }} · {{ v.pic }}</span>
+            </li>
+          </ul>
+        </AppPanel>
+
+        <AppPanel
+          :title="SEKSI_JUDUL.budget.judul"
+          :icon="SEKSI_JUDUL.budget.ikon"
+          class="mb-4"
+        >
+          <template #actions>
+            <UButton
+              v-if="bolehUbah && !terkunci"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              icon="i-lucide-plus"
+              @click="tambahBaris('budget')"
+            >
+              Baris
+            </UButton>
+          </template>
+          <AppStatGrid class="mb-3">
+            <AppStat
+              label="Income (actual)"
+              :value="rupiah(statBudget.income)"
+              icon="i-lucide-trending-up"
+              tone="success"
+            />
+            <AppStat
+              label="Expense (actual)"
+              :value="rupiah(statBudget.expense)"
+              icon="i-lucide-trending-down"
+              tone="error"
+            />
+            <AppStat
+              label="Profit"
+              :value="rupiah(statBudget.profit)"
+              icon="i-lucide-wallet"
+              :tone="statBudget.profit >= 0 ? 'success' : 'error'"
+            />
+          </AppStatGrid>
+          <UTable
+            :columns="[{ id: 'item', header: 'Item' }, { id: 'tipe', header: 'Tipe' }, { id: 'anggaran', header: 'Budget' }, { id: 'aktual', header: 'Actual' }, { id: 'var', header: 'Var' }, ...(bolehUbah && !terkunci ? [{ id: 'aksi', header: '' }] : [])]"
+            :data="detail.budget ?? []"
+            class="hidden lg:block"
+          >
+            <template #item-cell="{ row }">
+              <UInput
+                v-model="row.original.item"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                @change="simpanDetail(() => {}, 'Budget disimpan')"
+              />
+            </template>
+            <template #tipe-cell="{ row }">
+              <USelect
+                v-model="row.original.type"
+                :items="[{ value: 'Expense', label: 'Expense' }, { value: 'Income', label: 'Income' }]"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                @update:model-value="simpanDetail(() => {}, 'Budget disimpan')"
+              />
+            </template>
+            <template #anggaran-cell="{ row }">
+              <UInput
+                v-model.number="row.original.budget"
+                type="number"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                @change="simpanDetail(() => {}, 'Budget disimpan')"
+              />
+            </template>
+            <template #aktual-cell="{ row }">
+              <UInput
+                v-model.number="row.original.actual"
+                type="number"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                @change="simpanDetail(() => {}, 'Budget disimpan')"
+              />
+            </template>
+            <template #var-cell="{ row }">
+              <b
+                class="num"
+                :class="varians(Number(row.original.budget) || 0, Number(row.original.actual) || 0) > 0 ? 'text-error' : 'text-success'"
+              >{{ rupiah(varians(Number(row.original.budget) || 0, Number(row.original.actual) || 0)) }}</b>
+            </template>
+            <template #aksi-cell="{ row }">
+              <UButton
+                color="error"
+                variant="ghost"
+                size="sm"
+                icon="i-lucide-trash-2"
+                @click="hapusBaris('budget', row.original)"
+              />
+            </template>
+          </UTable>
+          <ul class="divide-y divide-default lg:hidden">
+            <li
+              v-for="(b, i) in (detail.budget ?? [])"
+              :key="i"
+              class="px-4 py-2.5 text-sm"
+            >
+              <b class="text-highlighted">{{ b.item || 'Tanpa nama' }}</b> · {{ b.type }} · <span class="num">{{ rupiah(Number(b.actual) || 0) }}</span>
+            </li>
+          </ul>
+        </AppPanel>
+
+        <AppPanel
+          :title="SEKSI_JUDUL.sponsors.judul"
+          :icon="SEKSI_JUDUL.sponsors.ikon"
+          flush
+          class="mb-4"
+        >
+          <template #actions>
+            <UButton
+              v-if="bolehUbah && !terkunci"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              icon="i-lucide-plus"
+              @click="tambahBaris('sponsors')"
+            >
+              Sponsor
+            </UButton>
+          </template>
+          <UTable
+            :columns="[{ id: 'nama', header: 'Sponsor' }, { id: 'paket', header: 'Paket' }, { id: 'nom', header: 'Nominal' }, { id: 'st', header: 'Status' }, ...(bolehUbah && !terkunci ? [{ id: 'aksi', header: '' }] : [])]"
+            :data="detail.sponsors ?? []"
+            class="hidden lg:block"
+          >
+            <template #nama-cell="{ row }">
+              <UInput
+                v-model="row.original.name"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                @change="simpanDetail(() => {}, 'Sponsor disimpan')"
+              />
+            </template>
+            <template #paket-cell="{ row }">
+              <UInput
+                v-model="row.original.package"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                @change="simpanDetail(() => {}, 'Sponsor disimpan')"
+              />
+            </template>
+            <template #nom-cell="{ row }">
+              <UInput
+                v-model.number="row.original.nominal"
+                type="number"
+                min="0"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                @change="simpanDetail(() => {}, 'Sponsor disimpan')"
+              />
+            </template>
+            <template #st-cell="{ row }">
+              <USelect
+                v-model="row.original.status"
+                :items="STATUS_SEKSI.map(s => ({ value: s, label: s }))"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                @update:model-value="simpanDetail(() => {}, 'Sponsor disimpan')"
+              />
+            </template>
+            <template #aksi-cell="{ row }">
+              <UButton
+                color="error"
+                variant="ghost"
+                size="sm"
+                icon="i-lucide-trash-2"
+                @click="hapusBaris('sponsors', row.original)"
+              />
+            </template>
+          </UTable>
+          <p class="px-4 py-2.5 text-right text-sm">
+            Total sponsor masuk: <b class="text-highlighted num">{{ rupiah(totalSponsor) }}</b>
+          </p>
+        </AppPanel>
+
+        <AppPanel
+          :title="SEKSI_JUDUL.tasks.judul"
+          :icon="SEKSI_JUDUL.tasks.ikon"
+          class="mb-4"
+        >
+          <template #actions>
+            <UButton
+              v-if="bolehUbah && !terkunci"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              icon="i-lucide-plus"
+              @click="tambahBaris('tasks')"
+            >
+              Task
+            </UButton>
+          </template>
+          <ul class="space-y-1.5">
+            <li
+              v-for="(t, i) in (detail.tasks ?? [])"
+              :key="i"
+              class="flex items-center gap-2 rounded-field border border-default px-2.5 py-1.5 text-sm"
+            >
+              <UCheckbox
+                v-model="t.done"
+                :disabled="!bolehUbah || terkunci"
+                @update:model-value="simpanDetail(() => {}, 'Task diperbarui')"
+              />
+              <UInput
+                v-model="t.title"
+                size="sm"
+                placeholder="Judul task"
+                :disabled="!bolehUbah || terkunci"
+                class="flex-1"
+                @change="simpanDetail(() => {}, 'Task diperbarui')"
+              />
+              <UInput
+                v-model="t.assignee"
+                size="sm"
+                placeholder="Penanggung jawab"
+                :disabled="!bolehUbah || terkunci"
+                class="hidden w-36 sm:block"
+                @change="simpanDetail(() => {}, 'Task diperbarui')"
+              />
+              <UInput
+                v-model="t.due"
+                type="date"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                class="hidden w-36 md:block"
+                @change="simpanDetail(() => {}, 'Task diperbarui')"
+              />
+              <UButton
+                v-if="bolehUbah && !terkunci"
+                color="error"
+                variant="ghost"
+                size="sm"
+                icon="i-lucide-trash-2"
+                @click="hapusBaris('tasks', i)"
+              />
+            </li>
+          </ul>
+          <p
+            v-if="!(detail.tasks ?? []).length"
+            class="py-4 text-center text-sm text-dimmed"
+          >
+            Belum ada task.
+          </p>
+        </AppPanel>
+
+        <AppPanel
+          v-if="acara.is_ticketed"
+          title="Ticketing"
+          icon="i-lucide-ticket"
+        >
+          <UButton
+            :to="`/event/ticketing/${id}`"
+            color="primary"
+            icon="i-lucide-arrow-right"
+          >
+            Kelola ticketing
+          </UButton>
+        </AppPanel>
+      </template>
+
+      <ResponsiveSheet
+        v-model:open="sheetEdit"
+        title="Edit event"
+      >
+        <EventForm
+          v-if="acara"
+          :awal="acara as never"
+          :pic-terkunci="namaSaya"
+          @simpan="simpanEdit($event)"
+          @batal="sheetEdit = false"
+        />
+      </ResponsiveSheet>
+
+      <ResponsiveSheet
+        v-model:open="sheetHapus"
+        title="Hapus event?"
+      >
+        <p
+          v-if="infoHapus.lunas"
+          class="text-sm text-muted"
+        >
+          Event <b class="text-highlighted">{{ String(acara?.title ?? '') }}</b> sudah punya
+          <b class="text-highlighted num">{{ angka(infoHapus.lunas) }} pesanan lunas</b>.
+          Menghapusnya berarti menghapus jejak uang yang benar-benar masuk.
+        </p>
+        <p
+          v-if="infoHapus.gantung"
+          class="mt-2 text-sm text-muted"
+        >
+          <b class="text-highlighted num">{{ angka(infoHapus.gantung) }}</b> di antaranya refundnya sudah
+          disetujui tapi belum diselesaikan — buka Ticketing › Penjualan lalu tekan Selesaikan refund (manajemen).
+        </p>
+        <p
+          v-if="infoHapus.lunas"
+          class="mt-2 text-sm text-muted"
+        >
+          Kalau acaranya batal, selesaikan lewat refund pada pesanan itu dulu. Kalau cuma ingin
+          menyembunyikannya dari daftar aktif, ubah statusnya jadi Event Done.
+        </p>
+        <p
+          v-else
+          class="text-sm text-muted"
+        >
+          Event ini dihapus. Rincian (rundown, vendor, budget, sponsor, task) ikut terhapus.
+        </p>
+        <template #footer>
+          <UButton
+            v-if="!infoHapus.lunas"
+            color="error"
+            @click="hapus()"
+          >
+            Ya, hapus
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="outline"
+            @click="sheetHapus = false"
+          >
+            {{ infoHapus.lunas ? 'Tutup' : 'Batal' }}
+          </UButton>
+        </template>
+      </ResponsiveSheet>
+    </AppPage>
   </EventGerbang>
 </template>

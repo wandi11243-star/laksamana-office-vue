@@ -2775,100 +2775,100 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
             icon="i-lucide-zap"
           />
           <div class="flex flex-col gap-2">
-          <UButton
-            v-if="bolehEdit && ['Pending', 'Confirmed'].includes(aksi.status)"
-            label="Tandai datang"
-            size="xl"
-            @click="bukaDatang(aksi, true)"
-          />
-          <UButton
-            v-if="bolehEdit && ['Pending', 'Confirmed'].includes(aksi.status)"
-            :label="aksiTelat ? 'Follow up tamu (telat)' : 'Follow up tamu'"
-            icon="i-lucide-phone"
-            color="success"
-            variant="soft"
-            size="xl"
-            @click="followUp(aksi)"
-          />
-          <UButton
-            v-if="bolehEdit && aksiTelat"
-            label="Tandai no-show"
-            icon="i-lucide-user-x"
-            color="error"
-            variant="soft"
-            size="xl"
-            @click="bukaNoShow(aksi)"
-          />
-          <UButton
-            v-if="bolehEdit && canAddArrival(aksi)"
-            :label="`Tamu datang lagi (sisa ${remainingPax(aksi)})`"
-            color="neutral"
-            variant="soft"
-            size="xl"
-            @click="bukaDatang(aksi, false)"
-          />
-          <UButton
-            v-if="bolehEdit && sedangDialihkan(aksi)"
-            :label="`Kembali ke meja asli (${aksi.tableAsli})`"
-            color="neutral"
-            variant="soft"
-            size="xl"
-            @click="kembaliKeAsli(aksi)"
-          />
-          <UButton
-            v-if="bolehEdit && aksiDuduk"
-            label="Selesai (tamu pulang)"
-            color="neutral"
-            variant="soft"
-            size="xl"
-            @click="selesai(aksi)"
-          />
-          <UButton
-            v-if="bolehEdit"
-            :label="aksi.sharing ? 'Batalkan sharing' : 'Jadikan sharing'"
-            color="neutral"
-            variant="ghost"
-            size="xl"
-            @click="toggleSharing(aksi)"
-          />
-          <UButton
-            v-if="bolehEdit && aksi.table"
-            label="Pindah meja"
-            color="neutral"
-            variant="ghost"
-            size="xl"
-            @click="bukaPindah(aksi, 'move')"
-          />
-          <UButton
-            v-if="bolehEdit && aksi.table"
-            label="Tambah meja"
-            color="neutral"
-            variant="ghost"
-            size="xl"
-            @click="bukaPindah(aksi, 'add')"
-          />
-          <UButton
-            v-if="bolehEdit && !['Datang', 'Cancelled', 'No-show'].includes(aksi.status)"
-            label="Batalkan reservasi"
-            color="error"
-            variant="soft"
-            size="xl"
-            @click="bukaBatal(aksi)"
-          />
-          <UButton
-            label="Buka & sunting"
-            color="neutral"
-            variant="outline"
-            size="xl"
-            :to="`/reservasi/input?id=${aksi.id}`"
-          />
-        </div>
-        <p
-          v-if="sisaMejaAksi"
-          class="mt-2 text-sm text-muted"
-        >
-          Meja {{ sisaMejaAksi.id }} masih punya {{ sisaMejaAksi.sisa }} kursi kosong.
-        </p>
+            <UButton
+              v-if="bolehEdit && ['Pending', 'Confirmed'].includes(aksi.status)"
+              label="Tandai datang"
+              size="xl"
+              @click="bukaDatang(aksi, true)"
+            />
+            <UButton
+              v-if="bolehEdit && ['Pending', 'Confirmed'].includes(aksi.status)"
+              :label="aksiTelat ? 'Follow up tamu (telat)' : 'Follow up tamu'"
+              icon="i-lucide-phone"
+              color="success"
+              variant="soft"
+              size="xl"
+              @click="followUp(aksi)"
+            />
+            <UButton
+              v-if="bolehEdit && aksiTelat"
+              label="Tandai no-show"
+              icon="i-lucide-user-x"
+              color="error"
+              variant="soft"
+              size="xl"
+              @click="bukaNoShow(aksi)"
+            />
+            <UButton
+              v-if="bolehEdit && canAddArrival(aksi)"
+              :label="`Tamu datang lagi (sisa ${remainingPax(aksi)})`"
+              color="neutral"
+              variant="soft"
+              size="xl"
+              @click="bukaDatang(aksi, false)"
+            />
+            <UButton
+              v-if="bolehEdit && sedangDialihkan(aksi)"
+              :label="`Kembali ke meja asli (${aksi.tableAsli})`"
+              color="neutral"
+              variant="soft"
+              size="xl"
+              @click="kembaliKeAsli(aksi)"
+            />
+            <UButton
+              v-if="bolehEdit && aksiDuduk"
+              label="Selesai (tamu pulang)"
+              color="neutral"
+              variant="soft"
+              size="xl"
+              @click="selesai(aksi)"
+            />
+            <UButton
+              v-if="bolehEdit"
+              :label="aksi.sharing ? 'Batalkan sharing' : 'Jadikan sharing'"
+              color="neutral"
+              variant="ghost"
+              size="xl"
+              @click="toggleSharing(aksi)"
+            />
+            <UButton
+              v-if="bolehEdit && aksi.table"
+              label="Pindah meja"
+              color="neutral"
+              variant="ghost"
+              size="xl"
+              @click="bukaPindah(aksi, 'move')"
+            />
+            <UButton
+              v-if="bolehEdit && aksi.table"
+              label="Tambah meja"
+              color="neutral"
+              variant="ghost"
+              size="xl"
+              @click="bukaPindah(aksi, 'add')"
+            />
+            <UButton
+              v-if="bolehEdit && !['Datang', 'Cancelled', 'No-show'].includes(aksi.status)"
+              label="Batalkan reservasi"
+              color="error"
+              variant="soft"
+              size="xl"
+              @click="bukaBatal(aksi)"
+            />
+            <UButton
+              label="Buka & sunting"
+              color="neutral"
+              variant="outline"
+              size="xl"
+              :to="`/reservasi/input?id=${aksi.id}`"
+            />
+          </div>
+          <p
+            v-if="sisaMejaAksi"
+            class="mt-2 text-sm text-muted"
+          >
+            Meja {{ sisaMejaAksi.id }} masih punya {{ sisaMejaAksi.sisa }} kursi kosong.
+          </p>
         </div>
       </div>
       <template #footer>

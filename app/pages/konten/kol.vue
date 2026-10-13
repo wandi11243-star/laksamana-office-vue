@@ -170,421 +170,376 @@ const kolomV: TableColumn<VisitPenuh>[] = [
 
 <template>
   <KontenGerbang lihat="kol">
-  <AppPage
-    title="KOL & Medpar Management"
-    :description="tab === 'db' ? `${nKol} KOL - ${nMp} Media Partner - database talent & partner` : `${visits.length} event - kunjungan KOL & Medpar masuk ke Kalender`"
-  >
-    <template
-      v-if="can('kol')"
-      #actions
+    <AppPage
+      title="KOL & Medpar Management"
+      :description="tab === 'db' ? `${nKol} KOL - ${nMp} Media Partner - database talent & partner` : `${visits.length} event - kunjungan KOL & Medpar masuk ke Kalender`"
     >
-      <UButton
-        v-if="tab === 'db'"
-        label="Tambah KOL / Medpar"
-        icon="i-lucide-plus"
-        @click="bukaKol()"
-      />
-      <UButton
-        v-else
-        label="Buat kunjungan (event)"
-        icon="i-lucide-plus"
-        @click="bukaVisit()"
-      />
-    </template>
-
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="subtle"
-      icon="i-lucide-triangle-alert"
-      :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
-    />
-
-    <AppSeg
-      v-model="tab"
-      :options="opsiTab"
-      class="mb-4"
-    />
-
-    <!-- ===== Database ===== -->
-    <template v-if="tab === 'db'">
-      <AppPanel>
-        <div class="flex flex-wrap items-center gap-3">
-          <UInput
-            v-model="fk.q"
-            placeholder="Cari nama / IG / TikTok / WA / niche…"
-            icon="i-lucide-search"
-            class="w-full sm:w-64"
-          />
-          <USelect
-            v-model="fTipe"
-            :items="opsiTipe"
-            class="w-full sm:w-40"
-          />
-          <USelect
-            v-model="fNiche"
-            :items="opsiNiche"
-            class="w-full sm:w-52"
-          />
-          <UButton
-            label="Reset"
-            icon="i-lucide-rotate-ccw"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            @click="fk = filterKolBawaan()"
-          />
-          <span class="text-xs text-muted sm:ms-auto">{{ listK.length }} ditampilkan</span>
-        </div>
-      </AppPanel>
-
-      <AppPanel
-        flush
-        :class="status === 'pending' ? 'opacity-60' : ''"
+      <template
+        v-if="can('kol')"
+        #actions
       >
-        <div
-          v-if="!listK.length"
-          class="p-8 text-center"
+        <UButton
+          v-if="tab === 'db'"
+          label="Tambah KOL / Medpar"
+          icon="i-lucide-plus"
+          @click="bukaKol()"
+        />
+        <UButton
+          v-else
+          label="Buat kunjungan (event)"
+          icon="i-lucide-plus"
+          @click="bukaVisit()"
+        />
+      </template>
+
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
+      />
+
+      <AppSeg
+        v-model="tab"
+        :options="opsiTab"
+        class="mb-4"
+      />
+
+      <!-- ===== Database ===== -->
+      <template v-if="tab === 'db'">
+        <AppPanel>
+          <div class="flex flex-wrap items-center gap-3">
+            <UInput
+              v-model="fk.q"
+              placeholder="Cari nama / IG / TikTok / WA / niche…"
+              icon="i-lucide-search"
+              class="w-full sm:w-64"
+            />
+            <USelect
+              v-model="fTipe"
+              :items="opsiTipe"
+              class="w-full sm:w-40"
+            />
+            <USelect
+              v-model="fNiche"
+              :items="opsiNiche"
+              class="w-full sm:w-52"
+            />
+            <UButton
+              label="Reset"
+              icon="i-lucide-rotate-ccw"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              @click="fk = filterKolBawaan()"
+            />
+            <span class="text-xs text-muted sm:ms-auto">{{ listK.length }} ditampilkan</span>
+          </div>
+        </AppPanel>
+
+        <AppPanel
+          flush
+          :class="status === 'pending' ? 'opacity-60' : ''"
         >
-          <UIcon
-            name="i-lucide-contact"
-            class="mx-auto size-7 text-dimmed"
-          />
-          <p class="mt-2 font-semibold">
-            {{ kols.length ? 'Tidak ada yang cocok' : 'Belum ada KOL / Medpar' }}
-          </p>
-          <p class="text-sm text-muted">
-            {{ kols.length ? 'Ubah / reset filter.' : 'Tambahkan KOL / Media Partner pertama ke database.' }}
-          </p>
-        </div>
-        <template v-else>
-          <UTable
-            class="hidden lg:block"
-            :data="halamanK"
-            :columns="kolomK"
-            :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
+          <div
+            v-if="!listK.length"
+            class="p-8 text-center"
           >
-            <template #nama-cell="{ row }">
-              <button
-                type="button"
-                class="font-semibold text-highlighted hover:underline"
-                @click="bukaKol(row.original)"
-              >
-                {{ row.original.name }}
-              </button>
-            </template>
-            <template #tipe-cell="{ row }">
-              <AppStatus
-                :color="kolType(row.original) === 'Media Partner' ? 'info' : 'gold'"
-                :icon="kolType(row.original) === 'Media Partner' ? 'i-lucide-newspaper' : 'i-lucide-mic'"
-                size="sm"
-              >
-                {{ kolType(row.original) }}
-              </AppStatus>
-            </template>
-            <template #wa-cell="{ row }">
-              <a
-                v-if="row.original.whatsapp"
-                :href="linkWaKol(row.original.whatsapp)"
-                target="_blank"
-                rel="noopener"
-                class="font-semibold text-success"
-              >{{ row.original.whatsapp }}</a>
-              <span
-                v-else
-                class="text-dimmed"
-              >-</span>
-            </template>
-            <template #ig-cell="{ row }">
-              <a
-                v-if="row.original.instagram"
-                :href="`https://instagram.com/${tanpaAt(row.original.instagram)}`"
-                target="_blank"
-                rel="noopener"
-                class="text-info"
-              >@{{ tanpaAt(row.original.instagram) }}</a>
-              <span
-                v-else
-                class="text-dimmed"
-              >-</span>
-            </template>
-            <template #tt-cell="{ row }">
-              <a
-                v-if="row.original.tiktok"
-                :href="`https://tiktok.com/@${tanpaAt(row.original.tiktok)}`"
-                target="_blank"
-                rel="noopener"
-                class="text-info"
-              >@{{ tanpaAt(row.original.tiktok) }}</a>
-              <span
-                v-else
-                class="text-dimmed"
-              >-</span>
-            </template>
-            <template #rate-cell="{ row }">
-              <button
-                v-if="row.original.rateImage"
-                type="button"
-                title="Lihat rate card"
-                @click="gambar = { src: row.original.rateImage!, judul: `Rate card - ${row.original.name}` }"
-              >
-                <img
-                  :src="row.original.rateImage"
-                  alt="Rate card"
-                  class="h-8 w-11 cursor-zoom-in rounded-md border border-default object-cover"
+            <UIcon
+              name="i-lucide-contact"
+              class="mx-auto size-7 text-dimmed"
+            />
+            <p class="mt-2 font-semibold">
+              {{ kols.length ? 'Tidak ada yang cocok' : 'Belum ada KOL / Medpar' }}
+            </p>
+            <p class="text-sm text-muted">
+              {{ kols.length ? 'Ubah / reset filter.' : 'Tambahkan KOL / Media Partner pertama ke database.' }}
+            </p>
+          </div>
+          <template v-else>
+            <UTable
+              class="hidden lg:block"
+              :data="halamanK"
+              :columns="kolomK"
+              :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
+            >
+              <template #nama-cell="{ row }">
+                <button
+                  type="button"
+                  class="font-semibold text-highlighted hover:underline"
+                  @click="bukaKol(row.original)"
                 >
-              </button>
-              <UButton
-                v-else-if="row.original.rateDrive"
-                :to="row.original.rateDrive"
-                target="_blank"
-                label="Drive"
-                icon="i-lucide-paperclip"
-                size="xs"
-                color="neutral"
-                variant="soft"
-              />
-              <span
-                v-else
-                class="text-dimmed"
-              >-</span>
-            </template>
-            <template #harga-cell="{ row }">
-              <span
-                v-if="row.original.rateValue"
-                class="num font-semibold"
-              >{{ rupiah(row.original.rateValue) }}</span>
-              <UBadge
-                v-else-if="row.original.rateTier"
-                :label="row.original.rateTier"
-                color="neutral"
-                variant="soft"
-                size="sm"
-              />
-              <span
-                v-else
-                class="text-dimmed"
-              >-</span>
-              <button
-                v-if="lencanaRate(row.original)"
-                type="button"
-                class="mt-0.5 block text-[11px] font-semibold"
-                :class="lencanaRate(row.original)!.naik ? 'text-error' : 'text-success'"
-                title="Lihat riwayat starting price"
-                @click="riwayat = row.original"
-              >
-                {{ lencanaRate(row.original)!.naik ? '▲' : '▼' }} {{ lencanaRate(row.original)!.n }}x - {{ fTglP(new Date(lencanaRate(row.original)!.at).toISOString().slice(0, 10)) }}
-              </button>
-            </template>
-            <template #niche-cell="{ row }">
-              <span
-                v-if="kolCats(row.original).length"
-                class="flex flex-wrap gap-1"
-              >
+                  {{ row.original.name }}
+                </button>
+              </template>
+              <template #tipe-cell="{ row }">
+                <AppStatus
+                  :color="kolType(row.original) === 'Media Partner' ? 'info' : 'gold'"
+                  :icon="kolType(row.original) === 'Media Partner' ? 'i-lucide-newspaper' : 'i-lucide-mic'"
+                  size="sm"
+                >
+                  {{ kolType(row.original) }}
+                </AppStatus>
+              </template>
+              <template #wa-cell="{ row }">
+                <a
+                  v-if="row.original.whatsapp"
+                  :href="linkWaKol(row.original.whatsapp)"
+                  target="_blank"
+                  rel="noopener"
+                  class="font-semibold text-success"
+                >{{ row.original.whatsapp }}</a>
+                <span
+                  v-else
+                  class="text-dimmed"
+                >-</span>
+              </template>
+              <template #ig-cell="{ row }">
+                <a
+                  v-if="row.original.instagram"
+                  :href="`https://instagram.com/${tanpaAt(row.original.instagram)}`"
+                  target="_blank"
+                  rel="noopener"
+                  class="text-info"
+                >@{{ tanpaAt(row.original.instagram) }}</a>
+                <span
+                  v-else
+                  class="text-dimmed"
+                >-</span>
+              </template>
+              <template #tt-cell="{ row }">
+                <a
+                  v-if="row.original.tiktok"
+                  :href="`https://tiktok.com/@${tanpaAt(row.original.tiktok)}`"
+                  target="_blank"
+                  rel="noopener"
+                  class="text-info"
+                >@{{ tanpaAt(row.original.tiktok) }}</a>
+                <span
+                  v-else
+                  class="text-dimmed"
+                >-</span>
+              </template>
+              <template #rate-cell="{ row }">
+                <button
+                  v-if="row.original.rateImage"
+                  type="button"
+                  title="Lihat rate card"
+                  @click="gambar = { src: row.original.rateImage!, judul: `Rate card - ${row.original.name}` }"
+                >
+                  <img
+                    :src="row.original.rateImage"
+                    alt="Rate card"
+                    class="h-8 w-11 cursor-zoom-in rounded-md border border-default object-cover"
+                  >
+                </button>
+                <UButton
+                  v-else-if="row.original.rateDrive"
+                  :to="row.original.rateDrive"
+                  target="_blank"
+                  label="Drive"
+                  icon="i-lucide-paperclip"
+                  size="xs"
+                  color="neutral"
+                  variant="soft"
+                />
+                <span
+                  v-else
+                  class="text-dimmed"
+                >-</span>
+              </template>
+              <template #harga-cell="{ row }">
+                <span
+                  v-if="row.original.rateValue"
+                  class="num font-semibold"
+                >{{ rupiah(row.original.rateValue) }}</span>
                 <UBadge
-                  v-for="c in kolCats(row.original)"
-                  :key="c"
-                  :label="c"
+                  v-else-if="row.original.rateTier"
+                  :label="row.original.rateTier"
                   color="neutral"
                   variant="soft"
                   size="sm"
                 />
-              </span>
-              <span
-                v-else
-                class="text-dimmed"
-              >-</span>
-            </template>
-            <template #aksi-cell="{ row }">
-              <UButton
-                v-if="can('kol')"
-                icon="i-lucide-pencil"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                aria-label="Ubah"
-                @click="bukaKol(row.original)"
-              />
-            </template>
-          </UTable>
-          <ul class="divide-y divide-default lg:hidden">
-            <li
-              v-for="k in halamanK"
-              :key="k.id"
-              class="flex items-start gap-3 p-4"
-            >
-              <button
-                type="button"
-                class="min-w-0 flex-1 text-left"
-                @click="bukaKol(k)"
-              >
-                <b class="text-highlighted">{{ k.name }}</b>
-                <span class="ms-1 text-xs text-muted">{{ kolType(k) }}</span>
-                <span class="block text-xs text-muted">{{ [k.whatsapp, k.instagram && `@${tanpaAt(k.instagram)}`, k.tiktok && `TT @${tanpaAt(k.tiktok)}`].filter(Boolean).join(' · ') || '-' }}</span>
-                <span class="block text-xs text-muted">{{ kolCats(k).join(' · ') }}</span>
-              </button>
-              <span class="num shrink-0 text-sm font-semibold">{{ k.rateValue ? rupiah(k.rateValue) : '' }}</span>
-            </li>
-          </ul>
-          <KontenPager
-            v-model:hal="halK"
-            v-model:per="perK"
-            :total="listK.length"
-            satuan="partner"
-          />
-        </template>
-      </AppPanel>
-    </template>
-
-    <!-- ===== Planning kunjungan ===== -->
-    <template v-else>
-      <KontenBrandBar :brands="st.brands" />
-      <AppPanel>
-        <div class="flex flex-wrap items-center gap-3">
-          <UInput
-            v-model="fv.q"
-            placeholder="Cari event / lokasi / undangan…"
-            icon="i-lucide-search"
-            class="w-full sm:w-64"
-          />
-          <USelect
-            v-model="fStatus"
-            :items="opsiStatusF"
-            class="w-full sm:w-44"
-          />
-          <USelect
-            v-model="fKol"
-            :items="opsiKolF"
-            class="w-full sm:w-48"
-          />
-          <UButton
-            label="Reset"
-            icon="i-lucide-rotate-ccw"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            @click="fv = filterVisitBawaan()"
-          />
-          <span class="text-xs text-muted sm:ms-auto">{{ listV.length }} ditampilkan</span>
-        </div>
-      </AppPanel>
-
-      <AppPanel
-        flush
-        :class="status === 'pending' ? 'opacity-60' : ''"
-      >
-        <div
-          v-if="!listV.length"
-          class="p-8 text-center"
-        >
-          <UIcon
-            name="i-lucide-calendar-check"
-            class="mx-auto size-7 text-dimmed"
-          />
-          <p class="mt-2 font-semibold">
-            {{ visits.length ? 'Tidak ada yang cocok' : 'Belum ada event kunjungan' }}
-          </p>
-          <p class="text-sm text-muted">
-            {{ visits.length ? 'Ubah / reset filter.' : 'Buat event activity & undang KOL / Medpar - otomatis masuk Kalender.' }}
-          </p>
-        </div>
-        <template v-else>
-          <UTable
-            class="hidden lg:block"
-            :data="halamanV"
-            :columns="kolomV"
-            :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
-          >
-            <template #event-cell="{ row }">
-              <button
-                type="button"
-                class="text-left"
-                @click="bukaVisit(row.original)"
-              >
-                <b class="text-highlighted">{{ row.original.title || 'Event Activity' }}</b>
-                <span class="block text-xs text-muted">{{ undangan(row.original) }}</span>
-              </button>
-            </template>
-            <template #brand-cell="{ row }">
-              {{ namaBrand(row.original.brand) }}
-            </template>
-            <template #tgl-cell="{ row }">
-              <span
-                class="num text-xs font-semibold"
-                :class="lewat(row.original) ? 'text-error' : 'text-default'"
-              >{{ relTgl(row.original) }}</span>
-              <span class="block text-[11px] text-muted">{{ row.original.date ? fTglP(row.original.date) : '' }}{{ row.original.time ? ` - ${row.original.time}` : '' }}</span>
-            </template>
-            <template #pic-cell="{ row }">
-              {{ row.original.pic ? namaUser(row.original.pic).split(' ')[0] : '-' }}
-            </template>
-            <template #status-cell="{ row }">
-              <USelect
-                v-if="can('kol')"
-                :model-value="row.original.status || 'planned'"
-                :items="opsiStatusV"
-                size="sm"
-                class="w-40"
-                :class="hariH(row.original) ? 'ring-2 ring-primary-300' : ''"
-                @update:model-value="setStatus(row.original, $event as string)"
-              />
-              <span v-else>{{ VISIT_STATUS[row.original.status || 'planned']?.label }}</span>
-            </template>
-            <template #aksi-cell="{ row }">
-              <span
-                v-if="hariH(row.original) && can('kol')"
-                class="flex gap-1"
-              >
-                <UButton
-                  label="Hadir"
-                  icon="i-lucide-check"
-                  size="xs"
-                  @click="setStatus(row.original, 'came')"
-                />
-                <UButton
-                  icon="i-lucide-x"
-                  size="xs"
-                  color="neutral"
-                  variant="outline"
-                  aria-label="Tandai tidak hadir"
-                  @click="setStatus(row.original, 'noshow')"
-                />
-              </span>
-            </template>
-          </UTable>
-          <ul class="divide-y divide-default lg:hidden">
-            <li
-              v-for="v in halamanV"
-              :key="v.id"
-              class="p-4"
-            >
-              <button
-                type="button"
-                class="block w-full text-left"
-                @click="bukaVisit(v)"
-              >
-                <b class="text-highlighted">{{ v.title || 'Event Activity' }}</b>
-                <span class="block text-xs text-muted">{{ undangan(v) }}</span>
                 <span
-                  class="block text-xs"
-                  :class="lewat(v) ? 'font-semibold text-error' : 'text-muted'"
-                >{{ relTgl(v) }}{{ v.time ? ` - ${v.time}` : '' }} · {{ namaBrand(v.brand) }}{{ v.location ? ` · ${v.location}` : '' }}</span>
-              </button>
-              <div class="mt-2 flex flex-wrap items-center gap-2">
+                  v-else
+                  class="text-dimmed"
+                >-</span>
+                <button
+                  v-if="lencanaRate(row.original)"
+                  type="button"
+                  class="mt-0.5 block text-[11px] font-semibold"
+                  :class="lencanaRate(row.original)!.naik ? 'text-error' : 'text-success'"
+                  title="Lihat riwayat starting price"
+                  @click="riwayat = row.original"
+                >
+                  {{ lencanaRate(row.original)!.naik ? '▲' : '▼' }} {{ lencanaRate(row.original)!.n }}x - {{ fTglP(new Date(lencanaRate(row.original)!.at).toISOString().slice(0, 10)) }}
+                </button>
+              </template>
+              <template #niche-cell="{ row }">
+                <span
+                  v-if="kolCats(row.original).length"
+                  class="flex flex-wrap gap-1"
+                >
+                  <UBadge
+                    v-for="c in kolCats(row.original)"
+                    :key="c"
+                    :label="c"
+                    color="neutral"
+                    variant="soft"
+                    size="sm"
+                  />
+                </span>
+                <span
+                  v-else
+                  class="text-dimmed"
+                >-</span>
+              </template>
+              <template #aksi-cell="{ row }">
+                <UButton
+                  v-if="can('kol')"
+                  icon="i-lucide-pencil"
+                  color="neutral"
+                  variant="ghost"
+                  size="sm"
+                  aria-label="Ubah"
+                  @click="bukaKol(row.original)"
+                />
+              </template>
+            </UTable>
+            <ul class="divide-y divide-default lg:hidden">
+              <li
+                v-for="k in halamanK"
+                :key="k.id"
+                class="flex items-start gap-3 p-4"
+              >
+                <button
+                  type="button"
+                  class="min-w-0 flex-1 text-left"
+                  @click="bukaKol(k)"
+                >
+                  <b class="text-highlighted">{{ k.name }}</b>
+                  <span class="ms-1 text-xs text-muted">{{ kolType(k) }}</span>
+                  <span class="block text-xs text-muted">{{ [k.whatsapp, k.instagram && `@${tanpaAt(k.instagram)}`, k.tiktok && `TT @${tanpaAt(k.tiktok)}`].filter(Boolean).join(' · ') || '-' }}</span>
+                  <span class="block text-xs text-muted">{{ kolCats(k).join(' · ') }}</span>
+                </button>
+                <span class="num shrink-0 text-sm font-semibold">{{ k.rateValue ? rupiah(k.rateValue) : '' }}</span>
+              </li>
+            </ul>
+            <KontenPager
+              v-model:hal="halK"
+              v-model:per="perK"
+              :total="listK.length"
+              satuan="partner"
+            />
+          </template>
+        </AppPanel>
+      </template>
+
+      <!-- ===== Planning kunjungan ===== -->
+      <template v-else>
+        <KontenBrandBar :brands="st.brands" />
+        <AppPanel>
+          <div class="flex flex-wrap items-center gap-3">
+            <UInput
+              v-model="fv.q"
+              placeholder="Cari event / lokasi / undangan…"
+              icon="i-lucide-search"
+              class="w-full sm:w-64"
+            />
+            <USelect
+              v-model="fStatus"
+              :items="opsiStatusF"
+              class="w-full sm:w-44"
+            />
+            <USelect
+              v-model="fKol"
+              :items="opsiKolF"
+              class="w-full sm:w-48"
+            />
+            <UButton
+              label="Reset"
+              icon="i-lucide-rotate-ccw"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              @click="fv = filterVisitBawaan()"
+            />
+            <span class="text-xs text-muted sm:ms-auto">{{ listV.length }} ditampilkan</span>
+          </div>
+        </AppPanel>
+
+        <AppPanel
+          flush
+          :class="status === 'pending' ? 'opacity-60' : ''"
+        >
+          <div
+            v-if="!listV.length"
+            class="p-8 text-center"
+          >
+            <UIcon
+              name="i-lucide-calendar-check"
+              class="mx-auto size-7 text-dimmed"
+            />
+            <p class="mt-2 font-semibold">
+              {{ visits.length ? 'Tidak ada yang cocok' : 'Belum ada event kunjungan' }}
+            </p>
+            <p class="text-sm text-muted">
+              {{ visits.length ? 'Ubah / reset filter.' : 'Buat event activity & undang KOL / Medpar - otomatis masuk Kalender.' }}
+            </p>
+          </div>
+          <template v-else>
+            <UTable
+              class="hidden lg:block"
+              :data="halamanV"
+              :columns="kolomV"
+              :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
+            >
+              <template #event-cell="{ row }">
+                <button
+                  type="button"
+                  class="text-left"
+                  @click="bukaVisit(row.original)"
+                >
+                  <b class="text-highlighted">{{ row.original.title || 'Event Activity' }}</b>
+                  <span class="block text-xs text-muted">{{ undangan(row.original) }}</span>
+                </button>
+              </template>
+              <template #brand-cell="{ row }">
+                {{ namaBrand(row.original.brand) }}
+              </template>
+              <template #tgl-cell="{ row }">
+                <span
+                  class="num text-xs font-semibold"
+                  :class="lewat(row.original) ? 'text-error' : 'text-default'"
+                >{{ relTgl(row.original) }}</span>
+                <span class="block text-[11px] text-muted">{{ row.original.date ? fTglP(row.original.date) : '' }}{{ row.original.time ? ` - ${row.original.time}` : '' }}</span>
+              </template>
+              <template #pic-cell="{ row }">
+                {{ row.original.pic ? namaUser(row.original.pic).split(' ')[0] : '-' }}
+              </template>
+              <template #status-cell="{ row }">
                 <USelect
                   v-if="can('kol')"
-                  :model-value="v.status || 'planned'"
+                  :model-value="row.original.status || 'planned'"
                   :items="opsiStatusV"
                   size="sm"
                   class="w-40"
-                  @update:model-value="setStatus(v, $event as string)"
+                  :class="hariH(row.original) ? 'ring-2 ring-primary-300' : ''"
+                  @update:model-value="setStatus(row.original, $event as string)"
                 />
-                <template v-if="hariH(v) && can('kol')">
+                <span v-else>{{ VISIT_STATUS[row.original.status || 'planned']?.label }}</span>
+              </template>
+              <template #aksi-cell="{ row }">
+                <span
+                  v-if="hariH(row.original) && can('kol')"
+                  class="flex gap-1"
+                >
                   <UButton
                     label="Hadir"
                     icon="i-lucide-check"
                     size="xs"
-                    @click="setStatus(v, 'came')"
+                    @click="setStatus(row.original, 'came')"
                   />
                   <UButton
                     icon="i-lucide-x"
@@ -592,70 +547,115 @@ const kolomV: TableColumn<VisitPenuh>[] = [
                     color="neutral"
                     variant="outline"
                     aria-label="Tandai tidak hadir"
-                    @click="setStatus(v, 'noshow')"
+                    @click="setStatus(row.original, 'noshow')"
                   />
-                </template>
-              </div>
-            </li>
-          </ul>
-          <KontenPager
-            v-model:hal="halV"
-            v-model:per="perV"
-            :total="listV.length"
-            satuan="event"
-          />
-        </template>
-      </AppPanel>
-    </template>
-
-    <KontenKolForm
-      v-model:open="kolBuka"
-      :kol="kolItem"
-    />
-    <KontenVisitForm
-      v-model:open="visitBuka"
-      :visit="visitItem"
-    />
-
-    <UModal
-      :open="!!gambar"
-      :title="gambar?.judul"
-      @update:open="gambar = $event ? gambar : null"
-    >
-      <template #body>
-        <img
-          v-if="gambar"
-          :src="gambar.src"
-          alt="Rate card"
-          class="mx-auto max-w-full rounded-lg"
-        >
+                </span>
+              </template>
+            </UTable>
+            <ul class="divide-y divide-default lg:hidden">
+              <li
+                v-for="v in halamanV"
+                :key="v.id"
+                class="p-4"
+              >
+                <button
+                  type="button"
+                  class="block w-full text-left"
+                  @click="bukaVisit(v)"
+                >
+                  <b class="text-highlighted">{{ v.title || 'Event Activity' }}</b>
+                  <span class="block text-xs text-muted">{{ undangan(v) }}</span>
+                  <span
+                    class="block text-xs"
+                    :class="lewat(v) ? 'font-semibold text-error' : 'text-muted'"
+                  >{{ relTgl(v) }}{{ v.time ? ` - ${v.time}` : '' }} · {{ namaBrand(v.brand) }}{{ v.location ? ` · ${v.location}` : '' }}</span>
+                </button>
+                <div class="mt-2 flex flex-wrap items-center gap-2">
+                  <USelect
+                    v-if="can('kol')"
+                    :model-value="v.status || 'planned'"
+                    :items="opsiStatusV"
+                    size="sm"
+                    class="w-40"
+                    @update:model-value="setStatus(v, $event as string)"
+                  />
+                  <template v-if="hariH(v) && can('kol')">
+                    <UButton
+                      label="Hadir"
+                      icon="i-lucide-check"
+                      size="xs"
+                      @click="setStatus(v, 'came')"
+                    />
+                    <UButton
+                      icon="i-lucide-x"
+                      size="xs"
+                      color="neutral"
+                      variant="outline"
+                      aria-label="Tandai tidak hadir"
+                      @click="setStatus(v, 'noshow')"
+                    />
+                  </template>
+                </div>
+              </li>
+            </ul>
+            <KontenPager
+              v-model:hal="halV"
+              v-model:per="perV"
+              :total="listV.length"
+              satuan="event"
+            />
+          </template>
+        </AppPanel>
       </template>
-    </UModal>
-    <ResponsiveSheet
-      :open="!!riwayat"
-      :title="`Riwayat starting price - ${riwayat?.name ?? ''}`"
-      @update:open="riwayat = $event ? riwayat : null"
-    >
-      <p class="mb-2 text-xs text-muted">
-        Berlaku sekarang: <b class="num text-default">{{ riwayat?.rateValue ? rupiah(riwayat.rateValue) : '-' }}</b>
-      </p>
-      <div
-        v-for="(e, i) in riwayat?.rateHistory ?? []"
-        :key="i"
-        class="border-b border-default py-2 text-sm last:border-0"
+
+      <KontenKolForm
+        v-model:open="kolBuka"
+        :kol="kolItem"
+      />
+      <KontenVisitForm
+        v-model:open="visitBuka"
+        :visit="visitItem"
+      />
+
+      <UModal
+        :open="!!gambar"
+        :title="gambar?.judul"
+        @update:open="gambar = $event ? gambar : null"
       >
-        <p class="num font-semibold">
-          {{ rupiah(e.value) }}
-          <span
-            class="text-xs"
-            :class="!e.prev ? 'text-muted' : rateDelta(e) > 0 ? 'text-error' : 'text-success'"
-          >{{ !e.prev ? 'ditetapkan' : `${rateDelta(e) > 0 ? '▲' : '▼'} ${rupiah(Math.abs(rateDelta(e)))}` }}</span>
+        <template #body>
+          <img
+            v-if="gambar"
+            :src="gambar.src"
+            alt="Rate card"
+            class="mx-auto max-w-full rounded-lg"
+          >
+        </template>
+      </UModal>
+      <ResponsiveSheet
+        :open="!!riwayat"
+        :title="`Riwayat starting price - ${riwayat?.name ?? ''}`"
+        @update:open="riwayat = $event ? riwayat : null"
+      >
+        <p class="mb-2 text-xs text-muted">
+          Berlaku sekarang: <b class="num text-default">{{ riwayat?.rateValue ? rupiah(riwayat.rateValue) : '-' }}</b>
         </p>
-        <p class="text-xs text-muted">
-          {{ e.prev ? `sebelumnya ${rupiah(e.prev)} - ` : '' }}{{ waktu(e.at) }}{{ e.by ? ` - ${namaUser(e.by)}` : '' }}
-        </p>
-      </div>
-    </ResponsiveSheet>
-  </AppPage>
+        <div
+          v-for="(e, i) in riwayat?.rateHistory ?? []"
+          :key="i"
+          class="border-b border-default py-2 text-sm last:border-0"
+        >
+          <p class="num font-semibold">
+            {{ rupiah(e.value) }}
+            <span
+              class="text-xs"
+              :class="!e.prev ? 'text-muted' : rateDelta(e) > 0 ? 'text-error' : 'text-success'"
+            >{{ !e.prev ? 'ditetapkan' : `${rateDelta(e) > 0 ? '▲' : '▼'} ${rupiah(Math.abs(rateDelta(e)))}` }}</span>
+          </p>
+          <p class="text-xs text-muted">
+            {{ e.prev ? `sebelumnya ${rupiah(e.prev)} - ` : '' }}{{ waktu(e.at) }}{{ e.by ? ` - ${namaUser(e.by)}` : '' }}
+          </p>
+        </div>
+      </ResponsiveSheet>
+    </AppPage>
   </KontenGerbang>
 </template>

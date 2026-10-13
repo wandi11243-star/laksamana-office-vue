@@ -52,121 +52,121 @@ function kembalikan() {
 
 <template>
   <EventGerbang lihat="akses">
-  <AppPage
-    title="Hak akses"
-    description="Siapa berperan apa, dan peran itu boleh membuka apa"
-  >
-    <AppPanel
-      title="Orang & perannya"
-      icon="i-lucide-users"
-      flush
-      class="mb-4"
+    <AppPage
+      title="Hak akses"
+      description="Siapa berperan apa, dan peran itu boleh membuka apa"
     >
-      <UTable
-        :columns="[{ id: 'nama', header: 'Pengguna' }, { id: 'tim', header: 'Tim / keterangan' }, { id: 'status', header: 'Status' }, { id: 'peran', header: 'Peran EMS' }]"
-        :data="daftarAnggota"
-        :loading="status === 'pending'"
-        class="hidden lg:block"
+      <AppPanel
+        title="Orang & perannya"
+        icon="i-lucide-users"
+        flush
+        class="mb-4"
       >
-        <template #nama-cell="{ row }">
-          <b class="text-highlighted">{{ row.original.name }}</b>
-        </template>
-        <template #tim-cell="{ row }">
-          {{ row.original.keterangan || '—' }}
-        </template>
-        <template #status-cell="{ row }">
-          <AppStatus
-            :color="row.original.active ? 'success' : 'neutral'"
-            :icon="row.original.active ? 'i-lucide-check' : 'i-lucide-pause'"
-            size="sm"
-          >
-            {{ row.original.active ? 'Aktif' : 'Nonaktif' }}
-          </AppStatus>
-        </template>
-        <template #peran-cell="{ row }">
-          {{ PERAN_LABEL_EVENT[peranAnggota(row.original)] }}{{ row.original.isModuleAdmin ? ' (admin modul)' : '' }}
-        </template>
-      </UTable>
-      <ul class="divide-y divide-default lg:hidden">
-        <li
-          v-for="m in daftarAnggota"
-          :key="m.id"
-          class="px-4 py-2.5 text-sm"
+        <UTable
+          :columns="[{ id: 'nama', header: 'Pengguna' }, { id: 'tim', header: 'Tim / keterangan' }, { id: 'status', header: 'Status' }, { id: 'peran', header: 'Peran EMS' }]"
+          :data="daftarAnggota"
+          :loading="status === 'pending'"
+          class="hidden lg:block"
         >
-          <b class="text-highlighted">{{ m.name }}</b>
-          <span class="block text-xs text-muted">{{ PERAN_LABEL_EVENT[peranAnggota(m)] }}{{ m.isModuleAdmin ? ' (admin modul)' : '' }} · {{ m.keterangan || '—' }}</span>
-        </li>
-      </ul>
-    </AppPanel>
-
-    <AppPanel
-      title="Matriks izin"
-      icon="i-lucide-shield"
-      class="mb-4"
-    >
-      <template #actions>
-        <UButton
-          v-if="bolehUbah"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          icon="i-lucide-rotate-ccw"
-          @click="kembalikan()"
-        >
-          Kembalikan ke bawaan
-        </UButton>
-      </template>
-      <UAlert
-        color="info"
-        variant="soft"
-        title="Tidak tersimpan di server (K-08)"
-        description="Ikuti perilaku lama: perubahan di sini berlaku sampai muat ulang, lalu kembali ke bawaan."
-        class="mb-3"
-      />
-      <div class="overflow-x-auto">
-        <table class="w-full min-w-[560px] text-sm">
-          <thead>
-            <tr class="border-b border-default text-left text-[11px] font-bold uppercase tracking-wide text-muted">
-              <th class="py-2 pe-3">
-                Halaman
-              </th>
-              <th
-                v-for="p in PERAN_EVENT"
-                :key="p"
-                class="px-2 py-2"
-              >
-                {{ PERAN_LABEL_EVENT[p] }}
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
-              v-for="(label, halaman) in EMS_HALAMAN_LABEL"
-              :key="halaman"
-              class="border-b border-default last:border-0"
+          <template #nama-cell="{ row }">
+            <b class="text-highlighted">{{ row.original.name }}</b>
+          </template>
+          <template #tim-cell="{ row }">
+            {{ row.original.keterangan || '—' }}
+          </template>
+          <template #status-cell="{ row }">
+            <AppStatus
+              :color="row.original.active ? 'success' : 'neutral'"
+              :icon="row.original.active ? 'i-lucide-check' : 'i-lucide-pause'"
+              size="sm"
             >
-              <td class="py-1.5 pe-3 font-medium text-highlighted">
-                {{ label }}
-              </td>
-              <td
-                v-for="p in PERAN_EVENT"
-                :key="p"
-                class="px-2 py-1.5"
+              {{ row.original.active ? 'Aktif' : 'Nonaktif' }}
+            </AppStatus>
+          </template>
+          <template #peran-cell="{ row }">
+            {{ PERAN_LABEL_EVENT[peranAnggota(row.original)] }}{{ row.original.isModuleAdmin ? ' (admin modul)' : '' }}
+          </template>
+        </UTable>
+        <ul class="divide-y divide-default lg:hidden">
+          <li
+            v-for="m in daftarAnggota"
+            :key="m.id"
+            class="px-4 py-2.5 text-sm"
+          >
+            <b class="text-highlighted">{{ m.name }}</b>
+            <span class="block text-xs text-muted">{{ PERAN_LABEL_EVENT[peranAnggota(m)] }}{{ m.isModuleAdmin ? ' (admin modul)' : '' }} · {{ m.keterangan || '—' }}</span>
+          </li>
+        </ul>
+      </AppPanel>
+
+      <AppPanel
+        title="Matriks izin"
+        icon="i-lucide-shield"
+        class="mb-4"
+      >
+        <template #actions>
+          <UButton
+            v-if="bolehUbah"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            icon="i-lucide-rotate-ccw"
+            @click="kembalikan()"
+          >
+            Kembalikan ke bawaan
+          </UButton>
+        </template>
+        <UAlert
+          color="info"
+          variant="soft"
+          title="Tidak tersimpan di server (K-08)"
+          description="Ikuti perilaku lama: perubahan di sini berlaku sampai muat ulang, lalu kembali ke bawaan."
+          class="mb-3"
+        />
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[560px] text-sm">
+            <thead>
+              <tr class="border-b border-default text-left text-[11px] font-bold uppercase tracking-wide text-muted">
+                <th class="py-2 pe-3">
+                  Halaman
+                </th>
+                <th
+                  v-for="p in PERAN_EVENT"
+                  :key="p"
+                  class="px-2 py-2"
+                >
+                  {{ PERAN_LABEL_EVENT[p] }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(label, halaman) in EMS_HALAMAN_LABEL"
+                :key="halaman"
+                class="border-b border-default last:border-0"
               >
-                <USelect
-                  :model-value="matriks[halaman]?.[p] ?? 1"
-                  :items="OPSI_TINGKAT"
-                  size="sm"
-                  :disabled="!bolehUbah"
-                  class="w-36"
-                  @update:model-value="(v) => setIzin(halaman, p, Number(v) as 0 | 1 | 2)"
-                />
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </AppPanel>
-  </AppPage>
+                <td class="py-1.5 pe-3 font-medium text-highlighted">
+                  {{ label }}
+                </td>
+                <td
+                  v-for="p in PERAN_EVENT"
+                  :key="p"
+                  class="px-2 py-1.5"
+                >
+                  <USelect
+                    :model-value="matriks[halaman]?.[p] ?? 1"
+                    :items="OPSI_TINGKAT"
+                    size="sm"
+                    :disabled="!bolehUbah"
+                    class="w-36"
+                    @update:model-value="(v) => setIzin(halaman, p, Number(v) as 0 | 1 | 2)"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </AppPanel>
+    </AppPage>
   </EventGerbang>
 </template>

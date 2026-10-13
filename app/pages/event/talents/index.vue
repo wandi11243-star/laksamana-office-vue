@@ -189,311 +189,311 @@ async function hapus() {
 
 <template>
   <EventGerbang lihat="talents">
-  <AppPage
-    title="Talent management"
-    description="Kelola profil, jadwal & fee talent"
-  >
-    <template #actions>
-      <UButton
-        v-if="bolehUbah"
-        color="primary"
-        icon="i-lucide-plus"
-        @click="bukaBaru()"
-      >
-        Talent baru
-      </UButton>
-    </template>
-
-    <AppPanel class="mb-4">
-      <AppFilterGrid>
-        <UFormField label="Cari nama talent">
-          <UInput
-            v-model="q"
-            placeholder="Cari nama talent…"
-            icon="i-lucide-search"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Kategori">
-          <USelect
-            v-model="fKategori"
-            :items="[{ value: SEMUA, label: 'Semua kategori' }, ...TAL_CATS.map(c => ({ value: c, label: c }))]"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Status talent">
-          <USelect
-            v-model="fStatus"
-            :items="[{ value: SEMUA, label: 'Semua status talent' }, ...OPSI_STATUS]"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Kontrak">
-          <USelect
-            v-model="fKontrak"
-            :items="[{ value: SEMUA, label: 'Semua kontrak' }, ...OPSI_KONTRAK]"
-            class="w-full"
-          />
-        </UFormField>
-      </AppFilterGrid>
-      <p class="mt-2 text-xs text-muted num">
-        {{ angka(list.length) }} talent
-      </p>
-    </AppPanel>
-
-    <AppPanel
-      title="Daftar talent"
-      icon="i-lucide-users"
-      flush
+    <AppPage
+      title="Talent management"
+      description="Kelola profil, jadwal & fee talent"
     >
-      <UTable
-        :columns="kolom"
-        :data="list"
-        :loading="status === 'pending'"
-        class="hidden lg:block"
-      >
-        <template #talent-cell="{ row }">
-          <ULink
-            :to="`/event/talents/${row.original.id}`"
-            class="flex items-center gap-2.5"
-          >
-            <UAvatar
-              :text="inisial(row.original.name)"
-              size="md"
-            />
-            <span>
-              <b class="block text-highlighted">{{ row.original.name }}</b>
-              <span
-                v-if="row.original.instagram"
-                class="block text-xs text-muted"
-              >{{ row.original.instagram }}</span>
-            </span>
-          </ULink>
-        </template>
-        <template #kategori-cell="{ row }">
-          <AppStatus
-            :color="nadaKategori(String(row.original.category ?? ''), TAL_CATS)"
-            :icon="'i-lucide-tag'"
-            size="sm"
-          >
-            {{ row.original.category || '—' }}
-          </AppStatus>
-        </template>
-        <template #kontak-cell="{ row }">
-          <span class="block text-sm">{{ row.original.whatsapp || row.original.phone || '—' }}</span>
-          <span class="block text-xs text-muted">{{ row.original.email || '' }}</span>
-        </template>
-        <template #manager-cell="{ row }">
-          {{ row.original.manager_name || '—' }}
-        </template>
-        <template #fee-cell="{ row }">
-          <span class="num">{{ rupiah(Number(row.original.default_fee) || 0) }}</span>
-        </template>
-        <template #kontrak-cell="{ row }">
-          {{ KONTRAK_LABEL[String(row.original.contract_status ?? 'None')] ?? row.original.contract_status }}
-        </template>
-        <template #status-cell="{ row }">
-          <AppStatus
-            :color="TALENT_WARNA[String(row.original.status)] ?? 'neutral'"
-            :icon="TALENT_IKON[String(row.original.status)]"
-            size="sm"
-          >
-            {{ row.original.status }}
-          </AppStatus>
-        </template>
-        <template #aksi-cell="{ row }">
-          <span class="flex gap-1">
-            <UButton
-              v-if="bolehUbah"
-              color="neutral"
-              variant="ghost"
-              icon="i-lucide-pencil"
-              @click="bukaSunting(row.original)"
-            />
-            <UButton
-              v-if="bolehUbah"
-              color="error"
-              variant="ghost"
-              icon="i-lucide-trash-2"
-              @click="hapusId = row.original.id"
-            />
-          </span>
-        </template>
-      </UTable>
-      <ul class="divide-y divide-default lg:hidden">
-        <li
-          v-for="t in list"
-          :key="t.id"
+      <template #actions>
+        <UButton
+          v-if="bolehUbah"
+          color="primary"
+          icon="i-lucide-plus"
+          @click="bukaBaru()"
         >
-          <ULink
-            :to="`/event/talents/${t.id}`"
-            class="flex items-center gap-3 px-4 py-3"
-          >
-            <UAvatar
-              :text="inisial(t.name)"
-              size="md"
+          Talent baru
+        </UButton>
+      </template>
+
+      <AppPanel class="mb-4">
+        <AppFilterGrid>
+          <UFormField label="Cari nama talent">
+            <UInput
+              v-model="q"
+              placeholder="Cari nama talent…"
+              icon="i-lucide-search"
+              class="w-full"
             />
-            <span class="min-w-0 flex-1">
-              <b class="block truncate text-sm text-highlighted">{{ t.name }}</b>
-              <span class="block truncate text-xs text-muted">{{ t.category }} · {{ rupiah(Number(t.default_fee) || 0) }}</span>
-            </span>
+          </UFormField>
+          <UFormField label="Kategori">
+            <USelect
+              v-model="fKategori"
+              :items="[{ value: SEMUA, label: 'Semua kategori' }, ...TAL_CATS.map(c => ({ value: c, label: c }))]"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Status talent">
+            <USelect
+              v-model="fStatus"
+              :items="[{ value: SEMUA, label: 'Semua status talent' }, ...OPSI_STATUS]"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Kontrak">
+            <USelect
+              v-model="fKontrak"
+              :items="[{ value: SEMUA, label: 'Semua kontrak' }, ...OPSI_KONTRAK]"
+              class="w-full"
+            />
+          </UFormField>
+        </AppFilterGrid>
+        <p class="mt-2 text-xs text-muted num">
+          {{ angka(list.length) }} talent
+        </p>
+      </AppPanel>
+
+      <AppPanel
+        title="Daftar talent"
+        icon="i-lucide-users"
+        flush
+      >
+        <UTable
+          :columns="kolom"
+          :data="list"
+          :loading="status === 'pending'"
+          class="hidden lg:block"
+        >
+          <template #talent-cell="{ row }">
+            <ULink
+              :to="`/event/talents/${row.original.id}`"
+              class="flex items-center gap-2.5"
+            >
+              <UAvatar
+                :text="inisial(row.original.name)"
+                size="md"
+              />
+              <span>
+                <b class="block text-highlighted">{{ row.original.name }}</b>
+                <span
+                  v-if="row.original.instagram"
+                  class="block text-xs text-muted"
+                >{{ row.original.instagram }}</span>
+              </span>
+            </ULink>
+          </template>
+          <template #kategori-cell="{ row }">
             <AppStatus
-              :color="TALENT_WARNA[String(t.status)] ?? 'neutral'"
-              :icon="TALENT_IKON[String(t.status)]"
+              :color="nadaKategori(String(row.original.category ?? ''), TAL_CATS)"
+              :icon="'i-lucide-tag'"
               size="sm"
             >
-              {{ t.status }}
+              {{ row.original.category || '—' }}
             </AppStatus>
-          </ULink>
-        </li>
-      </ul>
-      <p
-        v-if="!list.length && status !== 'pending'"
-        class="px-4 py-6 text-center text-sm text-dimmed"
+          </template>
+          <template #kontak-cell="{ row }">
+            <span class="block text-sm">{{ row.original.whatsapp || row.original.phone || '—' }}</span>
+            <span class="block text-xs text-muted">{{ row.original.email || '' }}</span>
+          </template>
+          <template #manager-cell="{ row }">
+            {{ row.original.manager_name || '—' }}
+          </template>
+          <template #fee-cell="{ row }">
+            <span class="num">{{ rupiah(Number(row.original.default_fee) || 0) }}</span>
+          </template>
+          <template #kontrak-cell="{ row }">
+            {{ KONTRAK_LABEL[String(row.original.contract_status ?? 'None')] ?? row.original.contract_status }}
+          </template>
+          <template #status-cell="{ row }">
+            <AppStatus
+              :color="TALENT_WARNA[String(row.original.status)] ?? 'neutral'"
+              :icon="TALENT_IKON[String(row.original.status)]"
+              size="sm"
+            >
+              {{ row.original.status }}
+            </AppStatus>
+          </template>
+          <template #aksi-cell="{ row }">
+            <span class="flex gap-1">
+              <UButton
+                v-if="bolehUbah"
+                color="neutral"
+                variant="ghost"
+                icon="i-lucide-pencil"
+                @click="bukaSunting(row.original)"
+              />
+              <UButton
+                v-if="bolehUbah"
+                color="error"
+                variant="ghost"
+                icon="i-lucide-trash-2"
+                @click="hapusId = row.original.id"
+              />
+            </span>
+          </template>
+        </UTable>
+        <ul class="divide-y divide-default lg:hidden">
+          <li
+            v-for="t in list"
+            :key="t.id"
+          >
+            <ULink
+              :to="`/event/talents/${t.id}`"
+              class="flex items-center gap-3 px-4 py-3"
+            >
+              <UAvatar
+                :text="inisial(t.name)"
+                size="md"
+              />
+              <span class="min-w-0 flex-1">
+                <b class="block truncate text-sm text-highlighted">{{ t.name }}</b>
+                <span class="block truncate text-xs text-muted">{{ t.category }} · {{ rupiah(Number(t.default_fee) || 0) }}</span>
+              </span>
+              <AppStatus
+                :color="TALENT_WARNA[String(t.status)] ?? 'neutral'"
+                :icon="TALENT_IKON[String(t.status)]"
+                size="sm"
+              >
+                {{ t.status }}
+              </AppStatus>
+            </ULink>
+          </li>
+        </ul>
+        <p
+          v-if="!list.length && status !== 'pending'"
+          class="px-4 py-6 text-center text-sm text-dimmed"
+        >
+          Tidak ada talent yang cocok.
+        </p>
+      </AppPanel>
+
+      <ResponsiveSheet
+        v-model:open="sheet"
+        :title="suntingId ? 'Edit talent' : 'Talent baru'"
       >
-        Tidak ada talent yang cocok.
-      </p>
-    </AppPanel>
+        <div class="grid gap-3 lg:grid-cols-2">
+          <UFormField
+            label="Nama"
+            required
+          >
+            <UInput
+              v-model="form.name"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Kategori">
+            <USelect
+              v-model="form.category"
+              :items="TAL_CATS.map(c => ({ value: c, label: c }))"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField
+            label="Phone"
+            required
+          >
+            <UInput
+              v-model="form.phone"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="WhatsApp">
+            <UInput
+              v-model="form.whatsapp"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Instagram">
+            <UInput
+              v-model="form.instagram"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Email">
+            <UInput
+              v-model="form.email"
+              type="email"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Manager">
+            <UInput
+              v-model="form.manager_name"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Default fee (IDR)">
+            <UInput
+              v-model.number="form.default_fee"
+              type="number"
+              min="0"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Bank">
+            <UInput
+              v-model="form.bank_name"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="No. rekening">
+            <UInput
+              v-model="form.bank_account"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Status kontrak">
+            <USelect
+              v-model="form.contract_status"
+              :items="OPSI_KONTRAK"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Status talent">
+            <USelect
+              v-model="form.status"
+              :items="OPSI_STATUS"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField
+            label="Notes"
+            class="lg:col-span-2"
+          >
+            <UTextarea
+              v-model="form.notes"
+              class="w-full"
+            />
+          </UFormField>
+        </div>
+        <template #footer>
+          <UButton
+            color="primary"
+            @click="simpan()"
+          >
+            Simpan talent
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="outline"
+            @click="sheet = false"
+          >
+            Batal
+          </UButton>
+        </template>
+      </ResponsiveSheet>
 
-    <ResponsiveSheet
-      v-model:open="sheet"
-      :title="suntingId ? 'Edit talent' : 'Talent baru'"
-    >
-      <div class="grid gap-3 lg:grid-cols-2">
-        <UFormField
-          label="Nama"
-          required
-        >
-          <UInput
-            v-model="form.name"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Kategori">
-          <USelect
-            v-model="form.category"
-            :items="TAL_CATS.map(c => ({ value: c, label: c }))"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          label="Phone"
-          required
-        >
-          <UInput
-            v-model="form.phone"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="WhatsApp">
-          <UInput
-            v-model="form.whatsapp"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Instagram">
-          <UInput
-            v-model="form.instagram"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Email">
-          <UInput
-            v-model="form.email"
-            type="email"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Manager">
-          <UInput
-            v-model="form.manager_name"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Default fee (IDR)">
-          <UInput
-            v-model.number="form.default_fee"
-            type="number"
-            min="0"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Bank">
-          <UInput
-            v-model="form.bank_name"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="No. rekening">
-          <UInput
-            v-model="form.bank_account"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Status kontrak">
-          <USelect
-            v-model="form.contract_status"
-            :items="OPSI_KONTRAK"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Status talent">
-          <USelect
-            v-model="form.status"
-            :items="OPSI_STATUS"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          label="Notes"
-          class="lg:col-span-2"
-        >
-          <UTextarea
-            v-model="form.notes"
-            class="w-full"
-          />
-        </UFormField>
-      </div>
-      <template #footer>
-        <UButton
-          color="primary"
-          @click="simpan()"
-        >
-          Simpan talent
-        </UButton>
-        <UButton
-          color="neutral"
-          variant="outline"
-          @click="sheet = false"
-        >
-          Batal
-        </UButton>
-      </template>
-    </ResponsiveSheet>
-
-    <ResponsiveSheet
-      v-model:open="sheetHapus"
-      title="Hapus talent?"
-    >
-      <p class="text-sm text-muted">
-        Talent ini dihapus dari daftar. Jadwal yang sudah tersimpan tetap ada.
-      </p>
-      <template #footer>
-        <UButton
-          color="error"
-          @click="hapus()"
-        >
-          Ya, hapus
-        </UButton>
-        <UButton
-          color="neutral"
-          variant="outline"
-          @click="hapusId = ''"
-        >
-          Batal
-        </UButton>
-      </template>
-    </ResponsiveSheet>
-  </AppPage>
+      <ResponsiveSheet
+        v-model:open="sheetHapus"
+        title="Hapus talent?"
+      >
+        <p class="text-sm text-muted">
+          Talent ini dihapus dari daftar. Jadwal yang sudah tersimpan tetap ada.
+        </p>
+        <template #footer>
+          <UButton
+            color="error"
+            @click="hapus()"
+          >
+            Ya, hapus
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="outline"
+            @click="hapusId = ''"
+          >
+            Batal
+          </UButton>
+        </template>
+      </ResponsiveSheet>
+    </AppPage>
   </EventGerbang>
 </template>

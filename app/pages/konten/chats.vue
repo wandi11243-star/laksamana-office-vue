@@ -84,341 +84,341 @@ function buka(a: IklanKonten) {
 
 <template>
   <KontenGerbang lihat="chats">
-  <AppPage
-    title="Report Percakapan"
-    description="Rekap chat / percakapan hasil dari iklan"
-  >
-    <UAlert
-      v-if="error"
-      color="error"
-      variant="subtle"
-      icon="i-lucide-triangle-alert"
-      :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
-    />
-
-    <KontenBrandBar :brands="st.brands" />
-
-    <AppPanel>
-      <div class="flex flex-wrap items-center gap-3">
-        <USelect
-          v-model="bulan"
-          :items="opsiBulan"
-          aria-label="Pilih bulan"
-          class="w-full sm:w-56"
-        />
-        <span class="text-xs text-muted">Bulan diambil dari <b>tanggal iklan mulai jalan</b> — sama dengan rekap di Ads Management.</span>
-      </div>
-    </AppPanel>
-
-    <AppStatGrid>
-      <AppStat
-        label="Total percakapan"
-        :value="angka(r.totChats)"
-        :sub="`dari ${r.berchat.length} iklan yang menghasilkan chat`"
-        tone="info"
-      />
-      <AppStat
-        label="Dana keluar"
-        :value="rupiah(r.totDana)"
-        sub="hanya iklan yang menghasilkan chat, sudah termasuk PPN 11%"
-        tone="error"
-      />
-      <AppStat
-        label="Biaya per chat"
-        :value="rp(r.bpc)"
-        :sub="r.bpc == null ? 'belum ada chat atau dana keluarnya belum diisi' : 'gabungan — makin kecil makin murah'"
-      />
-      <AppStat
-        label="Iklan menghasilkan chat"
-        :value="angka(r.berchat.length)"
-        :sub="list.length ? `dari ${list.length} iklan pada periode ini` : 'belum ada iklan'"
-        tone="success"
-      />
-    </AppStatGrid>
-
-    <AppPanel
-      v-if="r.berchat.length"
-      title="Yang paling top"
-      icon="i-lucide-trophy"
-      description="Dua sisi yang sering tidak sama."
+    <AppPage
+      title="Report Percakapan"
+      description="Rekap chat / percakapan hasil dari iklan"
     >
-      <div class="grid gap-3 sm:grid-cols-3">
-        <div class="rounded-lg border border-default p-3">
-          <p class="text-xs font-semibold text-muted">
-            Chat terbanyak
-          </p>
-          <p class="mt-1 font-semibold">
-            {{ r.topChat?.name || '(tanpa nama)' }}
-          </p>
-          <p class="text-xs text-muted">
-            <b>{{ angka(r.topChat?.chats ?? 0) }}</b> chat · {{ rp(r.topChat ? biayaChat(r.topChat) : null) }} per chat
-          </p>
-        </div>
-        <div class="rounded-lg border border-default p-3">
-          <p class="text-xs font-semibold text-muted">
-            Biaya per chat termurah
-          </p>
-          <p class="mt-1 font-semibold">
-            {{ r.topMurah ? (r.topMurah.name || '(tanpa nama)') : '—' }}
-          </p>
-          <p class="text-xs text-muted">
-            <template v-if="r.topMurah">
-              <b>{{ rp(biayaChat(r.topMurah)) }}</b> per chat · {{ angka(r.topMurah.chats ?? 0) }} chat
-            </template>
-            <template v-else>
-              belum ada iklan yang punya chat DAN dana keluar sekaligus
-            </template>
-          </p>
-        </div>
-        <div class="rounded-lg border border-default p-3">
-          <p class="text-xs font-semibold text-muted">
-            Video paling banyak chat
-          </p>
-          <UButton
-            v-if="r.topVideo"
-            :to="r.topVideo.url"
-            target="_blank"
-            :label="platformVideo(r.topVideo.url) ?? 'Tautan'"
-            icon="i-lucide-play"
-            size="xs"
-            color="neutral"
-            variant="soft"
-            class="mt-1"
+      <UAlert
+        v-if="error"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
+      />
+
+      <KontenBrandBar :brands="st.brands" />
+
+      <AppPanel>
+        <div class="flex flex-wrap items-center gap-3">
+          <USelect
+            v-model="bulan"
+            :items="opsiBulan"
+            aria-label="Pilih bulan"
+            class="w-full sm:w-56"
           />
-          <p
-            v-else
-            class="mt-1 font-semibold"
-          >
-            —
-          </p>
-          <p class="text-xs text-muted">
-            <template v-if="r.topVideo">
-              <b>{{ angka(r.topVideo.chats) }}</b> chat dari {{ r.topVideo.n }} iklan
-            </template>
-            <template v-else>
-              belum ada iklan berchat yang diisi link videonya
-            </template>
-          </p>
+          <span class="text-xs text-muted">Bulan diambil dari <b>tanggal iklan mulai jalan</b> — sama dengan rekap di Ads Management.</span>
         </div>
-      </div>
-      <p class="mt-3 text-xs text-muted">
-        Yang paling banyak chat <b>belum tentu</b> yang paling murah — iklan berbudget besar hampir selalu menang di kolom
-        jumlah. Yang dipakai memutuskan anggaran biasanya kolom <b>biaya per chat</b>.
-      </p>
-    </AppPanel>
+      </AppPanel>
 
-    <UAlert
-      v-if="r.tanpaDana.length"
-      color="warning"
-      variant="subtle"
-      icon="i-lucide-triangle-alert"
-      :title="`${r.tanpaDana.length} iklan punya chat tapi dana keluarnya belum diisi`"
-      description="Biaya per chatnya tidak dihitung dan iklan itu tidak ikut di peringkat termurah — dihitung, ia akan selalu menang dengan Rp0 per chat. Isi rinciannya lewat Ads Management → rincian dana keluar."
-      class="mb-5"
-    />
-
-    <AppPanel
-      title="Peringkat iklan"
-      icon="i-lucide-message-circle"
-      :description="`Total: ${angka(r.totChats)} chat`"
-      flush
-    >
-      <div class="space-y-2 border-b border-default p-4">
-        <AppSeg
-          v-model="urut"
-          :options="opsiUrut"
-          size="sm"
+      <AppStatGrid>
+        <AppStat
+          label="Total percakapan"
+          :value="angka(r.totChats)"
+          :sub="`dari ${r.berchat.length} iklan yang menghasilkan chat`"
+          tone="info"
         />
-        <p class="text-xs text-muted">
-          Diurut menurut <b>{{ CHAT_URUT[pil.urut].t }}</b>.
-          <template v-if="pil.urut === 'murah'">
-            Yang ditampilkan hanya iklan yang punya chat DAN dana keluar — sisanya tidak punya biaya per chat yang bisa dihitung.
-          </template>
-        </p>
-      </div>
-      <div
-        v-if="!peringkat.length"
-        class="p-8 text-center"
+        <AppStat
+          label="Dana keluar"
+          :value="rupiah(r.totDana)"
+          sub="hanya iklan yang menghasilkan chat, sudah termasuk PPN 11%"
+          tone="error"
+        />
+        <AppStat
+          label="Biaya per chat"
+          :value="rp(r.bpc)"
+          :sub="r.bpc == null ? 'belum ada chat atau dana keluarnya belum diisi' : 'gabungan — makin kecil makin murah'"
+        />
+        <AppStat
+          label="Iklan menghasilkan chat"
+          :value="angka(r.berchat.length)"
+          :sub="list.length ? `dari ${list.length} iklan pada periode ini` : 'belum ada iklan'"
+          tone="success"
+        />
+      </AppStatGrid>
+
+      <AppPanel
+        v-if="r.berchat.length"
+        title="Yang paling top"
+        icon="i-lucide-trophy"
+        description="Dua sisi yang sering tidak sama."
       >
-        <UIcon
-          name="i-lucide-message-circle"
-          class="mx-auto size-7 text-dimmed"
-        />
-        <p class="mt-2 font-semibold">
-          Belum ada percakapan
-        </p>
-        <p class="text-sm text-muted">
-          Isi kolom "Hasil - chats" saat buat iklan agar tercatat di sini.
-        </p>
-      </div>
-      <template v-else>
-        <UTable
-          class="hidden lg:block"
-          :data="halaman"
-          :columns="kolom"
-          :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
-        >
-          <template #no-cell="{ row }">
-            <span class="font-display text-lg text-primary-700">{{ (hal - 1) * per + row.index + 1 }}</span>
-          </template>
-          <template #nama-cell="{ row }">
-            <button
-              type="button"
-              class="text-left"
-              @click="buka(row.original)"
-            >
-              <b class="text-highlighted">{{ row.original.name || '(tanpa nama)' }}</b>
-              <span class="block text-xs text-muted">{{ row.original.target }}</span>
-            </button>
-          </template>
-          <template #brand-cell="{ row }">
-            {{ namaBrand(row.original.brand) }}
-          </template>
-          <template #video-cell="{ row }">
+        <div class="grid gap-3 sm:grid-cols-3">
+          <div class="rounded-lg border border-default p-3">
+            <p class="text-xs font-semibold text-muted">
+              Chat terbanyak
+            </p>
+            <p class="mt-1 font-semibold">
+              {{ r.topChat?.name || '(tanpa nama)' }}
+            </p>
+            <p class="text-xs text-muted">
+              <b>{{ angka(r.topChat?.chats ?? 0) }}</b> chat · {{ rp(r.topChat ? biayaChat(r.topChat) : null) }} per chat
+            </p>
+          </div>
+          <div class="rounded-lg border border-default p-3">
+            <p class="text-xs font-semibold text-muted">
+              Biaya per chat termurah
+            </p>
+            <p class="mt-1 font-semibold">
+              {{ r.topMurah ? (r.topMurah.name || '(tanpa nama)') : '—' }}
+            </p>
+            <p class="text-xs text-muted">
+              <template v-if="r.topMurah">
+                <b>{{ rp(biayaChat(r.topMurah)) }}</b> per chat · {{ angka(r.topMurah.chats ?? 0) }} chat
+              </template>
+              <template v-else>
+                belum ada iklan yang punya chat DAN dana keluar sekaligus
+              </template>
+            </p>
+          </div>
+          <div class="rounded-lg border border-default p-3">
+            <p class="text-xs font-semibold text-muted">
+              Video paling banyak chat
+            </p>
             <UButton
-              v-if="platformVideo(row.original.videoUrl)"
-              :to="rapikanVideo(row.original.videoUrl) || undefined"
+              v-if="r.topVideo"
+              :to="r.topVideo.url"
               target="_blank"
-              :label="platformVideo(row.original.videoUrl)!"
+              :label="platformVideo(r.topVideo.url) ?? 'Tautan'"
               icon="i-lucide-play"
               size="xs"
               color="neutral"
               variant="soft"
+              class="mt-1"
             />
-            <span
+            <p
               v-else
-              class="text-dimmed"
-            >—</span>
-          </template>
-          <template #chats-cell="{ row }">
-            <b class="num text-info">{{ angka(row.original.chats ?? 0) }}</b>
-          </template>
-          <template #dana-cell="{ row }">
-            <span class="num text-error">{{ rupiah(danaKeluarIklan(row.original)) }}</span>
-          </template>
-          <template #bpc-cell="{ row }">
-            <b class="num">{{ rp(biayaChat(row.original)) }}</b>
-          </template>
-        </UTable>
-        <ul class="divide-y divide-default lg:hidden">
-          <li
-            v-for="(a, i) in halaman"
-            :key="a.id"
-          >
-            <button
-              type="button"
-              class="block w-full p-4 text-left"
-              @click="buka(a)"
+              class="mt-1 font-semibold"
             >
-              <span class="flex items-start justify-between gap-2">
-                <b class="min-w-0 text-highlighted">{{ (hal - 1) * per + i + 1 }}. {{ a.name || '(tanpa nama)' }}</b>
-                <b class="num shrink-0 text-info">{{ angka(a.chats ?? 0) }} chat</b>
-              </span>
-              <span class="block text-xs text-muted">{{ [a.platform, namaBrand(a.brand), platformVideo(a.videoUrl)].filter(Boolean).join(' · ') }}</span>
-              <span class="num block text-xs text-muted">{{ rupiah(danaKeluarIklan(a)) }} · {{ rp(biayaChat(a)) }} per chat</span>
-            </button>
-          </li>
-        </ul>
-        <KontenPager
-          v-model:hal="hal"
-          v-model:per="per"
-          :total="peringkat.length"
-          satuan="iklan"
-        />
-      </template>
-    </AppPanel>
+              —
+            </p>
+            <p class="text-xs text-muted">
+              <template v-if="r.topVideo">
+                <b>{{ angka(r.topVideo.chats) }}</b> chat dari {{ r.topVideo.n }} iklan
+              </template>
+              <template v-else>
+                belum ada iklan berchat yang diisi link videonya
+              </template>
+            </p>
+          </div>
+        </div>
+        <p class="mt-3 text-xs text-muted">
+          Yang paling banyak chat <b>belum tentu</b> yang paling murah — iklan berbudget besar hampir selalu menang di kolom
+          jumlah. Yang dipakai memutuskan anggaran biasanya kolom <b>biaya per chat</b>.
+        </p>
+      </AppPanel>
 
-    <div class="grid items-start gap-4 lg:grid-cols-2">
+      <UAlert
+        v-if="r.tanpaDana.length"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="`${r.tanpaDana.length} iklan punya chat tapi dana keluarnya belum diisi`"
+        description="Biaya per chatnya tidak dihitung dan iklan itu tidak ikut di peringkat termurah — dihitung, ia akan selalu menang dengan Rp0 per chat. Isi rinciannya lewat Ads Management → rincian dana keluar."
+        class="mb-5"
+      />
+
       <AppPanel
-        title="Per video yang dipromosikan"
-        icon="i-lucide-play"
-        description="Satu video bisa didorong beberapa iklan sekaligus; chatnya digabung di sini. Iklan yang link videonya belum diisi berdiri di barisnya sendiri — ia tidak ditebak dari nama iklannya."
+        title="Peringkat iklan"
+        icon="i-lucide-message-circle"
+        :description="`Total: ${angka(r.totChats)} chat`"
         flush
       >
-        <p
-          v-if="!r.perVideo.length"
-          class="p-6 text-center text-sm text-muted"
+        <div class="space-y-2 border-b border-default p-4">
+          <AppSeg
+            v-model="urut"
+            :options="opsiUrut"
+            size="sm"
+          />
+          <p class="text-xs text-muted">
+            Diurut menurut <b>{{ CHAT_URUT[pil.urut].t }}</b>.
+            <template v-if="pil.urut === 'murah'">
+              Yang ditampilkan hanya iklan yang punya chat DAN dana keluar — sisanya tidak punya biaya per chat yang bisa dihitung.
+            </template>
+          </p>
+        </div>
+        <div
+          v-if="!peringkat.length"
+          class="p-8 text-center"
         >
-          Belum ada iklan pada periode ini.
-        </p>
-        <UTable
-          v-else
-          :data="r.perVideo"
-          :columns="kolomGrup('Video')"
-          :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
-        >
-          <template #key-cell="{ row }">
-            <template v-if="row.original.url">
+          <UIcon
+            name="i-lucide-message-circle"
+            class="mx-auto size-7 text-dimmed"
+          />
+          <p class="mt-2 font-semibold">
+            Belum ada percakapan
+          </p>
+          <p class="text-sm text-muted">
+            Isi kolom "Hasil - chats" saat buat iklan agar tercatat di sini.
+          </p>
+        </div>
+        <template v-else>
+          <UTable
+            class="hidden lg:block"
+            :data="halaman"
+            :columns="kolom"
+            :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
+          >
+            <template #no-cell="{ row }">
+              <span class="font-display text-lg text-primary-700">{{ (hal - 1) * per + row.index + 1 }}</span>
+            </template>
+            <template #nama-cell="{ row }">
+              <button
+                type="button"
+                class="text-left"
+                @click="buka(row.original)"
+              >
+                <b class="text-highlighted">{{ row.original.name || '(tanpa nama)' }}</b>
+                <span class="block text-xs text-muted">{{ row.original.target }}</span>
+              </button>
+            </template>
+            <template #brand-cell="{ row }">
+              {{ namaBrand(row.original.brand) }}
+            </template>
+            <template #video-cell="{ row }">
               <UButton
-                :to="row.original.url"
+                v-if="platformVideo(row.original.videoUrl)"
+                :to="rapikanVideo(row.original.videoUrl) || undefined"
                 target="_blank"
-                :label="platformVideo(row.original.url) ?? 'Tautan'"
+                :label="platformVideo(row.original.videoUrl)!"
                 icon="i-lucide-play"
                 size="xs"
                 color="neutral"
                 variant="soft"
               />
-              <span class="block max-w-64 break-all text-[11px] text-muted">{{ row.original.url }}</span>
+              <span
+                v-else
+                class="text-dimmed"
+              >—</span>
             </template>
-            <span
-              v-else
-              class="text-xs text-warning"
-            >(tanpa link video)</span>
-          </template>
-          <template #n-cell="{ row }">
-            <span class="num">{{ row.original.n }}</span>
-          </template>
-          <template #chats-cell="{ row }">
-            <b class="num text-info">{{ angka(row.original.chats) }}</b>
-          </template>
-          <template #bpc-cell="{ row }">
-            <span class="num">{{ rp(biayaGrup(row.original)) }}</span>
-          </template>
-        </UTable>
+            <template #chats-cell="{ row }">
+              <b class="num text-info">{{ angka(row.original.chats ?? 0) }}</b>
+            </template>
+            <template #dana-cell="{ row }">
+              <span class="num text-error">{{ rupiah(danaKeluarIklan(row.original)) }}</span>
+            </template>
+            <template #bpc-cell="{ row }">
+              <b class="num">{{ rp(biayaChat(row.original)) }}</b>
+            </template>
+          </UTable>
+          <ul class="divide-y divide-default lg:hidden">
+            <li
+              v-for="(a, i) in halaman"
+              :key="a.id"
+            >
+              <button
+                type="button"
+                class="block w-full p-4 text-left"
+                @click="buka(a)"
+              >
+                <span class="flex items-start justify-between gap-2">
+                  <b class="min-w-0 text-highlighted">{{ (hal - 1) * per + i + 1 }}. {{ a.name || '(tanpa nama)' }}</b>
+                  <b class="num shrink-0 text-info">{{ angka(a.chats ?? 0) }} chat</b>
+                </span>
+                <span class="block text-xs text-muted">{{ [a.platform, namaBrand(a.brand), platformVideo(a.videoUrl)].filter(Boolean).join(' · ') }}</span>
+                <span class="num block text-xs text-muted">{{ rupiah(danaKeluarIklan(a)) }} · {{ rp(biayaChat(a)) }} per chat</span>
+              </button>
+            </li>
+          </ul>
+          <KontenPager
+            v-model:hal="hal"
+            v-model:per="per"
+            :total="peringkat.length"
+            satuan="iklan"
+          />
+        </template>
       </AppPanel>
-      <AppPanel
-        title="Per platform iklan"
-        icon="i-lucide-chart-bar"
-        description="Platform tempat iklannya dipasang — beda dari platform videonya, yang dibaca dari tautannya sendiri."
-        flush
-      >
-        <p
-          v-if="!r.perPlat.length"
-          class="p-6 text-center text-sm text-muted"
-        >
-          Belum ada iklan pada periode ini.
-        </p>
-        <UTable
-          v-else
-          :data="r.perPlat"
-          :columns="kolomGrup('Platform')"
-          :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
-        >
-          <template #key-cell="{ row }">
-            <UBadge
-              :label="row.original.key"
-              color="neutral"
-              variant="soft"
-              size="sm"
-            />
-          </template>
-          <template #n-cell="{ row }">
-            <span class="num">{{ row.original.n }}</span>
-          </template>
-          <template #chats-cell="{ row }">
-            <b class="num text-info">{{ angka(row.original.chats) }}</b>
-          </template>
-          <template #bpc-cell="{ row }">
-            <span class="num">{{ rp(biayaGrup(row.original)) }}</span>
-          </template>
-        </UTable>
-      </AppPanel>
-    </div>
 
-    <KontenIklanForm
-      v-model:open="iklanBuka"
-      :iklan="iklanItem"
-    />
-  </AppPage>
+      <div class="grid items-start gap-4 lg:grid-cols-2">
+        <AppPanel
+          title="Per video yang dipromosikan"
+          icon="i-lucide-play"
+          description="Satu video bisa didorong beberapa iklan sekaligus; chatnya digabung di sini. Iklan yang link videonya belum diisi berdiri di barisnya sendiri — ia tidak ditebak dari nama iklannya."
+          flush
+        >
+          <p
+            v-if="!r.perVideo.length"
+            class="p-6 text-center text-sm text-muted"
+          >
+            Belum ada iklan pada periode ini.
+          </p>
+          <UTable
+            v-else
+            :data="r.perVideo"
+            :columns="kolomGrup('Video')"
+            :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
+          >
+            <template #key-cell="{ row }">
+              <template v-if="row.original.url">
+                <UButton
+                  :to="row.original.url"
+                  target="_blank"
+                  :label="platformVideo(row.original.url) ?? 'Tautan'"
+                  icon="i-lucide-play"
+                  size="xs"
+                  color="neutral"
+                  variant="soft"
+                />
+                <span class="block max-w-64 break-all text-[11px] text-muted">{{ row.original.url }}</span>
+              </template>
+              <span
+                v-else
+                class="text-xs text-warning"
+              >(tanpa link video)</span>
+            </template>
+            <template #n-cell="{ row }">
+              <span class="num">{{ row.original.n }}</span>
+            </template>
+            <template #chats-cell="{ row }">
+              <b class="num text-info">{{ angka(row.original.chats) }}</b>
+            </template>
+            <template #bpc-cell="{ row }">
+              <span class="num">{{ rp(biayaGrup(row.original)) }}</span>
+            </template>
+          </UTable>
+        </AppPanel>
+        <AppPanel
+          title="Per platform iklan"
+          icon="i-lucide-chart-bar"
+          description="Platform tempat iklannya dipasang — beda dari platform videonya, yang dibaca dari tautannya sendiri."
+          flush
+        >
+          <p
+            v-if="!r.perPlat.length"
+            class="p-6 text-center text-sm text-muted"
+          >
+            Belum ada iklan pada periode ini.
+          </p>
+          <UTable
+            v-else
+            :data="r.perPlat"
+            :columns="kolomGrup('Platform')"
+            :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
+          >
+            <template #key-cell="{ row }">
+              <UBadge
+                :label="row.original.key"
+                color="neutral"
+                variant="soft"
+                size="sm"
+              />
+            </template>
+            <template #n-cell="{ row }">
+              <span class="num">{{ row.original.n }}</span>
+            </template>
+            <template #chats-cell="{ row }">
+              <b class="num text-info">{{ angka(row.original.chats) }}</b>
+            </template>
+            <template #bpc-cell="{ row }">
+              <span class="num">{{ rp(biayaGrup(row.original)) }}</span>
+            </template>
+          </UTable>
+        </AppPanel>
+      </div>
+
+      <KontenIklanForm
+        v-model:open="iklanBuka"
+        :iklan="iklanItem"
+      />
+    </AppPage>
   </KontenGerbang>
 </template>

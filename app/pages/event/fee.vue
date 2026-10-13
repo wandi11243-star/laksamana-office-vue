@@ -288,532 +288,531 @@ const sheetDetail = computed({ get: () => detailId.value !== '', set: v => (deta
 const jadwalTalent = computed(() => daftarJadwal.value.rows
   .filter(j => j.talent_id === detailId.value && j.date >= periode.value.dari && j.date <= periode.value.sampai)
   .sort((a, b) => String(a.date ?? '').localeCompare(String(b.date ?? ''))))
-const jadwalDone = computed(() => jadwalTalent.value.filter(j => j.status === 'Done'))
 const feeBelum = computed(() => jadwalTalent.value.filter(j => j.status !== 'Done').reduce((a, j) => a + feeAngka(j.fee), 0))
 const namaHari = (tgl: string) => new Date(`${tgl}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'short' })
 </script>
 
 <template>
   <EventGerbang lihat="fee">
-  <AppPage
-    title="Fee & pembayaran"
-    description="Rekap otomatis show done × fee"
-  >
-    <AppPanel class="mb-4">
-      <div class="flex flex-wrap items-center gap-2">
-        <AppSeg
-          v-model="mode"
-          :options="MODES"
-        />
-        <template v-if="mode === 'rentang'">
-          <UInput
-            v-model="rentangDari"
-            type="date"
+    <AppPage
+      title="Fee & pembayaran"
+      description="Rekap otomatis show done × fee"
+    >
+      <AppPanel class="mb-4">
+        <div class="flex flex-wrap items-center gap-2">
+          <AppSeg
+            v-model="mode"
+            :options="MODES"
           />
-          <span class="text-muted">–</span>
-          <UInput
-            v-model="rentangSampai"
-            type="date"
-          />
-        </template>
-        <template v-else>
+          <template v-if="mode === 'rentang'">
+            <UInput
+              v-model="rentangDari"
+              type="date"
+            />
+            <span class="text-muted">–</span>
+            <UInput
+              v-model="rentangSampai"
+              type="date"
+            />
+          </template>
+          <template v-else>
+            <UButton
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-chevron-left"
+              @click="geser(-1)"
+            />
+            <b class="text-highlighted">{{ periode.label }}</b>
+            <UButton
+              color="neutral"
+              variant="outline"
+              icon="i-lucide-chevron-right"
+              @click="geser(1)"
+            />
+          </template>
           <UButton
             color="neutral"
-            variant="outline"
-            icon="i-lucide-chevron-left"
-            @click="geser(-1)"
-          />
-          <b class="text-highlighted">{{ periode.label }}</b>
-          <UButton
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-chevron-right"
-            @click="geser(1)"
-          />
-        </template>
-        <UButton
-          color="neutral"
-          variant="ghost"
-          icon="i-lucide-refresh-cw"
+            variant="ghost"
+            icon="i-lucide-refresh-cw"
+            :loading="status === 'pending'"
+            @click="() => { refresh(); refreshTagihan() }"
+          >
+            Muat ulang
+          </UButton>
+          <span class="ms-auto flex gap-2">
+            <span class="rounded-full bg-info/12 px-3 py-1 text-xs font-semibold text-info num">{{ angka(totalHari) }} hari tampil</span>
+            <span class="rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold text-primary-800 num">{{ rupiah(totalFee) }}</span>
+            <span
+              v-if="tanpaFeeN"
+              class="rounded-full bg-error/12 px-3 py-1 text-xs font-semibold text-error num"
+              title="Show done yang fee-nya belum diisi — rekapnya kurang dari seharusnya"
+            >{{ tanpaFeeN }} tanpa fee</span>
+          </span>
+        </div>
+      </AppPanel>
+
+      <AppPanel
+        title="Rekap fee"
+        icon="i-lucide-banknote"
+        flush
+      >
+        <UTable
+          :columns="kolom"
+          :data="rekap"
           :loading="status === 'pending'"
-          @click="() => { refresh(); refreshTagihan() }"
+          :meta="{ class: { tr: (row: { original: BarisFee }) => (row.original.hari ? '' : 'opacity-60') } }"
+          class="hidden lg:block"
         >
-          Muat ulang
-        </UButton>
-        <span class="ms-auto flex gap-2">
-          <span class="rounded-full bg-info/12 px-3 py-1 text-xs font-semibold text-info num">{{ angka(totalHari) }} hari tampil</span>
-          <span class="rounded-full bg-primary-100 px-3 py-1 text-xs font-semibold text-primary-800 num">{{ rupiah(totalFee) }}</span>
-          <span
-            v-if="tanpaFeeN"
-            class="rounded-full bg-error/12 px-3 py-1 text-xs font-semibold text-error num"
-            title="Show done yang fee-nya belum diisi — rekapnya kurang dari seharusnya"
-          >{{ tanpaFeeN }} tanpa fee</span>
-        </span>
-      </div>
-    </AppPanel>
-
-    <AppPanel
-      title="Rekap fee"
-      icon="i-lucide-banknote"
-      flush
-    >
-      <UTable
-        :columns="kolom"
-        :data="rekap"
-        :loading="status === 'pending'"
-        :meta="{ class: { tr: (row: { original: BarisFee }) => (row.original.hari ? '' : 'opacity-60') } }"
-        class="hidden lg:block"
-      >
-        <template #talent-cell="{ row }">
-          <b class="text-highlighted">{{ namaTalent(row.original.talent_id) }}</b>
-        </template>
-        <template #bank-cell="{ row }">
-          {{ bankTalent(row.original.talent_id) }}
-        </template>
-        <template #hari-cell="{ row }">
-          <span class="num">{{ angka(row.original.hari) }}</span>
-        </template>
-        <template #fee-cell="{ row }">
-          <span class="num">{{ rupiah(row.original.fee) }}</span>
-        </template>
-        <template #status-cell="{ row }">
-          <AppStatus
-            :color="BAYAR_WARNA[String(row.original.tagihan?.status ?? 'Waiting')] ?? 'neutral'"
-            :icon="BAYAR_IKON[String(row.original.tagihan?.status ?? 'Waiting')]"
-            size="sm"
+          <template #talent-cell="{ row }">
+            <b class="text-highlighted">{{ namaTalent(row.original.talent_id) }}</b>
+          </template>
+          <template #bank-cell="{ row }">
+            {{ bankTalent(row.original.talent_id) }}
+          </template>
+          <template #hari-cell="{ row }">
+            <span class="num">{{ angka(row.original.hari) }}</span>
+          </template>
+          <template #fee-cell="{ row }">
+            <span class="num">{{ rupiah(row.original.fee) }}</span>
+          </template>
+          <template #status-cell="{ row }">
+            <AppStatus
+              :color="BAYAR_WARNA[String(row.original.tagihan?.status ?? 'Waiting')] ?? 'neutral'"
+              :icon="BAYAR_IKON[String(row.original.tagihan?.status ?? 'Waiting')]"
+              size="sm"
+            >
+              {{ row.original.tagihan?.status ?? 'Belum ditagih' }}
+            </AppStatus>
+          </template>
+          <template #aksi-cell="{ row }">
+            <span class="flex flex-wrap gap-1">
+              <UButton
+                v-if="bolehUbah && !row.original.tagihan"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                @click="generate(row.original)"
+              >
+                Generate payment
+              </UButton>
+              <UButton
+                v-if="bolehUbah && row.original.tagihan && String(row.original.tagihan.status) === 'Waiting'"
+                color="primary"
+                variant="outline"
+                size="sm"
+                @click="bukaBayar(row.original)"
+              >
+                Bayar
+              </UButton>
+              <UButton
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                @click="detailId = row.original.talent_id"
+              >
+                Detail
+              </UButton>
+              <UButton
+                v-if="bolehUbah && row.original.tagihan && String(row.original.tagihan.status) !== 'Paid'"
+                color="success"
+                variant="ghost"
+                size="sm"
+                @click="setLunas(row.original)"
+              >
+                Set paid
+              </UButton>
+              <UButton
+                v-if="bolehUbah && row.original.tagihan && String(row.original.tagihan.status) !== 'Paid'"
+                color="error"
+                variant="ghost"
+                size="sm"
+                @click="tolak(row.original)"
+              >
+                Reject
+              </UButton>
+            </span>
+          </template>
+        </UTable>
+        <ul class="divide-y divide-default lg:hidden">
+          <li
+            v-for="b in rekap"
+            :key="b.talent_id"
+            class="px-4 py-3"
           >
-            {{ row.original.tagihan?.status ?? 'Belum ditagih' }}
-          </AppStatus>
-        </template>
-        <template #aksi-cell="{ row }">
-          <span class="flex flex-wrap gap-1">
-            <UButton
-              v-if="bolehUbah && !row.original.tagihan"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              @click="generate(row.original)"
-            >
-              Generate payment
-            </UButton>
-            <UButton
-              v-if="bolehUbah && row.original.tagihan && String(row.original.tagihan.status) === 'Waiting'"
-              color="primary"
-              variant="outline"
-              size="sm"
-              @click="bukaBayar(row.original)"
-            >
-              Bayar
-            </UButton>
-            <UButton
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              @click="detailId = row.original.talent_id"
-            >
-              Detail
-            </UButton>
-            <UButton
-              v-if="bolehUbah && row.original.tagihan && String(row.original.tagihan.status) !== 'Paid'"
-              color="success"
-              variant="ghost"
-              size="sm"
-              @click="setLunas(row.original)"
-            >
-              Set paid
-            </UButton>
-            <UButton
-              v-if="bolehUbah && row.original.tagihan && String(row.original.tagihan.status) !== 'Paid'"
-              color="error"
-              variant="ghost"
-              size="sm"
-              @click="tolak(row.original)"
-            >
-              Reject
-            </UButton>
-          </span>
-        </template>
-      </UTable>
-      <ul class="divide-y divide-default lg:hidden">
-        <li
-          v-for="b in rekap"
-          :key="b.talent_id"
-          class="px-4 py-3"
+            <b class="block text-sm text-highlighted">{{ namaTalent(b.talent_id) }}</b>
+            <span class="mt-0.5 block text-xs text-muted num">{{ b.hari }} hari · {{ rupiah(b.fee) }} · {{ b.tagihan?.status ?? 'Belum ditagih' }}</span>
+            <span class="mt-1.5 flex flex-wrap gap-1.5">
+              <UButton
+                v-if="bolehUbah && !b.tagihan"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                @click="generate(b)"
+              >
+                Generate payment
+              </UButton>
+              <UButton
+                v-if="bolehUbah && b.tagihan && String(b.tagihan.status) === 'Waiting'"
+                color="primary"
+                variant="outline"
+                size="sm"
+                @click="bukaBayar(b)"
+              >
+                Bayar
+              </UButton>
+              <UButton
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                @click="detailId = b.talent_id"
+              >
+                Detail
+              </UButton>
+              <UButton
+                v-if="bolehUbah && b.tagihan && String(b.tagihan.status) !== 'Paid'"
+                color="success"
+                variant="ghost"
+                size="sm"
+                @click="setLunas(b)"
+              >
+                Set paid
+              </UButton>
+              <UButton
+                v-if="bolehUbah && b.tagihan && String(b.tagihan.status) !== 'Paid'"
+                color="error"
+                variant="ghost"
+                size="sm"
+                @click="tolak(b)"
+              >
+                Reject
+              </UButton>
+            </span>
+          </li>
+        </ul>
+        <p
+          v-if="!rekap.length && status !== 'pending'"
+          class="px-4 py-6 text-center text-sm text-dimmed"
         >
-          <b class="block text-sm text-highlighted">{{ namaTalent(b.talent_id) }}</b>
-          <span class="mt-0.5 block text-xs text-muted num">{{ b.hari }} hari · {{ rupiah(b.fee) }} · {{ b.tagihan?.status ?? 'Belum ditagih' }}</span>
-          <span class="mt-1.5 flex flex-wrap gap-1.5">
-            <UButton
-              v-if="bolehUbah && !b.tagihan"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              @click="generate(b)"
-            >
-              Generate payment
-            </UButton>
-            <UButton
-              v-if="bolehUbah && b.tagihan && String(b.tagihan.status) === 'Waiting'"
-              color="primary"
-              variant="outline"
-              size="sm"
-              @click="bukaBayar(b)"
-            >
-              Bayar
-            </UButton>
-            <UButton
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              @click="detailId = b.talent_id"
-            >
-              Detail
-            </UButton>
-            <UButton
-              v-if="bolehUbah && b.tagihan && String(b.tagihan.status) !== 'Paid'"
-              color="success"
-              variant="ghost"
-              size="sm"
-              @click="setLunas(b)"
-            >
-              Set paid
-            </UButton>
-            <UButton
-              v-if="bolehUbah && b.tagihan && String(b.tagihan.status) !== 'Paid'"
-              color="error"
-              variant="ghost"
-              size="sm"
-              @click="tolak(b)"
-            >
-              Reject
-            </UButton>
-          </span>
-        </li>
-      </ul>
-      <p
-        v-if="!rekap.length && status !== 'pending'"
-        class="px-4 py-6 text-center text-sm text-dimmed"
-      >
-        Belum ada show done di periode ini.
+          Belum ada show done di periode ini.
+        </p>
+      </AppPanel>
+
+      <p class="mt-3 text-xs text-muted">
+        Bukti transfer bisa dipindai mesin dari form Bayar (hasilnya saran yang perlu dicek ulang) — keputusan lunas/tolak tetap manual dan tercatat.
       </p>
-    </AppPanel>
 
-    <p class="mt-3 text-xs text-muted">
-      Bukti transfer bisa dipindai mesin dari form Bayar (hasilnya saran yang perlu dicek ulang) — keputusan lunas/tolak tetap manual dan tercatat.
-    </p>
-
-    <ResponsiveSheet
-      v-model:open="sheetGen"
-      title="Buat tagihan pembayaran"
-    >
-      <div
-        v-if="genBuka"
-        class="space-y-2 text-sm"
+      <ResponsiveSheet
+        v-model:open="sheetGen"
+        title="Buat tagihan pembayaran"
       >
-        <div class="flex justify-between gap-3 border-b border-default py-1.5">
-          <span class="text-muted">Talent</span>
-          <b class="text-highlighted">{{ namaTalent(genBuka.talent_id) }}</b>
-        </div>
-        <div class="flex justify-between gap-3 border-b border-default py-1.5">
-          <span class="text-muted">Periode</span>
-          <span>{{ periode.label }}</span>
-        </div>
-        <div class="flex justify-between gap-3 border-b border-default py-1.5">
-          <span class="text-muted">Hari tampil</span>
-          <b class="num">{{ genBuka.hari }} hari</b>
-        </div>
-        <div class="flex justify-between gap-3 border-b border-default py-1.5">
-          <span class="text-muted">Total</span>
-          <b class="text-highlighted num">{{ rupiah(genBuka.fee) }}</b>
-        </div>
-        <div class="flex justify-between gap-3 border-b border-default py-1.5">
-          <span class="text-muted">Rekening</span>
-          <span>{{ genRekening }}</span>
-        </div>
-        <p
-          v-if="genTanpaFee"
-          class="rounded-lg border border-warning/40 bg-warning/10 p-2.5 text-warning"
+        <div
+          v-if="genBuka"
+          class="space-y-2 text-sm"
         >
-          {{ genTanpaFee }} show belum ada fee-nya — isi dulu di Talent Schedule, kalau tidak tagihan ini kurang bayar.
-        </p>
-        <p
-          v-if="genRekening === '—'"
-          class="rounded-lg border border-warning/40 bg-warning/10 p-2.5 text-warning"
-        >
-          Rekening talent kosong — fee tidak bisa ditransfer. Isi di Talent Management.
-        </p>
-      </div>
-      <template #footer>
-        <UButton
-          label="Nanti"
-          color="neutral"
-          variant="ghost"
-          size="xl"
-          @click="sheetGen = false"
-        />
-        <UButton
-          label="Proses pembayaran"
-          size="xl"
-          @click="prosesGenerate"
-        />
-      </template>
-    </ResponsiveSheet>
+          <div class="flex justify-between gap-3 border-b border-default py-1.5">
+            <span class="text-muted">Talent</span>
+            <b class="text-highlighted">{{ namaTalent(genBuka.talent_id) }}</b>
+          </div>
+          <div class="flex justify-between gap-3 border-b border-default py-1.5">
+            <span class="text-muted">Periode</span>
+            <span>{{ periode.label }}</span>
+          </div>
+          <div class="flex justify-between gap-3 border-b border-default py-1.5">
+            <span class="text-muted">Hari tampil</span>
+            <b class="num">{{ genBuka.hari }} hari</b>
+          </div>
+          <div class="flex justify-between gap-3 border-b border-default py-1.5">
+            <span class="text-muted">Total</span>
+            <b class="text-highlighted num">{{ rupiah(genBuka.fee) }}</b>
+          </div>
+          <div class="flex justify-between gap-3 border-b border-default py-1.5">
+            <span class="text-muted">Rekening</span>
+            <span>{{ genRekening }}</span>
+          </div>
+          <p
+            v-if="genTanpaFee"
+            class="rounded-lg border border-warning/40 bg-warning/10 p-2.5 text-warning"
+          >
+            {{ genTanpaFee }} show belum ada fee-nya — isi dulu di Talent Schedule, kalau tidak tagihan ini kurang bayar.
+          </p>
+          <p
+            v-if="genRekening === '—'"
+            class="rounded-lg border border-warning/40 bg-warning/10 p-2.5 text-warning"
+          >
+            Rekening talent kosong — fee tidak bisa ditransfer. Isi di Talent Management.
+          </p>
+        </div>
+        <template #footer>
+          <UButton
+            label="Nanti"
+            color="neutral"
+            variant="ghost"
+            size="xl"
+            @click="sheetGen = false"
+          />
+          <UButton
+            label="Proses pembayaran"
+            size="xl"
+            @click="prosesGenerate"
+          />
+        </template>
+      </ResponsiveSheet>
 
-    <ResponsiveSheet
-      v-model:open="sheetBayar"
-      title="Proses pembayaran"
-    >
-      <div
-        v-if="bayarUntuk"
-        class="grid gap-3"
+      <ResponsiveSheet
+        v-model:open="sheetBayar"
+        title="Proses pembayaran"
       >
-        <p class="text-sm text-muted">
-          {{ namaTalent(bayarUntuk.talent_id) }} · {{ periode.label }} · <b class="text-highlighted num">{{ rupiah(bayarUntuk.fee) }}</b>
-        </p>
-        <UFormField label="Bank tujuan">
-          <UInput
-            v-model="bayar.bank"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Nominal pada bukti">
-          <UInput
-            v-model.number="bayar.nominal"
-            type="number"
-            min="0"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="PIC finance">
-          <UInput
-            v-model="bayar.pic"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Bukti transfer">
-          <input
-            ref="inputBukti"
-            type="file"
-            accept=".jpg,.jpeg,.png,.webp,.gif,.pdf"
-            class="text-sm"
-            @change="berkasBukti = ($event.target as HTMLInputElement).files?.[0] ?? null"
+        <div
+          v-if="bayarUntuk"
+          class="grid gap-3"
+        >
+          <p class="text-sm text-muted">
+            {{ namaTalent(bayarUntuk.talent_id) }} · {{ periode.label }} · <b class="text-highlighted num">{{ rupiah(bayarUntuk.fee) }}</b>
+          </p>
+          <UFormField label="Bank tujuan">
+            <UInput
+              v-model="bayar.bank"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Nominal pada bukti">
+            <UInput
+              v-model.number="bayar.nominal"
+              type="number"
+              min="0"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="PIC finance">
+            <UInput
+              v-model="bayar.pic"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField label="Bukti transfer">
+            <input
+              ref="inputBukti"
+              type="file"
+              accept=".jpg,.jpeg,.png,.webp,.gif,.pdf"
+              class="text-sm"
+              @change="berkasBukti = ($event.target as HTMLInputElement).files?.[0] ?? null"
+            >
+            <img
+              v-if="urlPilih"
+              :src="urlPilih"
+              alt="Pratinjau bukti"
+              class="mt-2 max-h-48 rounded-lg border border-default"
+            >
+            <div
+              v-if="berkasBukti"
+              class="mt-2"
+            >
+              <UButton
+                label="Scan bukti"
+                icon="i-lucide-scan-line"
+                color="neutral"
+                variant="soft"
+                size="sm"
+                :loading="memindai"
+                :disabled="memindai"
+                @click="pindaiBukti"
+              />
+            </div>
+            <div
+              v-if="saran"
+              class="mt-2 space-y-1.5 rounded-lg border border-default bg-default p-2.5 text-xs"
+            >
+              <p class="font-semibold text-highlighted">
+                Hasil baca mesin — cek ulang, bukan isian:
+              </p>
+              <p
+                v-if="saran.amount > 0"
+                class="flex flex-wrap items-center gap-2"
+              >
+                <span>Nominal: <b class="num">{{ rupiah(saran.amount) }}</b></span>
+                <UButton
+                  label="Pakai"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  @click="bayar.nominal = saran!.amount"
+                />
+                <span
+                  v-if="Number(bayar.nominal) !== saran.amount"
+                  class="font-semibold text-error"
+                >selisih dengan isian {{ rupiah(Number(bayar.nominal) || 0) }}</span>
+                <span
+                  v-else
+                  class="font-semibold text-success"
+                >cocok dengan isian</span>
+              </p>
+              <p
+                v-if="saran.bank"
+                class="flex flex-wrap items-center gap-2"
+              >
+                <span>Bank: <b>{{ saran.bank }}</b></span>
+                <UButton
+                  label="Pakai"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  @click="bayar.bank = saran!.bank"
+                />
+              </p>
+              <p v-if="saran.name">
+                Nama pengirim: <b>{{ saran.name }}</b>
+              </p>
+              <p
+                v-if="!saran.amount && !saran.bank && !saran.name"
+                class="text-muted"
+              >
+                Tidak ada yang terbaca.
+              </p>
+            </div>
+            <a
+              v-if="bayarUntuk?.tagihan?.proof_key"
+              :href="fileEventUrl(String(bayarUntuk.tagihan.proof_key))"
+              target="_blank"
+              rel="noopener"
+              class="mt-2 inline-block text-xs font-semibold text-primary-700 underline"
+            >Lihat bukti tersimpan</a>
+          </UFormField>
+        </div>
+        <template #footer>
+          <UButton
+            color="primary"
+            :loading="membayar"
+            @click="simpanBayar()"
           >
-          <img
-            v-if="urlPilih"
-            :src="urlPilih"
-            alt="Pratinjau bukti"
-            class="mt-2 max-h-48 rounded-lg border border-default"
+            Simpan pembayaran
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="outline"
+            @click="sheetBayar = false"
           >
+            Batal
+          </UButton>
+        </template>
+      </ResponsiveSheet>
+
+      <ResponsiveSheet
+        v-model:open="sheetDetail"
+        :title="detail ? `Riwayat ${namaTalent(detail.talent_id)}` : 'Riwayat'"
+      >
+        <div
+          v-if="detail"
+          class="grid grid-cols-2 gap-2 text-sm"
+        >
+          <div class="rounded-field border border-default p-2.5">
+            <p class="text-xs text-muted">
+              Hari tampil
+            </p>
+            <b class="num">{{ detail.hari }}</b>
+          </div>
+          <div class="rounded-field border border-default p-2.5">
+            <p class="text-xs text-muted">
+              Total (rata-rata/hari)
+            </p>
+            <b class="num">{{ rupiah(detail.fee) }}</b>
+            <p class="text-xs text-muted num">
+              {{ detail.hari ? rupiah(Math.round(detail.fee / detail.hari)) : rupiah(0) }}/hari
+            </p>
+          </div>
+          <div class="rounded-field border border-default p-2.5">
+            <p class="text-xs text-muted">
+              Belum (tidak done)
+            </p>
+            <b class="num">{{ rupiah(feeBelum) }}</b>
+          </div>
+          <div class="rounded-field border border-default p-2.5">
+            <p class="text-xs text-muted">
+              Status tagihan
+            </p>
+            <b>{{ detail.tagihan?.status ?? 'Belum ditagih' }}</b>
+          </div>
+        </div>
+        <div
+          v-if="detail?.tagihan"
+          class="mt-3 space-y-1.5 rounded-field border border-default p-3 text-sm"
+        >
+          <div class="flex justify-between gap-3">
+            <span class="text-muted">Nominal tagihan</span>
+            <b class="num">{{ rupiah(Number(detail.tagihan.amount) || 0) }}</b>
+          </div>
           <div
-            v-if="berkasBukti"
-            class="mt-2"
+            v-if="detail.tagihan.bank_tujuan"
+            class="flex justify-between gap-3"
           >
+            <span class="text-muted">Bank tujuan</span>
+            <span>{{ detail.tagihan.bank_tujuan }}</span>
+          </div>
+          <div
+            v-if="detail.tagihan.pic_finance"
+            class="flex justify-between gap-3"
+          >
+            <span class="text-muted">PIC finance</span>
+            <span>{{ detail.tagihan.pic_finance }}</span>
+          </div>
+          <div class="flex flex-wrap gap-2 pt-1">
+            <a
+              v-if="detail.tagihan.proof_key"
+              :href="fileEventUrl(String(detail.tagihan.proof_key))"
+              target="_blank"
+              rel="noopener"
+              class="text-xs font-semibold text-primary-700 underline"
+            >Lihat bukti transfer</a>
             <UButton
-              label="Scan bukti"
-              icon="i-lucide-scan-line"
-              color="neutral"
-              variant="soft"
+              v-if="bolehUbah && String(detail.tagihan.status) === 'Waiting'"
+              label="Bayar / proses"
+              color="primary"
+              variant="outline"
               size="sm"
-              :loading="memindai"
-              :disabled="memindai"
-              @click="pindaiBukti"
+              @click="sheetDetail = false; bukaBayar(detail)"
             />
           </div>
-          <div
-            v-if="saran"
-            class="mt-2 space-y-1.5 rounded-lg border border-default bg-default p-2.5 text-xs"
+        </div>
+        <ul
+          v-if="detail"
+          class="mt-3 divide-y divide-default"
+        >
+          <li
+            v-for="j in jadwalTalent"
+            :key="j.id"
+            class="flex items-center justify-between gap-2 py-2 text-sm"
           >
-            <p class="font-semibold text-highlighted">
-              Hasil baca mesin — cek ulang, bukan isian:
-            </p>
-            <p
-              v-if="saran.amount > 0"
-              class="flex flex-wrap items-center gap-2"
-            >
-              <span>Nominal: <b class="num">{{ rupiah(saran.amount) }}</b></span>
-              <UButton
-                label="Pakai"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                @click="bayar.nominal = saran!.amount"
-              />
-              <span
-                v-if="Number(bayar.nominal) !== saran.amount"
-                class="font-semibold text-error"
-              >selisih dengan isian {{ rupiah(Number(bayar.nominal) || 0) }}</span>
-              <span
-                v-else
-                class="font-semibold text-success"
-              >cocok dengan isian</span>
-            </p>
-            <p
-              v-if="saran.bank"
-              class="flex flex-wrap items-center gap-2"
-            >
-              <span>Bank: <b>{{ saran.bank }}</b></span>
-              <UButton
-                label="Pakai"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                @click="bayar.bank = saran!.bank"
-              />
-            </p>
-            <p v-if="saran.name">
-              Nama pengirim: <b>{{ saran.name }}</b>
-            </p>
-            <p
-              v-if="!saran.amount && !saran.bank && !saran.name"
-              class="text-muted"
-            >
-              Tidak ada yang terbaca.
-            </p>
-          </div>
-          <a
-            v-if="bayarUntuk?.tagihan?.proof_key"
-            :href="fileEventUrl(String(bayarUntuk.tagihan.proof_key))"
-            target="_blank"
-            rel="noopener"
-            class="mt-2 inline-block text-xs font-semibold text-primary-700 underline"
-          >Lihat bukti tersimpan</a>
-        </UFormField>
-      </div>
-      <template #footer>
-        <UButton
-          color="primary"
-          :loading="membayar"
-          @click="simpanBayar()"
-        >
-          Simpan pembayaran
-        </UButton>
-        <UButton
-          color="neutral"
-          variant="outline"
-          @click="sheetBayar = false"
-        >
-          Batal
-        </UButton>
-      </template>
-    </ResponsiveSheet>
-
-    <ResponsiveSheet
-      v-model:open="sheetDetail"
-      :title="detail ? `Riwayat ${namaTalent(detail.talent_id)}` : 'Riwayat'"
-    >
-      <div
-        v-if="detail"
-        class="grid grid-cols-2 gap-2 text-sm"
-      >
-        <div class="rounded-field border border-default p-2.5">
-          <p class="text-xs text-muted">
-            Hari tampil
-          </p>
-          <b class="num">{{ detail.hari }}</b>
-        </div>
-        <div class="rounded-field border border-default p-2.5">
-          <p class="text-xs text-muted">
-            Total (rata-rata/hari)
-          </p>
-          <b class="num">{{ rupiah(detail.fee) }}</b>
-          <p class="text-xs text-muted num">
-            {{ detail.hari ? rupiah(Math.round(detail.fee / detail.hari)) : rupiah(0) }}/hari
-          </p>
-        </div>
-        <div class="rounded-field border border-default p-2.5">
-          <p class="text-xs text-muted">
-            Belum (tidak done)
-          </p>
-          <b class="num">{{ rupiah(feeBelum) }}</b>
-        </div>
-        <div class="rounded-field border border-default p-2.5">
-          <p class="text-xs text-muted">
-            Status tagihan
-          </p>
-          <b>{{ detail.tagihan?.status ?? 'Belum ditagih' }}</b>
-        </div>
-      </div>
-      <div
-        v-if="detail?.tagihan"
-        class="mt-3 space-y-1.5 rounded-field border border-default p-3 text-sm"
-      >
-        <div class="flex justify-between gap-3">
-          <span class="text-muted">Nominal tagihan</span>
-          <b class="num">{{ rupiah(Number(detail.tagihan.amount) || 0) }}</b>
-        </div>
+            <span>
+              <b class="text-highlighted">{{ tglPendek(j.date) }}</b>
+              <span class="text-muted"> {{ namaHari(j.date) }} · {{ j.start_time }} · {{ j.type }}</span>
+            </span>
+            <span class="flex items-center gap-2">
+              <AppStatus
+                :color="j.status === 'Done' ? 'success' : j.status === 'Cancelled' ? 'neutral' : 'warning'"
+                size="sm"
+              >
+                {{ j.status }}
+              </AppStatus>
+              <span class="num">{{ rupiah(Number(j.fee) || 0) }}</span>
+            </span>
+          </li>
+        </ul>
         <div
-          v-if="detail.tagihan.bank_tujuan"
-          class="flex justify-between gap-3"
+          v-if="detail"
+          class="mt-2 flex flex-wrap items-center justify-between gap-2"
         >
-          <span class="text-muted">Bank tujuan</span>
-          <span>{{ detail.tagihan.bank_tujuan }}</span>
-        </div>
-        <div
-          v-if="detail.tagihan.pic_finance"
-          class="flex justify-between gap-3"
-        >
-          <span class="text-muted">PIC finance</span>
-          <span>{{ detail.tagihan.pic_finance }}</span>
-        </div>
-        <div class="flex flex-wrap gap-2 pt-1">
-          <a
-            v-if="detail.tagihan.proof_key"
-            :href="fileEventUrl(String(detail.tagihan.proof_key))"
-            target="_blank"
-            rel="noopener"
-            class="text-xs font-semibold text-primary-700 underline"
-          >Lihat bukti transfer</a>
           <UButton
-            v-if="bolehUbah && String(detail.tagihan.status) === 'Waiting'"
-            label="Bayar / proses"
-            color="primary"
-            variant="outline"
+            label="Buka schedule"
+            icon="i-lucide-calendar-days"
+            color="neutral"
+            variant="ghost"
             size="sm"
-            @click="sheetDetail = false; bukaBayar(detail)"
+            to="/event/schedule"
           />
+          <p class="text-sm font-bold text-highlighted num">
+            Total {{ rupiah(detail.fee) }}
+          </p>
         </div>
-      </div>
-      <ul
-        v-if="detail"
-        class="mt-3 divide-y divide-default"
-      >
-        <li
-          v-for="j in jadwalTalent"
-          :key="j.id"
-          class="flex items-center justify-between gap-2 py-2 text-sm"
-        >
-          <span>
-            <b class="text-highlighted">{{ tglPendek(j.date) }}</b>
-            <span class="text-muted"> {{ namaHari(j.date) }} · {{ j.start_time }} · {{ j.type }}</span>
-          </span>
-          <span class="flex items-center gap-2">
-            <AppStatus
-              :color="j.status === 'Done' ? 'success' : j.status === 'Cancelled' ? 'neutral' : 'warning'"
-              size="sm"
-            >
-              {{ j.status }}
-            </AppStatus>
-            <span class="num">{{ rupiah(Number(j.fee) || 0) }}</span>
-          </span>
-        </li>
-      </ul>
-      <div
-        v-if="detail"
-        class="mt-2 flex flex-wrap items-center justify-between gap-2"
-      >
-        <UButton
-          label="Buka schedule"
-          icon="i-lucide-calendar-days"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          to="/event/schedule"
-        />
-        <p class="text-sm font-bold text-highlighted num">
-          Total {{ rupiah(detail.fee) }}
-        </p>
-      </div>
-    </ResponsiveSheet>
-  </AppPage>
+      </ResponsiveSheet>
+    </AppPage>
   </EventGerbang>
 </template>
