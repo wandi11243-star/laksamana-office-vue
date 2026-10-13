@@ -66,6 +66,10 @@ export function fTglP(iso?: string): string {
 export const tglPendek = (tgl: string) =>
   new Date(`${tgl}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })
 
+/** "2026-09-27" -> "Minggu, 27 Sep 2026" (the old screens' `dateLabel`). */
+export const tglLabel = (tgl: string) =>
+  new Date(`${tgl}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' })
+
 /** "2026-09-27" -> "Sabtu, 27 September 2026". */
 export const tglPanjang = (tgl: string) =>
   new Date(`${tgl}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })

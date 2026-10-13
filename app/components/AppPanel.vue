@@ -17,7 +17,8 @@ defineProps<{
   <section class="mb-5 overflow-hidden rounded-panel border border-default bg-default shadow-panel">
     <header
       v-if="title || $slots.head || $slots.actions"
-      class="flex flex-wrap items-center justify-between gap-3 border-b border-default px-4 py-3.5 lg:px-5"
+      class="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 lg:px-5"
+      :class="$slots.default ? 'border-b border-default' : ''"
     >
       <slot name="head">
         <div class="min-w-0">
@@ -34,10 +35,12 @@ defineProps<{
             >{{ count }}</span>
           </h2>
           <p
-            v-if="description"
+            v-if="description || $slots.description"
             class="mt-0.5 text-sm text-muted"
           >
-            {{ description }}
+            <slot name="description">
+              {{ description }}
+            </slot>
           </p>
         </div>
       </slot>
@@ -48,7 +51,10 @@ defineProps<{
         <slot name="actions" />
       </div>
     </header>
-    <div :class="flush ? '' : 'p-4 lg:p-5'">
+    <div
+      v-if="$slots.default"
+      :class="flush ? '' : 'p-4 lg:p-5'"
+    >
       <slot />
     </div>
   </section>

@@ -1,5 +1,10 @@
 <!--
-  Finance › Omset › Input Omset Harian (old `viewInput`, deploy/finance/omset/index.html:1378-1537).
+  Finance › Omset › Input Omset Harian (old `viewInput`, deploy/finance/omset/index.html:1317-1537).
+
+  Layout as the old screen: left — the "Informasi & Pendapatan" form (Tanggal +
+  Hari, then Pendapatan / Jumlah Item Terjual / Data Operasional with the old
+  labels) and "Pencocokan dengan Report Daily" under it; right — Total Omset,
+  Avg Spending + Service/Tax, and "Pencapaian Bulan Berjalan".
 
   The day is born here; Breakdown allocates it. Validation is the old
   `saveDaily` list (negatives, empty revenue, discount over gross, traffic ≥
@@ -14,11 +19,12 @@
 -->
 <script setup lang="ts">
 import type { BarisHarian } from '~/utils/kompas'
-import { avgSpendOf, grossOf, itemsOf, kNum, monthKeyOf, netOf, tagihanOf, taxSvcOf, validasiHarian } from '~/utils/kompas'
+import { avgSpendOf, grossOf, kNum, monthKeyOf, netOf, tagihanOf, taxSvcOf, validasiHarian } from '~/utils/kompas'
 import { PAYS, SELISIH_TOLERANSI, bonRingkasHari, fmtRp, fmtSel, jejakList, repPay, tambahJejak } from '~/utils/cashier'
 import { getDay, getKompasState, getPiutang, getReport, putDay } from '~/composables/useCashier'
 import { tanganiKonflik } from '~/utils/versi'
 import { hariIni, tglPanjang } from '~/utils/format'
+import RupiahInput from '~/widgets/cashier/RupiahInput.vue'
 
 definePageMeta({ access: ['kompas'] })
 
@@ -89,6 +95,7 @@ const bHari = computed(() => lainHari.value.length + 1)
 const bAvg = computed(() => (bHari.value ? bReal.value / bHari.value : 0))
 const jejak = computed(() => jejakList(rec.value))
 
+const labelBulan = computed(() => new Date(`${tanggal.value}T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }))
 const hariNama = computed(() => {
   const d = new Date(`${tanggal.value}T00:00:00`)
   return Number.isNaN(+d) ? '' : d.toLocaleDateString('id-ID', { weekday: 'long' })
@@ -159,29 +166,13 @@ async function jalanHapus() {
     title="Input omset harian"
     description="Catat pendapatan, diskon, tax & service, dan trafik harian."
   >
-    <template #actions>
-      <UInput
-        v-model="tanggal"
-        type="date"
-        size="sm"
-        class="w-40"
-      />
-      <UButton
-        label="Ke breakdown"
-        icon="i-lucide-arrow-right"
-        color="neutral"
-        variant="outline"
-        size="sm"
-        :to="`/finance/omset/breakdown?tgl=${tanggal}`"
-      />
-    </template>
-
     <UAlert
       v-if="error"
       color="error"
       variant="subtle"
       icon="i-lucide-triangle-alert"
       :title="`Gagal memuat: ${apiErrorMessage(error)}`"
+      class="mb-3"
     />
     <UAlert
       v-if="ditolak && kotor"
@@ -193,71 +184,89 @@ async function jalanHapus() {
       class="mb-3"
     />
 
-    <div class="grid gap-5 lg:grid-cols-3 lg:items-start">
-      <div class="space-y-5 lg:col-span-2">
+    <div class="grid gap-5 lg:grid-cols-2 lg:items-start">
+      <!-- left: the form, then the Report Daily match -->
+      <div class="space-y-5">
         <AppPanel
-          title="Informasi & pendapatan"
-          :description="`${tglPanjang(tanggal)}${hariNama ? ` · ${hariNama}` : ''}`"
+          title="Informasi & Pendapatan"
+          description="Tanggal menentukan periode. Hari terisi otomatis."
         >
           <div class="grid gap-4 sm:grid-cols-2">
-            <UFormField label="Food sales">
+            <UFormField label="Tanggal">
               <UInput
-                :model-value="String(form.food)"
-                inputmode="numeric"
+                v-model="tanggal"
+                type="date"
                 class="w-full"
-                @update:model-value="(v: string | number) => ubah('food', v)"
               />
             </UFormField>
-            <UFormField label="Beverage sales">
+            <UFormField label="Hari">
               <UInput
-                :model-value="String(form.bev)"
-                inputmode="numeric"
+                :model-value="hariNama"
+                readonly
                 class="w-full"
-                @update:model-value="(v: string | number) => ubah('bev', v)"
-              />
-            </UFormField>
-            <UFormField label="Pendapatan lainnya">
-              <UInput
-                :model-value="String(form.lainnya)"
-                inputmode="numeric"
-                class="w-full"
-                @update:model-value="(v: string | number) => ubah('lainnya', v)"
-              />
-            </UFormField>
-            <UFormField label="Discount diberikan (−)">
-              <UInput
-                :model-value="String(form.discount)"
-                inputmode="numeric"
-                class="w-full"
-                @update:model-value="(v: string | number) => ubah('discount', v)"
-              />
-            </UFormField>
-            <UFormField label="Service charge">
-              <UInput
-                :model-value="String(form.service_charge)"
-                inputmode="numeric"
-                class="w-full"
-                @update:model-value="(v: string | number) => ubah('service_charge', v)"
-              />
-            </UFormField>
-            <UFormField label="Tax">
-              <UInput
-                :model-value="String(form.tax)"
-                inputmode="numeric"
-                class="w-full"
-                @update:model-value="(v: string | number) => ubah('tax', v)"
               />
             </UFormField>
           </div>
-          <p class="mt-3 text-sm text-muted">
-            Service charge dan tax dicatat terpisah — keduanya tidak menambah/mengurangi omset.
-            Yang ditagihkan ke tamu: <b class="text-highlighted num">{{ fmtRp(tagihan) }}</b>.
-          </p>
-        </AppPanel>
 
-        <AppPanel title="Qty & data operasional">
-          <div class="grid gap-4 sm:grid-cols-3">
-            <UFormField label="Qty food">
+          <AppSectionTitle
+            title="Pendapatan"
+            class="mt-5"
+          />
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField label="Food Sales">
+              <RupiahInput
+                :model-value="form.food"
+                @update:model-value="(v: number) => ubah('food', v)"
+              />
+            </UFormField>
+            <UFormField label="Beverage Sales">
+              <RupiahInput
+                :model-value="form.bev"
+                @update:model-value="(v: number) => ubah('bev', v)"
+              />
+            </UFormField>
+            <UFormField label="Pendapatan Lainnya">
+              <RupiahInput
+                :model-value="form.lainnya"
+                @update:model-value="(v: number) => ubah('lainnya', v)"
+              />
+            </UFormField>
+            <UFormField label="Discount diberikan (−)">
+              <RupiahInput
+                :model-value="form.discount"
+                @update:model-value="(v: number) => ubah('discount', v)"
+              />
+              <template #help>
+                Mengurangi total omset. Kasir yang memberikannya dirinci di <b>Breakdown</b>.
+              </template>
+            </UFormField>
+          </div>
+
+          <p class="mt-4 rounded-field border border-dashed border-primary-300 bg-primary-50 px-3.5 py-3 text-sm text-primary-800">
+            <b>Service Charge</b> dan <b>Tax</b> dicatat terpisah, tidak menambah/mengurangi omset. Keduanya tetap ditagihkan ke tamu,
+            jadi ikut dijumlah saat dibandingkan dengan setoran kasir di <b>Report Daily</b>.
+          </p>
+          <div class="mt-4 grid gap-4 sm:grid-cols-2">
+            <UFormField label="Total Service Charge">
+              <RupiahInput
+                :model-value="form.service_charge"
+                @update:model-value="(v: number) => ubah('service_charge', v)"
+              />
+            </UFormField>
+            <UFormField label="Total Tax">
+              <RupiahInput
+                :model-value="form.tax"
+                @update:model-value="(v: number) => ubah('tax', v)"
+              />
+            </UFormField>
+          </div>
+
+          <AppSectionTitle
+            title="Jumlah Item Terjual (Qty)"
+            class="mt-5"
+          />
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField label="Food Item Quantity">
               <UInput
                 :model-value="String(form.qty_food)"
                 inputmode="numeric"
@@ -265,7 +274,7 @@ async function jalanHapus() {
                 @update:model-value="(v: string | number) => ubah('qty_food', v)"
               />
             </UFormField>
-            <UFormField label="Qty beverage">
+            <UFormField label="Beverage Item Quantity">
               <UInput
                 :model-value="String(form.qty_bev)"
                 inputmode="numeric"
@@ -273,7 +282,10 @@ async function jalanHapus() {
                 @update:model-value="(v: string | number) => ubah('qty_bev', v)"
               />
             </UFormField>
-            <UFormField label="Qty lainnya">
+            <UFormField
+              label="Others Quantity"
+              help="Item di luar food & beverage"
+            >
               <UInput
                 :model-value="String(form.qty_others)"
                 inputmode="numeric"
@@ -281,7 +293,14 @@ async function jalanHapus() {
                 @update:model-value="(v: string | number) => ubah('qty_others', v)"
               />
             </UFormField>
-            <UFormField label="Traffic (tamu)">
+          </div>
+
+          <AppSectionTitle
+            title="Data Operasional"
+            class="mt-5"
+          />
+          <div class="grid gap-4 sm:grid-cols-2">
+            <UFormField label="Traffic (customer datang)">
               <UInput
                 :model-value="String(form.traffic)"
                 inputmode="numeric"
@@ -289,7 +308,7 @@ async function jalanHapus() {
                 @update:model-value="(v: string | number) => ubah('traffic', v)"
               />
             </UFormField>
-            <UFormField label="Total bill">
+            <UFormField label="Total Bill (jumlah transaksi)">
               <UInput
                 :model-value="String(form.bill)"
                 inputmode="numeric"
@@ -297,29 +316,38 @@ async function jalanHapus() {
                 @update:model-value="(v: string | number) => ubah('bill', v)"
               />
             </UFormField>
-            <div class="self-end text-sm text-muted">
-              Item terjual: <b class="text-highlighted num">{{ itemsOf(form) }}</b>
-            </div>
           </div>
+
+          <p
+            v-if="jejak.length"
+            class="mt-4 text-xs text-muted"
+          >
+            Diinput: {{ jejak.map(j => `${j.by || '—'} ${new Date(j.at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`).join(' · ') }}
+          </p>
+          <p
+            v-else-if="rec"
+            class="mt-4 text-xs text-muted"
+          >
+            Hari ini diisi sebelum jejak penginput dicatat (7 September 2026), jadi namanya memang tidak ada. Menyimpan ulang akan mencatat
+            siapa yang MENGUBAHNYA — bukan siapa yang pertama mengisinya.
+          </p>
 
           <div class="mt-4 flex flex-wrap gap-2">
             <UButton
               :label="rec ? 'Update data' : 'Simpan omset'"
-              icon="i-lucide-save"
               :loading="menyimpan"
               @click="simpan"
             />
             <UButton
               v-if="rec"
               label="Hapus"
-              icon="i-lucide-trash-2"
               color="error"
-              variant="ghost"
+              variant="soft"
               @click="hapusOpen = true"
             />
             <UButton
               label="Ke breakdown"
-              icon="i-lucide-arrow-right"
+              trailing-icon="i-lucide-arrow-right"
               color="neutral"
               variant="outline"
               :to="`/finance/omset/breakdown?tgl=${tanggal}`"
@@ -331,62 +359,12 @@ async function jalanHapus() {
           >
             Memuat…
           </p>
-          <div
-            v-if="jejak.length"
-            class="mt-3 text-xs text-muted"
-          >
-            Jejak input: {{ jejak.map(j => `${j.by || '—'} ${new Date(j.at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`).join(' · ') }}
-          </div>
         </AppPanel>
-      </div>
-
-      <div class="space-y-5">
-        <AppStatGrid>
-          <AppStat
-            label="Total omset hari ini (net)"
-            icon="i-lucide-coins"
-            :value="fmtRp(net)"
-            :sub="`gross ${fmtRp(gross)} − diskon ${fmtRp(form.discount)}`"
-          />
-          <AppStat
-            label="Avg spending"
-            icon="i-lucide-calculator"
-            :value="fmtRp(avg)"
-            sub="omset ÷ bill"
-            tone="info"
-          />
-          <AppStat
-            label="Service + tax"
-            icon="i-lucide-receipt"
-            :value="fmtRp(taxSvc)"
-            :sub="`di luar omset · tagihan ${fmtRp(tagihan)}`"
-          />
-        </AppStatGrid>
 
         <AppPanel
-          title="Pencapaian bulan berjalan"
-          :description="`${bHari} hari (${lainHari.length} tersimpan + hari ini). Angkanya tagihan — sudah termasuk service & pajak, sama dasarnya dengan Dashboard Omset.`"
+          title="Pencocokan dengan Report Daily"
+          description="Setoran kasir adalah angka acuan. Omset yang diinput di sini harus menghasilkan tagihan yang sama."
         >
-          <div class="grid gap-4 sm:grid-cols-2">
-            <AppStat
-              label="Realisasi bulan ini"
-              icon="i-lucide-calendar-check"
-              :value="fmtRp(bReal)"
-              :sub="`tagihan · hari ini ${fmtRp(tagihan)}`"
-            />
-            <AppStat
-              label="Rata-rata per hari"
-              icon="i-lucide-trending-up"
-              :value="fmtRp(bAvg)"
-              sub="termasuk hari yang sedang diketik"
-            />
-          </div>
-        </AppPanel>
-
-        <AppPanel title="Pencocokan dengan Report Daily">
-          <p class="mb-3 text-sm text-muted">
-            Setoran kasir adalah angka acuan. Omset yang diinput di sini harus menghasilkan tagihan yang sama.
-          </p>
           <UAlert
             v-if="setoran === null"
             color="warning"
@@ -396,21 +374,24 @@ async function jalanHapus() {
             description="Omset tetap bisa disimpan, tapi belum ada yang mencocokkan. Minta kasir mengisi Report Daily dulu kalau memungkinkan."
           />
           <template v-else>
-            <div class="grid gap-4 sm:grid-cols-3">
+            <div class="grid gap-3 sm:grid-cols-3">
               <AppStat
                 label="Setoran kasir (Actual)"
+                class="[&_p.num]:text-lg!"
                 icon="i-lucide-wallet"
                 :value="fmtRp(setoran)"
                 :sub="rep?.by ? `${rep.by}` : '—'"
               />
               <AppStat
                 label="Tagihan dari input ini"
+                class="[&_p.num]:text-lg!"
                 icon="i-lucide-receipt"
                 :value="fmtRp(tagihan)"
                 :sub="`omset ${fmtRp(net)} + service ${fmtRp(form.service_charge)} + tax ${fmtRp(form.tax)}`"
               />
               <AppStat
                 label="Selisih"
+                class="[&_p.num]:text-lg!"
                 icon="i-lucide-scale"
                 :value="fmtSel(selisih)"
                 :sub="selisih === 0 ? 'cocok ✓' : lewat ? `lewat toleransi ${fmtRp(SELISIH_TOLERANSI)}` : `masih dalam toleransi ${fmtRp(SELISIH_TOLERANSI)} ✓`"
@@ -446,6 +427,57 @@ async function jalanHapus() {
               class="mt-2"
             />
           </template>
+        </AppPanel>
+      </div>
+
+      <!-- right: today's numbers and the month so far -->
+      <div class="space-y-4">
+        <AppStat
+          label="Total omset hari ini (net)"
+          icon="i-lucide-coins"
+          :value="fmtRp(net)"
+          :sub="`Gross ${fmtRp(gross)} − Diskon ${fmtRp(form.discount)}`"
+          class="bg-primary-50"
+        />
+        <div class="grid grid-cols-2 gap-3">
+          <AppStat
+            label="Avg spending"
+            icon="i-lucide-calculator"
+            :value="fmtRp(avg)"
+            sub="Omset ÷ Bill"
+            tone="info"
+          />
+          <AppStat
+            label="Service + tax"
+            icon="i-lucide-receipt"
+            :value="fmtRp(taxSvc)"
+            :sub="`Service ${fmtRp(form.service_charge)} + Tax ${fmtRp(form.tax)} · tagihan ${fmtRp(tagihan)}`"
+          />
+        </div>
+
+        <AppPanel
+          title="Pencapaian Bulan Berjalan"
+          icon="i-lucide-calendar"
+        >
+          <template #description>
+            {{ labelBulan }} · {{ lainHari.length }} hari lain sudah diinput, ditambah angka yang sedang diketik di kiri. Angkanya
+            <b>tagihan</b> — sudah termasuk service &amp; pajak, sama dasarnya dengan Dashboard Omset.
+          </template>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <AppStat
+              label="Realisasi bulan ini"
+              icon="i-lucide-calendar-check"
+              :value="fmtRp(bReal)"
+              :sub="`tagihan · ${lainHari.length} hari tersimpan + hari ini ${fmtRp(tagihan)}`"
+              class="bg-primary-50"
+            />
+            <AppStat
+              label="Rata-rata per hari"
+              icon="i-lucide-trending-up"
+              :value="fmtRp(bAvg)"
+              sub="termasuk hari yang sedang diketik"
+            />
+          </div>
         </AppPanel>
       </div>
     </div>

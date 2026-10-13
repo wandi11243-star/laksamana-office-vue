@@ -20,9 +20,9 @@ const inisial = (n: string) => String(n || '?').trim().split(/\s+/).slice(0, 2).
 
 const kolom: TableColumn<ModulMember>[] = [
   { accessorKey: 'name', header: 'Nama' },
-  { accessorKey: 'keterangan', header: 'Tim / keterangan' },
-  { accessorKey: 'active', header: 'Status akun' },
-  { accessorKey: 'isModuleAdmin', header: 'Level tampilan' },
+  { accessorKey: 'keterangan', header: 'Tim / Keterangan' },
+  { accessorKey: 'active', header: 'Status' },
+  { accessorKey: 'isModuleAdmin', header: 'Level Tampilan' },
 ]
 </script>
 
@@ -46,8 +46,8 @@ const kolom: TableColumn<ModulMember>[] = [
       color="info"
       variant="subtle"
       icon="i-lucide-key-round"
-      title="Dua tingkat tampilan."
-      description="Admin modul membuka seluruh menu (Operasional + Sistem), pemegang biasa hanya Operasional. Menambah, menghapus, dan menaikkan akses dilakukan di Kelola Akses milik Office."
+      title="Dua level tampilan."
+      description="Operasional hanya melihat grup menu Operasional (Input Omset, Report Daily, Compliment, Breakdown) — cocok untuk kasir. Super Admin melihat semuanya: Operasional, Dashboard, Performa, dan Sistem. Levelnya mengikuti status admin modul di Office: kru yang dijadikan admin Kompas (atau admin global) otomatis Super Admin, selain itu Operasional."
     />
 
     <UAlert
@@ -63,6 +63,7 @@ const kolom: TableColumn<ModulMember>[] = [
         title="Pemegang akses modul Kompas"
         icon="i-lucide-users"
         :count="baris.length"
+        description="Ditarik dari database Office. Menambah/menghapus akses dan menaikkan level dilakukan di Kelola Akses milik Office, bukan di sini."
         flush
       >
         <div
@@ -99,11 +100,16 @@ const kolom: TableColumn<ModulMember>[] = [
             </template>
             <template #active-cell="{ row }">
               <AppStatus
-                :color="row.original.active === false ? 'warning' : 'success'"
+                v-if="row.original.active === false"
+                color="warning"
                 size="sm"
               >
-                {{ row.original.active === false ? 'Nonaktif' : 'Aktif' }}
+                nonaktif
               </AppStatus>
+              <span
+                v-else
+                class="text-sm text-muted"
+              >—</span>
             </template>
             <template #isModuleAdmin-cell="{ row }">
               <AppStatus
@@ -114,10 +120,13 @@ const kolom: TableColumn<ModulMember>[] = [
               >
                 Super Admin — semua menu
               </AppStatus>
-              <span
+              <AppStatus
                 v-else
-                class="text-sm text-muted"
-              >Operasional saja</span>
+                color="info"
+                size="sm"
+              >
+                Operasional saja
+              </AppStatus>
             </template>
           </UTable>
 
@@ -133,16 +142,17 @@ const kolom: TableColumn<ModulMember>[] = [
                 <span class="block text-xs text-muted">{{ m.keterangan || '—' }}</span>
                 <div class="mt-1.5 flex flex-wrap gap-1.5">
                   <AppStatus
-                    :color="m.active === false ? 'warning' : 'success'"
+                    v-if="m.active === false"
+                    color="warning"
                     size="sm"
                   >
-                    {{ m.active === false ? 'Nonaktif' : 'Aktif' }}
+                    nonaktif
                   </AppStatus>
                   <AppStatus
-                    :color="m.isModuleAdmin ? 'success' : 'neutral'"
+                    :color="m.isModuleAdmin ? 'success' : 'info'"
                     size="sm"
                   >
-                    {{ m.isModuleAdmin ? 'Super Admin' : 'Operasional saja' }}
+                    {{ m.isModuleAdmin ? 'Super Admin — semua menu' : 'Operasional saja' }}
                   </AppStatus>
                   <AppStatus
                     v-if="saya(m)"
@@ -158,7 +168,7 @@ const kolom: TableColumn<ModulMember>[] = [
         </template>
       </AppPanel>
       <p class="text-xs text-muted">
-        {{ baris.length }} kru memegang akses Kompas · {{ jumlahAdmin }} di antaranya admin modul.
+        {{ baris.length }} kru memegang akses Kompas · {{ jumlahAdmin }} di antaranya Super Admin.
       </p>
     </template>
   </AppPage>

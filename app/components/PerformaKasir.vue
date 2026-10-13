@@ -111,12 +111,12 @@ const compsRentang = computed<ComplimentKasir[]>(() => (state.value?.compliments
 
 interface HistRow { date: string, real: number, off: boolean, extra?: boolean, kasir?: string }
 interface ObRow { date: string, eventName: string, total: number, kasir?: string }
-interface RekapKasir { real: number, masuk: number, off: number, potong: number, comp: number, hist: HistRow[], ob: ObRow[] }
-const KOSONG: RekapKasir = { real: 0, masuk: 0, off: 0, potong: 0, comp: 0, hist: [], ob: [] }
+interface RekapKasir { real: number, masuk: number, off: number, potong: number, comp: number, hist: HistRow[], ob: ObRow[], compRows: ComplimentKasir[] }
+const KOSONG: RekapKasir = { real: 0, masuk: 0, off: 0, potong: 0, comp: 0, hist: [], ob: [], compRows: [] }
 
 const agg = computed<Record<string, RekapKasir>>(() => {
   const out: Record<string, RekapKasir> = {}
-  for (const k of list.value) out[k.id] = { real: 0, masuk: 0, off: 0, potong: 0, comp: 0, hist: [], ob: [] }
+  for (const k of list.value) out[k.id] = { real: 0, masuk: 0, off: 0, potong: 0, comp: 0, hist: [], ob: [], compRows: [] }
   // Open Bill is collected from EVERY day of the range: it can land on a day
   // where the cashier has no revenue row at all. Never added to `real` — the
   // money is already inside that day's gross (:3695-3703). Recognition stays
@@ -151,6 +151,7 @@ const agg = computed<Record<string, RekapKasir>>(() => {
   for (const k of list.value) {
     const a = out[k.id]!
     const cr = compFilterPic(compsRentang.value, k)
+    a.compRows = cr
     a.comp = cr.reduce((s, c) => s + compPotong(c), 0)
     a.real -= a.comp
     const perTgl = new Map<string, number>()
@@ -168,7 +169,7 @@ const agg = computed<Record<string, RekapKasir>>(() => {
 })
 
 const gabung = computed<RekapKasir>(() => {
-  const a: RekapKasir = { real: 0, masuk: 0, off: 0, potong: 0, comp: 0, hist: [], ob: [] }
+  const a: RekapKasir = { real: 0, masuk: 0, off: 0, potong: 0, comp: 0, hist: [], ob: [], compRows: [] }
   for (const k of list.value) {
     const g = agg.value[k.id]
     if (!g) continue
@@ -179,6 +180,7 @@ const gabung = computed<RekapKasir>(() => {
     a.comp += g.comp
     for (const h of g.hist) a.hist.push({ ...h, kasir: k.name })
     for (const o of g.ob) a.ob.push({ ...o, kasir: k.name })
+    for (const c of g.compRows) if (!a.compRows.includes(c)) a.compRows.push(c)
   }
   return a
 })
@@ -198,7 +200,11 @@ const tanggalPendek = (d: string) => {
   return Number.isNaN(+x) ? d : x.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
 }
 
-const histUrut = computed(() => aktif.value.hist.filter(h => !h.extra).sort((x, y) => (x.date < y.date ? -1 : 1)))
+const histUrut = computed(() => aktif.value.hist.slice().sort((x, y) => (x.date < y.date ? -1 : 1)))
+const compUrut = computed(() => aktif.value.compRows.slice().sort((x, y) => (x.date < y.date ? -1 : 1)))
+const rinciComp = (c: ComplimentKasir) => (c.subTotal != null || c.tax != null || c.service != null
+  ? `sub ${fmtRp(Number(c.subTotal) || 0)} + tax ${fmtRp(Number(c.tax) || 0)} + svc ${fmtRp(Number(c.service) || 0)}`
+  : c.alasan || '—')
 const totalHal = computed(() => Math.max(1, Math.ceil(histUrut.value.length / PER_HAL)))
 const halaman = computed(() => {
   const p = Math.min(Math.max(1, hal.value), totalHal.value)
@@ -215,7 +221,6 @@ watch(totalHal, (t) => {
 const bonus = computed(() => bonusKasir(aktif.value.real))
 const kurang = computed(() => (bonus.value.next ? Math.max(0, bonus.value.next.min - aktif.value.real) : 0))
 const ratarata = computed(() => (aktif.value.masuk > 0 ? aktif.value.real / aktif.value.masuk : 0))
-const compLuar = computed(() => aktif.value.hist.filter(h => h.extra).reduce((s, h) => s + h.real, 0))
 const obTotalSemua = computed(() => aktif.value.ob.reduce((s, x) => s + x.total, 0))
 /** Days from the cutoff on that are not synced yet: not counted above, named here (`peringatanSync`). */
 const belumSync = computed(() => days.value
@@ -374,7 +379,7 @@ const hariBelum = computed(() => days.value.filter(d => !syncKasirBerlaku(d.date
 
           <AppPanel
             title="Riwayat"
-            :description="`${aktif.masuk} hari masuk, ${aktif.off} hari OFF · angka per hari sudah final${compLuar ? ` · ada ${fmtRp(-compLuar)} potongan compliment yang jatuh di hari tanpa omset, jadi tidak punya barisnya sendiri di sini — Omset Diakui di atas sudah memperhitungkannya` : ', jumlahnya tepat sama dengan Omset Diakui di atas'}`"
+            :description="`${aktif.masuk} hari masuk, ${aktif.off} hari OFF · angka per hari sudah final, jumlahnya tepat sama dengan Omset Diakui di atas`"
           >
             <table class="hidden w-full text-sm lg:table">
               <thead class="bg-table-head text-table-head-text">
@@ -411,10 +416,10 @@ const hariBelum = computed(() => days.value.filter(d => !syncKasirBerlaku(d.date
                   </td>
                   <td class="px-3 py-2">
                     <AppStatus
-                      :color="h.off ? 'warning' : 'success'"
+                      :color="h.extra ? 'gold' : h.off ? 'warning' : 'success'"
                       size="sm"
                     >
-                      {{ h.off ? 'OFF' : 'Masuk' }}
+                      {{ h.extra ? 'Compliment' : h.off ? 'OFF' : 'Masuk' }}
                     </AppStatus>
                   </td>
                 </tr>
@@ -449,10 +454,10 @@ const hariBelum = computed(() => days.value.filter(d => !syncKasirBerlaku(d.date
                 <div class="flex shrink-0 items-center gap-2">
                   <span class="text-sm font-semibold num">{{ h.off && !h.real ? '—' : fmtRp(h.real) }}</span>
                   <AppStatus
-                    :color="h.off ? 'warning' : 'success'"
+                    :color="h.extra ? 'gold' : h.off ? 'warning' : 'success'"
                     size="sm"
                   >
-                    {{ h.off ? 'OFF' : 'Masuk' }}
+                    {{ h.extra ? 'Compliment' : h.off ? 'OFF' : 'Masuk' }}
                   </AppStatus>
                 </div>
               </div>
@@ -608,6 +613,91 @@ const hariBelum = computed(() => days.value.filter(d => !syncKasirBerlaku(d.date
           <p class="mt-3 text-sm text-muted">
             Angka nett (sebelum tax &amp; service). Pencairan tetap lewat verifikasi SM/CEO dan persetujuan Finance, HRD &amp; CEO — kartu ini hanya menunjukkan posisi capaian.
           </p>
+        </AppPanel>
+
+        <AppPanel
+          title="Rincian Compliment"
+          :flush="compUrut.length > 0"
+        >
+          <template
+            v-if="compUrut.length"
+            #description
+          >
+            {{ compUrut.length }} compliment, dipotong {{ fmtRp(aktif.comp) }} dari Realisasi di atas — dihitung dari <b>Sub Total</b>, tax &amp; service charge tidak ikut.
+          </template>
+          <p
+            v-if="!compUrut.length"
+            class="py-4 text-center text-sm text-muted"
+          >
+            Tidak ada compliment yang membebani pada periode ini.
+          </p>
+          <div
+            v-else
+            class="overflow-x-auto"
+          >
+            <table class="w-full min-w-[36rem] text-sm">
+              <thead class="bg-table-head text-xs font-bold uppercase tracking-wider text-table-head-text">
+                <tr>
+                  <th class="px-3 py-2.5 text-start">
+                    Tanggal
+                  </th>
+                  <th
+                    v-if="pilihan === '__all__'"
+                    class="px-3 py-2.5 text-start"
+                  >
+                    PIC
+                  </th>
+                  <th class="px-3 py-2.5 text-start">
+                    Compliment
+                  </th>
+                  <th class="px-3 py-2.5 text-start">
+                    Rincian
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    Dipotong
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-default">
+                <tr
+                  v-for="c in compUrut"
+                  :key="c.id"
+                >
+                  <td class="px-3 py-2.5 num">
+                    {{ c.date }}
+                  </td>
+                  <td
+                    v-if="pilihan === '__all__'"
+                    class="px-3 py-2.5"
+                  >
+                    {{ c.picName || '—' }}
+                  </td>
+                  <td class="px-3 py-2.5 font-semibold text-highlighted">
+                    {{ c.nama || '—' }}
+                  </td>
+                  <td class="px-3 py-2.5 text-xs text-muted">
+                    {{ rinciComp(c) }}
+                  </td>
+                  <td class="px-3 py-2.5 text-end num">
+                    {{ fmtRp(compPotong(c)) }}
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot class="border-t-2 border-default font-bold">
+                <tr>
+                  <td
+                    :colspan="pilihan === '__all__' ? 4 : 3"
+                    class="px-3 py-2.5 text-xs uppercase tracking-wide"
+                  >
+                    Total potongan
+                  </td>
+                  <td class="px-3 py-2.5 text-end num">
+                    {{ fmtRp(aktif.comp) }}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </AppPanel>
       </template>
     </template>

@@ -45,19 +45,19 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="min-h-dvh lg:grid"
+    class="min-h-dvh lg:grid print:block"
     :class="sembunyi ? 'lg:grid-cols-[0_1fr]' : 'lg:grid-cols-[248px_1fr]'"
   >
     <aside
       v-if="desktop"
-      class="sticky top-0 h-dvh overflow-hidden border-e border-default"
+      class="sticky top-0 h-dvh overflow-hidden border-e border-default print:hidden"
       :class="sembunyi && 'invisible'"
     >
       <AppSidebar :key="key" />
     </aside>
 
     <div class="min-w-0">
-      <header class="sticky top-0 z-10 flex items-center gap-2.5 border-b border-default bg-default/95 px-3 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur-sm lg:gap-3 lg:px-5">
+      <header class="sticky top-0 z-10 flex print:hidden items-center gap-2.5 border-b border-default bg-default/95 px-3 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur-sm lg:gap-3 lg:px-5">
         <UButton
           icon="i-lucide-menu"
           color="neutral"
@@ -106,6 +106,7 @@ onBeforeUnmount(() => {
     <AppNavBawah
       v-if="!desktop"
       :key="key"
+      class="print:hidden"
     />
   </div>
 </template>

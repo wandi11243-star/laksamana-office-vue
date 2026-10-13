@@ -382,7 +382,7 @@ const jalanHapusP = () => {
             class="border-t border-default px-4 py-3 lg:px-5"
           >
             <UButton
-              label="+ Tambah penanda"
+              label="Tambah penanda"
               icon="i-lucide-plus"
               color="neutral"
               variant="outline"

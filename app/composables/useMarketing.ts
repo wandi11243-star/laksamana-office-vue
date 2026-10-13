@@ -80,6 +80,57 @@ export interface DpEventData {
 export const getMarketingDp = (from: string, to: string) =>
   useApi()<Envelope<DpEventData>>('/marketing/dp', { query: { from, to } })
 
+// ---------------------------------------------------------------- events-on (Breakdown Sumber Omset)
+
+// Also read by Finance › Omset › Breakdown: the deal events, Assisted VIP
+// rows and charge settings of one day (docs/api/marketing.md Read models).
+// Shaped here, not in utils/marketing.ts, because only this call needs it.
+
+/** One row of `GET /marketing/events-on/{date}` → `data.events`. Field names as the API sends them. */
+export interface EventOnMkt {
+  id: string
+  nama: string
+  tanggal: string
+  status: string
+  pax: number
+  picId: string
+  picName: string | null
+  menuFix: string
+  selesai: string
+  hari: number
+  totalHari: number
+  detail: Record<string, unknown>
+}
+
+/** One row of `GET /marketing/events-on/{date}` → `data.vip`. Field names as the API sends them. */
+export interface VipOnMkt {
+  id: string
+  nama: string
+  perusahaan: string
+  tanggal: string
+  jam: string
+  pax: number
+  meja: unknown[]
+  nominal: number
+  picId: string
+  picName: string | null
+  menuFix: string
+}
+
+export interface EventsOnMkt {
+  events: EventOnMkt[]
+  vip: VipOnMkt[]
+  settings: { serviceCharge: number, pb1: number } | null
+}
+
+/**
+ * GET /marketing/events-on/{YYYY-MM-DD} — Deal/Event Done events that day
+ * (multi-day events included, with `hari`/`totalHari`), plus Assisted VIP
+ * rows, plus `settings{serviceCharge, pb1}`.
+ */
+export const getEventsOn = (date: string) =>
+  useApi()<Envelope<EventsOnMkt>>(`/marketing/events-on/${date}`)
+
 // ---------------------------------------------------------------- state
 
 /** v1 resource names (docs/api/marketing.md Records). */

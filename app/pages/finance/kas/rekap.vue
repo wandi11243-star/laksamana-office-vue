@@ -18,7 +18,7 @@ import { SELISIH_TOLERANSI, fmtRp, fmtSel, num } from '~/utils/cashier'
 import { getKompasState, putRekap } from '~/composables/useCashier'
 import { useKasIzin } from '~/utils/layar/finance'
 import { tanganiKonflik } from '~/utils/versi'
-import { hariIni } from '~/utils/format'
+import { BULAN, HARI, hariIni } from '~/utils/format'
 
 definePageMeta({ access: ['finance'] })
 
@@ -65,7 +65,11 @@ const sudahSetor = (t: string) => {
   return s
 }
 const sisaSetor = (t: string) => Math.max(0, cash(t) - sudahSetor(t))
-const setorSelesai = (t: string) => (setorUntuk(t).length ? sisaSetor(t) < 1 : !!(recOf(t)?.setor))
+const setorSelesai = (t: string) => {
+  const u = ubah.value[t]?.setor
+  if (u !== undefined) return !!u
+  return (setorUntuk(t).length ? sisaSetor(t) < 1 : !!(recOf(t)?.setor))
+}
 const tanda = (t: string, grup: string) => {
   const u = ubah.value[t]?.tanda?.[grup]
   if (u !== undefined) return !!u
@@ -80,27 +84,39 @@ const bulan = computed(() => {
   let kotorMdr = 0
   let selisih = 0
   let adjust = 0
+  let adjKunci = 0
   let lewat = 0
-  for (const { h } of hariData.value) {
+  let net = 0
+  let svc = 0
+  let tax = 0
+  let nTanpaSvc = 0
+  for (const { tgl, h } of hariData.value) {
     jual += h.jual
     rekapAkt += h.rekapAkt
     mdrTotal += h.mdrTotal
     kotorMdr += h.kotorMdr
     selisih += h.selisihTotal
     if (Math.abs(h.selisihTotal) > SELISIH_TOLERANSI) lewat++
-    adjust += RK_GRUP.reduce((s, x) => s + h.g[x.k]!.adjust, 0)
+    net += h.j.net
+    svc += h.j.svc
+    tax += h.j.tax
+    if (h.tanpaSvcTax) nTanpaSvc++
+    for (const x of RK_GRUP) {
+      const a = h.g[x.k]!.adjust
+      adjust += a
+      if (tanda(tgl, x.k)) adjKunci += a
+    }
   }
-  return { jual, rekapAkt, mdrTotal, kotorMdr, selisih, adjust, lewat }
+  return { jual, rekapAkt, mdrTotal, kotorMdr, selisih, adjust, adjKunci, lewat, net, svc, tax, nTanpaSvc }
 })
-const piutangBulan = computed(() => piutang.value.filter(b => String(b.date).slice(0, 7) === periode.value).reduce((s, b) => s + num(b.nominal), 0))
-const sudahSetorBulan = computed(() => setoranRows.value.filter(s => String(s.tgl ?? '').slice(0, 7) === periode.value).reduce((s, x) => s + kNum(x.nominal), 0))
-const mdrPersen = computed(() => (bulan.value.kotorMdr > 0 ? (bulan.value.mdrTotal / bulan.value.kotorMdr) * 100 : null))
+const nSetor = computed(() => hariData.value.filter(d => setorSelesai(d.tgl)).length)
 const grupBulan = computed(() => RK_GRUP.map((x) => {
   let pos = 0
   let kotor = 0
   let mdr = 0
   let akt = 0
   let adjust = 0
+  let sel = 0
   let nTanda = 0
   for (const { tgl, h } of hariData.value) {
     const g = h.g[x.k]!
@@ -109,10 +125,60 @@ const grupBulan = computed(() => RK_GRUP.map((x) => {
     mdr += g.mdr
     akt += g.akt
     adjust += g.adjust
+    if (g.selisih !== null) sel += g.selisih
     if (tanda(tgl, x.k)) nTanda++
   }
-  return { ...x, pos, kotor, mdr, akt, adjust, nTanda }
+  const nHari = hariData.value.length
+  return { ...x, pos, kotor, mdr, akt, adjust, sel, nTanda, punyaPos: x.pos.length > 0, pers: nHari ? Math.round(nTanda / nHari * 100) : 0 }
 }))
+
+const namaBulan = computed(() => BULAN[Number(periode.value.split('-')[1]) - 1] ?? '')
+/** MDR prints plain («Rp20.000», never signed); zero prints «—» (old rkMdrRp). */
+const mdrRp = (n: number) => (!n ? '—' : fmtRp(Math.abs(n)))
+/** Money that prints «—» for zero (old rkRp0). */
+const rp0 = (n: number) => (!n ? '—' : fmtRp(n))
+/**
+ * «12,34%» of the pre-cut gross; empty (never «0%») when meaningless
+ * (old rkMdrPct: the banks charge off the gross, not the net).
+ */
+const mdrPct = (mdr: number, kotor: number) => {
+  const m = Math.abs(num(mdr))
+  const k = num(kotor)
+  if (!m || k <= 0) return ''
+  return `${(m / k * 100).toFixed(2).replace('.', ',')}%`
+}
+/** «Kam, 1» — the old day label; the month is rendered separately. */
+const labelHari = (t: string) => {
+  const d = new Date(`${t}T00:00:00`)
+  return `${(HARI[d.getDay()] ?? '').slice(0, 3)}, ${d.getDate()}`
+}
+const nCek = (t: string) => RK_GRUP.filter(g => tanda(t, g.k)).length
+/** Month receivables, read straight from the bon list (old rkBonBulan). */
+const bonBulan = computed(() => {
+  let baru = 0
+  let lunas = 0
+  let n = 0
+  let belum = 0
+  let nBelum = 0
+  for (const b of piutang.value as { date?: string, status?: string, lunasDate?: string, nominal?: unknown }[]) {
+    if (!b) continue
+    if (String(b.date ?? '').slice(0, 7) === periode.value) {
+      baru += num(b.nominal)
+      n++
+      if (b.status !== 'lunas') {
+        belum += num(b.nominal)
+        nBelum++
+      }
+    }
+    if (b.status === 'lunas' && String(b.lunasDate ?? '').slice(0, 7) === periode.value) lunas += num(b.nominal)
+  }
+  return { baru, lunas, n, belum, nBelum }
+})
+const sudahSetorBulan = computed(() => setoranRows.value.filter(s => String(s.tgl ?? '').slice(0, 7) === periode.value).reduce((s, x) => s + kNum(x.nominal), 0))
+/** Cash days never fully deposited — the whole history, not just this month (old rkBelumSetor). */
+const belumSetor = computed(() => Object.keys(reports.value)
+  .filter(t => /^\d{4}-\d{2}-\d{2}$/.test(t) && cash(t) > 0 && !setorSelesai(t))
+  .sort())
 
 const RH = computed(() => R(hariInput.value))
 function ubahAkt(g: string, v: string | number) {
@@ -256,7 +322,7 @@ async function jalanHapusSetoran() {
           :options="[
             { value: 'rekap', label: 'Rekap bulanan' },
             { value: 'input', label: 'Input harian' },
-            { value: 'setoran', label: 'Setoran cash' },
+            { value: 'setoran', label: 'Setoran cash', badge: belumSetor.length },
           ]"
         />
       </div>
@@ -267,20 +333,20 @@ async function jalanHapusSetoran() {
             label="Dibayar tamu"
             icon="i-lucide-receipt"
             :value="fmtRp(bulan.jual)"
-            sub="after tax & service · net + svc + tax"
+            :sub="`after tax & service · net ${fmtRp(bulan.net)} + svc ${fmtRp(bulan.svc)} + tax ${fmtRp(bulan.tax)}`"
           />
           <AppStat
             label="Rekap aktual"
             icon="i-lucide-landmark"
             :value="fmtRp(bulan.rekapAkt)"
-            sub="aktual masuk, sudah dipotong MDR"
+            sub="seluruh kolom Actual Report Daily, dipotong MDR"
             tone="info"
           />
           <AppStat
             label="Total MDR"
             icon="i-lucide-scissors"
-            :value="fmtRp(bulan.mdrTotal)"
-            :sub="mdrPersen === null ? 'belum ada aktual kotor' : `${mdrPersen.toFixed(2)}% dari aktual kotor`"
+            :value="`${mdrRp(bulan.mdrTotal)}${mdrPct(bulan.mdrTotal, bulan.kotorMdr) ? ` · ${mdrPct(bulan.mdrTotal, bulan.kotorMdr)}` : ''}`"
+            sub="potongan bank & ojol; persennya dari Aktual kotor kelompok yang kena potongan"
             tone="warning"
           />
           <AppStat
@@ -295,30 +361,40 @@ async function jalanHapusSetoran() {
           <AppStat
             label="Piutang / bon"
             icon="i-lucide-hand-coins"
-            :value="fmtRp(piutangBulan)"
-            sub="bon bulan ini (belum & lunas)"
+            :value="fmtRp(bonBulan.baru)"
+            :sub="bonBulan.n ? `${bonBulan.n} bon bulan ini · ${fmtRp(bonBulan.belum)} belum lunas (${bonBulan.nBelum})${bonBulan.lunas ? ` · pelunasan masuk ${fmtRp(bonBulan.lunas)}` : ''}` : (bonBulan.lunas ? `tidak ada bon baru · pelunasan bon lama masuk ${fmtRp(bonBulan.lunas)}` : 'tidak ada bon bulan ini')"
           />
           <AppStat
             label="Adjust terkunci di POS"
             icon="i-lucide-lock"
-            :value="fmtRp(bulan.adjust)"
-            sub="POS − aktual per kelompok (non-POS: aktual)"
+            :value="fmtRp(bulan.adjKunci)"
+            :sub="bulan.adjust - bulan.adjKunci === 0 ? 'seluruhnya sudah diinput' : `${fmtRp(bulan.adjust - bulan.adjKunci)} belum diinput`"
           />
           <AppStat
             label="Sudah setor"
             icon="i-lucide-banknote"
-            :value="fmtRp(sudahSetorBulan)"
-            :sub="`${setoranRows.filter(s => String(s.tgl ?? '').slice(0, 7) === periode).length} setoran bulan ini`"
+            :value="`${nSetor} / ${hariData.length}`"
+            sub="hari yang cash-nya sudah disetor"
             tone="success"
           />
         </AppStatGrid>
 
-        <AppPanel title="Cara angkanya dibaca">
-          <p class="text-sm text-muted">
-            Angka POS & Aktual dibaca dari Report Daily di panel Input Omset Harian — tidak bisa diubah dari sini.
-            Yang diisi di sub-tab <b>Input harian</b> hanya MDR/dana lebih, penanda Setor, dan centang Input POS.
-          </p>
-        </AppPanel>
+        <UAlert
+          v-if="kotorHariIni"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          :title="`${Object.keys(ubah).length} hari punya perubahan yang belum disimpan. Angka di bawah sudah memperhitungkannya — buka sub-tab Input harian untuk menyimpan.`"
+          class="mb-4"
+        />
+        <UAlert
+          v-if="bulan.nTanpaSvc"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          :title="`${bulan.nTanpaSvc} hari punya setoran kasir tapi service charge & tax-nya masih nol di Input Omset Harian. Yang dibayar tamu sudah termasuk service & tax, jadi hari-hari itu akan selalu terlihat selisih sebesar service+tax-nya — bukan uang hilang.`"
+          class="mb-4"
+        />
 
         <AppPanel
           title="Per metode pembayaran"
@@ -333,14 +409,22 @@ async function jalanHapusSetoran() {
               <div class="mb-1 flex items-center justify-between gap-2">
                 <b class="text-highlighted">{{ g.n }}</b>
                 <AppStatus
-                  :color="g.nTanda === hariData.length && hariData.length ? 'success' : (g.nTanda ? 'warning' : 'neutral')"
+                  v-if="g.punyaPos"
+                  :color="Math.abs(g.sel) <= SELISIH_TOLERANSI ? 'success' : 'error'"
                   size="sm"
                 >
-                  POS {{ g.nTanda }}/{{ hariData.length }}
+                  {{ Math.abs(g.sel) <= SELISIH_TOLERANSI ? 'cocok' : fmtRp(g.sel) }}
+                </AppStatus>
+                <AppStatus
+                  v-else
+                  color="neutral"
+                  size="sm"
+                >
+                  tanpa pembanding
                 </AppStatus>
               </div>
               <div
-                v-if="g.pos"
+                v-if="g.punyaPos"
                 class="flex justify-between"
               >
                 <span class="text-muted">POS</span><span class="num">{{ fmtRp(g.pos) }}</span>
@@ -352,11 +436,20 @@ async function jalanHapusSetoran() {
                 v-if="g.mdr"
                 class="flex justify-between"
               >
-                <span class="text-muted">MDR</span><span class="num">{{ fmtRp(g.mdr) }}</span>
+                <span class="text-muted">MDR</span><span class="num">{{ mdrRp(g.mdr) }}{{ mdrPct(g.mdr, g.kotor) ? ` · ${mdrPct(g.mdr, g.kotor)}` : '' }}</span>
               </div>
               <div class="flex justify-between">
                 <span class="text-muted">Adjust</span><span class="num">{{ fmtRp(g.adjust) }}</span>
               </div>
+              <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  class="h-full rounded-full bg-primary-400"
+                  :style="{ width: `${g.pers}%` }"
+                />
+              </div>
+              <p class="mt-1 text-xs text-muted">
+                Input POS {{ g.nTanda }}/{{ hariData.length }} hari ({{ g.pers }}%)
+              </p>
             </div>
           </div>
         </AppPanel>
@@ -376,14 +469,14 @@ async function jalanHapusSetoran() {
                 class="flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-start text-sm hover:bg-muted lg:px-5"
                 @click="terbuka = terbuka === d.tgl ? '' : d.tgl"
               >
-                <b class="w-24 shrink-0 text-highlighted">{{ d.tgl }}</b>
-                <span class="text-muted">Tamu <b class="text-highlighted num">{{ fmtRp(d.h.jual) }}</b></span>
-                <span class="text-muted">Aktual <b class="text-highlighted num">{{ fmtRp(d.h.rekapAkt) }}</b></span>
-                <span class="text-muted">MDR <b class="text-highlighted num">{{ fmtRp(d.h.mdrTotal) }}</b></span>
+                <b class="w-28 shrink-0 text-highlighted">{{ labelHari(d.tgl) }} <span class="font-normal text-muted">{{ namaBulan }}</span></b>
+                <span class="text-muted">Dibayar Tamu <b class="text-highlighted num">{{ rp0(d.h.jual) }}</b></span>
+                <span class="text-muted">Rekap Aktual <b class="text-highlighted num">{{ rp0(d.h.rekapAkt) }}</b></span>
+                <span class="text-muted">MDR <b class="text-highlighted num">{{ mdrRp(d.h.mdrTotal) }}</b><template v-if="mdrPct(d.h.mdrTotal, d.h.kotorMdr)"> <span class="text-xs">· {{ mdrPct(d.h.mdrTotal, d.h.kotorMdr) }}</span></template></span>
                 <span class="text-muted">Selisih <b
                   :class="Math.abs(d.h.selisihTotal) > SELISIH_TOLERANSI ? 'text-error' : 'text-success'"
                   class="num"
-                >{{ fmtSel(d.h.selisihTotal) }}</b></span>
+                >{{ d.h.selisihTotal ? fmtSel(d.h.selisihTotal) : '—' }}</b></span>
                 <span class="flex-1" />
                 <AppStatus
                   v-if="d.h.tanpaSvcTax"
@@ -396,7 +489,13 @@ async function jalanHapusSetoran() {
                   :color="setorSelesai(d.tgl) ? 'success' : 'neutral'"
                   size="sm"
                 >
-                  {{ setorSelesai(d.tgl) ? 'Setor ✓' : 'Belum setor' }}
+                  {{ setorSelesai(d.tgl) ? '✓ Setor' : 'belum setor' }}
+                </AppStatus>
+                <AppStatus
+                  :color="nCek(d.tgl) === RK_GRUP.length ? 'success' : (nCek(d.tgl) ? 'warning' : 'neutral')"
+                  size="sm"
+                >
+                  POS {{ nCek(d.tgl) }}/{{ RK_GRUP.length }}
                 </AppStatus>
               </button>
 
@@ -474,10 +573,20 @@ async function jalanHapusSetoran() {
               v-if="!hariData.length"
               class="px-4 py-6 text-center text-sm text-muted"
             >
-              Belum ada data omset maupun Report Daily untuk {{ periode }}.
+              Belum ada data omset maupun Report Daily untuk {{ namaBulan }} {{ periode.split('-')[0] }}.
+              Isi dulu di panel Input Omset Harian.
             </p>
           </div>
         </AppPanel>
+
+        <UAlert
+          color="info"
+          variant="subtle"
+          icon="i-lucide-info"
+          title="Angka POS & Aktual dibaca dari Report Daily"
+          description="Di panel Input Omset Harian — tidak bisa diubah dari sini, supaya satu angka tidak ditulis dua layar. Yang diisi di sub-tab Input harian cuma MDR, penanda Setor, dan centang Input POS."
+          class="mt-4"
+        />
       </template>
 
       <template v-else-if="tab === 'input'">
@@ -563,7 +672,7 @@ async function jalanHapusSetoran() {
           <template #actions>
             <UButton
               v-if="izin.ubah('rekap')"
-              label="+ Catat setoran"
+              label="Catat setoran"
               icon="i-lucide-plus"
               size="sm"
               @click="bukaSetoran"

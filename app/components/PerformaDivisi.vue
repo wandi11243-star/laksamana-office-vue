@@ -2,17 +2,19 @@
   Performa Marketing / Performa Event — ONE component for both, in Finance ›
   Kas Kecil (old `viewPerforma`, deploy/finance/kas/index.html:4402-4520). The
   realisation counter is `performa-bonus.ts` (pbAgregasi) — the SAME engine
-  Marketing/Event will use; rows whose PIC is not on the roster are reported as
-  `yatim`, never dropped. Bonus numbers come from the same engine; the full
-  ladder sheets belong to the division screens and are not duplicated here.
+  Marketing/Event use; rows whose PIC is not on the roster are reported as
+  `yatim`, never dropped. Layout as the old screen: Report Achievement, PIC
+  tabs, three cards, top event, Omset per Event | Daftar Event, the bonus
+  ladders (MarketingBonusSkema / EventBonusSkema), Rincian Compliment, and
+  Persetujuan Potongan Compliment — READ-ONLY here on purpose: the decision is
+  taken in Kompas, Finance only sees the result (kas/index.html:3399).
 -->
 <script setup lang="ts">
-import type { AggPic, BarisYatim, HariBreakdown, PicBonus } from '~/utils/performa-bonus'
-import { bonusEvent, bonusMarketing, pbAgregasi } from '~/utils/performa-bonus'
+import type { AggPic, BarisYatim, HariBreakdown, PicBonus, Compliment } from '~/utils/performa-bonus'
+import { bonusEvent, bonusMarketing, pbAgregasi, pbCompIsPemberi, pbCompPotong, pbCompStatusPemberi } from '~/utils/performa-bonus'
 import { getKompasState, getRoster } from '~/composables/useCashier'
 import { fmtRp } from '~/utils/cashier'
 import { hariIni } from '~/utils/format'
-import { hasAccess } from '~/composables/useMe'
 
 const props = defineProps<{ divisi: 'marketing' | 'event', kunci: string }>()
 
@@ -41,10 +43,8 @@ const yatim = computed<BarisYatim[]>(() => hasil.value.yatim)
 const yatimTeks = computed(() => yatim.value.slice(0, 6)
   .map(y => `${y.date} ${y.name}${y.srcPic ? ` (PIC asalnya "${y.srcPic}")` : ''}`)
   .join(' · '))
-const namaPic = (id: string) => list.value.find(e => e.id === id)?.name ?? id
 
 const totalReal = computed(() => list.value.reduce((s, e) => s + (agg.value[e.id]?.real ?? 0), 0))
-const totalEvent = computed(() => list.value.reduce((s, e) => s + (agg.value[e.id]?.events.length ?? 0), 0))
 const totalComp = computed(() => list.value.reduce((s, e) => s + (agg.value[e.id]?.comp ?? 0), 0))
 
 const aktif = computed(() => (pilihan.value === '__all__' ? null : agg.value[pilihan.value] ?? null))
@@ -67,22 +67,48 @@ watch([pilihan, periode], () => {
 
 const topEvent = computed(() => eventsTampil.value.slice().sort((a, b) => b.porsi - a.porsi)[0] ?? null)
 
-// Bonus: the same engine the division screens will use. Only the money totals
-// and the current rung's label are shown here; the ladder sheets live there.
-const bonus = computed(() => {
-  if (props.divisi === 'marketing') {
-    const b = bonusMarketing(list.value, agg.value)
-    if (pilihan.value === '__all__') return { tunai: b.tunaiSemua, voucher: b.voucherSemua, label: '', semua: true }
-    const p = b.per[pilihan.value]
-    return { tunai: p?.tunai ?? 0, voucher: p?.voucher ?? 0, label: p?.s2?.label ?? '', semua: false }
-  }
-  const b = bonusEvent(list.value, agg.value)
-  if (pilihan.value === '__all__') return { tunai: b.tunaiSemua, voucher: b.voucherSemua, label: '', semua: true }
-  const p = b.per[pilihan.value]
-  return { tunai: p?.tunai ?? 0, voucher: p?.voucher ?? 0, label: p?.s4?.label ?? '', semua: false }
-})
+const infoMk = computed(() => bonusMarketing(list.value, agg.value))
+const infoEv = computed(() => bonusEvent(list.value, agg.value))
 
-const punyaAnalitik = computed(() => hasAccess(useMe().value, ['analytics']))
+/** Per-event bars (old "Omset per Event" chart), largest first. */
+const perEvent = computed(() => eventsTampil.value.slice().sort((a, b) => b.porsi - a.porsi))
+const maxEvent = computed(() => Math.max(1, ...perEvent.value.map(e => e.porsi)))
+const avgEvent = computed(() => (eventsTampil.value.length ? eventsTampil.value.reduce((s, e) => s + e.porsi, 0) / eventsTampil.value.length : 0))
+
+/** Compliments that cut the realisation shown (old kartuCompliment over a.compRows). */
+const compRows = computed(() => {
+  const ids = pilihan.value === '__all__' ? list.value.map(e => e.id) : [pilihan.value]
+  const rows: (Compliment & { id?: string, date?: string, nama?: string, alasan?: string, tax?: number | string | null, service?: number | string | null })[] = []
+  for (const id of ids) {
+    for (const c of agg.value[id]?.compRows ?? []) {
+      if (!rows.includes(c)) rows.push(c)
+    }
+  }
+  return rows.sort((a, b) => (String(a.date) < String(b.date) ? -1 : 1))
+})
+const compTotal = computed(() => compRows.value.reduce((s, c) => s + pbCompPotong(c), 0))
+const rinciComp = (c: { subTotal?: unknown, tax?: unknown, service?: unknown, alasan?: string }) => (c.subTotal != null || c.tax != null || c.service != null
+  ? `sub ${fmtRp(Number(c.subTotal) || 0)} + tax ${fmtRp(Number(c.tax) || 0)} + svc ${fmtRp(Number(c.service) || 0)}`
+  : c.alasan || '—')
+
+/** Compliments GIVEN by this division's PICs, decided or not (old kartuApprovalCompliment — read-only in Finance). */
+const approval = computed(() => {
+  const rows: { c: Compliment & { id?: string, date?: string, nama?: string, alasan?: string, putusOleh?: string }, emp: PicBonus }[] = []
+  for (const e of list.value) {
+    for (const c of komplimen.value as (Compliment & { id?: string })[]) {
+      if (pbCompIsPemberi(c, e) && !rows.some(x => x.c === c)) rows.push({ c, emp: e })
+    }
+  }
+  return rows.sort((a, b) => (String(a.c.date) < String(b.c.date) ? -1 : 1))
+})
+const STATUS_POTONG = {
+  potong: { color: 'error', label: 'Dipotong' },
+  tidak: { color: 'success', label: 'Tidak dipotong' },
+  menunggu: { color: 'neutral', label: 'Menunggu' },
+} as const
+
+const labelPeriode = computed(() => new Date(`${periode.value}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }))
+const cetak = () => window.print()
 </script>
 
 <template>
@@ -114,44 +140,67 @@ const punyaAnalitik = computed(() => hasAccess(useMe().value, ['analytics']))
       :title="`Gagal memuat: ${apiErrorMessage(error)}`"
     />
 
-    <template v-else>
-      <div class="mb-4">
-        <AppSeg
-          v-model="pilihan"
-          size="sm"
-          :options="[{ value: '__all__', label: 'Semua' }, ...list.map(e => ({ value: e.id, label: e.name }))]"
-        />
-      </div>
+    <div
+      v-else
+      class="space-y-4"
+    >
+      <AppPanel
+        title="Report Achievement"
+        description="Rekap semua PIC — simpan sebagai PDF."
+      >
+        <template #actions>
+          <UButton
+            label="Simpan PDF"
+            icon="i-lucide-file-down"
+            size="sm"
+            class="print:hidden"
+            @click="cetak"
+          />
+        </template>
+        <p class="text-sm text-muted">
+          Menampilkan <b>satu bulan</b> · {{ labelPeriode }}
+        </p>
+      </AppPanel>
 
-      <AppStatGrid>
+      <AppSeg
+        v-model="pilihan"
+        size="sm"
+        :options="[{ value: '__all__', label: 'Semua' }, ...list.map(e => ({ value: e.id, label: e.name }))]"
+      />
+
+      <div class="grid gap-3 sm:grid-cols-3">
         <AppStat
           label="Realisasi"
           icon="i-lucide-coins"
           :value="fmtRp(realTampil)"
-          :sub="pilihan === '__all__' ? `${list.length} PIC` : namaPic(pilihan)"
+          :sub="(pilihan === '__all__' ? totalComp : (aktif?.comp ?? 0)) ? `sudah dipotong compliment ${fmtRp(pilihan === '__all__' ? totalComp : (aktif?.comp ?? 0))}` : 'tanpa potongan compliment'"
+          class="bg-primary-50"
         />
         <AppStat
           label="Jumlah event"
           icon="i-lucide-calendar-days"
-          :value="pilihan === '__all__' ? totalEvent : (aktif?.events.length ?? 0)"
-          sub="baris breakdown yang diakui"
+          :value="eventsTampil.length"
+          :sub="`avg ${fmtRp(avgEvent)}/event`"
           tone="info"
         />
         <AppStat
           label="Compliment ditanggung"
           icon="i-lucide-gift"
-          :value="fmtRp(pilihan === '__all__' ? totalComp : (aktif?.comp ?? 0))"
-          sub="memotong realisasi (sub total)"
+          :value="fmtRp(compTotal)"
+          :sub="`${compRows.length} catatan`"
           tone="warning"
         />
-        <AppStat
-          label="Bonus saat ini"
-          icon="i-lucide-badge-percent"
-          :value="fmtRp(bonus.tunai + bonus.voucher)"
-          :sub="bonus.semua ? 'gabungan semua PIC — bonus dinilai per orang' : `tunai ${fmtRp(bonus.tunai)} + voucher ${fmtRp(bonus.voucher)}${bonus.label ? ` · ${bonus.label}` : ''}`"
-          tone="success"
-        />
-      </AppStatGrid>
+      </div>
+      <AppPanel>
+        <p class="text-sm text-muted">
+          <template v-if="topEvent">
+            Top event: <b class="text-highlighted">{{ topEvent.name || '(tanpa nama)' }}</b> · {{ fmtRp(topEvent.porsi) }}
+          </template>
+          <template v-else>
+            Belum ada event.
+          </template>
+        </p>
+      </AppPanel>
 
       <UAlert
         v-if="yatim.length"
@@ -162,175 +211,280 @@ const punyaAnalitik = computed(() => hasAccess(useMe().value, ['analytics']))
         :description="yatimTeks"
       />
 
-      <AppPanel
-        v-if="topEvent"
-        :title="`Top event — ${topEvent.name || '(tanpa nama)'}`"
-        :description="`${topEvent.date} · diakui ${fmtRp(topEvent.porsi)}${topEvent.ob ? ` · open bill ${fmtRp(topEvent.ob)}` : ''}`"
+      <div class="grid items-start gap-4 lg:grid-cols-2">
+        <AppPanel title="Omset per Event">
+          <p
+            v-if="!perEvent.length"
+            class="py-8 text-center text-sm text-muted"
+          >
+            Belum ada event
+          </p>
+          <div
+            v-else
+            class="space-y-2.5"
+          >
+            <AppBar
+              v-for="(e, i) in perEvent"
+              :key="`${e.date}-${i}`"
+              :label="e.name || '(tanpa nama)'"
+              :value="fmtRp(e.porsi)"
+              :persen="(e.porsi / maxEvent) * 100"
+              tone="info"
+            />
+          </div>
+        </AppPanel>
+
+        <AppPanel
+          title="Daftar Event"
+          :description="`${eventsTampil.length} event · diakui ${divisi === 'marketing' ? 'omset + tax + service + open bill' : '50%, kasir tidak dipotong'}`"
+          flush
+        >
+          <table class="w-full text-sm">
+            <thead class="bg-table-head text-xs font-bold uppercase tracking-wider text-table-head-text">
+              <tr>
+                <th class="px-3 py-2.5 text-start">
+                  Tanggal
+                </th>
+                <th class="px-3 py-2.5 text-start">
+                  Nama event
+                </th>
+                <th class="px-3 py-2.5 text-end">
+                  {{ divisi === 'marketing' ? 'Omset' : 'Nilai event' }}
+                </th>
+                <th class="px-3 py-2.5 text-end">
+                  Diakui
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-default">
+              <tr
+                v-for="(e, i) in halaman.rows"
+                :key="`${e.date}-${i}`"
+              >
+                <td class="px-3 py-2.5 whitespace-nowrap num">
+                  {{ e.date }}
+                </td>
+                <td class="px-3 py-2.5">
+                  {{ e.name || '(tanpa nama)' }}
+                  <span
+                    v-if="pilihan === '__all__' && (e as { pic?: string }).pic"
+                    class="block text-[11px] text-muted"
+                  >{{ (e as { pic?: string }).pic }}</span>
+                </td>
+                <td class="px-3 py-2.5 text-end num">
+                  {{ fmtRp(e.amount) }}
+                </td>
+                <td class="px-3 py-2.5 text-end font-semibold num">
+                  {{ fmtRp(e.porsi) }}
+                  <span
+                    v-if="e.ob"
+                    class="block text-[11px] font-normal text-muted"
+                  >open bill {{ fmtRp(e.ob) }}</span>
+                </td>
+              </tr>
+              <tr v-if="!eventsTampil.length">
+                <td
+                  colspan="4"
+                  class="px-3 py-6 text-center text-sm text-muted"
+                >
+                  Belum ada event.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div
+            v-if="totalHal > 1"
+            class="flex flex-wrap items-center justify-between gap-2 border-t border-default px-4 py-3"
+          >
+            <UButton
+              label="‹ Sebelumnya"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              :disabled="halaman.p <= 1"
+              @click="hal = halaman.p - 1"
+            />
+            <span class="text-xs text-muted">Baris {{ halaman.mulai + 1 }}–{{ halaman.akhir }} dari {{ eventsTampil.length }}</span>
+            <UButton
+              label="Berikutnya ›"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              :disabled="halaman.p >= totalHal"
+              @click="hal = halaman.p + 1"
+            />
+          </div>
+        </AppPanel>
+      </div>
+
+      <MarketingBonusSkema
+        v-if="divisi === 'marketing'"
+        :info="infoMk"
+        :pid="pilihan"
+        :real="realTampil"
+        :list="list"
+      />
+      <EventBonusSkema
+        v-else
+        :info="infoEv"
+        :pid="pilihan"
+        :list="list"
       />
 
       <AppPanel
-        title="Daftar event"
-        :description="`${eventsTampil.length} baris diakui pada ${periode}. Diakui PIC = ${divisi === 'marketing' ? 'omset + tax + service + open bill' : 'setengah nilai event + open bill penuh'}.`"
-        flush
+        title="Rincian Compliment"
+        :flush="compRows.length > 0"
       >
-        <table class="hidden w-full text-sm lg:table">
-          <thead class="bg-table-head text-table-head-text">
+        <template
+          v-if="compRows.length"
+          #description
+        >
+          {{ compRows.length }} compliment, dipotong {{ fmtRp(compTotal) }} dari Realisasi di atas — dihitung dari <b>Sub Total</b>, tax &amp; service charge tidak ikut.
+        </template>
+        <p
+          v-if="!compRows.length"
+          class="py-4 text-center text-sm text-muted"
+        >
+          Tidak ada compliment yang membebani pada periode ini.
+        </p>
+        <table
+          v-else
+          class="w-full text-sm"
+        >
+          <thead class="bg-table-head text-xs font-bold uppercase tracking-wider text-table-head-text">
             <tr>
-              <th class="px-3 py-2 text-start text-xs font-bold uppercase tracking-wider">
+              <th class="px-3 py-2.5 text-start">
                 Tanggal
-              </th>
-              <th class="px-3 py-2 text-start text-xs font-bold uppercase tracking-wider">
-                Nama event
               </th>
               <th
                 v-if="pilihan === '__all__'"
-                class="px-3 py-2 text-start text-xs font-bold uppercase tracking-wider"
+                class="px-3 py-2.5 text-start"
               >
                 PIC
               </th>
-              <th class="px-3 py-2 text-end text-xs font-bold uppercase tracking-wider">
-                Nilai
+              <th class="px-3 py-2.5 text-start">
+                Compliment
               </th>
-              <th
-                v-if="divisi === 'marketing'"
-                class="px-3 py-2 text-end text-xs font-bold uppercase tracking-wider"
-              >
-                Tax + service
+              <th class="px-3 py-2.5 text-start">
+                Rincian
               </th>
-              <th class="px-3 py-2 text-end text-xs font-bold uppercase tracking-wider">
-                Open bill
-              </th>
-              <th class="px-3 py-2 text-end text-xs font-bold uppercase tracking-wider">
-                Diakui
+              <th class="px-3 py-2.5 text-end">
+                Dipotong
               </th>
             </tr>
           </thead>
           <tbody class="divide-y divide-default">
             <tr
-              v-for="(e, i) in halaman.rows"
-              :key="`${e.date}-${i}`"
+              v-for="(c, i) in compRows"
+              :key="c.id ?? i"
             >
-              <td class="px-3 py-2">
-                {{ e.date }}
-              </td>
-              <td class="px-3 py-2">
-                {{ e.name || '(tanpa nama)' }}
+              <td class="px-3 py-2.5 num">
+                {{ c.date }}
               </td>
               <td
                 v-if="pilihan === '__all__'"
-                class="px-3 py-2 text-muted"
+                class="px-3 py-2.5"
               >
-                {{ (e as { pic?: string }).pic || '—' }}
+                {{ c.picName || '—' }}
               </td>
-              <td class="px-3 py-2 text-end num">
-                {{ fmtRp(e.amount) }}
+              <td class="px-3 py-2.5 font-semibold text-highlighted">
+                {{ c.nama || '—' }}
               </td>
-              <td
-                v-if="divisi === 'marketing'"
-                class="px-3 py-2 text-end num"
-              >
-                {{ fmtRp(e.tax + e.service) }}
+              <td class="px-3 py-2.5 text-xs text-muted">
+                {{ rinciComp(c) }}
               </td>
-              <td class="px-3 py-2 text-end num">
-                {{ e.ob ? fmtRp(e.ob) : '—' }}
-              </td>
-              <td class="px-3 py-2 text-end font-semibold num">
-                {{ fmtRp(e.porsi) }}
-              </td>
-            </tr>
-            <tr v-if="!eventsTampil.length">
-              <td
-                :colspan="divisi === 'marketing' ? 7 : 6"
-                class="px-3 py-6 text-center text-sm text-muted"
-              >
-                Tidak ada baris diakui bulan ini.
+              <td class="px-3 py-2.5 text-end num">
+                {{ fmtRp(pbCompPotong(c)) }}
               </td>
             </tr>
           </tbody>
+          <tfoot class="border-t-2 border-default font-bold">
+            <tr>
+              <td
+                :colspan="pilihan === '__all__' ? 4 : 3"
+                class="px-3 py-2.5 text-xs uppercase tracking-wide"
+              >
+                Total potongan
+              </td>
+              <td class="px-3 py-2.5 text-end num">
+                {{ fmtRp(compTotal) }}
+              </td>
+            </tr>
+          </tfoot>
         </table>
-
-        <div class="divide-y divide-default lg:hidden">
-          <div
-            v-for="(e, i) in halaman.rows"
-            :key="`${e.date}-${i}`"
-            class="flex items-start justify-between gap-3 px-4 py-2.5"
-          >
-            <div class="min-w-0">
-              <p class="text-sm font-semibold text-highlighted">
-                {{ e.name || '(tanpa nama)' }}
-              </p>
-              <p class="text-[11px] text-muted">
-                {{ e.date }}<template v-if="pilihan === '__all__' && (e as { pic?: string }).pic">
-                  · {{ (e as { pic?: string }).pic }}
-                </template>
-              </p>
-            </div>
-            <b class="shrink-0 num">{{ fmtRp(e.porsi) }}</b>
-          </div>
-        </div>
-
-        <div
-          v-if="totalHal > 1"
-          class="flex flex-wrap items-center justify-between gap-2 border-t border-default px-4 py-3 lg:px-5"
-        >
-          <UButton
-            label="‹ Sebelumnya"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            :disabled="halaman.p <= 1"
-            @click="hal = halaman.p - 1"
-          />
-          <span class="text-xs text-muted">Baris {{ halaman.mulai + 1 }}–{{ halaman.akhir }} dari {{ eventsTampil.length }}</span>
-          <UButton
-            label="Berikutnya ›"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            :disabled="halaman.p >= totalHal"
-            @click="hal = halaman.p + 1"
-          />
-        </div>
       </AppPanel>
 
       <AppPanel
-        title="Per PIC"
-        description="Realisasi = porsi diakui − compliment yang ditanggung. Baris tanpa PIC tidak diakui untuk siapa pun, tetapi tetap dilaporkan di atas."
-        flush
+        title="Persetujuan Potongan Compliment"
+        icon="i-lucide-gift"
+        :flush="approval.length > 0"
       >
-        <div class="divide-y divide-default">
-          <div
-            v-for="e in list.slice().sort((a, b) => (agg[b.id]?.real ?? 0) - (agg[a.id]?.real ?? 0))"
-            :key="e.id"
-            class="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 lg:px-5"
-          >
-            <button
-              type="button"
-              class="min-w-0 flex-1 text-start"
-              @click="pilihan = e.id"
-            >
-              <b class="text-highlighted">{{ e.name }}</b>
-              <span class="block text-xs text-muted">{{ agg[e.id]?.events.length ?? 0 }} event · compliment {{ fmtRp(agg[e.id]?.comp ?? 0) }}</span>
-            </button>
-            <b class="num">{{ fmtRp(agg[e.id]?.real ?? 0) }}</b>
-          </div>
-          <p
-            v-if="!list.length"
-            class="px-4 py-6 text-center text-sm text-muted"
-          >
-            Belum ada PIC {{ divisi }} di roster. Tambah Tim/Keterangan-nya di Office.
-          </p>
-        </div>
-      </AppPanel>
-
-      <p class="text-xs text-muted">
-        <template v-if="punyaAnalitik">
-          Pembanding Analytics tersedia dari modul Analytics.
-        </template>
+        <p
+          v-if="!approval.length"
+          class="py-4 text-center text-sm text-muted"
+        >
+          Tidak ada compliment yang diberikan PIC {{ divisi === 'marketing' ? 'Marketing' : 'Event' }} pada periode ini.
+        </p>
         <template v-else>
-          Tangga bonus lengkap ditampilkan di layar modul {{ divisi === 'marketing' ? 'Marketing' : 'Event' }}; layar ini memakai mesin yang sama.
+          <table class="w-full text-sm">
+            <thead class="bg-table-head text-xs font-bold uppercase tracking-wider text-table-head-text">
+              <tr>
+                <th class="px-3 py-2.5 text-start">
+                  Tanggal
+                </th>
+                <th class="px-3 py-2.5 text-start">
+                  Compliment
+                </th>
+                <th class="px-3 py-2.5 text-start">
+                  Pemberi
+                </th>
+                <th class="px-3 py-2.5 text-end">
+                  Nilai potong
+                </th>
+                <th class="px-3 py-2.5 text-start">
+                  Status
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-default">
+              <tr
+                v-for="({ c, emp }, i) in approval"
+                :key="c.id ?? i"
+              >
+                <td class="px-3 py-2.5 num">
+                  {{ c.date }}
+                </td>
+                <td class="px-3 py-2.5">
+                  <b class="text-highlighted">{{ c.nama || '—' }}</b>
+                  <span class="block text-[11px] text-muted">{{ rinciComp(c) }}</span>
+                </td>
+                <td class="px-3 py-2.5">
+                  {{ emp.name }}
+                </td>
+                <td class="px-3 py-2.5 text-end num">
+                  {{ fmtRp(pbCompPotong(c)) }}
+                </td>
+                <td class="px-3 py-2.5">
+                  <AppStatus
+                    :color="STATUS_POTONG[pbCompStatusPemberi(c)].color"
+                    size="sm"
+                  >
+                    {{ STATUS_POTONG[pbCompStatusPemberi(c)].label }}
+                  </AppStatus>
+                  <span
+                    v-if="c.putusOleh"
+                    class="block text-[11px] text-muted"
+                  >{{ c.putusOleh }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="px-4 py-3 text-xs text-muted">
+            Angkanya <b>Sub Total</b> — tax &amp; service charge tidak pernah ikut dipotong. Keputusan potong / tidak diambil di
+            <b>modul Kompas</b>; di sini hanya ditampilkan hasilnya.
+          </p>
         </template>
-      </p>
-    </template>
+      </AppPanel>
+    </div>
   </AppPage>
 </template>

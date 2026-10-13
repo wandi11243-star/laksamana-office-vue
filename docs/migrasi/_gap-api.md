@@ -33,6 +33,7 @@ Status: ⬜ belum diajukan · 📨 issue dibuat (tulis nomornya) · ✅ ada di v
 | G-20 | ✅ | [laksamana-api#190](https://github.com/dwipapap/laksamana-api/issues/190) → [PR #257](https://github.com/dwipapap/laksamana-api/pull/257) (Vue PR #112 menyebutnya "G-16") |
 | G-21 | ✅ | [laksamana-api#260](https://github.com/dwipapap/laksamana-api/issues/260) → [PR #262](https://github.com/dwipapap/laksamana-api/pull/262) |
 | G-22 | ✅ | [laksamana-api#261](https://github.com/dwipapap/laksamana-api/issues/261) → [PR #263](https://github.com/dwipapap/laksamana-api/pull/263) |
+| G-23 | ⬜ | — |
 
 ---
 
@@ -206,3 +207,15 @@ memperlakukannya sebagai peta (`perf[platform]`) jadi salah tipe.
 **✅ Selesai (laksamana-api PR #263, 2026-10-09).** `perf` kosong selalu `{}` di list, `find()`, dan getAll;
 `setPerformance` menyimpan `{}` saat platform terakhir dihapus. Perbedaan disengaja dari legacy, dicatat di
 `docs/api/konten.md`.
+
+### G-23 — finance: baris otomatis Breakdown untuk pemegang `kompas` tanpa modul `marketing`/`event`
+Breakdown Sumber Omset menyerap baris otomatis (deal event, Reservasi VIP Assisted, event internal) dari
+`GET /marketing/events-on/{date}` + `GET /event/events-on/{date}`
+(`laksamana-office/deploy/finance/omset/index.html:3125-3155`). Legacy `eventsHari` tanpa gate modul, tetapi v1
+digate `module:marketing` (`laksamana-api/app/Modules/Marketing/routes/v1.php:14-17`) dan `module:event`
+(`laksamana-api/app/Modules/Event/routes/v1.php:9-12`) → pemegang `kompas` (kasir/finance pengisi breakdown
+tiap malam) tanpa kedua modul itu kena 403 `module_not_granted` di keduanya.
+**Vue sudah lapang (pola lama `allSettled`):** satu modul mati tidak menghapus hasil satunya; keduanya gagal
+→ pita galat + baris manual (`app/pages/finance/omset/breakdown.vue`, `app/utils/breakdown-sumber.ts`).
+**Usul (sekelas G-15):** longgarkan gate untuk kedua `events-on` saja (read-only, tanpa CRM/pipeline/rincian
+event — alasan pola G-15), atau sertakan modul `marketing`+`event` pada pemegang `kompas`.
