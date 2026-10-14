@@ -40,6 +40,14 @@ export const LAYAR_KONTEN: Layar[] = [
   l('brands', 'Brand Management', 'Master data & pedoman brand', 'i-lucide-anchor', 'Brand'),
   l('activity', 'Activity Log', 'Jejak audit seluruh aktivitas', 'i-lucide-clock', 'Sistem'),
   l('settings', 'Pengaturan', 'Konfigurasi sistem, daftar kru & hak akses', 'i-lucide-settings', 'Sistem'),
+  // Panel Analytics baru (#133, deploy/konten/analytics/): akun TikTok/IG,
+  // insight, kalender posting & riset tren. Route `analytics`/`calendar` sudah
+  // dipakai layar lama, jadi key-nya berbeda.
+  l('insight', 'Insight Konten', 'Postingan terpopuler, akun terhubung & insight per platform', 'i-lucide-sparkles', 'Analytics'),
+  l('kalender', 'Kalender Posting', 'Rencana posting & pengingat tayang', 'i-lucide-calendar-clock', 'Analytics'),
+  l('riset', 'Riset Tren', 'Riset tren AI dari postingan brand', 'i-lucide-radar', 'Analytics'),
+  l('bank', 'Bank Konten', 'Ide konten & content planning AI', 'i-lucide-lightbulb', 'Analytics'),
+  l('sosmed', 'Pengaturan Sosmed', 'Profil brand, kunci AI, TikTok & Instagram', 'i-lucide-key-round', 'Analytics'),
 ]
 
 /** Red badge on Approval: items waiting for approval across all brands (old updateApprovalBadge, :1683). */
