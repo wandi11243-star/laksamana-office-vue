@@ -604,6 +604,74 @@ export function menubarisMkt(v: unknown): Record<string, string>[] {
   return []
 }
 
+// ---------------------------------------------------------------- overview (read-only rich blocks)
+
+export interface BarisRundownOv { mulai: string, durasi: string, selesai: string, kegiatan: string, pic: string }
+
+/** Rundown rows worth drawing (old ovRundown table). */
+export function barisRundownOv(v: unknown): BarisRundownOv[] {
+  if (!Array.isArray(v)) return []
+  return (v as Detail[])
+    .filter(r => r && typeof r === 'object')
+    .map(r => ({
+      mulai: String(r.mulai ?? ''), durasi: String(r.durasi ?? ''), selesai: String(r.selesai ?? ''),
+      kegiatan: String(r.kegiatan ?? ''), pic: String(r.pic ?? r.nama ?? ''),
+    }))
+    .filter(r => r.mulai || r.durasi || r.selesai || r.kegiatan || r.pic)
+}
+
+export interface BerkasOv { key: string, name: string }
+
+/** File attachments worth drawing (old ovLampiran/ovLayout images). */
+export function berkasOv(v: unknown): BerkasOv[] {
+  if (!Array.isArray(v)) return []
+  return (v as Detail[])
+    .filter(b => b && typeof b === 'object' && String((b as Detail).key ?? ''))
+    .map(b => ({ key: String((b as Detail).key ?? ''), name: String((b as Detail).name ?? (b as Detail).key ?? '') }))
+}
+
+export function berkasGambarOv(name: string): boolean {
+  return /\.(png|jpe?g|webp|gif)$/i.test(name)
+}
+
+export interface GrupMenuOv { nama: string, jam: string, qty: string, rows: { kat: string, menu: string, qty: string, jam: string }[] }
+
+/** Menu groups worth drawing (old ovMenu tables per kelompok). */
+export function grupMenuOv(v: unknown): GrupMenuOv[] {
+  const out: GrupMenuOv[] = []
+  const baris = (r: Detail) => ({
+    kat: String(r.kat ?? ''), menu: String(r.menu ?? ''), qty: String(r.qty ?? ''), jam: String(r.jam ?? ''),
+  })
+  if (Array.isArray(v)) {
+    const rows = (v as Detail[]).filter(r => r && typeof r === 'object').map(baris)
+      .filter(r => r.kat || r.menu || r.qty || r.jam)
+    if (rows.length) out.push({ nama: '', jam: '', qty: '', rows })
+    return out
+  }
+  if (v && typeof v === 'object') {
+    for (const [g, gd] of Object.entries(v as Detail)) {
+      if (g === '_teks' || !gd || typeof gd !== 'object') continue
+      const gg = gd as Detail & { jam?: string, qty?: string, rows?: Detail[] }
+      const rows = (gg.rows ?? []).filter(r => r && typeof r === 'object').map(baris)
+        .filter(r => r.kat || r.menu || r.qty || r.jam)
+      if (rows.length || String(gg.jam ?? '') || String(gg.qty ?? '')) {
+        out.push({ nama: g, jam: String(gg.jam ?? ''), qty: String(gg.qty ?? ''), rows })
+      }
+    }
+  }
+  return out
+}
+
+/** Does an overview row carry anything drawable? (simple types: the 1-line summary.) */
+export function adaIsiOverviewMkt(t: string, raw: unknown, ringkas: string | null): boolean {
+  if (t === 'rundown') return barisRundownOv(raw).length > 0
+  if (t === 'files') return berkasOv(raw).length > 0
+  if (t === 'menutbl') return grupMenuOv(raw).length > 0
+  if (t === 'barangtbl' || t === 'itemtbl') return menubarisMkt(raw).length > 0
+  if (t === 'rincitbl') return Array.isArray(raw) && raw.length > 0
+  return ringkas !== null && ringkas !== ''
+}
+
 // ---------------------------------------------------------------- WA texts
 
 const digitHp = (s: unknown) => String(s ?? '').replace(/\D/g, '')
