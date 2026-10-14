@@ -585,6 +585,31 @@ export function gambarBerkasMkt(key: string): Promise<string> {
   return p
 }
 
+/** File key from a stored urlBerkasMkt() URL (proof URLs are stored whole). */
+export function kunciBerkasMkt(url: string): string {
+  const u = String(url ?? '')
+  return decodeURIComponent(u.split('/marketing/files/')[1] ?? u.split('/files/')[1] ?? '')
+}
+
+/**
+ * Open a `/marketing/files/{key}` blob in a new tab. Direct links cannot
+ * carry the Bearer token, so the browser alone always gets 401 — fetch
+ * through useApi instead, like MarketingGambar does for images.
+ */
+export async function bukaBerkasMkt(key: string): Promise<boolean> {
+  const toast = useToast()
+  if (!key) return false
+  try {
+    const b = await useApi()<Blob>(`/marketing/files/${encodeURIComponent(key)}`, { responseType: 'blob' })
+    window.open(URL.createObjectURL(b), '_blank', 'noopener')
+    return true
+  }
+  catch (e) {
+    toast.add({ title: `Berkas tidak bisa dibuka: ${apiErrorMessage(e)}`, color: 'error' })
+    return false
+  }
+}
+
 // ---------------------------------------------------------------- BD purchasing (#62)
 
 /**

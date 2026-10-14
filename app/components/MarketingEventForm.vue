@@ -13,7 +13,7 @@ import type { DrafEventMkt, FieldEventMkt, SeksiEventMkt } from '~/utils/marketi
 import {
   KUNCI_ATAS_EVENT_MKT, MAKS_BERKAS_MKT, condTerpenuhiMkt, progresSeksiMkt, ringkasNilaiMkt,
 } from '~/utils/marketing-event'
-import { berkasKeBase64, unggahBerkasMkt, urlBerkasMkt } from '~/composables/useMarketing'
+import { berkasKeBase64, bukaBerkasMkt, unggahBerkasMkt } from '~/composables/useMarketing'
 import { ynBool } from '~/utils/marketing-uang'
 
 const props = defineProps<{
@@ -363,12 +363,15 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                     name="i-lucide-paperclip"
                     class="size-4 flex-none text-muted"
                   />
-                  <a
-                    :href="urlBerkasMkt(b.key)"
-                    target="_blank"
-                    rel="noopener"
-                    class="min-w-0 flex-1 truncate text-primary-700 underline"
-                  >{{ b.name }}</a>
+                  <UButton
+                    color="neutral"
+                    variant="link"
+                    size="xs"
+                    class="min-w-0 flex-1 justify-start truncate px-0 text-primary-700 underline"
+                    @click="bukaBerkasMkt(b.key)"
+                  >
+                    {{ b.name }}
+                  </UButton>
                   <UButton
                     v-if="bisaUbah"
                     icon="i-lucide-x"

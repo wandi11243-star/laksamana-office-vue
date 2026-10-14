@@ -11,7 +11,7 @@
 import type { ModeBriefMkt } from '~/utils/marketing-event'
 import type { EventMkt } from '~/utils/marketing'
 import { buildBriefDocMkt } from '~/utils/marketing-event'
-import { urlBerkasMkt, useStateMkt } from '~/composables/useMarketing'
+import { bukaBerkasMkt, useStateMkt } from '~/composables/useMarketing'
 
 definePageMeta({ access: ['marketing'] })
 
@@ -85,8 +85,7 @@ function cetak() {
             variant="outline"
             size="sm"
             label="Buka PDF unggahan sendiri"
-            :to="urlBerkasMkt(String(pdfSendiri.key))"
-            target="_blank"
+            @click="bukaBerkasMkt(String(pdfSendiri.key))"
           />
           <UButton
             icon="i-lucide-printer"

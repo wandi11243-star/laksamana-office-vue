@@ -9,7 +9,7 @@ import {
   adaIsiOverviewMkt, barisRundownOv, berkasGambarOv, berkasOv, grupMenuOv, menubarisMkt,
 } from '~/utils/marketing-event'
 import { eventFinance, rincianPenawaran } from '~/utils/marketing-uang'
-import { urlBerkasMkt } from '~/composables/useMarketing'
+import { bukaBerkasMkt } from '~/composables/useMarketing'
 import { rupiah } from '~/utils/format'
 
 export interface BarisOverview { k: string, l: string, t: string, raw: unknown, ringkas: string | null }
@@ -97,31 +97,32 @@ const grand = computed(() => eventFinance(props.ev, props.settings).grand)
       </tbody>
     </table>
 
-    <!-- Lampiran / layout: images inline, others as links -->
+    <!-- Lampiran / layout: images inline, others as links (all via Bearer blob) -->
     <div
       v-else-if="b.t === 'files'"
       class="grid gap-2"
     >
-      <a
+      <div
         v-for="f in berkasOv(b.raw)"
         :key="f.key"
-        :href="urlBerkasMkt(f.key)"
-        target="_blank"
-        rel="noopener"
-        class="block"
       >
-        <img
+        <MarketingGambar
           v-if="berkasGambarOv(f.name)"
-          :src="urlBerkasMkt(f.key)"
+          :file-key="f.key"
           :alt="f.name"
-          class="max-h-96 rounded border border-default"
-          loading="lazy"
-        >
-        <span
+          img-class="max-h-96 rounded border border-default"
+        />
+        <UButton
           v-else
-          class="text-sm text-primary-700 underline"
-        >{{ f.name }}</span>
-      </a>
+          color="neutral"
+          variant="link"
+          size="xs"
+          class="px-0 text-primary-700 underline"
+          @click="bukaBerkasMkt(f.key)"
+        >
+          {{ f.name }}
+        </UButton>
+      </div>
     </div>
 
     <!-- Menu berkelompok (Menu Final) / daftar (Bar) -->
