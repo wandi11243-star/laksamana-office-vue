@@ -42,7 +42,7 @@ async function muat() {
     const api = useApi()
     const [master, daftarRes] = await Promise.all([
       api<Envelope<{ tables?: string[] }>>('/reservasi/master/tables').catch(() => null),
-      api<Envelope<Record<string, unknown>[]>>('/reservasi/reservations', { query: { from: props.tanggal, to: props.tanggal, perPage: 1000 } }).catch(() => null),
+      api<Envelope<Record<string, unknown>[]>>('/reservasi/reservations', { query: { from: props.tanggal, to: props.tanggal, perPage: 100 } }).catch(() => null),
     ])
     daftar.value = master?.data?.tables ?? []
     const pakai: Record<string, string> = {}

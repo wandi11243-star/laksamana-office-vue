@@ -378,7 +378,9 @@ export const listReservationsHalaman = (f: FilterHalamanReservasi) =>
       q: f.q || undefined,
       status: f.status || undefined,
       page: f.page ?? 1,
-      perPage: f.perPage ?? 10,
+      // The API caps a page at 100 rows — clamp here so a big literal
+      // never turns into a 422 (marketing VIP sweep hit this, #139).
+      perPage: Math.min(f.perPage ?? 10, 100),
     },
   })
 

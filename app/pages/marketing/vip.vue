@@ -63,10 +63,18 @@ async function muatRsv() {
   rsvMuat.value = true
   rsvGalat.value = ''
   try {
-    const r = await useApi()<Envelope<Record<string, unknown>[]>>('/reservasi/reservations', {
-      query: { from: '2020-01-01', to: '2100-12-31', perPage: 1000 },
-    })
-    rsvVip.value = (r.data ?? []).filter(x => x && (x as { vip?: boolean }).vip === true && String((x as { id?: string }).id ?? '').startsWith('vip-'))
+    // Sweep for orphans: the API caps a page at 100 rows, so walk pages.
+    const semua: Record<string, unknown>[] = []
+    let hal = 1
+    for (;;) {
+      const r = await useApi()<Envelope<Record<string, unknown>[]>>('/reservasi/reservations', {
+        query: { from: '2020-01-01', to: '2100-12-31', page: hal, perPage: 100 },
+      })
+      semua.push(...(r.data ?? []))
+      if ((r.data ?? []).length < 100 || hal >= 500) break
+      hal++
+    }
+    rsvVip.value = semua.filter(x => x && (x as { vip?: boolean }).vip === true && String((x as { id?: string }).id ?? '').startsWith('vip-'))
   }
   catch (e) {
     rsvGalat.value = `Tidak bisa membaca modul Reservasi: ${apiErrorMessage(e)}`
@@ -247,7 +255,7 @@ async function bukaLagi(v: VipMkt | null) {
     const rec = resId ? await barisRsv(resId) : null
     if (rec) {
       const sekitar = await useApi()<Envelope<Record<string, unknown>[]>>('/reservasi/reservations', {
-        query: { from: tambahHari(v.tanggal ?? '', -1), to: tambahHari(v.tanggal ?? '', 1), perPage: 1000 },
+        query: { from: tambahHari(v.tanggal ?? '', -1), to: tambahHari(v.tanggal ?? '', 1), perPage: 100 },
       })
       const pakai = mejaTerpakaiVipMkt(sekitar.data ?? [], v.tanggal ?? '', jamAtau00Mkt(v.jamMulai), resId)
       const bentrok = (v.meja ?? []).filter(m => pakai[m])
