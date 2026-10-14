@@ -254,10 +254,8 @@ async function bukaLagi(v: VipMkt | null) {
     const resId = v.resId || ''
     const rec = resId ? await barisRsv(resId) : null
     if (rec) {
-      const sekitar = await useApi()<Envelope<Record<string, unknown>[]>>('/reservasi/reservations', {
-        query: { from: tambahHari(v.tanggal ?? '', -1), to: tambahHari(v.tanggal ?? '', 1), perPage: 100 },
-      })
-      const pakai = mejaTerpakaiVipMkt(sekitar.data ?? [], v.tanggal ?? '', jamAtau00Mkt(v.jamMulai), resId)
+      const sekitar = await daftarReservasiSemua(tambahHari(v.tanggal ?? '', -1), tambahHari(v.tanggal ?? '', 1))
+      const pakai = mejaTerpakaiVipMkt(sekitar ?? [], v.tanggal ?? '', jamAtau00Mkt(v.jamMulai), resId)
       const bentrok = (v.meja ?? []).filter(m => pakai[m])
       if (bentrok.length) {
         toast.add({ title: 'Tidak bisa dibuka kembali', description: `Meja ${bentrok.join(', ')} sudah dipesan tamu lain pada jam itu.`, color: 'error' })
