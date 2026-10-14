@@ -115,6 +115,8 @@ export const VIEW_PERM_KONTEN: Record<string, string> = {
   perfinput: 'analytics', designperf: 'analytics',
   ads: 'ads', chats: 'ads', kol: 'kol',
   activity: 'activity', settings: 'settings',
+  insight: 'analytics', riset: 'analytics', bank: 'analytics',
+  kalender: 'content', sosmed: 'settings',
 }
 
 // ---------------------------------------------------------------- content
