@@ -21,11 +21,11 @@ import {
 } from '~/utils/marketing'
 import type { DrafEventMkt } from '~/utils/marketing-event'
 import {
-  KUNCI_ATAS_EVENT_MKT, bentrokJadwalMkt,
+  KUNCI_ATAS_EVENT_MKT, adaIsiOverviewMkt, bentrokJadwalMkt,
   noKwitansiMkt, progresSeksiMkt, ringkasHapusMkt,
   ringkasNilaiMkt, seqBerikutMkt, sinkronDpMkt, tabTerlihatMkt, terlihatSeksiMkt,
 } from '~/utils/marketing-event'
-import { dpLabel, eventFinance } from '~/utils/marketing-uang'
+import { dpLabel, eventFinance, rincianPenawaran } from '~/utils/marketing-uang'
 import type { TemplateTugasMkt } from '~/utils/marketing-tugas'
 import { progresDivMkt } from '~/utils/marketing-tugas'
 import { ikonStatusMkt, warnaStatusMkt } from '~/utils/status-marketing'
@@ -298,19 +298,28 @@ const ringkas = computed(() => {
 })
 
 // ---- Overview (renderOverview): a read-only summary document ----
+// Simple fields stay a label–value list; rundown/files/menu/item tables,
+// images and the Rincian Tagihan table draw rich blocks (MarketingOverviewIsi).
 const overview = computed(() => {
   const e = ev.value
   if (!e) return { secs: [], isi: 0, total: 0 }
   let isi = 0
   let total = 0
+  const settings = st.value?.settings ?? {}
   const secs = seksiLihat.value.map((s) => {
     const p = progresSeksiMkt(e, s)
     isi += p.isi
     total += p.total
     const baris = s.fields
       .filter(f => !['head', 'mirror', 'salinlayout', 'mejalock'].includes(f.t) && f.k !== 'highlight')
-      .map(f => ({ k: f.k, l: f.l, v: ringkasNilaiMkt(f.t, (e.detail ?? {})[f.k] ?? (e as unknown as Record<string, unknown>)[f.k]) }))
-      .filter(b => b.v)
+      .map((f) => {
+        const raw = (e.detail ?? {})[f.k] ?? (e as unknown as Record<string, unknown>)[f.k]
+        // The tagihan table is computed, like the finance tab (rincianPenawaran).
+        const t = f.k === 'rincianItem' ? 'rincitbl' : f.t
+        const isi = t === 'rincitbl' ? rincianPenawaran(e, settings) : raw
+        return { k: f.k, l: f.l, t, raw: isi, ringkas: ringkasNilaiMkt(f.t, raw) }
+      })
+      .filter(b => adaIsiOverviewMkt(b.t, b.raw, b.ringkas))
     return { id: s.id, n: s.n, title: s.title, baris }
   }).filter(s => s.baris.length)
   return { secs, isi, total }
@@ -706,20 +715,12 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
             class="mt-4"
           >
             <AppSectionTitle :title="`${s.n} · ${s.title}`" />
-            <dl class="grid gap-y-1.5 text-sm">
-              <div
-                v-for="b in s.baris"
-                :key="b.k"
-                class="grid gap-1 sm:grid-cols-[14rem_1fr] sm:gap-3"
-              >
-                <dt class="text-muted">
-                  {{ b.l }}
-                </dt>
-                <dd class="whitespace-pre-line">
-                  {{ b.v }}
-                </dd>
-              </div>
-            </dl>
+            <MarketingOverviewIsi
+              v-if="ev"
+              :baris="s.baris"
+              :ev="ev"
+              :settings="st.settings"
+            />
           </section>
         </AppPanel>
 
