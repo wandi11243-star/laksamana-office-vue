@@ -9,7 +9,7 @@
 <script setup lang="ts">
 import type { EventMkt, PenawaranMkt, SettingsMkt } from '~/utils/marketing'
 import { MAKS_PDF_PENAWARAN_MKT, noSuratBaruMkt, revisiBerikutMkt } from '~/utils/marketing-event'
-import { buatMkt, logMkt, mktSimpan, tambalMkt, unggahBertahapMkt, urlBerkasMkt } from '~/composables/useMarketing'
+import { buatMkt, bukaBerkasMkt, logMkt, mktSimpan, tambalMkt, unggahBertahapMkt } from '~/composables/useMarketing'
 import { eventFinance } from '~/utils/marketing-uang'
 import { rupiah } from '~/utils/format'
 
@@ -269,13 +269,16 @@ async function kirimRevisi() {
         Berkas
       </dt>
       <dd>
-        <a
+        <UButton
           v-if="pen.file?.key"
-          :href="urlBerkasMkt(pen.file.key)"
-          target="_blank"
-          rel="noopener"
-          class="text-primary-700 underline"
-        >Baca PDF</a>
+          color="neutral"
+          variant="link"
+          size="xs"
+          class="px-0 text-primary-700 underline"
+          @click="bukaBerkasMkt(pen.file.key)"
+        >
+          Baca PDF
+        </UButton>
         <span v-else>—</span>
       </dd>
       <dt
@@ -448,8 +451,7 @@ async function kirimRevisi() {
           color="neutral"
           variant="outline"
           label="Buka / Unduh PDF"
-          :to="urlBerkasMkt(pen.file.key)"
-          target="_blank"
+          @click="bukaBerkasMkt(pen.file.key)"
         />
         <UButton
           v-if="waKirim"

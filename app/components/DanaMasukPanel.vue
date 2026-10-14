@@ -27,7 +27,7 @@ import {
   deleteReservation, getFile, getReservation, listReservations, patchReservation,
   postAudit, useSection,
 } from '~/composables/useReservasi'
-import { getMarketingDp, type DpEvent, type DpEventData } from '~/composables/useMarketing'
+import { bukaBerkasMkt, getMarketingDp, kunciBerkasMkt, type DpEvent, type DpEventData } from '~/composables/useMarketing'
 import { apiErrorCode, apiErrorMessage } from '~/composables/useApi'
 import { tanganiKonflik, versiDari, type Versi } from '~/utils/versi'
 import {
@@ -1778,9 +1778,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
                 color="neutral"
                 variant="ghost"
                 size="xs"
-                :to="tautanBuktiEv(row.original)"
-                target="_blank"
-                rel="noopener"
+                @click="bukaBerkasMkt(kunciBerkasMkt(tautanBuktiEv(row.original)))"
               />
               <span
                 v-else-if="row.original.receipt"

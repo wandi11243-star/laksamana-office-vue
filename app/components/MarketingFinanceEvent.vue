@@ -15,7 +15,7 @@ import {
   sisaSesudahMkt, tujuanWaMkt,
 } from '~/utils/marketing-event'
 import { dpLabel, eventFinance, invStatus, rinciSeedRows, ynBool } from '~/utils/marketing-uang'
-import { berkasKeBase64, unggahBerkasMkt, urlBerkasMkt } from '~/composables/useMarketing'
+import { berkasKeBase64, bukaBerkasMkt, kunciBerkasMkt, unggahBerkasMkt, urlBerkasMkt } from '~/composables/useMarketing'
 import { hariIni, rupiah } from '~/utils/format'
 
 const props = defineProps<{
@@ -359,13 +359,16 @@ const barisTagih = computed(() => {
           <div class="lg:col-span-2">
             <UFormField label="Bukti transfer">
               <div class="grid gap-2">
-                <a
+                <UButton
                   v-if="draft.detail.dpBuktiUrl"
-                  :href="String(draft.detail.dpBuktiUrl)"
-                  target="_blank"
-                  rel="noopener"
-                  class="text-sm text-primary-700 underline"
-                >{{ String(draft.detail.dpBuktiNama || 'Lihat bukti') }}</a>
+                  color="neutral"
+                  variant="link"
+                  size="xs"
+                  class="px-0 text-sm text-primary-700 underline"
+                  @click="bukaBerkasMkt(kunciBerkasMkt(String(draft.detail.dpBuktiUrl)))"
+                >
+                  {{ String(draft.detail.dpBuktiNama || 'Lihat bukti') }}
+                </UButton>
                 <UInput
                   v-if="bisaUbah"
                   type="file"
@@ -460,13 +463,16 @@ const barisTagih = computed(() => {
                 {{ p.at }} · {{ p.method }}{{ p.receiptUrl ? ' · ada bukti' : ' · tanpa bukti' }}
               </p>
             </div>
-            <a
+            <UButton
               v-if="p.receiptUrl"
-              :href="String(p.receiptUrl)"
-              target="_blank"
-              rel="noopener"
-              class="text-xs text-primary-700 underline"
-            >Bukti</a>
+              color="neutral"
+              variant="link"
+              size="xs"
+              class="px-0 text-xs text-primary-700 underline"
+              @click="bukaBerkasMkt(kunciBerkasMkt(String(p.receiptUrl)))"
+            >
+              Bukti
+            </UButton>
             <UButton
               v-if="bisaVerif"
               icon="i-lucide-pencil"
