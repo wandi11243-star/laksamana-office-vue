@@ -118,12 +118,44 @@ export function sayaKonten(me: Me | null, users: UserKonten[]): SayaKonten | nul
 /** The bits the module menu needs before a screen is drawn (shell `siapkan`). */
 export const usePeranKonten = () => useState<{ users: UserKonten[], perms: PermsKonten | null }>('konten-peran', () => ({ users: [], perms: null }))
 
+/**
+ * Light crew + brand + perms dicts (no full state): for selects, name
+ * lookups and access checks on list-style screens (#141). The full state
+ * still loads on demand wherever a screen calls useStateKonten().
+ */
+export const useDictKonten = () => useAsyncData('konten-dict', async () => {
+  const [brands, users, perms] = await Promise.all([
+    useApi()<Envelope<BrandKonten[]>>('/konten/brands').then(r => r.data ?? []),
+    useApi()<Envelope<UserKonten[]>>('/konten/users').then(r => r.data ?? []),
+    getDokumenKonten<PermsKonten>('perms').then(r => r.data ?? null).catch(() => null),
+  ])
+  return { brands, users, perms }
+})
+
+/** Reactive access like useAksesKonten, but from the light dict (no full state). */
+export function useAksesKontenRingan() {
+  const me = useMe()
+  const { data } = useDictKonten()
+  const users = computed(() => data.value?.users ?? [])
+  const perms = computed(() => data.value?.perms ?? null)
+  const saya = computed(() => sayaKonten(me.value, users.value))
+  const can = (row: string) => levelSayaKonten(me.value, users.value, perms.value, row) >= 2
+  const canView = (layar: string) => bolehLihatKonten(me.value, users.value, perms.value, layar)
+  return { saya, can, canView }
+}
+
 /** Load the state once on entering the module and mirror crew + matrix for the menu. */
 export function muatPeranKonten() {
   const peran = usePeranKonten()
-  const { data } = useStateKonten()
-  watchEffect(() => {
-    peran.value = { users: data.value.users, perms: data.value.perms }
+  // Light: crew + perms docs only, not the 4,8 MB full state (#141).
+  // Same shape as before, so menus behave identically.
+  useAsyncData('konten-peran', async () => {
+    const [users, perms] = await Promise.all([
+      useApi()<Envelope<UserKonten[]>>('/konten/users').then(r => r.data ?? []),
+      getDokumenKonten<PermsKonten>('perms').then(r => r.data ?? null).catch(() => null),
+    ])
+    peran.value = { users, perms }
+    return peran.value
   })
   return peran
 }
@@ -165,6 +197,37 @@ export function useAksesKonten() {
 export const useBrandKonten = () => useState<string>('konten-brand', () => 'all')
 export const saringBrand = <T extends { brand?: string }>(list: T[], brand: string) =>
   (brand === 'all' ? list : list.filter(x => x.brand === brand))
+
+// ---------------------------------------------------------------- server list (#141)
+
+/** Filter badges for the server Planning list (mirrors FilterPlanning). */
+export interface FilterListKonten {
+  arsip?: string
+  status?: string
+  platform?: string
+  pillar?: string
+  pic?: string
+  brand?: string
+  q?: string
+  page?: number
+  perPage?: number
+}
+
+/**
+ * GET /konten/content — server paging/filter/sort with slim rows
+ * (`ringkas=1`) + PIC facet counts (`meta.facets`). The Planning table's
+ * only data source; photos and heavy fields never leave the server here.
+ */
+export const listKonten = (f: FilterListKonten) =>
+  useApi()<Envelope<KontenItem[]> & { meta: { total: number, page: number, perPage: number, facets?: Record<string, number> } }>('/konten/content', {
+    query: {
+      ringkas: 1, sort: 'deadline', facets: 'pic',
+      arsip: f.arsip || undefined, status: f.status || undefined,
+      platform: f.platform || undefined, pillar: f.pillar || undefined,
+      pic: f.pic || undefined, brand: f.brand || undefined, q: f.q || undefined,
+      page: f.page ?? 1, perPage: f.perPage ?? 10,
+    },
+  })
 
 // ---------------------------------------------------------------- writes
 

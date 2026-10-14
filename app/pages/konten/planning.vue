@@ -13,7 +13,7 @@ import { useMediaQuery } from '@vueuse/core'
 import type { FilterPlanning, KontenItem } from '~/utils/konten'
 import {
   PILLARS, PLATFORM_KONTEN, PRIORITY_KONTEN, STATUS_KONTEN, contentPlatforms, contentTypeLabel, filterPlanningBawaan,
-  opsiPicKonten, picCocok, printTypes, saringPlanning, sudahArsip,
+  opsiPicKonten, printTypes,
 } from '~/utils/konten'
 import { ikonStatusKonten, warnaPrioKonten, warnaStatusKonten } from '~/utils/status-konten'
 import { fTglP } from '~/utils/format'
@@ -22,8 +22,9 @@ definePageMeta({ access: ['konten'] })
 
 const route = useRoute()
 const router = useRouter()
-const { data: st, error, status } = useStateKonten()
-const { saya, can } = useAksesKonten()
+// Light dicts only (#141) — the table never waits for the 4,8 MB full state.
+const { data: dict } = useDictKonten()
+const { saya, can } = useAksesKontenRingan()
 const brand = useBrandKonten()
 const f = useState<FilterPlanning>('konten-plan-filter', filterPlanningBawaan)
 const hal = useState('konten-plan-hal', () => 1)
@@ -33,6 +34,24 @@ const per = useState('konten-plan-per', () => 10)
 watch(() => route.query.q, (q) => {
   if (typeof q === 'string') f.value.q = q
 }, { immediate: true })
+
+// Server list: slim rows, paging/filter/sort/facets (#141, #282).
+const { data: daftar, error, status, refresh } = useAsyncData('konten-planning', () => listKonten({
+  arsip: f.value.arsip || undefined, status: f.value.status || undefined,
+  platform: f.value.platform || undefined, pillar: f.value.pillar || undefined,
+  pic: f.value.pic || undefined, brand: brand.value === 'all' ? undefined : brand.value,
+  q: f.value.q || undefined, page: hal.value, perPage: per.value,
+}))
+const list = computed(() => daftar.value?.data ?? [])
+const total = computed(() => daftar.value?.meta.total ?? 0)
+const facets = computed(() => daftar.value?.meta.facets ?? {})
+// A new filter goes back to page 1; data growing or shrinking keeps the page.
+watch([f, brand], () => {
+  hal.value = 1
+}, { deep: true })
+watch([f, brand, hal, per], () => {
+  refresh()
+}, { deep: true })
 
 const SEMUA = '__semua'
 /** USelect cannot hold '' — map the stored '' (= all) to a sentinel and back. */
@@ -46,17 +65,6 @@ const fStatus = pilih('status')
 const fPlatform = pilih('platform')
 const fPillar = pilih('pillar')
 const fPic = pilih('pic')
-
-const semua = computed(() => st.value.content)
-const dasar = computed(() => saringBrand(semua.value, brand.value))
-const list = computed(() => saringPlanning(dasar.value, f.value))
-const tanpaPic = computed(() => saringPlanning(dasar.value, f.value, true))
-const arsipN = computed(() => semua.value.filter(sudahArsip).length)
-// A new filter goes back to page 1; data growing or shrinking keeps the page.
-watch([f, brand], () => {
-  hal.value = 1
-}, { deep: true })
-const halaman = computed(() => list.value.slice((hal.value - 1) * per.value, hal.value * per.value))
 
 const opsiArsip = [
   { value: 'aktif', label: 'Aktif (belum tayang)' },
@@ -73,8 +81,8 @@ const opsiStatus = [{ value: SEMUA, label: 'Semua Status' }, ...STATUS_KONTEN.ma
 const opsiPlatform = [{ value: SEMUA, label: 'Semua Platform' }, ...PLATFORM_KONTEN.map(p => ({ value: p, label: p }))]
 const opsiPillar = [{ value: SEMUA, label: 'Semua Pillar' }, ...PILLARS.map(p => ({ value: p, label: p }))]
 const opsiPic = computed(() => opsiPicKonten(
-  st.value.users,
-  id => (id == null ? tanpaPic.value.length : tanpaPic.value.filter(c => picCocok(id, c.pic)).length),
+  dict.value?.users ?? [],
+  id => (id == null ? (facets.value[''] ?? list.value.length) : (facets.value[id] ?? 0)),
   saya.value?.user.id,
 ).map(o => ({ ...o, value: o.value || SEMUA })))
 
@@ -82,8 +90,8 @@ function reset() {
   f.value = filterPlanningBawaan()
 }
 
-const namaBrand = (id?: string) => st.value.brands.find(b => b.id === id)?.name.split(' (')[0] ?? ''
-const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ?? ''
+const namaBrand = (id?: string) => dict.value?.brands.find(b => b.id === id)?.name.split(' (')[0] ?? ''
+const namaUser = (id?: string) => dict.value?.users.find(u => u.id === id)?.name ?? ''
 const inisial = (n?: string) => String(n ?? '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
 const buka = (c: KontenItem) => router.push(`/konten/detail/${c.id}`)
 
@@ -109,7 +117,7 @@ const kolom: TableColumn<KontenItem>[] = [
   <KontenGerbang lihat="planning">
     <AppPage
       title="Content Planning"
-      :description="`${semua.length} total konten - ${semua.filter(c => c.status === 'Posted').length} tayang${f.arsip === 'aktif' && arsipN ? ` · ${arsipN} diarsipkan (tayang/batal)` : ''}`"
+      :description="`${total} konten — halaman ${hal}`"
     >
       <template
         v-if="can('content')"
@@ -130,7 +138,7 @@ const kolom: TableColumn<KontenItem>[] = [
         :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
       />
 
-      <KontenBrandBar :brands="st.brands" />
+      <KontenBrandBar :brands="dict?.brands ?? []" />
 
       <AppPanel>
         <AppFilterGrid>
@@ -193,7 +201,7 @@ const kolom: TableColumn<KontenItem>[] = [
       <AppPanel
         title="Daftar konten"
         icon="i-lucide-list"
-        :count="list.length"
+        :count="total"
         flush
         :class="status === 'pending' ? 'opacity-60' : ''"
       >
@@ -215,7 +223,7 @@ const kolom: TableColumn<KontenItem>[] = [
         <template v-else>
           <UTable
             class="hidden lg:block"
-            :data="halaman"
+            :data="list"
             :columns="kolom"
             :column-visibility="kolomTampil"
             :ui="{ tr: 'cursor-pointer', th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
@@ -300,7 +308,7 @@ const kolom: TableColumn<KontenItem>[] = [
 
           <ul class="divide-y divide-default lg:hidden">
             <li
-              v-for="c in halaman"
+              v-for="c in list"
               :key="c.id"
             >
               <NuxtLink
@@ -338,7 +346,7 @@ const kolom: TableColumn<KontenItem>[] = [
           <KontenPager
             v-model:hal="hal"
             v-model:per="per"
-            :total="list.length"
+            :total="total"
             satuan="konten"
           />
         </template>

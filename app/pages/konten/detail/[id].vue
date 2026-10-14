@@ -27,16 +27,22 @@ definePageMeta({ access: ['konten'] })
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
-const { data: st, status, error } = useStateKonten()
-const { saya, can } = useAksesKonten()
 
 const id = computed(() => String(route.params.id))
 const baru = computed(() => id.value === 'baru')
 const ubah = computed(() => baru.value || route.query.ubah === '1')
-const c = computed<KontenItem | null>(() => st.value.content.find(x => x.id === id.value) ?? null)
+const { data: dict } = useDictKonten()
+const { saya, can } = useAksesKontenRingan()
+// Full row on demand (#141) — the list stays slim, photos load only here.
+const { data: baris, status, error, refresh: muatUlangBaris } = useAsyncData(`konten-detail-${id.value}`, () => {
+  // Creation mode has no row to fetch (same null the old find() gave).
+  if (id.value === 'baru') return Promise.resolve(null)
+  return useApi()<Envelope<KontenItem>>(`/konten/content/${encodeURIComponent(id.value)}`).then(r => r.data)
+}, { watch: [id] })
+const c = computed<KontenItem | null>(() => baris.value ?? null)
 
-const namaUser = (uid?: string) => st.value.users.find(u => u.id === uid)?.name ?? (uid || '-')
-const brand = computed(() => st.value.brands.find(b => b.id === c.value?.brand))
+const namaUser = (uid?: string) => dict.value?.users.find(u => u.id === uid)?.name ?? (uid || '-')
+const brand = computed(() => dict.value?.brands.find(b => b.id === c.value?.brand))
 const stepIdx = computed(() => PIPELINE_KONTEN.indexOf((c.value?.status ?? '') as typeof PIPELINE_KONTEN[number]))
 const checklist = computed(() => c.value?.checklist ?? [])
 const chkDone = computed(() => checklist.value.filter(x => x.done).length)
@@ -48,7 +54,7 @@ const zoomBuka = computed({ get: () => !!zoomImg.value, set: (v: boolean) => {
   if (!v) zoomImg.value = null
 } })
 const detail = computed(() => contentDetail(c.value))
-const namaKru = computed(() => st.value.users.map(u => u.name))
+const namaKru = computed(() => (dict.value?.users ?? []).map(u => u.name))
 const lalu = (ts?: number) => {
   if (!ts) return '-'
   const s = (Date.now() - ts) / 1000
@@ -59,9 +65,12 @@ const lalu = (ts?: number) => {
 }
 const waktu = (v?: number | string) => (v ? new Date(v).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-')
 
-/** PATCH the item with its version, log, reload. */
-const tambal = (fields: Partial<KontenItem>, sukses?: string, action?: string) =>
-  kontenSimpan(() => tambalKonten<KontenItem>('content', c.value!.id, fields, c.value!.updatedAt), sukses, action ? { action, target: c.value!.title } : undefined)
+/** PATCH the item with its version, log, reload (row + nothing else). */
+const tambal = async (fields: Partial<KontenItem>, sukses?: string, action?: string) => {
+  const ok = await kontenSimpan(() => tambalKonten<KontenItem>('content', c.value!.id, fields, c.value!.updatedAt), sukses, action ? { action, target: c.value!.title } : undefined)
+  if (ok) await muatUlangBaris()
+  return ok
+}
 
 // ---- status flow (:2445-2448) ----
 async function geser(arah: 1 | -1) {
@@ -129,7 +138,7 @@ const inisial = (nama?: string) => String(nama ?? '').split(/\s+/).filter(Boolea
 /** Full name, any word start, or initials — like the old mentionCandidates (:2386-2393). */
 const mntCalon = computed(() => {
   const q = mntQuery.value.toLowerCase()
-  return st.value.users.filter(u => u.id !== saya.value?.user.id && u.name
+  return (dict.value?.users ?? []).filter(u => u.id !== saya.value?.user.id && u.name
     && (!q || u.name.toLowerCase().includes(q)
       || u.name.toLowerCase().split(/\s+/).some(w => w.startsWith(q))
       || inisial(u.name).toLowerCase().startsWith(q))).slice(0, 6)
@@ -204,7 +213,7 @@ async function kirimKomentar() {
   const text = komentar.value.trim()
   if (!text || !c.value) return
   const saya_ = saya.value?.user.id ?? ''
-  const mentions = kruDisebut(st.value.users, text).map(u => u.id).filter(u => u !== saya_)
+  const mentions = kruDisebut(dict.value?.users ?? [], text).map(u => u.id).filter(u => u !== saya_)
   const comments = [...(c.value.comments ?? []), { by: saya_, at: Date.now(), text, mentions }]
   if (await tambal({ comments }, undefined, 'berkomentar di')) {
     for (const uid of mentions) notifKonten('mention', `${namaUser(saya_)} menyebut ${namaUser(uid)} di diskusi "${c.value.title}"`, uid)
