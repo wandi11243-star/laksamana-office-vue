@@ -149,7 +149,10 @@ const versiHdr = (v?: Versi) => (v === undefined ? undefined : ifMatch(v))
 
 /** GET /analytics/top — one page of the most-running posts. */
 export const getTopCampaign = (q: { platform?: string, urut?: string, dari?: string, sampai?: string, hal?: number, per?: number }) =>
-  useApi()<Envelope<{ baris: BarisTop[], total: number, hal: number, per: number, halMaks: number }>>('/konten/analytics/top', { query: q })
+  useApi()<Envelope<{ baris: BarisTop[], total: number, hal: number, per: number, halMaks: number }>>('/konten/analytics/top', {
+    // The API caps a page at 100 rows (M4).
+    query: { ...q, per: Math.min(q.per ?? 10, 100) },
+  })
 
 /** GET /analytics/bank — ideas, optionally filtered. */
 export const getBankCampaign = (q: { status?: string, platform?: string }) =>
@@ -237,7 +240,9 @@ export const hapusBankCampaign = (id: string, versi?: Versi) =>
 
 /** POST bank/generate — AI content planning stored as IDE ideas. */
 export const generateBankCampaign = (body: { dari: string, sampai: string, platform?: string, jumlah?: number, fokus?: string }) =>
-  useApi()<Envelope<{ batch: string, jumlah: number, ringkasan: string, model: string }>>('/konten/analytics/bank/generate', { method: 'POST', body })
+  useApi()<Envelope<{ batch: string, jumlah: number, ringkasan: string, model: string }>>('/konten/analytics/bank/generate', {
+    method: 'POST', body: { ...body, jumlah: Math.min(body.jumlah ?? 10, 50) },
+  })
 
 /** OAuth: start (→ {url}), sync, disconnect per provider. */
 export const oauthMulaiCampaign = (provider: 'tiktok' | 'instagram') =>

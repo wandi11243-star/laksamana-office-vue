@@ -385,6 +385,27 @@ export const listReservationsHalaman = (f: FilterHalamanReservasi) =>
   })
 
 /**
+ * GET /reservasi/reservations across pages (S1): table-lock windows must see
+ * every row, but the API caps a page at 100. Loops until meta.total is met
+ * (cap 50 pages); callers must never assume one page is complete.
+ */
+export async function daftarReservasiSemua(from: string, to: string): Promise<Record<string, unknown>[]> {
+  const semua: Record<string, unknown>[] = []
+  let hal = 1
+  for (;;) {
+    const r = await useApi()<Envelope<Record<string, unknown>[]>>('/reservasi/reservations', {
+      query: { from, to, page: hal, perPage: 100 },
+    })
+    const baris = r.data ?? []
+    semua.push(...baris)
+    const total = (r as { meta?: { total?: number } }).meta?.total ?? baris.length
+    if (semua.length >= total || baris.length < 100 || hal >= 50) break
+    hal++
+  }
+  return semua
+}
+
+/**
  * GET /reservations/export — the same filter as the list, as CSV for Excel
  * (BOM'd by the server). Paging is ignored: the export always covers every
  * matching row, in display order. Callers narrow it to what the server can
@@ -409,7 +430,8 @@ export const exportReservationsCsv = (f: Pick<FilterHalamanReservasi, 'from' | '
  */
 export const listAuditHalaman = (q?: string, page = 1, perPage = 10) =>
   useApi()<Envelope<AuditRow[]> & { meta: { total: number, page: number, perPage: number } }>('/reservasi/audit', {
-    query: { q: q || undefined, page, perPage },
+    // The API caps a page at 100 rows — clamp here so a big literal never 422s.
+    query: { q: q || undefined, page, perPage: Math.min(perPage, 100) },
   })
 
 /** GET /master — the whole blob. Bootstrap and migrations only; screens read their own section. */

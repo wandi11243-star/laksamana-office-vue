@@ -543,7 +543,7 @@ export interface AcaraEmsMkt { id: string, tgl: string, nama: string, venue: str
  * string, which put an event before 07:00 WIB on the previous day.
  */
 export async function getAcaraEms(from: string, to: string): Promise<AcaraEmsMkt[]> {
-  const r = await useApi()<Envelope<Record<string, unknown>[]>>('/event/events', { query: { from, to, perPage: 1000 } })
+  const r = await useApi()<Envelope<Record<string, unknown>[]>>('/event/events', { query: { from, to } })
   return (r.data ?? [])
     .filter(e => e && e.start_datetime && e.status !== 'Planning')
     .map((e) => {

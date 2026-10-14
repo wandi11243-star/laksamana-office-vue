@@ -38,9 +38,17 @@ export interface StatusKwitansi {
 export const mintaKwitansi = (body: { resId: string, jenis?: string, ringkas?: unknown }) =>
   useApi()<Envelope<StatusKwitansi>>('/finance/invoices/requests', { method: 'POST', body })
 
-/** GET /finance/invoices/status?res=a,b,… — at most 400 ids, without images. */
-export const statusKwitansi = (resIds: string[]) =>
-  useApi()<Envelope<Record<string, StatusKwitansi>>>('/finance/invoices/status', { query: { res: resIds.join(',') } })
+/** GET /finance/invoices/status?res=a,b,… — at most 400 ids: chunked + merged (S2). */
+export const statusKwitansi = async (resIds: string[]): Promise<Envelope<Record<string, StatusKwitansi>>> => {
+  const out: Record<string, StatusKwitansi> = {}
+  for (let i = 0; i < resIds.length; i += 400) {
+    const r = await useApi()<Envelope<Record<string, StatusKwitansi>>>('/finance/invoices/status', {
+      query: { res: resIds.slice(i, i + 400).join(',') },
+    })
+    Object.assign(out, r.data ?? {})
+  }
+  return { data: out }
+}
 
 /** GET /finance/invoices/file/{resId} — the printable document, or 404 `not_issued`. */
 export const berkasKwitansi = (resId: string) =>
