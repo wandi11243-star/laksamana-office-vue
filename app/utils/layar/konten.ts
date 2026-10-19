@@ -48,6 +48,7 @@ export const LAYAR_KONTEN: Layar[] = [
   l('riset', 'Riset Tren', 'Riset tren AI dari postingan brand', 'i-lucide-radar', 'Analytics'),
   l('bank', 'Bank Konten', 'Ide konten & content planning AI', 'i-lucide-lightbulb', 'Analytics'),
   l('sosmed', 'Pengaturan Sosmed', 'Profil brand, kunci AI, TikTok & Instagram', 'i-lucide-key-round', 'Analytics'),
+  l('greview', 'Google Review', 'Ulasan Google tamu: yang perlu ditangani, dibalas langsung, dan dianalisa AI', 'i-lucide-star', 'Analytics'),
 ]
 
 /** Red badge on Approval: items waiting for approval across all brands (old updateApprovalBadge, :1683). */

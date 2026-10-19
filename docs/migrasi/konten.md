@@ -380,6 +380,31 @@ Tab bar HP: TIDAK DITEMUKAN (dicari: `tabbar|bottom-nav` di index.html konten). 
 - Kiriman opsi brand/kru/platform ke Marketing via `designReqOpsi` sekali per sesi, dari `bootApp` dan saat antrian dimuat (`:2846-2872`, `:1515-1518`). v1: `PUT /marketing/design-options` (masih dikirim); pembacanya kini `GET /konten/design-options` di form Request Design Marketing (G-16).
 - **Bukti:** `:2771-2971`.
 
+### D.24 greview — Google Review (panel Campaign Analytics, `#greview`)
+- **Sumber:** `laksamana-office/deploy/konten/analytics/index.html` (menu `greview`, lencana = review tingkat SEGERA
+  yang belum ditangani) + `konten-mysql/lib_greview.php` + `konten-mysql/campaign-google.php` (callback OAuth)
+  + `tools/uji-google-review.js` (220 baris). Gap v1: **G-24** (belum ada endpoint).
+- **Tampilan:** kartu Sumber review (status Business Profile/Places, tombol Sinkronkan, daftar tempat + rating +
+  tren naik/turun dari potret harian); 4 angka (Perlu segera, Keluhan belum dibalas, Rata-rata 30 hari, Sebaran
+  bintang); kartu Analisa AI (rentang 30/90/180/365 hari, tombol Analisa — **hanya saat diminta**, ringkasan,
+  sentimen, Yang harus ditingkatkan + Yang disukai + review yang ditandai, masing-masing "lihat N review");
+  kartu Review tamu (segmen Perlu ditangani/Belum dibalas/Bintang 1–3/Sudah dibalas/Sudah ditangani/Semua +
+  pemilih tempat + kotak cari; tiap baris: bintang, prioritas SEGERA/Tinggi/Sedang, alasan + tindak lanjut AI,
+  balasan bisnis, tombol Balas/Ubah balasan + Tandai sudah ditangani + Hapus balasan (admin)).
+- **Aksi & validasi:** kirim balasan WAJIB `confirm()` menyebut nama tamu + bintang ("langsung terbit publik di
+  Google Maps"); tanpa isi ditolak ("Tulis balasannya dulu."); hapus balasan WAJIB `confirm()` menyebut kutipan;
+  tandai-ditangani memakai `prompt()` catatan opsional; putus OAuth WAJIB `confirm()` (review tetap, sinkron &
+  balas berhenti). Hanya `gbp` yang bisa dibalas; baris `places` menaut "Balas di Google ↗".
+- **Perhitungan di browser:** `grSkor` (bintang 1=100/2=80/3=50/4=12/5=0 + panjang/30 maks 25 + umur ≤3=25/≤7=15/
+  ≤30=5 + AI segera=40/tinggi=25/sedang=10 − sudah dibalas 20; `ditangani=1` → 0), `grTingkat` (≥110 segera,
+  ≥75 tinggi, ≥40 sedang); saringan bawaan **Perlu ditangani** diurut skor desc; lencana = jumlah SEGERA (hanya
+  sesudah data dimuat — memuat demi lencana berarti menarik 3.000 review tiap halaman).
+- **Catatan:** draf balasan disimpan di luar DOM (`grDraf`) supaya tidak hilang tiap render; kotak cari menggambar
+  ulang DAFTAR saja; deep-link `#greview` (termasuk dari callback OAuth `?google=ok|gagal&pesan=…#greview`).
+- **Vue:** `app/pages/konten/greview.vue` + `app/composables/useGoogleReview.ts` — pola "Segera" sampai G-24 ada
+  (`idle/muat/ok/galat` + Coba lagi; kirim balasan tetap lewat `confirm()`). Layar terdaftar di grup Analytics
+  (`app/utils/layar/konten.ts`).
+
 ## E. Pemetaan backend
 
 Legacy: `getAll` (GET `?action=getAll`), `saveAll` (POST `text/plain`, blob + `baseUpdatedAt`), `receipt`/`uploadReceipt` (tak dipanggil frontend), `ping`/`stats` (`konten-mysql/api.php:47-75`; `docs/modules/konten.md:20-31`). Frontend memanggil `getAll` (`index.html:668`) dan `saveAll` (`:631-634`), ditambah lintas modul Marketing (`:2797-2970`) & Office roster (`:1345-1363`).
@@ -459,7 +484,7 @@ Konkurensi: legacy menstempel `updatedAt=sekarang` + `baseUpdatedAt=versi server
 - Logo `../assets/laksamanamuda-warna.jpg` (`:571-572`).
 
 ## H. Catatan untuk implementasi Vue
-- Halaman: `app/pages/konten/index.vue` (Dashboard) + `konten/planning.vue`, `konten/pipeline.vue`, `konten/calendar.vue`, `konten/shooting.vue`, `konten/design.vue`, `konten/editing.vue`, `konten/assets.vue`, `konten/approval.vue`, `konten/publishing.vue`, `konten/performa/input.vue`, `konten/performa/konten.vue`, `konten/performa/desain.vue`, `konten/kol.vue`, `konten/ads.vue`, `konten/chats.vue`, `konten/brands.vue`, `konten/activity.vue`, `konten/pengaturan.vue`, `konten/profil.vue`. `definePageMeta({ access: ['konten'] })`; sembunyikan menu Kontrol/ads/KOL sesuai matriks `perms` dari `documents/perms`.
+- Halaman: `app/pages/konten/index.vue` (Dashboard) + `konten/planning.vue`, `konten/pipeline.vue`, `konten/calendar.vue`, `konten/shooting.vue`, `konten/design.vue`, `konten/editing.vue`, `konten/assets.vue`, `konten/approval.vue`, `konten/publishing.vue`, `konten/performa/input.vue`, `konten/performa/konten.vue`, `konten/performa/desain.vue`, `konten/kol.vue`, `konten/ads.vue`, `konten/chats.vue`, `konten/brands.vue`, `konten/activity.vue`, `konten/pengaturan.vue`, `konten/profil.vue`, `konten/greview.vue` (D.24, "Segera" — G-24). `definePageMeta({ access: ['konten'] })`; sembunyikan menu Kontrol/ads/KOL sesuai matriks `perms` dari `documents/perms`.
 - Composable `useKonten.ts` (fungsi → endpoint):
   - `useKontenState()` → `GET /state`; `useKontenResource(res, filters)` → `GET /{resource}`; `useKontenStats()` → `GET /stats`.
   - `createRecord(res, body)` → `POST /{resource}`; `updateRecord(res, id, body, version)` → `PUT /{resource}/{id}`; `patchRecord` → `PATCH`; `deleteRecord(res, id, version)` → `DELETE`.
@@ -532,6 +557,7 @@ LANJUTKAN DARI: modul Konten (#15) lengkap — #47–#51 menunggu review/merge (
 | activity | `app/pages/konten/activity.vue` | ✅ | `GET /konten/state` (logs) | #51 — 80 terbaru |
 | settings | `app/pages/konten/settings.vue` (+ `KontenKruForm`) | ✅ | `GET/PUT /konten/documents/settings`, `GET/PUT /konten/documents/perms`, `PUT /konten/users/{id}` | #51 — Restore JSON = **Segera** (K-01/G-13); ekspor CSV & backup JSON di browser |
 | profile | `app/pages/konten/profile.vue` | ✅ | `GET /konten/state` | #51 — dibuka dari tombol kaki sidebar "Profil saya"; Keluar ke Office tanpa logout |
+| greview | `app/pages/konten/greview.vue` (+ `useGoogleReview.ts`) | ✅ ("Segera", G-24) | (belum ada — `GET /konten/analytics/google` dkk. menunggu API) | D.24 — pola `idle/muat/ok/galat` + Coba lagi, deep-link `#greview`; filter tangani/segera/dibalas/selesai; kirim balasan lewat `confirm()`; skor prioritas dihitung di klien |
 
 Catatan build:
 - Fondasi #47: `app/utils/konten.ts` (konstanta & rumus murni), `app/utils/status-konten.ts`, `app/composables/useKonten.ts` (satu `GET /state` bersama, CRUD per record dengan If-Match = `updatedAt`), `app/utils/layar/konten.ts`, entri shell. Uji: `node tools/uji-konten.mjs` (28 cek pada #47; 10 mutasi tertangkap).

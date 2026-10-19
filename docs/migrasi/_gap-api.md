@@ -34,6 +34,7 @@ Status: ⬜ belum diajukan · 📨 issue dibuat (tulis nomornya) · ✅ ada di v
 | G-21 | ✅ | [laksamana-api#260](https://github.com/dwipapap/laksamana-api/issues/260) → [PR #262](https://github.com/dwipapap/laksamana-api/pull/262) |
 | G-22 | ✅ | [laksamana-api#261](https://github.com/dwipapap/laksamana-api/issues/261) → [PR #263](https://github.com/dwipapap/laksamana-api/pull/263) |
 | G-23 | ⬜ | — |
+| G-24 | ⬜ | — |
 
 ---
 
@@ -219,3 +220,22 @@ tiap malam) tanpa kedua modul itu kena 403 `module_not_granted` di keduanya.
 → pita galat + baris manual (`app/pages/finance/omset/breakdown.vue`, `app/utils/breakdown-sumber.ts`).
 **Usul (sekelas G-15):** longgarkan gate untuk kedua `events-on` saja (read-only, tanpa CRM/pipeline/rincian
 event — alasan pola G-15), atau sertakan modul `marketing`+`event` pada pemegang `kompas`.
+
+### G-24 — konten (campaign analytics): Google Review
+Menu Google Review di panel Campaign Analytics (`laksamana-office/deploy/konten/analytics/index.html#greview`,
+17 Okt 2026; `konten-mysql/lib_greview.php`, `campaign-google.php`) menarik ulasan Google tamu lewat dua jalur:
+**Google Business Profile** (OAuth pemilik/manager, scope `business.manage` — SELURUH review + bisa DIBALAS
+dari sistem) dan **Places API** (API key — 5 review per tarikan, baca saja, tanpa balas). 11 aksi
+`campaignGoogle*`: `campaignGoogle` (baca), `campaignGoogleSync`, `campaignGoogleMulai` (OAuth start),
+`campaignGoogleLokasi`, `campaignGoogleBalas`, `campaignGoogleBalasHapus`, `campaignGoogleTangani`,
+`campaignGoogleAI` (analisa + draf, **hanya saat diminta**), `campaignGoogleDraf` (draf per review, hanya saat
+diminta), `campaignGoogleCari` (cari Place ID), `campaignGooglePutus` (token dihapus, review tersimpan tetap).
+3 tabel: `cg_gtempat` (profil tempat), `cg_gtempat_harian` (potret rating harian → tren naik/turun),
+`cg_greview` (review + balasan + penanda `ditangani`). Profil yang ditandai Google sebagai **duplikat dilewati**
+(akun Laksamana: 1 terverifikasi + 2 duplikat). Prioritas "perlu ditangani" DIHITUNG di layar (`grSkor`:
+bintang rendah + keluhan panjang + terbaru + penanda AI, sudah dibalas turun), bukan disimpan.
+**Usul:** port ke `/api/v1/konten/analytics/google*` (gate `konten|campaign`, admin campaign untuk tulis —
+sekelas endpoint OAuth TikTok/Instagram yang sudah ada), atau nyatakan menu ini tidak dibawa.
+**Vue sudah lapang:** `app/pages/konten/greview.vue` + `app/composables/useGoogleReview.ts` menampilkan pola
+"Segera" (`idle/muat/ok/galat` + Coba lagi, deep-link `#greview`) sampai API ada; tidak ada URL legacy yang
+dipanggil. Inventaris: `docs/migrasi/konten.md` D.24.
