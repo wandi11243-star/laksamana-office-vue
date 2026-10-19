@@ -9,6 +9,46 @@ const pin = reactive({ currentPin: '', newPin: '' })
 const pinError = ref('')
 const pinSaving = ref(false)
 
+// Edit contact: PUT /me/contact {email, noHp}
+const contactOpen = ref(false)
+const contact = reactive({ email: '', noHp: '' })
+const contactError = ref('')
+const contactSaving = ref(false)
+
+function openContact() {
+  contactError.value = ''
+  contact.email = me.value?.email ?? ''
+  contact.noHp = me.value?.noHp ?? ''
+  contactOpen.value = true
+}
+
+async function saveContact() {
+  contactError.value = ''
+  const email = contact.email.trim()
+  const noHp = contact.noHp.trim()
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    contactError.value = 'Email tidak valid.'
+    return
+  }
+  if (noHp.length > 32) {
+    contactError.value = 'No. HP maksimal 32 karakter.'
+    return
+  }
+  contactSaving.value = true
+  try {
+    await useApi()('/me/contact', { method: 'PUT', body: { email, noHp } })
+    contactOpen.value = false
+    await fetchMe()
+    toast.add({ title: 'Kontak disimpan', color: 'success' })
+  }
+  catch (e) {
+    contactError.value = apiErrorMessage(e)
+  }
+  finally {
+    contactSaving.value = false
+  }
+}
+
 async function savePin() {
   pinError.value = ''
   if (!/^\d{4,8}$/.test(pin.newPin)) {
@@ -47,6 +87,27 @@ async function savePin() {
               <span class="font-normal text-muted">{{ me?.username || '—' }}</span>
             </template>
           </AppListRow>
+          <AppListRow
+            title="Email"
+            icon="i-lucide-mail"
+          >
+            <template #trailing>
+              <span class="font-normal text-muted">{{ me?.email || '—' }}</span>
+            </template>
+          </AppListRow>
+          <AppListRow
+            title="No. HP"
+            icon="i-lucide-phone"
+          >
+            <template #trailing>
+              <span class="font-normal text-muted">{{ me?.noHp || '—' }}</span>
+            </template>
+          </AppListRow>
+          <AppListRow
+            title="Ubah kontak"
+            icon="i-lucide-pencil"
+            @click="openContact"
+          />
           <AppListRow
             title="Ganti PIN"
             icon="i-lucide-key-round"
@@ -91,6 +152,65 @@ async function savePin() {
         </p>
       </AppList>
     </div>
+
+    <ResponsiveSheet
+      v-model:open="contactOpen"
+      title="Ubah kontak"
+      description="Email dan no. HP untuk kabar dari kantor."
+    >
+      <form
+        id="contact-form"
+        class="space-y-4"
+        @submit.prevent="saveContact"
+      >
+        <UFormField label="Email">
+          <UInput
+            v-model="contact.email"
+            type="email"
+            inputmode="email"
+            autocomplete="email"
+            size="xl"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField
+          label="No. HP"
+          help="Maksimal 32 karakter"
+        >
+          <UInput
+            v-model="contact.noHp"
+            type="tel"
+            inputmode="tel"
+            autocomplete="tel"
+            size="xl"
+            class="w-full"
+          />
+        </UFormField>
+        <p
+          v-if="contactError"
+          class="text-sm font-medium text-error"
+          role="alert"
+        >
+          {{ contactError }}
+        </p>
+      </form>
+      <template #footer>
+        <UButton
+          type="submit"
+          form="contact-form"
+          label="Simpan kontak"
+          size="xl"
+          :loading="contactSaving"
+        />
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="soft"
+          size="xl"
+          @click="contactOpen = false"
+        />
+      </template>
+    </ResponsiveSheet>
 
     <ResponsiveSheet
       v-model:open="pinOpen"

@@ -9,6 +9,9 @@ export interface Me {
   headDivisi: string[]
   /** Beranda teams from the Tim column (laksamana-api AppSupportTim); several per person. */
   tim?: { key: string, label: string }[]
+  /** Contact info from GET /me; absent on older backends. */
+  email?: string
+  noHp?: string
   ulid: string
 }
 
