@@ -32,6 +32,8 @@ const terbuka = (t: BdTask) => buka.value[t.id] ?? true
 
 const namaProject = (id?: string | null) => props.projects?.find(p => p.id === id)?.name
 const dipakai = (t: BdTask) => pics(t).map(id => props.people.find(p => p.id === id)).filter(Boolean) as BdPerson[]
+/** The crew a sub-task is assigned to (`p`), by name — empty when unassigned. */
+const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.name || '') : '')
 const hal = (t: BdTask) => (selesai(t) ? [] : penghalang(t, props.semua))
 const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
 </script>
@@ -200,6 +202,11 @@ const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
             class="min-w-0 flex-1 truncate text-sm"
             :class="s.done ? 'text-muted line-through' : 'text-default'"
           >{{ s.t }}</span>
+          <span
+            v-if="s.p && namaSubPic(s.p)"
+            :title="`Di-assign ke ${namaSubPic(s.p)}`"
+            class="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary-100 text-[9px] font-bold text-primary-800"
+          >{{ inisial(namaSubPic(s.p)) }}</span>
           <AppStatus
             v-if="dlSub(s.d)"
             size="sm"

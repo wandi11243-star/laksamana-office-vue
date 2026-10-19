@@ -158,6 +158,27 @@ export function pics(o?: BerPic | null): string[] {
 }
 /** `punyaPic`. */
 export const punyaPic = (o: BerPic | null | undefined, id: string) => pics(o).includes(id)
+/** `tagsOf` — free-text tags on a task, always an array (empty when untagged). */
+export function tagsOf(t: { tags?: unknown } | null | undefined): string[] {
+  return t && Array.isArray(t.tags) ? t.tags.filter((x): x is string => typeof x === 'string' && !!x.trim()) : []
+}
+/** `kruTersedia` — crew that may be picked: still active with module access,
+ * plus anyone already holding the row being opened, so saving never silently
+ * drops an assignee (`:1944-1951`). */
+export function kruTersedia(people: BdPerson[], sudah?: string | string[] | null): BdPerson[] {
+  const s = Array.isArray(sudah) ? sudah : (sudah ? [sudah] : [])
+  return people.filter(p => (p.active !== false && !p.tanpaAkses) || s.includes(p.id))
+}
+/** `pelaksana` — everyone working a task: its PICs AND the sub-task
+ * assignees. Someone holding a single sub-task still finds their work in
+ * My Task and the Projects › Task assignee filter. */
+export function pelaksana(t: (BerPic & { subtasks?: { p?: string }[] | null }) | null | undefined): string[] {
+  const a = pics(t)
+  subs(t as { subtasks?: BdSubtask[] | null }).forEach((x) => {
+    if (x && x.p && !a.includes(x.p)) a.push(x.p)
+  })
+  return a
+}
 /** `setPics` — the ONLY place `pic` and `pics` are written, so they never drift. */
 export function setPics(o: BerPic, daftar: string[]): void {
   o.pics = (daftar || []).filter((v, i, a) => v && a.indexOf(v) === i)

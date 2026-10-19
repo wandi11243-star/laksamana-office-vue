@@ -10,6 +10,8 @@ import { inisial } from '~/utils/bd-rumus'
 const props = defineProps<{
   people: BdPerson[]
   modelValue: string[]
+  /** Filter caption (`filterPic(label)`): "PIC" on project rows, "Assign" on task rows. */
+  label?: string
 }>()
 const emit = defineEmits<{ 'update:modelValue': [string[]] }>()
 
@@ -28,7 +30,7 @@ function toggle(id: string) {
     v-if="kru.length"
     class="flex flex-wrap items-center gap-1.5"
   >
-    <span class="text-[11px] font-bold uppercase tracking-wider text-muted">PIC</span>
+    <span class="text-[11px] font-bold uppercase tracking-wider text-muted">{{ label || 'PIC' }}</span>
     <button
       v-for="p in kru"
       :key="p.id"

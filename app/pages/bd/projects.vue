@@ -8,35 +8,77 @@
   has a "Pindah stage" sheet.
 -->
 <script setup lang="ts">
-import type { BdProject } from '~/composables/useBd'
-import { bdSimpan, tambalBd, useBdState, versiBaris } from '~/composables/useBd'
+import type { BdProject, BdTask } from '~/composables/useBd'
 import {
-  OWNER_DIVS, PILIHAN_SEMUA, PROJ_STAGES, cariAku, lingkupIds, pics, saringLingkup, tasksPerluDitutup, todayISO,
-  urutProjectPerhatian,
+  bdSimpan, centangSub, hapusTaskDenganUrutan, pesanHapusTask, tambalBd, toggleTask, useBdState, versiBaris,
+} from '~/composables/useBd'
+import {
+  OWNER_DIVS, PILIHAN_SEMUA, PROJ_STAGES, cariAku, dalamLingkup, lingkupIds, pelaksana, pics, saringArsip, saringLingkup,
+  subs, tasksPerluDitutup, todayISO, urutDeadline, urutProjectPerhatian, type ModeArsip,
 } from '~/utils/bd-rumus'
+import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdPicFilter from '~/widgets/bd/BdPicFilter.vue'
 import BdProjCard from '~/widgets/bd/BdProjCard.vue'
 import BdProjectSheet from '~/widgets/bd/BdProjectSheet.vue'
+import BdTaskSheet from '~/widgets/bd/BdTaskSheet.vue'
+import BdTaskTree from '~/widgets/bd/BdTaskTree.vue'
 
 definePageMeta({ access: ['bd'] })
 
 const me = useMe()
 const { data: state } = useBdState()
 const fPics = useState<string[]>('bd-fPics', () => [])
-const f = useState('bd-proj-filter', () => ({ scope: 'tim', div: PILIHAN_SEMUA, st: 'aktif', view: 'kartu' }))
+const f = useState('bd-proj-filter', () => ({ scope: 'tim', div: PILIHAN_SEMUA, st: 'aktif', view: 'kartu' as 'kartu' | 'kanban' | 'task' }))
+/** Projects › Task view state: archive switch + keyword (the box redraws only its own list). */
+const pTaskArsip = ref<ModeArsip>('aktif')
+const pTaskQ = ref('')
 
 const people = computed(() => state.value.people)
 const aku = computed(() => cariAku(people.value, me.value))
 const lingkup = computed(() => lingkupIds(people.value, aku.value?.id, isAdminOf(me.value, 'bd')))
 const cocokPic = (o: { pics?: string[], pic?: string }) => !fPics.value.length || pics(o).some(id => fPics.value.includes(id))
+/** In the Task view the PIC filter means TASK ASSIGN, not project PIC: work
+ * assigned to Wandi inside someone else's project must still surface. */
+const cocokAssign = (t: BdTask) => !fPics.value.length || pelaksana(t).some(id => fPics.value.includes(id))
 
 const base = computed(() => saringLingkup(state.value.projects, f.value.scope, lingkup.value, aku.value?.id)
-  .filter(cocokPic)
+  .filter(f.value.view === 'task' ? () => true : cocokPic)
   .filter(p => f.value.div === PILIHAN_SEMUA || p.div === f.value.div)
   .filter(p => f.value.st === 'semua' || (f.value.st === 'selesai' ? p.stage === 'Completed' : p.stage !== 'Completed')))
 const diStage = (st: string) => base.value.filter(p => p.stage === st)
 /** Cards, most-attention first (`vProjects` kartu view). */
 const kartu = computed(() => urutProjectPerhatian(base.value))
+
+/** Projects › Task: every task of the filtered projects, narrowed by assign
+ * + keyword, then by the archive switch (`projTaskData`). */
+const tugasTampil = computed(() => {
+  const ids = new Set(base.value.map(p => p.id))
+  const q = pTaskQ.value.trim().toLowerCase()
+  const semua = state.value.tasks
+    .filter(t => dalamLingkup(t, lingkup.value))
+    .filter(t => t.project && ids.has(t.project))
+    .filter(cocokAssign)
+    .filter(t => !q || String(t.name || '').toLowerCase().includes(q) || subs(t).some(x => String(x.t || '').toLowerCase().includes(q)))
+  return saringArsip(semua, pTaskArsip.value).slice().sort(urutDeadline)
+})
+/** Grouped per project, in first-appearance order. */
+const tugasPerProject = computed(() => {
+  const urut: string[] = []
+  const per = new Map<string, BdTask[]>()
+  for (const t of tugasTampil.value) {
+    const pid = t.project || ''
+    if (!per.has(pid)) {
+      per.set(pid, [])
+      urut.push(pid)
+    }
+    per.get(pid)!.push(t)
+  }
+  return urut.map(pid => ({
+    project: state.value.projects.find(p => p.id === pid),
+    items: per.get(pid)!,
+  }))
+})
+const namaAssign = computed(() => fPics.value.map(id => people.value.find(p => p.id === id)?.name).filter(Boolean).join(', '))
 
 const skop = [
   { value: 'tim', label: 'Tim saya' },
@@ -101,6 +143,34 @@ function baru() {
 function buka(p: BdProject) {
   navigateTo(`/bd/projects/${p.id}`)
 }
+
+// ---- task rows (Task view) ----
+const bukaTask = ref(false)
+const taskPilih = ref<BdTask | null>(null)
+const taskHapus = ref<BdTask | null>(null)
+const hapusMau = computed({
+  get: () => !!taskHapus.value,
+  set: (v) => {
+    if (!v) taskHapus.value = null
+  },
+})
+const pesanHapus = computed(() => (taskHapus.value ? pesanHapusTask(taskHapus.value, state.value.tasks) : ''))
+function bukaTaskSheet(t: BdTask) {
+  taskPilih.value = t
+  bukaTask.value = true
+}
+function toggle(t: BdTask) {
+  toggleTask(t, state.value.tasks)
+}
+async function hapus() {
+  const t = taskHapus.value
+  if (!t) return
+  taskHapus.value = null
+  await hapusTaskDenganUrutan(t, state.value.tasks)
+}
+function subToggle(t: BdTask, ix: number, on: boolean) {
+  centangSub(t, ix, on)
+}
 </script>
 
 <template>
@@ -113,7 +183,7 @@ function buka(p: BdProject) {
     <template #actions>
       <AppSeg
         v-model="f.view"
-        :options="[{ value: 'kartu', label: 'Kartu' }, { value: 'kanban', label: 'Kanban stage' }]"
+        :options="[{ value: 'kartu', label: 'Kartu' }, { value: 'kanban', label: 'Kanban stage' }, { value: 'task', label: 'Task' }]"
         size="sm"
       />
       <UButton
@@ -151,9 +221,13 @@ function buka(p: BdProject) {
         <BdPicFilter
           v-model="fPics"
           :people="people"
+          :label="f.view === 'task' ? 'Assign' : 'PIC'"
         />
         <div class="flex-1" />
-        <span class="text-xs text-muted">{{ base.length }} dari {{ state.projects.length }} project</span>
+        <span
+          v-if="f.view !== 'task'"
+          class="text-xs text-muted"
+        >{{ base.length }} dari {{ state.projects.length }} project</span>
         <UButton
           v-if="resetAktif"
           label="Reset"
@@ -167,7 +241,70 @@ function buka(p: BdProject) {
     </AppPanel>
 
     <div
-      v-if="f.view === 'kartu'"
+      v-if="f.view === 'task'"
+      class="mt-4"
+    >
+      <div class="mb-3 flex flex-wrap items-center gap-2">
+        <UInput
+          v-model="pTaskQ"
+          icon="i-lucide-search"
+          placeholder="Cari task di project ini…"
+          autocomplete="off"
+          class="min-w-52 flex-1 sm:max-w-xs"
+        />
+        <AppSeg
+          v-model="pTaskArsip"
+          :options="[{ value: 'aktif', label: 'Aktif' }, { value: 'arsip', label: 'Arsip' }, { value: 'semua', label: 'Semua' }]"
+          size="sm"
+        />
+      </div>
+      <p
+        v-if="tugasTampil.length"
+        class="mb-2.5 text-xs text-muted"
+      >
+        {{ tugasTampil.length }} task di {{ tugasPerProject.length }} project<template v-if="namaAssign">
+          · assign: {{ namaAssign }}
+        </template>
+      </p>
+      <template
+        v-for="g in tugasPerProject"
+        :key="g.project?.id || 'tanpa'"
+      >
+        <button
+          type="button"
+          class="mb-1 mt-3 text-start text-sm font-bold text-highlighted hover:underline"
+          @click="g.project && buka(g.project)"
+        >
+          {{ g.project?.name || '(project tidak ada)' }} ({{ g.items.length }})
+        </button>
+        <AppPanel
+          class="mb-2"
+          flush
+        >
+          <BdTaskTree
+            :tasks="g.items"
+            :semua="state.tasks"
+            :people="people"
+            @buka="bukaTaskSheet"
+            @toggle="toggle"
+            @hapus="taskHapus = $event"
+            @sub-toggle="subToggle"
+          />
+        </AppPanel>
+      </template>
+      <AppPanel
+        v-if="!tugasTampil.length"
+        class="mt-2"
+      >
+        <p class="py-4 text-center text-sm text-muted">
+          <b class="block text-highlighted">Tidak ada task pada penyaring ini</b>
+          {{ fPics.length ? 'Assign yang dipilih tidak memegang task di project ini. ' : '' }}{{ pTaskQ ? 'Coba kata kunci lain. ' : '' }}{{ pTaskArsip === 'aktif' ? 'Task yang sudah Done ada di "Arsip".' : '' }}
+        </p>
+      </AppPanel>
+    </div>
+
+    <div
+      v-else-if="f.view === 'kartu'"
       class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
     >
       <BdProjCard
@@ -216,7 +353,7 @@ function buka(p: BdProject) {
     </div>
 
     <AppPanel
-      v-if="!base.length && state.projects.length"
+      v-if="f.view !== 'task' && !base.length && state.projects.length"
       class="mt-4"
     >
       <p class="py-4 text-center text-sm text-muted">
@@ -234,6 +371,20 @@ function buka(p: BdProject) {
       :coord="state.coord"
       :people="people"
       :aku="aku"
+    />
+    <BdTaskSheet
+      v-model:open="bukaTask"
+      :task="taskPilih"
+      :tasks="state.tasks"
+      :projects="state.projects"
+      :people="people"
+      :aku="aku"
+    />
+    <BdKonfirmasi
+      v-model:open="hapusMau"
+      title="Hapus task ini?"
+      :description="pesanHapus"
+      @konfirmasi="hapus"
     />
 
     <ResponsiveSheet

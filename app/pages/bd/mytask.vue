@@ -12,9 +12,10 @@
 import type { BdTask } from '~/composables/useBd'
 import { centangSub, hapusTaskDenganUrutan, pesanHapusTask, toggleTask, useBdState } from '~/composables/useBd'
 import {
-  cariAku, lewat, lingkupIds, penghalang, pics, saringLingkup, selesai, sisaHari, urutDeadline,
+  cariAku, lewat, lingkupIds, pelaksana, penghalang, pics, saringLingkup, selesai, sisaHari, urutDeadline,
   type ModeArsip,
 } from '~/utils/bd-rumus'
+import BdCari, { type HasilPilih } from '~/widgets/bd/BdCari.vue'
 import BdKanban from '~/widgets/bd/BdKanban.vue'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdProjCard from '~/widgets/bd/BdProjCard.vue'
@@ -32,10 +33,12 @@ const projects = computed(() => state.value.projects)
 const aku = computed(() => cariAku(people.value, me.value))
 const lingkup = computed(() => lingkupIds(people.value, aku.value?.id, isAdminOf(me.value, 'bd')))
 
-/** `tugasSaya` — visible tasks I hold; the unmatched see everything, said out loud. */
+/** `tugasSaya` — visible tasks I hold: my PICs AND my sub-task assignments; the unmatched see everything, said out loud. */
+const tampak = computed(() => saringLingkup(state.value.tasks, 'tim', lingkup.value, aku.value?.id))
+const tampakProject = computed(() => saringLingkup(projects.value, 'tim', lingkup.value, aku.value?.id))
 const semua = computed(() => {
-  const vt = saringLingkup(state.value.tasks, 'tim', lingkup.value, aku.value?.id)
-  return aku.value ? vt.filter(t => pics(t).includes(aku.value!.id)) : vt
+  const vt = tampak.value
+  return aku.value ? vt.filter(t => pelaksana(t).includes(aku.value!.id)) : vt
 })
 const buka = computed(() => semua.value.filter(t => !selesai(t)).slice().sort(urutDeadline))
 const telat = computed(() => buka.value.filter(lewat))
@@ -88,6 +91,15 @@ async function hapus() {
 function subToggle(t: BdTask, ix: number, on: boolean) {
   centangSub(t, ix, on)
 }
+/** Search result: open the task sheet, the project, or the purchasing board. */
+function pilihCari(r: HasilPilih) {
+  if (r.jenis === 'task') {
+    const t = state.value.tasks.find(x => x.id === r.id)
+    if (t) bukaSheet(t)
+  }
+  else if (r.jenis === 'project') navigateTo(`/bd/projects/${r.id}`)
+  else navigateTo('/bd/purchasing')
+}
 </script>
 
 <template>
@@ -115,6 +127,15 @@ function subToggle(t: BdTask, ix: number, on: boolean) {
       icon="i-lucide-info"
       title="Akunmu belum tercocokkan ke daftar kru, jadi halaman ini menampilkan seluruh task yang terlihat — bukan hanya milikmu."
       class="mb-4"
+    />
+
+    <BdCari
+      :tasks="tampak"
+      :projects="tampakProject"
+      :po="state.po"
+      :people="people"
+      class="mb-4"
+      @pilih="pilihCari"
     />
 
     <AppStatGrid>

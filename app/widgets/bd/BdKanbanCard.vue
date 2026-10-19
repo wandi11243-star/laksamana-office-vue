@@ -30,6 +30,8 @@ const progres = computed(() => Math.max(0, Math.min(100, Number(props.task.progr
 /** Sub-task dropdown (`SUB_BUKA`): closed by default on the board, as in the old card. */
 const subBuka = ref(false)
 const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
+/** The crew a sub-task is assigned to (`p`), by name — empty when unassigned. */
+const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.name || '') : '')
 </script>
 
 <template>
@@ -142,6 +144,11 @@ const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
           class="min-w-0 flex-1 truncate"
           :class="s.done ? 'text-muted line-through' : 'text-default'"
         >{{ s.t }}</span>
+        <span
+          v-if="s.p && namaSubPic(s.p)"
+          :title="`Di-assign ke ${namaSubPic(s.p)}`"
+          class="flex size-4 shrink-0 items-center justify-center rounded-full bg-primary-100 text-[8px] font-bold text-primary-800"
+        >{{ inisial(namaSubPic(s.p)) }}</span>
         <span
           v-if="dlSub(s.d)"
           class="shrink-0 text-[10px]"

@@ -13,7 +13,7 @@
 import type { BdPerson, BdProject, BdSubtask, BdTask } from '~/composables/useBd'
 import { buatBd, bdSimpan, hapusTaskDenganUrutan, pesanHapusTask, ubahBd, versiBaris } from '~/composables/useBd'
 import {
-  OWNER_DIVS, PILIHAN_TANPA, PRIORITAS, STATUS_FLOW, TASK_TIPE, cekBolehDone, deps, kuadran,
+  OWNER_DIVS, PILIHAN_TANPA, PRIORITAS, STATUS_FLOW, TASK_TIPE, cekBolehDone, deps, kruTersedia, kuadran,
   menungguTransitif, opsiProject as opsiProjectBd, pesanTunggu, segarkanProgress, selesai, setPics, subs, todayISO, uidBd,
 } from '~/utils/bd-rumus'
 import { WARNA_KUADRAN, WARNA_TASK } from '~/utils/status-bd'
@@ -46,8 +46,8 @@ const f = reactive({
   important: true,
   urgent: false,
 })
-/** Sub-task drafts (`_subDraft`): id kept, empty text dropped on save. */
-const subDraf = ref<{ id: string, t: string, done: boolean, d: string }[]>([])
+/** Sub-task drafts (`_subDraft`): id kept, empty text dropped on save. `p` is the single assignee. */
+const subDraf = ref<{ id: string, t: string, done: boolean, d: string, p: string }[]>([])
 const subBaru = ref('')
 /** Order drafts (`_depDraft`): waited-on ids, committed on save. */
 const depDraf = ref<string[]>([])
@@ -69,7 +69,7 @@ watch(open, (o) => {
     f.project = t.project || null
     f.important = !!t.important
     f.urgent = !!t.urgent
-    subDraf.value = subs(t).map(x => ({ id: String(x.id || uidBd('s')), t: String(x.t || ''), done: !!x.done, d: String(x.d || '') }))
+    subDraf.value = subs(t).map(x => ({ id: String(x.id || uidBd('s')), t: String(x.t || ''), done: !!x.done, d: String(x.d || ''), p: String(x.p || '') }))
     depDraf.value = deps(t).filter(d => d !== t.id && props.tasks.some(x => x.id === d))
   }
   else {
@@ -119,9 +119,14 @@ const pesanHapus = computed(() => (props.task ? pesanHapusTask(props.task, props
 function subTambah() {
   const v = subBaru.value.trim()
   if (!v) return
-  subDraf.value.push({ id: uidBd('s'), t: v, done: false, d: '' })
+  subDraf.value.push({ id: uidBd('s'), t: v, done: false, d: '', p: '' })
   subBaru.value = ''
 }
+/** Assignee choices for one sub-task row: active crew, plus whoever already holds it. */
+const opsiSubPic = (p: string) => [
+  { value: PILIHAN_TANPA, label: '— assign —' },
+  ...kruTersedia(props.people, p || undefined).map(k => ({ value: k.id, label: String(k.name).split(' ')[0] })),
+]
 
 async function simpan() {
   if (!f.name.trim()) {
@@ -135,8 +140,9 @@ async function simpan() {
     return
   }
   // Sub-tasks without text are dropped: empty rows keep x/y from ever balancing.
+  // `p` rides inside the sub-task, no migration — unassigned stays empty, never guessed.
   const subtasks: BdSubtask[] = subDraf.value
-    .map(s => ({ id: s.id, t: s.t.trim(), done: s.done, ...(s.d ? { d: s.d } : {}) }))
+    .map(s => ({ id: s.id, t: s.t.trim(), done: s.done, ...(s.d ? { d: s.d } : {}), ...(s.p ? { p: s.p } : {}) }))
     .filter(s => s.t)
   const dependsOn = depDraf.value.filter(d => d !== props.task?.id && props.tasks.some(x => x.id === d))
   if (f.status === 'Done') {
@@ -303,6 +309,14 @@ async function hapus() {
               title="Deadline sub-task (opsional)"
               class="w-36 shrink-0"
               @update:model-value="(v: string | number) => s.d = String(v)"
+            />
+            <USelect
+              :model-value="s.p || PILIHAN_TANPA"
+              :items="opsiSubPic(s.p)"
+              size="sm"
+              title="Di-assign ke (opsional)"
+              class="w-32 shrink-0"
+              @update:model-value="(v: string | undefined) => s.p = !v || v === PILIHAN_TANPA ? '' : v"
             />
             <UButton
               icon="i-lucide-x"

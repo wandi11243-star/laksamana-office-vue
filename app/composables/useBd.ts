@@ -49,6 +49,8 @@ export interface BdSubtask {
   t?: string
   done?: boolean
   d?: string
+  /** The single crew member this sub-task is assigned to (empty = unassigned, never guessed). */
+  p?: string
 }
 
 export interface BdProject {
@@ -87,6 +89,8 @@ export interface BdTask {
   important: boolean
   urgent: boolean
   progress: number
+  /** Free-text tags, read by search (`tagsOf`). */
+  tags?: string[]
   /** Sub-tasks (`subtasks [{id,t,done,d}]`), counted — never typed — into `progress`. */
   subtasks?: BdSubtask[]
   /** Ids of tasks that must be Done first. Only Done is held (`cekBolehDone`). */
