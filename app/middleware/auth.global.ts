@@ -19,8 +19,14 @@ export default defineNuxtRouteMiddleware(async (to) => {
     try {
       await fetchMe()
     }
-    catch {
-      return navigateTo('/login')
+    catch (e) {
+      // A dead token (401) really means "log in again" — useApi() already
+      // cleared it. Anything else (offline, 5xx) keeps the token and shows a
+      // retryable error instead of bouncing between / and /login.
+      if ((e as { statusCode?: number })?.statusCode === 401 || !useToken().value) {
+        return navigateTo('/login')
+      }
+      throw createError({ statusCode: 503, statusMessage: 'Server tidak terjangkau. Periksa koneksi lalu coba lagi.' })
     }
   }
 

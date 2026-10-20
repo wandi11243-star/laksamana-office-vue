@@ -6,7 +6,10 @@ const props = defineProps<{ error: NuxtError }>()
 const title = computed(() => ({
   403: 'Belum ada akses',
   404: 'Halaman tidak ditemukan',
+  503: 'Server tidak terjangkau',
 } as Record<number, string>)[props.error.statusCode ?? 500] ?? 'Ada yang salah')
+
+const aksi = computed(() => (props.error.statusCode === 503 ? 'Coba lagi' : 'Kembali ke beranda'))
 </script>
 
 <template>
@@ -27,7 +30,7 @@ const title = computed(() => ({
         <UButton
           class="mt-6"
           size="lg"
-          label="Kembali ke beranda"
+          :label="aksi"
           @click="clearError({ redirect: '/' })"
         />
       </div>
