@@ -26,7 +26,7 @@ import { useMediaQuery } from '@vueuse/core'
 import type { Reservasi, Waitlist, WaTarget } from '~/composables/useReservasi'
 import { createReservation, exportReservationsCsv, listReservationsHalaman, patchReservation, postAudit, putDenah, putSectionItem, useDaftarReservasi, useDenah, useRingkasanTamu, useSection, useSectionVersi } from '~/composables/useReservasi'
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
-import { profilTamuGabung, normStatus, unduhBlob } from '~/utils/riwayat'
+import { profilTamuGabung, kelompokBarisTamu, normStatus, unduhBlob } from '~/utils/riwayat'
 import { arrivedPax, buatIzinTumpang, canAddArrival, fmtMenit, harihOccupancy, isSeated, occupiedMap, remainingPax, sedangDialihkan, tableFill, tablesOf } from '~/utils/kunci-meja'
 import { dpTotal, normPhone, rekeningDp, tampilPhone, uid } from '~/utils/dp-reservasi'
 import type { LayoutDenah } from '~/utils/venue-layouts'
@@ -114,8 +114,11 @@ const { data: semua, refresh, status } = useDaftarReservasi(dari, sampai, 'reser
 /** Whole-history guest map for the guest-type filter, before the loaded window (`dari`). */
 const { data: ringkasan } = useRingkasanTamu(dari, 'reservasi-tamu-dashboard')
 
+/** Rows grouped by phone once per window (not filtered per row): the guest-type filter reads this. */
+const kelompokTamu = computed(() => kelompokBarisTamu(semua.value ?? []))
+
 /** One row's whole-history profile, for the guest-type filter. */
-const profilBaris = (phone: string) => profilTamuGabung(ringkasan.value ?? new Map(), semua.value ?? [], phone, dari.value)
+const profilBaris = (phone: string) => profilTamuGabung(ringkasan.value ?? new Map(), kelompokTamu.value, phone, dari.value)
 
 // --- filtering (`:5080-5104`, `:5793-5826`) ----------------------------------
 
@@ -387,7 +390,7 @@ const statusIkon = STATUS_IKON
 
 // --- per-row cells of the old recap table (`:5507-5557`) ------------------------
 
-/** Minutes since midnight, ticking, for the late / soon marks and seat timers. */
+/** Minutes since midnight, ticking per minute, for the late / soon marks and seat timers. */
 const sekarang = ref(Date.now())
 const nowMin = computed(() => {
   const d = new Date(sekarang.value)
@@ -398,16 +401,14 @@ const belumDatang = (r: Reservasi) => ['Pending', 'Confirmed'].includes(normStat
 const telat = (r: Reservasi) => r.date === hariIni() && belumDatang(r) && menitDari(r.time) < nowMin.value
 /** Today, still expected, due within 30 minutes: the pale row and "segera". */
 const segera = (r: Reservasi) => r.date === hariIni() && belumDatang(r) && menitDari(r.time) >= nowMin.value && menitDari(r.time) - nowMin.value <= 30
-function lamaTelat(r: Reservasi) {
-  const ms = sekarang.value - new Date(`${r.date}T${r.time || '00:00'}:00`).getTime()
-  const m = Math.max(0, Math.floor(ms / 60000))
-  const d = Math.max(0, Math.floor(ms / 1000) % 60)
-  return m >= 60 ? `${Math.floor(m / 60)}j ${m % 60}m` : `${m}:${String(d).padStart(2, '0')}`
-}
-const detik = setInterval(() => {
+/** Booking time as epoch ms, for the per-row <LamaTimer> (NaN when the row has no usable time). */
+const milisBooking = (r: Reservasi) => new Date(`${r.date}T${r.time || '00:00'}:00`).getTime()
+// The whole page re-renders on this tick, so it runs once a minute: the
+// per-second "late 1:05" chips own their interval inside <LamaTimer>.
+const menit = setInterval(() => {
   sekarang.value = Date.now()
-}, 1000)
-onBeforeUnmount(() => clearInterval(detik))
+}, 60000)
+onBeforeUnmount(() => clearInterval(menit))
 function lamaDuduk(r: Reservasi) {
   if (!r.checkinAt) return ''
   const m = Math.max(0, Math.floor((sekarang.value - r.checkinAt) / 60000))
@@ -1786,7 +1787,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               size="sm"
               icon="i-lucide-alarm-clock"
             >
-              telat {{ lamaTelat(r) }}
+              telat <LamaTimer :sejak="milisBooking(r)" />
             </AppStatus>
             <AppStatus
               v-else-if="segera(r)"
@@ -1867,7 +1868,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               size="sm"
               icon="i-lucide-alarm-clock"
             >
-              telat {{ lamaTelat(row.original) }}
+              telat <LamaTimer :sejak="milisBooking(row.original)" />
             </AppStatus>
           </div>
           <div
