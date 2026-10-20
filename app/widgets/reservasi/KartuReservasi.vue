@@ -1,14 +1,8 @@
 <!-- Beranda module card line: today's reservations. Read-only. -->
 <script setup lang="ts">
-import { listReservations } from '~/composables/useReservasi'
-import { angka, hariIni } from '~/utils/format'
+import { angka } from '~/utils/format'
 
-const hari = hariIni()
-const { data, status } = useAsyncData(
-  'kartu-reservasi-hari-ini',
-  () => listReservations(hari, hari).then(r => r.data),
-  { default: () => [] },
-)
+const { data, status } = useReservasiHariIni()
 const berlaku = computed(() => (data.value ?? []).filter(r => !['Cancelled', 'No-show'].includes(r.status)))
 const datang = computed(() => berlaku.value.filter(r => r.status === 'Datang').length)
 </script>

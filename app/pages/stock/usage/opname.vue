@@ -11,9 +11,9 @@
   only offered to purchasing/hpp holders — the API refuses usage-only accounts.
 -->
 <script setup lang="ts">
-import type { OpnameCatatan, ProdukStock } from '~/composables/useStock'
+import type { OpnameCatatan } from '~/composables/useStock'
 import {
-  createOpname, createProduk, deleteOpname, getProducts, listHandovers, listOpname, listUsage, listWaste, patchOpname,
+  createOpname, createProduk, deleteOpname, listHandovers, listOpname, listUsage, listWaste, patchOpname, useProdukStock,
 } from '~/composables/useStock'
 import { hasAccess, isAdminOf } from '~/composables/useMe'
 import { apiErrorMessage } from '~/composables/useApi'
@@ -34,7 +34,7 @@ const bolehTambahItem = computed(() => hasAccess(me.value, ['purchasing', 'hpp']
 
 // --- master products: sheet categories, areas, units, autocomplete ------------
 
-const produkQ = useAsyncData('stock-produk', getProducts, { default: () => ({ rows: [] as ProdukStock[], versions: {} }) })
+const produkQ = useProdukStock()
 const daftarNama = computed(() => produkQ.data.value?.rows.map(p => p.nama) ?? [])
 const info = computed<InfoBahan>(() => Object.fromEntries((produkQ.data.value?.rows ?? []).map(p => [p.nama, p])))
 

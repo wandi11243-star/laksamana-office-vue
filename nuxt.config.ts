@@ -64,7 +64,21 @@ export default defineNuxtConfig({
     },
     workbox: {
       navigateFallback: '/',
-      globPatterns: ['**/*.{js,css,html,png,svg,ico,woff2}'],
+      // Precache the shell only (#147): html/css/icons/fonts. Route chunks
+      // stay out, so a deploy stops re-downloading megabytes (TipTap et al.
+      // ride only /homepage/berita/:id); they are fetched on demand and kept
+      // by the runtime cache below, so an offline reload still works.
+      globPatterns: ['**/*.{html,css,png,svg,ico,woff2}'],
+      runtimeCaching: [
+        {
+          urlPattern: /^.*\/_nuxt\/.*/,
+          handler: 'StaleWhileRevalidate' as const,
+          options: {
+            cacheName: 'nuxt-assets',
+            expiration: { maxEntries: 200, maxAgeSeconds: 7 * 24 * 3600 },
+          },
+        },
+      ],
     },
   },
 })

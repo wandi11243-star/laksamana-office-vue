@@ -13,20 +13,20 @@ import {
   createVendor,
   deleteProduk,
   deleteVendor,
-  getProducts,
   getStockSettings,
   importProducts,
   importVendors,
-  listVendors,
+  useVendorStock,
   patchProduk,
   patchVendor,
   putStockSettings,
+  useProdukStock,
 } from '~/composables/useStock'
 import { apiErrorCode, apiErrorMessage } from '~/composables/useApi'
 import { bacaBerkasTabel } from '~/utils/xlsx-baca'
 import { barisBerkolom, barisKeProduk, barisKeVendor } from '~/utils/stock-impor'
 import { SATUAN_TERSEDIA, unduhCsvStock } from '~/utils/stock-catat'
-import { tanganiKonflik, type Versi } from '~/utils/versi'
+import { tanganiKonflik } from '~/utils/versi'
 
 definePageMeta({ access: ['purchasing'] })
 
@@ -39,9 +39,7 @@ const HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
 const AREA = ['Kitchen', 'Bar', 'Floor']
 
 // ---------------------------------------------------------------- vendors
-const vendorQ = useAsyncData('stock-db-vendor', listVendors, {
-  default: () => ({ rows: [] as VendorStock[], versions: {} as Record<string, Versi> }),
-})
+const vendorQ = useVendorStock()
 const versiVendor = computed(() => vendorQ.data.value?.versions ?? {})
 const cariVendor = ref('')
 const vendorTampil = computed(() => {
@@ -109,9 +107,7 @@ const kolomVendor: TableColumn<VendorStock>[] = [
 ]
 
 // ---------------------------------------------------------------- products
-const produkQ = useAsyncData('stock-db-produk', getProducts, {
-  default: () => ({ rows: [] as ProdukStock[], versions: {} as Record<string, Versi> }),
-})
+const produkQ = useProdukStock()
 const versiProduk = computed(() => produkQ.data.value?.versions ?? {})
 const cariProduk = ref('')
 const produkTampil = computed(() => {

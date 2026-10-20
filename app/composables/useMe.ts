@@ -50,3 +50,15 @@ export function hasAccess(me: Me | null, keys: string[]): boolean {
 
 export const isAdminOf = (me: Me | null, key: string): boolean =>
   !!me && (me.adminModules.includes(key) || me.adminModules.includes('*'))
+
+/** One `GET /me/badges` (api#311): `{modul: {layar: n}}` for the Beranda
+ *  "Perlu tindakan" list, so it no longer opens 8–15 full states for a few
+ *  numbers. Refreshed on every Beranda visit (tiny answer); module screens
+ *  keep reading their own state.
+ */
+export type Badges = Record<string, Record<string, number>>
+export const useBadges = () =>
+  useAsyncData('me-badges', () => useApi()<Envelope<Badges>>('/me/badges').then(r => r.data ?? {}), {
+    default: () => ({}) as Badges,
+  })
+export const refreshBadges = () => refreshNuxtData('me-badges')

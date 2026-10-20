@@ -1,15 +1,9 @@
 <!-- Home widget: deposits waiting for verification. Read-only. -->
 <script setup lang="ts">
-import { listReservations } from '~/composables/useReservasi'
 import { dpsOf } from '~/utils/dp-reservasi'
-import { angka, hariIni, rupiah } from '~/utils/format'
+import { angka, rupiah } from '~/utils/format'
 
-const hari = hariIni()
-const { data, status } = useAsyncData(
-  'widget-dp-perlu-verifikasi',
-  () => listReservations(hari, hari).then(r => r.data),
-  { default: () => [] },
-)
+const { data, status } = useReservasiHariIni()
 
 const belum = computed(() => (data.value ?? []).flatMap(r => dpsOf(r).map(p => ({ r, p }))).filter(x => !x.p.tfStatus))
 const nominal = computed(() => belum.value.reduce((a, x) => a + (Number(x.p.tfAmount) > 0 ? Number(x.p.tfAmount) : (Number(x.p.amount) || 0)), 0))

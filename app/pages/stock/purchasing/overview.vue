@@ -7,8 +7,8 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { OrderStock, ProdukStock } from '~/composables/useStock'
-import { getProducts, listOrders } from '~/composables/useStock'
+import type { OrderStock } from '~/composables/useStock'
+import { listOrders, useProdukStock } from '~/composables/useStock'
 import { angka, tglPendek } from '~/utils/format'
 
 definePageMeta({ access: ['purchasing'] })
@@ -30,9 +30,7 @@ const pilihanBulan = computed(() => {
 const ordersQ = useAsyncData('stock-overview', () => listOrders(), {
   default: () => ({ rows: [] as OrderStock[], versions: {} }),
 })
-const produkQ = useAsyncData('stock-overview-produk', getProducts, {
-  default: () => ({ rows: [] as ProdukStock[], versions: {} }),
-})
+const produkQ = useProdukStock()
 const utamaOf = (item: string) => produkQ.data.value?.rows.find(p => p.nama === item)?.utama || ''
 
 const bukanCk = (o: OrderStock) => (o.batchName || '') !== 'Central Kitchen'

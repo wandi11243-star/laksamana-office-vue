@@ -8,17 +8,17 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { BahanHpp } from '~/utils/pohon-resep'
-import { deleteIngredient, hppIngredients, getProducts, patchIngredient } from '~/composables/useStock'
+import { deleteIngredient, patchIngredient, useBahanHpp, useProdukStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { rupiah } from '~/utils/format'
-import { tanganiKonflik, type Versi } from '~/utils/versi'
+import { tanganiKonflik } from '~/utils/versi'
 
 definePageMeta({ access: ['hpp'] })
 
 const toast = useToast()
 
-const bahanQ = useAsyncData('hpp-floor-bahan', hppIngredients, { default: () => ({ rows: [] as BahanHpp[], versions: {} as Record<string, Versi> }) })
-const produkQ = useAsyncData('hpp-floor-produk', getProducts, { default: () => ({ rows: [], versions: {} }) })
+const bahanQ = useBahanHpp()
+const produkQ = useProdukStock()
 const versi = computed(() => bahanQ.data.value?.versions ?? {})
 
 const namaFloor = computed(() => {

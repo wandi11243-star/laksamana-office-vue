@@ -11,7 +11,7 @@
   menus). Engine: `~/utils/pohon-resep` (T-18).
 -->
 <script setup lang="ts">
-import { getHppIngredients, getHppRecipes } from '~/composables/useStock'
+import { getHppRecipes, useBahanHpp } from '~/composables/useStock'
 import { bangunMenu, fmtQtyPohon, indeksPohon, pohonPunyaFlag, statPohon, whereusedPohon, type KindPohon, type MenuPohon, type NodePohon } from '~/utils/pohon-resep'
 
 definePageMeta({ access: ['tree'] })
@@ -37,7 +37,7 @@ const KIND_WARNA: Record<KindPohon, 'success' | 'warning' | 'error' | 'info' | '
   storebought: 'info',
 }
 
-const { data: bahanData, error: bahanError } = useAsyncData('stock-tree-bahan', () => getHppIngredients())
+const { data: bahanData, error: bahanError } = useBahanHpp()
 const { data: resepData, error: resepError, refresh } = useAsyncData('stock-tree-resep', () => getHppRecipes())
 
 const sumber = computed(() => indeksPohon(resepData.value?.rows ?? [], bahanData.value?.rows ?? []))

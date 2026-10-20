@@ -5,8 +5,8 @@
   Closing one fills `tglJemput`; "Tandai semua" closes the visible list.
 -->
 <script setup lang="ts">
-import type { OrderStock, ProdukStock } from '~/composables/useStock'
-import { getProducts, listOrders, patchOrder } from '~/composables/useStock'
+import type { OrderStock } from '~/composables/useStock'
+import { listOrders, patchOrder, useProdukStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { hariIni, tglPendek } from '~/utils/format'
 import { tanganiKonflik, type Versi } from '~/utils/versi'
@@ -19,9 +19,7 @@ const ordersQ = useAsyncData('stock-jemput', () => listOrders({ status: 'Aktif' 
   default: () => ({ rows: [] as OrderStock[], versions: {} as Record<string, Versi> }),
 })
 const versi = computed(() => ordersQ.data.value?.versions ?? {})
-const produkQ = useAsyncData('stock-jemput-produk', getProducts, {
-  default: () => ({ rows: [] as ProdukStock[], versions: {} }),
-})
+const produkQ = useProdukStock()
 const caraBeliOf = (item: string) => produkQ.data.value?.rows.find(p => p.nama === item)?.caraBeli || ''
 
 const antre = computed(() => (ordersQ.data.value?.rows ?? []).filter(o =>
