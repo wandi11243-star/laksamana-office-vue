@@ -15,6 +15,7 @@
 //   catch (e) { if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' }) }
 //
 import type { LayoutDenah } from '~/utils/venue-layouts'
+import type { PerformaPeriode, RingkasKeseluruhan } from '~/utils/analitik'
 
 // G-07 (guest summary) and G-08 (server paging + CSV export) are wired now
 // (docs/migrasi/reservasi.md J.4). Still without a v1 endpoint on purpose:
@@ -321,6 +322,20 @@ export const getGuestsSummary = (before?: string, phone?: string) =>
   useApi()<Envelope<{ sebelum: string | null, tamu: Record<string, RingkasanTamu> }> & { meta: { ver: number } }>(
     '/reservasi/guests/summary',
     { query: { before: before || undefined, phone: phone || undefined } },
+  )
+
+/**
+ * GET /reservasi/analytics?mode=harian|bulanan&date= — the Analitik screen's
+ * numbers computed on the server (api#311), so the client no longer pulls
+ * the whole table. harian takes date=YYYY-MM-DD, bulanan date=YYYY-MM.
+ * `periode` is the performaPeriode shape, `ringkasan` the ringkasKeseluruhan
+ * shape over the whole table; `label` echoes the input (the screen formats
+ * it for display itself).
+ */
+export const getReservasiAnalytics = (mode: 'harian' | 'bulanan', date: string) =>
+  useApi()<Envelope<{ periode: PerformaPeriode, ringkasan: RingkasKeseluruhan }>>(
+    '/reservasi/analytics',
+    { query: { mode, date } },
   )
 
 /**
