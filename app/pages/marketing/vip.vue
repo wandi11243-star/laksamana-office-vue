@@ -63,11 +63,11 @@ async function muatRsv() {
   rsvMuat.value = true
   rsvGalat.value = ''
   try {
-    // Sweep for orphans in one call: without page/perPage the answer is every
-    // row (laksamana-api/docs/api/reservasi.md §Paging). Temporary until the
-    // VIP filter from dwipapap/laksamana-api#311 exists.
+    // Orphan sweep via the server VIP filter (api#311): ?vip=1&idPrefix=vip-
+    // replaces the 2020–2100 walk. The client filter stays as a guard for
+    // an older API that ignores the new params.
     const r = await useApi()<Envelope<Record<string, unknown>[]>>('/reservasi/reservations', {
-      query: { from: '2020-01-01', to: '2100-12-31' },
+      query: { vip: 1, idPrefix: 'vip-' },
     })
     rsvVip.value = (r.data ?? []).filter(x => x && (x as { vip?: boolean }).vip === true && String((x as { id?: string }).id ?? '').startsWith('vip-'))
   }
