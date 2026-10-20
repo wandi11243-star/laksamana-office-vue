@@ -293,6 +293,20 @@ export function useLencanaReservasi() {
   })
 }
 
+/**
+ * Today's reservations under ONE canonical key (#147): the Beranda widgets
+ * each fetched the same day under their own key. Writers keep calling their
+ * refresh() (always refetches); the TTL bounds staleness elsewhere.
+ */
+export function useReservasiHariIni() {
+  const hari = hariIni()
+  return useAsyncData('reservasi-hari-ini', async () => {
+    const r = await listReservations(hari, hari).then(r => r.data)
+    stempelCache('reservasi-hari-ini')
+    return r
+  }, { default: () => [] as Reservasi[], getCachedData: bacaCache() })
+}
+
 /** GET /reservations/{id} — one row, with the authoritative `meta.version`. */
 export const getReservation = (id: string) => useApi()<Envelope<Reservasi>>(`/reservasi/reservations/${id}`)
 

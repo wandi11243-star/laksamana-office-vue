@@ -6,7 +6,7 @@
   shown as its own line (F.1–F.2).
 -->
 <script setup lang="ts">
-import { getHppIngredients, getProducts, hppSettings } from '~/composables/useStock'
+import { getHppIngredients, hppSettings, useProdukStock } from '~/composables/useStock'
 import { persen, rupiah } from '~/utils/format'
 import {
   ambangOf,
@@ -21,7 +21,7 @@ import {
 definePageMeta({ access: ['hpp'] })
 
 const bahanQ = useAsyncData('hpp-kalk-bahan', getHppIngredients, { default: () => ({ rows: [] }) })
-const produkQ = useAsyncData('hpp-kalk-produk', getProducts, { default: () => ({ rows: [], versions: {} }) })
+const produkQ = useProdukStock()
 const setQ = useAsyncData('hpp-kalk-set', hppSettings, { default: () => ({ data: SET_DEFAULT, versi: undefined }) })
 const set = computed(() => ({ ...SET_DEFAULT, ...(setQ.data.value?.data ?? {}) }))
 

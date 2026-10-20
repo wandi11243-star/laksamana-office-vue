@@ -8,14 +8,14 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { CkMutasi, CkSaldo, ProdukStock } from '~/composables/useStock'
+import type { CkMutasi, CkSaldo } from '~/composables/useStock'
 import {
   ckBalance,
   ckMovements,
   createMovement,
   deleteMovement,
-  getProducts,
   patchMovement,
+  useProdukStock,
 } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { angka, tglPendek } from '~/utils/format'
@@ -27,9 +27,7 @@ const toast = useToast()
 
 const sub = ref<'stok' | 'mutasi' | 'dash'>('stok')
 
-const produkQ = useAsyncData('stock-pck-produk', getProducts, {
-  default: () => ({ rows: [] as ProdukStock[], versions: {} }),
-})
+const produkQ = useProdukStock()
 const namaCk = computed(() => produkQ.data.value?.rows.filter(p => p.sumber === 'ck' || p.sumber === 'both').map(p => p.nama) ?? [])
 
 const saldoQ = useAsyncData('stock-pck-saldo', ckBalance, { default: () => ({ rows: [] as CkSaldo[] }) })

@@ -8,8 +8,8 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { CkMutasi, CkSaldo, ProdukStock } from '~/composables/useStock'
-import { catatLog, ckBalance, ckMovements, createBatch, deliverToCk, getProducts } from '~/composables/useStock'
+import type { CkMutasi, CkSaldo } from '~/composables/useStock'
+import { catatLog, ckBalance, ckMovements, createBatch, deliverToCk, useProdukStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { hariIni, tambahHari, tglPendek } from '~/utils/format'
 import { SATUAN_TERSEDIA, unduhCsvStock } from '~/utils/stock-catat'
@@ -21,9 +21,7 @@ const toast = useToast()
 const me = useMe()
 const sub = ref<'stok' | 'minta' | 'kirim' | 'riwayat'>('stok')
 
-const produkQ = useAsyncData('stock-ck-produk', getProducts, {
-  default: () => ({ rows: [] as ProdukStock[], versions: {} }),
-})
+const produkQ = useProdukStock()
 const produkCk = computed(() => produkQ.data.value?.rows.filter(p => p.sumber === 'ck' || p.sumber === 'both') ?? [])
 const namaCk = computed(() => produkCk.value.map(p => p.nama))
 const produkOutlet = computed(() => produkQ.data.value?.rows.filter(p => (p as unknown as Record<string, unknown>).diOutlet) ?? [])

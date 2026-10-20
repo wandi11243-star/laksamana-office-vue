@@ -8,8 +8,7 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { ProdukStock } from '~/composables/useStock'
-import { catatLog, createBatch, getProducts, joinableBatches } from '~/composables/useStock'
+import { catatLog, createBatch, joinableBatches, useProdukStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { hariIni, tambahHari } from '~/utils/format'
 import { SATUAN_TERSEDIA, unduhCsvStock } from '~/utils/stock-catat'
@@ -19,9 +18,7 @@ definePageMeta({ access: ['ordering'] })
 const me = useMe()
 const toast = useToast()
 
-const produkQ = useAsyncData('stock-order-produk', getProducts, {
-  default: () => ({ rows: [] as ProdukStock[], versions: {} }),
-})
+const produkQ = useProdukStock()
 const daftarNama = computed(() => produkQ.data.value?.rows.map(p => p.nama) ?? [])
 const satuanOf = (nama: string) => {
   const p = produkQ.data.value?.rows.find(x => x.nama === nama)

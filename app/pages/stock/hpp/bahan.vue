@@ -11,7 +11,7 @@ import type { BahanHpp } from '~/utils/pohon-resep'
 import {
   createIngredient,
   deleteIngredient,
-  hppIngredients,
+  useBahanHpp,
   hppRapikanBahan,
   importIngredients,
   mergeIngredients,
@@ -29,7 +29,7 @@ definePageMeta({ access: ['hpp'] })
 
 const toast = useToast()
 
-const bahanQ = useAsyncData('hpp-bahan', hppIngredients, { default: () => ({ rows: [] as BahanHpp[], versions: {} as Record<string, Versi> }) })
+const bahanQ = useBahanHpp()
 const resepQ = useAsyncData('hpp-bahan-resep', () => import('~/composables/useStock').then(m => m.getHppRecipes()), {
   default: () => ({ rows: [], versions: {} as Record<string, Versi> }),
 })

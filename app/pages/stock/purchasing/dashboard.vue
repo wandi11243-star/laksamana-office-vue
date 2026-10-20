@@ -8,14 +8,14 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { OrderStock, ProdukStock, VendorStock } from '~/composables/useStock'
+import type { OrderStock } from '~/composables/useStock'
 import {
   archiveOrders,
   catatLog,
-  getProducts,
   listOrders,
-  listVendors,
+  useVendorStock,
   patchOrder,
+  useProdukStock,
 } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { tglPendek } from '~/utils/format'
@@ -39,12 +39,8 @@ const ordersQ = useAsyncData('stock-purch-orders', () => listOrders(), {
   default: () => ({ rows: [] as OrderStock[], versions: {} as Record<string, Versi> }),
 })
 const versi = computed(() => ordersQ.data.value?.versions ?? {})
-const produkQ = useAsyncData('stock-purch-produk', getProducts, {
-  default: () => ({ rows: [] as ProdukStock[], versions: {} }),
-})
-const vendorQ = useAsyncData('stock-purch-vendor', listVendors, {
-  default: () => ({ rows: [] as VendorStock[], versions: {} }),
-})
+const produkQ = useProdukStock()
+const vendorQ = useVendorStock()
 
 const sumberOf = (item: string) => produkQ.data.value?.rows.find(p => p.nama === item)?.sumber
 const utamaOf = (item: string) => produkQ.data.value?.rows.find(p => p.nama === item)?.utama || ''

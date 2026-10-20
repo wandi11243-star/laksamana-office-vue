@@ -106,6 +106,19 @@ export async function getProducts(): Promise<{ rows: ProdukStock[], versions: Re
   return { rows, versions: (r.meta?.versions ?? {}) as Record<string, Versi> }
 }
 
+/**
+ * The product master under ONE canonical key (#147): ten screens read it
+ * under ten keys, fetching it ten times per session. Writers keep calling
+ * their refresh() (always refetches); the TTL bounds staleness elsewhere.
+ */
+export function useProdukStock() {
+  return useAsyncData('stock-produk', async () => {
+    const r = await getProducts()
+    stempelCache('stock-produk')
+    return r
+  }, { default: () => ({ rows: [] as ProdukStock[], versions: {} as Record<string, Versi> }), getCachedData: bacaCache() })
+}
+
 /** `POST /stock/products` — purchasing/hpp only; a usage-only account cannot add (gap noted in stock.md D.17). */
 export async function createProduk(body: Partial<ProdukStock> & { nama: string }) {
   const r = await useApi()<Envelope<ProdukStock>>('/stock/products', { method: 'POST', body })
@@ -464,6 +477,15 @@ export async function listVendors(): Promise<{ rows: VendorStock[], versions: Re
   return { rows, versions: (r.meta?.versions ?? {}) as Record<string, Versi> }
 }
 
+/** The vendor master under ONE canonical key (#147, same pattern as useProdukStock). */
+export function useVendorStock() {
+  return useAsyncData('stock-vendor', async () => {
+    const r = await listVendors()
+    stempelCache('stock-vendor')
+    return r
+  }, { default: () => ({ rows: [] as VendorStock[], versions: {} as Record<string, Versi> }), getCachedData: bacaCache() })
+}
+
 export async function createVendor(body: Partial<VendorStock> & { nama: string }) {
   const r = await useApi()<Envelope<VendorStock>>('/stock/vendors', { method: 'POST', body })
   return r.data
@@ -670,6 +692,15 @@ export async function hppIngredients(): Promise<{ rows: BahanHpp[], versions: Re
   const d = r.data as BahanHpp[] | Record<string, BahanHpp>
   const rows = Array.isArray(d) ? d : Object.entries(d ?? {}).map(([nama, v]) => ({ nama, ...(v as object) }))
   return { rows, versions: (r.meta?.versions ?? {}) as Record<string, Versi> }
+}
+
+/** The ingredient master under ONE canonical key (#147, same pattern as useProdukStock). */
+export function useBahanHpp() {
+  return useAsyncData('hpp-bahan', async () => {
+    const r = await hppIngredients()
+    stempelCache('hpp-bahan')
+    return r
+  }, { default: () => ({ rows: [] as BahanHpp[], versions: {} as Record<string, Versi> }), getCachedData: bacaCache() })
 }
 
 export async function createIngredient(body: Partial<BahanHppTulis> & { nama: string }) {

@@ -10,8 +10,8 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { ProdukStock, WasteCatatan } from '~/composables/useStock'
-import { createWaste, deleteWaste, getProducts, listWaste, patchWaste } from '~/composables/useStock'
+import type { WasteCatatan } from '~/composables/useStock'
+import { createWaste, deleteWaste, listWaste, patchWaste, useProdukStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { isAdminOf } from '~/composables/useMe'
 import { hariIni, tglPendek, tambahHari } from '~/utils/format'
@@ -29,7 +29,7 @@ const toast = useToast()
 const admin = computed(() => isAdminOf(me.value, 'usage'))
 const belumAdaTim = computed(() => timBelumDiisi(me.value?.keterangan, admin.value))
 
-const produkQ = useAsyncData('stock-produk', getProducts, { default: () => ({ rows: [] as ProdukStock[], versions: {} }) })
+const produkQ = useProdukStock()
 const daftarNama = computed(() => produkQ.data.value?.rows.map(p => p.nama) ?? [])
 const info = computed<InfoBahan>(() => Object.fromEntries((produkQ.data.value?.rows ?? []).map(p => [p.nama, p])))
 
