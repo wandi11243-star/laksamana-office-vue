@@ -15,17 +15,28 @@
 <script setup lang="ts">
 import type { ModulMember } from '~/composables/useRoster'
 import {
-  AKSES_KOLOM_DW, bolehBukaBawaanDw, bolehBukaPeranDw, HALAMAN_KUNCI_DW,
+  AKSES_KOLOM_DW, bolehBukaBawaanDw, bolehBukaPeranDw, bolehSimpanSettingDw, HALAMAN_KUNCI_DW, versiSettingDw,
 } from '~/utils/dw'
 import { LAYAR_DW } from '~/utils/layar/dw'
-import { simpanSettingDw, useDwDasar, useDwHeads } from '~/composables/useDw'
+import { simpanSettingDw, useDwDasar, useDwHeads, useDwSetting } from '~/composables/useDw'
 import { isAdminOf } from '~/composables/useMe'
+import { tanganiKonflik } from '~/utils/versi'
+import type { Versi } from '~/utils/versi'
 
 definePageMeta({ access: ['dw'] })
 
 const toast = useToast()
 const me = useMe()
-const { set, peran, error } = useDwDasar()
+const { peran, error, refresh } = useDwDasar()
+/** The matrix comes from the versioned read (see pengaturan.vue). */
+const { data: setting, status: statusSetting, error: errorSetting, refresh: muatSetting } = useDwSetting()
+const set = computed(() => setting.value.blob)
+/** The version the last save created — see pengaturan.vue. */
+const versiRespon = useState<Versi | undefined>('dw-setting-versi', () => undefined)
+/** The version we know is current: the last answer's, else the read's. */
+const versi = computed(() => versiSettingDw(versiRespon.value, setting.value.version))
+const pendingSetting = computed(() => statusSetting.value === 'pending')
+const siap = computed(() => !pendingSetting.value)
 const { data: members, status: membersStatus } = useModulMembers('dw')
 const { peta: headsPeta, error: headsError, muat: muatHeads } = useDwHeads()
 onMounted(() => {
@@ -36,13 +47,31 @@ const admin = computed(() => peran.value.admin || isAdminOf(me.value, 'dw'))
 const halaman = computed(() => LAYAR_DW.map(l => ({ k: l.key, t: l.label })))
 const diubah = computed(() => Object.keys(set.value.akses).length)
 
+async function muatUlang() {
+  versiRespon.value = undefined
+  await muatSetting()
+}
+
 async function simpan(pesan: string) {
+  const v = versi.value
+  if (!bolehSimpanSettingDw(v)) {
+    toast.add({ title: 'Hak akses belum punya versi', description: 'Muat ulang halamannya, lalu simpan lagi.', color: 'warning' })
+    return
+  }
   try {
-    await simpanSettingDw(set.value)
+    const r = await simpanSettingDw(set.value, v)
+    // The next save sends the version the server just handed back; the matrix
+    // stays as we sent it, so a click made during the save is not lost.
+    versiRespon.value = r.data?.version ?? v
+    // The sidebar reads the matrix from the overview, so it follows here too.
+    await refresh()
     toast.add({ title: pesan, color: 'success' })
   }
   catch (e) {
-    toast.add({ title: `Gagal menyimpan: ${apiErrorMessage(e)}`, color: 'error' })
+    // 409 = someone else saved the matrix in between: reload and say so.
+    if (!(await tanganiKonflik(e, muatUlang))) {
+      toast.add({ title: `Gagal menyimpan: ${apiErrorMessage(e)}`, color: 'error' })
+    }
   }
 }
 
@@ -112,15 +141,24 @@ function toggleHR(u: ModulMember) {
     description="Siapa yang berhak memutuskan di modul ini."
   >
     <p
-      v-if="error"
+      v-if="error || errorSetting"
       class="mb-4 text-error"
       role="alert"
     >
-      {{ apiErrorMessage(error) }}
+      {{ apiErrorMessage(error ?? errorSetting) }}
     </p>
 
     <AppPanel
-      v-if="!admin"
+      v-if="!siap"
+      title="Memuat hak akses…"
+    >
+      <p class="py-6 text-center text-sm text-muted">
+        Memuat…
+      </p>
+    </AppPanel>
+
+    <AppPanel
+      v-else-if="!admin"
       title="Halaman ini untuk admin modul"
       icon="i-lucide-lock"
     >

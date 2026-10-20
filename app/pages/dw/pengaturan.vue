@@ -9,30 +9,70 @@
   panel says so (:8198). `jamBatas` warns, it never changes the price (F.14).
 -->
 <script setup lang="ts">
-import { bolehBukaDw, divPekerja, durasiJamDw, KONTEKS, KONTEKS_LBL, KOSONG_SANDI, posisiDivisiDw, tambahanPanjangDw, tarifPosisiDw } from '~/utils/dw'
+import { bolehBukaDw, divPekerja, durasiJamDw, KONTEKS, KONTEKS_LBL, KOSONG_SANDI, posisiDivisiDw, tambahanPanjangDw, tarifPosisiDw, versiSettingDw, bolehSimpanSettingDw } from '~/utils/dw'
 import { DIVISI, namaDivisiJadwal } from '~/utils/jadwal'
-import { kosongkanDw, simpanSettingDw, useDwDasar } from '~/composables/useDw'
+import { kosongkanDw, simpanSettingDw, useDwDasar, useDwSetting } from '~/composables/useDw'
 import { angka, rupiahVal } from '~/utils/format'
+import { tanganiKonflik } from '~/utils/versi'
+import type { Versi } from '~/utils/versi'
 
 definePageMeta({ access: ['dw'] })
 
 const toast = useToast()
-const { set, pekerja, peran, pending, error, refresh } = useDwDasar()
+const { pekerja, peran, pending, error, refresh } = useDwDasar()
+
+/**
+ * The setting blob comes from `GET /dw/settings` — the one read that also
+ * carries the version the blob was read at (#303). The overview's copy has no
+ * version, and a version taken from another read would let us write over a
+ * colleague's save without noticing.
+ */
+const { data: setting, status: statusSetting, error: errorSetting, refresh: muatSetting } = useDwSetting()
+const set = computed(() => setting.value.blob)
+/**
+ * The version the last save created. Session-scoped on purpose: the read is
+ * cached by the app, so a page we come back to still holds the version from
+ * the read, while the server has moved on to ours. Keeping the answer here
+ * pairs the blob we edited with the version that belongs to it.
+ */
+const versiRespon = useState<Versi | undefined>('dw-setting-versi', () => undefined)
+/** The version we know is current: the last answer's, else the read's. */
+const versi = computed(() => versiSettingDw(versiRespon.value, setting.value.version))
+const pendingSetting = computed(() => statusSetting.value === 'pending')
+const siap = computed(() => !pending.value && !pendingSetting.value)
 
 /** Matrix-aware gate (T-10); default is HRD + admin. */
 const bolehHalaman = computed(() => bolehBukaDw(set.value, peran.value, 'pengaturan'))
 
 const sibuk = ref(false)
+/** Reload the blob AND the overview, so both copies show the server's truth. */
+async function muatUlang() {
+  versiRespon.value = undefined
+  await Promise.all([muatSetting(), refresh()])
+}
 /** Save the blob and report; the old page wrote on every control change (:2223). */
 async function simpan(pesan?: string) {
   if (sibuk.value) return
+  const v = versi.value
+  if (!bolehSimpanSettingDw(v)) {
+    toast.add({ title: 'Pengaturan belum punya versi', description: 'Muat ulang halamannya, lalu simpan lagi.', color: 'warning' })
+    return
+  }
   sibuk.value = true
   try {
-    await simpanSettingDw(set.value)
+    const r = await simpanSettingDw(set.value, v)
+    // The next save sends the version the server just handed back. The blob
+    // stays as we sent it: a change made while the save was running must not
+    // be wiped by the reload.
+    versiRespon.value = r.data?.version ?? v
+    await refresh()
     if (pesan) toast.add({ title: pesan, color: 'success' })
   }
   catch (e) {
-    toast.add({ title: `Gagal menyimpan pengaturan: ${apiErrorMessage(e)}`, color: 'error' })
+    // 409 = someone else saved in between: reload and say so, never overwrite.
+    if (!(await tanganiKonflik(e, muatUlang))) {
+      toast.add({ title: `Gagal menyimpan pengaturan: ${apiErrorMessage(e)}`, color: 'error' })
+    }
   }
   finally {
     sibuk.value = false
@@ -137,15 +177,24 @@ async function jalanKosongkan() {
     description="Tarif, jam bawaan, dan panduan jumlah DW per divisi."
   >
     <p
-      v-if="error"
+      v-if="error || errorSetting"
       class="mb-4 text-error"
       role="alert"
     >
-      {{ apiErrorMessage(error) }}
+      {{ apiErrorMessage(error ?? errorSetting) }}
     </p>
 
     <AppPanel
-      v-if="!pending && !bolehHalaman"
+      v-if="!siap"
+      title="Memuat pengaturan…"
+    >
+      <p class="py-6 text-center text-sm text-muted">
+        Memuat…
+      </p>
+    </AppPanel>
+
+    <AppPanel
+      v-else-if="!bolehHalaman"
       title="Halaman ini untuk HRD dan admin modul"
       icon="i-lucide-lock"
     >

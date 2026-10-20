@@ -249,6 +249,27 @@ function normalKuota(x: unknown): Record<string, Record<KonteksHari, number>> {
   return out
 }
 
+/**
+ * The version to send with the next setting save (#303): the one the last
+ * answer handed back, else the one the read produced. The ANSWER wins — it is
+ * the version our own save created. `undefined` means there is no version at
+ * all, and then nothing may be saved.
+ */
+export function versiSettingDw(versiJawab?: number | string, versiBaca?: number | string): number | string | undefined {
+  return versiJawab ?? versiBaca
+}
+
+/**
+ * May this blob be saved? The server wants the blob's `updated_at` (ms) as
+ * If-Match and answers 428 for anything that is not a plain number — so the
+ * check happens here, before the wire. `0` is a legal version: the blob was
+ * never saved before.
+ */
+export function bolehSimpanSettingDw(versi?: number | string): versi is number | string {
+  if (versi === undefined || versi === null) return false
+  return /^\d+$/.test(String(versi).trim())
+}
+
 /** Setting blob, complete with defaults (`normalSetting`, :1616). */
 export function normalSettingDw(raw: unknown): SettingDw {
   const s = (raw && typeof raw === 'object') ? raw as Record<string, unknown> : {}

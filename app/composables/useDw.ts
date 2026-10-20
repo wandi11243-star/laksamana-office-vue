@@ -5,15 +5,23 @@
 // GET /dw/overview, read here under one key so every screen (and the module
 // chrome) shares the same state. Writes are the granular v1 endpoints.
 //
-// No version/ETag: the contract has none (last-wins per row, dw.md
-// §Concurrency), so writes send no `If-Match`. Overlaps are the server's
+// MOST writes carry no version: the contract has none (last-wins per row,
+// dw.md §Concurrency), so they send no `If-Match`. Overlaps are the server's
 // business: 409 `overlap` carries the conflict in `error.details`, and the
 // screen has to ask the person what to do (`bentrokDari`).
+//
+// THE SETTING BLOB IS THE EXCEPTION (#303): it is one row everybody writes
+// whole, so `PUT /dw/settings` requires the version it was read at — missing
+// → 428, stale → 409. Read it with `useDwSetting()`, which returns the blob
+// AND its version from ONE request: a version taken from another read would
+// let us overwrite a colleague's save without ever noticing.
 import type { FetchError } from 'ofetch'
 import type { AjuanDw, PekerjaDw, PermintaanDw, SettingDw } from '~/utils/dw'
-import { akhirBulanDw, normalDw } from '~/utils/dw'
+import { akhirBulanDw, normalDw, normalSettingDw } from '~/utils/dw'
 import { DIVISI, seninDari } from '~/utils/jadwal'
 import { hariIni, tambahHari } from '~/utils/format'
+import type { Versi } from '~/utils/versi'
+import { ifMatch, versiDari } from '~/utils/versi'
 
 // ---------------------------------------------------------------- shared range
 
@@ -172,6 +180,23 @@ export function normalHeadsDw(raw: Record<string, unknown> | null | undefined): 
   return out
 }
 
+/**
+ * GET /dw/settings — the blob AND the version it was read at (#303).
+ * `meta.version` is the blob's `updated_at` (ms; 0 when never saved).
+ *
+ * The two must come from ONE read: the version says WHICH save the blob in
+ * our hands is, so a version from another read would let us write over a
+ * colleague's save and never be told.
+ */
+export function useDwSetting() {
+  return useAsyncData(
+    'dw-setting',
+    () => useApi()<Envelope<SettingDw>>('/dw/settings')
+      .then(r => ({ blob: normalSettingDw(r.data), version: versiDari(r) as Versi | undefined })),
+    { default: () => ({ blob: normalSettingDw({}), version: undefined as Versi | undefined }) },
+  )
+}
+
 // ---------------------------------------------------------------- writes — workers
 
 /** POST (new) / PUT (edit) /dw/workers. HRD only. */
@@ -242,9 +267,22 @@ export function bentrokDari(e: unknown): BentrokDw | null {
 export const tandaiBayarDw = (senin: string, kunci: string, nyala: boolean) =>
   useApi()<Envelope<{ saved: boolean, kunci: string, nyala: boolean }>>('/dw/payments/marks', { method: 'POST', body: { senin, kunci, nyala } })
 
-/** PUT /dw/settings — the whole blob (HRD; `hr`/`akses` preserved for non-admin). */
-export const simpanSettingDw = (data: SettingDw) =>
-  useApi()<Envelope<{ saved: boolean, ts: number }>>('/dw/settings', { method: 'PUT', body: data })
+/**
+ * PUT /dw/settings — the whole blob (HRD; `hr`/`akses` preserved for non-admin).
+ *
+ * The version is REQUIRED (#303): the server answers 428 without it and 409
+ * when it is stale, and it is checked and written in one transaction. The
+ * answer carries the new version, which the next save sends back.
+ *
+ * `bayarLunas` is kept in the body on purpose: the server ignores it and
+ * always keeps the stored ticks, but an older server build that overwrites
+ * the whole blob would lose them — and the legacy client sent them for
+ * exactly that reason (deploy/dw/index.html:1684-1690).
+ */
+export const simpanSettingDw = (data: SettingDw, versi: Versi) =>
+  useApi()<Envelope<{ saved: boolean, ts: number, version: number }>>('/dw/settings', {
+    method: 'PUT', body: data, headers: ifMatch(versi),
+  })
 
 /** POST /dw/admin/clear — module admin + the typed keyword (danger zone). */
 export const kosongkanDw = (pekerja: boolean) =>
