@@ -10,7 +10,7 @@
 //   omzetPerBulanEms :4975 (T-22: Paid only, event-start month, millions)
 //   angkaEms :4925 (D.13: one function for Performance & Report)
 //   overlaps :1687 · hasConflict :3101 (F.4) · feeAngka :3972 · roiIde :11130
-import type { Acara, JadwalTalent, KelasTiket, OrderTiket, Tiket } from '~/composables/useEvent'
+import type { Acara, Checkin, JadwalTalent, KelasTiket, OrderTiket, Tiket } from '~/composables/useEvent'
 import type { Versi } from '~/utils/versi'
 
 /** Single source for the EMS constants (old values, unchanged). */
@@ -40,15 +40,54 @@ export function paxAcara(e: Pick<Acara, 'id' | 'capacity'>, kelas: Pick<KelasTik
   return milik.length ? milik.reduce((a, c) => a + (Number(c.sold) || 0), 0) : Number(e.capacity) || 0
 }
 
+/** Orders by id, for `eventTiket`. */
+export const petaOrder = (order: Pick<OrderTiket, 'id' | 'event_id'>[]) =>
+  new Map(order.map(o => [String(o.id), { event_id: String(o.event_id ?? '') }]))
+
+type TiketEvent = Pick<Tiket, 'event_id'> & { order_item_id?: unknown, order_id?: unknown }
+
+/** The event a ticket belongs to (contract `docs/api/event.md`, Tickets; legacy
+ *  `ciTiket :10379-10382`): its own `event_id` when present, else its order's
+ *  (`order_item_id`, then `order_id`). Legacy tickets carry NO `event_id` —
+ *  filtering on `t.event_id` alone drops them from every summary. */
+export function eventTiket(t: TiketEvent, orderById?: Map<string, { event_id?: string }>): string {
+  const own = String(t.event_id ?? '')
+  if (own) return own
+  return orderById?.get(String(t.order_item_id ?? ''))?.event_id
+    || orderById?.get(String(t.order_id ?? ''))?.event_id
+    || ''
+}
+
+/** Presence rule (contract `docs/api/event.md`, Check-ins): per ticket_id the
+ *  newest row wins (`checked_in_at`, then `id`). */
+export function checkinTerbaru<C extends Pick<Checkin, 'id' | 'ticket_id' | 'checked_in_at'>>(checkins: C[]): Map<string, C> {
+  const m = new Map<string, C>()
+  for (const c of checkins) {
+    const cur = m.get(c.ticket_id)
+    if (!cur || c.checked_in_at > cur.checked_in_at || (c.checked_in_at === cur.checked_in_at && c.id > cur.id)) m.set(c.ticket_id, c)
+  }
+  return m
+}
+
+/** Tickets checked in: those whose newest row is NOT a cancellation (`batalDari`).
+ *  A raw `result === 'Valid'` count is wrong twice: a cancellation row has no
+ *  `result` (so `?? 'Valid'` counted it) and a re-scan counts again. */
+export function idCheckin(checkins: Pick<Checkin, 'id' | 'ticket_id' | 'checked_in_at' | 'batalDari'>[]): Set<string> {
+  return new Set([...checkinTerbaru(checkins)].filter(([, c]) => !c.batalDari).map(([tid]) => tid))
+}
+
 /** `salesRingkas(eid)` (`:6919-6976`): per-class count & rupiah of non-refunded
- *  tickets, returned amount, valid tickets. Refunds are EMS crew work. */
+ *  tickets, returned amount, valid tickets. Refunds are EMS crew work. Pass the
+ *  orders so legacy tickets without `event_id` count (`eventTiket`). */
 export function ringkasPenjualan(
   eid: string,
-  tiket: Pick<Tiket, 'event_id' | 'ticket_class_id' | 'status'>[],
+  tiket: (Pick<Tiket, 'ticket_class_id' | 'status'> & TiketEvent)[],
   kelas: Pick<KelasTiket, 'id' | 'event_id' | 'name' | 'price'>[],
+  orderById?: Map<string, { event_id?: string }>,
 ) {
-  const milik = tiket.filter(t => t.event_id === eid && (t.status ?? '') !== 'Refunded')
-  const kembali = tiket.filter(t => t.event_id === eid && (t.status ?? '') === 'Refunded')
+  const punya = tiket.filter(t => eventTiket(t, orderById) === eid)
+  const milik = punya.filter(t => (t.status ?? '') !== 'Refunded')
+  const kembali = punya.filter(t => (t.status ?? '') === 'Refunded')
   const harga = new Map(kelas.filter(c => c.event_id === eid).map(c => [c.id, Number(c.price) || 0]))
   const perKelas = new Map<string, { nama: string, n: number, rp: number }>()
   for (const t of milik) {

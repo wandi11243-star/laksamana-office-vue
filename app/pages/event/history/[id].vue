@@ -5,8 +5,9 @@
   stays removed (`:11281`).
 -->
 <script setup lang="ts">
+import type { Checkin, OrderTiket } from '~/composables/useEvent'
 import { getDetail, getEvent, listCheckins, useDaftarEvent } from '~/composables/useEvent'
-import { ringkasPenjualan, tglWIB } from '~/utils/event-hitung'
+import { idCheckin, petaOrder, ringkasPenjualan, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { angka, rupiah, tglPanjang } from '~/utils/format'
 
@@ -23,14 +24,33 @@ const detail = computed(() => envDetail.value?.data as Record<string, { item: st
 const q = computed<Record<string, string>>(() => ({ event_id: id.value }))
 const { data: daftarKelas } = useDaftarEvent('ticket-classes', q, `event-hist-kelas-${id.value}`)
 const { data: daftarTiket } = useDaftarEvent('tickets', q, `event-hist-tiket-${id.value}`)
-const { data: checkins } = useAsyncData(`event-hist-ci-${id.value}`, () => listCheckins().then(r => r.data))
+const { data: daftarOrder } = useDaftarEvent<OrderTiket>('orders', q, `event-hist-order-${id.value}`)
+const orderById = computed(() => petaOrder(daftarOrder.value.rows))
+
+// GET /checkins returns the newest 2000 only (`meta.total` = all): an old event
+// slowly fell out of that window and showed "hadir 0". When the window is
+// cut, read this event's tickets one by one (`?ticket_id=`, a few at a time).
+async function muatCheckinAcara(ids: string[]): Promise<Checkin[]> {
+  const r = await listCheckins()
+  const total = Number((r.meta as { total?: unknown } | undefined)?.total ?? r.data.length)
+  if (total <= r.data.length) return r.data
+  const out: Checkin[] = []
+  for (let i = 0; i < ids.length; i += 6) {
+    const bagian = await Promise.all(ids.slice(i, i + 6).map(tid => listCheckins({ ticket_id: tid }).then(x => x.data)))
+    for (const b of bagian) out.push(...b)
+  }
+  return out
+}
 
 const kelas = computed(() => daftarKelas.value.rows.map(r => ({ id: String(r.id), event_id: String(r.event_id ?? ''), name: String(r.name ?? ''), price: Number(r.price) || 0 })))
-const tiket = computed(() => daftarTiket.value.rows.map(r => ({ id: String(r.id), event_id: String(r.event_id ?? ''), ticket_class_id: String(r.ticket_class_id ?? ''), status: String(r.status ?? '') })))
-const ringkas = computed(() => ringkasPenjualan(id.value, tiket.value as never, kelas.value as never))
+const tiket = computed(() => daftarTiket.value.rows.map(r => ({ id: String(r.id), event_id: String(r.event_id ?? ''), ticket_class_id: String(r.ticket_class_id ?? ''), status: String(r.status ?? ''), order_id: String(r.order_id ?? ''), order_item_id: String(r.order_item_id ?? '') })))
+const ringkas = computed(() => ringkasPenjualan(id.value, tiket.value, kelas.value, orderById.value))
+const idTiket = computed(() => tiket.value.map(t => t.id).sort())
+const { data: checkins } = useAsyncData(`event-hist-ci-${id.value}`, () => muatCheckinAcara(idTiket.value), { watch: [idTiket], default: () => [] as Checkin[] })
+// presence rule: newest row per ticket, cancellations excluded
 const hadir = computed(() => {
-  const ids = new Set(tiket.value.map(t => t.id))
-  return (checkins.value ?? []).filter(c => ids.has(c.ticket_id) && (c.result ?? 'Valid') === 'Valid').length
+  const masuk = idCheckin(checkins.value ?? [])
+  return tiket.value.filter(t => masuk.has(t.id)).length
 })
 const budget = computed(() => {
   const d = detail.value as { budget?: { item: string, type: string, budget: number, actual: number }[] } | undefined

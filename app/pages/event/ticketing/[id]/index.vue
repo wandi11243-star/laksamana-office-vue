@@ -10,10 +10,10 @@
 <script setup lang="ts">
 import type { KelasTiket, Kursi, OrderTiket, Refund, Tiket } from '~/composables/useEvent'
 import { createEvent, getEvent, patchEvent, removeEvent, useDaftarEvent } from '~/composables/useEvent'
-import { ringkasPenjualan } from '~/utils/event-hitung'
+import { petaOrder, ringkasPenjualan } from '~/utils/event-hitung'
 import { jalankanRefund, refundAktif, refundGantung, ringkasRefund } from '~/utils/event-refund'
 import type { RefundBaris } from '~/utils/event-refund'
-import { apiErrorMessage } from '~/composables/useApi'
+import { apiErrorCode, apiErrorMessage } from '~/composables/useApi'
 import { bolehSetujui, bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka, rupiah } from '~/utils/format'
 import { qrSvg } from '~/utils/qr'
@@ -66,7 +66,7 @@ const refundUntukOrder = (oid: string) =>
   ?? daftarRefund.value.rows.filter(r => r.order_id === oid).slice(-1)[0]
 
 const kelas = computed(() => [...daftarKelas.value.rows].sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0)))
-const ringkas = computed(() => ringkasPenjualan(id.value, daftarTiket.value.rows, daftarKelas.value.rows))
+const ringkas = computed(() => ringkasPenjualan(id.value, daftarTiket.value.rows, daftarKelas.value.rows, petaOrder(daftarOrder.value.rows)))
 const pesananLunas = computed(() => daftarOrder.value.rows.filter(o => o.payment_status === 'Paid').length)
 
 const kursi = computed(() => {
@@ -165,6 +165,24 @@ const totalJual = computed(() => {
   return k ? Number(k.price) || 0 : 0
 })
 const uid = () => `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 9)}`
+// One sale = three writes (order Paid → ticket → class sold+1). The ids are
+// made ONCE per sale and kept here, so pressing again after a failed step
+// reuses them and skips what already went in: a fresh uid() per press used
+// to create a second Paid order (double revenue). `langkah` = steps done.
+const penjualan = ref<{ kelas: string, orderId: string, tiketId: string, qr: string, langkah: number } | null>(null)
+watch(() => jual.value.class_id, (k) => {
+  // a new class before anything was written is a new sale
+  if (penjualan.value && penjualan.value.langkah === 0 && penjualan.value.kelas !== k) penjualan.value = null
+})
+/** A create that already went in (409 already_exists on our own id) counts as done. */
+async function sekali(fn: () => Promise<unknown>) {
+  try {
+    await fn()
+  }
+  catch (e) {
+    if (apiErrorCode(e) !== 'already_exists') throw e
+  }
+}
 async function simpanJual() {
   const k = kelas.value.find(x => x.id === jual.value.class_id)
   if (!k) {
@@ -181,32 +199,43 @@ async function simpanJual() {
     return
   }
   menjual.value = true
+  if (!penjualan.value || penjualan.value.kelas !== k.id) penjualan.value = { kelas: k.id, orderId: uid(), tiketId: uid(), qr: uid(), langkah: 0 }
+  const p = penjualan.value
   try {
-    const orderId = uid()
-    await createEvent('orders', {
-      id: orderId,
-      event_id: id.value,
-      total: Number(k.price) || 0,
-      payment_status: 'Paid',
-      buyer_name: jual.value.name.trim(),
-      buyer_phone: jual.value.phone.trim(),
-      buyer_email: jual.value.email.trim(),
-      created: new Date().toISOString(),
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    })
-    await createEvent('tickets', {
-      id: uid(),
-      event_id: id.value,
-      ticket_class_id: k.id,
-      order_id: orderId,
-      qr_token: uid(),
-      status: 'Valid',
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    })
-    await patchEvent('ticket-classes', k.id, { sold: (Number(k.sold) || 0) + 1, updatedAt: Date.now() }, daftarKelas.value.versions[k.id])
+    if (p.langkah < 1) {
+      await sekali(() => createEvent('orders', {
+        id: p.orderId,
+        event_id: id.value,
+        total: Number(k.price) || 0,
+        payment_status: 'Paid',
+        buyer_name: jual.value.name.trim(),
+        buyer_phone: jual.value.phone.trim(),
+        buyer_email: jual.value.email.trim(),
+        created: new Date().toISOString(),
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }))
+      p.langkah = 1
+    }
+    if (p.langkah < 2) {
+      await sekali(() => createEvent('tickets', {
+        id: p.tiketId,
+        event_id: id.value,
+        ticket_class_id: k.id,
+        order_id: p.orderId,
+        qr_token: p.qr,
+        status: 'Valid',
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      }))
+      p.langkah = 2
+    }
+    if (p.langkah < 3) {
+      await patchEvent('ticket-classes', k.id, { sold: (Number(k.sold) || 0) + 1, updatedAt: Date.now() }, daftarKelas.value.versions[k.id])
+      p.langkah = 3
+    }
     toast.add({ title: 'Tiket terjual & ditandai lunas', color: 'success' })
+    penjualan.value = null
     jual.value = { class_id: '', name: '', phone: '+628', email: '' }
     await muatUlang()
   }

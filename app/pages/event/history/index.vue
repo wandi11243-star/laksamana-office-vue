@@ -6,9 +6,9 @@
   born Planning (`:11263`).
 -->
 <script setup lang="ts">
-import type { Acara } from '~/composables/useEvent'
+import type { Acara, OrderTiket } from '~/composables/useEvent'
 import { createEvent, useDaftarEvent } from '~/composables/useEvent'
-import { ringkasPenjualan, tglWIB } from '~/utils/event-hitung'
+import { petaOrder, ringkasPenjualan, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka, rupiah, tglPanjang } from '~/utils/format'
@@ -24,6 +24,8 @@ const fKategori = ref('semua')
 const { data: daftar, status, refresh, error } = useDaftarEvent<Acara>('events', {}, 'event-history')
 const { data: daftarKelas } = useDaftarEvent('ticket-classes', {}, 'event-history-classes')
 const { data: daftarTiket } = useDaftarEvent('tickets', {}, 'event-history-tickets')
+const { data: daftarOrder } = useDaftarEvent<OrderTiket>('orders', {}, 'event-history-orders')
+const orderById = computed(() => petaOrder(daftarOrder.value.rows))
 
 const arsip = computed(() => daftar.value.rows
   .filter(e => ['Event Done', 'Finished'].includes(String(e.status)))
@@ -35,8 +37,8 @@ const tahunAda = computed(() => [...new Set(daftar.value.rows.map(e => tglWIB(e.
 const kategoriAda = computed(() => [...new Set(daftar.value.rows.map(e => String(e.category ?? '')).filter(Boolean))].sort())
 
 const kelas = computed(() => daftarKelas.value.rows.map(r => ({ id: String(r.id), event_id: String(r.event_id ?? ''), name: String(r.name ?? ''), price: Number(r.price) || 0 })))
-const tiket = computed(() => daftarTiket.value.rows.map(r => ({ id: String(r.id), event_id: String(r.event_id ?? ''), ticket_class_id: String(r.ticket_class_id ?? ''), status: String(r.status ?? '') })))
-const ringkas = (e: Acara) => ringkasPenjualan(e.id, tiket.value as never, kelas.value as never)
+const tiket = computed(() => daftarTiket.value.rows.map(r => ({ id: String(r.id), event_id: String(r.event_id ?? ''), ticket_class_id: String(r.ticket_class_id ?? ''), status: String(r.status ?? ''), order_id: String(r.order_id ?? ''), order_item_id: String(r.order_item_id ?? '') })))
+const ringkas = (e: Acara) => ringkasPenjualan(e.id, tiket.value, kelas.value, orderById.value)
 
 async function buatSerupa(e: Acara) {
   try {

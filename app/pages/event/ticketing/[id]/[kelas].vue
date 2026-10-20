@@ -22,7 +22,8 @@ const { data: daftarKelas } = useDaftarEvent('ticket-classes', q, `event-kat-kel
 const { data: daftarTiket, status } = useDaftarEvent<Tiket>('tickets', { ticket_class_id: kelasId.value } as never, `event-kat-tiket-${id.value}-${kelasId.value}`)
 
 const kelas = computed(() => daftarKelas.value.rows.find(c => c.id === kelasId.value))
-const list = computed(() => daftarTiket.value.rows.filter(t => t.event_id === id.value && t.ticket_class_id === kelasId.value))
+// scoped by ticket_class_id: legacy tickets carry no event_id, so filtering on it dropped them
+const list = computed(() => daftarTiket.value.rows.filter(t => t.ticket_class_id === kelasId.value))
 
 const hal = ref(1)
 const PER_HAL = 8

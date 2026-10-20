@@ -72,6 +72,32 @@ cek('omzet = 75rb + 200rb', r.omzet === 275000, String(r.omzet))
 cek('dikembalikan = 75rb', r.dikembalikan === 75000, String(r.dikembalikan))
 cek('tiketSah = 2', r.tiketSah === 2)
 
+// #149: tiket legacy tanpa event_id ikut lewat order
+const peta = H.petaOrder([{ id: 'o_leg', event_id: 'e1' }, { id: 'o_lain', event_id: 'e2' }])
+const tiketLeg = [...tiket, { id: 'tL', ticket_class_id: kelas[0].id, status: 'Valid', order_item_id: 'o_leg' }, { id: 'tX', ticket_class_id: kelas[0].id, status: 'Valid', order_id: 'o_lain' }]
+cek('eventTiket: event_id sendiri menang', H.eventTiket({ event_id: 'e9', order_id: 'o_leg' }, peta) === 'e9')
+cek('eventTiket: legacy lewat order_item_id', H.eventTiket({ order_item_id: 'o_leg' }, peta) === 'e1')
+cek('eventTiket: lewat order_id', H.eventTiket({ order_id: 'o_lain' }, peta) === 'e2')
+cek('eventTiket: tanpa order = kosong', H.eventTiket({}, peta) === '')
+const rL = H.ringkasPenjualan('e1', tiketLeg, kelas, peta)
+cek('ringkas e1 ikut tiket legacy', rL.tiketSah === 3, String(rL.tiketSah))
+cek('tanpa peta order tiket legacy tetap hilang (perilaku lama)', H.ringkasPenjualan('e1', tiketLeg, kelas).tiketSah === 2)
+
+// #149: aturan presence — baris terbaru per tiket menang, batal tidak dihitung
+const ci = [
+  { id: 'c1', ticket_id: 'T1', checked_in_at: '2026-10-01T10:00:00Z', result: 'Valid' },
+  { id: 'c2', ticket_id: 'T1', checked_in_at: '2026-10-01T10:05:00Z', batalDari: 'c1' },
+  { id: 'c3', ticket_id: 'T2', checked_in_at: '2026-10-01T10:01:00Z', result: 'Valid' },
+  { id: 'c4', ticket_id: 'T2', checked_in_at: '2026-10-01T10:02:00Z', result: 'Valid' },
+  { id: 'c5', ticket_id: 'T3', checked_in_at: '2026-10-01T10:00:00Z', batalDari: 'c0' },
+  { id: 'c7', ticket_id: 'T3', checked_in_at: '2026-10-01T10:00:00Z', result: 'Valid' },
+]
+const hadirSet = H.idCheckin(ci)
+cek('baris batal terbaru = tidak hadir', !hadirSet.has('T1'))
+cek('scan ulang dihitung sekali', hadirSet.has('T2') && hadirSet.size === 2, [...hadirSet].join(','))
+cek('cap sama: id terbesar menang', hadirSet.has('T3'))
+cek('hitungan lama (result ?? Valid) memang salah', ci.filter(c => (c.result ?? 'Valid') === 'Valid').length === 6)
+
 // paxAcara: sold bila ada kelas, else kapasitas
 cek('pax = Σ sold', H.paxAcara({ id: 'e1', capacity: 200 }, kelas) === 150)
 cek('pax = kapasitas tanpa kelas', H.paxAcara({ id: 'e9', capacity: 80 }, kelas) === 80)

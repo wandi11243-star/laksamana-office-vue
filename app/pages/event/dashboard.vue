@@ -8,7 +8,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { Acara } from '~/composables/useEvent'
 import { useStateEvent } from '~/composables/useEvent'
-import { angkaEms, bulanAktif, geserPeriode, jamWIB, omzetPerBulan, paxAcara, rentangPeriodeEvent, statusPengajuan, tglWIB } from '~/utils/event-hitung'
+import { angkaEms, bulanAktif, eventTiket, geserPeriode, idCheckin, jamWIB, omzetPerBulan, paxAcara, petaOrder, rentangPeriodeEvent, statusPengajuan, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { angka, hariIni, rupiah, tglPanjang } from '~/utils/format'
 import { STATUS_IKON_EVENT, STATUS_WARNA_EVENT } from '~/utils/status-event'
@@ -86,7 +86,10 @@ const hariIniN = computed(() => todayEv.value.length)
 const talentHariIni = computed(() => jadwal.value.filter(j => j.date === hariIni()).length)
 const talentAktifN = computed(() => talent.value.filter(t => t.status === 'Active').length)
 const uangMasuk = computed(() => order.value.filter(o => o.payment_status === 'Paid').reduce((a, o) => a + (Number(o.total) || 0), 0))
-const hadir = computed(() => (s.value?.checkins ?? []).filter(c => (c.result ?? 'Valid') === 'Valid').length)
+// presence rule: newest row per ticket, cancellations excluded (not raw 'Valid' rows)
+const idMasuk = computed(() => idCheckin(s.value?.checkins ?? []))
+const orderById = computed(() => petaOrder(order.value))
+const hadir = computed(() => idMasuk.value.size)
 const tiketTerjual = computed(() => kelas.value.reduce((a, c) => a + (Number(c.sold) || 0), 0))
 const keterisian = computed(() => {
   const laku = tiket.value.length
@@ -131,9 +134,10 @@ const talentAktif = computed(() => {
 })
 const palingBanyakMasuk = computed(() => {
   const m = new Map<string, number>()
-  for (const c of s.value?.checkins ?? []) {
-    const t = tiket.value.find(t => t.id === c.ticket_id)
-    if (t) m.set(t.event_id ?? '', (m.get(t.event_id ?? '') ?? 0) + 1)
+  for (const t of tiket.value) {
+    if (!idMasuk.value.has(t.id)) continue
+    const eid = eventTiket(t, orderById.value)
+    m.set(eid, (m.get(eid) ?? 0) + 1)
   }
   let id = ''
   let n = 0
