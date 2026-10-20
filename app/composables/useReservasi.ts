@@ -385,24 +385,17 @@ export const listReservationsHalaman = (f: FilterHalamanReservasi) =>
   })
 
 /**
- * GET /reservasi/reservations across pages (S1): table-lock windows must see
- * every row, but the API caps a page at 100. Loops until meta.total is met
- * (cap 50 pages); callers must never assume one page is complete.
+ * GET /reservasi/reservations in one call (S1): table-lock windows must see
+ * every row. Without `page`/`perPage`/`q`/`status` the answer is exactly what
+ * it always was — every row in `created_at` order
+ * (laksamana-api/docs/api/reservasi.md §Paging) — so no paging loop is needed.
+ * Callers only build a set from this; order does not matter.
  */
 export async function daftarReservasiSemua(from: string, to: string): Promise<Record<string, unknown>[]> {
-  const semua: Record<string, unknown>[] = []
-  let hal = 1
-  for (;;) {
-    const r = await useApi()<Envelope<Record<string, unknown>[]>>('/reservasi/reservations', {
-      query: { from, to, page: hal, perPage: 100 },
-    })
-    const baris = r.data ?? []
-    semua.push(...baris)
-    const total = (r as { meta?: { total?: number } }).meta?.total ?? baris.length
-    if (semua.length >= total || baris.length < 100 || hal >= 50) break
-    hal++
-  }
-  return semua
+  const r = await useApi()<Envelope<Record<string, unknown>[]>>('/reservasi/reservations', {
+    query: { from, to },
+  })
+  return r.data ?? []
 }
 
 /**
