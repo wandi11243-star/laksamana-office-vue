@@ -4,6 +4,8 @@
   internet: tren adalah perkiraan, bukan data pasar langsung.
 -->
 <script setup lang="ts">
+import { hariIni } from '~/utils/format'
+
 definePageMeta({ access: ['konten', 'campaign'] })
 
 const toast = useToast()
@@ -205,7 +207,7 @@ async function simpanBank() {
                 color="neutral"
                 variant="soft"
                 size="xs"
-                :to="`./kalender?tanggal=${new Date().toISOString().slice(0, 10)}`"
+                :to="`./kalender?tanggal=${hariIni()}`"
               >
                 📅 Jadwalkan
               </UButton>

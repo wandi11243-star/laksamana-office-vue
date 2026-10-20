@@ -300,7 +300,7 @@ export function pkBulanDesain(r: { doneAt?: number, tgl?: string }): string {
   if (r.doneAt) {
     const d = new Date(+r.doneAt)
     // fixed +7, not the browser's zone: business dates are WIB
-    if (!Number.isNaN(d.getTime())) return new Date(d.getTime() + 7 * 3600_000).toISOString().slice(0, 7)
+    if (!Number.isNaN(d.getTime())) return new Date(d.getTime() + 7 * 3600_000).toISOString().slice(0, 7) // UTC on purpose: shifted +7 h = WIB
   }
   const s = String(r.tgl ?? '')
   return /^\d{4}-\d{2}/.test(s) ? s.slice(0, 7) : ''
@@ -385,7 +385,7 @@ export function pkBandingDesain(k: KumpulPk) {
 /** Month a Marketing request was finished: doneAt is ISO UTC (shifted to WIB), else its deadline. */
 export function pkBulanMkt(r: { doneAt?: string, deadline?: string }): string {
   const d = new Date(String(r.doneAt ?? ''))
-  if (r.doneAt && !Number.isNaN(d.getTime())) return new Date(d.getTime() + 7 * 3600_000).toISOString().slice(0, 7)
+  if (r.doneAt && !Number.isNaN(d.getTime())) return new Date(d.getTime() + 7 * 3600_000).toISOString().slice(0, 7) // UTC on purpose: shifted +7 h = WIB
   const s = String(r.deadline ?? '')
   return /^\d{4}-\d{2}/.test(s) ? s.slice(0, 7) : ''
 }
@@ -398,7 +398,7 @@ export const pkNamaBulan = (b: string) => {
 }
 
 /** This month in WIB, 'YYYY-MM' (the old default of both pages). */
-export const pkBulanIni = (kini = Date.now()) => new Date(kini + 7 * 3600_000).toISOString().slice(0, 7)
+export const pkBulanIni = (kini = Date.now()) => new Date(kini + 7 * 3600_000).toISOString().slice(0, 7) // UTC on purpose: shifted +7 h = WIB
 
 // ---------------------------------------------------------------- input form (Input Performa)
 

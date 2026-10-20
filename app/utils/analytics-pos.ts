@@ -211,13 +211,13 @@ export function isoDariTanggal(v: unknown): string {
   const WIB_MS = 7 * 3600 * 1000
   if (/^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s) && /(Z|[+-]\d{2}:?\d{2})$/.test(s)) {
     const tz = Date.parse(s)
-    if (!Number.isNaN(tz)) return new Date(tz + WIB_MS).toISOString().slice(0, 10)
+    if (!Number.isNaN(tz)) return new Date(tz + WIB_MS).toISOString().slice(0, 10) // UTC on purpose: shifted to WIB
   }
   if (/^\d{4}-\d{2}-\d{2}/.test(s)) return s.slice(0, 10)
   if (/^\d+(\.\d+)?$/.test(s)) {
     const nA = Number(s)
     if (nA < 20000 || nA > 80000) return ''
-    return new Date(Math.round((nA - 25569) * 86400000)).toISOString().slice(0, 10)
+    return new Date(Math.round((nA - 25569) * 86400000)).toISOString().slice(0, 10) // UTC on purpose: an Excel serial is a zoneless calendar day
   }
   const m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})/)
   if (m) return `${m[3]}-${String(m[2]).padStart(2, '0')}-${String(m[1]).padStart(2, '0')}`

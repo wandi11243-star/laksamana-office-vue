@@ -192,8 +192,9 @@ export function tglDanaIklan(a?: IklanKonten | null): string {
   if (a.startDate) return String(a.startDate).slice(0, 10)
   if (a.createdDate) return String(a.createdDate).slice(0, 10)
   if (a.createdAt) {
-    const d = new Date(Number(a.createdAt))
-    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10)
+    // WIB day of the timestamp (an ad created before 07.00 WIB is not "yesterday")
+    const d = new Date(Number(a.createdAt) + 7 * 3600_000)
+    if (!Number.isNaN(d.getTime())) return d.toISOString().slice(0, 10) // UTC on purpose: shifted to WIB above
   }
   const e = (a.expenses ?? []).find(x => x?.date)
   return e ? String(e.date).slice(0, 10) : ''

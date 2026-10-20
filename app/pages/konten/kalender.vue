@@ -5,6 +5,7 @@
 -->
 <script setup lang="ts">
 import type { JadwalCampaign, JadwalInput } from '~/composables/useCampaign'
+import { hariIni, ymdLokal } from '~/utils/format'
 
 definePageMeta({ access: ['konten', 'campaign'] })
 
@@ -13,7 +14,7 @@ const { data: st, error, refresh } = useStateCampaign()
 
 const bulan = ref(new Date())
 const bulanJudul = computed(() => bulan.value.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }))
-const selTanggal = ref(new Date().toISOString().slice(0, 10))
+const selTanggal = ref(hariIni())
 
 const selHari = computed(() => {
   const y = bulan.value.getFullYear()
@@ -23,7 +24,7 @@ const selHari = computed(() => {
   const hari: string[] = []
   for (let i = 0; i < 42; i++) {
     const d = new Date(y, m, 1 - mulai + i)
-    hari.push(d.toISOString().slice(0, 10))
+    hari.push(ymdLokal(d)) // local midnight: toISOString() labelled every cell with the day before
   }
   return { y, m, hari }
 })
@@ -149,7 +150,7 @@ async function salinCaption(caption: string) {
             color="neutral"
             variant="soft"
             size="xs"
-            @click="bulan = new Date(); selTanggal = new Date().toISOString().slice(0, 10)"
+            @click="bulan = new Date(); selTanggal = hariIni()"
           >
             Hari ini
           </UButton>

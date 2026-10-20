@@ -21,7 +21,7 @@ import {
   undanganVisit,
 } from '~/utils/promosi-konten'
 import { VISIT_STATUS, relHariKonten, sisaHariKonten } from '~/utils/konten'
-import { fTglP, rupiah } from '~/utils/format'
+import { fTglP, rupiah, ymdLokal } from '~/utils/format'
 
 definePageMeta({ access: ['konten'] })
 
@@ -373,7 +373,7 @@ const kolomV: TableColumn<VisitPenuh>[] = [
                   title="Lihat riwayat starting price"
                   @click="riwayat = row.original"
                 >
-                  {{ lencanaRate(row.original)!.naik ? '▲' : '▼' }} {{ lencanaRate(row.original)!.n }}x - {{ fTglP(new Date(lencanaRate(row.original)!.at).toISOString().slice(0, 10)) }}
+                  {{ lencanaRate(row.original)!.naik ? '▲' : '▼' }} {{ lencanaRate(row.original)!.n }}x - {{ fTglP(ymdLokal(lencanaRate(row.original)!.at)) }}
                 </button>
               </template>
               <template #niche-cell="{ row }">

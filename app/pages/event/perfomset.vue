@@ -13,7 +13,7 @@ import type { Acara } from '~/composables/useEvent'
 import { patchEvent, performaEvent, useDaftarEvent } from '~/composables/useEvent'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehSetujui, peranEvent } from '~/utils/layar/event'
-import { angka, rupiah, tglPendek } from '~/utils/format'
+import { angka, hariIni, rupiah, tglPendek } from '~/utils/format'
 import type { HariBreakdown, PicBonus } from '~/utils/performa-bonus'
 import { bonusEvent, pbAgregasi } from '~/utils/performa-bonus'
 import { tglWIB } from '~/utils/event-hitung'
@@ -25,7 +25,7 @@ const toast = useToast()
 const me = useMe()
 const manajemen = computed(() => bolehSetujui(peranEvent(me.value)))
 
-const bulan = ref(new Date().toISOString().slice(0, 7))
+const bulan = ref(hariIni().slice(0, 7))
 const dari = computed(() => `${bulan.value}-01`)
 const sampai = computed(() => {
   const [y, m] = bulan.value.split('-').map(Number)

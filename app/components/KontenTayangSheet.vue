@@ -23,7 +23,7 @@ watch(open, (v) => {
   if (!v) return
   const d = new Date()
   d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
-  at.value = d.toISOString().slice(0, 16)
+  at.value = d.toISOString().slice(0, 16) // UTC on purpose: shifted by the timezone offset above = local wall clock
   url.value = ''
 })
 

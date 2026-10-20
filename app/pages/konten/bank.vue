@@ -5,6 +5,7 @@
 -->
 <script setup lang="ts">
 import type { IdeBank } from '~/composables/useCampaign'
+import { hariIni, tambahHari } from '~/utils/format'
 
 definePageMeta({ access: ['konten', 'campaign'] })
 
@@ -18,8 +19,8 @@ const daftar = computed(() => (st.value?.bank ?? []).filter(b =>
 const hitung = (s: string) => (st.value?.bank ?? []).filter(b => b.status === s).length
 
 // ---------------------------------------------------------------- generate
-const genDari = ref(new Date(Date.now() + 86400000).toISOString().slice(0, 10))
-const genSampai = ref(new Date(Date.now() + 15 * 86400000).toISOString().slice(0, 10))
+const genDari = ref(tambahHari(hariIni(), 1))
+const genSampai = ref(tambahHari(hariIni(), 15))
 const genPlat = ref('TikTok, Instagram')
 const genJumlah = ref(10)
 const genFokus = ref('')
@@ -246,7 +247,7 @@ async function hapus(b: IdeBank) {
                 color="neutral"
                 variant="soft"
                 size="xs"
-                :to="`./kalender?tanggal=${b.tanggal || new Date().toISOString().slice(0, 10)}`"
+                :to="`./kalender?tanggal=${b.tanggal || hariIni()}`"
               >
                 📅 Jadwalkan
               </UButton>

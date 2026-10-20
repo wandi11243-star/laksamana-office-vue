@@ -78,7 +78,7 @@ const topJalan = ref(false)
 function rentangTopHitung(): { dari?: string, sampai?: string } {
   const hari = (n: number) => {
     const d = new Date(Date.now() + 7 * 3600 * 1000 - n * 86400000)
-    return d.toISOString().slice(0, 10)
+    return d.toISOString().slice(0, 10) // UTC on purpose: shifted +7 h above = WIB day
   }
   if (rentangTop.value === '7 hari') return { dari: hari(7) }
   if (rentangTop.value === '30 hari') return { dari: hari(30) }

@@ -223,7 +223,7 @@ export function dtLokalInput(s: unknown): string {
 export function tglWIB(s: unknown): string {
   const t = Date.parse(String(s ?? ''))
   if (Number.isNaN(t)) return String(s ?? '').slice(0, 10)
-  return new Date(t + 7 * 3600 * 1000).toISOString().slice(0, 10)
+  return new Date(t + 7 * 3600 * 1000).toISOString().slice(0, 10) // UTC on purpose: shifted +7 h = WIB
 }
 
 /** WIB wall-clock `HH:mm` for display (the same local rule `fmtDateTime`

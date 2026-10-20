@@ -9,11 +9,11 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { OrderStock } from '~/composables/useStock'
 import { listOrders, useProdukStock } from '~/composables/useStock'
-import { angka, tglPendek } from '~/utils/format'
+import { angka, hariIni, tglPendek } from '~/utils/format'
 
 definePageMeta({ access: ['purchasing'] })
 
-const bulan = ref(new Date().toISOString().slice(0, 7))
+const bulan = ref(hariIni().slice(0, 7))
 const pilihanBulan = computed(() => {
   const out: { value: string, label: string }[] = []
   const d = new Date()
@@ -51,7 +51,7 @@ const kpi = computed(() => {
     baris: rows.length,
     item: new Set(rows.map(o => o.item)).size,
     vendor: new Set(rows.map(o => utamaOf(o.item)).filter(Boolean)).size,
-    perhatian: rows.filter(o => !utamaOf(o.item) || ((o.tglDatang || '') < new Date().toISOString().slice(0, 10) && (o.kedatangan || '') !== 'Datang')).length,
+    perhatian: rows.filter(o => !utamaOf(o.item) || ((o.tglDatang || '') < hariIni() && (o.kedatangan || '') !== 'Datang')).length,
   }
 })
 

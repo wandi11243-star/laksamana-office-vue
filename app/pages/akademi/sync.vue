@@ -9,6 +9,7 @@
 <script setup lang="ts">
 import { muatAkademiKru, useAkademiData, useAkademiState } from '~/composables/useAkademi'
 import { tanggalJamMs, tanggalMs } from '~/utils/akademi-hitung'
+import { hariIni } from '~/utils/format'
 
 definePageMeta({ access: ['akademi'] })
 
@@ -25,7 +26,7 @@ function unduhBackup() {
   const blob = new Blob([teks], { type: 'application/json' })
   const a = document.createElement('a')
   a.href = URL.createObjectURL(blob)
-  a.download = `akademi_laksamana_backup_${new Date().toISOString().slice(0, 10)}.json`
+  a.download = `akademi_laksamana_backup_${hariIni()}.json`
   document.body.appendChild(a)
   a.click()
   a.remove()
