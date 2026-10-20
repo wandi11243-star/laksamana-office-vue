@@ -91,7 +91,9 @@ interface BarisDaily {
 }
 const daily = ref<BarisDaily[] | null>(null)
 const dailyGagal = ref(false)
+let seqDaily = 0
 async function muatDaily() {
+  const n = ++seqDaily
   daily.value = null
   dailyGagal.value = false
   if (!bulan.value) return
@@ -99,9 +101,11 @@ async function muatDaily() {
     const res = await useApi()<Envelope<BarisDaily[]>>('/kompas/daily', {
       query: { from: `${bulan.value}-01`, to: `${bulan.value}-31` },
     })
+    if (n !== seqDaily) return
     daily.value = Array.isArray(res.data) ? res.data : []
   }
   catch {
+    if (n !== seqDaily) return
     dailyGagal.value = true
   }
 }
