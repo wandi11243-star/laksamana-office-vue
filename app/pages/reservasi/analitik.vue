@@ -6,11 +6,11 @@
   Source: laksamana-office/deploy/reservasi/index.html:10349-10482.
 -->
 <script setup lang="ts">
-import { useDaftarReservasi } from '~/composables/useReservasi'
+import { getReservasiAnalytics } from '~/composables/useReservasi'
+import type { PerformaPeriode, RingkasKeseluruhan } from '~/utils/analitik'
 import { bolehBuka, roleReservasi } from '~/utils/layar/reservasi'
 import { angka, hariIni, tglPendek } from '~/utils/format'
 import { fmtMenit } from '~/utils/kunci-meja'
-import { performaPeriode, ringkasKeseluruhan } from '~/utils/analitik'
 
 definePageMeta({ access: ['reservasi'] })
 
@@ -21,20 +21,35 @@ const mode = ref<'harian' | 'bulanan'>('harian')
 const tanggal = ref(hariIni())
 const bulan = ref(hariIni().slice(0, 7))
 
-// The whole range for the summary. Without server paging this pulls the full
-// table (G-08); the performance block filters it back down to the period.
-const kosong = computed(() => '')
-const { data: semua, status } = useDaftarReservasi(kosong, kosong, 'reservasi-analitik')
-
-const periode = computed(() => (semua.value ?? []).filter(r =>
-  mode.value === 'bulanan' ? r.date.slice(0, 7) === bulan.value : r.date === tanggal.value))
+// Period numbers + whole-range summary computed on the server (api#311: one
+// small answer instead of the whole table). The shapes twin performaPeriode /
+// ringkasKeseluruhan, so the template below is unchanged.
+const paramAnalitik = computed(() => (mode.value === 'bulanan'
+  ? { mode: 'bulanan' as const, date: bulan.value }
+  : { mode: 'harian' as const, date: tanggal.value }))
+const { data: analitik, status } = useAsyncData(
+  'reservasi-analitik',
+  () => getReservasiAnalytics(paramAnalitik.value.mode, paramAnalitik.value.date).then(r => r.data),
+  { watch: [paramAnalitik] },
+)
 
 const labelPeriode = computed(() => mode.value === 'bulanan'
   ? new Date(`${bulan.value}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
   : tglPendek(tanggal.value))
 
-const perf = computed(() => performaPeriode(periode.value, labelPeriode.value, mode.value === 'bulanan'))
-const ring = computed(() => ringkasKeseluruhan(semua.value ?? []))
+const PERF_KOSONG: PerformaPeriode = {
+  label: '', reservasi: 0, walkin: 0, hariAktif: 0, hadir: 0, diharapkan: 0, kehadiran: 0,
+  tepat: 0, telat: 0, telatRata: 0, tepatPersen: 0, durasiRata: null, durasiN: 0, masihDuduk: 0,
+  paxPesan: 0, paxDatang: 0, paxRealisasi: 0, noShow: 0, batal: 0,
+  tersibuk: null, trenHarian: [], palingTelat: [], dudukTerlama: [],
+}
+const RING_KOSONG: RingkasKeseluruhan = {
+  total: 0, totalPax: 0, rataPax: '0', noShow: 0, dinilai: 0, rasioNoShow: 0, unik: 0,
+  perSumber: [], perPic: [], perJam: [], perHari: [], perBulan: [],
+}
+const perf = computed(() => analitik.value?.periode ?? PERF_KOSONG)
+const ring = computed(() => analitik.value?.ringkasan ?? RING_KOSONG)
+const adaData = computed(() => perf.value.reservasi + perf.value.walkin > 0)
 
 const maksTren = computed(() => Math.max(1, ...perf.value.trenHarian.map(t => t.total)))
 // Each bar list is scaled to its own largest value, like the old .bar-fill.
@@ -98,13 +113,13 @@ const jamCapWaktu = (ts: number) => ts
         </p>
 
         <p
-          v-if="status === 'pending' && !periode.length"
+          v-if="status === 'pending' && !adaData"
           class="mb-4 text-sm text-muted"
         >
           Memuat…
         </p>
         <p
-          v-else-if="!periode.length"
+          v-else-if="!adaData"
           class="mb-4 text-sm text-muted"
         >
           Belum ada data pada {{ mode === 'bulanan' ? 'bulan' : 'tanggal' }} ini.

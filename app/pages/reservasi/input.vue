@@ -24,7 +24,7 @@ import type { LayoutDenah } from '~/utils/venue-layouts'
 import { dayTypeLayoutLt, getLayout, parseKeyTanggal } from '~/utils/venue-layouts'
 import { buatIzinTumpang, conflictCheck, tablesOf } from '~/utils/kunci-meja'
 import { adaBuktiDp, dpBaru, dpMetodeBawaan, normPhone, pastikanDps, resetDpScan, syncDp, tampilPhone, uid } from '~/utils/dp-reservasi'
-import { cariTamuLewatNama, cariTamuLewatNomor, direktoriTamu, profilTamuGabung } from '~/utils/riwayat'
+import { cariTamuLewatNama, cariTamuLewatNomor, direktoriTamu, kelompokBarisTamu, profilTamuGabung } from '~/utils/riwayat'
 import { fmtRupiah, hariIni, normTime, opsiJam, rupiahVal, tambahHari, tglPendek } from '~/utils/format'
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
 
@@ -275,6 +275,7 @@ const butuhApproval = computed(() => (Number(form.pax) || 0) >= 20)
  *  the autofill reads, as in the old client (`guestDirectory`). */
 const { data: ringkasan } = useRingkasanTamu(dari, 'reservasi-tamu-input')
 const direktori = computed(() => direktoriTamu(ringkasan.value ?? new Map(), sekitar.value ?? [], dari.value))
+const kelompokSekitar = computed(() => kelompokBarisTamu(sekitar.value ?? []))
 const namaTamu = computed(() => [...new Set(direktori.value.map(g => g.name).filter(Boolean))])
 const nomorTamu = computed(() => [...new Set(direktori.value.map(g => tampilPhone(g.phone)).filter(Boolean))])
 
@@ -284,7 +285,7 @@ const nomorTamu = computed(() => [...new Set(direktori.value.map(g => tampilPhon
  */
 const profilNomor = computed(() =>
   normPhone(form.phone).length >= 8
-    ? profilTamuGabung(ringkasan.value ?? new Map(), sekitar.value ?? [], form.phone, dari.value)
+    ? profilTamuGabung(ringkasan.value ?? new Map(), kelompokSekitar.value, form.phone, dari.value)
     : null,
 )
 

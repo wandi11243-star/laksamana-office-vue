@@ -21,7 +21,7 @@ import { angka, hariIni, tglPendek } from '~/utils/format'
 import { fmtMenit } from '~/utils/kunci-meja'
 import { tampilPhone } from '~/utils/dp-reservasi'
 import {
-  barisArsip, csvRiwayat, durasiDuduk, normStatus, profilTamu, profilTamuGabung, paxRiwayat, unduhCsv, urutArsip,
+  barisArsip, csvRiwayat, durasiDuduk, kelompokBarisTamu, normStatus, profilTamu, profilTamuGabung, paxRiwayat, unduhCsv, urutArsip,
 } from '~/utils/riwayat'
 
 definePageMeta({ access: ['reservasi'] })
@@ -75,6 +75,9 @@ const { data: ringkasan } = useRingkasanTamu(dari, 'reservasi-tamu-riwayat')
 
 const arsip = computed(() => urutArsip(barisArsip(semua.value ?? [], hariIni())))
 
+/** Rows grouped by phone once per window for the whole-history profiles. */
+const kelompokTamu = computed(() => kelompokBarisTamu(semua.value ?? []))
+
 const daftar = computed(() => {
   const q = cariTunda.value.trim().toLowerCase()
   return arsip.value.filter((r) => {
@@ -89,7 +92,7 @@ const profil = computed(() => {
   const pertama = cariTunda.value.trim() && daftar.value.length ? daftar.value[0]! : null
   if (!pertama) return null
   if (!dari.value) return profilTamu(arsip.value, pertama.phone)
-  return profilTamuGabung(ringkasan.value ?? new Map(), semua.value ?? [], pertama.phone, dari.value)
+  return profilTamuGabung(ringkasan.value ?? new Map(), kelompokTamu.value, pertama.phone, dari.value)
 })
 
 // --- paging in the browser (the server only narrows; the archive rule lives here) ---
@@ -143,7 +146,7 @@ const detailProfil = computed(() => {
   const r = detail.value
   if (!r) return null
   if (!dari.value) return profilTamu(semua.value ?? [], r.phone)
-  return profilTamuGabung(ringkasan.value ?? new Map(), semua.value ?? [], r.phone, dari.value)
+  return profilTamuGabung(ringkasan.value ?? new Map(), kelompokTamu.value, r.phone, dari.value)
 })
 
 function bukaDetail(r: Reservasi) {
