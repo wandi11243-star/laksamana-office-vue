@@ -841,32 +841,43 @@ function unduhCsv() {
 }
 
 // --- Scan ----------------------------------------------------------------------
-// Proofs unscanned at open are read by themselves, so suggestions are ready
-// before anyone opens Cek / Edit — one picture takes seconds, and waiting for
-// it inside the sheet makes people press the button again and again. Already
-// scanned proofs are not re-read, and a failed proof is not retried in the
-// same session (`:9549-9584`).
+// Proofs are read only when asked: the "Ulangi scan" button above (opt-in).
+// Auto-scanning on open downloaded the tesseract worker + model (MB) and fired
+// N×4 requests on every visit, in every tab. Already scanned proofs are not
+// re-read, and a failed proof is not retried in the same session (`:9549-9584`).
 
 const pindai = reactive({ sibuk: false, sudah: 0, total: 0, coba: new Set<string>() })
 
 /**
  * The ONE sanctioned fresh re-read: a scan writes only `tfOcrSaran` /
- * `tfOcrAt` / `tfOcrText` — suggestions nobody decides by. Re-reading keeps a
- * slow OCR run from clobbering a host's edit that landed mid-scan.
+ * `tfOcrAt` / `tfOcrText` — suggestions nobody decides by. The scan works
+ * from the list row it already holds (no GET per row); only a 409 from a
+ * host edit landing mid-scan triggers one re-read and a single retry.
  */
-async function pindaiSatu(resId: string, payId: string) {
-  const env = await getReservation(resId)
-  const segar = env.data
-  const versi = versiDari(env) ?? segar.updatedAt
-  const dps = dpsTampilan(segar).map(p => ({ ...p }))
-  const idx = dps.findIndex(p => p.id === payId)
+async function pindaiSatu(x: TxDanaMasuk) {
+  const dps = dpsTampilan(x.r).map(p => ({ ...p }))
+  const idx = dps.findIndex(p => p.id === x.p.id)
   if (idx < 0) throw new Error('Barisnya tidak ketemu — daftar dimuat ulang')
   const p = dps[idx]!
   if (!buktiAdalahGambar(p.proofData, p.proofName)) throw new Error('Bukti bukan gambar (PDF tidak bisa dipindai otomatis)')
   const gambar = await muatBukti(p.proofData)
   if (!gambar) throw new Error('Bukti tidak ditemukan di database')
   const hasil = pakaiHasilOcr(p, await ocrBaca(gambar))
-  await patchReservation(resId, { dps }, versi)
+  try {
+    await patchReservation(x.r.id, { dps }, x.r.updatedAt)
+  }
+  catch (e) {
+    if (apiErrorCode(e) !== 'version_conflict') throw e
+    const env = await getReservation(x.r.id)
+    const segar = env.data
+    const dps2 = dpsTampilan(segar).map(q => ({ ...q }))
+    const idx2 = dps2.findIndex(q => q.id === x.p.id)
+    if (idx2 < 0) throw new Error('Barisnya tidak ketemu — daftar dimuat ulang')
+    dps2[idx2]!.tfOcrSaran = p.tfOcrSaran
+    dps2[idx2]!.tfOcrAt = p.tfOcrAt
+    dps2[idx2]!.tfOcrText = p.tfOcrText
+    await patchReservation(x.r.id, { dps: dps2 }, versiDari(env) ?? segar.updatedAt)
+  }
   return hasil
 }
 
@@ -880,7 +891,7 @@ async function jalankanAntrean(todo: TxDanaMasuk[], aksiAudit: string) {
   for (const x of todo) {
     pindai.coba.add(x.p.id)
     try {
-      const h = await pindaiSatu(x.r.id, x.p.id)
+      const h = await pindaiSatu(x)
       if (h && (h.date || h.amount || h.bank)) ok++
       else gagal++
     }
@@ -895,19 +906,6 @@ async function jalankanAntrean(todo: TxDanaMasuk[], aksiAudit: string) {
   return { ok, gagal }
 }
 
-async function pindaiOtomatis() {
-  if (pindai.sibuk) return
-  const todo = tx.value.filter(x => !txSudahScan(x) && txBuktiGambar(x) && !pindai.coba.has(x.p.id))
-  if (!todo.length) return
-  const { ok, gagal } = await jalankanAntrean(todo, 'Scan otomatis saat halaman Dana Masuk dibuka')
-  if (ok) toast.add({ title: `${ok} bukti punya saran hasil baca mesin — buka Cek / Edit untuk memakainya${gagal ? `, ${gagal} gagal dibaca` : ''}`, color: gagal ? 'warning' : 'success' })
-  else if (gagal) toast.add({ title: 'Bukti tidak terbaca mesin. Cek koneksi internet, atau ketik sendiri lewat tombol Cek / Edit.', color: 'error' })
-}
-
-onMounted(() => {
-  setTimeout(pindaiOtomatis, 60) // once the screen is up, new proofs read themselves
-})
-
 const belumPindai = computed(() => tx.value.filter(x => !txSudahScan(x) && txBuktiGambar(x)))
 
 async function pindaiBorongan() {
@@ -919,7 +917,7 @@ async function pindaiBorongan() {
 async function pindaiBaris(x: TxDanaMasuk) {
   toast.add({ title: 'Membaca bukti transfer…' })
   try {
-    const hasil = await pindaiSatu(x.r.id, x.p.id)
+    const hasil = await pindaiSatu(x)
     const bank = hasil.bank || '?'
     await postAudit({ action: 'Scan Bukti TF', detail: `${x.r.name}: ${bank} ${hasil.name || '?'} ${hasil.date || '?'} ${hasil.time || '?'} ${hasil.amount ? rp(hasil.amount) : '?'}`, res: x.r.id })
     await refresh()
