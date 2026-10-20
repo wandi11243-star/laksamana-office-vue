@@ -338,7 +338,7 @@ LANJUTKAN DARI: tidak ada — 11/11 layar ✅ digabung ke main. G-19 (`dipakai[]
 | rokokrekap | `app/pages/cashier/rokokrekap.vue` | ✅ | `GET /kompas/sections/rokok`, `/sections/rokok_items` | — |
 | kasir | `app/pages/cashier/kasir.vue` | ✅ (+ baca bekuan sync) | `GET /kompas/state` (`daily[]` + `bd` + `bdSync`, `employees`, `compliments` — `/daily?from&to` tidak membawa `bd`), `GET /account/roster`, sinkron PIC `PUT /kompas/sections/employees` (T-01 U2, hanya menambah) | — |
 | dp | `app/pages/cashier/dp.vue` | ✅ | `DanaMasukPanel` (kontrak reservasi, pintu G-14) | — |
-| bri | `app/pages/cashier/bri.vue` | ✅ | `GET /kompas/bri?from&to`, `POST /kompas/bri`, `POST /kompas/bri/match`, `POST /kompas/bri/{id}/cancel`, `POST /kompas/bri/ignored` + `DELETE /bri/ignored/{dpId}`; DP lewat pintu G-14: `GET /reservasi/reservations`, `GET /reservasi/master/dpMethods`, `GET /reservasi/files/{key}`, `PATCH /reservasi/reservations/{id}` | — |
+| bri | `app/pages/cashier/bri.vue` | ✅ | `GET /kompas/bri?from&to`, `POST /kompas/bri`, `POST /kompas/bri/match`, `POST /kompas/bri/{id}/cancel`, `POST /kompas/bri/ignored` + `DELETE /bri/ignored/{dpId}`; DP lewat pintu G-14: `GET /reservasi/dps?tfFrom&tfTo` (api#311, bulan terpilih; ganti bulan memuat ulang), `GET /reservasi/master/dpMethods`, `GET /reservasi/files/{key}`, `GET /reservasi/reservations/{id}` (satu baris, saat ubah metode), `PATCH /reservasi/reservations/{id}` | — |
 | rokokset | `app/pages/cashier/rokokset.vue` | ✅ | `GET/PUT /kompas/sections/rokok_items` (`null` = kembali ke bawaan) | — |
 | akses | `app/pages/cashier/akses.vue` | ✅ | `GET /account/modules/cashier/members` | — |
 

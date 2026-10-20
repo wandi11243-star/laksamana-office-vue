@@ -21,10 +21,10 @@ import {
 import {
   addBriManual, cancelBri, getBri, ignoreBriDp, matchBri, unignoreBriDp,
 } from '~/composables/useCashier'
-import { getFile, getSection, listReservations, patchReservation, postAudit, type Reservasi, type ReservasiDp } from '~/composables/useReservasi'
+import { getFile, getReservation, getSection, listDpsReservasi, patchReservation, postAudit, type ReservasiDp } from '~/composables/useReservasi'
 import { fmtRp } from '~/utils/cashier'
 import { hariIni } from '~/utils/format'
-import { tanganiKonflik } from '~/utils/versi'
+import { tanganiKonflik, versiDari } from '~/utils/versi'
 
 const props = withDefaults(defineProps<{ kunci?: string, bolehUbah?: boolean }>(), { bolehUbah: true })
 
@@ -42,39 +42,40 @@ const perLuar = ref(25)
 
 const { data, status, error, refresh } = useAsyncData(props.kunci ?? 'cashier-bri', async () => {
   const r = rentangBulan(bulan.value)
-  // Reservations are pulled WHOLE, like the old screen: a DP's transfer date
-  // can fall in another month than its reservation date. `dpMethods` is read,
-  // not copied — the reservasi module owns that list.
-  const [bri, res, metode] = await Promise.all([
+  // Instalments come month-ranged from the server (api#311): a DP's transfer
+  // date can fall in another month than its reservation date, and the range
+  // picks either — plus rows without a transfer date, exactly like dpsBulan().
+  // `dpMethods` is read, not copied — the reservasi module owns that list.
+  // The fetch follows the month picker (watch below): with server-side
+  // filtering the rows must be re-read when the month changes.
+  const [bri, dps, metode] = await Promise.all([
     getBri(r.dari, r.sampai),
-    listReservations(),
+    listDpsReservasi(r.dari, r.sampai),
     getSection<string[]>('dpMethods'),
   ])
-  return { bri, res: res.data ?? [], metode: (metode.data ?? []).filter(Boolean) }
-})
+  return { bri, dps: dps.data ?? [], metode: (metode.data ?? []).filter(Boolean) }
+}, { watch: [bulan] })
 
-/** All reservation instalments, flattened exactly like the old `muatDp`. */
+/** Instalments as the server flattened them (old `muatDp` shape, api#311). */
 const dps = computed<DpBri[]>(() => {
   const out: DpBri[] = []
-  for (const r of (data.value?.res ?? []) as Reservasi[]) {
-    for (const p of (Array.isArray(r.dps) ? r.dps : []) as ReservasiDp[]) {
-      const n = cbNum(p.tfAmount) > 0 ? cbNum(p.tfAmount) : cbNum(p.amount)
-      out.push({
-        resId: String(r.id || ''),
-        dpId: String(p.id || ''),
-        nama: String(r.name || ''),
-        resTgl: String(r.date || ''),
-        tfTgl: String(p.tfDate || ''),
-        tfJam: String(p.tfTime || ''),
-        bank: String(p.tfBank || ''),
-        metode: String(p.method || ''),
-        status: String(p.tfStatus || ''),
-        nominal: Math.round(n),
-        diketik: Math.round(cbNum(p.amount)),
-        bukti: String(p.proofData || ''),
-        buktiNama: String(p.proofName || ''),
-      })
-    }
+  for (const p of (data.value?.dps ?? [])) {
+    const n = cbNum(p.nominal) > 0 ? cbNum(p.nominal) : cbNum(p.diketik)
+    out.push({
+      resId: String(p.resId || ''),
+      dpId: String(p.dpId || ''),
+      nama: String(p.nama || ''),
+      resTgl: String(p.resTgl || ''),
+      tfTgl: String(p.tfTgl || ''),
+      tfJam: String(p.tfJam || ''),
+      bank: String(p.bank || ''),
+      metode: String(p.metode || ''),
+      status: String(p.status || ''),
+      nominal: Math.round(n),
+      diketik: Math.round(cbNum(p.diketik)),
+      bukti: String(p.bukti || ''),
+      buktiNama: String(p.buktiNama || ''),
+    })
   }
   return out
 })
@@ -377,13 +378,16 @@ async function simpanMetode() {
   const d = metodeDp.value
   if (!d || !izinUbah.value || sibuk.value) return
   if (!metodeBaru.value) return toast.add({ title: 'Pilih dulu metode pembayarannya.', color: 'error' })
-  const r = (data.value?.res ?? []).find(x => String(x.id) === d.resId)
+  // The row is read fresh (no whole table anymore): its dps[] and version
+  // come from this one reservation.
+  const env = await getReservation(d.resId).catch(() => null)
+  const r = env?.data
   if (!r) return toast.add({ title: 'Reservasinya sudah tidak ada di modul Reservasi.', color: 'error' })
   sibuk.value = true
   try {
     const list = (Array.isArray(r.dps) ? r.dps : []) as ReservasiDp[]
     const baru = list.map(p => ({ ...p, method: String(p.id) === d.dpId ? metodeBaru.value : p.method }))
-    await patchReservation(d.resId, { dps: baru, dpMethod: String((baru[0] && baru[0].method) || '') }, r.updatedAt)
+    await patchReservation(d.resId, { dps: baru, dpMethod: String((baru[0] && baru[0].method) || '') }, versiDari(env) ?? r.updatedAt)
     try {
       await postAudit({ action: 'Ubah Metode DP', detail: `Metode DP ${fmtRp(d.nominal)}: ${d.metode || '(belum ada)'} → ${metodeBaru.value} (dari Pencocokan QRIS BRI)`, res: d.resId })
     }
