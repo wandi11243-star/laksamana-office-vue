@@ -4,9 +4,9 @@
   events are listed (F.1). Warning at ≥90% sold (`:6712`).
 -->
 <script setup lang="ts">
-import type { Acara } from '~/composables/useEvent'
+import type { Acara, OrderTiket } from '~/composables/useEvent'
 import { useDaftarEvent } from '~/composables/useEvent'
-import { ringkasPenjualan, tglWIB } from '~/utils/event-hitung'
+import { petaOrder, ringkasPenjualan, tglWIB } from '~/utils/event-hitung'
 import { angka, rupiah } from '~/utils/format'
 
 definePageMeta({ access: ['event'] })
@@ -15,6 +15,8 @@ const tab = ref<'upcoming' | 'riwayat'>('upcoming')
 const { data: daftar, status, refresh } = useDaftarEvent<Acara>('events', {}, 'event-ticketing')
 const { data: daftarKelas } = useDaftarEvent('ticket-classes', {}, 'event-ticketing-classes')
 const { data: daftarTiket } = useDaftarEvent('tickets', {}, 'event-ticketing-tickets')
+const { data: daftarOrder } = useDaftarEvent<OrderTiket>('orders', {}, 'event-ticketing-orders')
+const orderById = computed(() => petaOrder(daftarOrder.value.rows))
 
 const kelas = computed(() => daftarKelas.value.rows.map(r => ({
   id: String(r.id),
@@ -27,6 +29,8 @@ const tiket = computed(() => daftarTiket.value.rows.map(r => ({
   event_id: String(r.event_id ?? ''),
   ticket_class_id: String(r.ticket_class_id ?? ''),
   status: String(r.status ?? ''),
+  order_id: String(r.order_id ?? ''),
+  order_item_id: String(r.order_item_id ?? ''),
 })))
 
 const list = computed(() => daftar.value.rows
@@ -38,7 +42,7 @@ const progres = (e: Acara) => {
   const ks = daftarKelas.value.rows.filter(c => String(c.event_id) === e.id)
   const kuota = ks.reduce((a, c) => a + (Number(c.quota) || 0), 0)
   const laku = ks.reduce((a, c) => a + (Number(c.sold) || 0), 0)
-  const ringkas = ringkasPenjualan(e.id, tiket.value as never, kelas.value as never)
+  const ringkas = ringkasPenjualan(e.id, tiket.value, kelas.value, orderById.value)
   return { kuota, laku, pct: kuota ? Math.round(laku / kuota * 100) : 0, omzet: ringkas.omzet, top: ringkas.perKelas.slice(0, 4) }
 }
 </script>

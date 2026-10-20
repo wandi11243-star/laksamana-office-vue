@@ -17,6 +17,7 @@ import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka, persen } from '~/utils/format'
 import { CHECKIN_IKON, CHECKIN_WARNA } from '~/utils/status-event'
+import { checkinTerbaru as terbaruPerTiket, eventTiket as eventDariTiket, idCheckin as idHadir } from '~/utils/event-hitung'
 import { tanganiKonflik } from '~/utils/versi'
 
 definePageMeta({ access: ['event'] })
@@ -44,7 +45,7 @@ const { data: daftarKelas } = useDaftarEvent<KelasTiket>('ticket-classes', qTike
 // which also drops Cancelled tickets.
 const { data: daftarOrder } = useDaftarEvent<OrderTiket>('orders', qTiket, 'event-checkin-orders')
 const orderDariId = computed(() => new Map(daftarOrder.value.rows.map(o => [o.id, o])))
-const eventTiket = (t: Tiket) => (t.event_id as string) || orderDariId.value.get(t.order_item_id ?? '')?.event_id || ''
+const eventTiket = (t: Tiket) => eventDariTiket(t, orderDariId.value)
 const namaTamu = (t: Tiket) => String(
   (t as Record<string, unknown>).buyer_name
   ?? orderDariId.value.get(t.order_item_id ?? '')?.buyer_name
@@ -85,17 +86,8 @@ const tiket = computed(() => daftarTiket.value.rows.filter(t => (t.status ?? '')
 // counts as checked in only when that row has NO `batalDari` — a ticket whose
 // latest row is a cancellation counts as not checked in, even though the
 // cancelled rows are still listed.
-const checkinTerbaru = computed(() => {
-  const m = new Map<string, Checkin>()
-  for (const c of checkins.value) {
-    const cur = m.get(c.ticket_id)
-    if (!cur || c.checked_in_at > cur.checked_in_at || (c.checked_in_at === cur.checked_in_at && c.id > cur.id)) m.set(c.ticket_id, c)
-  }
-  return m
-})
-const idCheckin = computed(() => new Set(
-  [...checkinTerbaru.value].filter(([, c]) => !c.batalDari).map(([tid]) => tid),
-))
+const checkinTerbaru = computed<Map<string, Checkin>>(() => terbaruPerTiket(checkins.value))
+const idCheckin = computed(() => idHadir(checkins.value))
 const masuk = computed(() => tiket.value.filter(t => idCheckin.value.has(t.id)).length)
 const keterisian = computed(() => (tiket.value.length ? Math.round(masuk.value / tiket.value.length * 100) : 0))
 

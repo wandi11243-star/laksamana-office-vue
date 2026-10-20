@@ -7,7 +7,7 @@
 -->
 <script setup lang="ts">
 import { useStateEvent } from '~/composables/useEvent'
-import { angkaEms, EVT_STATUS_HASIL, tglWIB } from '~/utils/event-hitung'
+import { angkaEms, eventTiket, EVT_STATUS_HASIL, idCheckin, petaOrder, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { angka, persen, rupiah } from '~/utils/format'
 
@@ -24,10 +24,11 @@ const perAcara = computed<BarisAcara[]>(() => {
   const kelas = s.value?.ticketClasses ?? []
   const tiket = s.value?.tickets ?? []
   const order = s.value?.orders ?? []
-  const idMasuk = new Set((s.value?.checkins ?? []).filter(c => (c.result ?? 'Valid') === 'Valid').map(c => c.ticket_id))
+  const idMasuk = idCheckin(s.value?.checkins ?? [])
+  const orderById = petaOrder(order)
   return acara.map((e) => {
     const ks = kelas.filter(c => c.event_id === e.id)
-    const ts = tiket.filter(t => t.event_id === e.id)
+    const ts = tiket.filter(t => eventTiket(t, orderById) === e.id)
     return {
       id: e.id,
       judul: e.title,
