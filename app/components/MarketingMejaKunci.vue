@@ -9,6 +9,7 @@
 import { kunciTanggalSalahMkt, mejaTerkunciMkt } from '~/utils/marketing-event'
 import type { EventMkt } from '~/utils/marketing'
 import { lepasKunciMejaMkt, resIdKunciMkt } from '~/composables/useMarketing'
+import { ifMatch, tanganiKonflik, versiDari } from '~/utils/versi'
 
 const props = defineProps<{
   ev: EventMkt
@@ -42,7 +43,7 @@ async function muat() {
     const api = useApi()
     const [master, daftarRes] = await Promise.all([
       api<Envelope<{ tables?: string[] }>>('/reservasi/master/tables').catch(() => null),
-      daftarReservasiSemua(props.tanggal, props.tanggal).then(d => ({ data: d })).catch(() => null),
+      daftarReservasiSemua(props.tanggal, props.tanggal).then(d => ({ data: d })),
     ])
     daftar.value = master?.data?.tables ?? []
     const pakai: Record<string, string> = {}
@@ -83,14 +84,21 @@ async function simpanKunci() {
       time: props.jam || '', pax: +(props.ev.pax ?? 0) || 0,
       table: pilih.value.join(', '), category: 'Event', source: 'marketing',
     }
-    const ada = await api<Envelope<Record<string, unknown>>>(`/reservasi/reservations/${encodeURIComponent(resId)}`).catch(() => null)
-    if (ada?.data) await api(`/reservasi/reservations/${encodeURIComponent(resId)}`, { method: 'PUT', body: { ...ada.data, ...baris } })
+    const ada = await api<Envelope<Record<string, unknown>>>(`/reservasi/reservations/${encodeURIComponent(resId)}`).catch((e: unknown) => {
+      if ((e as { statusCode?: number })?.statusCode === 404) return null
+      throw e
+    })
+    if (ada?.data) {
+      // An existing lock is replaced under its version (If-Match), never blind.
+      const versi = versiDari(ada) ?? (ada.data.updatedAt as number | undefined)
+      await api(`/reservasi/reservations/${encodeURIComponent(resId)}`, { method: 'PUT', body: { ...ada.data, ...baris }, headers: ifMatch(versi ?? 0) })
+    }
     else await api('/reservasi/reservations', { method: 'POST', body: baris })
     emit('kunci', pilih.value, props.tanggal)
     buka.value = false
   }
   catch (e) {
-    toast.add({ title: 'Gagal mengunci di Reservasi', description: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, muat))) toast.add({ title: 'Gagal mengunci di Reservasi', description: apiErrorMessage(e), color: 'error' })
   }
   finally {
     mengunci.value = false

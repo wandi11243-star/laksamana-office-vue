@@ -458,7 +458,10 @@ export async function lepasKunciMejaMkt(evId: string): Promise<{ ok: boolean, pe
   const resId = resIdKunciMkt(evId)
   const api = useApi()
   try {
-    const ada = await api<Envelope<{ updatedAt?: number }>>(`/reservasi/reservations/${encodeURIComponent(resId)}`).catch(() => null)
+    const ada = await api<Envelope<{ updatedAt?: number }>>(`/reservasi/reservations/${encodeURIComponent(resId)}`).catch((e: unknown) => {
+      if ((e as { statusCode?: number })?.statusCode === 404) return null
+      throw e
+    })
     if (!ada) return { ok: true, pesan: 'Tidak ada meja terkunci di modul Reservasi.' }
     await api(`/reservasi/reservations/${encodeURIComponent(resId)}`, { method: 'DELETE', headers: ifMatch((ada.data?.updatedAt ?? 0) as Versi) })
     return { ok: true, pesan: 'Meja bebas lagi di modul Reservasi.' }
