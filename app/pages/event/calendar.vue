@@ -57,27 +57,35 @@ const rsv = ref<RsvRow[]>([])
 const mktGagal = ref(false)
 const rsvGagal = ref(false)
 const memuatSilang = ref(false)
+let seqSilang = 0
 
 async function muatSilang() {
+  const n = ++seqSilang
   memuatSilang.value = true
   mktGagal.value = false
   rsvGagal.value = false
   const api = useApi()
   try {
-    const r = await api<Envelope<MktEvent[]>>('/marketing/events', { query: { from: bulanDari.value, to: bulanSampai.value } })
+    // One page is 100 rows by default — a whole month needs the max page.
+    const r = await api<Envelope<MktEvent[]>>('/marketing/events', { query: { from: bulanDari.value, to: bulanSampai.value, perPage: 1000 } })
+    if (n !== seqSilang) return
     mkt.value = (r.data ?? []).filter(e => (e.status ?? '') !== 'Lost')
   }
   catch {
+    if (n !== seqSilang) return
     mktGagal.value = true
   }
   try {
     const r = await api<Envelope<RsvRow[]>>('/reservasi/reservations', { query: { from: bulanDari.value, to: bulanSampai.value } })
+    if (n !== seqSilang) return
     // Cancelled/no-show come in several spellings — none of them will be seated.
     rsv.value = (r.data ?? []).filter(r => !['cancelled', 'no-show', 'noshow', 'batal'].includes(String(r.status ?? '').toLowerCase()))
   }
   catch {
+    if (n !== seqSilang) return
     rsvGagal.value = true
   }
+  if (n !== seqSilang) return
   memuatSilang.value = false
 }
 watch([bulanDari, bulanSampai], muatSilang, { immediate: true })
