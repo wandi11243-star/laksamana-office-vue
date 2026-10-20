@@ -16,9 +16,10 @@
 <script setup lang="ts">
 import type { SettingJadwal, ShiftDef } from '~/utils/jadwal'
 import {
-  DIVISI, DIV_NONSHIFT, SHIFT_BAWAAN, daftarShift, divisiDariTim, isHeadUser, kruDivisi, namaDivisiJadwal,
+  DIVISI, DIV_NONSHIFT, SHIFT_BAWAAN, daftarShift, divisiDariTim, gabungShift, isHeadUser, kruDivisi, namaDivisiJadwal,
   normalSetting, shiftDef, shiftKruBawaan, stafKantor,
 } from '~/utils/jadwal'
+import { HRIS } from '~/utils/hris'
 import { kosongkanJadwal, saveJadwalSettings, useJadwalDasar } from '~/composables/useJadwal'
 
 definePageMeta({ access: ['jadwal'] })
@@ -52,6 +53,14 @@ async function simpan(bagian: Bagian[]) {
     const gabung: SettingJadwal = JSON.parse(JSON.stringify(set.value))
     const parts = new Set<Bagian>([...bagian, ...(Object.keys(kotor) as Bagian[]).filter(k => kotor[k])])
     for (const b of parts) {
+      // Shifts are merged key by key: HRIS owns blok/divisi/aktif and those
+      // must come from the freshly re-read blob, never from a stale draft.
+      if (b === 'shift') {
+        gabung.shifts = gabungShift(gabung.shifts, draf.value.shifts)
+        gabung.maksBeruntun = draf.value.maksBeruntun
+        gabung.jedaMin = draf.value.jedaMin
+        continue
+      }
       for (const k of KUNCI[b]) (gabung as Record<string, unknown>)[k] = JSON.parse(JSON.stringify(draf.value[k]))
     }
     await saveJadwalSettings(gabung)
@@ -238,6 +247,23 @@ async function kosongkan() {
             @click="tambahOpen = true"
           />
         </template>
+        <UAlert
+          color="info"
+          variant="subtle"
+          icon="i-lucide-external-link"
+          title="Master shift sekarang di HRIS"
+          description="Blok SPLIT, Divisi shift, dan status aktif ditulis dari HRIS. Menyimpan di layar ini hanya mengubah nama, jam, warna, dan urutan; kunci HRIS tetap dipertahankan."
+          :actions="[{
+            label: 'Buka shift HRIS',
+            to: HRIS.shift,
+            target: '_blank',
+            rel: 'noopener',
+            color: 'neutral',
+            variant: 'outline',
+            icon: 'i-lucide-arrow-up-right',
+          }]"
+          class="mb-4"
+        />
         <p class="mb-3 text-sm text-muted">
           Nama, jam bawaan, dan warna tiap shift. Mengubah jam di sini berlaku untuk sel yang <b>belum</b> punya jam khusus.
         </p>
