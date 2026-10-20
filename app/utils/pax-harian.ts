@@ -62,7 +62,7 @@ export function pecahWaktu(dt: unknown): { tgl: string, jam: string } | null {
     const t = Date.parse(s)
     if (Number.isNaN(t)) return null
     const d = new Date(t + 7 * 3600 * 1000)
-    return { tgl: d.toISOString().slice(0, 10), jam: d.toISOString().slice(11, 16) }
+    return { tgl: d.toISOString().slice(0, 10), jam: d.toISOString().slice(11, 16) } // UTC on purpose: shifted +7 h above
   }
   const m = s.match(/^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}))?/)
   return m ? { tgl: m[1]!, jam: m[2] || '' } : null

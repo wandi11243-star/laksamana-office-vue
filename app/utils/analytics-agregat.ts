@@ -549,7 +549,7 @@ export function jamNomorBill(nomor: unknown, tglIso: string): number {
   const dtk = Number(m[1])
   if (!(dtk >= PROMO_EPOCH_MIN && dtk <= PROMO_EPOCH_MAX)) return -1
   const d = new Date(dtk * 1000 + WIB_MS)
-  if (d.toISOString().slice(0, 10) !== tglIso) return -1
+  if (d.toISOString().slice(0, 10) !== tglIso) return -1 // UTC on purpose: shifted by WIB_MS above
   return d.getUTCHours()
 }
 
@@ -1041,7 +1041,7 @@ export function tglGeser(iso: string, n: number): string {
   const d = new Date(iso + 'T00:00:00Z')
   if (Number.isNaN(d.getTime())) return iso
   d.setUTCDate(d.getUTCDate() + n)
-  return d.toISOString().slice(0, 10)
+  return d.toISOString().slice(0, 10) // UTC on purpose: pure calendar math on a UTC midnight
 }
 
 /**
