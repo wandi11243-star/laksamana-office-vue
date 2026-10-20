@@ -15,7 +15,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { InvestorAgendaEvent } from '~/composables/useInvestor'
 import { useInvestorAgenda } from '~/composables/useInvestor'
-import { fTgl } from '~/utils/format'
+import { fTgl, hariIni as tglHariIni } from '~/utils/format'
 import { blnPanjang, jarakHari } from '~/utils/investor'
 
 definePageMeta({ access: ['investor'] })
@@ -37,7 +37,7 @@ const kolom = computed<TableColumn<InvestorAgendaEvent>[]>(() => [
 
 // --- calendar: which dates of one month are busy ----------------------------
 const HARI = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
-const blnKal = ref(new Date().toISOString().slice(0, 7))
+const blnKal = ref(tglHariIni().slice(0, 7))
 const geserBulan = (n: number) => {
   const [y, m] = blnKal.value.split('-').map(Number)
   const d = new Date(y!, m! - 1 + n, 1)

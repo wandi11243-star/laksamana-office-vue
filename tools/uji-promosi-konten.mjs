@@ -25,6 +25,7 @@ export async function resolve(spec, ctx, next) {
   return next(spec, ctx)
 }`))
 const P = await import('../app/utils/promosi-konten.ts')
+const F = await import('../app/utils/format.ts')
 
 let ok = 0
 let gagal = 0
@@ -112,6 +113,11 @@ const csv = P.csvBulanIklan('2026-09', funds, [a1, { id: 'old', name: 'Lama', st
 const baris = csv.split('\n')
 cek('kepala + dana masuk + 2 rincian + iklan datar', baris.length === 5 && baris[0].startsWith('Tipe,Tanggal'))
 cek('sel berkoma dikutip', baris[1] === 'Dana Masuk,2026-09-02,LM,"Top-up, termin 1",,5000000,0,5000000')
+// #150: tanggal WIB, bukan tanggal UTC (sebelum 07.00 WIB = kemarin)
+cek('createdAt 00.30 WIB tetap hari itu', P.tglDanaIklan({ createdAt: Date.parse('2026-10-01T00:30:00+07:00') }) === '2026-10-01', P.tglDanaIklan({ createdAt: Date.parse('2026-10-01T00:30:00+07:00') }))
+cek('ymdLokal pakai jam lokal (jalankan dgn TZ=Asia/Jakarta)', F.ymdLokal(Date.parse('2026-10-01T00:30:00+07:00')) === '2026-10-01' && F.ymdLokal(new Date(2026, 9, 1)) === '2026-10-01')
+cek('ymdLokal masukan rusak = kosong', F.ymdLokal(Number.NaN) === '')
+cek('tambahHari lintas bulan tetap lokal', F.tambahHari('2026-10-31', 1) === '2026-11-01')
 cek('rincian memakai tanggalnya sendiri + pajak per rincian', baris[2] === 'Dana Keluar,2026-10-02,,Promo A,,1000000,110000,1110000')
 cek('bulan kosong → null (tidak mengunduh berkas kosong)', P.csvBulanIklan('2026-01', funds, [a1], () => '') === null)
 

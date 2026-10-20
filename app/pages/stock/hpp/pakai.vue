@@ -10,7 +10,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import { getHppIngredients, hppSettings, hppUsage, patchHppUsage, type BarisPakai } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
-import { angka, rupiah } from '~/utils/format'
+import { angka, hariIni, rupiah } from '~/utils/format'
 import { buatKonteks, hitungPakai, SET_DEFAULT } from '~/utils/stock-hpp'
 import { tanganiKonflik } from '~/utils/versi'
 
@@ -18,7 +18,7 @@ definePageMeta({ access: ['hpp'] })
 
 const toast = useToast()
 
-const bulan = ref(new Date().toISOString().slice(0, 7))
+const bulan = ref(hariIni().slice(0, 7))
 const dataQ = useAsyncData('hpp-pakai', () => hppUsage(bulan.value), {
   watch: [bulan],
   default: () => ({ data: { bulan: '', baris: [] as BarisPakai[], penjualan: 0, catatan: '', daftarBulan: [] as string[] }, versi: undefined }),

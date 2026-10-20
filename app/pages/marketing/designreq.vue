@@ -89,7 +89,7 @@ async function simpanForm(v: RequestDesainMkt) {
   else {
     const baris: RequestDesainMkt = {
       ...v, id: `dr${Date.now().toString(36)}`, by: saya.value?.user.id ?? '',
-      byNama: saya.value?.user.name ?? '', at: new Date().toISOString().slice(0, 16), batalAt: '',
+      byNama: saya.value?.user.name ?? '', at: new Date().toISOString().slice(0, 16), batalAt: '', // UTC on purpose: the old Office's stored stamp format (`followups.at`, index.html:6660), not a date
     }
     const ok = await mktSimpan(
       () => buatMkt<RequestDesainMkt>('design-requests', baris),
@@ -111,7 +111,7 @@ async function batalkan() {
   if (!r || r.batalAt) return
   if (!confirm(`Batalkan request ${r.judul ?? ''}? Ia hilang dari antrian modul Konten. Riwayatnya tetap tersimpan di daftar ini.`)) return
   const ok = await mktSimpan(
-    () => tambalMkt<RequestDesainMkt>('design-requests', r.id, { batalAt: new Date().toISOString().slice(0, 16) }, r.updatedAt),
+    () => tambalMkt<RequestDesainMkt>('design-requests', r.id, { batalAt: new Date().toISOString().slice(0, 16) /* UTC on purpose: stored stamp format, as `at` */ }, r.updatedAt),
     'Request dibatalkan', { refType: 'event', refId: '-', action: `Request ${labelJenis(r.jenis)} dibatalkan`, detail: r.judul ?? '' },
   )
   if (ok) lihatId.value = null
