@@ -63,18 +63,13 @@ async function muatRsv() {
   rsvMuat.value = true
   rsvGalat.value = ''
   try {
-    // Sweep for orphans: the API caps a page at 100 rows, so walk pages.
-    const semua: Record<string, unknown>[] = []
-    let hal = 1
-    for (;;) {
-      const r = await useApi()<Envelope<Record<string, unknown>[]>>('/reservasi/reservations', {
-        query: { from: '2020-01-01', to: '2100-12-31', page: hal, perPage: 100 },
-      })
-      semua.push(...(r.data ?? []))
-      if ((r.data ?? []).length < 100 || hal >= 500) break
-      hal++
-    }
-    rsvVip.value = semua.filter(x => x && (x as { vip?: boolean }).vip === true && String((x as { id?: string }).id ?? '').startsWith('vip-'))
+    // Sweep for orphans in one call: without page/perPage the answer is every
+    // row (laksamana-api/docs/api/reservasi.md §Paging). Temporary until the
+    // VIP filter from dwipapap/laksamana-api#311 exists.
+    const r = await useApi()<Envelope<Record<string, unknown>[]>>('/reservasi/reservations', {
+      query: { from: '2020-01-01', to: '2100-12-31' },
+    })
+    rsvVip.value = (r.data ?? []).filter(x => x && (x as { vip?: boolean }).vip === true && String((x as { id?: string }).id ?? '').startsWith('vip-'))
   }
   catch (e) {
     rsvGalat.value = `Tidak bisa membaca modul Reservasi: ${apiErrorMessage(e)}`
@@ -174,7 +169,10 @@ async function simpanNominal() {
 
 // ---- Batalkan / Hapus (both touch the Reservasi row first) ----
 async function barisRsv(resId: string) {
-  const r = await useApi()<Envelope<Record<string, unknown>>>(`/reservasi/reservations/${encodeURIComponent(resId)}`).catch(() => null)
+  const r = await useApi()<Envelope<Record<string, unknown>>>(`/reservasi/reservations/${encodeURIComponent(resId)}`).catch((e: unknown) => {
+    if ((e as { statusCode?: number })?.statusCode === 404) return null
+    throw e
+  })
   return r?.data ?? null
 }
 const kerja = ref(false)
@@ -221,7 +219,10 @@ async function hapus(v: VipMkt | null) {
         })
       }
       else {
-        const ada = await useApi()<Envelope<{ updatedAt?: number }>>(`/reservasi/reservations/${encodeURIComponent(resId)}`).catch(() => null)
+        const ada = await useApi()<Envelope<{ updatedAt?: number }>>(`/reservasi/reservations/${encodeURIComponent(resId)}`).catch((e: unknown) => {
+          if ((e as { statusCode?: number })?.statusCode === 404) return null
+          throw e
+        })
         if (ada) {
           await useApi()(`/reservasi/reservations/${encodeURIComponent(resId)}`, { method: 'DELETE', headers: ifMatch((ada.data?.updatedAt ?? 0) as never) })
         }
