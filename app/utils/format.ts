@@ -87,10 +87,18 @@ export function jam(iso: string): string {
   return Number.isNaN(+d) ? '—' : `${pad(d.getHours())}.${pad(d.getMinutes())}`
 }
 
+/** A Date or ms timestamp as a LOCAL "YYYY-MM-DD" (the venue's day). Never
+ *  `toISOString().slice(0, 10)`: that is the UTC date, which in WIB is
+ *  yesterday until 07.00. Invalid input -> "". */
+export function ymdLokal(v: Date | number): string {
+  const d = v instanceof Date ? v : new Date(v)
+  if (Number.isNaN(+d)) return ''
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+
 /** Today as a local "YYYY-MM-DD". Never `toISOString()`: that is UTC and lies after 17.00 WIB. */
 export function hariIni(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  return ymdLokal(new Date())
 }
 
 /** "2026-09-27" + 1 -> "2026-09-28". The venue's timezone, not UTC. */
@@ -98,7 +106,7 @@ export function tambahHari(tgl: string, n: number): string {
   const d = new Date(`${tgl}T00:00:00`)
   if (Number.isNaN(+d)) return tgl
   d.setDate(d.getDate() + n)
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+  return ymdLokal(d)
 }
 
 /**
