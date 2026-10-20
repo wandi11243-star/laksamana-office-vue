@@ -52,6 +52,23 @@ export function durasiDuduk(r?: Reservasi | null): number | null {
   return Math.max(0, Math.round((r.leftAt - r.checkinAt) / 60000))
 }
 
+/**
+ * Group rows by normalised phone, ONCE per window — the O(n²) filter
+ * (`profilTamu` per row over the whole list) this replaces recomputed the
+ * same groups thousands of times per poll. Callers keep the map in a
+ * `computed` and pass it to `profilTamuGabung`.
+ */
+export function kelompokBarisTamu(baris: Reservasi[]): Map<string, Reservasi[]> {
+  const m = new Map<string, Reservasi[]>()
+  for (const r of baris) {
+    const k = normPhone(r.phone)
+    const l = m.get(k) ?? []
+    l.push(r)
+    m.set(k, l)
+  }
+  return m
+}
+
 /** A guest profile from the loaded rows. Thresholds exactly as the old client. */
 export interface ProfilTamu {
   nama: string
@@ -105,14 +122,15 @@ export function paxRiwayat(r: Reservasi): { datang: number | null, dipesan: numb
  */
 export function profilTamuGabung(
   ringkasan: Map<string, RingkasanTamu>,
-  baris: Reservasi[],
+  kelompok: Map<string, Reservasi[]>,
   phone: string,
   sebelum?: string,
 ): ProfilTamu {
   const key = normPhone(phone)
   const a = ringkasan.get(key)
-  const hist = baris.filter(r => normPhone(r.phone) === key && !diLuarJendela(r, sebelum))
-  if (!a) return profilTamu(baris, phone)
+  const grup = kelompok.get(key) ?? []
+  const hist = sebelum ? grup.filter(r => !diLuarJendela(r, sebelum)) : grup
+  if (!a) return profilTamu(grup, phone)
   const done = hist.filter(r => normStatus(r.status) === 'Datang')
   const count = (Number(a[0]) || 0) + hist.length
   const kunjungan = (Number(a[1]) || 0) + done.length
