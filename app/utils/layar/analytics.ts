@@ -8,7 +8,7 @@
 // and cannot be lowered. Non-input pages clamp "Ubah" to "Lihat"; viewer
 // never exceeds "Lihat".
 import { hasAccess, isAdminOf, type Me } from '~/composables/useMe'
-import { getAnalytics } from '~/composables/useAnalytics'
+import { useAnalyticsState } from '~/composables/useAnalytics'
 import type { Layar } from '~/utils/layar'
 
 const PERM_NONE = 0
@@ -62,17 +62,24 @@ export const tingkatBawaanAnalytics = (page: string, role: string): number => {
   return b[role] ?? PERM_VIEW
 }
 
-/** Load the matrix + roles once from the module chrome (`siapkan`). */
+/**
+ * Fill the matrix + roles from the shared analytics read (`siapkan` of the
+ * module chrome). No request of its own: entering the module already loads
+ * `useAnalyticsState()` once, and a second `getAnalytics()` here used to
+ * double it. The menu keeps the staf-default reading until the state arrives,
+ * exactly like before the matrix loads.
+ */
 export function muatMatriksAnalytics() {
   const s = useAnalyticsAksesSiap()
   if (s.value) return
-  getAnalytics()
-    .then((r) => {
-      s.value = { matriks: r.data.akses ?? {}, peran: r.data.peran ?? {} }
-    })
-    .catch(() => {
-      s.value = { matriks: {}, peran: {} }
-    })
+  const st = useAnalyticsState()
+  watch(() => st.data.value?.data, (d) => {
+    if (!d || s.value) return
+    s.value = { matriks: d.akses ?? {}, peran: d.peran ?? {} }
+  }, { immediate: true })
+  watch(() => st.error.value, (e) => {
+    if (e && !s.value) s.value = { matriks: {}, peran: {} }
+  })
 }
 
 function roleSaya(me: Me | null, s: MatriksAnalytics | null): string {

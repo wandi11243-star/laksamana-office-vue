@@ -30,6 +30,7 @@ import { statusIklanOtomatis } from '~/utils/promosi-konten'
 import type { MemberOffice } from '~/utils/sistem-konten'
 import { rencanaSinkronKru } from '~/utils/sistem-konten'
 import { hariIni } from '~/utils/format'
+import { BATAS_TULIS_PARALEL, hitungBerhasilParalel, petaParalel } from '~/utils/paralel'
 import { pkBulanIni } from '~/utils/performa-konten'
 import type { Versi } from '~/utils/versi'
 import { ifMatch, tanganiKonflik, versiDari } from '~/utils/versi'
@@ -420,16 +421,10 @@ export async function perbaruiStatusIklanOtomatis(): Promise<number> {
   const { data } = useStateKonten()
   const hari = hariIni()
   const ubah = data.value.ads.map(a => ({ a, s: statusIklanOtomatis(a, hari) })).filter(x => x.s)
-  let n = 0
-  for (const { a, s: baru } of ubah) {
-    try {
-      await tambalKonten<IklanKonten>('ads', a.id, { status: baru! }, a.updatedAt)
-      n++
-    }
-    catch {
-      // stale or refused: the next run tries again
-    }
-  }
+  const hasil = await petaParalel(ubah, BATAS_TULIS_PARALEL, ({ a, s }) =>
+    tambalKonten<IklanKonten>('ads', a.id, { status: s! }, a.updatedAt))
+  // A stale or refused row just keeps its old status; the next run tries again.
+  const n = hitungBerhasilParalel(hasil)
   if (n) await refreshNuxtData('konten-state')
   return n
 }
@@ -491,21 +486,10 @@ export function useSinkronKruKonten() {
     }
     const r = rencanaSinkronKru(members, data.value.users)
     kembar.value = r.kembar.map(x => ({ nama: x.u.name, id: x.u.id, officeId: x.officeId }))
-    let n = 0
-    for (const u of r.baru) {
-      try {
-        await buatKonten<UserKonten>('users', u)
-        n++
-      }
-      catch { /* next session */ }
-    }
-    for (const { u, fields } of r.ubah) {
-      try {
-        await tambalKonten<UserKonten>('users', u.id, fields, u.updatedAt)
-        n++
-      }
-      catch { /* next session */ }
-    }
+    const hasilBaru = await petaParalel(r.baru, BATAS_TULIS_PARALEL, u => buatKonten<UserKonten>('users', u))
+    const hasilUbah = await petaParalel(r.ubah, BATAS_TULIS_PARALEL, ({ u, fields }) => tambalKonten<UserKonten>('users', u.id, fields, u.updatedAt))
+    // A failed write is retried next session.
+    const n = hitungBerhasilParalel(hasilBaru) + hitungBerhasilParalel(hasilUbah)
     if (n) await refreshNuxtData('konten-state')
   }, { immediate: true })
   return kembar

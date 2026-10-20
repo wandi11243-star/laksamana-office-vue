@@ -7,14 +7,15 @@
   refuses (:5196).
 
   Like the cell sheet: HRD writes scheduled shifts, a head writes pengajuan;
-  the per-row saves run sequentially so a mid-way failure still leaves what
-  already landed.
+  the per-row saves run a few at a time and each one is reported, so a
+  mid-way failure still leaves what already landed.
 -->
 <script setup lang="ts">
 import type { AjuanDw, PekerjaDw, PeranDw, SettingDw } from '~/utils/dw'
 import { catatanWajibDw, durasiJamDw, jamTambah, opsiPosisiDw, posPekerja, posisiBawaanDivisiDw, posisiDivisiDw, tglLampau } from '~/utils/dw'
 import { namaDivisiJadwal } from '~/utils/jadwal'
 import { bentrokDari, putusAjuanDw, simpanAjuanDw } from '~/composables/useDw'
+import { BATAS_TULIS_PARALEL, petaParalel } from '~/utils/paralel'
 import { fTgl, fTglP, tambahHari } from '~/utils/format'
 
 const props = defineProps<{
@@ -93,12 +94,11 @@ async function simpan() {
   }
   sibuk.value = true
   const hrd = props.peran.hrd
-  let ok = 0
-  let gagal = 0
-  for (const it of antre) {
+  // One day's create (+ its approval, which needs the new id) stays in order;
+  // the days run a few at a time and each reports for itself.
+  const hasil = await petaParalel(antre, BATAS_TULIS_PARALEL, async (it) => {
     try {
       const r = await simpanAjuanDw({ dwId: props.p.id, tgl: tambahHari(props.senin, it.k), m: it.c.m, s: it.c.s, divisi: props.div, posisi: pos.value, catatan: cat.value.trim() })
-      ok++
       const idBaru = r.data?.row?.id ?? ''
       if (hrd && idBaru) {
         try {
@@ -108,11 +108,20 @@ async function simpan() {
           // Stays MENUNGGU in the HRD's own queue.
         }
       }
+      return 'ok' as const
     }
     catch (e) {
-      if (bentrokDari(e)) gagal++
-      else toast.add({ title: `Gagal menyimpan: ${apiErrorMessage(e)}`, color: 'error' })
+      if (bentrokDari(e)) return 'bentrok' as const
+      return { galat: apiErrorMessage(e) }
     }
+  })
+  let ok = 0
+  let gagal = 0
+  for (const h of hasil) {
+    const v = h.status === 'fulfilled' ? h.value : { galat: apiErrorMessage(h.reason) }
+    if (v === 'ok') ok++
+    else if (v === 'bentrok') gagal++
+    else toast.add({ title: `Gagal menyimpan: ${v.galat}`, color: 'error' })
   }
   sibuk.value = false
   open.value = false

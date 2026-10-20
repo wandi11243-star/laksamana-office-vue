@@ -247,6 +247,24 @@ export const muatPeranReservasi = () => {
 
 // ---------------------------------------------------------------- reads
 
+/** One DP instalment as `GET /reservasi/dps` sends it: flattened exactly like
+ *  the old `muatDp` (field names as the API sends them). */
+export interface DpInstalmen {
+  resId: string
+  dpId: string
+  nama: string
+  resTgl: string
+  tfTgl: string
+  tfJam: string
+  bank: string
+  metode: string
+  status: string
+  nominal: number | string
+  diketik: number | string
+  bukti: string
+  buktiNama: string
+}
+
 /** GET /reservations?from&to — rows whose date is in range, in created_at order.
  *  `q` (name/phone/table) and `status` (normalised) narrow it on the server;
  *  without them the answer is exactly what it always was. */
@@ -257,6 +275,21 @@ export const listReservations = (from?: string, to?: string, q?: string, status?
       to: to || undefined,
       q: q || undefined,
       status: status || undefined,
+    },
+  })
+
+/**
+ * GET /reservasi/dps?tfFrom&tfTo — DP instalments in range, flattened like
+ * `muatDp` (api#311). The range picks the transfer date OR the reservation
+ * date and keeps instalments without a transfer date (twin of `dpsBulan()`);
+ * without bounds every instalment counts. Read-only, open through the Dana
+ * Masuk door (G-14), so cashier/finance holders may call it too.
+ */
+export const listDpsReservasi = (tfFrom?: string, tfTo?: string) =>
+  useApi()<Envelope<DpInstalmen[]>>('/reservasi/dps', {
+    query: {
+      tfFrom: tfFrom || undefined,
+      tfTo: tfTo || undefined,
     },
   })
 

@@ -19,6 +19,7 @@ import type { AjuanDw, PekerjaDw, PeranDw, PermintaanDw, SettingDw } from '~/uti
 import { ajuanOrangTgl, bentrokOrangJam, biayaPermintaanDw, catatanWajibDw, durasiJamDw, jamTambah, kandidatDw, opsiPosisiDw, posPekerja, posisiDivisiDw, punyaDiv, tglLampau, usulanOrangTgl } from '~/utils/dw'
 import { namaDivisiJadwal } from '~/utils/jadwal'
 import { bentrokDari, putusAjuanDw, simpanAjuanDw } from '~/composables/useDw'
+import { BATAS_TULIS_PARALEL, petaParalel } from '~/utils/paralel'
 import { fTgl } from '~/utils/format'
 
 const props = defineProps<{
@@ -129,9 +130,9 @@ async function simpan() {
   }
   sibuk.value = true
   const ids = pilih.value.slice()
-  const gagalBentrok: string[] = []
-  let masuk = 0
-  for (const id of ids) {
+  // One person's create (+ its approval, which needs the new id) stays in
+  // order; the people run a few at a time and each reports for itself.
+  const hasil = await petaParalel(ids, BATAS_TULIS_PARALEL, async (id) => {
     try {
       const r = await simpanAjuanDw({ dwId: id, tgl: props.tgl, m: m.value, s: s.value, divisi: props.div, posisi: pos.value, catatan: cat.value.trim() })
       const row = r.data?.row
@@ -144,17 +145,24 @@ async function simpan() {
           // The row stays MENUNGGU in the HRD's own queue — safe, not a ghost shift.
         }
       }
-      masuk++
+      return { jenis: 'ok' } as const
     }
     catch (e) {
       const b = bentrokDari(e)
       if (b) {
         const p = props.pekerja.find(x => x.id === (b.dwId || id))
-        gagalBentrok.push(p?.nama ?? b.nama ?? id)
-        continue
+        return { jenis: 'bentrok', nama: p?.nama ?? b.nama ?? id } as const
       }
-      toast.add({ title: `Gagal menyimpan: ${apiErrorMessage(e)}`, color: 'error' })
+      return { jenis: 'galat', pesan: apiErrorMessage(e) } as const
     }
+  })
+  const gagalBentrok: string[] = []
+  let masuk = 0
+  for (const h of hasil) {
+    const v = h.status === 'fulfilled' ? h.value : { jenis: 'galat', pesan: apiErrorMessage(h.reason) } as const
+    if (v.jenis === 'ok') masuk++
+    else if (v.jenis === 'bentrok') gagalBentrok.push(v.nama)
+    else toast.add({ title: `Gagal menyimpan: ${v.pesan}`, color: 'error' })
   }
   sibuk.value = false
   if (!masuk) return
