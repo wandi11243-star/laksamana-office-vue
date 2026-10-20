@@ -9,7 +9,7 @@ import type { DpVipMkt, VipMkt } from '~/utils/marketing'
 import {
   VIP_LOCK_LEAD_MIN, barisReservasiVipMkt, dpsVipMkt, gabungDpsVipMkt, jamAtau00Mkt, mejaTerpakaiVipMkt,
 } from '~/utils/marketing-vip'
-import { ifMatch, versiDari } from '~/utils/versi'
+import { ifMatch, tanganiKonflik, versiDari } from '~/utils/versi'
 import { tambahHari } from '~/utils/format'
 
 const props = defineProps<{
@@ -45,7 +45,7 @@ async function muat() {
     const [master, daftarRes, dineEst] = await Promise.all([
       api<Envelope<{ tables?: string[] }>>('/reservasi/master/tables').catch(() => null),
       // A day either side: a 01:00 booking holds its table from 22:00 the night before.
-      daftarReservasiSemua(tambahHari(props.vip.tanggal, -1), tambahHari(props.vip.tanggal, 1)).then(d => ({ data: d })).catch(() => null),
+      daftarReservasiSemua(tambahHari(props.vip.tanggal, -1), tambahHari(props.vip.tanggal, 1)).then(d => ({ data: d })),
       // Seating estimate from the venue master (old vipDineEst), 180 fallback.
       api<Envelope<number>>('/reservasi/master/dineEstMin').catch(() => null),
     ])
@@ -98,7 +98,10 @@ async function simpanKunci() {
         // Nominal tetap dikirim, buktinya menyusul saat disimpan lagi.
       }
     }
-    const ada = await api<Envelope<Record<string, unknown>>>(`/reservasi/reservations/${encodeURIComponent(resId.value)}`).catch(() => null)
+    const ada = await api<Envelope<Record<string, unknown>>>(`/reservasi/reservations/${encodeURIComponent(resId.value)}`).catch((e: unknown) => {
+      if ((e as { statusCode?: number })?.statusCode === 404) return null
+      throw e
+    })
     const lama = (Array.isArray((ada?.data as { dps?: DpVipMkt[] } | undefined)?.dps) ? (ada?.data as { dps?: DpVipMkt[] }).dps : []) as DpVipMkt[]
     const baris = {
       ...(ada?.data ?? {}),
@@ -112,7 +115,7 @@ async function simpanKunci() {
     buka.value = false
   }
   catch (e) {
-    toast.add({ title: 'Gagal mengunci di Reservasi', description: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, muat))) toast.add({ title: 'Gagal mengunci di Reservasi', description: apiErrorMessage(e), color: 'error' })
   }
   finally {
     mengunci.value = false
