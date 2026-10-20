@@ -19,6 +19,7 @@
 import type { Versi } from '~/utils/versi'
 import { ifMatch, tanganiKonflik } from '~/utils/versi'
 import { cekBolehDone, deps, normalisasiStatus, penunggu, pesanTunggu, segarkanProgress, selesai } from '~/utils/bd-rumus'
+import { BATAS_TULIS_PARALEL, hitungBerhasilParalel, petaParalel } from '~/utils/paralel'
 
 /** API resource names (`docs/api/bd.md:40`). */
 export type BdResource = 'people' | 'projects' | 'tasks' | 'routines' | 'coord-requests' | 'purchase-orders' | 'purchase-requests' | 'agenda'
@@ -473,8 +474,13 @@ export async function centangSub(t: BdTask, ix: number, on: boolean): Promise<bo
 export async function hapusTaskDenganUrutan(t: BdTask, semua: BdTask[]): Promise<boolean> {
   return bdSimpan(async () => {
     await hapusBd('tasks', t.id, versiBaris(t))
-    for (const d of penunggu(semua, t.id)) {
-      await tambalBd<BdTask>('tasks', d.id, { dependsOn: deps(d).filter(x => x !== t.id) }, versiBaris(d))
-    }
+    // The releases are independent of each other, but every one of them must
+    // be reported: a silent failure leaves a stray id that lies about the
+    // order one day.
+    const tunggu = penunggu(semua, t.id)
+    const hasil = await petaParalel(tunggu, BATAS_TULIS_PARALEL, d =>
+      tambalBd<BdTask>('tasks', d.id, { dependsOn: deps(d).filter(x => x !== t.id) }, versiBaris(d)))
+    const gagal = hasil.length - hitungBerhasilParalel(hasil)
+    if (gagal) throw new Error(`${gagal} penunggu gagal dilepas`)
   }, 'Task dihapus')
 }
