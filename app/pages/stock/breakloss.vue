@@ -368,9 +368,22 @@ const daftarTampil = computed(() => {
 })
 /** Summary counts live break/loss rows only; the list keeps everything. */
 const hidup = computed(() => daftarTampil.value.filter(m => !m.batalAt && (m.jenis === 'break' || m.jenis === 'loss')))
+/**
+ * The mutasi list holds the newest 3000 rows at most, so the "Semua" totals
+ * come from the server-side all-time per-item sums instead (same live-only
+ * semantics, whole history).
+ */
+const semuaDariItems = computed(() => periode.value !== 'semua' ? null : {
+  totBreak: items.value.reduce((a, i) => a + Math.abs(Number(i.totBreak) || 0), 0),
+  totLoss: items.value.reduce((a, i) => a + Math.abs(Number(i.totLoss) || 0), 0),
+  nilai: items.value.reduce((a, i) => a + (Math.abs(Number(i.totBreak) || 0) + Math.abs(Number(i.totLoss) || 0)) * (Number(i.harga) || 0), 0),
+})
+/** The API caps the mutasi list at the newest 3000 rows. */
+const mutasiTerpotong = computed(() => mutasi.value.length >= 3000)
 const ringkas = computed(() => {
   const tot = (j: string) => hidup.value.filter(m => m.jenis === j).reduce((a, m) => a + Math.abs(Number(m.qty) || 0), 0)
   const nilai = hidup.value.reduce((a, m) => a + Math.abs(Number(m.qty) || 0) * (Number(m.harga) || 0), 0)
+  const semua = semuaDariItems.value
   const perSebab: Record<string, number> = {}
   const perItem: Record<string, number> = {}
   const rekap = new Map<string, { nama: string, break: number, loss: number, nilai: number, n: number, stok: number, satuan: string }>()
@@ -389,9 +402,9 @@ const ringkas = computed(() => {
     rekap.set(m.itemId, r)
   }
   return {
-    totBreak: tot('break'), nBreak: hidup.value.filter(m => m.jenis === 'break').length,
-    totLoss: tot('loss'), nLoss: hidup.value.filter(m => m.jenis === 'loss').length,
-    nilai, berfoto: hidup.value.filter(m => m.adaFoto).length,
+    totBreak: semua?.totBreak ?? tot('break'), nBreak: hidup.value.filter(m => m.jenis === 'break').length,
+    totLoss: semua?.totLoss ?? tot('loss'), nLoss: hidup.value.filter(m => m.jenis === 'loss').length,
+    nilai: semua?.nilai ?? nilai, berfoto: hidup.value.filter(m => m.adaFoto).length,
     perSebab, perItem,
     rekap: [...rekap.values()].sort((a, b) => (b.nilai - a.nilai) || ((b.break + b.loss) - (a.break + a.loss))),
   }
@@ -949,6 +962,17 @@ async function segarkan() {
               />
             </UFormField>
           </AppFilterGrid>
+
+          <UAlert
+            v-if="mutasiTerpotong"
+            color="warning"
+            variant="subtle"
+            icon="i-lucide-triangle-alert"
+            :description="periode === 'semua'
+              ? 'Daftar mutasi hanya memuat 3000 terbaru — total di atas dihitung dari seluruh riwayat.'
+              : 'Daftar mutasi hanya memuat 3000 terbaru — rincian di bawah bisa terpotong.'"
+            class="mt-4"
+          />
 
           <AppStatGrid class="mt-4">
             <AppStat
