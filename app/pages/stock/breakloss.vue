@@ -373,11 +373,13 @@ const hidup = computed(() => daftarTampil.value.filter(m => !m.batalAt && (m.jen
  * come from the server-side all-time per-item sums instead (same live-only
  * semantics, whole history).
  */
-const semuaDariItems = computed(() => periode.value !== 'semua' ? null : {
-  totBreak: items.value.reduce((a, i) => a + Math.abs(Number(i.totBreak) || 0), 0),
-  totLoss: items.value.reduce((a, i) => a + Math.abs(Number(i.totLoss) || 0), 0),
-  nilai: items.value.reduce((a, i) => a + (Math.abs(Number(i.totBreak) || 0) + Math.abs(Number(i.totLoss) || 0)) * (Number(i.harga) || 0), 0),
-})
+const semuaDariItems = computed(() => periode.value !== 'semua'
+  ? null
+  : {
+      totBreak: items.value.reduce((a, i) => a + Math.abs(Number(i.totBreak) || 0), 0),
+      totLoss: items.value.reduce((a, i) => a + Math.abs(Number(i.totLoss) || 0), 0),
+      nilai: items.value.reduce((a, i) => a + (Math.abs(Number(i.totBreak) || 0) + Math.abs(Number(i.totLoss) || 0)) * (Number(i.harga) || 0), 0),
+    })
 /** The API caps the mutasi list at the newest 3000 rows. */
 const mutasiTerpotong = computed(() => mutasi.value.length >= 3000)
 const ringkas = computed(() => {

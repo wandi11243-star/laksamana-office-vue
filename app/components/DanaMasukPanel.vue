@@ -872,7 +872,7 @@ async function pindaiSatu(x: TxDanaMasuk) {
     const segar = env.data
     const dps2 = dpsTampilan(segar).map(q => ({ ...q }))
     const idx2 = dps2.findIndex(q => q.id === x.p.id)
-    if (idx2 < 0) throw new Error('Barisnya tidak ketemu — daftar dimuat ulang')
+    if (idx2 < 0) throw new Error('Barisnya tidak ketemu — daftar dimuat ulang', { cause: e })
     dps2[idx2]!.tfOcrSaran = p.tfOcrSaran
     dps2[idx2]!.tfOcrAt = p.tfOcrAt
     dps2[idx2]!.tfOcrText = p.tfOcrText
