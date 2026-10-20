@@ -35,12 +35,19 @@ export interface ShiftDef {
   w: string
   libur: number
   urut: number
+  /** Written by HRIS (ADR-0012 J1): blocks, shift Divisi and active flag. The Office screen must keep them. */
+  blok?: { mulai: string, selesai: string }[]
+  divisi?: string[]
+  aktif?: number
 }
+
+/** The keys this Office screen owns. Everything else in a shift definition belongs to HRIS. */
+export const SHIFT_EDITABLE = ['n', 'm', 's', 'w', 'libur', 'urut'] as const
 
 /** Source: `:806-815`. Colours follow the Excel sheet the crew already read from the board. */
 export const SHIFT_BAWAAN: Record<string, ShiftDef> = {
   PAGI: { n: 'PAGI', m: '08:00', s: '17:00', w: '#00B0F0', libur: 0, urut: 10 },
-  MIDDLE: { n: 'MIDDLE', m: '11:00', s: '20:00', w: '#92D050', libur: 0, urut: 20 },
+  MIDDLE: { n: 'MIDDLE', m: '11:00', s: '21:00', w: '#92D050', libur: 0, urut: 20 },
   SPLIT: { n: 'SPLIT', m: '11:00', s: '23:00', w: '#00B050', libur: 0, urut: 30 },
   SIANG: { n: 'SIANG', m: '14:00', s: '23:00', w: '#FFC000', libur: 0, urut: 40 },
   OFF: { n: 'OFF', m: '', s: '', w: '#FF0000', libur: 1, urut: 50 },
@@ -134,6 +141,30 @@ export function shiftDef(set: SettingJadwal, k: string): ShiftDef {
 
 export const daftarShift = (set: SettingJadwal) =>
   Object.keys(set.shifts).sort((a, b) => (shiftDef(set, a).urut || 99) - (shiftDef(set, b).urut || 99))
+
+/**
+ * Merge a shift draft into the latest server blob. Only the keys this Office
+ * screen owns (`SHIFT_EDITABLE`) come from the draft, so `blok`, `divisi` and
+ * `aktif` written by HRIS after the draft loaded are never overwritten. A
+ * shift added in this screen has no server copy yet and is sent as-is.
+ */
+export function gabungShift(server: Record<string, ShiftDef>, draf: Record<string, ShiftDef>): Record<string, ShiftDef> {
+  const out: Record<string, ShiftDef> = {}
+  for (const [k, d] of Object.entries(draf)) {
+    const s = server[k]
+    if (!s) {
+      out[k] = { ...d }
+      continue
+    }
+    const bersih: ShiftDef = { ...s }
+    for (const f of SHIFT_EDITABLE) {
+      const v = d[f]
+      if (v !== undefined) Object.assign(bersih, { [f]: v })
+    }
+    out[k] = bersih
+  }
+  return out
+}
 
 /** The shifts offered in the cell editor: request-born ones only when already in the cell (`:1170`). */
 export const shiftPilihan = (set: SettingJadwal, sekarang: string) =>

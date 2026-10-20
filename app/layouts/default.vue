@@ -99,6 +99,11 @@ onBeforeUnmount(() => {
       </header>
 
       <main class="px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 lg:px-6 lg:pb-12 lg:pt-7 2xl:px-10">
+        <AppHrisBanner
+          v-if="key === 'hr' || (key === 'jadwal' && route.path !== '/jadwal/pengaturan')"
+          :modul="key === 'hr' ? 'hr' : 'jadwal'"
+          class="mb-5"
+        />
         <slot />
       </main>
     </div>
