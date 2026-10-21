@@ -152,12 +152,14 @@ export type ResourceAkademi = 'users' | 'divisions' | 'materials' | 'programs'
 /** GET /akademi/state — one-call bootstrap, shared by every screen. */
 export const useAkademiState = () =>
   useAsyncData('akademi-state', () => useApi()<Envelope<AkademiState>>('/akademi/state').then(r => r.data), {
+    dedupe: 'defer',
     default: akademiStateKosong,
   })
 
 /** GET /akademi/training-stats — the server's read model of the same numbers. */
 export const useAkademiTrainingStats = () =>
   useAsyncData('akademi-training-stats', () => useApi()<Envelope<Record<string, unknown>>>('/akademi/training-stats').then(r => r.data), {
+    dedupe: 'defer',
     default: () => ({}),
   })
 

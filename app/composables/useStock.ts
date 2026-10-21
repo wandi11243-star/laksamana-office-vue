@@ -116,7 +116,7 @@ export function useProdukStock() {
     const r = await getProducts()
     stempelCache('stock-produk')
     return r
-  }, { default: () => ({ rows: [] as ProdukStock[], versions: {} as Record<string, Versi> }), getCachedData: bacaCache() })
+  }, { dedupe: 'defer', default: () => ({ rows: [] as ProdukStock[], versions: {} as Record<string, Versi> }), getCachedData: bacaCache() })
 }
 
 /** `POST /stock/products` — purchasing/hpp only; a usage-only account cannot add (gap noted in stock.md D.17). */
@@ -483,7 +483,7 @@ export function useVendorStock() {
     const r = await listVendors()
     stempelCache('stock-vendor')
     return r
-  }, { default: () => ({ rows: [] as VendorStock[], versions: {} as Record<string, Versi> }), getCachedData: bacaCache() })
+  }, { dedupe: 'defer', default: () => ({ rows: [] as VendorStock[], versions: {} as Record<string, Versi> }), getCachedData: bacaCache() })
 }
 
 export async function createVendor(body: Partial<VendorStock> & { nama: string }) {
@@ -700,7 +700,7 @@ export function useBahanHpp() {
     const r = await hppIngredients()
     stempelCache('hpp-bahan')
     return r
-  }, { default: () => ({ rows: [] as BahanHpp[], versions: {} as Record<string, Versi> }), getCachedData: bacaCache() })
+  }, { dedupe: 'defer', default: () => ({ rows: [] as BahanHpp[], versions: {} as Record<string, Versi> }), getCachedData: bacaCache() })
 }
 
 export async function createIngredient(body: Partial<BahanHppTulis> & { nama: string }) {

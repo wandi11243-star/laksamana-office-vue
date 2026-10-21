@@ -138,7 +138,7 @@ export const SLOT_UNGGULAN = 6
 
 /** GET /menu/office/state: every item and category, drafts and inactive included. */
 export const useMenuState = () =>
-  useAsyncData('homepage-menu-state', () => useApi()<Envelope<MenuState>>('/menu/office/state').then(r => r.data))
+  useAsyncData('homepage-menu-state', () => useApi()<Envelope<MenuState>>('/menu/office/state').then(r => r.data), { dedupe: 'defer' })
 
 /** `/foto/<key>` of an item, from its public `foto_url`. */
 export const fotoKeyDari = (url: string | null) => url?.split('/').pop() ?? null
@@ -226,7 +226,7 @@ export const SLOT_BERANDA_BERITA = 3
 
 /** GET /news/office/state: every article (drafts included) and category. */
 export const useBeritaState = () =>
-  useAsyncData('homepage-berita-state', () => useApi()<Envelope<BeritaState>>('/news/office/state').then(r => r.data))
+  useAsyncData('homepage-berita-state', () => useApi()<Envelope<BeritaState>>('/news/office/state').then(r => r.data), { dedupe: 'defer' })
 
 export function useBeritaOffice() {
   const api = useApi()
@@ -311,7 +311,7 @@ export interface EventWeb {
 
 /** GET /homepage/office/events: every event that can be put on the website. */
 export const useEventWeb = () =>
-  useAsyncData('homepage-event-web', () => useApi()<Envelope<EventWeb[]>>('/homepage/office/events').then(r => r.data))
+  useAsyncData('homepage-event-web', () => useApi()<Envelope<EventWeb[]>>('/homepage/office/events').then(r => r.data), { dedupe: 'defer' })
 
 /**
  * An office image route sits behind the Bearer token, so a plain `<img src>`
@@ -396,7 +396,7 @@ export interface PromoOfficeState {
 
 /** GET /homepage/office/promos: stored rows plus BD candidates without a row. */
 export const usePromoWeb = () =>
-  useAsyncData('homepage-promo-web', () => useApi()<Envelope<PromoOfficeState>>('/homepage/office/promos').then(r => r.data))
+  useAsyncData('homepage-promo-web', () => useApi()<Envelope<PromoOfficeState>>('/homepage/office/promos').then(r => r.data), { dedupe: 'defer' })
 
 /** POST /promos and PATCH /promos/{id} body. `gambar_key` is upload-only. */
 export interface PromoBody {

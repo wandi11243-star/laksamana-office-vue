@@ -130,7 +130,7 @@ export const getRadarDetail = (sumber: SumberAgenda, id: string) =>
 
 /** GET /radar/promos */
 export const useRadarPromos = () =>
-  useAsyncData('radar-promos', () => useApi()<Envelope<RadarPromos>>('/radar/promos').then(r => r.data))
+  useAsyncData('radar-promos', () => useApi()<Envelope<RadarPromos>>('/radar/promos').then(r => r.data), { dedupe: 'defer' })
 
 /**
  * GET /radar/files/{key} as an object URL. The endpoint streams the binary and

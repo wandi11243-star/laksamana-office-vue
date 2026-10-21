@@ -96,7 +96,7 @@ export const getStateKonten = () => useApi()<Envelope<unknown>>('/konten/state')
 
 /** The shared state every Konten screen reads. One request per page load, refreshed after writes. */
 export const useStateKonten = () =>
-  useAsyncData('konten-state', () => getStateKonten().then(r => normStateKonten(r.data)), { default: stateKontenKosong })
+  useAsyncData('konten-state', () => getStateKonten().then(r => normStateKonten(r.data)), { dedupe: 'defer', default: stateKontenKosong })
 
 // ---------------------------------------------------------------- who I am
 
@@ -131,7 +131,7 @@ export const useDictKonten = () => useAsyncData('konten-dict', async () => {
     getDokumenKonten<PermsKonten>('perms').then(r => r.data ?? null).catch(() => null),
   ])
   return { brands, users, perms }
-})
+}, { dedupe: 'defer' })
 
 /** Reactive access like useAksesKonten, but from the light dict (no full state). */
 export function useAksesKontenRingan() {
@@ -157,7 +157,7 @@ export function muatPeranKonten() {
     ])
     peran.value = { users, perms }
     return peran.value
-  })
+  }, { dedupe: 'defer' })
   return peran
 }
 
@@ -363,7 +363,7 @@ export function kecilkanGambarKonten(file: File, maksPx = 1280, batas = 700 * 10
 export const useReqDesainMkt = () =>
   useAsyncData('konten-req-mkt', () =>
     useApi()<Envelope<{ reqs?: ReqDesainMkt[] }>>('/marketing/design-queue', { query: { active: 1 } }).then(r => r.data?.reqs ?? []),
-  { default: () => [] as ReqDesainMkt[], server: false })
+  { dedupe: 'defer', default: () => [] as ReqDesainMkt[], server: false })
 
 /**
  * GET /marketing/design-queue WITHOUT `active`: finished requests too, with
@@ -373,7 +373,7 @@ export const useReqDesainMkt = () =>
 export const useReqDesainMktSemua = () =>
   useAsyncData('konten-req-mkt-semua', () =>
     useApi()<Envelope<{ reqs?: ReqDesainMkt[] }>>('/marketing/design-queue').then(r => r.data?.reqs ?? []),
-  { default: () => [] as ReqDesainMkt[], server: false })
+  { dedupe: 'defer', default: () => [] as ReqDesainMkt[], server: false })
 
 /** GET /marketing/design-requests/{id} — the full request incl. reference images (`refs` {t, v, n}). */
 export const getReqDesainMkt = (id: string) =>

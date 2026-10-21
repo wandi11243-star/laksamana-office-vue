@@ -155,7 +155,7 @@ export const getSummary = () =>
 /** The shared summary read: one request for the Ringkasan, Laporan and
  *  Dividen screens. No polling; the figures change when Finance inputs a day. */
 export const useInvestorSummary = () =>
-  useAsyncData('investor-summary', () => getSummary())
+  useAsyncData('investor-summary', () => getSummary(), { dedupe: 'defer' })
 
 /** True when the signed-in user may upload/delete monthly PDFs. */
 export const useInvestorCanUpload = () => {
@@ -168,7 +168,7 @@ export const useInvestorCanUpload = () => {
  *  and the Ringkasan screen must not pay for it. */
 export const useInvestorAgenda = () =>
   useAsyncData('investor-agenda', () =>
-    useApi()<Envelope<InvestorAgenda>>('/kompas/investor/agenda').then(r => r.data))
+    useApi()<Envelope<InvestorAgenda>>('/kompas/investor/agenda').then(r => r.data), { dedupe: 'defer' })
 
 /** GET /api/v1/kompas/investor/reports — {bulan: {balance|ledger: {...}}}. */
 export const getInvestorReports = () =>

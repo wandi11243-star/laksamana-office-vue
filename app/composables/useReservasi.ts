@@ -337,7 +337,7 @@ export function useReservasiHariIni() {
     const r = await listReservations(hari, hari).then(r => r.data)
     stempelCache('reservasi-hari-ini')
     return r
-  }, { default: () => [] as Reservasi[], getCachedData: bacaCache() })
+  }, { dedupe: 'defer', default: () => [] as Reservasi[], getCachedData: bacaCache() })
 }
 
 /** GET /reservations/{id} — one row, with the authoritative `meta.version`. */
@@ -509,7 +509,7 @@ export interface WaTarget {
 
 /** The reactive read of one master section. */
 export const useSection = <T = unknown>(section: string) =>
-  useAsyncData(`reservasi-section-${section}`, () => getSection<T>(section).then(r => r.data), { default: () => undefined })
+  useAsyncData(`reservasi-section-${section}`, () => getSection<T>(section).then(r => r.data), { dedupe: 'defer', default: () => undefined })
 
 /**
  * One master section with its ENVELOPE kept. A section write needs that
@@ -522,13 +522,13 @@ export const useSection = <T = unknown>(section: string) =>
  * (empty dropdowns and "0 m" on Master Data, role list gone).
  */
 export const useSectionVersi = <T = unknown>(section: string) =>
-  useAsyncData(`reservasi-section-${section}-versi`, () => getSection<T>(section))
+  useAsyncData(`reservasi-section-${section}-versi`, () => getSection<T>(section), { dedupe: 'defer' })
 
 /** GET /audit — the newest 500 rows, newest first. */
 export const getAudit = () => useApi()<Envelope<AuditRow[]>>('/reservasi/audit')
 
 export const useAudit = () =>
-  useAsyncData('reservasi-audit', () => getAudit().then(r => r.data), { default: () => [] })
+  useAsyncData('reservasi-audit', () => getAudit().then(r => r.data), { dedupe: 'defer', default: () => [] })
 
 /** GET /files/{key} — a photo or pdf. */
 export const getFile = (key: string) => useApi()<Envelope<FileData>>(`/reservasi/files/${key}`)
