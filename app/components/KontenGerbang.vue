@@ -8,11 +8,20 @@
 const props = defineProps<{
   /** View key of app/utils/layar/konten.ts (planning, shooting, ads, …). */
   lihat: string
+  /**
+   * The screen does not read the full state (it has its own light list, e.g.
+   * Content Planning): decide from the light crew + matrix dict instead of
+   * waiting ~7 s for the 4,8 MB `/konten/state`. Same access rule either way.
+   */
+  ringan?: boolean
 }>()
 
-const { error, status } = useStateKonten()
-const { saya, canView } = useAksesKonten()
-const siap = computed(() => status.value === 'success' || !!error.value)
+const penuh = props.ringan ? null : useStateKonten()
+const dict = props.ringan ? useDictKonten() : null
+const akses = props.ringan ? useAksesKontenRingan() : useAksesKonten()
+const { saya, canView } = akses
+const error = computed(() => (penuh ? penuh.error.value : dict!.error.value))
+const siap = computed(() => (penuh ? penuh.status.value === 'success' : dict!.status.value === 'success') || !!error.value)
 const boleh = computed(() => canView(props.lihat))
 </script>
 
