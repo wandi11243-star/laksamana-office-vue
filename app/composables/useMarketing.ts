@@ -496,6 +496,14 @@ export function useLencanaMkt() {
 export const progresDesainMkt = () =>
   useApi()<Envelope<{ reqs?: { id: string, status?: string, pic?: string, doneAt?: string }[] }>>('/marketing/design-queue')
 
+/**
+ * GET /marketing/design-requests/{id} — one request WITH its reference photos.
+ * `/state` sends the photos as stubs (laksamana-api#341), so anything that
+ * shows or edits them reads this first.
+ */
+export const ambilRequestDesainMkt = (id: string) =>
+  useApi()<Envelope<{ req: RequestDesainMkt | null }>>(`/marketing/design-requests/${encodeURIComponent(id)}`)
+
 export interface OpsiDesainMkt { brands: string[], pics: string[], platforms: string[] }
 
 /**

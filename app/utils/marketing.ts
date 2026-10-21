@@ -149,7 +149,11 @@ export interface RequestDesainMkt {
   pic?: string
   picNama?: string
   platforms?: string[]
-  refs?: { t: string, v: string, n?: string }[]
+  /**
+   * `GET /state` sends each photo as a stub — no `v`, `dipangkas: true`
+   * (laksamana-api#341); the photos come from GET /design-requests/{id}.
+   */
+  refs?: { t: string, v: string, n?: string, dipangkas?: boolean }[]
   by?: string
   byNama?: string
   at?: string

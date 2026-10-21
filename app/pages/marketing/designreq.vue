@@ -13,7 +13,7 @@ import {
   DR_JENIS_MKT, DR_KAT_MKT, DR_PRIO_MKT, drDataMkt, drHitungKatMkt, drPrioLabelMkt, drProgMkt, drSisaMkt, drStatusMkt,
 } from '~/utils/marketing-vip'
 import {
-  buatMkt, mktSimpan, bacaOpsiDesainMkt, progresDesainMkt, tambalMkt,
+  ambilRequestDesainMkt, buatMkt, mktSimpan, bacaOpsiDesainMkt, progresDesainMkt, tambalMkt,
   useAksesMkt, useStateMkt, useTabelMkt, type OpsiDesainMkt,
 } from '~/composables/useMarketing'
 import { hariIni } from '~/utils/format'
@@ -72,8 +72,43 @@ function baru() {
   formAwal.value = null
   formBuka.value = true
 }
-function ubah(r: RequestDesainMkt) {
-  formAwal.value = r
+// ---- reference photos ----
+// `/state` sends them as stubs (laksamana-api#341: three requests were 77% of
+// it). The detail and the edit form fetch the full request once per id.
+type RefMkt = NonNullable<RequestDesainMkt['refs']>[number]
+const refsPenuh = ref<Record<string, RefMkt[]>>({})
+const refsGalat = ref<Record<string, string>>({})
+const adaStub = (r: RequestDesainMkt) => (r.refs ?? []).some(x => x.t === 'img' && !x.v)
+async function muatRefs(id: string): Promise<boolean> {
+  if (refsPenuh.value[id]) return true
+  try {
+    const res = await ambilRequestDesainMkt(id)
+    refsPenuh.value = { ...refsPenuh.value, [id]: res.data?.req?.refs ?? [] }
+    refsGalat.value = { ...refsGalat.value, [id]: '' }
+    return true
+  }
+  catch (e) {
+    refsGalat.value = { ...refsGalat.value, [id]: apiErrorMessage(e) }
+    return false
+  }
+}
+
+const formSiap = ref(false)
+async function ubah(r: RequestDesainMkt) {
+  // The form sends `refs` back whole. Opened with stubs it would save no photo
+  // at all (the API restores them, but the form would also show them blank and
+  // count them as zero MB), so the full request is read first — and the form
+  // stays shut when that fails, rather than opening on missing photos.
+  if (adaStub(r)) {
+    formSiap.value = true
+    const ok = await muatRefs(r.id)
+    formSiap.value = false
+    if (!ok) {
+      toast.add({ title: 'Foto referensi belum termuat', description: `${refsGalat.value[r.id]} — coba lagi sebelum mengubah request ini.`, color: 'error' })
+      return
+    }
+  }
+  formAwal.value = { ...r, refs: refsPenuh.value[r.id] ?? r.refs }
   formBuka.value = true
   lihatId.value = null
 }
@@ -84,7 +119,11 @@ async function simpanForm(v: RequestDesainMkt) {
       () => tambalMkt<RequestDesainMkt>('design-requests', lama.id, v, lama.updatedAt),
       'Request diperbarui', { refType: 'event', refId: '-', action: `Request ${labelJenis(v.jenis)} diubah`, detail: v.judul ?? '' },
     )
-    if (ok) formBuka.value = false
+    if (ok) {
+      formBuka.value = false
+      // The cached photos are the pre-edit list now.
+      refsPenuh.value = Object.fromEntries(Object.entries(refsPenuh.value).filter(([k]) => k !== lama.id))
+    }
   }
   else {
     const baris: RequestDesainMkt = {
@@ -106,6 +145,10 @@ async function simpanForm(v: RequestDesainMkt) {
 const lihatId = ref<string | null>(null)
 const lihat = computed(() => st.value.designreqs.find(r => r.id === lihatId.value) ?? null)
 const progLihat = computed(() => (lihat.value ? drProgMkt(prog.value, lihat.value.id) : null))
+const refsLihat = computed<RefMkt[]>(() => (lihat.value ? (refsPenuh.value[lihat.value.id] ?? lihat.value.refs ?? []) : []))
+watch(lihat, (r) => {
+  if (r && adaStub(r)) void muatRefs(r.id)
+})
 async function batalkan() {
   const r = lihat.value
   if (!r || r.batalAt) return
@@ -130,7 +173,28 @@ const KOL: KolomMkt<RequestDesainMkt>[] = [
 ]
 const tbl = useTabelMkt<RequestDesainMkt>('designreq', KOL, () => `${fJenis.value}${fKat.value}${fQ.value}${st.value.designreqs.length}`)
 const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
-const bukaRef = (v: string) => window.open(v, '_blank')
+// Chrome blocks top-level navigation to data: URLs (since v60): window.open on
+// a base64 photo opened nothing at all. A blob: URL opens; revoked a minute
+// later, not at once — the new tab is still loading it.
+function bukaRef(v: string) {
+  if (!v.startsWith('data:')) {
+    window.open(v, '_blank', 'noopener')
+    return
+  }
+  try {
+    const [kepala, isi = ''] = v.split(',', 2)
+    const mime = /data:([^;]+)/.exec(kepala ?? '')?.[1] ?? 'application/octet-stream'
+    const bin = atob(isi)
+    const buf = new Uint8Array(bin.length)
+    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i)
+    const url = URL.createObjectURL(new Blob([buf], { type: mime }))
+    window.open(url, '_blank', 'noopener')
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+  }
+  catch {
+    toast.add({ title: 'Foto tidak bisa dibuka', color: 'error' })
+  }
+}
 const warnaStatus = (r: RequestDesainMkt) => {
   const s = drStatusMkt(r, prog.value)
   return s === 'Selesai' ? 'success' as const : s === 'Dibatalkan' ? 'neutral' as const : 'warning' as const
@@ -422,7 +486,7 @@ const warnaStatus = (r: RequestDesainMkt) => {
           </p>
         </div>
         <div
-          v-if="(lihat?.refs ?? []).length"
+          v-if="refsLihat.length"
           class="mt-3"
         >
           <p class="mb-1 text-sm font-semibold">
@@ -430,11 +494,18 @@ const warnaStatus = (r: RequestDesainMkt) => {
           </p>
           <div class="flex flex-wrap gap-2">
             <template
-              v-for="(r, i) in (lihat?.refs ?? [])"
+              v-for="(r, i) in refsLihat"
               :key="i"
             >
+              <div
+                v-if="r.t === 'img' && !r.v"
+                class="flex size-20 items-center justify-center rounded border border-default p-1 text-center text-xs text-muted"
+                :title="r.n ?? ''"
+              >
+                {{ lihat && refsGalat[lihat.id] ? 'Foto tidak termuat' : 'Memuat foto…' }}
+              </div>
               <img
-                v-if="r.t === 'img'"
+                v-else-if="r.t === 'img'"
                 :src="r.v"
                 :alt="r.n ?? ''"
                 class="size-20 cursor-zoom-in rounded object-cover"
@@ -463,6 +534,7 @@ const warnaStatus = (r: RequestDesainMkt) => {
             variant="outline"
             size="sm"
             label="Ubah"
+            :loading="formSiap"
             @click="ubah(lihat)"
           />
           <UButton
