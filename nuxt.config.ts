@@ -69,7 +69,22 @@ export default defineNuxtConfig({
       // ride only /homepage/berita/:id); they are fetched on demand and kept
       // by the runtime cache below, so an offline reload still works.
       globPatterns: ['**/*.{html,css,png,svg,ico,woff2}'],
+      // `nuxt generate` writes one <route>/index.html per page (~270), all the
+      // same SPA shell, and every build changes them: precached, each deploy
+      // re-downloaded them all (each via a 301 to the trailing slash) and then
+      // autoUpdate reloaded the open page mid-way. navigateFallback serves the
+      // root shell for every route, so only that one is precached. The Help
+      // screenshots (~2.4 MB) load when a chapter is opened (runtime cache below).
+      globIgnores: ['*/**/index.html', '200.html', '404.html', 'help/gambar/**'],
       runtimeCaching: [
+        {
+          urlPattern: /\/help\/gambar\//,
+          handler: 'CacheFirst' as const,
+          options: {
+            cacheName: 'help-gambar',
+            expiration: { maxEntries: 60, maxAgeSeconds: 30 * 24 * 3600 },
+          },
+        },
         {
           urlPattern: /^.*\/_nuxt\/.*/,
           handler: 'StaleWhileRevalidate' as const,
