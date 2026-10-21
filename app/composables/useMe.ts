@@ -59,6 +59,7 @@ export const isAdminOf = (me: Me | null, key: string): boolean =>
 export type Badges = Record<string, Record<string, number>>
 export const useBadges = () =>
   useAsyncData('me-badges', () => useApi()<Envelope<Badges>>('/me/badges').then(r => r.data ?? {}), {
+    dedupe: 'defer',
     default: () => ({}) as Badges,
   })
 export const refreshBadges = () => refreshNuxtData('me-badges')

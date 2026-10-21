@@ -51,12 +51,14 @@ export interface DwJadwal {
 /** GET /jadwal/settings — the blob, normalised with the old defaults. */
 export const useJadwalSettings = () =>
   useAsyncData('jadwal-settings', () => useApi()<Envelope<unknown>>('/jadwal/settings').then(r => normalSetting(r.data)), {
+    dedupe: 'defer',
     default: () => normalSetting({}),
   })
 
 /** GET /jadwal/roster — every Office User with `divisi` resolved by the server. */
 export const useJadwalRoster = () =>
   useAsyncData('jadwal-roster', () => useApi()<Envelope<KruJadwal[]>>('/jadwal/roster').then(r => r.data), {
+    dedupe: 'defer',
     default: () => [] as KruJadwal[],
   })
 
@@ -75,6 +77,7 @@ export const useJadwalCells = (key: string, from: Ref<string>, to: Ref<string>) 
  */
 export const useJadwalRequests = () =>
   useAsyncData('jadwal-requests', () => useApi()<Envelope<PengajuanJadwal[]>>('/jadwal/requests').then(r => r.data), {
+    dedupe: 'defer',
     default: () => [] as PengajuanJadwal[],
   })
 

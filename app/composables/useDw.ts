@@ -94,7 +94,7 @@ export function useDwOverview() {
   return useAsyncData(
     () => `dw-overview-${rentang.value.dari}-${rentang.value.sampai}`,
     () => useApi()<Envelope<unknown>>('/dw/overview', { query: { from: rentang.value.dari, to: rentang.value.sampai } }).then(r => normalDw(r.data)),
-    { default: () => normalDw(null) },
+    { dedupe: 'defer', default: () => normalDw(null) },
   )
 }
 
@@ -193,7 +193,7 @@ export function useDwSetting() {
     'dw-setting',
     () => useApi()<Envelope<SettingDw>>('/dw/settings')
       .then(r => ({ blob: normalSettingDw(r.data), version: versiDari(r) as Versi | undefined })),
-    { default: () => ({ blob: normalSettingDw({}), version: undefined as Versi | undefined }) },
+    { dedupe: 'defer', default: () => ({ blob: normalSettingDw({}), version: undefined as Versi | undefined }) },
   )
 }
 

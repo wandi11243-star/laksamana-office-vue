@@ -153,7 +153,7 @@ export const useAbsensiSiapa = () => useState<AbsensiSiapa | null>('absensi-siap
 
 /** GET /absensi/context — today's shift, punches, locations, settings and `siapa`. */
 export const useAbsensiContext = () =>
-  useAsyncData('absensi-context', () => useApi()<Envelope<AbsensiContext>>('/absensi/context').then(r => r.data))
+  useAsyncData('absensi-context', () => useApi()<Envelope<AbsensiContext>>('/absensi/context').then(r => r.data), { dedupe: 'defer' })
 
 /** Mirror `context.siapa` into the shared state; called once from the module chrome. */
 export function muatAbsensiSiapa() {
@@ -190,6 +190,7 @@ export const useAbsensiRecap = (from: Ref<string>, to: Ref<string>) =>
  */
 export const useAbsensiQueue = () =>
   useAsyncData('absensi-queue', () => useApi()<Envelope<AbsensiPunch[]>>('/absensi/queue').then(r => r.data), {
+    dedupe: 'defer',
     default: () => [],
     immediate: false,
   })
@@ -197,17 +198,18 @@ export const useAbsensiQueue = () =>
 /** GET /absensi/faces — HR only, same lazy pattern as the queue. */
 export const useAbsensiFaces = () =>
   useAsyncData('absensi-faces', () => useApi()<Envelope<AbsensiWajah[]>>('/absensi/faces').then(r => r.data), {
+    dedupe: 'defer',
     default: () => [],
     immediate: false,
   })
 
 /** GET /absensi/locations — all points, active and not. */
 export const useAbsensiLocations = () =>
-  useAsyncData('absensi-locations', () => useApi()<Envelope<AbsensiLokasi[]>>('/absensi/locations').then(r => r.data), { default: () => [] })
+  useAsyncData('absensi-locations', () => useApi()<Envelope<AbsensiLokasi[]>>('/absensi/locations').then(r => r.data), { dedupe: 'defer', default: () => [] })
 
 /** GET /absensi/settings — the single blob with its defaults merged. */
 export const useAbsensiSettings = () =>
-  useAsyncData('absensi-settings', () => useApi()<Envelope<AbsensiSetting>>('/absensi/settings').then(r => r.data), { default: absensiSettingDefault })
+  useAsyncData('absensi-settings', () => useApi()<Envelope<AbsensiSetting>>('/absensi/settings').then(r => r.data), { dedupe: 'defer', default: absensiSettingDefault })
 
 /** The queue count for the red "Antrean" badge. Fetches only for HR. */
 export function useLencanaAbsensi() {

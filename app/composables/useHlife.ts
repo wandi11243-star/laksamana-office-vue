@@ -213,6 +213,7 @@ export const useHlifeState = () =>
   useAsyncData(
     'hlife-state',
     () => useApi()<Envelope<HlifeState>>('/hlife/state').then(r => r.data),
+    { dedupe: 'defer' },
   )
 
 /** GET /hlife/settings — all eight keys with their defaults, plus `meta.versions`. */
@@ -223,7 +224,7 @@ export const useHlifeSettings = () =>
       const r = await useApi()<Envelope<Record<string, unknown>>>('/hlife/settings')
       return { values: r.data, versions: (r.meta?.versions ?? {}) as Record<string, Versi> }
     },
-    { default: () => ({ values: {} as Record<string, unknown>, versions: {} as Record<string, Versi> }) },
+    { dedupe: 'defer', default: () => ({ values: {} as Record<string, unknown>, versions: {} as Record<string, Versi> }) },
   )
 
 /** GET /hlife/{res} — all rows of one resource, plus their versions. */

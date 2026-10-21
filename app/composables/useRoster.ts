@@ -36,8 +36,8 @@ export interface ModulMember extends RosterUser {
 
 /** Every Office User, for pickers of crew and divisi. */
 export const useRoster = () =>
-  useAsyncData('roster', () => useApi()<Envelope<RosterUser[]>>('/account/roster').then(r => r.data), { default: () => [] })
+  useAsyncData('roster', () => useApi()<Envelope<RosterUser[]>>('/account/roster').then(r => r.data), { dedupe: 'defer', default: () => [] })
 
 /** The users who hold one module, e.g. `useModulMembers('reservasi')`. */
 export const useModulMembers = (modul: string) =>
-  useAsyncData(`members-${modul}`, () => useApi()<Envelope<ModulMember[]>>(`/account/modules/${modul}/members`).then(r => r.data), { default: () => [] })
+  useAsyncData(`members-${modul}`, () => useApi()<Envelope<ModulMember[]>>(`/account/modules/${modul}/members`).then(r => r.data), { dedupe: 'defer', default: () => [] })

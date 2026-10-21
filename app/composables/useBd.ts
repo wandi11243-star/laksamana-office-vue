@@ -314,12 +314,12 @@ export const getBd = <T>(resource: BdResource, id: string) =>
  * one page from sharing one `useAsyncData` slot.
  */
 export function useBdState(key = 'bd-state') {
-  return useAsyncData(key, () => getBdState().then(r => normState(r.data)), { default: stateKosong })
+  return useAsyncData(key, () => getBdState().then(r => normState(r.data)), { dedupe: 'defer', default: stateKosong })
 }
 
 /** The setting documents with their envelope (a write needs `meta.versions`). */
 export function useBdSettings() {
-  return useAsyncData('bd-settings', () => getBdSettings(), { default: () => undefined })
+  return useAsyncData('bd-settings', () => getBdSettings(), { dedupe: 'defer', default: () => undefined })
 }
 
 // ---------------------------------------------------------------- writes

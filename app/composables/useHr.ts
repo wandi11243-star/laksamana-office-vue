@@ -20,12 +20,13 @@ export function useHrState() {
     const r = await useApi()<Envelope<unknown>>('/hr/state')
     versi.value = versiDari(r)
     return normalHr(r.data)
-  }, { default: () => normalHr(null) })
+  }, { dedupe: 'defer', default: () => normalHr(null) })
 }
 
 /** Akademi completion per Office user id (`GET /hr/training-stats`). */
 export const useHrTrainingStats = () =>
   useAsyncData('hr-training-stats', () => useApi()<Envelope<Record<string, HrAkademiStat>>>('/hr/training-stats').then(r => r.data), {
+    dedupe: 'defer',
     default: () => ({}) as Record<string, HrAkademiStat>,
   })
 

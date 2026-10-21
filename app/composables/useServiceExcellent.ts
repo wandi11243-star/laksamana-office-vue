@@ -111,11 +111,11 @@ export const getReviewCfg = () => getSection<ReviewCfg>('reviewCfg')
 export const getSeCrew = () => getSection<SeKru[]>('seCrew')
 export const getSePerms = () => getSection<SePerms>('sePerms')
 
-export const useReviews = () => useAsyncData('se-reviews', () => getReviews().then(r => r.data), { default: () => [] })
-export const useFeedbacks = () => useAsyncData('se-feedbacks', () => getFeedbacks().then(r => r.data), { default: () => [] })
-export const useReviewCfg = () => useAsyncData('se-reviewcfg', () => getReviewCfg().then(r => r.data), { default: () => undefined })
-export const useSeCrew = () => useAsyncData('se-crew', () => getSeCrew().then(r => r.data), { default: () => [] })
-export const useSePerms = () => useAsyncData('se-perms', () => getSePerms().then(r => r.data), { default: () => undefined })
+export const useReviews = () => useAsyncData('se-reviews', () => getReviews().then(r => r.data), { dedupe: 'defer', default: () => [] })
+export const useFeedbacks = () => useAsyncData('se-feedbacks', () => getFeedbacks().then(r => r.data), { dedupe: 'defer', default: () => [] })
+export const useReviewCfg = () => useAsyncData('se-reviewcfg', () => getReviewCfg().then(r => r.data), { dedupe: 'defer', default: () => undefined })
+export const useSeCrew = () => useAsyncData('se-crew', () => getSeCrew().then(r => r.data), { dedupe: 'defer', default: () => [] })
+export const useSePerms = () => useAsyncData('se-perms', () => getSePerms().then(r => r.data), { dedupe: 'defer', default: () => undefined })
 
 /** The module's own level per person: staff, manager or admin. */
 export type SeTingkat = SeKru['role']
