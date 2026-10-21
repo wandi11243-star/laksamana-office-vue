@@ -114,7 +114,10 @@ const kolom: TableColumn<KontenItem>[] = [
 </script>
 
 <template>
-  <KontenGerbang lihat="planning">
+  <KontenGerbang
+    lihat="planning"
+    ringan
+  >
     <AppPage
       title="Content Planning"
       :description="`${total} konten — halaman ${hal}`"

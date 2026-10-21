@@ -130,6 +130,9 @@ export const useDictKonten = () => useAsyncData('konten-dict', async () => {
     useApi()<Envelope<UserKonten[]>>('/konten/users').then(r => r.data ?? []),
     getDokumenKonten<PermsKonten>('perms').then(r => r.data ?? null).catch(() => null),
   ])
+  // The menu reads crew + matrix from this same answer (muatPeranKonten): two
+  // keys fetching /konten/users and the perms doc made every Konten page ask twice.
+  usePeranKonten().value = { users, perms }
   return { brands, users, perms }
 }, { dedupe: 'defer' })
 
@@ -145,20 +148,13 @@ export function useAksesKontenRingan() {
   return { saya, can, canView }
 }
 
-/** Load the state once on entering the module and mirror crew + matrix for the menu. */
+/**
+ * Mirror crew + matrix for the menu before a screen is drawn. Not the 4,8 MB
+ * full state (#141): it rides on the light dict, which fills usePeranKonten.
+ */
 export function muatPeranKonten() {
-  const peran = usePeranKonten()
-  // Light: crew + perms docs only, not the 4,8 MB full state (#141).
-  // Same shape as before, so menus behave identically.
-  useAsyncData('konten-peran', async () => {
-    const [users, perms] = await Promise.all([
-      useApi()<Envelope<UserKonten[]>>('/konten/users').then(r => r.data ?? []),
-      getDokumenKonten<PermsKonten>('perms').then(r => r.data ?? null).catch(() => null),
-    ])
-    peran.value = { users, perms }
-    return peran.value
-  }, { dedupe: 'defer' })
-  return peran
+  useDictKonten()
+  return usePeranKonten()
 }
 
 /** My level on a matrix row. super_admin / Office admin = edit everywhere. */
