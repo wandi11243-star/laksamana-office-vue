@@ -28,6 +28,9 @@ const itemStat = (p: (typeof programs.value)[number]) => {
 }
 const items = (p: (typeof programs.value)[number]) => (kru.value ? materiProgramUntuk(kru.value, p, materials.value) : [])
 const sudahItem = (p: (typeof programs.value)[number], matId: string) => (kru.value ? itemProgramSelesai(kru.value.id, p.id, matId, progProg.value) : false)
+// Reimagine (B): one focal action per program card. Only the next unfinished
+// item gets the solid gold button; the rest stay neutral so the eye lands once.
+const pertamaBelumIdx = (p: (typeof programs.value)[number]) => items(p).findIndex(m => !sudahItem(p, m.id))
 </script>
 
 <template>
@@ -80,7 +83,7 @@ const sudahItem = (p: (typeof programs.value)[number], matId: string) => (kru.va
 
       <div class="mt-3 divide-y divide-default">
         <div
-          v-for="m in items(p)"
+          v-for="(m, idx) in items(p)"
           :key="m.id"
           class="flex flex-wrap items-center justify-between gap-3 py-3"
         >
@@ -121,6 +124,8 @@ const sudahItem = (p: (typeof programs.value)[number], matId: string) => (kru.va
             v-else
             label="Kerjakan"
             size="sm"
+            :color="idx === pertamaBelumIdx(p) ? 'primary' : 'neutral'"
+            :variant="idx === pertamaBelumIdx(p) ? 'solid' : 'outline'"
             @click="bukaMateri(m.id, p.id)"
           />
         </div>

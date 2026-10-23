@@ -35,6 +35,11 @@ const programBulanIni = computed(() => programs.value
   .filter(p => p.bulan === kunciBulanIni() && kru.value && materiProgramUntuk(kru.value, p, materials.value).length > 0)
   .sort((a, b) => b.bulan.localeCompare(a.bulan)))
 
+// Reimagine (B): linear learning path first. The next unfinished mandatory
+// material is the single primary action; grids are for browsing, not for
+// deciding what to do next (Frontiers 2026: linear beats grid for completion).
+const lanjutkan = computed(() => wajibBelum.value[0] ?? terbaru.value.find(m => kru.value && !selesaiMateri(kru.value.id, m, progress.value)) ?? null)
+
 const divisiNama = computed(() => namaDivisi(divisions.value, kru.value?.division ?? 'all'))
 
 // Roster sync: Office is the only source of the crew list (T-01). Admin-only,
@@ -63,11 +68,31 @@ watch(anggota, async (list) => {
       <UButton
         label="Buka Program"
         icon="i-lucide-calendar-days"
-        color="neutral"
-        variant="outline"
         to="/akademi/program"
       />
     </template>
+
+    <AppPanel
+      v-if="lanjutkan && kru"
+      title="Lanjutkan belajar"
+      icon="i-lucide-play"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="truncate font-semibold text-highlighted">
+            {{ lanjutkan.title }}
+          </p>
+          <p class="mt-0.5 text-[12.5px] text-muted">
+            Materi wajib divisimu, kerjakan satu ini dulu sebelum yang lain.
+          </p>
+        </div>
+        <UButton
+          label="Kerjakan sekarang"
+          icon="i-lucide-arrow-right"
+          @click="bukaMateri(lanjutkan.id)"
+        />
+      </div>
+    </AppPanel>
 
     <AppStatGrid>
       <AppStat
@@ -76,13 +101,6 @@ watch(anggota, async (list) => {
         tone="warning"
         :value="`${st?.mandPct ?? 0}%`"
         :sub="`${st?.mandDone ?? 0}/${st?.mandTotal ?? 0} wajib`"
-      />
-      <AppStat
-        label="Total Materi Selesai"
-        icon="i-lucide-book-open-check"
-        tone="info"
-        :value="`${st?.done ?? 0}/${st?.total ?? 0}`"
-        :sub="`${st?.pct ?? 0}% semua materi`"
       />
       <AppStat
         label="Wajib Selesai"
@@ -96,7 +114,7 @@ watch(anggota, async (list) => {
         :icon="sert.icon"
         :tone="sert.tone === 'success' ? 'success' : 'warning'"
         :value="sert.label"
-        :sub="`${st?.mandTotal ?? 0} materi wajib`"
+        :sub="`${st?.done ?? 0}/${st?.total ?? 0} semua materi`"
         wrap
       />
     </AppStatGrid>
