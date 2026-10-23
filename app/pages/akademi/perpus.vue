@@ -46,6 +46,10 @@ const tampil = computed(() => {
     .filter(m => !cari || m.title.toLowerCase().includes(cari))
     .sort(terbaruDulu)
 })
+
+// Reimagine (B): search-first. The first hit is the focal start action, the
+// rest stays as the browsable archive below.
+const mulaiDari = computed(() => tampil.value[0] ?? null)
 </script>
 
 <template>
@@ -53,6 +57,28 @@ const tampil = computed(() => {
     title="Perpustakaan Laksamana"
     description="Semua materi training lintas divisi, belajar apa pun, kapan pun. Materi di luar divisimu terbuka dalam Mode Baca."
   >
+    <AppPanel
+      v-if="mulaiDari && kru"
+      title="Mulai dari sini"
+      icon="i-lucide-play"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="truncate font-semibold text-highlighted">
+            {{ mulaiDari.title }}
+          </p>
+          <p class="mt-0.5 text-[12.5px] text-muted">
+            {{ milikSaya.has(mulaiDari.id) ? 'Sesuai filtermu, kerjakan satu ini dulu.' : 'Mode Baca, di luar divisimu tapi boleh dipelajari.' }}
+          </p>
+        </div>
+        <UButton
+          label="Buka materi"
+          icon="i-lucide-arrow-right"
+          @click="bukaMateri(mulaiDari.id)"
+        />
+      </div>
+    </AppPanel>
+
     <div class="mb-4 space-y-3">
       <UInput
         v-model="q"
