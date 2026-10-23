@@ -70,6 +70,7 @@ async function tandaiSemua() {
           <li
             v-for="(n, i) in live"
             :key="i"
+            class="min-w-0"
           >
             <NuxtLink
               :to="n.link"
@@ -114,6 +115,7 @@ async function tandaiSemua() {
           <li
             v-for="n in riwayat"
             :key="String(n.id)"
+            class="min-w-0"
           >
             <button
               type="button"
