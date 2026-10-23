@@ -1,0 +1,17 @@
+[
+  {
+    "check": "lint",
+    "exitCode": 1,
+    "log": "lint.txt"
+  },
+  {
+    "check": "typecheck",
+    "exitCode": 2,
+    "log": "typecheck.txt"
+  },
+  {
+    "check": "build",
+    "exitCode": 0,
+    "log": "README.md"
+  }
+]

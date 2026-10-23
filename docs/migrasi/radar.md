@@ -104,3 +104,12 @@ menjadi "Event: Approval / Upcoming / Event Done". Penyaring status di klien tid
 sudah cocok dengan "Event Done", dan daftar status diambil dinamis dari data (`statusPasti()`).
 Catatan: penyaring server (API-3, `RadarRules::EVT_JALAN` di laksamana-api) masih daftar lama —
 acara "Approval"/"Event Done" baru tampil setelah API-3 digabung.
+
+
+### Visual #178: mengikuti Office lama (23 Oktober 2026)
+
+- Pilihan owner: **A**, tetap memakai susunan Office lama dan blok DESIGN.md. Enam layar diperiksa pada 390px dan 1366px dengan mock read-only lokal.
+- Kalender HP menjadi daftar per tanggal; desktop mempertahankan kisi bulanan. Kontrol diperbesar, label sumber/pax VIP diperjelas, dan kelas mode gelap di Radar dibuang.
+- Tidak ada layar ditunda (K/G), gap API baru, dependensi, atau test per issue.
+- Build dan lint khusus Radar lulus. Lint/typecheck seluruh repo masih gagal di file luar Radar, ditindaklanjuti pada #189. Ikon navigasi offline yang memerlukan konfigurasi fondasi dicatat di #190.
+- [Checklist parity, bukti screenshot, hasil pemeriksaan dan batas verifikasi](visual-radar/README.md).

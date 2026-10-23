@@ -1,0 +1,260 @@
+{
+  "review": [
+    {
+      "name": "dashboard period controls",
+      "result": {
+        "month": "2026-10",
+        "day": "2026-10-23"
+      }
+    },
+    {
+      "name": "agenda drawer and escape",
+      "result": {
+        "content": "Gathering contoh\n\nMarketing · Event Klien\n\nMarketing\nJumat, 23 Oktober 2026\nHARI-H\nDeal\nWAKTU\n16:00–18:00\nTEMPAT\nIndoor\nJENIS\nGathering\nPAX EVENT (KONTRAK)\n80\nMARKETING PIC\nKru contoh\nKLIEN\nKlien contoh — Perusahaan contoh\nPIC KLIEN\nPIC contoh\nKONTAK\n—\n\nNominal harga, DP, dan pelunasan hanya tampil untuk Head.\n\nLihat detail lengkap",
+        "closed": true
+      }
+    },
+    {
+      "name": "daily shortcut print WhatsApp preview",
+      "result": {
+        "url": "http://127.0.0.1:4317/radar/reservasi?tgl=2026-10-23",
+        "open": [
+          "https://wa.me/?text=*RESERVASI%20JUMAT%2C%2023%20OKTOBER%202026*%0ALaksamana%20Muda%20Coffee%20%26%20Live%20Space%0A%0AAgenda%20hari%20ini%3A%20Gathering%20contoh%20(16%3A00)%2C%20VIP%20contoh%20(18%3A00)%0A%0ATAMU%3A%202%20booking%2C%206%20pax%0A-%2018%3A30%20Tamu%20contoh%20A%20(4%20pax%2C%20B1)%0A%20%20%20Catatan%3A%20Data%20contoh%0A-%2019%3A30%20Tamu%20contoh%20B%20(2%20pax%2C%20C4)%0A"
+        ],
+        "printed": 1
+      }
+    },
+    {
+      "name": "reservation search and drawer",
+      "result": {
+        "searched": "Reservasi\n\nDari modul Reservasi — hanya membaca.\n\nPERIODE\nHarian\nMingguan\nBulanan\nJumat, 23 Oktober 2026\nLembar harian\nJumat, 23 Oktober 2026\nKirim ke WhatsApp\nCetak\n\nLAKSAMANA MUDA COFFEE & LIVE SPACE\n\nReservasi Harian\n\nJumat, 23 Oktober 2026\n\nDicetak 23 Okt 2026, 12.00\noleh Kru contoh\n\nAgenda hari ini: Gathering contoh (16:00) · VIP contoh (18:00)\n\nBOOKING HARI ITU\n\n1\n\nJumat, 23 Oktober 2026\n\nTOTAL PAX\n\n4\n\ntanpa yang batal & no-show\n\nMEJA TERPAKAI\n\n1\n\ndari booking hari itu\n\nVIP / KORPORAT\n\n0\n\nbutuh perhatian khusus\n\nCARI\nSTATUS\nHanya yang hidup\nKATEGORI\nSemua kategori\n\nReservasi Cancelled dan No-show disembunyikan — keduanya tidak akan datang. Pilih statusnya di penyaring untuk memunculkannya kembali.\n\nGrid\nTabel\nTANGGAL\tJAM\tTAMU\tPAX\tMEJA\tKATEGORI\tSTATUS\n\n23 Okt\t18:30\t\n\nTamu contoh A\n\nData contoh\n\n\t4\tB1\tReguler\tConfirmed\nPermintaan khusus tamu\n1\nTamu contoh A (18:30 · 4 pax · B1)\n\nData contoh",
+        "detail": "Tamu contoh A\n\nReservasi · Reguler\n\nConfirmed\nJumat, 23 Oktober 2026\n18:30 · 4 pax\nTANGGAL\nJumat, 23 Oktober 2026\nJAM DATANG\n18:30\nJUMLAH TAMU\n4 pax\nMEJA\nB1\nKATEGORI\nReguler\nSUMBER\n—\nPIC\n—\nKONTAK\n—\nMEMBER\nBukan\n\nCATATAN\n\nData contoh\n\nRadar hanya menampilkan. Hubungi tamu dan ubah reservasi di modul Reservasi, supaya tindak lanjutnya tercatat."
+      }
+    },
+    {
+      "name": "event table and filter",
+      "result": {
+        "columns": [
+          "Tanggal",
+          "Jam",
+          "Acara",
+          "Sumber",
+          "Tempat",
+          "Format F&B",
+          "Jenis",
+          "Pax",
+          "Status"
+        ],
+        "filtered": "Daftar Event\n\nMarketing + Event + Reservasi VIP — hanya acara yang sudah pasti jalan.\n\nPERIODE\nHarian\nMingguan\nBulanan\n19 – 25 Okt 2026\n\nACARA TAMPIL\n\n1\n\n19 – 25 Okt 2026 · akan datang\n\nPAX MARKETING\n\n0\n\n0 event klien\n\nPAX EVENT\n\n106\n\n1 acara modul Event\n\nRESERVASI VIP\n\n0\n\n0 pax (perkiraan atas) · tidak ikut Total\n\nTOTAL PAX\n\n106\n\nMarketing + Event\n\nCARI\nSUMBER\nSemua sumber\nSTATUS\nSemua status\nFORMAT F&B\nSemua format F&B\nAkan Datang (1)\nSudah Lewat (0)\nGrid\nTabel\n\nTerbuka di Akan Datang. Acara yang tanggalnya sudah lewat pindah ke Sudah Lewat. Hanya acara yang sudah pasti jalan — Marketing: Deal & Event Done · Event: Approval, Upcoming & Event Done · Reservasi VIP: semua yang belum dibatalkan.\n\nTANGGAL\tJAM\tACARA\tSUMBER\tTEMPAT\tFORMAT F&B\tJENIS\tPAX\tSTATUS\n\n24 Okt\nH-1\n\t19:00\tMusik contoh\t\nEvent\tPanggung\t—\tMusik\t106\tUpcoming"
+      }
+    },
+    {
+      "name": "event search empty and recovery",
+      "result": {
+        "empty": "Daftar Event\n\nMarketing + Event + Reservasi VIP — hanya acara yang sudah pasti jalan.\n\nPERIODE\nHarian\nMingguan\nBulanan\n19 – 25 Okt 2026\n\nACARA TAMPIL\n\n0\n\n19 – 25 Okt 2026 · akan datang\n\nPAX MARKETING\n\n0\n\n0 event klien\n\nPAX EVENT\n\n0\n\n0 acara modul Event\n\nRESERVASI VIP\n\n0\n\n0 pax (perkiraan atas) · tidak ikut Total\n\nTOTAL PAX\n\n0\n\nMarketing + Event\n\nCARI\nSUMBER\nSemua sumber\nSTATUS\nSemua status\nFORMAT F&B\nSemua format F&B\nAkan Datang (0)\nSudah Lewat (0)\nGrid\nTabel\n\nTerbuka di Akan Datang. Acara yang tanggalnya sudah lewat pindah ke Sudah Lewat. Hanya acara yang sudah pasti jalan — Marketing: Deal & Event Done · Event: Approval, Upcoming & Event Done · Reservasi VIP: semua yang belum dibatalkan.\n\nTidak ada acara yang cocok\nUbah periode, filter, atau kata kuncinya.",
+        "past": "Daftar Event\n\nMarketing + Event + Reservasi VIP — hanya acara yang sudah pasti jalan.\n\nPERIODE\nHarian\nMingguan\nBulanan\n19 – 25 Okt 2026\n\nACARA TAMPIL\n\n0\n\n19 – 25 Okt 2026 · sudah lewat\n\nPAX MARKETING\n\n0\n\n0 event klien\n\nPAX EVENT\n\n0\n\n0 acara modul Event\n\nRESERVASI VIP\n\n0\n\n0 pax (perkiraan atas) · tidak ikut Total\n\nTOTAL PAX\n\n0\n\nMarketing + Event\n\nCARI\nSUMBER\nSemua sumber\nSTATUS\nSemua status\nFORMAT F&B\nSemua format F&B\nAkan Datang (3)\nSudah Lewat (0)\nGrid\nTabel\n\nTerbuka di Akan Datang. Acara yang tanggalnya sudah lewat pindah ke Sudah Lewat. Hanya acara yang sudah pasti jalan — Marketing: Deal & Event Done · Event: Approval, Upcoming & Event Done · Reservasi VIP: semua yang belum dibatalkan.\n\nTidak ada acara yang sudah lewat\nDi 19 – 25 Okt 2026 ada 3 acara di Akan Datang.\n\nLihat yang akan datang"
+      }
+    },
+    {
+      "name": "calendar source toggles and month navigation",
+      "result": {
+        "allOff": "Kalender Terpadu\n\nTiga modul, satu jadwal: Marketing, Event, Reservasi, dan Reservasi VIP.\n\nOktober 2026\nHari ini\nTAMPILKAN\nMarketing\nEvent\nReservasi\nReservasi VIP\n\nSemua sumber sedang dimatikan, jadi kalendernya kosong bukan karena tidak ada jadwal.\n\nTOTAL PAX OKTOBER\n\n198\n\n80 mkt · 106 evt · 12 rsv\n\nAGENDA BULAN INI\n\n3\n\n1 Marketing · 1 Event · 1 VIP\n\nRESERVASI BULAN INI\n\n3\n\n12 pax meja\n\nHARI DOBEL AGENDA\n\n1\n\nperlu dicek bentroknya\n\nMIN\nSEN\nSEL\nRAB\nKAM\nJUM\nSAB\n27\n28\n29\n30\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24\n25\n26\n27\n28\n29\n30\n31\n1\n2\n3\n4\n5\n6\n7\n\nTotal pax menjumlahkan pax event dan pax reservasi meja — rombongan berbeda, jadi angkanya hanya perkiraan isi gedung malam itu. Pax VIP (*) tidak ikut dijumlahkan karena tamunya juga mengunci meja di Reservasi.",
+        "vipOnly": "Kalender Terpadu\n\nTiga modul, satu jadwal: Marketing, Event, Reservasi, dan Reservasi VIP.\n\nOktober 2026\nHari ini\nTAMPILKAN\nMarketing\nEvent\nReservasi\nReservasi VIP\n\nTOTAL PAX OKTOBER\n\n198\n\n80 mkt · 106 evt · 12 rsv\n\nAGENDA BULAN INI\n\n3\n\n1 Marketing · 1 Event · 1 VIP\n\nRESERVASI BULAN INI\n\n3\n\n12 pax meja\n\nHARI DOBEL AGENDA\n\n1\n\nperlu dicek bentroknya\n\nMIN\nSEN\nSEL\nRAB\nKAM\nJUM\nSAB\n27\n28\n29\n30\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\nVIP contoh\n\n10 pax VIP di luar total\n\n24\n25\n26\n27\n28\n29\n30\n31\n1\n2\n3\n4\n5\n6\n7\n\nTotal pax menjumlahkan pax event dan pax reservasi meja — rombongan berbeda, jadi angkanya hanya perkiraan isi gedung malam itu. Pax VIP (*) tidak ikut dijumlahkan karena tamunya juga mengunci meja di Reservasi.",
+        "nextMonth": "Kalender Terpadu\n\nTiga modul, satu jadwal: Marketing, Event, Reservasi, dan Reservasi VIP.\n\nNovember 2026\nHari ini\nTAMPILKAN\nMarketing\nEvent\nReservasi\nReservasi VIP\n\nTOTAL PAX NOVEMBER\n\n0\n\n0 mkt · 0 evt · 0 rsv\n\nAGENDA BULAN INI\n\n0\n\n0 Marketing · 0 Event · 0 VIP\n\nRESERVASI BULAN INI\n\n0\n\n0 pax meja\n\nHARI DOBEL AGENDA\n\n0\n\nperlu dicek bentroknya\n\nMIN\nSEN\nSEL\nRAB\nKAM\nJUM\nSAB\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n21\n22\n23\n24\n25\n26\n27\n28\n29\n30\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n\nTotal pax menjumlahkan pax event dan pax reservasi meja — rombongan berbeda, jadi angkanya hanya perkiraan isi gedung malam itu. Pax VIP (*) tidak ikut dijumlahkan karena tamunya juga mengunci meja di Reservasi."
+      }
+    },
+    {
+      "name": "mobile calendar drawer and daily link",
+      "result": {
+        "url": "http://127.0.0.1:4317/radar/reservasi?tgl=2026-10-23",
+        "overflow": false
+      }
+    },
+    {
+      "name": "promo search and terms",
+      "result": {
+        "terms": "Ketentuan\n\nData contoh, bukan promo yang berlaku."
+      }
+    },
+    {
+      "name": "detail mkt/m1",
+      "result": {
+        "text": "Detail Event\n\nDetail lengkap, baca-saja — bisa dicetak atau disimpan sebagai PDF.\n\nDaftar Event\nCetak / Simpan PDF\n\nMARKETING · EVENT KLIEN\n\nGathering contoh\nMarketing\nJumat, 23 Oktober 2026\nHARI-H\nDeal\n\nDicetak 23 Okt 2026, 12.00\noleh Kru contoh\n\nWAKTU\n16:00–18:00\nTEMPAT\nIndoor\nJENIS\nGathering\nPAX EVENT (KONTRAK)\n80\nMARKETING PIC\nKru contoh\nKLIEN\nKlien contoh — Perusahaan contoh\nPIC KLIEN\nPIC contoh\nKONTAK\n—\nDETAIL LENGKAP\nTamu Datang / Jam Mulai\n16:00\nEstimasi Selesai\n18:00\nFormat F&B\nPrasmanan\nCatatan\nData contoh untuk tinjauan visual\n\nRadar hanya membaca. Perubahan tetap dilakukan di modul asalnya.",
+        "overflow": false
+      }
+    },
+    {
+      "name": "detail evt/e1",
+      "result": {
+        "text": "Detail Event\n\nDetail lengkap, baca-saja — bisa dicetak atau disimpan sebagai PDF.\n\nDaftar Event\nCetak / Simpan PDF\n\nEVENT · JADWAL ACARA\n\nMusik contoh\nEvent\nSabtu, 24 Oktober 2026\nH-1\nUpcoming\n\nDicetak 23 Okt 2026, 12.00\noleh Kru contoh\n\nWAKTU\n19:00–21:00\nVENUE\nPanggung\nKATEGORI\nMusik\nKAPASITAS\n106\nPIC\nKru contoh\nCO-PIC\n—\nTEMA\nAkustik\nTIKETING\nTidak\n\nData contoh untuk tinjauan visual\n\nTALENT TERJADWAL\nTalent contoh\nAkustik\n19:00\n\nRadar hanya membaca. Perubahan tetap dilakukan di modul asalnya.",
+        "overflow": false
+      }
+    },
+    {
+      "name": "detail vip/v1",
+      "result": {
+        "text": "Detail Event\n\nDetail lengkap, baca-saja — bisa dicetak atau disimpan sebagai PDF.\n\nDaftar Event\nCetak / Simpan PDF\n\nMARKETING · RESERVASI VIP\n\nVIP contoh\nReservasi VIP\nJumat, 23 Oktober 2026\nHARI-H\nConfirmed\n\nDicetak 23 Okt 2026, 12.00\noleh Kru contoh\n\nWAKTU\n18:00–20:00\nMEJA\nVIP 1\nTAMU\n8–10 orang\nMARKETING PIC\nKru contoh\nPERUSAHAAN\n—\nKONTAK\n—\nCATATAN RESERVASI\n\nData contoh\n\nRadar hanya membaca. Perubahan tetap dilakukan di modul asalnya.",
+        "overflow": false
+      }
+    },
+    {
+      "name": "detail mkt/missing",
+      "result": {
+        "text": "Detail Event\n\nDetail lengkap, baca-saja — bisa dicetak atau disimpan sebagai PDF.\n\nDaftar Event\n\nEvent tidak ditemukan\nData mungkin sudah berubah di modul asalnya, atau acaranya belum pasti jalan.",
+        "overflow": false
+      }
+    },
+    {
+      "name": "state empty",
+      "result": {
+        "text": "Kalender Terpadu\n\nTiga modul, satu jadwal: Marketing, Event, Reservasi, dan Reservasi VIP.\n\nOktober 2026\nHari ini\nTAMPILKAN\nMarketing\nEvent\nReservasi\nReservasi VIP\n\nTOTAL PAX OKTOBER\n\n0\n\n0 mkt · 0 evt · 0 rsv\n\nAGENDA BULAN INI\n\n0\n\n0 Marketing · 0 Event · 0 VIP\n\nRESERVASI BULAN INI\n\n0\n\n0 pax meja\n\nHARI DOBEL AGENDA\n\n0\n\nperlu dicek bentroknya\n\nAgenda bulan ini\nJumat, 23 Oktober 2026· Hari ini\n\nTidak ada agenda atau reservasi pada sumber yang dipilih.\n\nTotal pax menjumlahkan pax event dan pax reservasi meja — rombongan berbeda, jadi angkanya hanya perkiraan isi gedung malam itu. Pax VIP (*) tidak ikut dijumlahkan karena tamunya juga mengunci meja di Reservasi.",
+        "overflow": false
+      }
+    },
+    {
+      "name": "state failure",
+      "result": {
+        "text": "Kalender Terpadu\n\nTiga modul, satu jadwal: Marketing, Event, Reservasi, dan Reservasi VIP.\n\nTidak terhubung ke Event. Angka di halaman ini belum lengkap — jangan dipakai untuk keputusan sampai tersambung lagi.\n\nOktober 2026\nHari ini\nTAMPILKAN\nMarketing\nEvent\nReservasi\nReservasi VIP\n\nTOTAL PAX OKTOBER\n\n198\n\n80 mkt · 106 evt · 12 rsv\n\nAGENDA BULAN INI\n\n3\n\n1 Marketing · 1 Event · 1 VIP\n\nRESERVASI BULAN INI\n\n3\n\n12 pax meja\n\nHARI DOBEL AGENDA\n\n1\n\nperlu dicek bentroknya\n\nAgenda bulan ini\nJumat, 23 Oktober 2026· Hari ini\nTotal 86 pax · 10 VIP di luar total\nMarketing\nGathering contoh\n16:00\nReservasi VIP\nVIP contoh\n18:00\n2 reservasi · 6 pax\n\n80 mkt · 6 rsv · 10 vip* · pax VIP (*) di luar total\n\nSabtu, 24 Oktober 2026\nTotal 112 pax\nEvent\nMusik contoh\n19:00\n1 reservasi · 6 pax\n\n106 evt · 6 rsv\n\nTotal pax menjumlahkan pax event dan pax reservasi meja — rombongan berbeda, jadi angkanya hanya perkiraan isi gedung malam itu. Pax VIP (*) tidak ikut dijumlahkan karena tamunya juga mengunci meja di Reservasi.",
+        "overflow": false
+      }
+    },
+    {
+      "name": "state api-error",
+      "result": {
+        "text": "Kalender Terpadu\n\nTiga modul, satu jadwal: Marketing, Event, Reservasi, dan Reservasi VIP.\n\nKalender tidak terbaca: Layanan contoh tidak tersedia\n\nOktober 2026\nHari ini\nTAMPILKAN\nMarketing\nEvent\nReservasi\nReservasi VIP\n\nTOTAL PAX OKTOBER\n\n0\n\n0 mkt · 0 evt · 0 rsv\n\nAGENDA BULAN INI\n\n0\n\n0 Marketing · 0 Event · 0 VIP\n\nRESERVASI BULAN INI\n\n0\n\n0 pax meja\n\nHARI DOBEL AGENDA\n\n0\n\nperlu dicek bentroknya\n\nAgenda bulan ini\nJumat, 23 Oktober 2026· Hari ini\n\nTotal pax menjumlahkan pax event dan pax reservasi meja — rombongan berbeda, jadi angkanya hanya perkiraan isi gedung malam itu. Pax VIP (*) tidak ikut dijumlahkan karena tamunya juga mengunci meja di Reservasi.",
+        "overflow": false
+      }
+    }
+  ],
+  "errors": [],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/agenda/mkt/m1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/agenda/mkt/m1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/promos"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/agenda/mkt/m1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/agenda/evt/e1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/agenda/vip/v1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/agenda/mkt/missing"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    }
+  ]
+}

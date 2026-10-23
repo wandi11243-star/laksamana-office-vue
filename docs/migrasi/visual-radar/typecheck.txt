@@ -1,0 +1,12 @@
+npm notice run typecheck
+npm notice run nuxt typecheck
+ℹ Nuxt Icon client bundle consist of 316 icons with 94.55KB(uncompressed) in size
+app/components/reservasi/ReservasiDetailInfo.vue(109,32): error TS1355: A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals.
+app/pages/event/schedule.vue(893,34): error TS2339: Property 'DOW_CEK' does not exist on type '{ bolehUbah: boolean; bukaMinggu: () => void; bukaRutin: () => void; bukaBulan: () => void; bukaTambah: (tgl?: string | undefined) => void; sheetHadir: boolean; geserBulan: (n: number) => void; labelBulan: string; ... 2639 more ...; $colorMode: ColorModeInstance; }'.
+app/pages/event/schedule.vue(989,34): error TS2339: Property 'DOW_CEK' does not exist on type '{ bolehUbah: boolean; bukaMinggu: () => void; bukaRutin: () => void; bukaBulan: () => void; bukaTambah: (tgl?: string | undefined) => void; sheetHadir: boolean; geserBulan: (n: number) => void; labelBulan: string; ... 2639 more ...; $colorMode: ColorModeInstance; }'.
+app/pages/event/ticketing/[id]/index.vue(385,36): error TS1355: A 'const' assertion can only be applied to references to enum members, or string, number, boolean, array, or object literals.
+app/plugins/toast-antre.client.ts(6,15): error TS2614: Module '"@nuxt/ui"' has no exported member 'Toast'. Did you mean to use 'import Toast from "@nuxt/ui"' instead?
+app/utils/qr.ts(29,35): error TS2322: Type 'number | undefined' is not assignable to type 'number'.
+  Type 'undefined' is not assignable to type 'number'.
+app/utils/qr.ts(31,74): error TS2532: Object is possibly 'undefined'.
+app/utils/qr.ts(31,86): error TS2532: Object is possibly 'undefined'.
