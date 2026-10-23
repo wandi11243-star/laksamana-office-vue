@@ -16,12 +16,11 @@
   Money is HRD-only (F.12); without it the column disappears, not dashes.
 -->
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
 import type { AjuanDw, PermintaanDw, EntriAntrean } from '~/utils/dw'
-import { biayaAjuanDw, biayaPermintaanDw, bolehBukaDw, bolehLihatUangDw, entriAntreanDw, entriPerluDikerjakan, KONTEKS_LBL, lampauiBanyakDw, mintaBelumTuntas, mintaOrang, mintaTerpenuhi, namaDw, ringkasAjuanDw, segeraDw } from '~/utils/dw'
+import { biayaAjuanDw, biayaPermintaanDw, bolehBukaDw, bolehLihatUangDw, durasiJamDw, entriAntreanDw, entriPerluDikerjakan, jejakDw, kataPutusanDw, konteksHariDw, KONTEKS_LBL, lampauiBanyakDw, panduanTeksDw, mintaBelumTuntas, mintaOrang, mintaTerpenuhi, namaDw, ringkasAjuanDw, segeraDw } from '~/utils/dw'
 import { namaDivisiJadwal } from '~/utils/jadwal'
 import { putusAjuanDw, putusBanyakDw, putusPermintaanDw, tugaskanDw, useDwDasar, useDwPax } from '~/composables/useDw'
-import { fTgl, fTglP } from '~/utils/format'
+import { fTgl, fTglP, tglPanjang } from '~/utils/format'
 
 definePageMeta({ access: ['dw'] })
 
@@ -69,22 +68,41 @@ const opsiTab = computed(() => [
 ])
 const nBelumLengkap = computed(() => menunggu.value.filter(e => e.jenis === 'minta' && e.status === 'DISETUJUI').length)
 
-const kolom: TableColumn<EntriAntrean>[] = [
-  { id: 'tgl', header: 'Tanggal' },
-  { id: 'pengajuan', header: 'Pengajuan' },
-  { id: 'divisi', header: 'Divisi / Posisi' },
-  { id: 'jam', header: 'Jam' },
-  { id: 'upah', header: () => h('span', { class: 'block text-end' }, 'Upah') },
-  { id: 'status', header: 'Status' },
-  { id: 'aksi', header: () => h('span', { class: 'block text-end' }, '') },
-]
+const nMinta = computed(() => menunggu.value.filter(e => e.jenis === 'minta').length)
+const nAjuan = computed(() => menunggu.value.filter(e => e.jenis === 'ajuan').length)
+
+/**
+ * Rows of the page, with a date header before each new day — Antrian only
+ * (:3973): the other tabs sort by decision time, where a date header would
+ * repeat without grouping anything.
+ */
+const baris = computed(() => {
+  let kini = ''
+  return daftar.value.map((e) => {
+    let grup: { tgl: string, menunggu: number, disetujui: number, ids: string[] } | null = null
+    if (tab.value === 'antri' && e.tgl !== kini) {
+      kini = e.tgl
+      const seHari = menunggu.value.filter(z => z.tgl === e.tgl)
+      grup = {
+        tgl: e.tgl,
+        menunggu: seHari.length,
+        disetujui: ajuan.value.filter(a => a.tgl === e.tgl && a.status === 'DISETUJUI').length,
+        ids: seHari.filter(z => z.jenis === 'ajuan').map(z => z.id),
+      }
+    }
+    return { e, grup }
+  })
+})
+const konteks = (tgl: string) => KONTEKS_LBL[konteksHariDw(tgl, pax.value[tgl] ?? 0)]
+const panduan = (tgl: string) => panduanTeksDw(set.value, tgl, pax.value[tgl] ?? 0)
+/** The small "diajukan/diminta <who> · <when>" line under the name (:4247). */
+const jejakMasuk = (e: EntriAntrean) => jejakDw(e.jenis === 'ajuan' ? 'diajukan' : 'diminta', e.x.dibuatOleh, e.x.dibuatAt)
+const jejakPutus = (e: EntriAntrean) => jejakDw(kataPutusanDw(e.status), e.x.putusOleh, e.x.putusAt)
+
+// "+ Minta DW" sits on this desk too (:4033).
+const mintaOpen = ref(false)
 
 const bolehAksi = computed(() => peran.value.hrd)
-
-// Group headers (Antrian only): per date, the bulk-approve button and counts.
-function idsGrup(tgl: string) {
-  return menunggu.value.filter(z => z.tgl === tgl && z.jenis === 'ajuan').map(z => z.id)
-}
 
 // ---------------------------------------------------------------- actions
 const setujuA = ref<AjuanDw | null>(null)
@@ -248,7 +266,7 @@ const kosongTeks = computed(() => (tab.value === 'antri'
 <template>
   <AppPage
     title="Antrean pengajuan"
-    description="Pengajuan yang menunggu keputusan HR."
+    description="Setujui atau tolak permintaan & pengajuan DW."
   >
     <p
       v-if="error"
@@ -271,11 +289,34 @@ const kosongTeks = computed(() => (tab.value === 'antri'
 
     <AppPanel
       v-else
-      title="Satu meja untuk dua jenis"
+      title="Antrean Pengajuan DW"
       icon="i-lucide-inbox"
       flush
     >
+      <template #actions>
+        <UButton
+          label="Minta DW"
+          icon="i-lucide-plus"
+          size="sm"
+          @click="mintaOpen = true"
+        />
+      </template>
       <div class="space-y-3 p-4 lg:p-5">
+        <p
+          v-if="menunggu.length"
+          class="text-sm text-muted"
+        >
+          <b class="num">{{ menunggu.length }}</b> menunggu tindakan Anda<template v-if="nMinta && nAjuan">
+            — {{ nMinta }} permintaan head, {{ nAjuan }} pengajuan.
+          </template><template v-else-if="nMinta">
+            — semuanya permintaan head.
+          </template><template v-else>
+            .
+          </template>
+          <template v-if="nBelumLengkap">
+            <b class="num">{{ nBelumLengkap }}</b> di antaranya sudah disetujui tapi orangnya belum lengkap.
+          </template>
+        </p>
         <div class="flex flex-wrap items-center gap-3">
           <AppSeg
             v-model="tab"
@@ -290,168 +331,229 @@ const kosongTeks = computed(() => (tab.value === 'antri'
             class="w-full max-w-56"
           />
           <span class="text-sm text-muted">
-            <template v-if="menunggu.length">
-              <b>{{ menunggu.length }} entri</b> menunggu keputusan<template v-if="nBelumLengkap"> · {{ nBelumLengkap }} permintaan sudah disetujui tapi orangnya belum lengkap</template>.
-            </template>
-            <template v-else>Antrean kosong.</template>
+            {{ tab === 'antri' ? 'Yang belum diputuskan, dikelompokkan per tanggal.' : tab === 'riwayat' ? 'Keputusan yang sudah diambil, terbaru di atas.' : 'Seluruhnya; yang menunggu di atas.' }}
           </span>
         </div>
-        <p class="text-sm text-muted">
-          <b>Permintaan</b> menyebut berapa orang; <b>pengajuan</b> menyebut siapa. Yang disetujui langsung tampil di
-          kalender modul <b>Jadwal Shift</b>. Antrian dan Riwayat dipisah menurut masih ada pekerjaannya atau tidak.
-        </p>
       </div>
 
-      <UTable
-        class="hidden lg:block"
-        :data="daftar"
-        :columns="kolom"
-        :loading="!ajuan.length && !permintaan.length"
-        :empty="kosongTeks"
-        :meta="{ class: { tr: (row: { original: EntriAntrean }) => (entriPerluDikerjakan(ajuan, row.original) ? 'bg-warning/8' : '') } }"
-      >
-        <template #tgl-cell="{ row }">
-          <span class="num">{{ fTglP(row.original.tgl) }}</span>
-          <p
-            v-if="segeraDw(row.original.tgl)"
-            class="text-[13px] font-semibold"
-            :class="segeraDw(row.original.tgl)!.tone === 'lewat' ? 'text-error' : 'text-primary-700'"
-          >
-            {{ segeraDw(row.original.tgl)!.teks }}
-          </p>
-          <button
-            v-if="tab === 'antri' && bolehAksi && idsGrup(row.original.tgl).length > 1"
-            type="button"
-            class="text-[12px] font-semibold text-primary-700 hover:underline"
-            @click="bukaBanyak(idsGrup(row.original.tgl))"
-          >
-            Setujui {{ idsGrup(row.original.tgl).length }} pengajuan
-          </button>
-        </template>
-        <template #pengajuan-cell="{ row }">
-          <template v-if="row.original.jenis === 'ajuan'">
-            <p class="font-semibold text-highlighted">
-              {{ namaDw(pekerja, (row.original.x as AjuanDw).dwId) }}
-            </p>
-            <p class="text-[13px] text-muted">
-              Pengajuan DW{{ (row.original.x as AjuanDw).catatan ? ` · "${(row.original.x as AjuanDw).catatan}"` : '' }}
-            </p>
-          </template>
-          <template v-else>
-            <p class="font-semibold text-highlighted">
-              Permintaan {{ (row.original.x as PermintaanDw).jumlah }} orang
-            </p>
-            <p class="text-[13px] text-muted">
-              {{ (row.original.x as PermintaanDw).dibuatOleh ? `diminta ${(row.original.x as PermintaanDw).dibuatOleh}` : '' }}
-              <template v-if="(row.original.x as PermintaanDw).catatan">
-                · "{{ (row.original.x as PermintaanDw).catatan }}"
-              </template>
-            </p>
-            <p
-              v-if="(row.original.x as PermintaanDw).usulan.length"
-              class="text-[13px] text-primary-700"
+      <table class="hidden w-full text-sm lg:table">
+        <thead class="bg-table-head text-left text-xs font-bold uppercase tracking-wide text-table-head-text">
+          <tr>
+            <th class="px-4 py-2">
+              Tanggal
+            </th>
+            <th class="px-4 py-2">
+              Pengajuan
+            </th>
+            <th class="px-4 py-2">
+              Divisi / Posisi
+            </th>
+            <th class="px-4 py-2">
+              Jam
+            </th>
+            <th class="px-4 py-2 text-end">
+              Upah
+            </th>
+            <th class="px-4 py-2">
+              Status
+            </th>
+            <th class="px-4 py-2" />
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-default">
+          <tr v-if="!daftar.length">
+            <td
+              colspan="7"
+              class="px-4 py-8 text-center text-muted"
             >
-              usul: {{ (row.original.x as PermintaanDw).usulan.map(id => namaDw(pekerja, id)).join(', ') }}
-            </p>
+              {{ kosongTeks }}
+            </td>
+          </tr>
+          <template
+            v-for="{ e, grup } in baris"
+            :key="`${e.jenis}-${e.id}`"
+          >
+            <tr
+              v-if="grup"
+              class="bg-muted"
+            >
+              <td
+                colspan="7"
+                class="px-4 py-2"
+              >
+                <div class="flex flex-wrap items-center gap-2">
+                  <b class="text-highlighted">{{ tglPanjang(grup.tgl) }}</b>
+                  <AppStatus size="sm">
+                    {{ grup.menunggu }} menunggu
+                  </AppStatus>
+                  <AppStatus size="sm">
+                    {{ grup.disetujui }} sudah disetujui
+                  </AppStatus>
+                  <AppStatus
+                    size="sm"
+                    :title="panduan(grup.tgl)"
+                  >
+                    {{ konteks(grup.tgl) }}
+                  </AppStatus>
+                  <UButton
+                    v-if="bolehAksi && grup.ids.length > 1"
+                    :label="`Setujui ${grup.ids.length} pengajuan`"
+                    color="success"
+                    size="xs"
+                    @click="bukaBanyak(grup.ids)"
+                  />
+                </div>
+              </td>
+            </tr>
+            <tr :class="entriPerluDikerjakan(ajuan, e) && 'bg-warning/8'">
+              <td class="px-4 py-2 align-top">
+                <span class="num">{{ fTglP(e.tgl) }}</span>
+                <p
+                  v-if="segeraDw(e.tgl)"
+                  class="text-[13px] font-semibold"
+                  :class="segeraDw(e.tgl)!.tone === 'lewat' ? 'text-error' : 'text-primary-700'"
+                >
+                  {{ segeraDw(e.tgl)!.teks }}
+                </p>
+              </td>
+              <td class="px-4 py-2 align-top">
+                <p class="flex flex-wrap items-center gap-1.5">
+                  <AppStatus
+                    size="sm"
+                    :color="e.jenis === 'ajuan' ? 'info' : 'vip'"
+                  >
+                    {{ e.jenis === 'ajuan' ? 'Pengajuan' : 'Permintaan' }}
+                  </AppStatus>
+                  <b class="text-highlighted">
+                    <template v-if="e.jenis === 'ajuan'">{{ namaDw(pekerja, (e.x as AjuanDw).dwId) }}</template>
+                    <template v-else>{{ (e.x as PermintaanDw).jumlah }} orang</template>
+                  </b>
+                </p>
+                <p
+                  v-if="e.jenis === 'minta' && (e.x as PermintaanDw).usulan.length"
+                  class="text-[13px] text-primary-700"
+                >
+                  usul: {{ (e.x as PermintaanDw).usulan.map(id => namaDw(pekerja, id)).join(', ') }}
+                </p>
+                <p
+                  v-if="jejakMasuk(e)"
+                  class="text-[12px] text-muted"
+                >
+                  {{ jejakMasuk(e) }}
+                </p>
+                <p
+                  v-if="e.x.catatan"
+                  class="text-[12px] text-muted"
+                >
+                  {{ e.x.catatan }}
+                </p>
+              </td>
+              <td class="px-4 py-2 align-top">
+                {{ namaDivisiJadwal(e.divisi) }}
+                <p class="text-[13px] text-muted">
+                  {{ e.x.posisi || '—' }}
+                </p>
+              </td>
+              <td class="px-4 py-2 align-top">
+                <span class="num">{{ e.x.m }}–{{ e.x.s }}</span>
+                <p class="text-[13px] text-muted num">
+                  {{ durasiJamDw(e.x.m, e.x.s) }} jam
+                </p>
+              </td>
+              <td class="px-4 py-2 text-end align-top">
+                <span
+                  v-if="bolehLihatUangDw(peran)"
+                  class="num"
+                >
+                  <template v-if="e.jenis === 'ajuan'">{{ rupiah(biayaAjuanDw(set, e.x as AjuanDw)) }}</template>
+                  <template v-else>± {{ rupiah(biayaPermintaanDw(set, e.x as PermintaanDw)) }}</template>
+                </span>
+                <span
+                  v-else
+                  class="text-dimmed"
+                >—</span>
+              </td>
+              <td class="px-4 py-2 align-top">
+                <DwStatus
+                  :status="e.status"
+                  size="sm"
+                />
+                <p
+                  v-if="e.jenis === 'minta' && e.status === 'DISETUJUI'"
+                  class="text-[12px] text-muted"
+                >
+                  {{ mintaTerpenuhi(ajuan, e.id) }} dari {{ (e.x as PermintaanDw).jumlah }} terpenuhi
+                </p>
+                <p
+                  v-if="jejakPutus(e)"
+                  class="text-[12px] text-muted"
+                >
+                  {{ jejakPutus(e) }}
+                </p>
+                <p
+                  v-if="e.x.putusNota"
+                  class="text-[12px] text-error"
+                >
+                  "{{ e.x.putusNota }}"
+                </p>
+              </td>
+              <td class="px-4 py-2 align-top">
+                <div class="flex flex-wrap justify-end gap-1.5">
+                  <template v-if="bolehAksi && entriPerluDikerjakan(ajuan, e)">
+                    <template v-if="e.jenis === 'ajuan'">
+                      <UButton
+                        label="Setuju"
+                        icon="i-lucide-check"
+                        color="success"
+                        size="xs"
+                        @click="mintaSetuju(e.x as AjuanDw)"
+                      />
+                    </template>
+                    <template v-else>
+                      <UButton
+                        v-if="sisaUsulan(e.x as PermintaanDw).length"
+                        :label="`Setuju & pilih ${sisaUsulan(e.x as PermintaanDw).length} DW`"
+                        color="success"
+                        size="xs"
+                        @click="mintaUsul(e.x as PermintaanDw)"
+                      />
+                      <UButton
+                        label="Pilih DW"
+                        icon="i-lucide-user-round-plus"
+                        color="neutral"
+                        variant="outline"
+                        size="xs"
+                        @click="bukaTunjuk(e.x as PermintaanDw)"
+                      />
+                    </template>
+                    <UButton
+                      label="Tolak"
+                      icon="i-lucide-x"
+                      color="error"
+                      variant="ghost"
+                      size="xs"
+                      @click="mintaTolak(e)"
+                    />
+                  </template>
+                  <UButton
+                    v-else-if="bolehAksi"
+                    label="Kembalikan"
+                    icon="i-lucide-undo-2"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    @click="aksiKembali(e)"
+                  />
+                  <span
+                    v-else
+                    class="text-dimmed"
+                  >—</span>
+                </div>
+              </td>
+            </tr>
           </template>
-        </template>
-        <template #divisi-cell="{ row }">
-          {{ namaDivisiJadwal(row.original.divisi) }}
-          <p class="text-[13px] text-muted">
-            {{ row.original.x.posisi || '—' }}
-          </p>
-        </template>
-        <template #jam-cell="{ row }">
-          <span class="num">{{ row.original.x.m }}–{{ row.original.x.s }}</span>
-        </template>
-        <template #upah-cell="{ row }">
-          <span
-            v-if="bolehLihatUangDw(peran)"
-            class="num"
-          >
-            <template v-if="row.original.jenis === 'ajuan'">{{ rupiah(biayaAjuanDw(set, row.original.x as AjuanDw)) }}</template>
-            <template v-else>± {{ rupiah(biayaPermintaanDw(set, row.original.x as PermintaanDw)) }}</template>
-          </span>
-          <span
-            v-else
-            class="text-dimmed"
-          >—</span>
-        </template>
-        <template #status-cell="{ row }">
-          <DwStatus
-            :status="row.original.status"
-            size="sm"
-          />
-          <p
-            v-if="row.original.jenis === 'minta' && row.original.status === 'DISETUJUI'"
-            class="text-[12px] text-muted"
-          >
-            {{ mintaTerpenuhi(ajuan, row.original.id) }} dari {{ (row.original.x as PermintaanDw).jumlah }} terpenuhi
-          </p>
-          <p
-            v-if="row.original.x.putusOleh"
-            class="text-[12px] text-muted"
-          >
-            oleh {{ row.original.x.putusOleh }}
-          </p>
-          <p
-            v-if="row.original.x.putusNota"
-            class="text-[12px] text-error"
-          >
-            "{{ row.original.x.putusNota }}"
-          </p>
-        </template>
-        <template #aksi-cell="{ row }">
-          <div class="flex flex-wrap justify-end gap-1.5">
-            <template v-if="bolehAksi && entriPerluDikerjakan(ajuan, row.original)">
-              <template v-if="row.original.jenis === 'ajuan'">
-                <UButton
-                  label="Setujui"
-                  color="success"
-                  size="xs"
-                  @click="mintaSetuju(row.original.x as AjuanDw)"
-                />
-              </template>
-              <template v-else>
-                <UButton
-                  v-if="sisaUsulan(row.original.x as PermintaanDw).length"
-                  :label="`Setuju & pilih ${sisaUsulan(row.original.x as PermintaanDw).length} DW`"
-                  color="success"
-                  size="xs"
-                  @click="mintaUsul(row.original.x as PermintaanDw)"
-                />
-                <UButton
-                  label="Pilih DW"
-                  color="neutral"
-                  variant="outline"
-                  size="xs"
-                  @click="bukaTunjuk(row.original.x as PermintaanDw)"
-                />
-              </template>
-              <UButton
-                label="Tolak"
-                color="error"
-                variant="ghost"
-                size="xs"
-                @click="mintaTolak(row.original)"
-              />
-            </template>
-            <template v-else-if="bolehAksi && !entriPerluDikerjakan(ajuan, row.original)">
-              <UButton
-                label="Kembalikan"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                @click="aksiKembali(row.original)"
-              />
-            </template>
-            <span
-              v-else
-              class="text-dimmed"
-            >—</span>
-          </div>
-        </template>
-      </UTable>
+        </tbody>
+      </table>
 
       <div class="divide-y divide-default lg:hidden">
         <article
@@ -799,6 +901,10 @@ const kosongTeks = computed(() => (tab.value === 'antri'
       v-model:open="tunjukOpen"
       :x="tunjukX"
       @assigned="selesaiTunjuk"
+    />
+    <DwMinta
+      v-model:open="mintaOpen"
+      @sent="refresh"
     />
   </AppPage>
 </template>

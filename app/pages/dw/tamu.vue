@@ -9,10 +9,11 @@
   (`konteksHariDw`, F.15), fed through `useDwPax` so the Ajukan sheet
   (`DwAjukan`) sees the same numbers.
 
-  The endpoint carries pax, not event titles or reservation counts, so each
-  box shows the total plus the per-source split instead of the old title
-  list. The DW half of each box is built from GET /dw/overview (approved +
-  waiting counts per day).
+  Each box prints what the old one did (:5385-5403): the total, up to two
+  event titles (+n more), the table bookings, then the DW line. Titles and
+  booking counts come from `acara` / `n` (laksamana-api#352); without them
+  the box falls back to the per-source pax split. The DW half is built from
+  GET /dw/overview (approved + waiting counts per day).
 
   Clicking any box still opens the Ajukan DW sheet for that day, so the page
   keeps its one job: see the day and act on it.
@@ -38,7 +39,16 @@ const gridDari = computed(() => mulaiKisi(mk.value))
 const gridSampai = computed(() => tambahHari(gridDari.value, 41))
 const { data: tamu, error: tamuError, refresh: refreshTamu } = useDwGuests('dw-guests', gridDari, gridSampai)
 
-const rows = computed(() => tamu.value ?? [])
+const rows = computed(() => tamu.value?.rows ?? [])
+const acaraHari = (tgl: string) => (tamu.value?.acara ?? []).filter(x => x.tgl === tgl)
+const nRsv = (tgl: string) => rows.value.filter(r => r.tgl === tgl && r.sumber === 'reservasi').reduce((a, r) => a + (Number(r.n) || 0), 0)
+/** The old `rsv` line: "3 reservasi · 45 pax" once counts exist, else the pax alone. */
+const barisRsv = (tgl: string) => {
+  const pr = paxRsv(tgl)
+  const n = nRsv(tgl)
+  if (n) return `${n} reservasi${pr ? ` · ${pr} pax` : ''}`
+  return pr ? `${pr} pax reservasi` : ''
+}
 const paxAcara = (tgl: string) => paxAcaraDari(rows.value, tgl)
 const paxRsv = (tgl: string) => paxRsvDari(rows.value, tgl)
 const paxTotal = (tgl: string) => paxTotalDari(rows.value, tgl)
@@ -244,16 +254,31 @@ const bisaKlik = () => true
               v-if="paxTotal(tgl)"
               class="text-[11px] font-bold text-highlighted num"
             >{{ paxTotal(tgl) }} pax</span>
+            <template v-if="acaraHari(tgl).length || nRsv(tgl)">
+              <span
+                v-for="x in acaraHari(tgl).slice(0, 2)"
+                :key="x.sumber + x.id"
+                class="truncate border-s-2 ps-1 text-[10px] font-semibold text-highlighted"
+                :class="x.sumber === 'event' ? 'border-vip' : 'border-primary-400'"
+                :title="x.judul"
+              >{{ x.judul }}</span>
+              <span
+                v-if="acaraHari(tgl).length > 2"
+                class="text-[10px] text-muted"
+              >+{{ acaraHari(tgl).length - 2 }} acara lagi</span>
+              <span
+                v-if="barisRsv(tgl)"
+                class="truncate border-s-2 border-info ps-1 text-[10px] text-muted num"
+              >{{ barisRsv(tgl) }}</span>
+            </template>
             <span
-              v-if="rincian(tgl)"
+              v-else-if="rincian(tgl)"
               class="text-[10px] text-muted num"
             >{{ rincian(tgl) }}</span>
             <template v-if="hariAjuan(tgl).length">
               <span class="text-[10px] font-semibold text-muted">
-                <template v-if="hariAjuan(tgl).filter(a => a.status === 'DISETUJUI').length">
-                  <b class="text-success">{{ hariAjuan(tgl).filter(a => a.status === 'DISETUJUI').length }} DW</b>
-                </template>
-                <template v-else>belum ada DW</template>
+                <!-- Old dwc line (:5402): the approved count even when it is 0. -->
+                <b :class="hariAjuan(tgl).some(a => a.status === 'DISETUJUI') && 'text-success'">{{ hariAjuan(tgl).filter(a => a.status === 'DISETUJUI').length }} DW</b>
                 <template v-if="hariAjuan(tgl).filter(a => a.status === 'MENUNGGU').length">
                   · {{ hariAjuan(tgl).filter(a => a.status === 'MENUNGGU').length }} menunggu
                 </template>
@@ -262,10 +287,6 @@ const bisaKlik = () => true
             <span
               v-else-if="paxTotal(tgl)"
               class="text-[10px] font-semibold text-warning"
-            >belum ada DW</span>
-            <span
-              v-else
-              class="text-[10px] italic text-dimmed"
             >belum ada DW</span>
           </template>
         </template>

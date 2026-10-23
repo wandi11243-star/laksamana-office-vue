@@ -44,7 +44,7 @@ const opsiOrang = computed(() => {
 })
 watch([kandidat, mk], () => {
   if (!pilihId.value || !kandidat.value.some(p => p.id === pilihId.value)) pilihId.value = kandidat.value[0]?.id ?? ''
-})
+}, { immediate: true })
 const p = computed<PekerjaDw | null>(() => kandidat.value.find(x => x.id === pilihId.value) ?? null)
 const b = computed(() => (p.value ? rekapBebanDw(set.value, ajuan.value, p.value.id, mk.value) : null))
 const list = computed(() => (p.value ? rekapAjuanDw(ajuan.value, p.value.id, mk.value) : []))

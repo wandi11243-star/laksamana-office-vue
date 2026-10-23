@@ -47,13 +47,13 @@ const opsiTapis = computed(() => [
 ])
 
 const kolom: TableColumn<PekerjaDw>[] = [
-  { id: 'no', header: '#' },
+  { id: 'no', header: 'No.' },
   { id: 'nama', header: 'Nama' },
   { id: 'hp', header: 'No. HP' },
   { id: 'divisi', header: 'Divisi / Posisi' },
   { id: 'kerja', header: () => h('span', { class: 'block text-end' }, 'Kerja') },
   { id: 'status', header: 'Status' },
-  { id: 'aksi', header: () => h('span', { class: 'block text-end' }, 'Aksi') },
+  { id: 'aksi', header: '' },
 ]
 
 const st = (p: PekerjaDw) => statistikDw(ajuan.value, p.id)

@@ -16,9 +16,9 @@
 <script setup lang="ts">
 import type { PekerjaDw } from '~/utils/dw'
 import { bolehIsiKalenderDw, kandidatDw, riwayatPakaiDw, tglLampau } from '~/utils/dw'
-import { DIVISI, namaDivisiJadwal, HARI_SENIN, hariSebulan, idxHari, labelBulanJadwal, seninDari, tglSel } from '~/utils/jadwal'
+import { DIVISI, namaDivisiJadwal, HARI_SENIN, hariSebulan, idxHari, labelBulanJadwal, seninDari, tglSel, unduhCsvJadwal } from '~/utils/jadwal'
 import { useDwBulan, useDwDasar } from '~/composables/useDw'
-import { fTgl, hariIni } from '~/utils/format'
+import { fTgl, fTglP, hariIni } from '~/utils/format'
 
 definePageMeta({ access: ['dw'] })
 
@@ -92,6 +92,53 @@ function geser(n: number) {
 async function selesai() {
   await refresh()
 }
+
+// Share tools, same order as Jadwal Bulanan (Excel · Teks WA · Print, :4914-4921).
+const toast = useToast()
+const namaDw = (id: string) => pekerja.value.find(x => x.id === id)?.nama ?? '(DW dihapus)'
+const isiSel = (dwId: string, tgl: string) => sel(dwId, tgl).filter(a => a.status !== 'DITOLAK')
+/** exportExcelDW as CSV (K-05): one row per DW, one column per day; status written when not approved. */
+function eksporExcel() {
+  if (!baris.value.length) {
+    toast.add({ title: 'Belum ada daily worker terjadwal di lembar ini', color: 'warning' })
+    return
+  }
+  const q = (v: unknown) => `"${String(v ?? '').replace(/"/g, '""')}"`
+  const head = ['No.', 'Nama', 'Posisi', ...hari.value]
+  const body = baris.value.map((x, i) => [i + 1, x.nama, x.posisi || 'DW', ...hari.value.map(d => isiSel(x.id, d)
+    .map(a => `${a.posisi || 'DW'}${a.m && a.s ? ` ${a.m}–${a.s}` : ''}${a.status === 'DISETUJUI' ? '' : ` (${a.status === 'MENUNGGU' ? 'Menunggu' : a.status})`}`)
+    .join(' · '))])
+  unduhCsvJadwal(`DW-${namaDivisiJadwal(div.value)}-${mk.value}.csv`, [head, ...body].map(r => r.map(q).join(',')).join('\n'))
+}
+/** exportWADW (:7774): per day, waiting shifts included and flagged. */
+const teksWa = computed(() => {
+  const garis = '━━━━━━━━━━━━━━━'
+  let txt = `*DAILY WORKER — ${namaDivisiJadwal(div.value).toUpperCase()}*\n_${namaBulan.value}_\n${garis}\n`
+  let nTunggu = 0
+  let nSetuju = 0
+  for (const d of hari.value) {
+    const isi = ajuanBulan.value.filter(a => a.divisi === div.value && a.tgl === d && a.status !== 'DITOLAK')
+      .sort((x, y) => String(x.m || '').localeCompare(String(y.m || '')))
+    if (!isi.length) continue
+    txt += `\n*${HARI_SENIN[idxHari(d)]} · ${fTglP(d)}${idxHari(d) >= 5 ? ' 🔴' : ''}*\n`
+    for (const a of isi) {
+      if (a.status === 'MENUNGGU') nTunggu++
+      else nSetuju++
+      txt += `   • ${namaDw(a.dwId)} _(${a.posisi || 'DW'}${a.m && a.s ? ` · ${a.m}–${a.s}` : ''})_${a.status === 'MENUNGGU' ? ' ⏳ _belum disetujui_' : ''}\n`
+    }
+  }
+  txt += `\n${garis}\n_${nSetuju} shift disetujui${nTunggu ? `, ${nTunggu} masih menunggu HR` : ''}_\n`
+  return `${txt}_Laksamana Muda · daily worker_`
+})
+const waOpen = ref(false)
+function bukaWa() {
+  if (!ajuanBulan.value.some(a => a.divisi === div.value)) {
+    toast.add({ title: 'Belum ada ajuan di lembar ini', color: 'warning' })
+    return
+  }
+  waOpen.value = true
+}
+const cetak = () => window.print()
 </script>
 
 <template>
@@ -145,13 +192,41 @@ async function selesai() {
             size="sm"
             @click="mk = hariIni().slice(0, 7)"
           />
-          <UButton
-            v-if="bisaIsi"
-            label="Tambah DW"
-            icon="i-lucide-plus"
-            size="sm"
-            @click="tambahOpen = true"
-          />
+          <div class="ms-auto flex flex-wrap items-center gap-1.5 print:hidden">
+            <UButton
+              v-if="bisaIsi"
+              label="Tambah DW ke lembar"
+              icon="i-lucide-plus"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              @click="tambahOpen = true"
+            />
+            <UButton
+              label="Excel sebulan"
+              icon="i-lucide-file-spreadsheet"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              @click="eksporExcel"
+            />
+            <UButton
+              label="Teks WA"
+              icon="i-lucide-message-circle"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              @click="bukaWa"
+            />
+            <UButton
+              label="Print / PDF"
+              icon="i-lucide-printer"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              @click="cetak"
+            />
+          </div>
         </div>
       </template>
 
@@ -343,6 +418,10 @@ async function selesai() {
         />
       </template>
     </ResponsiveSheet>
+    <JadwalTeksWA
+      v-model:open="waOpen"
+      :teks="teksWa"
+    />
   </AppPage>
 </template>
 

@@ -47,6 +47,21 @@ export interface TamuHarian {
   tgl: string
   sumber: string
   pax: number
+  /** Items summed into the row (reservasi: table bookings); absent before laksamana-api#352. */
+  n?: number
+}
+
+/** One counted Marketing/Event item of the day (`acara`, laksamana-api#352) — the old TAMU row. */
+export interface AcaraTamu {
+  tgl: string
+  sumber: string
+  id: string
+  judul: string
+  jam: string
+  tempat: string
+  fb: string
+  pax: number
+  status: string
 }
 
 /**
@@ -60,8 +75,9 @@ export interface TamuHarian {
 export const useDwGuests = (key: string, from: Ref<string>, to: Ref<string>) =>
   useAsyncData(
     key,
-    () => useApi()<Envelope<{ rows: TamuHarian[], dari: string, sampai: string }>>('/dw/guests', { query: { from: from.value, to: to.value } }).then(r => r.data.rows ?? []),
-    { watch: [from, to], default: () => [] as TamuHarian[] },
+    () => useApi()<Envelope<{ rows: TamuHarian[], acara?: AcaraTamu[], dari: string, sampai: string }>>('/dw/guests', { query: { from: from.value, to: to.value } })
+      .then(r => ({ rows: r.data.rows ?? [], acara: r.data.acara ?? [] })),
+    { watch: [from, to], default: () => ({ rows: [] as TamuHarian[], acara: [] as AcaraTamu[] }) },
   )
 
 /** The range the bootstrap must cover (`rentangDibutuhkan`, :1943). */
