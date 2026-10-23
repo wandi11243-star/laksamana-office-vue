@@ -360,7 +360,7 @@ const gantt = ref<InstanceType<typeof BdGantt> | null>(null)
         :tasks="state.tasks"
         :people="people"
         :zoom="f.zoom"
-        @buka-project="buka"
+        @buka-project="navigateTo(`/bd/projects/${$event}`)"
         @buka-task="bukaTaskSheet"
         @sub-toggle="subToggle"
       />

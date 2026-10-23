@@ -197,21 +197,6 @@ async function simpan() {
       return
     }
   }
-  const body: Partial<BdTask> = {
-    name: f.name.trim(),
-    desc: f.desc.trim(),
-    div: f.div,
-    status: f.status,
-    priority: f.priority,
-    type: f.type,
-    start: f.start || '',
-    deadline: f.deadline,
-    project: f.project || null,
-    important: f.important,
-    urgent: f.urgent,
-    subtasks,
-    dependsOn,
-  }
   setPics(body, f.pics)
   const lama = props.task
   if (lama) {

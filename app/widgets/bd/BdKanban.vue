@@ -40,7 +40,6 @@ const props = withDefaults(defineProps<{
   arsip: 'aktif',
   allowAdd: true,
 })
-const tambah = ref<Record<string, string>>({})
 const emit = defineEmits<{
   buka: [t: BdTask]
   subToggle: [t: BdTask, ix: number, on: boolean]
