@@ -352,12 +352,12 @@ export function tabTerlihatMkt(divUser?: string, role?: string): TabEventMkt[] {
   return TAB_EVENT_MKT.filter(t => t.always || t.secs.some(id => vis.includes(id)))
 }
 
-/** Section progress isi/total over its answerable, visible fields. */
+/** Section progress isi/total over its answerable, visible fields (secProgress: uploads don't count, the table lock does). */
 export function progresSeksiMkt(ev: EventMkt, seksi: SeksiEventMkt): { isi: number, total: number } {
   let isi = 0
   let total = 0
   for (const f of seksi.fields) {
-    if (f.t === 'head' || f.t === 'mirror' || f.t === 'salinlayout' || f.t === 'mejalock') continue
+    if (f.t === 'head' || f.t === 'files' || f.t === 'mirror' || f.t === 'salinlayout') continue
     if (!condTerpenuhiMkt(f, ev)) continue
     total++
     if (!kosongNilaiMkt(f.t, nilaiMentahMkt(ev, f.k) ?? nilaiFieldMkt(ev, f.k))) isi++

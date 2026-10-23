@@ -14,6 +14,7 @@ const toast = useToast()
 const { data: st } = useStateMkt()
 
 const bulan = useState('mkt-rep-bulan', () => hariIni().slice(0, 7))
+const labelBulan = computed(() => new Date(`${bulan.value}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }))
 const lap = computed(() => laporanMkt(st.value.events, st.value.settings, bulan.value))
 const namaClient = (id: string) => st.value.clients.find(c => c.id === id)?.nama ?? '—'
 const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ?? '—'
@@ -53,36 +54,36 @@ function ekspor() {
             class="max-w-56"
           />
         </UFormField>
+        <p class="mt-2 text-xs text-muted">
+          Bulannya dari tanggal acaranya, bukan tanggal input — dan hanya event berstatus Confirmed, Deal, atau Event Done.
+        </p>
       </AppPanel>
 
       <AppStatGrid>
         <AppStat
-          label="Total omset"
+          :label="`Total omset ${labelBulan}`"
           :value="rupiah(lap.total)"
-          sub="Event closing bulan ini"
+          :sub="`${lap.n} event closing`"
           tone="success"
           icon="i-lucide-banknote"
         />
         <AppStat
           label="Jumlah event"
           :value="String(lap.n)"
-          sub="Event closing bulan ini"
+          :sub="`${lap.baris.length} kategori`"
           tone="info"
           icon="i-lucide-calendar-check"
         />
         <AppStat
           label="Rata-rata per event"
           :value="rupiah(lap.rata)"
-          sub="Total ÷ jumlah event"
+          sub="omset ÷ jumlah event"
           tone="gold"
           icon="i-lucide-scale"
         />
       </AppStatGrid>
 
-      <AppPanel
-        title="Per kategori"
-        flush
-      >
+      <AppPanel flush>
         <div
           v-if="!lap.baris.length"
           class="p-8 text-center text-sm text-muted"
@@ -91,7 +92,7 @@ function ekspor() {
         </div>
         <template v-else>
           <UTable
-            :data="[...lap.baris, { jenis: 'TOTAL', n: lap.n, total: lap.total }]"
+            :data="[...lap.baris, { jenis: `TOTAL ${labelBulan.toUpperCase()}`, n: lap.n, total: lap.total }]"
             :columns="[
               { accessorKey: 'jenis', header: 'Kategori' },
               { accessorKey: 'n', header: 'Jumlah Event' },

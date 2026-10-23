@@ -7,7 +7,11 @@
 <script setup lang="ts">
 import type { NotifMkt } from '~/utils/marketing-keuangan'
 import { belumDibacaMkt, laluMkt, linkNotifMkt, pengingatMkt } from '~/utils/marketing-keuangan'
-import { mktSimpan, tandaiDibacaMkt, useStateMkt } from '~/composables/useMarketing'
+import { formatFbMkt, mktSimpan, tandaiDibacaMkt, useStateMkt } from '~/composables/useMarketing'
+import type { EventMkt } from '~/utils/marketing'
+import { kategoriEventMkt } from '~/utils/marketing'
+import type { TemplateTugasMkt } from '~/utils/marketing-tugas'
+import { progresDivMkt } from '~/utils/marketing-tugas'
 import { hariIni } from '~/utils/format'
 
 definePageMeta({ access: ['marketing'] })
@@ -16,7 +20,14 @@ const router = useRouter()
 const { data: st } = useStateMkt()
 const hari = hariIni()
 
-const live = computed(() => pengingatMkt(st.value.events, st.value.clients, st.value.settings, hari))
+// taskProgress(e): the average readiness of the event's to-do categories.
+const progres = (e: EventMkt) => {
+  const kat = kategoriEventMkt(e, formatFbMkt(st.value))
+  if (!kat.length) return 0
+  const tpl = st.value.taskTemplates as unknown as TemplateTugasMkt[]
+  return Math.round(kat.reduce((a, d) => a + progresDivMkt(e, d, tpl), 0) / kat.length)
+}
+const live = computed(() => pengingatMkt(st.value.events, st.value.clients, st.value.settings, hari, progres))
 const riwayat = computed<NotifMkt[]>(() => [...((st.value.notifs as unknown as NotifMkt[] | undefined) ?? [])].sort((a, b) => String(b.at ?? '').localeCompare(String(a.at ?? ''))))
 const belum = computed(() => belumDibacaMkt(riwayat.value))
 
@@ -24,6 +35,10 @@ const ikon = (t?: string) => ({
   dp: 'i-lucide-wallet', event: 'i-lucide-calendar', fu: 'i-lucide-phone-call',
   inv: 'i-lucide-alarm-clock', approval: 'i-lucide-circle-check', payment: 'i-lucide-banknote',
 }[String(t ?? '')] ?? 'i-lucide-bell')
+// colMap of the old screen: the icon carries the reminder's colour.
+const warna = (t?: string) => ({
+  dp: 'text-warning', event: 'text-info', fu: 'text-primary-700', inv: 'text-error', approval: 'text-vip', payment: 'text-success',
+}[String(t ?? '')] ?? 'text-muted')
 
 async function buka(n: NotifMkt) {
   if (!n.read && n.id) {
@@ -48,7 +63,6 @@ async function tandaiSemua() {
   >
     <template #actions>
       <UButton
-        v-if="belum"
         label="Tandai semua dibaca"
         color="neutral"
         variant="outline"
@@ -78,7 +92,8 @@ async function tandaiSemua() {
             >
               <UIcon
                 :name="ikon(n.type)"
-                class="size-5 shrink-0 text-muted"
+                class="size-5 shrink-0"
+                :class="warna(n.type)"
               />
               <span class="min-w-0 flex-1">
                 <b class="block text-sm text-highlighted">{{ n.title }}</b>
@@ -93,7 +108,10 @@ async function tandaiSemua() {
         </ul>
       </AppPanel>
 
-      <AppPanel title="Riwayat Notifikasi">
+      <AppPanel
+        title="Riwayat Notifikasi"
+        description="Kejadian yang tercatat sistem — sama dengan isi popup lonceng."
+      >
         <template #head>
           <UBadge
             v-if="belum"
