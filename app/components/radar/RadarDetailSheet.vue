@@ -114,9 +114,9 @@ const desk = computed(() => (detail.value?.event?.description ? tanpaTag(detail.
             <div
               v-for="s in sorot"
               :key="s.label"
-              class="rounded-r-field border-l-3 border-primary-400 bg-primary-50 px-3 py-2 dark:bg-primary-950/40"
+              class="rounded-r-field border-l-3 border-primary-400 bg-primary-50 px-3 py-2"
             >
-              <p class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-primary-700 dark:text-primary-300">
+              <p class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-primary-700">
                 <UIcon
                   :name="s.icon"
                   class="size-3.5"
@@ -275,9 +275,9 @@ const desk = computed(() => (detail.value?.event?.description ? tanpaTag(detail.
       />
       <div
         v-if="pilih.r.notes"
-        class="mb-3 rounded-field border border-primary-200 bg-primary-50 p-3 text-sm dark:border-primary-900 dark:bg-primary-950/40"
+        class="mb-3 rounded-field border border-primary-200 bg-primary-50 p-3 text-sm"
       >
-        <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-primary-700 dark:text-primary-300">
+        <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-primary-700">
           Catatan
         </p>
         {{ pilih.r.notes }}
@@ -312,6 +312,7 @@ const desk = computed(() => (detail.value?.event?.description ? tanpaTag(detail.
       <UButton
         label="Lihat detail lengkap"
         icon="i-lucide-file-text"
+        class="min-h-11"
         :to="`/radar/detail/${pilih.a.sumber}/${encodeURIComponent(pilih.a.id)}`"
         @click="open = false"
       />

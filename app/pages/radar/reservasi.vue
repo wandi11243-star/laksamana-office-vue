@@ -111,12 +111,14 @@ useSegarSenyap(refresh, () => buka.value)
             color="neutral"
             variant="outline"
             size="sm"
+            class="min-h-11"
             @click="kirimWa"
           />
           <UButton
             label="Cetak"
             icon="i-lucide-printer"
             size="sm"
+            class="min-h-11"
             @click="cetak"
           />
         </div>
@@ -194,21 +196,21 @@ useSegarSenyap(refresh, () => buka.value)
             v-model="f.q"
             placeholder="Nama, nomor, meja…"
             icon="i-lucide-search"
-            class="w-full"
+            class="[&_input]:min-h-11 w-full"
           />
         </UFormField>
         <UFormField label="Status">
           <USelect
             v-model="f.status"
             :items="opsiStatus"
-            class="w-full"
+            class="min-h-11 w-full"
           />
         </UFormField>
         <UFormField label="Kategori">
           <USelect
             v-model="f.kategori"
             :items="opsiKat"
-            class="w-full"
+            class="min-h-11 w-full"
           />
         </UFormField>
       </AppFilterGrid>
@@ -221,6 +223,7 @@ useSegarSenyap(refresh, () => buka.value)
           v-model="f.view"
           :options="OPSI_VIEW"
           size="sm"
+          class="[&_button]:min-h-11"
         />
       </div>
     </AppPanel>
@@ -243,7 +246,7 @@ useSegarSenyap(refresh, () => buka.value)
           v-for="r in iris(list, hal)"
           :key="r.id"
           type="button"
-          class="rounded-panel border border-default bg-default p-3.5 text-left shadow-panel transition-colors hover:border-primary-300"
+          class="min-h-11 rounded-panel border border-default bg-default p-3.5 text-left shadow-panel transition-colors hover:border-primary-300"
           @click="bukaRes(r)"
         >
           <span class="flex items-baseline gap-2">
@@ -318,7 +321,7 @@ useSegarSenyap(refresh, () => buka.value)
       <div
         v-for="r in khusus"
         :key="r.id"
-        class="mb-2 rounded-r-field border-l-4 border-primary-400 bg-primary-50 px-3 py-2 text-sm dark:bg-primary-950/40"
+        class="mb-2 rounded-r-field border-l-4 border-primary-400 bg-primary-50 px-3 py-2 text-sm"
       >
         <b class="text-highlighted">{{ r.name || '—' }}</b>
         <span class="text-muted num"> ({{ r.time || '—' }} · {{ Number(r.pax) || 0 }} pax{{ r.table ? ` · ${r.table}` : '' }})</span>

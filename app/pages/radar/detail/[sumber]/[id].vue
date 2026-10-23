@@ -64,18 +64,20 @@ const cetak = () => window.print()
     description="Detail lengkap, baca-saja — bisa dicetak atau disimpan sebagai PDF."
   >
     <template #actions>
-      <div class="flex gap-2 print:hidden">
+      <div class="flex flex-wrap gap-2 print:hidden">
         <UButton
           label="Daftar Event"
           icon="i-lucide-chevron-left"
           color="neutral"
           variant="outline"
+          class="min-h-11"
           to="/radar/agenda"
         />
         <UButton
           v-if="d"
           label="Cetak / Simpan PDF"
           icon="i-lucide-printer"
+          class="min-h-11"
           @click="cetak"
         />
       </div>

@@ -92,7 +92,7 @@ useSegarSenyap(refresh, () => buka.value)
           v-model="fb"
           :items="opsiFb"
           size="sm"
-          class="w-52"
+          class="min-h-11 w-52"
           aria-label="Format F&B"
         />
       </div>
@@ -194,7 +194,7 @@ useSegarSenyap(refresh, () => buka.value)
           title="Hari ini"
           icon="i-lucide-sun"
         >
-          <p class="font-semibold text-primary-700 dark:text-primary-300">
+          <p class="font-semibold text-primary-700">
             {{ fTgl(hari) }}
           </p>
           <p class="mt-2 text-[11px] font-bold uppercase tracking-wide text-muted">
@@ -232,7 +232,7 @@ useSegarSenyap(refresh, () => buka.value)
             color="neutral"
             variant="outline"
             block
-            class="mt-3"
+            class="mt-3 min-h-11"
             :to="{ path: '/radar/reservasi', query: { tgl: hari } }"
           />
         </AppPanel>

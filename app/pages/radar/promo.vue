@@ -110,14 +110,14 @@ useSegarSenyap(refresh)
             v-model="f.q"
             placeholder="Promo, partner, kode…"
             icon="i-lucide-search"
-            class="w-full"
+            class="[&_input]:min-h-11 w-full"
           />
         </UFormField>
         <UFormField label="Tipe">
           <USelect
             v-model="f.tipe"
             :items="opsiTipe"
-            class="w-full"
+            class="min-h-11 w-full"
           />
         </UFormField>
       </AppFilterGrid>
@@ -227,7 +227,7 @@ useSegarSenyap(refresh)
           v-if="p.ketentuan"
           class="mt-2"
         >
-          <summary class="cursor-pointer text-xs text-muted">
+          <summary class="min-h-11 cursor-pointer content-center text-xs text-muted">
             Ketentuan
           </summary>
           <p class="mt-1 whitespace-pre-wrap text-xs text-muted">
