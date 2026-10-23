@@ -356,9 +356,10 @@ async function hapus() {
       <div class="grid gap-4 *:min-w-0 sm:grid-cols-2">
         <UFormField label="Berulang">
           <USelect
-            v-model="f.ulang"
-            :items="ULANG.map(([value, label]) => ({ value, label }))"
+            :model-value="f.ulang || PILIHAN_TANPA"
+            :items="[{ value: PILIHAN_TANPA, label: 'Tidak berulang' }, ...ULANG.filter(([v]) => !!v).map(([value, label]) => ({ value, label }))]"
             class="w-full"
+            @update:model-value="(v: string | undefined) => { f.ulang = !v || v === PILIHAN_TANPA ? '' : v }"
           />
           <template #hint>
             Saat ditandai Done, task berikutnya lahir otomatis dengan deadline berikutnya. Butuh deadline.
