@@ -15,6 +15,7 @@
 export const LAYAR_BD: Layar[] = [
   { key: 'dashboard', label: 'Dashboard', desc: 'Kondisi hari ini — task, project & purchasing', icon: 'i-lucide-layout-dashboard', to: '/bd/dashboard', grup: 'Workspace' },
   { key: 'mytask', label: 'My Task', desc: 'Task yang kamu pegang — yang telat, minggu ini, dan yang masih menunggu task lain', icon: 'i-lucide-list-checks', to: '/bd/mytask', grup: 'Workspace' },
+  { key: 'daily', label: 'Daily Task', desc: 'Pekerjaan harian tim — bisa berulang otomatis (harian, hari kerja, mingguan, bulanan)', icon: 'i-lucide-repeat', to: '/bd/daily', grup: 'Workspace' },
   { key: 'projects', label: 'Projects', desc: 'Pekerjaan besar berjangka + milestone', icon: 'i-lucide-folder-kanban', to: '/bd/projects', grup: 'Workspace' },
   { key: 'calendar', label: 'Calendar', desc: 'Deadline, milestone & agenda', icon: 'i-lucide-calendar-days', to: '/bd/calendar', grup: 'Workspace' },
   { key: 'promo', label: 'Promotion', desc: 'Promo berjalan & akan datang — terbaca seluruh kru di Radar', icon: 'i-lucide-tag', to: '/bd/promo', grup: 'Operasi' },
