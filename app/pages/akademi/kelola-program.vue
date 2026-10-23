@@ -178,6 +178,10 @@ async function konfirmasiHapus() {
 
 const rata = (p: ProgramAkademi) => rataRataProgram(p, users.value, materials.value, progProg.value)
 const itemCount = (p: ProgramAkademi) => materiProgram(p, materials.value).length
+
+// Reimagine (B): actionable queue. The running month is the focal work, older
+// programs stay as the archive below.
+const programBerjalan = computed(() => daftar.value.find(p => p.bulan === kunciBulanIni()) ?? null)
 </script>
 
 <template>
@@ -207,6 +211,30 @@ const itemCount = (p: ProgramAkademi) => materiProgram(p, materials.value).lengt
     </AppPanel>
 
     <template v-else>
+      <AppPanel
+        v-if="programBerjalan"
+        title="Fokus bulan ini"
+        icon="i-lucide-play"
+      >
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="min-w-0">
+            <p class="font-semibold text-highlighted">
+              {{ programBerjalan.title }}
+            </p>
+            <p class="mt-0.5 text-[12.5px] text-muted">
+              Deadline {{ programBerjalan.deadline }} · {{ rata(programBerjalan) }}% rata-rata kepatuhan.
+            </p>
+          </div>
+          <UButton
+            label="Duplikat ke bulan depan"
+            icon="i-lucide-repeat"
+            color="neutral"
+            variant="outline"
+            @click="duplikat(programBerjalan)"
+          />
+        </div>
+      </AppPanel>
+
       <AppPanel
         title="Program bulanan"
         icon="i-lucide-calendar-cog"

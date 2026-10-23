@@ -100,6 +100,10 @@ async function sinkron() {
 }
 
 const peranTone = (r: KruAkademi['role']): 'gold' | 'info' | 'neutral' => (r === 'admin' ? 'gold' : r === 'manager' ? 'info' : 'neutral')
+
+// Reimagine (B): actionable queue. Crew without a title are the focal fix,
+// the full roster stays as the archive.
+const tanpaJabatan = computed(() => aktif.value.filter(k => !(k.title ?? '').trim()))
 </script>
 
 <template>
@@ -131,87 +135,112 @@ const peranTone = (r: KruAkademi['role']): 'gold' | 'info' | 'neutral' => (r ===
       </p>
     </AppPanel>
 
-    <AppPanel
-      v-else
-      title="Kru aktif"
-      icon="i-lucide-anchor"
-      :count="aktif.length"
-      flush
-    >
-      <div class="hidden lg:block">
-        <UTable
-          :data="aktif"
-          :columns="kolom"
-        >
-          <template #nama-cell="{ row }">
-            <b>{{ row.original.name }}</b>
-          </template>
-          <template #jabatan-cell="{ row }">
-            {{ row.original.title || '-' }}
-          </template>
-          <template #divisi-cell="{ row }">
-            {{ namaDivisi(daftarDivisi, row.original.division) }}
-          </template>
-          <template #peran-cell="{ row }">
-            <AppStatus
-              :color="peranTone(row.original.role)"
-              icon="i-lucide-user-round"
-              size="sm"
-            >
-              {{ LABEL_PERAN[row.original.role] }}
-            </AppStatus>
-          </template>
-          <template #aksi-cell="{ row }">
-            <UButton
-              label="Atur"
-              icon="i-lucide-pencil"
-              size="sm"
-              color="neutral"
-              variant="outline"
-              @click="bukaForm(row.original)"
-            />
-          </template>
-        </UTable>
-      </div>
-      <div class="divide-y divide-default lg:hidden">
-        <div
-          v-for="k in aktif"
-          :key="k.id"
-          class="flex items-center justify-between gap-3 px-4 py-3"
-        >
+    <template v-else>
+      <AppPanel
+        title="Perlu dilengkapi"
+        icon="i-lucide-play"
+      >
+        <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="min-w-0">
-            <p class="truncate font-semibold text-highlighted">
-              {{ k.name }}
+            <p class="font-semibold text-highlighted">
+              {{ tanpaJabatan.length ? `${tanpaJabatan.length} kru belum ada jabatan` : 'Semua kru sudah ada jabatan' }}
             </p>
-            <p class="text-xs text-muted">
-              {{ k.title || '-' }} · {{ namaDivisi(daftarDivisi, k.division) }}
+            <p class="mt-0.5 text-[12.5px] text-muted">
+              {{ tanpaJabatan.length ? `Mulai dari ${tanpaJabatan[0]?.name ?? '—'}, lengkapi satu per satu.` : 'Roster rapi, sinkron ulang bila ada kru baru di Office.' }}
             </p>
           </div>
-          <div class="flex shrink-0 items-center gap-2">
-            <AppStatus
-              :color="peranTone(k.role)"
-              icon="i-lucide-user-round"
-              size="sm"
-            >
-              {{ LABEL_PERAN[k.role] }}
-            </AppStatus>
-            <UButton
-              label="Atur"
-              size="sm"
-              color="neutral"
-              variant="outline"
-              @click="bukaForm(k)"
-            />
-          </div>
+          <UButton
+            v-if="tanpaJabatan.length"
+            label="Lengkapi sekarang"
+            icon="i-lucide-arrow-right"
+            color="neutral"
+            variant="outline"
+            @click="bukaForm(tanpaJabatan[0]!)"
+          />
         </div>
-        <p
-          v-if="!aktif.length"
-          class="px-4 py-3 text-sm text-muted"
-        >
-          Belum ada kru aktif. Coba "Sinkronkan roster Office".
-        </p>
-      </div>
-    </AppPanel>
+      </AppPanel>
+
+      <AppPanel
+        title="Kru aktif"
+        icon="i-lucide-anchor"
+        :count="aktif.length"
+        flush
+      >
+        <div class="hidden lg:block">
+          <UTable
+            :data="aktif"
+            :columns="kolom"
+          >
+            <template #nama-cell="{ row }">
+              <b>{{ row.original.name }}</b>
+            </template>
+            <template #jabatan-cell="{ row }">
+              {{ row.original.title || '-' }}
+            </template>
+            <template #divisi-cell="{ row }">
+              {{ namaDivisi(daftarDivisi, row.original.division) }}
+            </template>
+            <template #peran-cell="{ row }">
+              <AppStatus
+                :color="peranTone(row.original.role)"
+                icon="i-lucide-user-round"
+                size="sm"
+              >
+                {{ LABEL_PERAN[row.original.role] }}
+              </AppStatus>
+            </template>
+            <template #aksi-cell="{ row }">
+              <UButton
+                label="Atur"
+                icon="i-lucide-pencil"
+                size="sm"
+                color="neutral"
+                variant="outline"
+                @click="bukaForm(row.original)"
+              />
+            </template>
+          </UTable>
+        </div>
+        <div class="divide-y divide-default lg:hidden">
+          <div
+            v-for="k in aktif"
+            :key="k.id"
+            class="flex items-center justify-between gap-3 px-4 py-3"
+          >
+            <div class="min-w-0">
+              <p class="truncate font-semibold text-highlighted">
+                {{ k.name }}
+              </p>
+              <p class="text-xs text-muted">
+                {{ k.title || '-' }} · {{ namaDivisi(daftarDivisi, k.division) }}
+              </p>
+            </div>
+            <div class="flex shrink-0 items-center gap-2">
+              <AppStatus
+                :color="peranTone(k.role)"
+                icon="i-lucide-user-round"
+                size="sm"
+              >
+                {{ LABEL_PERAN[k.role] }}
+              </AppStatus>
+              <UButton
+                label="Atur"
+                size="sm"
+                color="neutral"
+                variant="outline"
+                @click="bukaForm(k)"
+              />
+            </div>
+          </div>
+          <p
+            v-if="!aktif.length"
+            class="px-4 py-3 text-sm text-muted"
+          >
+            Belum ada kru aktif. Coba "Sinkronkan roster Office".
+          </p>
+        </div>
+      </AppPanel>
+    </template>
 
     <ResponsiveSheet
       v-model:open="formOpen"
