@@ -95,7 +95,7 @@ async function simpan() {
   }
   setPics(body, f.pics)
   const dulu = lama ? lama.stage : ''
-  const ikut = (f.stage === 'Completed' && dulu !== 'Completed') ? tasksPerluDitutup(props.tasks, lama?.id || '') : []
+  const ikut = (f.stage === 'Done' && dulu !== 'Done') ? tasksPerluDitutup(props.tasks, lama?.id || '') : []
   const aksi = async () => {
     if (lama) await ubahBd<BdProject>('projects', lama.id, { ...body, id: lama.id }, versiBaris(lama))
     else await buatBd<BdProject>('projects', body)

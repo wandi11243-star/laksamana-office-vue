@@ -52,7 +52,7 @@ const grup = computed(() => [
   { judul: 'Berikutnya', items: buka.value.filter(t => !lewat(t) && !terkunci(t) && (!t.deadline || sisaHari(t.deadline) > 7)) },
   { judul: 'Menunggu task lain', items: buka.value.filter(t => !lewat(t) && terkunci(t)) },
 ])
-const proyekKu = computed(() => projects.value.filter(p => aku.value && pics(p).includes(aku.value.id) && p.stage !== 'Completed'))
+const proyekKu = computed(() => projects.value.filter(p => aku.value && pics(p).includes(aku.value.id) && p.stage !== 'Done'))
 const baruSelesai = computed(() => semua.value.filter(selesai)
   .slice().sort((a, b) => (a.doneAt || '') < (b.doneAt || '') ? 1 : -1).slice(0, 6))
 

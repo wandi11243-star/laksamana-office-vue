@@ -44,7 +44,7 @@ const cocokAssign = (t: BdTask) => !fPics.value.length || pelaksana(t).some(id =
 const base = computed(() => saringLingkup(state.value.projects, f.value.scope, lingkup.value, aku.value?.id)
   .filter(f.value.view === 'task' ? () => true : cocokPic)
   .filter(p => f.value.div === PILIHAN_SEMUA || p.div === f.value.div)
-  .filter(p => f.value.st === 'semua' || (f.value.st === 'selesai' ? p.stage === 'Completed' : p.stage !== 'Completed')))
+  .filter(p => f.value.st === 'semua' || (f.value.st === 'selesai' ? p.stage === 'Done' : p.stage !== 'Done')))
 const diStage = (st: string) => base.value.filter(p => p.stage === st)
 /** Cards, most-attention first (`vProjects` kartu view). */
 const kartu = computed(() => urutProjectPerhatian(base.value))
@@ -96,7 +96,7 @@ function reset() {
 async function pindahStage(p: BdProject, st: string) {
   const dulu = p.stage
   if (st === dulu) return
-  const ikut = (st === 'Completed' && dulu !== 'Completed') ? tasksPerluDitutup(state.value.tasks, p.id) : []
+  const ikut = (st === 'Done' && dulu !== 'Done') ? tasksPerluDitutup(state.value.tasks, p.id) : []
   const aksi = async () => {
     await tambalBd<BdProject>('projects', p.id, { stage: st }, versiBaris(p))
     // Closing stamps Done + doneAt (old `tuntaskanTaskProject`): the deadline
@@ -400,7 +400,7 @@ function subToggle(t: BdTask, ix: number, on: boolean) {
         />
       </UFormField>
       <p class="mt-3 text-xs text-muted">
-        Memindahkan ke <b>Completed</b> menutup semua task project ini (status Done, progress 100).
+        Memindahkan ke <b>Done</b> menutup semua task project ini (status Done, progress 100).
       </p>
       <template #footer>
         <UButton

@@ -96,6 +96,12 @@ export interface BdTask {
   subtasks?: BdSubtask[]
   /** Ids of tasks that must be Done first. Only Done is held (`cekBolehDone`). */
   dependsOn?: string[]
+  /** Daily Task: this task lives on the Daily board, never inside a project. */
+  daily?: boolean
+  /** Recurrence (`harian`|`kerja`|`mingguan`|`bulanan`); empty = one-off. */
+  ulang?: string
+  /** Guard: the Done task this recurrence was born from — reopening + Done again never twins. */
+  ulangDari?: string
   /** Stamped when the task becomes Done, dropped when reopened: a done deadline stops counting. */
   doneAt?: string
   createdAt?: number

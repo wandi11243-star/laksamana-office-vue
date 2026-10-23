@@ -50,8 +50,8 @@ function hitung(query: string): HasilCari[] {
   for (const p of props.projects) {
     if (cocok(p.name)) {
       hasil.push({
-        jenis: 'project', grup: 'Project', id: p.id, nama: p.name, selesai: p.stage === 'Completed',
-        ket: (p.stage || '') + (p.stage === 'Completed' ? ' · selesai' : ''),
+        jenis: 'project', grup: 'Project', id: p.id, nama: p.name, selesai: p.stage === 'Done',
+        ket: (p.stage || '') + (p.stage === 'Done' ? ' · selesai' : ''),
       })
     }
   }
