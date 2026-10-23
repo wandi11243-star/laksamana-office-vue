@@ -13,7 +13,7 @@ import {
   versiBaris, versiSetelan,
 } from '~/composables/useBd'
 import {
-  PENYETUJU_BIBIT, PILIHAN_SEMUA, PO_FLOW, awalMinggu, cariAku, fieldsProses, fRp, fRpPenuh, geserMinggu,
+  PENYETUJU_BIBIT, PILIHAN_SEMUA, PO_FLOW, awalMinggu, cariAku, fieldsProses, fRp, fRpPenuh, fWaktu, geserMinggu,
   jabatanOrang, labelMinggu, poBeres, poRequester, prBeres, prItems, prNoBerikut, prTotal,
   penyetujuPr, todayISO, uidBd,
 } from '~/utils/bd-rumus'
@@ -74,6 +74,23 @@ async function hapusPo() {
   if (!p) return
   poHapus.value = null
   await bdSimpan(() => hapusBd('purchase-orders', p.id, versiBaris(p)), 'PO dihapus')
+}
+const prHapus = ref<BdPr | null>(null)
+const hapusPrMau = computed({
+  get: () => !!prHapus.value,
+  set: (v) => {
+    if (!v) prHapus.value = null
+  },
+})
+async function hapusPrDok() {
+  const x = prHapus.value
+  if (!x) return
+  prHapus.value = null
+  const aksi = async () => {
+    for (const it of prIsi(x.id)) await tambalBd<BdPo>('purchase-orders', it.id, { prId: null }, versiBaris(it))
+    await hapusBd('purchase-requests', x.id, versiBaris(x))
+  }
+  await bdSimpan(aksi, 'Dokumen PR dihapus, itemnya dilepas')
 }
 function toggleProses(p: BdPo) {
   const on = !poBeres(p)
@@ -326,6 +343,9 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
                 <th class="px-2 py-2 text-start text-[11px] uppercase tracking-wide">
                   Butuh
                 </th>
+                <th class="px-2 py-2 text-start text-[11px] uppercase tracking-wide">
+                  Diinput
+                </th>
                 <th class="px-2 py-2" />
               </tr>
             </thead>
@@ -377,6 +397,9 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
                 </td>
                 <td class="px-2 py-2 whitespace-nowrap text-muted">
                   {{ p.needBy ? fTglP(p.needBy) : '—' }}
+                </td>
+                <td class="px-2 py-2 whitespace-nowrap text-muted">
+                  {{ fWaktu(p.at) }}
                 </td>
                 <td class="px-2 py-2">
                   <div class="flex justify-end gap-1">
@@ -438,7 +461,13 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
                   Tanggal
                 </th>
                 <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
+                  Periode
+                </th>
+                <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
                   Penyusun
+                </th>
+                <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
+                  Dept
                 </th>
                 <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
                   Isi lembar
@@ -458,6 +487,9 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
                 <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
                   Status
                 </th>
+                <th class="px-3 py-2 text-end text-[11px] uppercase tracking-wide">
+                  <span class="sr-only">Aksi</span>
+                </th>
               </tr>
             </thead>
             <tbody class="divide-y divide-default">
@@ -473,14 +505,30 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
                 <td class="px-3 py-2 whitespace-nowrap text-muted">
                   {{ fTglP(x.tanggal) }}
                 </td>
+                <td class="px-3 py-2 whitespace-nowrap text-muted">
+                  {{ labelMinggu(x.weekStart || x.tanggal) }}
+                </td>
                 <td class="px-3 py-2 text-muted">
                   {{ x.nama || '—' }}
                 </td>
+                <td class="px-3 py-2 text-muted">
+                  {{ String(x.dept || '—').split(' ')[0] }}
+                </td>
                 <td class="max-w-[260px] px-3 py-2 text-xs text-muted">
-                  {{ prIsi(x.id).slice(0, 5).map(p => p.item).join(', ') || 'belum ada item' }}
+                  {{ prIsi(x.id).slice(0, 5).map(p => p.item).join(', ') || 'belum ada item' }}<template v-if="prIsi(x.id).length > 5">
+                    <b> +{{ prIsi(x.id).length - 5 }} lagi</b>
+                  </template>
                 </td>
                 <td class="px-3 py-2 num">
                   {{ prIsi(x.id).length }}
+                  <div v-if="prTotal(x.id, semuaPo).belum">
+                    <AppStatus
+                      size="sm"
+                      color="warning"
+                    >
+                      {{ prTotal(x.id, semuaPo).belum }} tanpa harga
+                    </AppStatus>
+                  </div>
                 </td>
                 <td class="px-3 py-2">
                   <AppStatus size="sm">
@@ -507,6 +555,16 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
                   >
                     {{ x.status || 'Draft' }}
                   </AppStatus>
+                </td>
+                <td class="px-3 py-2 text-end">
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    aria-label="Hapus dokumen PR"
+                    @click.stop="prHapus = x"
+                  />
                 </td>
               </tr>
             </tbody>
@@ -847,6 +905,12 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
       v-model:open="hapusMau"
       title="Hapus purchase order ini?"
       @konfirmasi="hapusPo"
+    />
+    <BdKonfirmasi
+      v-model:open="hapusPrMau"
+      title="Hapus dokumen PR ini?"
+      :description="prHapus ? `${prIsi(prHapus.id).length} item di dalamnya TIDAK ikut terhapus — mereka kembali jadi request bebas dan bisa dimasukkan ke PR lain.` : undefined"
+      @konfirmasi="hapusPrDok"
     />
     <BdKonfirmasi
       v-model:open="konfirmasiPr"

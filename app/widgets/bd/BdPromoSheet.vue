@@ -11,6 +11,7 @@ import type { Versi } from '~/utils/versi'
 import { PROMO_OUTLET_BAWAAN, promoOutletOpsi } from '~/utils/bd-promo'
 import { uidBd } from '~/utils/bd-rumus'
 import { PROMO_HARI, PROMO_HARI_PANJANG, PROMO_KAT, PROMO_TIPE, promoHariArr } from '~/utils/promo'
+import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 
 const props = defineProps<{
   promo?: BdPromo | null
@@ -214,6 +215,16 @@ async function simpan() {
     ? props.promos.map(p => (p.id === lama.id ? { ...p, ...isi } : p))
     : [{ id: uidBd('pr'), paused: false, dibuatOleh: props.namaAku || '', dibuatAt: Date.now(), ...isi }, ...props.promos]
   const ok = await bdSimpan(() => putSetelan('promos', daftar, props.versi), lama ? 'Promo diperbarui' : 'Promo ditambahkan')
+  if (ok) open.value = false
+}
+
+const hapusMau = ref(false)
+async function hapus() {
+  const lama = props.promo
+  if (!lama) return
+  hapusMau.value = false
+  const daftar = props.promos.filter(p => p.id !== lama.id)
+  const ok = await bdSimpan(() => putSetelan('promos', daftar, props.versi), 'Promo dihapus')
   if (ok) open.value = false
 }
 </script>
@@ -451,6 +462,21 @@ async function simpan() {
         variant="outline"
         @click="open = false"
       />
+      <UButton
+        v-if="promo"
+        label="Hapus"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="soft"
+        @click="hapusMau = true"
+      />
     </template>
   </ResponsiveSheet>
+
+  <BdKonfirmasi
+    v-model:open="hapusMau"
+    :title="`Hapus promo &quot;${promo?.nama || ''}&quot;?`"
+    description="Ia juga akan hilang dari modul Radar untuk seluruh kru."
+    @konfirmasi="hapus"
+  />
 </template>

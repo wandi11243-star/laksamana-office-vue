@@ -12,7 +12,7 @@
 <script setup lang="ts">
 import type { BdApproverSet, BdPo, BdPr } from '~/composables/useBd'
 import {
-  bdSimpan, bdTulisDiam, hapusBd, setRealisasi, tambalBd, useBdSettings, useBdState,
+  bdSimpan, bdTulisDiam, setRealisasi, tambalBd, useBdSettings, useBdState,
   versiBaris,
 } from '~/composables/useBd'
 import {
@@ -20,7 +20,6 @@ import {
   prBeres, prItems, prTotal, realisasiNum, rzFormat, todayISO,
 } from '~/utils/bd-rumus'
 import { WARNA_PO } from '~/utils/status-bd'
-import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdPrSheet from '~/widgets/bd/BdPrSheet.vue'
 import { fTgl } from '~/utils/format'
 
@@ -155,19 +154,6 @@ async function setuju(kunci: string, batal: boolean) {
   await bdSimpan(() => tambalBd<BdPr>('purchase-requests', p.id, { approvals, status }, versiBaris(p)), batal ? 'Persetujuan dibatalkan' : `${def?.l || kunci} disetujui`)
 }
 
-async function hapusPr() {
-  const p = pr.value
-  if (!p) return
-  hapusMau.value = false
-  const aksi = async () => {
-    for (const it of items.value) await tambalBd<BdPo>('purchase-orders', it.id, { prId: null }, versiBaris(it))
-    await hapusBd('purchase-requests', p.id, versiBaris(p))
-  }
-  const ok = await bdSimpan(aksi, 'Dokumen PR dihapus, itemnya dilepas')
-  if (ok) navigateTo('/bd/purchasing')
-}
-const hapusMau = ref(false)
-
 const toast = useToast()
 </script>
 
@@ -205,14 +191,6 @@ const toast = useToast()
         color="neutral"
         variant="outline"
         @click="statusPr('Draft')"
-      />
-      <UButton
-        v-if="pr"
-        label="Hapus"
-        icon="i-lucide-trash-2"
-        color="error"
-        variant="soft"
-        @click="hapusMau = true"
       />
     </template>
 
@@ -609,12 +587,6 @@ const toast = useToast()
         :pr-all="state.pr"
         :sets="setsEfektif"
         :people="people"
-      />
-      <BdKonfirmasi
-        v-model:open="hapusMau"
-        title="Hapus dokumen PR ini?"
-        :description="`${items.length} item di dalamnya TIDAK ikut terhapus — mereka kembali jadi request bebas.`"
-        @konfirmasi="hapusPr"
       />
     </template>
   </AppPage>
