@@ -117,6 +117,7 @@ async function setPeran(u: AnalyticsAnggota, peran: string) {
     if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
 }
+const opsiPeran = ['staf', 'manajemen', 'viewer'].map(r => ({ value: r, label: ROLE_LABEL_ANALYTICS[r] ?? r }))
 </script>
 
 <template>
@@ -273,8 +274,13 @@ async function setPeran(u: AnalyticsAnggota, peran: string) {
 
       <AppPanel
         title="Role Tiap Kru"
-        description="Kru yang belum pernah ditentukan rolenya dihitung sebagai Staf."
       >
+        <template #description>
+          Kru yang belum pernah ditentukan rolenya dihitung sebagai <b>Staf</b>.
+          <b>Staf:</b> Mengunggah laporan POS dan membaca seluruh analisanya.
+          <b>Manajemen:</b> Membaca analisanya; tidak mengunggah berkas.
+          <b>View Only:</b> Membaca saja — tidak pernah bisa mengubah apa pun.
+        </template>
         <div
           v-if="anggotaStatus === 'pending'"
           class="text-sm text-muted"
@@ -289,34 +295,86 @@ async function setPeran(u: AnalyticsAnggota, peran: string) {
             Belum ada kru yang diberi kunci modul analytics di Kelola Akses Office.
           </p>
         </div>
-        <div
-          v-else
-          class="divide-y divide-default"
-        >
-          <div
-            v-for="u in anggota"
-            :key="u.id"
-            class="flex items-center gap-3 py-2.5"
-          >
-            <div class="min-w-0 flex-1">
-              <b class="block text-sm">{{ u.name }}</b>
-              <span class="block text-xs text-muted">{{ u.keterangan || u.username || '—' }}{{ u.isModuleAdmin ? ' · admin modul' : '' }}</span>
+        <template v-else>
+          <!-- Old role table (:8130): Nama | Tim | Role, the role as a three-way segment. -->
+          <table class="hidden w-full text-sm lg:table">
+            <thead class="bg-table-head text-left text-xs font-bold uppercase tracking-wide text-table-head-text">
+              <tr>
+                <th class="px-3 py-2">
+                  Nama
+                </th>
+                <th class="px-3 py-2">
+                  Tim
+                </th>
+                <th class="px-3 py-2">
+                  Role
+                </th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-default">
+              <tr
+                v-for="u in anggota"
+                :key="u.id"
+              >
+                <td class="px-3 py-2">
+                  <b>{{ u.name }}</b>
+                  <AppStatus
+                    v-if="u.isModuleAdmin"
+                    size="sm"
+                    color="gold"
+                    class="ms-2"
+                  >
+                    admin modul
+                  </AppStatus>
+                </td>
+                <td class="px-3 py-2 text-muted">
+                  {{ u.keterangan || u.username || '—' }}
+                </td>
+                <td class="px-3 py-2">
+                  <span
+                    v-if="u.isModuleAdmin"
+                    class="text-xs text-muted"
+                  >Admin modul — selalu akses penuh</span>
+                  <AppSeg
+                    v-else-if="bisa"
+                    :model-value="peranAnggota(u)"
+                    :options="opsiPeran"
+                    size="sm"
+                    @update:model-value="(v) => setPeran(u, String(v))"
+                  />
+                  <span v-else>{{ ROLE_LABEL_ANALYTICS[peranAnggota(u)] ?? peranAnggota(u) }}</span>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="divide-y divide-default lg:hidden">
+            <div
+              v-for="u in anggota"
+              :key="u.id"
+              class="space-y-1.5 py-2.5"
+            >
+              <div>
+                <b class="block text-sm">{{ u.name }}</b>
+                <span class="block text-xs text-muted">{{ u.keterangan || u.username || '—' }}{{ u.isModuleAdmin ? ' · admin modul' : '' }}</span>
+              </div>
+              <span
+                v-if="u.isModuleAdmin"
+                class="text-xs text-muted"
+              >Admin modul — selalu akses penuh</span>
+              <AppSeg
+                v-else-if="bisa"
+                :model-value="peranAnggota(u)"
+                :options="opsiPeran"
+                size="sm"
+                @update:model-value="(v) => setPeran(u, String(v))"
+              />
+              <span
+                v-else
+                class="text-sm"
+              >{{ ROLE_LABEL_ANALYTICS[peranAnggota(u)] ?? peranAnggota(u) }}</span>
             </div>
-            <span
-              v-if="u.isModuleAdmin"
-              class="text-xs text-muted"
-            >Admin modul — selalu akses penuh</span>
-            <USelect
-              v-else
-              :model-value="peranAnggota(u)"
-              :items="['staf', 'manajemen', 'viewer'].map(r => ({ value: r, label: ROLE_LABEL_ANALYTICS[r] ?? r }))"
-              size="xs"
-              class="w-32"
-              :disabled="!bisa"
-              @update:model-value="(v) => setPeran(u, String(v))"
-            />
           </div>
-        </div>
+        </template>
         <p class="mt-2 text-xs text-muted">
           Kunci penetapannya <b class="num">#id</b> user, bukan namanya. Role kamu saat ini: <b>{{ sayaAdmin ? 'Admin modul' : (ROLE_LABEL_ANALYTICS[izin.role.value] ?? izin.role.value) }}</b>.
         </p>

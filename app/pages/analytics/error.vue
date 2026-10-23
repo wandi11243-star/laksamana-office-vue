@@ -337,8 +337,11 @@ const kolom: TableColumn<ErrorBill>[] = [
           <UTable
             class="hidden lg:block"
             :data="perJenis"
-            :columns="[{ accessorKey: 'k', header: 'Jenis Error' }, { accessorKey: 'n', header: 'Jumlah Bill' }, { accessorKey: 'pct', header: '% bill' }, { accessorKey: 'nilai', header: 'Nilai' }]"
+            :columns="[{ id: 'no', header: '#' }, { accessorKey: 'k', header: 'Jenis Error' }, { accessorKey: 'n', header: 'Jumlah Bill' }, { accessorKey: 'pct', header: '% bill' }, { accessorKey: 'nilai', header: 'Nilai' }]"
           >
+            <template #no-cell="{ row }">
+              <span class="text-muted num">{{ row.index + 1 }}</span>
+            </template>
             <template #k-cell="{ row }">
               <b>{{ row.original.k }}</b>
             </template>

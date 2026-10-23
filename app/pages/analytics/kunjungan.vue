@@ -6,11 +6,14 @@
   purpose" are not always the same answer.
 -->
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
 import { useAnalyticsState } from '~/composables/useAnalytics'
 import { ROLE_LABEL_ANALYTICS, useAnalyticsIzin } from '~/utils/layar/analytics'
 import { dineInKah, rekapKanal, type KanalBaris } from '~/utils/analytics-agregat'
 import { BLN, angka, rupiah } from '~/utils/format'
+import { barisBdJam, hariBelumBd, jumlahAcaraBd, petaJamAcara } from '~/utils/analytics-dampak'
+import { getStateEvent } from '~/composables/useEvent'
+import { getStateMkt } from '~/composables/useMarketing'
+import { tglWIB } from '~/utils/event-hitung'
 
 definePageMeta({ access: ['analytics'] })
 
@@ -47,14 +50,43 @@ const adaBayar = computed(() => Object.keys(d.value?.kunjungBayar ?? {}).length 
 const billRingkas = computed(() => d.value?.ringkas?.bill ?? 0)
 const pct = (x: number, t: number) => t ? Math.round(x / t * 100) : 0
 const punBar = computed(() => rk.value.baris.reduce((a, x) => Math.max(a, x.bill), 0) || 1)
-const kolom: TableColumn<KanalBaris>[] = [
-  { accessorKey: 'n', header: 'Kanal' },
-  { accessorKey: 'bill', header: 'Jumlah Transaksi' },
-  { accessorKey: 'pctBill', header: '% transaksi' },
-  { accessorKey: 'grand', header: 'Jumlah Omset' },
-  { accessorKey: 'pctGrand', header: '% omset' },
-  { accessorKey: 'rata', header: 'Rata-rata per transaksi' },
-]
+// DINE IN split into Walk In / Event / Marketing (rincianDineIn, :4069):
+// drawn as detail rows UNDER the DINE IN row, never as sibling rows — the
+// split comes from the Breakdown Sumber, not from POS.
+const { data: kpState, status: kpStatus } = useAsyncData(
+  'analytics-kompas-bd',
+  () => useApi()<Envelope<{ daily?: { date?: unknown, bd?: Record<string, unknown> }[] }>>('/kompas/state').then(r => r.data).catch(() => null),
+)
+const { data: evState } = useAsyncData('analytics-event-agenda', () => getStateEvent().then(r => r.data).catch(() => null))
+const { data: mkState } = useAsyncData('analytics-mkt-jam', () => getStateMkt().then(r => r.data).catch(() => null))
+const kpAda = computed(() => kpStatus.value === 'success' && !!kpState.value)
+type BarisAcara = Record<string, unknown>
+const rincian = computed(() => {
+  const daily = Array.isArray(kpState.value?.daily) ? kpState.value!.daily : []
+  const jam = petaJamAcara(evState.value, mkState.value)
+  const ev = barisBdJam(daily, 'Event', bulan.value, jam)
+  const mk = barisBdJam(daily, 'Marketing', bulan.value, jam)
+  const evG = ev.reduce((a, r) => a + r.omset, 0)
+  const mkG = mk.reduce((a, r) => a + r.omset, 0)
+  const dine = rk.value.baris.find(x => dineInKah(x.n))?.grand ?? 0
+  const wiMentah = dine - evG - mkG
+  const acara = [
+    ...((evState.value as { events?: BarisAcara[] } | null)?.events ?? [])
+      .map(e => ({ tgl: tglWIB(e.start_datetime ?? e.tanggal), sumber: 'Event' as const, status: e.status })),
+    ...((mkState.value as { events?: BarisAcara[] } | null)?.events ?? [])
+      .map(e => ({ tgl: String(e.tanggal ?? '').slice(0, 10), sumber: 'Marketing' as const, status: e.status })),
+  ]
+  return {
+    dine,
+    baris: [
+      { nama: 'Walk In', cat: 'DINE IN dikurangi acara', g: Math.max(0, wiMentah), trx: '—' },
+      { nama: 'Event', cat: 'Breakdown Sumber', g: evG, trx: `${jumlahAcaraBd(ev)} acara` },
+      { nama: 'Marketing', cat: 'Breakdown Sumber, termasuk Reservasi VIP', g: mkG, trx: `${jumlahAcaraBd(mk)} acara` },
+    ],
+    lebih: wiMentah < -0.5 ? -wiMentah : 0,
+    belum: hariBelumBd(acara, ev, mk, bulan.value),
+  }
+})
 </script>
 
 <template>
@@ -179,46 +211,133 @@ const kolom: TableColumn<KanalBaris>[] = [
               ? 'Metode bayarnya belum terbaca, jadi yang tampil masih cara datang apa adanya: ONLINE berdiri sebagai satu baris, bukan sebagai GrabFood dan GoFood. Laporan bulan ini Bill Report, dan bentuk itu memang tidak punya kolom Payment Method sama sekali — mencentang kolomnya saat ekspor tidak akan menolong. Yang memuatnya Sales Recapitulation DETAIL Report; unggah berkas itu untuk bulan yang sama.'
               : 'Metode bayarnya belum terbaca, jadi yang tampil masih cara datang apa adanya. Kolom Payment Method baru ikut dibaca sejak 13 September 2026, jadi ringkasan yang disimpan sebelum itu tidak menyimpannya. Unggah ulang berkas bulan itu — ringkasannya akan ditimpa, dan metodenya ikut terbaca.'"
           />
-          <UTable
-            class="hidden lg:block"
-            :data="rk.baris"
-            :columns="kolom"
-          >
-            <template #n-cell="{ row }">
-              <b>{{ row.original.n }}</b>
-              <span
-                v-if="row.original.dari.length"
-                class="text-xs text-muted"
-              > · dari {{ row.original.dari.join(', ') }}</span>
-              <div
-                v-if="dineInKah(row.original.n)"
-                class="mt-1 rounded-field bg-primary-100 px-2 py-1 text-[11px] text-muted"
+          <table class="hidden w-full text-sm lg:table">
+            <thead class="bg-table-head text-left text-xs font-bold uppercase tracking-wide text-table-head-text">
+              <tr>
+                <th class="w-10 px-4 py-2">
+                  #
+                </th>
+                <th class="px-4 py-2">
+                  Kanal
+                </th>
+                <th class="px-4 py-2 text-end">
+                  Jumlah transaksi
+                </th>
+                <th class="px-4 py-2 text-end">
+                  % transaksi
+                </th>
+                <th class="px-4 py-2 text-end">
+                  Jumlah omset
+                </th>
+                <th class="px-4 py-2 text-end">
+                  % omset
+                </th>
+                <th class="px-4 py-2 text-end">
+                  Rata-rata per transaksi
+                </th>
+                <th class="w-40 px-4 py-2" />
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-default">
+              <template
+                v-for="(x, i) in rk.baris"
+                :key="x.n"
               >
-                ↳ Walk In / Event / Marketing belum bisa dipecah — Breakdown Sumber tidak terbaca.
-              </div>
-            </template>
-            <template #bill-cell="{ row }">
-              <span class="num">{{ angka(row.original.bill) }}</span>
-            </template>
-            <template #pctBill-cell="{ row }">
-              <span class="num">{{ pct(row.original.bill, rkB) }}%</span>
-              <div class="mt-1 h-2.5 rounded bg-primary-100">
-                <div
-                  class="h-2.5 rounded bg-primary-500"
-                  :style="{ width: `${Math.round(row.original.bill / punBar * 100)}%` }"
-                />
-              </div>
-            </template>
-            <template #grand-cell="{ row }">
-              <span class="num">{{ rupiah(row.original.grand) }}</span>
-            </template>
-            <template #pctGrand-cell="{ row }">
-              <span class="num">{{ pct(row.original.grand, rkG) }}%</span>
-            </template>
-            <template #rata-cell="{ row }">
-              <span class="num">{{ row.original.bill ? rupiah(row.original.grand / row.original.bill) : '—' }}</span>
-            </template>
-          </UTable>
+                <tr>
+                  <td class="px-4 py-2 text-muted num">
+                    {{ i + 1 }}
+                  </td>
+                  <td class="px-4 py-2">
+                    <b>{{ x.n }}</b>
+                    <span
+                      v-if="x.dari.length"
+                      class="text-xs text-muted"
+                    > · dari {{ x.dari.join(', ') }}</span>
+                  </td>
+                  <td class="px-4 py-2 text-end num">
+                    {{ angka(x.bill) }}
+                  </td>
+                  <td class="px-4 py-2 text-end num">
+                    {{ pct(x.bill, rkB) }}%
+                  </td>
+                  <td class="px-4 py-2 text-end num">
+                    {{ rupiah(x.grand) }}
+                  </td>
+                  <td class="px-4 py-2 text-end num">
+                    {{ pct(x.grand, rkG) }}%
+                  </td>
+                  <td class="px-4 py-2 text-end num">
+                    {{ x.bill ? rupiah(x.grand / x.bill) : '—' }}
+                  </td>
+                  <td class="px-4 py-2">
+                    <div class="h-2.5 rounded bg-primary-100">
+                      <div
+                        class="h-2.5 rounded bg-primary-500"
+                        :style="{ width: `${Math.round(x.bill / punBar * 100)}%` }"
+                      />
+                    </div>
+                  </td>
+                </tr>
+                <template v-if="dineInKah(x.n)">
+                  <tr
+                    v-if="!kpAda"
+                    class="bg-primary-50 text-xs"
+                  >
+                    <td />
+                    <td
+                      colspan="7"
+                      class="px-4 py-1.5 text-muted"
+                    >
+                      ↳ Walk In / Event / Marketing belum bisa dipecah — Breakdown Sumber tidak terbaca.
+                    </td>
+                  </tr>
+                  <template v-else>
+                    <tr
+                      v-for="r in rincian.baris"
+                      :key="r.nama"
+                      class="bg-primary-50 text-xs"
+                    >
+                      <td />
+                      <td class="px-4 py-1.5">
+                        ↳ {{ r.nama }} <span class="text-muted">· {{ r.cat }}</span>
+                      </td>
+                      <td class="px-4 py-1.5 text-end num">
+                        {{ r.trx }}
+                      </td>
+                      <td class="px-4 py-1.5 text-end text-muted num">
+                        {{ pct(r.g, x.grand) }}% dari DINE IN
+                      </td>
+                      <td class="px-4 py-1.5 text-end num">
+                        {{ rupiah(r.g) }}
+                      </td>
+                      <td class="px-4 py-1.5 text-end num">
+                        {{ pct(r.g, rkG) }}%
+                      </td>
+                      <td />
+                      <td />
+                    </tr>
+                    <tr
+                      v-if="rincian.lebih || rincian.belum"
+                      class="bg-primary-50 text-xs"
+                    >
+                      <td />
+                      <td
+                        colspan="7"
+                        class="px-4 py-1.5 text-muted"
+                      >
+                        <template v-if="rincian.lebih">
+                          Omset acara di Breakdown Sumber <b>{{ rupiah(rincian.lebih) }} lebih besar</b> daripada DINE IN — Walk In ditulis Rp0. Sebagian acaranya mungkin tercatat di POS bukan sebagai DINE IN.
+                        </template>
+                        <template v-if="rincian.belum">
+                          <b>{{ rincian.belum }} hari</b> ada acara Event Done tapi Breakdown Sumber-nya belum diisi — omsetnya masih terhitung Walk In.
+                        </template>
+                      </td>
+                    </tr>
+                  </template>
+                </template>
+              </template>
+            </tbody>
+          </table>
           <div class="divide-y divide-default lg:hidden">
             <div
               v-for="x in rk.baris"

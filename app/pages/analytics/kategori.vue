@@ -88,6 +88,7 @@ const atas = computed(() => {
     .map(k => ({ k, ...m[k]!, totSemua }))
 })
 const kolom: TableColumn<BarisKat>[] = [
+  { id: 'no', header: '#' },
   { accessorKey: 'n', header: 'Kategori' },
   { accessorKey: 'kel', header: 'Kelompok' },
   { accessorKey: 'nMenu', header: 'Jumlah Menu' },
@@ -224,6 +225,9 @@ const menuKat = computed(() => {
             :data="daftar"
             :columns="kolom"
           >
+            <template #no-cell="{ row }">
+              <span class="text-muted num">{{ row.index + 1 }}</span>
+            </template>
             <template #n-cell="{ row }">
               <button
                 type="button"
