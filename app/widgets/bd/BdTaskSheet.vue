@@ -230,7 +230,7 @@ async function hapus() {
           :people="people"
         />
       </UFormField>
-      <div class="grid gap-4 sm:grid-cols-3">
+      <div class="grid gap-4 *:min-w-0 sm:grid-cols-3">
         <UFormField label="Status">
           <USelect
             v-model="f.status"
@@ -253,7 +253,7 @@ async function hapus() {
           />
         </UFormField>
       </div>
-      <div class="grid gap-4 sm:grid-cols-3">
+      <div class="grid gap-4 *:min-w-0 sm:grid-cols-3">
         <UFormField label="Mulai (opsional)">
           <UInput
             v-model="f.start"
@@ -298,7 +298,7 @@ async function hapus() {
               :model-value="s.t"
               placeholder="Sub-task…"
               size="sm"
-              class="min-w-0 flex-1"
+              class="min-w-0 flex-1 [&_input]:min-w-0"
               :class="s.done ? 'opacity-60 line-through' : ''"
               @update:model-value="(v: string | number) => s.t = String(v)"
             />
@@ -339,7 +339,7 @@ async function hapus() {
             v-model="subBaru"
             placeholder="Tambah sub-task, Enter…"
             size="sm"
-            class="min-w-0 flex-1"
+            class="min-w-0 flex-1 [&_input]:min-w-0"
             @keydown.enter.prevent="subTambah"
           />
           <UButton
@@ -396,7 +396,7 @@ async function hapus() {
         <p class="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted">
           Prioritas Eisenhower
         </p>
-        <div class="grid gap-3 sm:grid-cols-2">
+        <div class="grid gap-3 *:min-w-0 sm:grid-cols-2">
           <AppPilihan
             v-model="f.important"
             name="task-important"
