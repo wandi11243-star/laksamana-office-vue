@@ -241,16 +241,23 @@ const toast = useToast()
       <!-- ── printable document ── -->
       <div class="bd-cetak rounded-panel border border-default bg-default p-5 shadow-panel lg:p-8">
         <div class="flex flex-wrap items-start justify-between gap-4 border-b-2 border-default pb-4">
-          <div>
-            <p class="font-display text-xl font-bold text-highlighted">
-              Laksamana Muda
-            </p>
-            <p class="text-xs uppercase tracking-widest text-muted">
-              Coffee & Live Space
-            </p>
-            <p class="mt-1 text-xs text-muted">
-              Jl. Soekarno Hatta No. 39, Payung Sekaki, Pekanbaru
-            </p>
+          <div class="flex items-center gap-3">
+            <img
+              src="/mark.png"
+              alt="Laksamana Muda"
+              class="h-10 w-10"
+            >
+            <div>
+              <p class="font-display text-xl font-bold text-highlighted">
+                Laksamana Muda
+              </p>
+              <p class="text-xs uppercase tracking-widest text-muted">
+                Coffee & Live Space
+              </p>
+              <p class="mt-1 text-xs text-muted">
+                Jl. Soekarno Hatta No. 39, Payung Sekaki, Pekanbaru
+              </p>
+            </div>
           </div>
           <div class="text-end">
             <p class="text-[11px] font-bold uppercase tracking-widest text-primary-700">

@@ -249,7 +249,7 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
         icon="i-lucide-circle-play"
         tone="success"
         :value="nStatus('running')"
-        sub="bisa ditawarkan hari ini"
+        sub="aktif hari ini"
       />
       <AppStat
         label="Akan datang"
@@ -269,7 +269,7 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
         label="Selesai"
         icon="i-lucide-circle-check"
         :value="nStatus('ended')"
-        sub="sudah berakhir"
+        sub="arsip"
       />
     </AppStatGrid>
 

@@ -103,7 +103,7 @@ async function hapus() {
 <template>
   <AppPage
     title="Dashboard"
-    description="Kondisi hari ini — BD, Project & Purchasing."
+    description="Kondisi hari ini — task, project & purchasing"
   >
     <template #actions>
       <UButton
