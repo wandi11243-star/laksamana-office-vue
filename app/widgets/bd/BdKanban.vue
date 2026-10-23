@@ -14,7 +14,7 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
-import { bdTulisDiam, buatBd, ubahBd, versiBaris } from '~/composables/useBd'
+import { bdTulisDiam, buatBd, lahirkanUlangSetelah, ubahBd, versiBaris } from '~/composables/useBd'
 import {
   OWNER_DIVS, STATUS_FLOW, cekBolehDone, pesanTunggu, segarkanProgress, setPics, urutDeadline,
   type ModeArsip,
@@ -34,10 +34,13 @@ const props = withDefaults(defineProps<{
   /** Default PIC for cards added here (the signed-in crew). */
   picDefault?: string
   divDefault?: string
+  /** Daily board: cards added here are Daily Tasks, never in a project. */
+  dailyDefault?: boolean
 }>(), {
   arsip: 'aktif',
   allowAdd: true,
 })
+const tambah = ref<Record<string, string>>({})
 const emit = defineEmits<{
   buka: [t: BdTask]
   subToggle: [t: BdTask, ix: number, on: boolean]
@@ -72,7 +75,7 @@ function dragKeluar(e: DragEvent, st: string) {
   if (ke && (e.currentTarget as HTMLElement).contains(ke)) return
   if (kolomSasaran.value === st) kolomSasaran.value = null
 }
-function dropKolom(st: string) {
+async function dropKolom(st: string) {
   const t = bank.value.find(x => x.id === dragId.value)
   dragSelesai()
   if (!t || t.status === st) return
@@ -87,7 +90,8 @@ function dropKolom(st: string) {
   const { updatedAt: _buang, ...sisa } = t
   const body = { ...sisa, status: st }
   segarkanProgress(body)
-  bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
+  const ok = await bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
+  if (ok && st === 'Done') await lahirkanUlangSetelah({ ...t, ...body, id: t.id }, bank.value)
 }
 
 // ---- "+ Tambah kartu" (boardTambah) ----
@@ -104,7 +108,8 @@ async function tambahKartu(st: string) {
     priority: 'Medium',
     deadline: '',
     type: props.projectPreset ? 'Project' : 'Ad-hoc',
-    project: props.projectPreset || null,
+    project: props.dailyDefault ? null : (props.projectPreset || null),
+    daily: !!props.dailyDefault,
     important: true,
     urgent: false,
     progress: 0,

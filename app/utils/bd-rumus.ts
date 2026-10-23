@@ -9,7 +9,7 @@
 // that is UTC and in WIB anything before 07:00 is reported as yesterday, which
 // would mark tasks overdue every morning (deploy/bd/index.html:767-772).
 import type { BdApproverSet, BdPo, BdPerson, BdPr, BdProject, BdSubtask, BdTask } from '~/composables/useBd'
-import { BLN, fTglP, hariIni } from '~/utils/format'
+import { BLN, fTglP, hariIni, tambahHari } from '~/utils/format'
 
 // ─────────────────────────── organisation (deploy/bd/index.html:708-755) ──
 /** `OWNER_DIVS` — the divisions whose work BD OS manages. */
@@ -174,6 +174,67 @@ export const ULANG: [string, string][] = [
 export function labelUlang(u?: string): string {
   const x = ULANG.find(y => y[0] === u)
   return x && u ? x[1] : ''
+}
+/** `tglSah` — real YYYY-MM-DD date (old `gSah`). */
+export function tglSah(iso?: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''))
+  if (!m) return false
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  return d.getFullYear() === Number(m[1]) && d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3])
+}
+/** `langkahUlang` — one recurrence step ahead (old :2852-2862). 'bulanan' clamps to month-end (31 Jan → 28/29 Feb). */
+export function langkahUlang(iso: string, u?: string): string {
+  if (u === 'bulanan') {
+    const d = pDate(iso)
+    const x = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+    const akhir = new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate()
+    x.setDate(Math.min(d.getDate(), akhir))
+    return isoOf(x)
+  }
+  if (u === 'mingguan') return tambahHari(iso, 7)
+  let n = tambahHari(iso, 1)
+  if (u === 'kerja') {
+    let aman = 0
+    while ((pDate(n).getDay() === 0 || pDate(n).getDay() === 6) && aman++ < 10) n = tambahHari(n, 1)
+  }
+  return n
+}
+/** `deadlineBerikut` — first occurrence not in the past; a late completion skips ahead instead of spawning overdue twins (old :2863-2871). */
+export function deadlineBerikut(t: { deadline?: string, ulang?: string }): string | null {
+  if (!t.ulang || !labelUlang(t.ulang) || !tglSah(t.deadline)) return null
+  const hari = todayISO()
+  let n = langkahUlang(t.deadline as string, t.ulang)
+  let aman = 0
+  while (n < hari && aman++ < 400) n = langkahUlang(n, t.ulang)
+  return n
+}
+/** `lahirkanUlang` — the next occurrence as a new-row body, or null. Never twins: Done → reopen → Done again is guarded by `ulangDari` (old :2872-2888). */
+export function lahirkanUlang(t: BdTask, semua: BdTask[]): (Partial<BdTask> & { id: string }) | null {
+  const nd = deadlineBerikut(t)
+  if (!nd) return null
+  if (semua.some(x => x.ulangDari === t.id)) return null
+  const geser = Math.round((+pDate(nd) - +pDate(t.deadline as string)) / 86400000)
+  const g = (iso?: string) => (tglSah(iso) ? tambahHari(iso as string, geser) : iso)
+  const b: Partial<BdTask> & { id: string } = {
+    id: uidBd('t'),
+    name: t.name, desc: t.desc || '', div: t.div,
+    status: 'To Do', priority: t.priority || 'Medium',
+    deadline: nd, important: !!t.important, urgent: !!t.urgent,
+    type: t.type || 'Ad-hoc', project: t.project || null,
+    ulang: t.ulang, ulangDari: t.id, progress: 0, dependsOn: [],
+    subtasks: subs(t).map((x) => {
+      const o: BdSubtask = { id: uidBd('s'), t: String(x.t || ''), done: false }
+      const d = g(x.d)
+      if (d) o.d = d
+      return o
+    }),
+  }
+  if (t.daily) b.daily = true
+  if (tagsOf(t).length) b.tags = tagsOf(t).slice()
+  const st = g(t.start)
+  if (st) b.start = st
+  setPics(b, pics(t))
+  return b
 }
 /** `kruTersedia` — crew that may be picked: still active with module access,
  * plus anyone already holding the row being opened, so saving never silently
