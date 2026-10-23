@@ -6,18 +6,18 @@
   Hidden from the menu — opened from a card.
 -->
 <script setup lang="ts">
-import type { BdCoord, BdPo, BdProject, BdTask } from '~/composables/useBd'
+import type { BdPo, BdProject, BdTask } from '~/composables/useBd'
 import {
   bdTulisDiam, centangSub, hapusTaskDenganUrutan, pesanHapusTask, tambalBd,
   toggleTask, useBdState, versiBaris,
 } from '~/composables/useBd'
 import {
-  cariAku, fDue, fRp, inisial, pics, projProgress, projTasks, saringArsip, selesai, todayISO, urutDeadline,
+  cariAku, fDue, fRp, inisial, pics, projProgress, projTasks, saringArsip, selesai, sisaHari,
+  urutDeadline, waktuTerpakai,
   type ModeArsip,
 } from '~/utils/bd-rumus'
 import type { GZoom } from '~/utils/bd-gantt'
-import { IKON_HEALTH, LABEL_HEALTH, WARNA_PO } from '~/utils/status-bd'
-import BdCoordSheet from '~/widgets/bd/BdCoordSheet.vue'
+import { WARNA_PO } from '~/utils/status-bd'
 import BdGantt from '~/widgets/bd/BdGantt.vue'
 import BdKanban from '~/widgets/bd/BdKanban.vue'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
@@ -25,7 +25,7 @@ import BdPoSheet from '~/widgets/bd/BdPoSheet.vue'
 import BdProjectSheet from '~/widgets/bd/BdProjectSheet.vue'
 import BdTaskSheet from '~/widgets/bd/BdTaskSheet.vue'
 import BdTaskTree from '~/widgets/bd/BdTaskTree.vue'
-import { fTglP } from '~/utils/format'
+import { fTgl, fTglP } from '~/utils/format'
 
 definePageMeta({ access: ['bd'] })
 
@@ -46,7 +46,6 @@ const tugasArsip = computed(() => saringArsip(tugas.value, pdArsip.value).slice(
 const pg = computed(() => (p.value ? projProgress(p.value, state.value.tasks) : 0))
 const sel = computed(() => tugas.value.filter(selesai).length)
 const sisaBudget = computed(() => (Number(p.value?.budget) || 0) - (Number(p.value?.spent) || 0))
-const coord = computed(() => state.value.coord.filter(c => c.project === id))
 const po = computed(() => state.value.po.filter(o => o.project === id))
 const dpakai = computed(() => pics(p.value).map(pid => people.value.find(x => x.id === pid)).filter(Boolean))
 
@@ -61,8 +60,6 @@ async function toggleMilestone(i: number) {
 const bukaProject = ref(false)
 const bukaTask = ref(false)
 const taskPilih = ref<BdTask | null>(null)
-const bukaCoord = ref(false)
-const coordPilih = ref<BdCoord | null>(null)
 const bukaPo = ref(false)
 const poPilih = ref<BdPo | null>(null)
 const taskHapus = ref<BdTask | null>(null)
@@ -93,10 +90,6 @@ async function hapusTask() {
   if (!t) return
   taskHapus.value = null
   await hapusTaskDenganUrutan(t, state.value.tasks)
-}
-function bukaCoordSheet(c: BdCoord) {
-  coordPilih.value = c
-  bukaCoord.value = true
 }
 function bukaPoSheet(o: BdPo) {
   poPilih.value = o
@@ -135,35 +128,91 @@ function bukaPoSheet(o: BdPo) {
     </AppPanel>
 
     <template v-else>
-      <AppStatGrid>
-        <AppStat
-          label="Health"
-          :icon="IKON_HEALTH[p.health]"
-          :tone="p.health === 'at-risk' ? 'warning' : p.health === 'off-track' ? 'error' : 'success'"
-          :value="LABEL_HEALTH[p.health] || 'On track'"
-          :sub="`${fTglP(p.start)} — ${fTglP(p.end)}`"
-        />
-        <AppStat
-          label="Progress"
-          icon="i-lucide-activity"
-          :value="`${pg}%`"
-          :sub="`${sel}/${tugas.length} task selesai`"
-        />
-        <AppStat
-          label="Budget terpakai"
-          icon="i-lucide-wallet"
-          :tone="sisaBudget < 0 ? 'error' : 'success'"
-          :value="fRp(p.spent)"
-          :sub="`dari ${fRp(p.budget)}${sisaBudget < 0 ? ' — LEWAT' : ''}`"
-        />
-        <AppStat
-          label="PIC"
-          icon="i-lucide-users"
-          tone="info"
-          :value="dpakai.length"
-          :sub="dpakai.length ? dpakai.map(x => x!.name.split(' ')[0]).join(', ') : 'belum ditentukan'"
-        />
-      </AppStatGrid>
+      <p
+        v-if="p.desc"
+        class="mb-4 text-sm text-muted"
+      >
+        {{ p.desc }}
+      </p>
+      <div class="grid gap-x-6 gap-y-4 rounded-panel border border-default bg-default p-4 shadow-panel sm:grid-cols-2 lg:grid-cols-3">
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-wider text-muted">
+            PIC project
+          </p>
+          <div class="mt-1.5 flex flex-wrap gap-1.5">
+            <span
+              v-for="x in dpakai"
+              :key="x!.id"
+              :title="x!.name"
+              class="flex size-7 items-center justify-center rounded-full bg-primary-100 text-[11px] font-bold text-primary-800"
+            >{{ inisial(x!.name) }}</span>
+            <span
+              v-if="!dpakai.length"
+              class="text-sm text-muted"
+            >Belum ditentukan.</span>
+          </div>
+        </div>
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-wider text-muted">
+            Mulai
+          </p>
+          <p class="mt-1 text-sm font-semibold text-highlighted">
+            {{ fTgl(p.start) }}
+          </p>
+        </div>
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-wider text-muted">
+            Deadline
+          </p>
+          <p class="mt-1 flex flex-wrap items-center gap-1.5 text-sm font-semibold text-highlighted">
+            {{ fTgl(p.end) }}
+            <AppStatus
+              v-if="p.end && p.stage !== 'Done' && sisaHari(p.end) < 14"
+              size="sm"
+              :color="sisaHari(p.end) < 0 ? 'error' : 'warning'"
+            >
+              {{ fDue(p.end) }}
+            </AppStatus>
+          </p>
+        </div>
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-wider text-muted">
+            Progress
+          </p>
+          <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
+            <div
+              class="h-full rounded-full"
+              :class="pg >= 100 ? 'bg-success' : 'bg-primary-400'"
+              :style="{ width: `${pg}%` }"
+            />
+          </div>
+          <p class="mt-1 text-xs text-muted">
+            {{ sel }}/{{ tugas.length }} task selesai
+          </p>
+        </div>
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-wider text-muted">
+            Waktu terpakai
+          </p>
+          <p class="mt-1 text-sm font-semibold text-highlighted">
+            {{ waktuTerpakai(p) }}
+          </p>
+        </div>
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-wider text-muted">
+            Budget terpakai
+          </p>
+          <p class="mt-1 text-sm font-semibold text-highlighted">
+            {{ fRp(p.spent) }}
+          </p>
+          <p
+            class="text-xs text-muted"
+            :class="sisaBudget < 0 ? 'font-semibold text-error' : ''"
+          >
+            dari {{ fRp(p.budget) }}{{ sisaBudget < 0 ? ' — LEWAT' : '' }}
+          </p>
+        </div>
+      </div>
 
       <div class="grid gap-5">
         <div class="mb-3 flex flex-wrap items-center gap-2">
@@ -236,55 +285,7 @@ function bukaPoSheet(o: BdPo) {
           </p>
         </AppPanel>
 
-        <AppPanel
-          v-if="p.desc"
-          title="Deskripsi"
-          icon="i-lucide-align-left"
-        >
-          <p class="whitespace-pre-wrap text-sm text-default">
-            {{ p.desc }}
-          </p>
-        </AppPanel>
-
         <div class="grid gap-5 lg:grid-cols-2">
-          <AppPanel
-            title="Koordinasi divisi lain"
-            icon="i-lucide-handshake"
-            :count="coord.length"
-          >
-            <div class="divide-y divide-default">
-              <button
-                v-for="c in coord"
-                :key="c.id"
-                type="button"
-                class="w-full px-1 py-2.5 text-start hover:bg-elevated/50"
-                @click="bukaCoordSheet(c)"
-              >
-                <span class="block truncate font-semibold text-highlighted">{{ c.title }}</span>
-                <span class="mt-1 flex flex-wrap items-center gap-1.5">
-                  <AppStatus size="sm">
-                    {{ c.status }}
-                  </AppStatus>
-                  <AppStatus size="sm">
-                    → {{ c.toDiv }}
-                  </AppStatus>
-                  <AppStatus
-                    size="sm"
-                    :color="c.status !== 'Selesai' && c.due && c.due < todayISO() ? 'error' : 'neutral'"
-                  >
-                    {{ fDue(c.due) }}
-                  </AppStatus>
-                </span>
-              </button>
-              <p
-                v-if="!coord.length"
-                class="py-4 text-center text-sm text-muted"
-              >
-                Tidak ada koordinasi
-              </p>
-            </div>
-          </AppPanel>
-
           <AppPanel
             title="Purchase order terkait"
             icon="i-lucide-shopping-cart"
@@ -355,26 +356,6 @@ function bukaPoSheet(o: BdPo) {
               </p>
             </div>
           </AppPanel>
-
-          <AppPanel
-            title="PIC"
-            icon="i-lucide-users"
-          >
-            <div class="flex flex-wrap gap-2">
-              <span
-                v-for="x in dpakai"
-                :key="x!.id"
-                class="inline-flex items-center gap-1.5 rounded-full border border-default px-2.5 py-1 text-[13px] font-semibold"
-              >
-                <span class="flex size-5 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-primary-800">{{ inisial(x!.name) }}</span>
-                {{ x!.name }}
-              </span>
-              <span
-                v-if="!dpakai.length"
-                class="text-sm text-muted"
-              >Belum ditentukan.</span>
-            </div>
-          </AppPanel>
         </div>
       </div>
 
@@ -393,13 +374,6 @@ function bukaPoSheet(o: BdPo) {
         :task="taskPilih"
         :tasks="state.tasks"
         :preset-project="p.id"
-        :projects="state.projects"
-        :people="people"
-        :aku="aku"
-      />
-      <BdCoordSheet
-        v-model:open="bukaCoord"
-        :coord="coordPilih"
         :projects="state.projects"
         :people="people"
         :aku="aku"
