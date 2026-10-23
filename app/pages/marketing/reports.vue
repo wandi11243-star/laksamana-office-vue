@@ -59,21 +59,21 @@ function ekspor() {
         <AppStat
           label="Total omset"
           :value="rupiah(lap.total)"
-          context="Event closing bulan ini"
+          sub="Event closing bulan ini"
           tone="success"
           icon="i-lucide-banknote"
         />
         <AppStat
           label="Jumlah event"
           :value="String(lap.n)"
-          context="Event closing bulan ini"
+          sub="Event closing bulan ini"
           tone="info"
           icon="i-lucide-calendar-check"
         />
         <AppStat
           label="Rata-rata per event"
           :value="rupiah(lap.rata)"
-          context="Total ÷ jumlah event"
+          sub="Total ÷ jumlah event"
           tone="gold"
           icon="i-lucide-scale"
         />

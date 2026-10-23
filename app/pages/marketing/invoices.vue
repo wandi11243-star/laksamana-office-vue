@@ -12,7 +12,7 @@ import {
   INV_KOP_MKT, kelompokBayarMkt, layakTagihMkt, noResmiInvMkt, praPelunasanMkt, punyaDpMkt,
   punyaPelunasanMkt, rekapInvoiceMkt, resIdInvMkt, ringkasInvMkt,
 } from '~/utils/marketing-keuangan'
-import { eventFinance, invStatus } from '~/utils/marketing-uang'
+import { dpLabel, eventFinance, invStatus } from '~/utils/marketing-uang'
 import { ikonInvoiceMkt, warnaInvoiceMkt } from '~/utils/status-marketing'
 import {
   berkasKwitansi, mintaKwitansi, statusKwitansi, type BerkasKwitansi,
@@ -37,12 +37,6 @@ const inv = (e: EventMkt) => invStatus(e, st.value.settings, hari)
  *  screen, with an honest note instead of silent absence. */
 const tampil = computed(() => layak.value.filter(e => inv(e) !== 'Draft'))
 const nDraft = computed(() => layak.value.filter(e => inv(e) === 'Draft'))
-/** Submitted offers the client has not decided on: pipeline, never piutang. */
-const potensi = computed(() => st.value.events.filter((e) => {
-  const p = (e.penawaran ?? {}) as Record<string, unknown>
-  return String(p.status ?? '') === 'Terkirim'
-}))
-const potensiNilai = computed(() => potensi.value.reduce((a, e) => a + eventFinance(e, st.value.settings).grand, 0))
 const rekap = computed(() => rekapInvoiceMkt(tampil.value.map((e) => {
   const f = uang(e)
   return { inv: inv(e), remaining: f.remaining, paid: f.paid }
@@ -53,6 +47,10 @@ const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ??
 // ---- tabs ----
 const tab = useState<TabBayarMkt>('mkt-inv-tab', () => 'semua')
 const daftar = computed(() => tampil.value.filter(e => kelompokBayarMkt(tab.value, { inv: inv(e), remaining: uang(e).remaining, paid: uang(e).paid })))
+// Old tabs carry their count (`<span class="tn">`); written "Label (n)" like the other Marketing tabs.
+const jmlTab = (t: TabBayarMkt) => tampil.value.filter(e => kelompokBayarMkt(t, { inv: inv(e), remaining: uang(e).remaining, paid: uang(e).paid })).length
+const opsiTab = computed(() => ([['semua', 'Semua'], ['lunas', 'Lunas'], ['dp', 'Sudah DP'], ['belum', 'Belum Payment']] as const)
+  .map(([value, label]) => ({ value, label: `${label} (${jmlTab(value)})` })))
 const kosongTab = computed(() => tab.value === 'lunas'
   ? 'Belum ada tagihan yang tertutup penuh.'
   : tab.value === 'dp'
@@ -77,6 +75,8 @@ async function muat() {
   try {
     const r = await statusKwitansi(ids)
     for (const [k, v] of Object.entries(r.data ?? {})) peta.value[k] = v
+    // No answer for an id = no request yet (null), not "still unknown" (undefined).
+    for (const k of ids) if (peta.value[k] === undefined) peta.value[k] = null as unknown as StatusInvMkt
   }
   catch (e) {
     galat.value = apiErrorMessage(e)
@@ -87,13 +87,8 @@ async function muat() {
 }
 watch(layak, () => void muat(), { immediate: true })
 const bolehMinta = computed(() => ['marketing', 'finance', 'manager', 'super_admin'].includes(saya.value?.user.role ?? ''))
-const slotKind = (e: EventMkt, j: 'dp' | 'lunas') => {
-  const s = peta.value[resIdInvMkt(e.id, j)]
-  if (s?.status === 'DIBUAT') return 'pdf'
-  if (s) return 'status'
-  return memuat.value ? 'cek' : 'minta'
-}
 const slotSiap = (e: EventMkt, j: 'dp' | 'lunas') => (j === 'dp' ? punyaDpMkt(uang(e)) : punyaPelunasanMkt(e, uang(e)))
+const JENIS_RESMI = [{ k: 'dp', l: 'DP', t: 'INV_DP' }, { k: 'lunas', l: 'Pelunasan', t: 'INV_LUNAS' }] as const
 
 // ---- request ----
 const minta = ref<{ e: EventMkt, jenis: 'INV_DP' | 'INV_LUNAS' } | null>(null)
@@ -162,10 +157,10 @@ async function bukaPdf(e: EventMkt, jenis: 'INV_DP' | 'INV_LUNAS') {
 
 // ---- table ----
 const KOL: KolomMkt<EventMkt>[] = [
-  { k: 'nama', t: 'Client/Event', v: e => `${namaClient(e.clientId)} ${e.nama}` },
-  { k: 'grand', t: 'Grand Total', v: e => uang(e).grand },
-  { k: 'bayar', t: 'Terbayar', v: e => uang(e).paid },
-  { k: 'sisa', t: 'Sisa', v: e => uang(e).remaining },
+  { k: 'nama', t: 'Client / Event', v: e => namaClient(e.clientId) },
+  { k: 'grand', t: 'Grand Total', v: e => uang(e).grand, turun: true },
+  { k: 'bayar', t: 'Terbayar', v: e => uang(e).paid, turun: true },
+  { k: 'sisa', t: 'Sisa', v: e => uang(e).remaining, turun: true, def: true },
   { k: 'status', t: 'Status', v: e => inv(e) },
 ]
 const tbl = useTabelMkt<EventMkt>('invoices', KOL, () => `${tab.value}${tampil.value.length}`)
@@ -190,37 +185,30 @@ const cetak = () => window.print()
         <AppStat
           label="Total piutang"
           :value="rupiah(rekap.piutang)"
-          context="Closing belum lunas"
+          :sub="`${tampil.length} invoice Deal & Event Done`"
           tone="warning"
           icon="i-lucide-wallet"
         />
         <AppStat
           label="Invoice overdue"
           :value="String(rekap.overdue)"
-          context="Lewat H-7 tanpa pelunasan"
+          sub="lewat H-7"
           tone="error"
           icon="i-lucide-alarm-clock"
         />
         <AppStat
           label="Lunas"
           :value="String(rekap.lunas)"
-          context="Event lunas"
+          :sub="`dari ${tampil.length} invoice`"
           tone="success"
           icon="i-lucide-check-check"
         />
         <AppStat
-          label="Draft"
+          label="Draft (tidak ditampilkan)"
           :value="String(rekap.draft)"
-          context="Deal/Event Done tapi invoice belum terbit — disembunyikan dari daftar"
+          sub="Deal/Event Done yang invoice-nya belum terbit"
           tone="gold"
           icon="i-lucide-file-text"
-        />
-        <AppStat
-          label="Potensi"
-          :value="rupiah(potensiNilai)"
-          :context="`${potensi.length} penawaran terkirim belum diputuskan — bukan piutang`"
-          tone="info"
-          icon="i-lucide-send"
         />
       </AppStatGrid>
 
@@ -254,7 +242,7 @@ const cetak = () => window.print()
         <template #head>
           <AppSeg
             v-model="tab"
-            :options="[{ value: 'semua', label: 'Semua' }, { value: 'lunas', label: 'Lunas' }, { value: 'dp', label: 'Sudah DP' }, { value: 'belum', label: 'Belum Payment' }]"
+            :options="opsiTab"
           />
         </template>
         <div
@@ -274,11 +262,11 @@ const cetak = () => window.print()
           <UTable
             :data="hal"
             :columns="[
-              { accessorKey: 'nama', header: 'Client/Event' },
-              { accessorKey: 'grand', header: 'Grand Total' },
-              { accessorKey: 'bayar', header: 'Terbayar' },
-              { accessorKey: 'sisa', header: 'Sisa' },
-              { accessorKey: 'status', header: 'Status' },
+              { id: 'nama', header: tbl.kepala('nama', 'Client / Event') },
+              { id: 'grand', header: tbl.kepala('grand', 'Grand Total') },
+              { id: 'bayar', header: tbl.kepala('bayar', 'Terbayar') },
+              { id: 'sisa', header: tbl.kepala('sisa', 'Sisa') },
+              { id: 'status', header: tbl.kepala('status', 'Status') },
               { id: 'resmi', header: 'Invoice Resmi' },
               { id: 'aksi', header: 'Aksi' },
             ]"
@@ -288,10 +276,10 @@ const cetak = () => window.print()
           >
             <template #nama-cell="{ row }">
               <p class="font-semibold text-highlighted">
-                {{ row.original.nama }}
+                {{ namaClient(row.original.clientId) }}
               </p>
               <p class="text-xs text-muted">
-                {{ namaClient(row.original.clientId) }}
+                {{ row.original.nama }}
               </p>
             </template>
             <template #grand-cell="{ row }">
@@ -299,6 +287,9 @@ const cetak = () => window.print()
             </template>
             <template #bayar-cell="{ row }">
               <span class="num">{{ rupiah(uang(row.original).paid) }}</span>
+              <p class="max-w-36 text-xs whitespace-normal text-muted">
+                target {{ dpLabel(uang(row.original)) }}: <span class="num">{{ rupiah(uang(row.original).dp) }}</span>
+              </p>
             </template>
             <template #sisa-cell="{ row }">
               <span class="num">{{ rupiah(uang(row.original).remaining) }}</span>
@@ -314,46 +305,25 @@ const cetak = () => window.print()
             </template>
             <template #resmi-cell="{ row }">
               <div
-                class="grid gap-1"
+                class="grid gap-1.5"
                 @click.stop
               >
-                <p
-                  v-if="noResmiInvMkt(peta, row.original.id)"
-                  class="num text-xs font-semibold"
-                >
-                  {{ noResmiInvMkt(peta, row.original.id) }}
-                </p>
-                <div
-                  v-for="j in [{ k: 'dp', l: 'DP', t: 'INV_DP' }, { k: 'lunas', l: 'Pelunasan', t: 'INV_LUNAS' }] as const"
+                <MarketingSlotInv
+                  v-for="j in JENIS_RESMI"
                   :key="j.k"
-                  class="flex items-center gap-1"
-                >
-                  <UButton
-                    v-if="slotKind(row.original, j.k) === 'pdf'"
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    :label="`${j.l} PDF`"
-                    @click="bukaPdf(row.original, j.t)"
-                  />
-                  <span
-                    v-else-if="slotKind(row.original, j.k) === 'status'"
-                    class="text-xs text-muted"
-                  >{{ j.l }}: {{ (peta[resIdInvMkt(row.original.id, j.k)]?.status === 'MENUNGGU' ? 'menunggu Finance' : 'ditolak') }}</span>
-                  <span
-                    v-else-if="slotKind(row.original, j.k) === 'cek'"
-                    class="text-xs text-muted"
-                  >{{ j.l }}: memeriksa…</span>
-                  <UButton
-                    v-else
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    :label="j.l"
-                    :disabled="!bolehMinta || !slotSiap(row.original, j.k)"
-                    @click="minta = { e: row.original, jenis: j.t }"
-                  />
-                </div>
+                  :ev="row.original"
+                  :jenis="j.t"
+                  :label="j.l"
+                  :siap="slotSiap(row.original, j.k)"
+                  :menunggu-ket="j.k === 'dp' ? 'menunggu DP masuk' : 'menunggu pelunasan dicatat'"
+                  :peta="peta"
+                  :memuat="memuat"
+                  :galat="galat"
+                  :bisa-minta="bolehMinta"
+                  @minta="minta = { e: row.original, jenis: j.t }"
+                  @pdf="bukaPdf(row.original, j.t)"
+                  @ulang="muat"
+                />
               </div>
             </template>
             <template #aksi-cell="{ row }">
@@ -364,19 +334,9 @@ const cetak = () => window.print()
                 <UButton
                   v-if="bisaCatat(row.original)"
                   icon="i-lucide-banknote"
-                  color="neutral"
-                  variant="ghost"
                   size="xs"
                   title="Catat pembayaran"
                   aria-label="Catat pembayaran"
-                  @click="keFinance(row.original)"
-                />
-                <UButton
-                  icon="i-lucide-chevron-right"
-                  color="neutral"
-                  variant="ghost"
-                  size="xs"
-                  aria-label="Buka detail"
                   @click="keFinance(row.original)"
                 />
               </div>

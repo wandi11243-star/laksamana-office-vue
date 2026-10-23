@@ -123,21 +123,21 @@ const warnaAntri = (r: BarisApprovalMkt) => {
         <AppStat
           label="Surat penawaran"
           :value="String(rekap.pen)"
-          :context="`menunggu dari ${rekap.penTotal} pengajuan`"
+          :sub="`menunggu dari ${rekap.penTotal} pengajuan`"
           tone="warning"
           icon="i-lucide-file-text"
         />
         <AppStat
           label="Negosiasi lanjutan"
           :value="String(rekap.rev)"
-          :context="`menunggu dari ${rekap.revTotal} perkara`"
+          :sub="`menunggu dari ${rekap.revTotal} perkara`"
           tone="info"
           icon="i-lucide-repeat"
         />
         <AppStat
           label="Menunggu keputusan"
           :value="String(rekap.antri)"
-          :context="`dari ${rekap.total} perkara`"
+          :sub="`dari ${rekap.total} perkara`"
           tone="error"
           icon="i-lucide-hourglass"
         />

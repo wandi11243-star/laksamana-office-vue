@@ -219,21 +219,21 @@ const warnaStatus = (r: RequestDesainMkt) => {
         <AppStat
           label="Menunggu dikerjakan"
           :value="String(hitung.open)"
-          context="Ada di antrian modul Konten"
+          sub="Ada di antrian modul Konten"
           tone="warning"
           icon="i-lucide-list-checks"
         />
         <AppStat
           label="Permintaan desain"
           :value="String(st.designreqs.filter(r => r.jenis === 'design' && !r.batalAt).length)"
-          context="Masuk Design Queue"
+          sub="Masuk Design Queue"
           tone="info"
           icon="i-lucide-palette"
         />
         <AppStat
           label="Permintaan video"
           :value="String(st.designreqs.filter(r => r.jenis === 'edit' && !r.batalAt).length)"
-          context="Masuk Editing Queue"
+          sub="Masuk Editing Queue"
           tone="info"
           icon="i-lucide-clapperboard"
         />

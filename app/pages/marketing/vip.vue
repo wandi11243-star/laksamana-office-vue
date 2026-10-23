@@ -314,28 +314,28 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
         <AppStat
           label="Total reservasi"
           :value="String(rekap.total)"
-          context="Belum dibatalkan"
+          sub="Belum dibatalkan"
           tone="info"
           icon="i-lucide-star"
         />
         <AppStat
           label="Assisted"
           :value="String(rekap.assisted)"
-          context="Dihitung omzet"
+          sub="Dihitung omzet"
           tone="success"
           icon="i-lucide-handshake"
         />
         <AppStat
           label="Regular"
           :value="String(rekap.regular)"
-          context="Tidak dihitung omzet"
+          sub="Tidak dihitung omzet"
           tone="info"
           icon="i-lucide-armchair"
         />
         <AppStat
           label="Nominal assisted"
           :value="rupiah(rekap.nominal)"
-          context="Sudah termasuk tax & service"
+          sub="Sudah termasuk tax & service"
           tone="gold"
           icon="i-lucide-banknote"
         />
