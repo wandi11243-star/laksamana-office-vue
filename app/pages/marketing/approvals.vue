@@ -101,7 +101,7 @@ const KOL: KolomMkt<BarisApprovalMkt>[] = [
   { k: 'jenis', t: 'Jenis', v: r => r.jenis },
   { k: 'perkara', t: 'Perkara', v: r => r.perkara },
   { k: 'nilai', t: 'Nilai', v: r => r.nilai },
-  { k: 'pada', t: 'Diajukan', v: r => r.pada },
+  { k: 'pada', t: 'Diajukan', v: r => r.pada, def: true, turun: true },
   { k: 'status', t: 'Status', v: r => r.status },
   { k: 'putus', t: 'Diputuskan', v: r => r.putusPada },
 ]
@@ -166,13 +166,13 @@ const warnaAntri = (r: BarisApprovalMkt) => {
           <UTable
             :data="hal"
             :columns="[
-              { accessorKey: 'event', header: 'Event' },
-              { accessorKey: 'jenis', header: 'Jenis' },
-              { accessorKey: 'perkara', header: 'Perkara' },
-              { accessorKey: 'nilai', header: 'Nilai' },
-              { accessorKey: 'pada', header: 'Diajukan' },
-              { accessorKey: 'status', header: 'Status' },
-              { id: 'putus', header: 'Diputuskan' },
+              { id: 'event', header: tbl.kepala('event', 'Event') },
+              { accessorKey: 'jenis', header: tbl.kepala('jenis', 'Jenis') },
+              { id: 'perkara', header: tbl.kepala('perkara', 'Perkara') },
+              { id: 'nilai', header: tbl.kepala('nilai', 'Nilai') },
+              { accessorKey: 'pada', header: tbl.kepala('pada', 'Diajukan') },
+              { id: 'status', header: tbl.kepala('status', 'Status') },
+              { id: 'putus', header: tbl.kepala('putus', 'Diputuskan') },
               { id: 'aksi', header: 'Aksi' },
             ]"
             class="hidden lg:block"

@@ -22,7 +22,7 @@ const namaRujuk = (a: AktivitasMkt) => {
   return ''
 }
 const KOL: KolomMkt<AktivitasMkt>[] = [
-  { k: 'at', t: 'Waktu', v: a => String(a.at ?? '') },
+  { k: 'at', t: 'Waktu', v: a => String(a.at ?? ''), def: true, turun: true },
   { k: 'by', t: 'Oleh', v: a => a.by ?? '' },
   { k: 'jenis', t: 'Jenis', v: a => labelJenisMkt(a.refType) },
   { k: 'aksi', t: 'Aktivitas', v: a => a.action ?? '' },
@@ -66,11 +66,11 @@ const hal = computed(() => tbl.potong(tbl.susun([...st.value.activities])))
           <UTable
             :data="hal"
             :columns="[
-              { accessorKey: 'at', header: 'Waktu' },
-              { accessorKey: 'by', header: 'Oleh' },
-              { accessorKey: 'jenis', header: 'Jenis' },
-              { accessorKey: 'aksi', header: 'Aktivitas' },
-              { accessorKey: 'ref', header: 'Detail' },
+              { id: 'at', header: tbl.kepala('at', 'Waktu') },
+              { accessorKey: 'by', header: tbl.kepala('by', 'Oleh') },
+              { id: 'jenis', header: tbl.kepala('jenis', 'Jenis') },
+              { id: 'aksi', header: tbl.kepala('aksi', 'Aktivitas') },
+              { id: 'ref', header: tbl.kepala('ref', 'Detail') },
             ]"
             class="hidden lg:block"
           >
