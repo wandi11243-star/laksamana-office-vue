@@ -3,13 +3,19 @@
 // the timer when `duration` changes). A toast with no timer (0 or Infinity) is
 // waiting on the user and is left alone. The pile itself is capped by
 // `toaster.max` in app.vue.
-import type { Toast } from '@nuxt/ui'
+// @nuxt/ui does not re-export its Toast type from the package root, and this
+// plugin only reads two fields — so a local structural type is enough.
+interface ToastAntre {
+  duration?: number
+  open?: boolean
+  [k: string]: unknown
+}
 
 const TOAST_SISA = 1500
 
 export default defineNuxtPlugin(() => {
   // The list useToast() writes to (@nuxt/ui runtime/composables/useToast.js).
-  const toasts = useState<Toast[]>('toasts', () => [])
+  const toasts = useState<ToastAntre[]>('toasts', () => [])
 
   watch(() => toasts.value.length, (n, lama) => {
     if (n <= lama) return

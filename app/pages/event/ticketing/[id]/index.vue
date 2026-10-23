@@ -382,7 +382,7 @@ const kursiOrder = (tks: Tiket[]) => {
   return urut.map(l => ((jml.get(l) ?? 0) > 1 ? `${l} (${jml.get(l)} tamu)` : l))
 }
 const masukOrder = (tks: Tiket[]) => tks.filter(t => t.status === 'Checked-In').length
-const warnaBayar = (s?: string) => (s === 'Paid' ? 'success' : s === 'Waiting' ? 'warning' : 'neutral') as const
+const warnaBayar = (s?: string): 'success' | 'warning' | 'neutral' => (s === 'Paid' ? 'success' : s === 'Waiting' ? 'warning' : 'neutral')
 const bisaAjukanRefund = (o: OrderTiket) => tiketOrder(o.id).length > 0 && !refundAktif(o.id, daftarRefund.value.rows) && o.payment_status !== 'Refunded'
 const fmtTanggalJam = (s?: string | null) => {
   if (!s) return '-'
