@@ -16,6 +16,16 @@ muatAkademiKru()
 const baris = computed(() => activity.value.slice(0, 120))
 const namaKru = (userId: string) => users.value.find(u => u.id === userId)?.name ?? '-'
 
+// Reimagine (B): timeline first with quick filter. Table stays for desktop
+// parity, cards stay linear on phone.
+const filterAksi = ref<string>('semua')
+const opsiAksi = computed(() => {
+  const unik = [...new Set(baris.value.map(a => a.action))]
+  return [{ value: 'semua', label: 'Semua Aksi' }, ...unik.map(a => ({ value: a, label: a }))]
+})
+const barisTampil = computed(() => baris.value.filter(a => filterAksi.value === 'semua' || a.action === filterAksi.value))
+const terakhir = computed(() => barisTampil.value[0] ?? null)
+
 const kolom: TableColumn<AktivitasAkademi>[] = [
   { accessorKey: 'ts', id: 'waktu', header: 'Waktu' },
   { id: 'kru', header: 'Kru' },
@@ -39,58 +49,82 @@ const kolom: TableColumn<AktivitasAkademi>[] = [
       </p>
     </AppPanel>
 
-    <AppPanel
-      v-else
-      title="Aktivitas"
-      icon="i-lucide-clock"
-      :count="baris.length"
-      flush
-    >
-      <div class="hidden lg:block">
-        <UTable
-          :data="baris"
-          :columns="kolom"
+    <template v-else>
+      <AppPanel
+        title="Terakhir terjadi"
+        icon="i-lucide-play"
+      >
+        <p
+          v-if="terakhir"
+          class="text-[13px] text-muted"
         >
-          <template #waktu-cell="{ row }">
-            <span class="whitespace-nowrap">{{ tanggalJamMs(row.original.ts) }}</span>
-          </template>
-          <template #kru-cell="{ row }">
-            {{ namaKru(row.original.userId) }}
-          </template>
-          <template #aksi-cell="{ row }">
-            <AppStatus
-              color="neutral"
-              icon="i-lucide-activity"
-              size="sm"
-            >
-              {{ row.original.action }}
-            </AppStatus>
-          </template>
-        </UTable>
-      </div>
-      <div class="divide-y divide-default lg:hidden">
-        <div
-          v-for="(a, i) in baris"
-          :key="i"
-          class="px-4 py-3"
+          {{ tanggalJamMs(terakhir.ts) }} · {{ namaKru(terakhir.userId) }} · {{ terakhir.action }}{{ terakhir.detail ? `, ${terakhir.detail}` : '' }}
+        </p>
+        <p
+          v-else
+          class="text-sm text-muted"
         >
-          <p class="text-xs text-muted">
-            {{ tanggalJamMs(a.ts) }} · {{ namaKru(a.userId) }}
-          </p>
-          <p class="mt-0.5 font-semibold text-highlighted">
-            {{ a.action }}
-          </p>
-          <p class="text-sm text-muted">
-            {{ a.detail }}
+          Belum ada aktivitas pada filter ini.
+        </p>
+        <AppChips
+          v-model="filterAksi"
+          :options="opsiAksi"
+          class="mt-3"
+        />
+      </AppPanel>
+
+      <AppPanel
+        title="Aktivitas"
+        icon="i-lucide-clock"
+        :count="barisTampil.length"
+        flush
+      >
+        <div class="hidden lg:block">
+          <UTable
+            :data="barisTampil"
+            :columns="kolom"
+          >
+            <template #waktu-cell="{ row }">
+              <span class="whitespace-nowrap">{{ tanggalJamMs(row.original.ts) }}</span>
+            </template>
+            <template #kru-cell="{ row }">
+              {{ namaKru(row.original.userId) }}
+            </template>
+            <template #aksi-cell="{ row }">
+              <AppStatus
+                color="neutral"
+                icon="i-lucide-activity"
+                size="sm"
+              >
+                {{ row.original.action }}
+              </AppStatus>
+            </template>
+          </UTable>
+        </div>
+        <div class="divide-y divide-default lg:hidden">
+          <div
+            v-for="(a, i) in barisTampil"
+            :key="i"
+            class="px-4 py-3"
+          >
+            <p class="text-xs text-muted">
+              {{ tanggalJamMs(a.ts) }} · {{ namaKru(a.userId) }}
+            </p>
+            <p class="mt-0.5 font-semibold text-highlighted">
+              {{ a.action }}
+            </p>
+            <p class="text-sm text-muted">
+              {{ a.detail }}
+            </p>
+          </div>
+          <p
+            v-if="!barisTampil.length"
+            class="px-4 py-3 text-sm text-muted"
+          >
+            Belum ada aktivitas.
           </p>
         </div>
-        <p
-          v-if="!baris.length"
-          class="px-4 py-3 text-sm text-muted"
-        >
-          Belum ada aktivitas.
-        </p>
-      </div>
-    </AppPanel>
+      </AppPanel>
+    </template>
   </AppPage>
 </template>

@@ -29,6 +29,13 @@ const tampil = computed(() => (kru.value ? materiUntuk(kru.value, materials.valu
   .filter(m => tipe.value === SEMUA || m.type === tipe.value)
   .filter(m => kategori.value === SEMUA || m.cat === kategori.value))
 
+// Reimagine (B): linear first. One next material is the focal action, chips
+// and grid stay as the browsing archive underneath.
+const lanjutkanMateri = computed(() => {
+  const wajib = tampil.value.filter(m => m.mandatory && kru.value && !selesaiMateri(kru.value.id, m, progress.value))
+  return wajib[0] ?? tampil.value.find(m => kru.value && !selesaiMateri(kru.value.id, m, progress.value)) ?? null
+})
+
 const divisiNama = computed(() => namaDivisi(divisions.value, kru.value?.division ?? 'all'))
 </script>
 
@@ -37,6 +44,28 @@ const divisiNama = computed(() => namaDivisi(divisions.value, kru.value?.divisio
     title="Materi Saya"
     :description="`Materi training untuk ${divisiNama} + materi semua divisi`"
   >
+    <AppPanel
+      v-if="lanjutkanMateri && kru"
+      title="Lanjutkan belajar"
+      icon="i-lucide-play"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="truncate font-semibold text-highlighted">
+            {{ lanjutkanMateri.title }}
+          </p>
+          <p class="mt-0.5 text-[12.5px] text-muted">
+            Satu materi dulu sampai tuntas, sisanya bisa dijelajah di bawah.
+          </p>
+        </div>
+        <UButton
+          label="Kerjakan sekarang"
+          icon="i-lucide-arrow-right"
+          @click="bukaMateri(lanjutkanMateri.id)"
+        />
+      </div>
+    </AppPanel>
+
     <div class="mb-4 space-y-3">
       <AppChips
         v-model="tipe"
