@@ -19,6 +19,7 @@ const IKON: Record<string, string> = {
   tree: 'i-lucide-git-fork',
   usage: 'i-lucide-package-minus',
   hpp: 'i-lucide-calculator',
+  breakloss: 'i-lucide-package-x',
   jadwal: 'i-lucide-calendar-days',
   dw: 'i-lucide-user-check',
   absensi: 'i-lucide-clock',
