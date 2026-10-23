@@ -52,6 +52,14 @@ const materiKru = computed(() => (dipilih.value ? materiUntuk(dipilih.value, mat
 const progresKru = (m: MateriAkademi) => progress.value[dipilih.value?.id ?? '']?.[m.id] ?? null
 const itemSelesai = (m: MateriAkademi) => (dipilih.value ? selesaiMateri(dipilih.value.id, m, progress.value) : false)
 
+// Reimagine (B): actionable queue. The three lowest-progress crew are the
+// focal nudge list, the full table stays as the archive.
+const dorongTiga = computed(() => [...scope.value]
+  .map(k => ({ k, s: stat(k) }))
+  .filter(x => x.s.mandTotal > 0)
+  .sort((a, b) => a.s.mandPct - b.s.mandPct)
+  .slice(0, 3))
+
 const kolomDetail: TableColumn<MateriAkademi>[] = [
   { id: 'materi', header: 'Materi' },
   { id: 'wajib', header: 'Wajib' },
@@ -66,6 +74,35 @@ const kolomDetail: TableColumn<MateriAkademi>[] = [
     title="Progress Tim"
     :description="judul"
   >
+    <AppPanel
+      v-if="isManager && dorongTiga.length"
+      title="Perlu didorong dulu"
+      icon="i-lucide-trending-down"
+      :count="dorongTiga.length"
+    >
+      <div class="divide-y divide-default">
+        <div
+          v-for="x in dorongTiga"
+          :key="x.k.id"
+          class="flex flex-wrap items-center justify-between gap-3 py-2.5"
+        >
+          <div class="min-w-0">
+            <p class="truncate font-semibold text-highlighted">
+              {{ x.k.name }}
+            </p>
+            <p class="text-[11px] text-muted">
+              {{ namaDivisi(divisions, x.k.division) }} · {{ x.s.mandDone }}/{{ x.s.mandTotal }} wajib · {{ x.s.mandPct }}%
+            </p>
+          </div>
+          <UButton
+            label="Lihat detail"
+            size="sm"
+            @click="detail(x.k)"
+          />
+        </div>
+      </div>
+    </AppPanel>
+
     <AppPanel
       v-if="!isManager"
       title="Khusus PIC divisi & manajemen"
