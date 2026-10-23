@@ -359,7 +359,52 @@ const muatUlang = () => Promise.all([refreshDasar(), refreshSel()])
       description="Disetujui HR di modul Daily Worker."
       flush
     >
-      <div class="divide-y divide-default">
+      <!-- Old DW table (:2662): # | Nama | Divisi | Posisi | Jam; cards below lg. -->
+      <table class="hidden w-full text-sm lg:table">
+        <thead class="bg-table-head text-left text-xs font-bold uppercase tracking-wide text-table-head-text">
+          <tr>
+            <th class="w-10 px-4 py-2">
+              #
+            </th>
+            <th class="px-4 py-2">
+              Nama
+            </th>
+            <th class="px-4 py-2">
+              Divisi
+            </th>
+            <th class="px-4 py-2">
+              Posisi
+            </th>
+            <th class="px-4 py-2">
+              Jam
+            </th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-default">
+          <tr
+            v-for="(x, i) in dwHari"
+            :key="x.id"
+          >
+            <td class="px-4 py-2 text-muted num">
+              {{ i + 1 }}
+            </td>
+            <td class="px-4 py-2">
+              <b class="block text-highlighted">{{ x.nama }}</b>
+              <span class="text-xs text-muted">daily worker</span>
+            </td>
+            <td class="px-4 py-2">
+              {{ namaDivisiJadwal(x.divisi) }}
+            </td>
+            <td class="px-4 py-2">
+              {{ x.posisi || '—' }}
+            </td>
+            <td class="px-4 py-2 num">
+              {{ x.m && x.s ? `${x.m} – ${x.s}` : '—' }}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="divide-y divide-default lg:hidden">
         <div
           v-for="(x, i) in dwHari"
           :key="x.id"

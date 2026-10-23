@@ -24,9 +24,13 @@ defineProps<{ a: PengajuanJadwal }>()
     <template v-if="a.status !== 'MENUNGGU'">
       <p
         v-if="a.headOleh"
-        class="text-[12px] text-success"
+        class="flex items-center gap-1 text-[12px] text-success"
       >
-        Diteruskan head: {{ a.headOleh }}
+        <UIcon
+          name="i-lucide-check"
+          class="size-3.5 shrink-0"
+        />
+        Disetujui head: {{ a.headOleh }}
       </p>
       <p
         v-if="a.status !== 'MENUNGGU_HRD'"

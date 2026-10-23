@@ -204,19 +204,19 @@ const form = ref(false)
           v-if="nDiHRD"
           class="rounded-field bg-info/10 px-3 py-2 text-sm"
         >
-          <b>{{ nDiHRD }} pengajuan</b> sudah diteruskan dan sedang menunggu pengesahan HRD. Jadwalnya belum berubah sampai HRD mengesahkannya.
+          <b>{{ nDiHRD }} pengajuan</b> sudah Anda teruskan dan sedang menunggu pengesahan HRD. Jadwalnya belum berubah sampai HRD menyahkannya.
         </p>
         <p class="text-sm text-muted">
           <template v-if="peran.admin">
-            Sebagai HRD, Anda mengesahkan pengajuan yang sudah diteruskan head.
+            Sebagai admin, Anda bisa memutuskan pengajuan semua divisi.
           </template>
           <template v-else-if="kuasa.length">
-            Sebagai head {{ kuasa.map(namaDivisiJadwal).join(', ') }}, Anda meneruskan pengajuan kru divisi itu ke HRD.
+            Sebagai head {{ kuasa.map(namaDivisiJadwal).join(', ') }}, Anda memutuskan pengajuan kru divisi itu.
           </template>
           <template v-else>
-            Pengajuan Anda diteruskan head divisi Anda, lalu disahkan HRD.
+            Pengajuan Anda diputuskan oleh head divisi Anda.
           </template>
-          Pengajuan <b>Off/Izin/Cuti/Tukar</b> yang disahkan langsung mengisi sel jadwalnya.
+          Pengajuan <b>Off/Izin/Cuti</b> yang disetujui langsung mengisi sel jadwalnya.
         </p>
         <div class="flex flex-wrap items-center gap-3">
           <AppSeg
@@ -231,7 +231,7 @@ const form = ref(false)
             placeholder="Cari nama kru…"
             class="w-full max-w-56"
           />
-          <span class="text-sm text-muted">{{ tab === 'antri' ? 'Yang belum diputuskan.' : tab === 'riwayat' ? 'Keputusan yang sudah diambil, terbaru di atas.' : 'Seluruh pengajuan; yang menunggu di atas.' }}</span>
+          <span class="text-sm text-muted">{{ tab === 'antri' ? 'Yang belum diputuskan — semuanya tampil, tidak dipotong.' : tab === 'riwayat' ? 'Keputusan yang sudah diambil, terbaru di atas.' : 'Seluruh pengajuan; yang menunggu di atas.' }}</span>
         </div>
         <div
           v-if="q"

@@ -59,7 +59,12 @@ const bisa = computed(() => !modeAll.value && bolehUbah(peran.value, div.value))
 const judulLembar = computed(() => (modeAll.value ? 'Semua divisi' : namaDivisiJadwal(div.value)))
 
 const legenda = computed(() => daftarShift(set.value).map(k => ({ k, def: shiftDef(set.value, k) })))
-const opsiDiv = [{ value: 'ALL', label: 'Semua' }, ...DIVISI.map(d => ({ value: d.k as string, label: d.n, icon: d.icon }))]
+// segDivisi (:2385): each tab counts the crew its sheet will draw.
+const nDiv = (k: string) => kruDivisi(peran.value, kru.value, k).length
+const opsiDiv = computed(() => [
+  { value: 'ALL', label: 'Semua divisi', icon: 'i-lucide-layers', title: 'Susun seluruh divisi yang Anda pegang dalam satu layar', jumlah: DIVISI.reduce((a, d) => a + nDiv(d.k), 0) },
+  ...DIVISI.map(d => ({ value: d.k as string, label: d.n, icon: d.icon, jumlah: nDiv(d.k) })),
+])
 
 const beban = (uid: string) => bebanKru(set.value, peta.value, uid, mk.value)
 const ketJabatan = (uid: string, dv: string) => {

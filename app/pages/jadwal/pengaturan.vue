@@ -265,7 +265,7 @@ async function kosongkan() {
           class="mb-4"
         />
         <p class="mb-3 text-sm text-muted">
-          Nama, jam bawaan, dan warna tiap shift. Mengubah jam di sini berlaku untuk sel yang <b>belum</b> punya jam khusus.
+          Nama, jam bawaan, dan warna tiap shift. Mengubah jam di sini berlaku untuk sel yang <b>belum</b> punya jam khusus — sel yang jamnya sudah ditimpa per orang tidak ikut berubah.
         </p>
         <div class="divide-y divide-default">
           <div
@@ -322,7 +322,8 @@ async function kosongkan() {
         </div>
         <p class="mt-3 text-sm text-muted">
           Shift buatan sendiri bisa dihapus. Shift bawaan (PAGI, MIDDLE, SPLIT, SIANG, OFF, IZIN, CUTI, LAIN) sengaja tidak —
-          kodenya sudah tertulis di sel jadwal dan pengajuan lama.
+          kodenya sudah tertulis di sel jadwal dan pengajuan lama, dan menghapus definisinya membuat sel-sel itu kehilangan nama
+          tanpa satu pun galat.
         </p>
       </AppPanel>
 
@@ -349,8 +350,8 @@ async function kosongkan() {
           />
         </template>
         <p class="mb-3 text-sm text-muted">
-          Head menyusun jadwal divisinya dan meneruskan pengajuan kru divisinya. Sengaja ditunjuk manual, bukan ditebak dari
-          jabatan. Boleh lebih dari satu per divisi.
+          Head menyusun jadwal divisinya dan memutuskan pengajuan kru divisinya. Sengaja ditunjuk manual, bukan ditebak dari
+          jabatan: salah tebak berarti tombol Setujui dipegang orang yang salah. Boleh lebih dari satu per divisi.
         </p>
         <div class="grid gap-3 lg:grid-cols-2">
           <div

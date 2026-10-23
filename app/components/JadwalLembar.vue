@@ -37,6 +37,12 @@ const props = defineProps<{
   dw?: DwJadwal[]
   infoLabel: string
   infoSub?: string
+  /** Weekly sheet: SENIN…MINGGU in full (`HARI[i].toUpperCase()`, :3348); the month sheet keeps three letters. */
+  hariPanjang?: boolean
+  /** Line under the name; weekly sheet shows the job title (`jabatanDari`, :3369). Default: "head divisi". */
+  subNama?: (u: KruJadwal) => string
+  /** Divisi band also says "n sel kosong" or "lengkap" (weekly Semua mode, :3389-3393). */
+  statusIsi?: boolean
 }>()
 const emit = defineEmits<{ pilih: [u: KruJadwal, tgl: string] }>()
 
@@ -53,6 +59,7 @@ function dwOrang(div: string) {
 const dwSel = (dwId: string, tgl: string) => (props.dw ?? []).find(x => x.dwId === dwId && x.tgl === tgl) ?? null
 
 const sel = (uid: string, tgl: string) => props.peta.get(kunciSel(uid, tgl)) ?? null
+const kosongGrup = (g: GrupLembar) => g.kru.reduce((a, u) => a + props.hari.filter(d => !sel(u.id, d)).length, 0)
 const jamTeks = (uid: string, tgl: string) => {
   const c = sel(uid, tgl)
   const j = jamSel(props.set, c)
@@ -68,10 +75,10 @@ const jamTeks = (uid: string, tgl: string) => {
           <th class="beku left-0 w-9 bg-table-head text-table-head-text">
             No.
           </th>
-          <th class="beku left-9 w-28 bg-table-head text-start lg:w-40 text-table-head-text">
+          <th class="beku left-9 w-28 bg-table-head text-start uppercase lg:w-40 text-table-head-text">
             Nama
           </th>
-          <th class="beku left-49 w-32 bg-table-head text-start text-table-head-text">
+          <th class="beku left-49 w-32 bg-table-head text-start uppercase text-table-head-text">
             {{ infoLabel }}
           </th>
           <th
@@ -95,7 +102,7 @@ const jamTeks = (uid: string, tgl: string) => {
             class="bg-muted px-1 py-1 text-[11px] font-semibold"
             :class="[idxHari(d) >= 5 ? 'text-primary-700' : 'text-muted', idxHari(d) === 0 && 'border-s-2 border-s-primary-400']"
           >
-            {{ HARI_SENIN[idxHari(d)]!.slice(0, 3) }}
+            {{ hariPanjang ? HARI_SENIN[idxHari(d)]!.toUpperCase() : HARI_SENIN[idxHari(d)]!.slice(0, 3) }}
           </th>
         </tr>
       </thead>
@@ -109,7 +116,17 @@ const jamTeks = (uid: string, tgl: string) => {
               :colspan="kolom"
               class="bg-primary-100 px-3 py-1.5 text-start text-sm font-bold text-primary-800"
             >
-              <span class="sticky left-3">{{ namaDivisiJadwal(g.div) }} <span class="font-medium text-muted">{{ g.kru.length }} kru</span></span>
+              <span class="sticky left-3">{{ namaDivisiJadwal(g.div) }} <span class="font-medium text-muted">{{ g.kru.length }} kru</span>
+                <template v-if="statusIsi">
+                  <span
+                    v-if="kosongGrup(g)"
+                    class="ms-2 font-medium text-error num"
+                  >{{ kosongGrup(g) }} sel kosong</span>
+                  <span
+                    v-else
+                    class="ms-2 font-medium text-success"
+                  >lengkap</span>
+                </template></span>
             </th>
           </tr>
           <tr
@@ -122,7 +139,11 @@ const jamTeks = (uid: string, tgl: string) => {
             <td class="beku left-9 max-w-28 bg-default lg:max-w-40">
               <b class="block truncate text-highlighted">{{ u.name }}</b>
               <i
-                v-if="g.heads.includes(u.id)"
+                v-if="subNama"
+                class="block truncate text-[11px] text-muted"
+              >{{ subNama(u) }}</i>
+              <i
+                v-else-if="g.heads.includes(u.id)"
                 class="text-[11px] text-primary-700"
               >head divisi</i>
             </td>
