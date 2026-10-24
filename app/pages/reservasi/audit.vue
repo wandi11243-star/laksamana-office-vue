@@ -41,7 +41,7 @@ const { data: halAudit, status } = useAsyncData(
   { watch: [qTunda, hal, perHal] },
 )
 const daftar = computed(() => halAudit.value?.data ?? [])
-const total = computed(() => Number(halAudit.value?.meta?.total ?? 0))
+const total = computed(() => Number(halAudit.value?.meta?.total ?? daftar.value.length))
 const maxHal = computed(() => Math.max(1, Math.ceil(total.value / perHal.value)))
 /** A new search starts on page one; the server clamps a page past the end. */
 watch([qTunda, perHal], () => {
