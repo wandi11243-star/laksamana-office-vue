@@ -135,10 +135,11 @@ async function hapus(b: IdeBank) {
         </UFormField>
         <UButton
           color="primary"
+          icon="i-lucide-zap"
           :loading="genJalan"
           @click="generate()"
         >
-          {{ genJalan ? 'Menyusun…' : '⚡ Buat content planning' }}
+          {{ genJalan ? 'Menyusun…' : 'Buat content planning' }}
         </UButton>
         <p
           v-if="genJalan"
@@ -178,10 +179,11 @@ async function hapus(b: IdeBank) {
             />
             <UButton
               color="primary"
+              icon="i-lucide-plus"
               size="xs"
               @click="bukaForm()"
             >
-              ＋ Ide manual
+              Ide manual
             </UButton>
           </div>
         </template>
@@ -211,7 +213,10 @@ async function hapus(b: IdeBank) {
             v-if="b.hook"
             class="text-sm"
           >
-            🎬 {{ b.hook }}
+            <UIcon
+              name="i-lucide-clapperboard"
+              class="size-4"
+            /> {{ b.hook }}
           </p>
           <p
             v-if="b.caption"
@@ -247,9 +252,10 @@ async function hapus(b: IdeBank) {
                 color="neutral"
                 variant="soft"
                 size="xs"
+                icon="i-lucide-calendar-plus"
                 :to="`./kalender?tanggal=${b.tanggal || hariIni()}`"
               >
-                📅 Jadwalkan
+                Jadwalkan
               </UButton>
             </template>
             <template v-else-if="b.status === 'ARSIP'">
