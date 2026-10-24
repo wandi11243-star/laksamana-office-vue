@@ -17,6 +17,7 @@ import {
 import { useJadwalCells, useJadwalDasar, useJadwalRequests } from '~/composables/useJadwal'
 import { STATUS_AJU_IKON, STATUS_AJU_WARNA } from '~/utils/status-jadwal'
 import { BULAN, fTgl, fTglP, hariIni, tambahHari } from '~/utils/format'
+import { JADWAL_BACA_SAJA } from '~/utils/hris'
 
 definePageMeta({ access: ['jadwal'] })
 
@@ -75,6 +76,7 @@ const legenda = computed(() => daftarShift(set.value).map(k => ({ k, def: shiftD
 const form = ref(false)
 const tglForm = ref('')
 function ajukan(d?: string) {
+  if (JADWAL_BACA_SAJA) return
   tglForm.value = d ?? ''
   form.value = true
 }
@@ -102,7 +104,7 @@ const sesudahKirim = () => Promise.all([refreshAju(), refreshSel()])
   >
     <template #actions>
       <UButton
-        v-if="aku"
+        v-if="aku && !JADWAL_BACA_SAJA"
         label="Ajukan off / izin"
         icon="i-lucide-plus"
         @click="ajukan()"
@@ -198,7 +200,10 @@ const sesudahKirim = () => Promise.all([refreshAju(), refreshSel()])
           />
         </AppStatGrid>
 
-        <p class="mb-3 flex items-start gap-2 rounded-field bg-info/10 px-3 py-2 text-sm">
+        <p
+          v-if="!JADWAL_BACA_SAJA"
+          class="mb-3 flex items-start gap-2 rounded-field bg-info/10 px-3 py-2 text-sm"
+        >
           <UIcon
             name="i-lucide-pointer"
             class="mt-0.5 size-4 shrink-0 text-info"
@@ -212,7 +217,7 @@ const sesudahKirim = () => Promise.all([refreshAju(), refreshSel()])
           :peta="peta"
           :uid="peran.id"
           :mk="mk"
-          bisa
+          :bisa="!JADWAL_BACA_SAJA"
           judul-klik="klik untuk mengajukan off, izin, atau tukar shift"
           :tanda="ajuPeta"
           @pilih="ajukan"
