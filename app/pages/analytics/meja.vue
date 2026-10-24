@@ -5,6 +5,7 @@
   1 on nearly every bill). Quick Service joins as a seat-less row.
 -->
 <script setup lang="ts">
+import { useAnalyticsHarian } from '~/composables/useAnalyticsEsb'
 import type { TableColumn } from '@nuxt/ui'
 import { useAnalyticsState } from '~/composables/useAnalytics'
 import { ROLE_LABEL_ANALYTICS, useAnalyticsIzin } from '~/utils/layar/analytics'
@@ -24,12 +25,15 @@ const isi = computed(() => balasan.value?.data ?? null)
 const laporan = computed(() => isi.value?.data.laporan ?? {})
 const daftarBulan = computed(() => Object.keys(laporan.value).sort().reverse())
 const blnPilih = useState<string | null>('analytics-bln', () => null)
+// "Per hari": a picked date replaces the month on this page (HARIAN_VIEW)
+const harian = useAnalyticsHarian()
 const bulan = computed(() => {
+  if (harian.hari.value) return harian.hari.value.slice(0, 7)
   const a = daftarBulan.value
   if (blnPilih.value && a.includes(blnPilih.value)) return blnPilih.value
   return a[0] ?? ''
 })
-const d = computed(() => (bulan.value ? laporan.value[bulan.value] ?? null : null))
+const d = computed(() => (harian.hari.value ? harian.laporanHari.value : (bulan.value ? laporan.value[bulan.value] ?? null : null)))
 
 const fmtBln = (b: string) => {
   const p = String(b || '').split('-')
@@ -246,15 +250,19 @@ const zonaAgregat = computed(() => {
       <div class="mb-4 flex flex-wrap items-center gap-1.5">
         <span class="text-sm font-semibold">Bulan</span>
         <AppChips
-          v-model="blnPilih"
+          :model-value="blnPilih"
           :options="daftarBulan.map(b => ({ value: b, label: fmtBln(b) }))"
+          @update:model-value="harian.pilihBulan"
         />
         <span class="flex-1" />
         <span class="text-xs text-muted">{{ ketLaporan }}</span>
       </div>
 
+      <AnalyticsHarianPilih />
+
+      <template v-if="harian.hari.value && !d" />
       <div
-        v-if="!d"
+        v-else-if="!d"
         class="rounded-field border border-default bg-elevated p-8 text-center"
       >
         <p class="font-semibold">

@@ -7,6 +7,7 @@
   engine lives in ~/utils/analytics-menu (menuNormal port).
 -->
 <script setup lang="ts">
+import { useAnalyticsHarian } from '~/composables/useAnalyticsEsb'
 import type { ResepHpp } from '~/utils/pohon-resep'
 import { saveAnalytics, useAnalyticsState } from '~/composables/useAnalytics'
 import { getHppRecipes } from '~/composables/useStock'
@@ -32,12 +33,15 @@ const versi = computed(() => versiDari(balasan.value))
 const laporan = computed(() => isi.value?.data.laporan ?? {})
 const daftarBulan = computed(() => Object.keys(laporan.value).sort().reverse())
 const blnPilih = useState<string | null>('analytics-bln', () => null)
+// "Per hari": a picked date replaces the month on this page (HARIAN_VIEW)
+const harian = useAnalyticsHarian()
 const bulan = computed(() => {
+  if (harian.hari.value) return harian.hari.value.slice(0, 7)
   const a = daftarBulan.value
   if (blnPilih.value && a.includes(blnPilih.value)) return blnPilih.value
   return a[0] ?? ''
 })
-const d = computed(() => (bulan.value ? laporan.value[bulan.value] ?? null : null))
+const d = computed(() => (harian.hari.value ? harian.laporanHari.value : (bulan.value ? laporan.value[bulan.value] ?? null : null)))
 const fmtBln = (b: string) => {
   const p = String(b || '').split('-')
   return p.length === 2 ? `${BLN[Number(p[1]) - 1]} ${p[0]}` : (b || '—')
@@ -58,7 +62,8 @@ const catKode = computed(() => kodeCatatan(setting.value.petaKode, resep.value))
 
 // ---- month comparison (shared with Kategori: one control) ----
 const blnBanding = useState<string>('analytics-banding', () => '')
-const bandingAktif = computed(() => (blnBanding.value && blnBanding.value !== bulan.value && laporan.value[blnBanding.value] ? blnBanding.value : ''))
+// daily mode has no comparison (blnBandingAktif, :2752)
+const bandingAktif = computed(() => (!harian.hari.value && blnBanding.value && blnBanding.value !== bulan.value && laporan.value[blnBanding.value] ? blnBanding.value : ''))
 const opsiBanding = computed(() => daftarBulan.value.filter(b => b !== bulan.value))
 
 interface BarisMenu { n: string, qty: number, nilai: number, kel: string, bqty: number, bnilai: number, dnilai: number, ada: boolean }
@@ -285,15 +290,19 @@ async function pasang(kode: string, menu: string) {
       <div class="mb-4 flex flex-wrap items-center gap-1.5">
         <span class="text-sm font-semibold">Bulan</span>
         <AppChips
-          v-model="blnPilih"
+          :model-value="blnPilih"
           :options="daftarBulan.map(b => ({ value: b, label: fmtBln(b) }))"
+          @update:model-value="harian.pilihBulan"
         />
         <span class="flex-1" />
         <span class="text-xs text-muted">{{ ketLaporan }}</span>
       </div>
 
+      <AnalyticsHarianPilih />
+
+      <template v-if="harian.hari.value && !d" />
       <div
-        v-if="!d"
+        v-else-if="!d"
         class="rounded-field border border-default bg-elevated p-8 text-center"
       >
         <p class="font-semibold">
@@ -329,7 +338,7 @@ async function pasang(kode: string, menu: string) {
       <template v-else>
         <!-- pilihBanding -->
         <div
-          v-if="opsiBanding.length"
+          v-if="opsiBanding.length && !harian.hari.value"
           class="mb-4 flex flex-wrap items-center gap-2.5 rounded-field border border-default bg-default px-4 py-3"
         >
           <b class="text-sm">Bandingkan dengan</b>

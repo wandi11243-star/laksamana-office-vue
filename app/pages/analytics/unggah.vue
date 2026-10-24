@@ -387,6 +387,9 @@ const kolom: TableColumn<BarisRiwayat>[] = [
         />
       </AppPanel>
 
+      <!-- kartuSinkronEsb() after the upload card (vUnggah, :6663) -->
+      <AnalyticsEsbSinkron />
+
       <AppPanel
         v-if="hasilPromo"
         title="Pratinjau laporan promo"

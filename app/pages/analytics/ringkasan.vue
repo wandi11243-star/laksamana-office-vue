@@ -5,6 +5,7 @@
   POS-vs-Rekap comparison and the bridge to the three Office figures.
 -->
 <script setup lang="ts">
+import { useAnalyticsHarian } from '~/composables/useAnalyticsEsb'
 import type { TableColumn } from '@nuxt/ui'
 import { useAnalyticsState } from '~/composables/useAnalytics'
 import { ROLE_LABEL_ANALYTICS, useAnalyticsIzin } from '~/utils/layar/analytics'
@@ -23,12 +24,15 @@ const laporan = computed(() => isi.value?.data.laporan ?? {})
 const daftarBulan = computed(() => Object.keys(laporan.value).sort().reverse())
 /** The active month: the chosen one when still present, else the newest. */
 const blnPilih = useState<string | null>('analytics-bln', () => null)
+// "Per hari": a picked date replaces the month on this page (HARIAN_VIEW)
+const harian = useAnalyticsHarian()
 const bulan = computed(() => {
+  if (harian.hari.value) return harian.hari.value.slice(0, 7)
   const a = daftarBulan.value
   if (blnPilih.value && a.includes(blnPilih.value)) return blnPilih.value
   return a[0] ?? ''
 })
-const d = computed(() => (bulan.value ? laporan.value[bulan.value] ?? null : null))
+const d = computed(() => (harian.hari.value ? harian.laporanHari.value : (bulan.value ? laporan.value[bulan.value] ?? null : null)))
 const r = computed(() => d.value?.ringkas ?? null)
 
 const fmtBln = (b: string) => {
@@ -112,11 +116,13 @@ async function muatDaily() {
 watch(bulan, muatDaily, { immediate: true })
 
 const num = (v: unknown) => Number(v ?? 0) || 0
+/** cocokPeriode (:1912): in daily mode only that day of the Rekap counts. */
+const cocokPeriode = (t: string) => (harian.hari.value ? t === harian.hari.value : t.startsWith(bulan.value))
 const rekap = computed(() => {
   const peta: Record<string, { net: number, svc: number, tax: number }> = {}
   for (const x of daily.value ?? []) {
     const t = String(x.date ?? '').slice(0, 10)
-    if (!t || !t.startsWith(bulan.value)) continue
+    if (!t || !cocokPeriode(t)) continue
     const o = peta[t] || (peta[t] = { net: 0, svc: 0, tax: 0 })
     o.net += x.net ?? (num(x.food) + num(x.bev) + num(x.lainnya) - num(x.discount))
     o.svc += x.service_charge ?? num(x.service)
@@ -132,7 +138,7 @@ const rekapTagihan = computed(() => rekapNet.value + rekapSvc.value + rekapTax.v
 const selisih = computed(() => grand.value - rekapTagihan.value)
 const selisihBesar = computed(() => rekapTagihan.value ? Math.abs(selisih.value) / rekapTagihan.value : 0)
 const compliment = computed(() => (daily.value ?? [])
-  .filter(x => String(x.date ?? '').startsWith(bulan.value))
+  .filter(x => cocokPeriode(String(x.date ?? '').slice(0, 10)))
   .reduce((a, x) => a + num(x.compliment), 0))
 
 interface BarisSelisih { t: string, pos: number | null, rek: number | null, s: number, letak: string, hanya: '' | 'pos' | 'rekap' }
@@ -247,18 +253,24 @@ function segarkan() {
     />
 
     <template v-else>
+      <!-- kartuSinkronEsb(true) sits above the month picker (vRingkasan, :1646) -->
+      <AnalyticsEsbSinkron ringkas />
       <div class="mb-4 flex flex-wrap items-center gap-1.5">
         <span class="text-sm font-semibold">Bulan</span>
         <AppChips
-          v-model="blnPilih"
+          :model-value="blnPilih"
           :options="daftarBulan.map(b => ({ value: b, label: fmtBln(b) }))"
+          @update:model-value="harian.pilihBulan"
         />
         <span class="flex-1" />
         <span class="text-xs text-muted">{{ ketLaporan }}</span>
       </div>
 
+      <AnalyticsHarianPilih />
+
+      <template v-if="harian.hari.value && !d" />
       <div
-        v-if="!d"
+        v-else-if="!d"
         class="rounded-field border border-default bg-elevated p-8 text-center"
       >
         <p class="font-semibold">
