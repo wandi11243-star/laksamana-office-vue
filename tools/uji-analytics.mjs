@@ -1,6 +1,7 @@
 /*
  * tools/uji-analytics.mjs — guard for app/utils/analytics-pos.ts,
- * app/utils/analytics-agregat.ts and app/utils/analytics-dampak.ts
+ * app/utils/analytics-agregat.ts, app/utils/analytics-dampak.ts and
+ * app/utils/analytics-menu.ts
  * (Lane L1/L2/L3, issue #20).
  *
  *   node tools/uji-analytics.mjs      (Node 24: imports the .ts directly)
@@ -13,6 +14,7 @@
 import * as P from '../app/utils/analytics-pos.ts'
 import * as A from '../app/utils/analytics-agregat.ts'
 import * as D from '../app/utils/analytics-dampak.ts'
+import * as M from '../app/utils/analytics-menu.ts'
 
 let ok = 0
 let gagal = 0
@@ -233,6 +235,39 @@ const t3 = D.top3Acara([
 ])
 cek('kelompok per nama tak peka huruf', t3.top[0].nama === '(tanpa nama)' && t3.top[1].nama === 'Nobar' && t3.top[1].omset === 50000)
 cek('nol disaring, sisa dihitung', t3.top.length === 3 && t3.sisa === 2 && t3.sisaOmset === 3000 && t3.tanpaNama === 1)
+
+console.log('\nanalytics-menu: menuNormal (paket, ukuran, kode HPP)')
+{
+  // ICE KOPI 834 plain + 33 named package = 867; 195 of them were LARGE (row under the parent).
+  const lap = {
+    menu: { 'ICE KOPI LAKSAMANA': { qty: 834, nilai: 834000 }, 'ICE KOPI LAKSAMANA (PACKAGE)': { qty: 33, nilai: 0 }, 'LARGE KOPI (PACKAGE)': { qty: 195, nilai: 975000 }, 'Nasi Kotak': { qty: 10, nilai: 300000 } },
+    ukuran: { 'ICE KOPI LAKSAMANA': { LARGE: { KOPISUSU002: { qty: 195, nilai: 975000, induk: 195000 } } } },
+    kategori: { EVENT: { kat: 'OTHERS' }, KOPI: { kat: 'BEVERAGES' } },
+    katMenu: { EVENT: { 'Nasi Kotak': {} }, KOPI: { 'ICE KOPI LAKSAMANA': {} } },
+  }
+  const n1 = M.menuNormal(lap, {})
+  cek('large dipindah, bukan dijumlah (867-195=672)', n1.gab['ICE KOPI LAKSAMANA'].qty === 672 && n1.gab['ICE KOPI LAKSAMANA (LARGE)'].qty === 195)
+  cek('nilai tidak hilang', Object.values(n1.gab).reduce((a, x) => a + x.nilai, 0) + n1.ev.nilai === 834000 + 975000 + 300000)
+  cek('kode tak dikenal dilaporkan berikut induknya', n1.takKenal.KOPISUSU002?.induk === 'ICE KOPI LAKSAMANA' && n1.takKenal.KOPISUSU002.qty === 195)
+  cek('menu EVENT keluar dan dihitung', n1.ev.nama.includes('Nasi Kotak') && n1.ev.qty === 10 && !n1.gab['NASI KOTAK'])
+  cek('kelompok ikut ke baris large', n1.gab['ICE KOPI LAKSAMANA (LARGE)'].kel === 'BEVERAGES')
+  const resep = [{ nama: 'Ice Kopi Laksamana Large', tipe: 'dish', kode: 'kopisusu002' }, { nama: 'A', tipe: 'dish', kode: 'X1' }, { nama: 'B', tipe: 'dish', kode: 'x1' }, { nama: 'Base', tipe: 'base', kode: 'B1' }]
+  const pk = M.petaKode({ KOPISUSU002: 'Manual', y9: 'Y' }, resep)
+  cek('HPP menang atas manual', pk.KOPISUSU002 === 'Ice Kopi Laksamana Large' && pk.Y9 === 'Y')
+  cek('kode kembar tidak dipasangkan, base tidak jadi tujuan', !pk.X1 && !pk.B1 && M.kodeCatatan({}, resep).dobel.X1.length === 2)
+  const n2 = M.menuNormal(lap, pk)
+  cek('nama resep dipakai untuk baris large', n2.gab['ICE KOPI LAKSAMANA LARGE']?.qty === 195 && !n2.takKenal.KOPISUSU002)
+  cek('laporan lama: ukuran tidak dihitung, disebut', M.menuNormal({ menu: lap.menu }, {}).ukLama.qty === 195)
+  const s = M.saranKode('LYCHEE02', ['LYCHEE TEA', 'LARGE (PACKAGE) · LYCHEE02'], ['Lychee Tea Large'], 'LARGE')
+  cek('saran dijepit ke ukuran', s.utama.join() === 'Lychee Tea Large' && s.cadangan.join() === 'LYCHEE TEA')
+  cek('kata utuh: ENLARGED bukan large', !M.punyaKataUkuran('ENLARGED TEA', 'LARGE'))
+  const peta = M.resepPeta([{ nama: 'Kopi', yield_qty: 1, bahan: [{ nama: 'Espresso', qty: 60, satuan: 'Ml' }, { nama: 'Susu', qty: 120, satuan: 'Ml' }] }, { nama: 'Espresso', yield_qty: 30, bahan: [{ nama: 'Biji', qty: 18, satuan: 'Gram' }] }, { nama: 'Roti', bahan: [{ nama: 'Roti', qty: 1 }] }])
+  const b = M.bahanSatuMenu('KOPI', 10, peta)
+  cek('resep bertingkat dibagi yield', b.mentah['Biji (Gram)'] === 360 && b.mentah['Susu (Ml)'] === 1200 && b.prep['Espresso (Ml)'] === 600)
+  const U = M.uraiBaru()
+  M.uraiResep('Roti', 1, peta, U)
+  cek('resep menunjuk dirinya: siklus', U.putar.Roti === 'siklus')
+}
 
 console.log('\n' + ok + ' lulus, ' + gagal + ' gagal')
 process.exit(gagal ? 1 : 0)
