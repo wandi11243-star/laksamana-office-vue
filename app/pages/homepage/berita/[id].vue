@@ -450,7 +450,7 @@ const kategoriNama = computed(() => kategori.value.find(k => k.id === form.kateg
               >
             </div>
             <div class="p-3">
-              <p class="text-[11px] font-semibold uppercase tracking-wide text-primary-700 dark:text-primary-300">
+              <p class="text-[11px] font-semibold uppercase tracking-wide text-primary-700">
                 {{ kategoriNama }}
               </p>
               <p class="mt-1 line-clamp-2 font-display font-bold leading-snug text-highlighted">
