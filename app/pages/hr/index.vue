@@ -1,14 +1,12 @@
 <!--
-  HR › Anjungan (deploy/hr/index.html RENDER.dash :1481-1551).
+  HR › Anjungan — reimagine (B): decision-first.
 
-  Four numbers plus the self card, the automatic insights, the Top 5 and the
-  divisional KPI glance. Rules kept:
-  - only rows whose data completeness passes the threshold join the average
-    and the ranking (F.5) — default-heavy scores must not move the numbers;
-  - insights and contract dates pass through scopeEmps, so a plain crew
-    member never sees a co-worker's data (F.11);
-  - both audiences see the same page, so the self card hides its number until
-    the score means something.
+  Dulu halaman ini meniru susunan lama (sapaan, 4 kartu, insight, top 5, KPI,
+  agenda). Versi ini membalik urutannya mengikuti pertanyaan yang dijawab:
+  "apa yang perlu saya tindak hari ini" dulu (antrean aksi), baru angkanya.
+  Panel sapaan tetap jadi satu-satunya titik fokus; sisanya menunduk.
+  Referensi: dasbor people-analytics yang question-first (AIHR), panduan
+  visual HR yang menuntut konteks tiap angka (Udder).
 -->
 <script setup lang="ts">
 import {
@@ -114,41 +112,10 @@ const namaDiv = (e: HrEmployee) => divName(s.value, e.divId)
       </div>
     </AppPanel>
 
-    <AppStatGrid>
-      <AppStat
-        label="Rata-rata People Score"
-        icon="i-lucide-star"
-        :value="avgScore == null ? '—' : Math.round(avgScore * 10) / 10"
-        :sub="scored.length ? `${scored.length} kru terukur` : 'belum ada kru dengan data cukup'"
-        tone="gold"
-      />
-      <AppStat
-        label="Training wajib selesai"
-        icon="i-lucide-graduation-cap"
-        :value="trainAvg == null ? '—' : `${Math.round(trainAvg)}%`"
-        sub="rata-rata tim"
-        tone="info"
-      />
-      <AppStat
-        label="Pelanggaran bulan ini"
-        icon="i-lucide-triangle-alert"
-        :value="vioCount"
-        :sub="vioCount ? 'perlu tindak lanjut' : 'bersih'"
-        :tone="vioCount ? 'error' : 'success'"
-      />
-      <AppStat
-        label="Mood tim"
-        icon="i-lucide-smile"
-        :value="moodAvg ? `${Math.round(moodAvg * 10) / 10} / 5` : '—'"
-        :sub="`${moodsMk.length} check-in`"
-        tone="vip"
-      />
-    </AppStatGrid>
-
     <AppPanel
-      title="Insight otomatis"
-      icon="i-lucide-sparkles"
-      description="Hal yang perlu ditindak, dihitung dari data bulan ini."
+      title="Perlu tindakan"
+      icon="i-lucide-siren"
+      description="Dihitung dari data bulan ini. Selesaikan satu per satu."
     >
       <p
         v-if="!insights.length"
@@ -183,6 +150,37 @@ const namaDiv = (e: HrEmployee) => divName(s.value, e.divId)
         </div>
       </div>
     </AppPanel>
+
+    <AppStatGrid>
+      <AppStat
+        label="Rata-rata People Score"
+        icon="i-lucide-star"
+        :value="avgScore == null ? '—' : Math.round(avgScore * 10) / 10"
+        :sub="scored.length ? `${scored.length} kru terukur` : 'belum ada kru dengan data cukup'"
+        tone="gold"
+      />
+      <AppStat
+        label="Training wajib selesai"
+        icon="i-lucide-graduation-cap"
+        :value="trainAvg == null ? '—' : `${Math.round(trainAvg)}%`"
+        sub="rata-rata tim"
+        tone="info"
+      />
+      <AppStat
+        label="Pelanggaran bulan ini"
+        icon="i-lucide-triangle-alert"
+        :value="vioCount"
+        :sub="vioCount ? 'perlu tindak lanjut' : 'bersih'"
+        :tone="vioCount ? 'error' : 'success'"
+      />
+      <AppStat
+        label="Mood tim"
+        icon="i-lucide-smile"
+        :value="moodAvg ? `${Math.round(moodAvg * 10) / 10} / 5` : '—'"
+        :sub="`${moodsMk.length} check-in`"
+        tone="vip"
+      />
+    </AppStatGrid>
 
     <div class="grid gap-0 lg:grid-cols-2 lg:gap-5">
       <AppPanel
