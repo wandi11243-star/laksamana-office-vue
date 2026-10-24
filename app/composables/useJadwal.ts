@@ -14,6 +14,7 @@
 // `jadwal` can draw it without the `dw` module.
 import type { KruJadwal, PeranJadwal, PetaSel, SelJadwal, SettingJadwal, Timpa } from '~/utils/jadwal'
 import { daftarTimpa, kunciSel, normalSetting, peranJadwal, selDariPengajuan } from '~/utils/jadwal'
+import { JADWAL_BACA_SAJA, PESAN_JADWAL_BACA_SAJA } from '~/utils/hris'
 
 export interface PengajuanJadwal {
   id: string
@@ -121,12 +122,27 @@ export function useJadwalDasar() {
 
 // ---------------------------------------------------------------- writes
 
+/**
+ * Refuse every Jadwal write while the module is read-only (JADWAL_BACA_SAJA),
+ * shaped like an API refusal so `apiErrorMessage` shows the HRIS hint.
+ */
+function tolakBacaSaja(): void {
+  if (JADWAL_BACA_SAJA) {
+    throw Object.assign(new Error(PESAN_JADWAL_BACA_SAJA), {
+      statusCode: 423,
+      data: { error: { code: 'jadwal_baca_saja', message: PESAN_JADWAL_BACA_SAJA } },
+    })
+  }
+}
+
 /** PUT /jadwal/cells — upsert `cells`, delete `clear`, one transaction. */
-export const saveCells = (cells: SelJadwal[], clear: { u: string, d: string }[] = []) =>
-  useApi()<Envelope<{ saved: boolean, isi: number, hapus: number, ts: number }>>('/jadwal/cells', {
+export const saveCells = (cells: SelJadwal[], clear: { u: string, d: string }[] = []) => {
+  tolakBacaSaja()
+  return useApi()<Envelope<{ saved: boolean, isi: number, hapus: number, ts: number }>>('/jadwal/cells', {
     method: 'PUT',
     body: { cells, clear },
   })
+}
 
 /** POST /jadwal/requests — always lands as MENUNGGU; `userId` is forced to the caller unless admin. */
 export const createRequest = (body: {
@@ -138,18 +154,25 @@ export const createRequest = (body: {
   shift: string
   jamMulai: string
   jamSelesai: string
-}) => useApi()<Envelope<{ saved: boolean, id: string }>>('/jadwal/requests', { method: 'POST', body })
+}) => {
+  tolakBacaSaja()
+  return useApi()<Envelope<{ saved: boolean, id: string }>>('/jadwal/requests', { method: 'POST', body })
+}
 
 /** POST /jadwal/requests/{id}/decision — two steps, enforced by the server. */
-export const decideRequest = (id: string, status: 'MENUNGGU_HRD' | 'DISETUJUI' | 'DITOLAK', nota = '') =>
-  useApi()<Envelope<{ saved: boolean, id: string, status: string }>>(`/jadwal/requests/${id}/decision`, {
+export const decideRequest = (id: string, status: 'MENUNGGU_HRD' | 'DISETUJUI' | 'DITOLAK', nota = '') => {
+  tolakBacaSaja()
+  return useApi()<Envelope<{ saved: boolean, id: string, status: string }>>(`/jadwal/requests/${id}/decision`, {
     method: 'POST',
     body: { status, nota },
   })
+}
 
 /** DELETE /jadwal/requests/{id} — the requester or a head. */
-export const deleteRequest = (id: string) =>
-  useApi()<Envelope<{ deleted: boolean, id: string }>>(`/jadwal/requests/${id}`, { method: 'DELETE' })
+export const deleteRequest = (id: string) => {
+  tolakBacaSaja()
+  return useApi()<Envelope<{ deleted: boolean, id: string }>>(`/jadwal/requests/${id}`, { method: 'DELETE' })
+}
 
 /**
  * The bulk-write flow shared by the sheet tools (Salin, Isi Jadwal, Impor,
@@ -251,17 +274,24 @@ export interface DataDiri {
 }
 
 /** POST /account/roster (new, PIN 1111) or PATCH /account/roster/{id} (keeps the PIN). Admin of `jadwal`. */
-export const saveDataDiri = (id: string, body: DataDiri) => (id
-  ? useApi()<Envelope<{ id: string }>>(`/account/roster/${id}`, { method: 'PATCH', body })
-  : useApi()<Envelope<{ id: string }>>('/account/roster', { method: 'POST', body }))
+export const saveDataDiri = (id: string, body: DataDiri) => {
+  tolakBacaSaja()
+  return (id
+    ? useApi()<Envelope<{ id: string }>>(`/account/roster/${id}`, { method: 'PATCH', body })
+    : useApi()<Envelope<{ id: string }>>('/account/roster', { method: 'POST', body }))
+}
 
 /** PUT /account/roster/{id}/active. */
-export const setAktifKru = (id: string, active: boolean) =>
-  useApi()<Envelope<{ id: string, active: boolean }>>(`/account/roster/${id}/active`, { method: 'PUT', body: { active } })
+export const setAktifKru = (id: string, active: boolean) => {
+  tolakBacaSaja()
+  return useApi()<Envelope<{ id: string, active: boolean }>>(`/account/roster/${id}/active`, { method: 'PUT', body: { active } })
+}
 
 /** DELETE /account/roster/{id} — only a deactivated, non-self, non-Superadmin row. */
-export const hapusKru = (id: string) =>
-  useApi()<Envelope<{ id: string, nama: string }>>(`/account/roster/${id}`, { method: 'DELETE' })
+export const hapusKru = (id: string) => {
+  tolakBacaSaja()
+  return useApi()<Envelope<{ id: string, nama: string }>>(`/account/roster/${id}`, { method: 'DELETE' })
+}
 
 /** The old `pesanGagalRoster` (deploy/jadwal/index.html:1999): roster refusals in plain words. */
 export function pesanGagalRoster(e: unknown): string {
@@ -283,9 +313,13 @@ export function pesanGagalRoster(e: unknown): string {
 }
 
 /** PUT /jadwal/settings — the whole blob (admin of `jadwal`). */
-export const saveJadwalSettings = (data: SettingJadwal) =>
-  useApi()<Envelope<unknown>>('/jadwal/settings', { method: 'PUT', body: data })
+export const saveJadwalSettings = (data: SettingJadwal) => {
+  tolakBacaSaja()
+  return useApi()<Envelope<unknown>>('/jadwal/settings', { method: 'PUT', body: data })
+}
 
 /** DELETE /jadwal/cells — wipe every cell and request (admin), confirmation word required. */
-export const kosongkanJadwal = () =>
-  useApi()<Envelope<{ cleared: boolean, sel: number, pengajuan: number }>>('/jadwal/cells', { method: 'DELETE', body: { konfirmasi: 'HAPUS SEMUA' } })
+export const kosongkanJadwal = () => {
+  tolakBacaSaja()
+  return useApi()<Envelope<{ cleared: boolean, sel: number, pengajuan: number }>>('/jadwal/cells', { method: 'DELETE', body: { konfirmasi: 'HAPUS SEMUA' } })
+}
