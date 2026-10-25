@@ -167,7 +167,9 @@ export interface KelasTiket {
   sold: number
   sale_start?: string
   sale_end?: string
-  seating?: string
+  description?: string
+  /** numbered seats (true) vs free standing — the legacy field, read by the seat map & customer site */
+  is_seated?: boolean
   class_id?: string
   createdAt: number
   updatedAt: number
@@ -191,8 +193,12 @@ export interface OrderTiket {
   total: number
   payment_status: string
   buyer_name?: string
-  buyer_phone?: string
-  buyer_email?: string
+  /** the legacy columns are `phone` / `email` (event_orders) — the customer
+   *  site finds a buyer's tickets by `email`, so a sale without it is lost */
+  phone?: string
+  email?: string
+  subtotal?: number
+  fee?: number
   created: string
   createdAt: number
   updatedAt: number

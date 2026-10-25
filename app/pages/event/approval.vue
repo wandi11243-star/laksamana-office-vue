@@ -410,7 +410,7 @@ const kosong = computed(() => {
         >
           <template #pembeli-cell="{ row }">
             <b class="block">{{ pembeli(row.original)?.buyer_name || '—' }}</b>
-            <span class="block text-xs text-muted">{{ pembeli(row.original)?.buyer_phone || pembeli(row.original)?.buyer_email || '' }}</span>
+            <span class="block text-xs text-muted">{{ pembeli(row.original)?.phone || pembeli(row.original)?.email || '' }}</span>
           </template>
           <template #event-cell="{ row }">
             {{ acaraRefund(row.original)?.title || '(event terhapus)' }}
