@@ -832,7 +832,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
             <AppSeg
               :model-value="String(info.status)"
               :options="['Scheduled', 'Confirmed', 'Done', 'Cancelled'].map(st => ({ value: st, label: st }))"
-              @update:model-value="(v: string) => { if (bolehUbah) setStatus(v) }"
+              @update:model-value="(v?: string) => { if (bolehUbah && v) setStatus(v) }"
             />
             <p class="mt-1.5 text-xs text-muted">
               Langsung tersimpan begitu ditekan.

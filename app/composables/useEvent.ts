@@ -119,11 +119,17 @@ export interface TagihanTalent {
   id: string
   talent_id: string
   period_month: string
-  amount: number
+  /** legacy columns (genPayment :4224) */
+  show_count: number
+  total_amount: number
   status: string
-  proof_key?: string
+  bank?: string
+  /** {key,name,size,type}; very old rows hold a bare file-name string */
+  transfer_proof?: { key: string, name?: string, size?: number, type?: string } | string | null
+  proof_amount?: number
   pic_finance?: string
-  bank_tujuan?: string
+  paid_at?: string | null
+  created_at?: string
   createdAt: number
   updatedAt: number
   [key: string]: unknown
