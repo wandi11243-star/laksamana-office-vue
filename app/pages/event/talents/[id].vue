@@ -403,7 +403,7 @@ const DOK_LABEL = { ktp: 'KTP', npwp: 'NPWP', contract: 'Contract', portfolio: '
               {{ tglPendek(row.original.date) }}
             </template>
             <template #show-cell="{ row }">
-              {{ row.original.type || '—' }}
+              {{ row.original.performance_type || '—' }}
             </template>
             <template #jam-cell="{ row }">
               {{ row.original.start_time }}–{{ row.original.end_time }}
@@ -427,7 +427,7 @@ const DOK_LABEL = { ktp: 'KTP', npwp: 'NPWP', contract: 'Contract', portfolio: '
               :key="j.id"
               class="px-4 py-2.5 text-sm"
             >
-              <b class="text-highlighted">{{ tglPendek(j.date) }}</b> · {{ j.type }} · <span class="num">{{ rupiah(Number(j.fee) || 0) }}</span>
+              <b class="text-highlighted">{{ tglPendek(j.date) }}</b> · {{ j.performance_type || '—' }} · <span class="num">{{ rupiah(Number(j.fee) || 0) }}</span>
             </li>
           </ul>
           <p

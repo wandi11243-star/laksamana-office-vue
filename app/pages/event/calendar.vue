@@ -231,7 +231,7 @@ function judulItem(it: ItemCal) {
     const p = paxEms(it.acara)
     return `${it.judul}${p.n ? ` — ${p.n} pax (${p.dari})` : ''}`
   }
-  if (it.jadwal) return `${it.judul} — ${it.jadwal.start_time ?? ''} ${it.jadwal.type ?? ''}`
+  if (it.jadwal) return `${it.judul} — ${it.jadwal.start_time ?? ''} ${it.jadwal.performance_type ?? ''}`
   if (it.mkt) return `Acara Marketing: ${it.judul}${it.mkt.client ? ` — ${it.mkt.client}` : ''}${it.mkt.pax ? ` · ${it.mkt.pax} pax` : ''}`
   return it.judul
 }
@@ -494,7 +494,7 @@ function bukaHariRsv(tgl: string) {
               </div>
               <div class="flex justify-between gap-3 border-b border-default pb-1.5">
                 <span class="text-muted">Jenis</span>
-                <span>{{ itemAktif.jadwal.type || '—' }}</span>
+                <span>{{ itemAktif.jadwal.performance_type || '—' }}</span>
               </div>
               <div class="flex justify-between gap-3 border-b border-default pb-1.5">
                 <span class="text-muted">Fee</span>

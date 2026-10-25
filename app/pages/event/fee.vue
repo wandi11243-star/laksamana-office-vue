@@ -783,7 +783,7 @@ const namaHari = (tgl: string) => new Date(`${tgl}T00:00:00`).toLocaleDateString
           >
             <span>
               <b class="text-highlighted">{{ tglPendek(j.date) }}</b>
-              <span class="text-muted"> {{ namaHari(j.date) }} · {{ j.start_time }} · {{ j.type }}</span>
+              <span class="text-muted"> {{ namaHari(j.date) }} · {{ j.start_time }} · {{ j.performance_type || '—' }}</span>
             </span>
             <span class="flex items-center gap-2">
               <AppStatus

@@ -83,10 +83,13 @@ export interface JadwalTalent {
   date: string
   start_time: string
   end_time: string
-  /** Performance type (a TAL_CATS value). */
-  type: string
+  /** Performance type (a TAL_CATS value) — the legacy column name. */
+  performance_type: string
   fee: number
   status: string
+  /** where the row came from: manual / mingguan / recurring / monthly_generator */
+  source?: string
+  recurring_rule_id?: string | null
   createdAt: number
   updatedAt: number
   [key: string]: unknown
@@ -95,9 +98,11 @@ export interface JadwalTalent {
 /** A recurring rule that generates schedules (`:3539-3604`). */
 export interface AturanRutin {
   id: string
-  talent_ids: string[]
-  days: number[]
-  type: string
+  /** one rule per talent (`genRecurring` :3732) */
+  talent_id: string
+  /** getDay() numbers, Sunday = 0 */
+  days_of_week: number[]
+  performance_type: string
   fee: number
   start_time: string
   end_time: string
