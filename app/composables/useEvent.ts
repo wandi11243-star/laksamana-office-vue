@@ -34,8 +34,12 @@ export type StatusPengajuan = 'Belum diajukan' | 'Menunggu' | 'Disetujui' | 'Dit
 export interface Pengajuan {
   status: StatusPengajuan
   oleh?: string
-  pada?: number
+  /** ISO string (legacy `ajukanRencana`); older Vue builds wrote epoch ms */
+  pada?: string | number
   alasan?: string
+  /** decider and decision time (`setujuiRencana` :4818) */
+  penyetuju?: string
+  disetujuiPada?: string
 }
 
 /** A talent row, exactly as the old client stored it (`:2522-2538`). */

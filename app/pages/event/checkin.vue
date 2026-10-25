@@ -2,8 +2,8 @@
   Check-In (Hari H) — event picker, three stat cards, live seat summary,
   QR token check and the guest list (`event/index.html:10086-10728`).
 
-  Camera decoding needs a QR library (new dependency) — the camera buttons
-  show "Segera"; token paste + "Cek token ini" and list check-in work fully.
+  Camera scanning uses the browser's own BarcodeDetector (no library), as the
+  old `toggleKamera` did; without it the token is pasted.
   Cancelling posts a correction row `{batalDari}` (G-10, append-only — the old
   "Batalkan" deleted the row instead); presence is newest-wins per ticket_id,
   so a ticket whose latest row is a cancellation counts as not checked in.
@@ -15,9 +15,9 @@ import type { Acara, Checkin, KelasTiket, Kursi, OrderTiket, Tiket } from '~/com
 import { batalCheckin, listCheckins, postCheckin, useDaftarEvent } from '~/composables/useEvent'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
-import { angka, persen } from '~/utils/format'
-import { CHECKIN_IKON, CHECKIN_WARNA } from '~/utils/status-event'
-import { checkinTerbaru as terbaruPerTiket, eventTiket as eventDariTiket, idCheckin as idHadir } from '~/utils/event-hitung'
+import { angka } from '~/utils/format'
+
+import { checkinTerbaru as terbaruPerTiket, eventTiket as eventDariTiket, fmtTglJamEms, idCheckin as idHadir } from '~/utils/event-hitung'
 import { tanganiKonflik } from '~/utils/versi'
 
 definePageMeta({ access: ['event'] })
@@ -100,51 +100,108 @@ const kursiTerisi = computed(() => {
   return m
 })
 
-// --- guest list (`:10146`): chips, category filter, search, pager 10 ---
+// --- guest rows (`ciBaris` :10403): class of THIS event, seat text, arrival time ---
+const kelasEvent = computed(() => daftarKelas.value.rows.filter(c => c.event_id === eventId.value))
+const kursiDariId = computed(() => new Map(daftarKursi.value.rows.map(k => [k.id, k])))
+const namaKelas = (t: Tiket) => {
+  const c = kelasEvent.value.find(x => x.id === t.ticket_class_id)
+  if (c) return c.name
+  return daftarKelas.value.rows.some(x => x.id === t.ticket_class_id) ? '(kategori event lain)' : '(kategori terhapus)'
+}
+/** seatTeks (:10842) */
+function tempat(t: Tiket) {
+  const s = t.seat_id ? kursiDariId.value.get(t.seat_id) : undefined
+  if (!s) return 'Tanpa nomor tempat'
+  const r = s as Record<string, unknown>
+  const pax = Number((t as Record<string, unknown>).pax_total) || 0
+  return `${String(r.seat_no || r.table_no || '')}${r.zone === 'Lantai 1' ? ` (Meja ${String(r.table_no ?? '')})` : ''}${pax > 1 ? ` · tamu ${Number((t as Record<string, unknown>).pax_no) || 0} dari ${pax}` : ''}`
+}
+const hpTamu = (t: Tiket) => String(orderDariId.value.get(t.order_item_id ?? '')?.phone ?? '')
+const jamMasuk = (t: Tiket) => {
+  const c = checkinTerbaru.value.get(t.id)
+  return c && !c.batalDari ? fmtTglJamEms(c.checked_in_at) : ''
+}
+const nomorTiket = (t: Tiket) => String((t as Record<string, unknown>).ticket_number ?? '')
+
+// --- guest list (`ciTabelHTML` :10424): chips with counts, category filter, search, pager 10 ---
 const chip = ref<'belum' | 'sudah' | 'semua'>('belum')
-const CHIPS = [
-  { value: 'belum', label: 'Belum datang' },
-  { value: 'sudah', label: 'Sudah datang' },
-  { value: 'semua', label: 'Semua' },
-] as { value: 'belum' | 'sudah' | 'semua', label: string }[]
-const fKelas = ref('semua')
+// Reka's SelectItem refuses an empty value, so "all categories" is a sentinel
+const SEMUA = '__semua__'
+const fKelas = ref(SEMUA)
 const cari = ref('')
 const hal = ref(1)
 const PER_HAL = 10
-
-const namaKelas = (id?: string) => daftarKelas.value.rows.find(c => c.id === id)?.name ?? '—'
+const nBelum = computed(() => tiket.value.filter(t => !idCheckin.value.has(t.id)).length)
+const nSudah = computed(() => tiket.value.length - nBelum.value)
+const CHIPS = computed(() => [
+  { value: 'belum', label: `Belum datang ${nBelum.value}` },
+  { value: 'sudah', label: `Sudah datang ${nSudah.value}` },
+  { value: 'semua', label: `Semua ${tiket.value.length}` },
+] as { value: 'belum' | 'sudah' | 'semua', label: string }[])
+const lolosChip = (t: Tiket) => chip.value === 'semua' || (chip.value === 'sudah') === idCheckin.value.has(t.id)
+/** ciPilihKelasHTML (:10443): only with 2+ categories, counts follow the chip */
+const pilihanKelas = computed(() => {
+  const semua = [...new Set(tiket.value.map(namaKelas))].sort()
+  if (semua.length < 2) return []
+  const src = tiket.value.filter(lolosChip)
+  return [
+    { value: SEMUA, label: `Semua kategori (${src.length})` },
+    ...semua.map(k => ({ value: k, label: `${k} (${src.filter(t => namaKelas(t) === k).length})` })),
+  ]
+})
 const daftar = computed(() => {
-  const cariL = cari.value.trim().toLowerCase()
-  return tiket.value.filter((t) => {
-    const sudah = idCheckin.value.has(t.id)
-    if (chip.value === 'belum' && sudah) return false
-    if (chip.value === 'sudah' && !sudah) return false
-    if (fKelas.value !== 'semua' && t.ticket_class_id !== fKelas.value) return false
-    if (cariL && !(namaTamu(t).toLowerCase().includes(cariL) || String(t.qr_token ?? '').toLowerCase().includes(cariL))) return false
-    return true
-  })
+  const q = cari.value.trim().toLowerCase()
+  return tiket.value.filter(t => lolosChip(t)
+    && (fKelas.value === SEMUA || namaKelas(t) === fKelas.value)
+    && (!q || `${namaTamu(t)} ${nomorTiket(t)} ${tempat(t)} ${hpTamu(t)}`.toLowerCase().includes(q)))
 })
 const maxHal = computed(() => Math.max(1, Math.ceil(daftar.value.length / PER_HAL)))
 const halaman = computed(() => daftar.value.slice((hal.value - 1) * PER_HAL, hal.value * PER_HAL))
-watch([daftar, chip, fKelas, cari], () => {
-  hal.value = Math.min(hal.value, maxHal.value)
+watch([chip, fKelas, cari], () => {
+  hal.value = 1
 })
+watch(maxHal, (m) => {
+  hal.value = Math.min(hal.value, m)
+})
+const kosongDaftar = computed(() => {
+  const kls = fKelas.value !== SEMUA ? ` di kategori ${fKelas.value}` : ''
+  if (cari.value.trim()) return `Tidak ada yang cocok dengan "${cari.value.trim()}"${kls}.`
+  return chip.value === 'belum' ? `Semua tamu${kls} sudah datang. 🎉` : `Belum ada yang check-in${kls}.`
+})
+/** ciHitungSemuaHTML / ciHitungKelasHTML (:10487, :10530): arrived vs waiting, per category */
+const hitungKat = computed(() => {
+  const per = new Map<string, { n: number, masuk: number }>()
+  for (const t of tiket.value) {
+    const k = namaKelas(t)
+    const v = per.get(k) ?? { n: 0, masuk: 0 }
+    v.n++
+    if (idCheckin.value.has(t.id)) v.masuk++
+    per.set(k, v)
+  }
+  const baris = [...per.entries()].map(([nama, v]) => ({ nama, ...v, pct: v.n ? Math.round(v.masuk / v.n * 100) : 0 }))
+    .sort((a, b) => b.n - a.n)
+  return { baris, total: tiket.value.length, masuk: masuk.value, pct: keterisian.value }
+})
+const katAktif = computed(() => hitungKat.value.baris.find(b => b.nama === fKelas.value) ?? null)
 
 const kolom: TableColumn<Tiket>[] = [
   { id: 'tamu', header: 'Tamu' },
+  { id: 'tiket', header: 'Tiket' },
+  { id: 'tempat', header: 'Tempat' },
   { id: 'kelas', header: 'Kelas' },
-  { id: 'kursi', header: 'Kursi' },
   { id: 'status', header: 'Status' },
-  { id: 'aksi', header: 'Aksi' },
+  { id: 'aksi', header: '' },
 ]
 async function checkin(t: Tiket) {
   try {
     await postCheckin({ ticket_id: t.id, result: 'Valid' })
-    toast.add({ title: `${namaTamu(t)} check-in`, color: 'success' })
+    toast.add({ title: `✓ ${namaTamu(t)} masuk`, color: 'success' })
     await Promise.all([muatCheckin(), refreshTiket()])
+    return true
   }
   catch (e) {
     if (!(await tanganiKonflik(e, muatCheckin))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+    return false
   }
 }
 
@@ -181,60 +238,191 @@ async function batalkan() {
   }
 }
 
-// --- token check (`doScan`: paste token + "Cek token ini") ---
+// --- scan (`konfirmasiScan` :10811): three answers, only one runs on its own.
+// Unknown → red; already in → amber with the arrival time; valid → checked in
+// at once (scanning IS the gate keeper's decision), green card, scanning resumes.
 const token = ref('')
-const hasilToken = ref<Tiket | null | undefined>(undefined)
+type HasilScan = { jenis: 'asing' } | { jenis: 'sudah', t: Tiket } | { jenis: 'masuk', t: Tiket, jam: string }
+const hasilScan = ref<HasilScan | null>(null)
+async function prosesToken(v: string) {
+  const tk = daftarTiket.value.rows.find(t => t.qr_token === v)
+  if (!tk || (tk.status ?? '') === 'Cancelled' || eventTiket(tk) !== eventId.value) {
+    hasilScan.value = { jenis: 'asing' }
+    return false
+  }
+  if (idCheckin.value.has(tk.id)) {
+    hasilScan.value = { jenis: 'sudah', t: tk }
+    return false
+  }
+  if (!bolehUbah.value) {
+    toast.add({ title: 'Peran ini hanya bisa melihat — check-in dicatat petugas.', color: 'error' })
+    return false
+  }
+  const ok = await checkin(tk)
+  if (ok) {
+    hasilScan.value = { jenis: 'masuk', t: tk, jam: fmtTglJamEms(new Date().toISOString()) }
+    if (navigator.vibrate) navigator.vibrate([40, 40, 80])
+  }
+  return ok
+}
 function cekToken() {
   const v = token.value.trim()
   if (!v) {
     toast.add({ title: 'Tempel token dulu.', color: 'error' })
     return
   }
-  hasilToken.value = tiket.value.find(t => t.qr_token === v) ?? null
+  prosesToken(v)
 }
+
+// --- camera (`toggleKamera` :10757): the browser's own BarcodeDetector, no library.
+// Without it the camera still runs as an aiming aid and the token is typed.
+const video = ref<HTMLVideoElement | null>(null)
+const kameraNyala = ref(false)
+let stream: MediaStream | null = null
+let loop: ReturnType<typeof setInterval> | null = null
+let detektor: { detect: (v: HTMLVideoElement) => Promise<{ rawValue?: string }[]> } | null = null
+let terakhir = ''
+let sibuk = false
+async function toggleKamera() {
+  if (stream) return matikanKamera()
+  if (!navigator.mediaDevices?.getUserMedia) {
+    toast.add({ title: 'Browser ini tidak mendukung akses kamera.', color: 'error' })
+    return
+  }
+  if (!window.isSecureContext) {
+    toast.add({ title: 'Kamera hanya bisa lewat HTTPS. Buka situsnya dengan https://', color: 'error' })
+    return
+  }
+  try {
+    // facingMode environment = the back camera on phones; ignored on laptops
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false })
+  }
+  catch (e) {
+    const n = (e as Error).name
+    toast.add({
+      title: n === 'NotAllowedError'
+        ? 'Izin kamera ditolak. Aktifkan lewat ikon gembok di address bar.'
+        : n === 'NotFoundError' ? 'Tidak ada kamera yang terdeteksi.' : `Kamera gagal dibuka: ${(e as Error).message}`,
+      color: 'error',
+    })
+    return
+  }
+  kameraNyala.value = true
+  await nextTick()
+  if (video.value) {
+    video.value.srcObject = stream
+    await video.value.play().catch(() => {})
+  }
+  const BD = (window as unknown as { BarcodeDetector?: new (o?: unknown) => typeof detektor }).BarcodeDetector
+  if (BD) {
+    // QR and 1D barcodes both — unsupported formats are ignored by the browser
+    try {
+      detektor = new BD({ formats: ['qr_code', 'code_128', 'code_39', 'ean_13', 'ean_8', 'codabar', 'itf', 'upc_a', 'upc_e'] })
+    }
+    catch {
+      try {
+        detektor = new BD()
+      }
+      catch {
+        detektor = null
+      }
+    }
+  }
+  if (!detektor) toast.add({ title: 'Kamera menyala. Browser ini belum bisa membaca QR sendiri — ketik tokennya di bawah.', color: 'warning' })
+  else loop = setInterval(bacaFrame, 350)
+}
+function matikanKamera() {
+  if (loop) clearInterval(loop)
+  loop = null
+  detektor = null
+  terakhir = ''
+  stream?.getTracks().forEach(t => t.stop())
+  stream = null
+  kameraNyala.value = false
+}
+async function bacaFrame() {
+  const v = video.value
+  // one read at a time: detect() can take longer than the interval on mid-range phones
+  if (!v || !detektor || v.readyState < 2 || sibuk) return
+  sibuk = true
+  let hasil: { rawValue?: string }[] = []
+  try {
+    hasil = await detektor.detect(v)
+  }
+  catch {
+    return
+  }
+  finally {
+    sibuk = false
+  }
+  const tok = String(hasil[0]?.rawValue ?? '').trim()
+  if (!tok || tok === terakhir) return
+  terakhir = tok
+  if (navigator.vibrate) navigator.vibrate(60)
+  if (loop) clearInterval(loop)
+  loop = null
+  await prosesToken(tok)
+  // pause while the answer is read, then scan on
+  setTimeout(() => {
+    terakhir = ''
+    if (stream && detektor && !loop) loop = setInterval(bacaFrame, 350)
+  }, 1200)
+}
+onBeforeUnmount(matikanKamera)
 </script>
 
 <template>
   <EventGerbang lihat="checkin">
     <AppPage
-      title="Check-in"
+      title="Check-in (hari H)"
       description="Scan QR · kursi terisi langsung"
     >
-      <template #actions>
+      <div class="mb-4 flex flex-wrap items-center gap-2">
+        <span class="text-sm font-semibold text-muted">Event:</span>
         <USelect
           v-model="eventId"
           :items="berTiket.map(e => ({ value: e.id, label: e.title }))"
           placeholder="Pilih event"
-          class="w-56"
+          class="w-64"
         />
-      </template>
+      </div>
 
       <AppStatGrid class="mb-4">
         <AppStat
-          label="Total tiket"
+          label="Total Tiket"
           :value="angka(tiket.length)"
+          sub="valid"
           icon="i-lucide-ticket"
           tone="info"
         />
         <AppStat
-          label="Checked-in"
+          label="Checked-In"
           :value="angka(masuk)"
+          sub="sudah datang"
           icon="i-lucide-scan-line"
           tone="success"
         />
         <AppStat
           label="Keterisian"
-          :value="persen(keterisian / 100)"
+          :value="`${keterisian}%`"
+          sub="live"
           icon="i-lucide-armchair"
           tone="gold"
         />
       </AppStatGrid>
 
-      <div class="grid gap-4 lg:grid-cols-2">
-        <AppPanel
-          title="Kursi terisi langsung"
-          icon="i-lucide-armchair"
+      <AppPanel
+        title="Kursi terisi langsung"
+        icon="i-lucide-armchair"
+        class="mb-4"
+      >
+        <p
+          v-if="!daftarKursi.rows.length"
+          class="py-3 text-center text-sm text-muted"
         >
+          Event ini standing (tanpa seat map).
+        </p>
+        <template v-else>
           <p class="mb-2 text-xs text-muted num">
             {{ angka(kursiTerisi.size) }} kursi terisi dari {{ angka(daftarKursi.rows.length) }} titik denah
           </p>
@@ -247,7 +435,7 @@ function cekToken() {
               :key="sid"
               class="flex justify-between rounded-field bg-success/12 px-2.5 py-1"
             >
-              <b class="text-success">{{ sid }}</b>
+              <b class="text-success">{{ String((kursiDariId.get(sid) as Record<string, unknown> | undefined)?.table_no ?? sid) }}</b>
               <span class="text-muted num">{{ n }} masuk</span>
             </li>
           </ul>
@@ -257,64 +445,115 @@ function cekToken() {
           >
             Belum ada kursi terisi.
           </p>
-        </AppPanel>
+        </template>
+      </AppPanel>
 
-        <AppPanel
-          title="Scanner QR"
-          icon="i-lucide-scan-line"
+      <AppPanel
+        title="Scanner QR"
+        icon="i-lucide-scan-line"
+      >
+        <p class="mb-3 text-xs text-muted">
+          Nyalakan kamera lalu arahkan ke QR tamu — di HP otomatis memakai kamera belakang. QR yang sah langsung dicatat masuk. Kalau QR-nya rusak atau layar tamu mati, tokennya bisa ditempel di bawah.
+        </p>
+        <div
+          v-if="kameraNyala"
+          class="relative mb-3 overflow-hidden rounded-field bg-black"
         >
-          <div class="flex gap-2">
-            <UInput
-              v-model="token"
-              placeholder="Tempel token QR…"
-              icon="i-lucide-clipboard-paste"
-              class="flex-1"
-            />
-            <UButton
-              color="primary"
-              @click="cekToken()"
+          <video
+            ref="video"
+            playsinline
+            muted
+            class="mx-auto max-h-80 w-full object-cover"
+          />
+          <div class="pointer-events-none absolute inset-[18%] rounded-field border-2 border-primary-300" />
+        </div>
+        <UButton
+          color="primary"
+          :icon="kameraNyala ? 'i-lucide-square' : 'i-lucide-camera'"
+          class="mb-3"
+          @click="toggleKamera()"
+        >
+          {{ kameraNyala ? 'Matikan kamera' : 'Nyalakan kamera' }}
+        </UButton>
+        <UInput
+          v-model="token"
+          placeholder="…atau tempel QR token di sini"
+          class="mb-2 w-full"
+        />
+        <UButton
+          color="neutral"
+          variant="outline"
+          @click="cekToken()"
+        >
+          Cek token ini
+        </UButton>
+
+        <div
+          v-if="hasilScan"
+          class="mt-4"
+        >
+          <UAlert
+            v-if="hasilScan.jenis === 'asing'"
+            color="error"
+            variant="soft"
+            icon="i-lucide-x"
+            title="Tiket tidak valid"
+            description="QR tidak dikenal atau tiketnya sudah dibatalkan."
+          />
+          <div
+            v-else
+            class="rounded-field border p-3 text-sm"
+            :class="hasilScan.jenis === 'masuk' ? 'border-success' : 'border-warning'"
+          >
+            <h3
+              class="mb-2 font-bold"
+              :class="hasilScan.jenis === 'masuk' ? 'text-success' : 'text-warning'"
             >
-              Cek token ini
+              {{ hasilScan.jenis === 'masuk' ? `✓ ${namaTamu(hasilScan.t)} masuk` : '⚠ Sudah check-in sebelumnya' }}
+            </h3>
+            <dl class="grid grid-cols-[6rem_1fr] gap-x-3 gap-y-1">
+              <template v-if="hasilScan.jenis === 'sudah'">
+                <dt class="text-muted">
+                  Nama
+                </dt>
+                <dd><b>{{ namaTamu(hasilScan.t) }}</b></dd>
+              </template>
+              <dt class="text-muted">
+                Tiket
+              </dt>
+              <dd>{{ nomorTiket(hasilScan.t) || '—' }}</dd>
+              <dt class="text-muted">
+                Class
+              </dt>
+              <dd>{{ namaKelas(hasilScan.t) }}</dd>
+              <dt class="text-muted">
+                Tempat
+              </dt>
+              <dd>{{ tempat(hasilScan.t) }}</dd>
+              <dt class="text-muted">
+                Jam
+              </dt>
+              <dd>{{ hasilScan.jenis === 'masuk' ? hasilScan.jam : (jamMasuk(hasilScan.t) || '—') }}</dd>
+            </dl>
+            <p
+              v-if="hasilScan.jenis === 'sudah'"
+              class="mt-2 text-xs text-muted"
+            >
+              QR ini sudah dipakai masuk. Jangan diloloskan lagi tanpa pengecekan — bisa jadi tiketnya diteruskan ke orang lain.
+            </p>
+            <UButton
+              v-if="bolehUbah"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              class="mt-2"
+              @click="mintaBatal(hasilScan.t)"
+            >
+              {{ hasilScan.jenis === 'masuk' ? 'Salah orang — batalkan' : 'Tadi salah pindai — batalkan' }}
             </UButton>
           </div>
-          <div
-            v-if="hasilToken !== undefined"
-            class="mt-3"
-          >
-            <UAlert
-              v-if="hasilToken === null"
-              color="error"
-              variant="soft"
-              title="Token tidak dikenal di event ini"
-            />
-            <div
-              v-else-if="hasilToken"
-              class="flex items-center justify-between gap-2 rounded-field border border-default px-3 py-2 text-sm"
-            >
-              <span><b class="text-highlighted">{{ namaTamu(hasilToken) }}</b> · {{ namaKelas(hasilToken.ticket_class_id) }}</span>
-              <UButton
-                v-if="bolehUbah && !idCheckin.has(hasilToken.id)"
-                color="success"
-                size="sm"
-                @click="checkin(hasilToken!)"
-              >
-                Check-in
-              </UButton>
-              <AppStatus
-                v-else-if="idCheckin.has(hasilToken.id)"
-                color="success"
-                icon="i-lucide-check"
-                size="sm"
-              >
-                Sudah datang
-              </AppStatus>
-            </div>
-          </div>
-          <p class="mt-3 text-xs text-muted">
-            Pindai kamera <span class="text-dimmed">Segera</span> — butuh pustaka QR. Tempel token manual bisa dipakai sekarang.
-          </p>
-        </AppPanel>
-      </div>
+        </div>
+      </AppPanel>
 
       <AppPanel
         title="Daftar tamu"
@@ -322,62 +561,127 @@ function cekToken() {
         flush
         class="mt-4"
       >
-        <template #head>
-          <div class="flex flex-wrap items-center gap-2 px-4 pt-3">
-            <AppChips
-              v-model="chip"
-              :options="CHIPS"
-            />
-            <USelect
-              v-model="fKelas"
-              :items="[{ value: 'semua', label: 'Semua kelas' }, ...daftarKelas.rows.map(c => ({ value: c.id, label: c.name }))]"
-              class="w-44"
-            />
-            <UInput
-              v-model="cari"
-              placeholder="Cari nama / token…"
-              icon="i-lucide-search"
-              class="min-w-44 flex-1"
-            />
-          </div>
-        </template>
-        <UTable
-          :columns="kolom"
-          :data="halaman"
-          :loading="status === 'pending'"
-          class="mt-3 hidden lg:block"
+        <div class="flex flex-wrap items-center gap-2 px-4 pt-3">
+          <AppChips
+            v-model="chip"
+            :options="CHIPS"
+          />
+          <USelect
+            v-if="pilihanKelas.length"
+            v-model="fKelas"
+            :items="pilihanKelas"
+            class="w-52"
+          />
+          <UInput
+            v-model="cari"
+            placeholder="Cari nama / no. tiket / kursi…"
+            icon="i-lucide-search"
+            class="min-w-44 flex-1"
+          />
+        </div>
+
+        <div
+          v-if="katAktif || hitungKat.baris.length > 1"
+          class="mx-4 mt-3 rounded-field border border-default p-3 text-sm"
         >
-          <template #tamu-cell="{ row }">
-            <b class="text-highlighted">{{ namaTamu(row.original) }}</b>
+          <template v-if="katAktif">
+            <div class="flex flex-wrap items-center gap-3">
+              <b>{{ katAktif.nama }}</b>
+              <span class="text-success"><b class="num">{{ katAktif.masuk }}</b> sudah masuk</span>
+              <span class="text-warning"><b class="num">{{ katAktif.n - katAktif.masuk }}</b> belum datang</span>
+              <span class="text-xs text-muted">dari {{ katAktif.n }} tiket · {{ katAktif.pct }}%</span>
+            </div>
+            <div class="mt-1.5 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div
+                class="h-full bg-success"
+                :style="{ width: `${katAktif.pct}%` }"
+              />
+            </div>
           </template>
-          <template #kelas-cell="{ row }">
-            {{ namaKelas(row.original.ticket_class_id) }}
-          </template>
-          <template #kursi-cell="{ row }">
-            {{ row.original.seat_id || '—' }}
-          </template>
-          <template #status-cell="{ row }">
-            <AppStatus
-              :color="idCheckin.has(row.original.id) ? CHECKIN_WARNA['Valid']! : CHECKIN_WARNA['Belum datang']!"
-              :icon="idCheckin.has(row.original.id) ? CHECKIN_IKON['Valid'] : CHECKIN_IKON['Belum datang']"
-              size="sm"
+          <template v-else>
+            <div class="flex flex-wrap items-center gap-3">
+              <b>Semua kategori</b>
+              <span class="text-success"><b class="num">{{ hitungKat.masuk }}</b> sudah masuk</span>
+              <span class="text-warning"><b class="num">{{ hitungKat.total - hitungKat.masuk }}</b> belum datang</span>
+              <span class="text-xs text-muted">dari {{ hitungKat.total }} tiket · {{ hitungKat.pct }}%</span>
+            </div>
+            <button
+              v-for="b in hitungKat.baris"
+              :key="b.nama"
+              type="button"
+              class="mt-2 block w-full text-left"
+              :title="`Klik untuk menyaring ke ${b.nama}`"
+              @click="fKelas = b.nama"
             >
-              {{ idCheckin.has(row.original.id) ? 'Sudah datang' : 'Belum datang' }}
-            </AppStatus>
+              <span class="flex flex-wrap items-center gap-3 text-xs">
+                <span class="min-w-24 font-semibold">{{ b.nama }}</span>
+                <span><b class="text-success num">{{ b.masuk }}</b> masuk</span>
+                <span><b class="text-warning num">{{ b.n - b.masuk }}</b> belum</span>
+                <span class="ms-auto text-muted">{{ b.pct }}% dari {{ b.n }}</span>
+              </span>
+              <span class="mt-1 block h-1.5 overflow-hidden rounded-full bg-muted">
+                <span
+                  class="block h-full bg-success"
+                  :style="{ width: `${b.pct}%` }"
+                />
+              </span>
+            </button>
           </template>
-          <template #aksi-cell="{ row }">
-            <span class="flex gap-1">
+        </div>
+
+        <p
+          v-if="!daftar.length && status !== 'pending'"
+          class="px-4 py-8 text-center text-sm text-muted"
+        >
+          {{ kosongDaftar }}
+        </p>
+        <template v-else>
+          <UTable
+            :columns="kolom"
+            :data="halaman"
+            :loading="status === 'pending'"
+            class="mt-3 hidden lg:block"
+          >
+            <template #tamu-cell="{ row }">
+              <b class="block text-highlighted">{{ namaTamu(row.original) }}</b>
+              <span
+                v-if="hpTamu(row.original)"
+                class="block text-xs text-muted"
+              >{{ hpTamu(row.original) }}</span>
+            </template>
+            <template #tiket-cell="{ row }">
+              <span class="font-mono text-xs">{{ nomorTiket(row.original) }}</span>
+            </template>
+            <template #tempat-cell="{ row }">
+              <span class="text-xs">{{ tempat(row.original) }}</span>
+            </template>
+            <template #kelas-cell="{ row }">
+              <span class="text-xs">{{ namaKelas(row.original) }}</span>
+            </template>
+            <template #status-cell="{ row }">
+              <AppStatus
+                :color="idCheckin.has(row.original.id) ? 'success' : 'neutral'"
+                :icon="idCheckin.has(row.original.id) ? 'i-lucide-check' : 'i-lucide-clock'"
+                size="sm"
+              >
+                {{ idCheckin.has(row.original.id) ? 'Sudah datang' : 'Belum datang' }}
+              </AppStatus>
+              <span
+                v-if="jamMasuk(row.original)"
+                class="block text-xs text-muted"
+              >{{ jamMasuk(row.original) }}</span>
+            </template>
+            <template #aksi-cell="{ row }">
               <UButton
                 v-if="bolehUbah && !idCheckin.has(row.original.id)"
-                color="success"
-                variant="outline"
+                color="primary"
                 size="sm"
                 @click="checkin(row.original)"
               >
                 Check-in
               </UButton>
               <UButton
-                v-if="bolehUbah && idCheckin.has(row.original.id)"
+                v-else-if="bolehUbah"
                 color="neutral"
                 variant="ghost"
                 size="sm"
@@ -385,41 +689,32 @@ function cekToken() {
               >
                 Batalkan
               </UButton>
-            </span>
-          </template>
-        </UTable>
-        <ul class="divide-y divide-default lg:hidden">
-          <li
-            v-for="t in halaman"
-            :key="t.id"
-            class="flex items-center gap-2 px-4 py-2.5"
-          >
-            <span class="min-w-0 flex-1">
-              <b class="block truncate text-sm text-highlighted">{{ namaTamu(t) }}</b>
-              <span class="block truncate text-xs text-muted">{{ namaKelas(t.ticket_class_id) }}{{ t.seat_id ? ` · ${t.seat_id}` : '' }}</span>
-            </span>
-            <UButton
-              v-if="bolehUbah && !idCheckin.has(t.id)"
-              color="success"
-              variant="outline"
-              size="sm"
-              @click="checkin(t)"
+            </template>
+          </UTable>
+          <ul class="divide-y divide-default lg:hidden">
+            <li
+              v-for="t in halaman"
+              :key="t.id"
+              class="flex items-center gap-2 px-4 py-2.5"
             >
-              Check-in
-            </UButton>
-            <span
-              v-else-if="idCheckin.has(t.id)"
-              class="flex items-center gap-1"
-            >
-              <AppStatus
-                color="success"
-                icon="i-lucide-check"
-                size="sm"
-              >
-                Sudah datang
-              </AppStatus>
+              <span class="min-w-0 flex-1">
+                <b class="block truncate text-sm text-highlighted">{{ namaTamu(t) }}</b>
+                <span class="block truncate text-xs text-muted">{{ namaKelas(t) }} · {{ tempat(t) }}</span>
+                <span
+                  v-if="jamMasuk(t)"
+                  class="block text-xs text-success"
+                >Masuk {{ jamMasuk(t) }}</span>
+              </span>
               <UButton
-                v-if="bolehUbah"
+                v-if="bolehUbah && !idCheckin.has(t.id)"
+                color="primary"
+                size="sm"
+                @click="checkin(t)"
+              >
+                Check-in
+              </UButton>
+              <UButton
+                v-else-if="bolehUbah"
                 color="neutral"
                 variant="ghost"
                 size="sm"
@@ -427,30 +722,33 @@ function cekToken() {
               >
                 Batalkan
               </UButton>
+            </li>
+          </ul>
+          <div
+            v-if="maxHal > 1"
+            class="flex items-center justify-between px-4 py-3 text-xs text-muted"
+          >
+            <span class="num">{{ (hal - 1) * PER_HAL + 1 }}–{{ Math.min(hal * PER_HAL, daftar.length) }} dari {{ angka(daftar.length) }}</span>
+            <span class="flex gap-1">
+              <UButton
+                color="neutral"
+                variant="outline"
+                size="sm"
+                icon="i-lucide-chevron-left"
+                :disabled="hal <= 1"
+                @click="hal--"
+              />
+              <UButton
+                color="neutral"
+                variant="outline"
+                size="sm"
+                icon="i-lucide-chevron-right"
+                :disabled="hal >= maxHal"
+                @click="hal++"
+              />
             </span>
-          </li>
-        </ul>
-        <div class="flex items-center justify-between px-4 py-3 text-xs text-muted">
-          <span class="num">{{ daftar.length ? `${(hal - 1) * PER_HAL + 1}–${Math.min(hal * PER_HAL, daftar.length)} dari ${angka(daftar.length)}` : '0 dari 0' }}</span>
-          <span class="flex gap-1">
-            <UButton
-              color="neutral"
-              variant="outline"
-              size="sm"
-              icon="i-lucide-chevron-left"
-              :disabled="hal <= 1"
-              @click="hal--"
-            />
-            <UButton
-              color="neutral"
-              variant="outline"
-              size="sm"
-              icon="i-lucide-chevron-right"
-              :disabled="hal >= maxHal"
-              @click="hal++"
-            />
-          </span>
-        </div>
+          </div>
+        </template>
       </AppPanel>
 
       <ResponsiveSheet
