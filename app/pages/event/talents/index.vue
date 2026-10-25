@@ -41,6 +41,9 @@ const { data: daftar, status, refresh } = useDaftarEvent<Talent>('talents', quer
 const list = computed(() => {
   const cari = q.value.trim().toLowerCase()
   return daftar.value.rows.filter((t) => {
+    // filtered here too, like talFilter (:2571): a server that ignores the query must not show inactive talent
+    if (fKategori.value !== SEMUA && t.category !== fKategori.value) return false
+    if (fStatus.value !== SEMUA && t.status !== fStatus.value) return false
     if (fKontrak.value !== SEMUA && (t.contract_status ?? 'None') !== fKontrak.value) return false
     if (cari && !(t.name ?? '').toLowerCase().includes(cari) && !(t.phone ?? '').includes(cari)) return false
     return true
@@ -48,11 +51,15 @@ const list = computed(() => {
 })
 
 const inisial = (n?: string) => (n ?? '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase()
-const KONTRAK_LABEL: Record<string, string> = { None: 'Tanpa Kontrak', Berjalan: 'Kontrak Berjalan', Habis: 'Kontrak Habis' }
+// The stored values are the old ones (Active / Expired / None, :2558 badgeKontrak):
+// 'Berjalan'/'Habis' never matched a real row, so every contract read as raw text.
+const KONTRAK_LABEL: Record<string, string> = { None: 'Tanpa Kontrak', Active: 'Kontrak Berjalan', Expired: 'Kontrak Habis' }
+const KONTRAK_WARNA: Record<string, 'info' | 'error' | 'neutral'> = { Active: 'info', Expired: 'error', None: 'neutral' }
+const STATUS_LABEL: Record<string, string> = { Active: 'Aktif', Inactive: 'Nonaktif' }
 const OPSI_KONTRAK = [
   { value: 'None', label: 'Tanpa Kontrak' },
-  { value: 'Berjalan', label: 'Kontrak Berjalan' },
-  { value: 'Habis', label: 'Kontrak Habis' },
+  { value: 'Active', label: 'Kontrak Berjalan' },
+  { value: 'Expired', label: 'Kontrak Habis' },
 ]
 const OPSI_STATUS = [
   { value: 'Active', label: 'Aktif — masih dipakai' },
@@ -67,7 +74,7 @@ const kolom: TableColumn<Talent>[] = [
   { id: 'fee', header: 'Default fee' },
   { id: 'kontrak', header: 'Status kontrak' },
   { id: 'status', header: 'Status talent' },
-  { id: 'aksi', header: 'Aksi' },
+  { id: 'aksi', header: '' },
 ]
 
 // --- form (`talentForm :2522`, `saveTalent :2542`) ---
@@ -105,26 +112,6 @@ function bukaBaru() {
     contract_status: 'None',
     status: 'Active',
     notes: '',
-  }
-  sheet.value = true
-}
-
-function bukaSunting(t: Talent) {
-  suntingId.value = t.id
-  form.value = {
-    name: t.name ?? '',
-    category: t.category ?? TAL_CATS[0]!,
-    phone: t.phone ?? '',
-    whatsapp: t.whatsapp ?? '',
-    instagram: t.instagram ?? '',
-    email: t.email ?? '',
-    manager_name: t.manager_name ?? '',
-    default_fee: Number(t.default_fee) || 0,
-    bank_name: t.bank_name ?? '',
-    bank_account: t.bank_account ?? '',
-    contract_status: t.contract_status ?? 'None',
-    status: t.status ?? 'Active',
-    notes: t.notes ?? '',
   }
   sheet.value = true
 }
@@ -224,7 +211,7 @@ async function hapus() {
           <UFormField label="Status talent">
             <USelect
               v-model="fStatus"
-              :items="[{ value: SEMUA, label: 'Semua status talent' }, ...OPSI_STATUS]"
+              :items="[{ value: SEMUA, label: 'Semua status talent' }, { value: 'Active', label: 'Aktif' }, { value: 'Inactive', label: 'Nonaktif' }]"
               class="w-full"
             />
           </UFormField>
@@ -241,11 +228,7 @@ async function hapus() {
         </p>
       </AppPanel>
 
-      <AppPanel
-        title="Daftar talent"
-        icon="i-lucide-users"
-        flush
-      >
+      <AppPanel flush>
         <UTable
           :columns="kolom"
           :data="list"
@@ -290,7 +273,13 @@ async function hapus() {
             <span class="num">{{ rupiah(Number(row.original.default_fee) || 0) }}</span>
           </template>
           <template #kontrak-cell="{ row }">
-            {{ KONTRAK_LABEL[String(row.original.contract_status ?? 'None')] ?? row.original.contract_status }}
+            <AppStatus
+              :color="KONTRAK_WARNA[String(row.original.contract_status ?? 'None')] ?? 'neutral'"
+              icon="i-lucide-file-text"
+              size="sm"
+            >
+              {{ KONTRAK_LABEL[String(row.original.contract_status ?? 'None')] ?? KONTRAK_LABEL.None }}
+            </AppStatus>
           </template>
           <template #status-cell="{ row }">
             <AppStatus
@@ -298,18 +287,11 @@ async function hapus() {
               :icon="TALENT_IKON[String(row.original.status)]"
               size="sm"
             >
-              {{ row.original.status }}
+              {{ STATUS_LABEL[String(row.original.status)] ?? row.original.status }}
             </AppStatus>
           </template>
           <template #aksi-cell="{ row }">
             <span class="flex gap-1">
-              <UButton
-                v-if="bolehUbah"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-pencil"
-                @click="bukaSunting(row.original)"
-              />
               <UButton
                 v-if="bolehUbah"
                 color="error"
@@ -342,7 +324,7 @@ async function hapus() {
                 :icon="TALENT_IKON[String(t.status)]"
                 size="sm"
               >
-                {{ t.status }}
+                {{ STATUS_LABEL[String(t.status)] ?? t.status }}
               </AppStatus>
             </ULink>
           </li>
@@ -351,7 +333,7 @@ async function hapus() {
           v-if="!list.length && status !== 'pending'"
           class="px-4 py-6 text-center text-sm text-dimmed"
         >
-          Tidak ada talent yang cocok.
+          Tidak ada talent.
         </p>
       </AppPanel>
 

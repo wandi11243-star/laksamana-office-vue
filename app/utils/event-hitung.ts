@@ -296,3 +296,22 @@ export function geserPeriode(aktif: string, arah: -1 | 1, now = new Date()): str
   const d = new Date(Number(b.slice(0, 4)), Number(b.slice(5, 7)) - 1 + arah, 1)
   return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}`
 }
+
+/** `fmtDateTime` (`:1744`): "2 Nov, 19.00 WIB" — the short date-time the old
+ *  tables use. Pinned to Asia/Jakarta so a laptop in another zone reads the
+ *  same hour; `-` when there is no date. */
+export function fmtTglJamEms(s: unknown): string {
+  if (!s) return '-'
+  // ISO strings (old writes) and epoch numbers (older Vue writes) both read
+  const d = typeof s === 'number' ? new Date(s) : new Date(String(s))
+  if (Number.isNaN(d.getTime())) return String(s)
+  return `${d.toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' })} WIB`
+}
+
+/** `fmtDate` (`:1743`): "12 Okt 2026"; `-` when empty. */
+export function fmtTglEms(s: unknown): string {
+  if (!s) return '-'
+  const d = typeof s === 'number' ? new Date(s) : new Date(String(s).length === 10 ? `${s}T00:00:00` : String(s))
+  if (Number.isNaN(d.getTime())) return String(s)
+  return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' })
+}

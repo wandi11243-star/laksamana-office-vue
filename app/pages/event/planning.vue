@@ -10,7 +10,7 @@
 <script setup lang="ts">
 import type { Acara, OrderTiket, Refund } from '~/composables/useEvent'
 import { createEvent, patchEvent, removeEvent, useDaftarEvent } from '~/composables/useEvent'
-import { statusPengajuan, tglWIB } from '~/utils/event-hitung'
+import { fmtTglJamEms, statusPengajuan, tglWIB } from '~/utils/event-hitung'
 import { refundGantung } from '~/utils/event-refund'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehSetujui, bolehUbahEvent, peranEvent } from '~/utils/layar/event'
@@ -41,7 +41,7 @@ const tampil = computed(() => rencana.value.filter((e) => {
   if (saring.value === 'menunggu') return st === 'Menunggu'
   if (saring.value === 'ditolak') return st === 'Ditolak'
   return true
-}).sort((a, b) => String(b.start_datetime ?? '').localeCompare(String(a.start_datetime ?? ''))))
+}))
 
 const hitung = computed(() => ({
   semua: rencana.value.length,
@@ -92,7 +92,7 @@ async function ajukan(e: Acara) {
   try {
     await patchEvent('events', e.id, {
       status: 'Prospect',
-      pengajuan: { status: 'Menunggu', oleh: namaSaya.value, pada: Date.now() },
+      pengajuan: { status: 'Menunggu', oleh: namaSaya.value, pada: new Date().toISOString(), alasan: '' },
       updatedAt: Date.now(),
     }, daftar.value.versions[e.id])
     toast.add({ title: 'Rencana diajukan ke manajemen', color: 'success' })
@@ -103,21 +103,43 @@ async function ajukan(e: Acara) {
   }
 }
 
-async function putuskan(e: Acara, setuju: boolean) {
+async function simpanPutusan(e: Acara, setuju: boolean, alasan: string) {
   try {
+    // the submitter (oleh) stays; the decider is penyetuju (setujuiRencana :4818)
     await patchEvent('events', e.id, {
       status: setuju ? 'Approval' : 'Planning',
-      pengajuan: { ...(e.pengajuan ?? {}), status: setuju ? 'Disetujui' : 'Ditolak', oleh: namaSaya.value, pada: Date.now() },
+      pengajuan: { ...(e.pengajuan ?? {}), status: setuju ? 'Disetujui' : 'Ditolak', penyetuju: namaSaya.value, disetujuiPada: new Date().toISOString(), alasan },
       statusAt: Date.now(),
       updatedAt: Date.now(),
     }, daftar.value.versions[e.id])
-    toast.add({ title: setuju ? 'Rencana disetujui' : 'Rencana ditolak', color: 'success' })
+    toast.add({ title: setuju ? 'Disetujui — tahapnya naik ke Approval. Lanjutkan ke Upcoming kalau acaranya sudah pasti berjalan.' : 'Rencana ditolak — alasannya tercatat di kartunya.', color: 'success' })
     await refresh()
   }
   catch (err) {
     if (!(await tanganiKonflik(err, refresh))) toast.add({ title: apiErrorMessage(err), color: 'error' })
   }
 }
+// tolakRencana (:4837): a rejection needs its reason
+const tolakAcara = ref<Acara | null>(null)
+const alasanTolak = ref('')
+const sheetTolak = computed({ get: () => tolakAcara.value !== null, set: v => (tolakAcara.value = v ? tolakAcara.value : null) })
+function putuskan(e: Acara, setuju: boolean) {
+  if (setuju) return simpanPutusan(e, true, '')
+  alasanTolak.value = ''
+  tolakAcara.value = e
+}
+async function tolakYakin() {
+  const e = tolakAcara.value
+  const alasan = alasanTolak.value.trim()
+  if (!e) return
+  if (!alasan) {
+    toast.add({ title: 'Alasan wajib diisi.', color: 'error' })
+    return
+  }
+  tolakAcara.value = null
+  await simpanPutusan(e, false, alasan)
+}
+const LABEL_PENGAJUAN: Record<string, string> = { 'Menunggu': 'Menunggu keputusan', 'Ditolak': 'Ditolak', 'Belum diajukan': 'Belum diajukan', 'Disetujui': 'Disetujui' }
 
 const hapusId = ref('')
 const sheetHapus = computed({ get: () => hapusId.value !== '', set: v => (hapusId.value = v ? hapusId.value : '') })
@@ -157,20 +179,12 @@ async function hapus() {
     >
       <template #actions>
         <UButton
-          to="/event/ideas"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-lightbulb"
-        >
-          Bank ide
-        </UButton>
-        <UButton
           v-if="bolehUbah"
           color="primary"
           icon="i-lucide-plus"
           @click="sheetBaru = true"
         >
-          Rencana baru
+          Rencana Baru
         </UButton>
       </template>
 
@@ -215,68 +229,107 @@ async function hapus() {
           <AppPanel
             v-for="e in tampil"
             :key="e.id"
+            flush
           >
             <ULink
               :to="`/event/events/${e.id}`"
-              class="block truncate text-base font-bold text-highlighted hover:text-primary-700"
+              class="relative block"
             >
-              {{ e.title }}
+              <EventPosterCover :poster="e.poster_img" />
+              <span class="absolute start-3 top-3 rounded-full bg-default/90 px-2 py-0.5 text-[11px] font-bold uppercase tracking-wide text-primary-700">{{ e.category }}</span>
             </ULink>
-            <p class="mt-0.5 text-xs text-muted">
-              {{ tglPanjang(tglWIB(e.start_datetime)) }} · {{ e.venue || '—' }}
-            </p>
-            <p class="mt-1.5">
-              <AppStatus
-                :color="PENGAJUAN_WARNA[statusPengajuan({ pengajuan: e.pengajuan })] ?? 'neutral'"
-                :icon="PENGAJUAN_IKON[statusPengajuan({ pengajuan: e.pengajuan })]"
-                size="sm"
-              >
-                {{ statusPengajuan({ pengajuan: e.pengajuan }) }}
-              </AppStatus>
-            </p>
-            <div class="mt-2.5 flex flex-wrap gap-1.5">
-              <UButton
+            <div class="p-4">
+              <ULink
                 :to="`/event/events/${e.id}`"
-                color="neutral"
-                variant="outline"
-                size="sm"
+                class="block truncate text-base font-bold text-highlighted hover:text-primary-700"
               >
-                Buka
-              </UButton>
-              <UButton
-                v-if="bolehUbah && statusPengajuan({ pengajuan: e.pengajuan }) !== 'Menunggu'"
-                color="neutral"
-                variant="outline"
-                size="sm"
-                @click="ajukan(e)"
-              >
-                Ajukan ke manajemen
-              </UButton>
-              <template v-if="manajemen && statusPengajuan({ pengajuan: e.pengajuan }) === 'Menunggu'">
-                <UButton
-                  color="success"
+                {{ e.title || '(tanpa judul)' }}
+              </ULink>
+              <p class="mt-1 flex items-center gap-1.5 text-xs text-muted">
+                <UIcon
+                  name="i-lucide-calendar"
+                  class="size-3.5"
+                />{{ fmtTglJamEms(e.start_datetime) }}
+              </p>
+              <p class="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+                <UIcon
+                  name="i-lucide-map-pin"
+                  class="size-3.5"
+                />{{ e.venue || '—' }}
+              </p>
+              <p class="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
+                <UIcon
+                  name="i-lucide-user"
+                  class="size-3.5"
+                />{{ e.pic || '—' }}
+              </p>
+              <p class="my-2">
+                <AppStatus
+                  :color="PENGAJUAN_WARNA[statusPengajuan({ pengajuan: e.pengajuan })] ?? 'neutral'"
+                  :icon="PENGAJUAN_IKON[statusPengajuan({ pengajuan: e.pengajuan })]"
                   size="sm"
-                  @click="putuskan(e, true)"
                 >
-                  Setujui
-                </UButton>
+                  {{ LABEL_PENGAJUAN[statusPengajuan({ pengajuan: e.pengajuan })] }}
+                </AppStatus>
+              </p>
+              <p
+                v-if="e.pengajuan?.status === 'Menunggu'"
+                class="text-xs text-muted"
+              >
+                Diajukan {{ e.pengajuan.oleh || '' }} · {{ fmtTglJamEms(e.pengajuan.pada) }}
+              </p>
+              <p
+                v-if="e.pengajuan?.status === 'Ditolak' && e.pengajuan.alasan"
+                class="text-xs text-error"
+              >
+                Alasan: {{ e.pengajuan.alasan }}
+              </p>
+              <div class="mt-2.5 flex flex-wrap items-center gap-1.5">
                 <UButton
-                  color="error"
+                  :to="`/event/events/${e.id}`"
+                  color="neutral"
                   variant="outline"
                   size="sm"
-                  @click="putuskan(e, false)"
                 >
-                  Tolak
+                  Buka
                 </UButton>
-              </template>
-              <UButton
-                v-if="bolehUbah"
-                color="error"
-                variant="ghost"
-                size="sm"
-                icon="i-lucide-trash-2"
-                @click="hapusId = e.id"
-              />
+                <UButton
+                  v-if="bolehUbah && statusPengajuan({ pengajuan: e.pengajuan }) !== 'Menunggu'"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  @click="ajukan(e)"
+                >
+                  Ajukan ke manajemen
+                </UButton>
+                <template v-if="manajemen && statusPengajuan({ pengajuan: e.pengajuan }) === 'Menunggu'">
+                  <UButton
+                    color="success"
+                    size="sm"
+                    @click="putuskan(e, true)"
+                  >
+                    Setujui
+                  </UButton>
+                  <UButton
+                    color="error"
+                    variant="outline"
+                    size="sm"
+                    @click="putuskan(e, false)"
+                  >
+                    Tolak
+                  </UButton>
+                </template>
+                <UButton
+                  v-if="bolehUbah"
+                  color="error"
+                  variant="ghost"
+                  size="sm"
+                  icon="i-lucide-trash-2"
+                  title="Hapus rencana"
+                  class="ms-auto"
+                  @click="hapusId = e.id"
+                />
+              </div>
             </div>
           </AppPanel>
         </div>
@@ -284,7 +337,7 @@ async function hapus() {
           v-if="!tampil.length && status !== 'pending'"
           class="py-10 text-center text-sm text-dimmed"
         >
-          Belum ada rencana di saringan ini.
+          {{ saring === 'menunggu' ? 'Tidak ada yang menunggu keputusan.' : 'Belum ada rencana di sini.' }}
         </p>
       </template>
 
@@ -331,6 +384,42 @@ async function hapus() {
           @simpan="simpanBaru($event)"
           @batal="sheetBaru = false"
         />
+      </ResponsiveSheet>
+
+      <ResponsiveSheet
+        v-model:open="sheetTolak"
+        title="Tolak rencana"
+      >
+        <p class="mb-2 text-sm text-muted">
+          {{ tolakAcara?.title }}
+        </p>
+        <UFormField
+          label="Alasan"
+          required
+          help="Alasannya wajib: penolakan tanpa alasan cuma memantulkan pekerjaan bolak-balik."
+        >
+          <UTextarea
+            v-model="alasanTolak"
+            :rows="3"
+            placeholder="mis. anggaran belum masuk, tanggal bentrok dengan acara lain"
+            class="w-full"
+          />
+        </UFormField>
+        <template #footer>
+          <UButton
+            color="error"
+            @click="tolakYakin()"
+          >
+            Tolak
+          </UButton>
+          <UButton
+            color="neutral"
+            variant="outline"
+            @click="sheetTolak = false"
+          >
+            Batal
+          </UButton>
+        </template>
       </ResponsiveSheet>
 
       <ResponsiveSheet

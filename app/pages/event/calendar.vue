@@ -13,20 +13,20 @@
 <script setup lang="ts">
 import type { Acara, JadwalTalent } from '~/composables/useEvent'
 import { useStateEvent } from '~/composables/useEvent'
-import { jamWIB, paxAcara, tglWIB } from '~/utils/event-hitung'
+import { fmtTglJamEms, tglWIB } from '~/utils/event-hitung'
 import { STATUS_IKON_EVENT, STATUS_WARNA_EVENT } from '~/utils/status-event'
 import { apiErrorMessage } from '~/composables/useApi'
 import { angka, hariIni, rupiah, tglPanjang } from '~/utils/format'
 
 definePageMeta({ access: ['event'] })
 
-const { data: state, status, refresh, error } = useStateEvent()
+const { data: state, error } = useStateEvent()
 const s = computed(() => state.value?.data ?? null)
 
 type TipeCal = 'all' | 'Event' | 'Entertainment' | 'Reservation' | 'Marketing' | 'Holiday' | 'Birthday'
 const tipe = ref<TipeCal>('all')
 const PILIHAN_TIPE = [
-  { value: 'all', label: 'Semua' },
+  { value: 'all', label: 'Semua tipe' },
   { value: 'Event', label: 'Event' },
   { value: 'Entertainment', label: 'Entertainment' },
   { value: 'Reservation', label: 'Reservation' },
@@ -36,7 +36,8 @@ const PILIHAN_TIPE = [
 ] as { value: TipeCal, label: string }[]
 
 const bulan = ref(hariIni().slice(0, 7))
-const labelBulan = computed(() => tglPanjang(`${bulan.value}-01`).replace(/^\d+ /, ''))
+const BULAN_PENDEK = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des']
+const labelBulan = computed(() => `${BULAN_PENDEK[Number(bulan.value.slice(5, 7)) - 1]} ${bulan.value.slice(0, 4)}`)
 function geserBulan(n: number) {
   const [y, m] = bulan.value.split('-').map(Number)
   const d = new Date(y!, m! - 1 + n, 1)
@@ -100,8 +101,9 @@ const semuaItem = computed<ItemCal[]>(() => {
       keluar.push({ tgl, tipe: 'Event', judul: e.title, sub: String(e.venue ?? ''), acara: e })
     }
   }
+  // renderCalendar (:11185) draws every schedule, cancelled ones too — the popup shows the status
   for (const j of s.value?.schedules ?? []) {
-    if (j.date >= bulanDari.value && j.date <= bulanSampai.value && j.status !== 'Cancelled') {
+    if (j.date >= bulanDari.value && j.date <= bulanSampai.value) {
       const t = (s.value?.talents ?? []).find(t => t.id === j.talent_id)
       keluar.push({ tgl: j.date, tipe: 'Entertainment', judul: t?.name ?? 'Talent', sub: `${j.start_time ?? ''}–${j.end_time ?? ''}`, jadwal: j })
     }
@@ -132,13 +134,18 @@ const perTanggal = computed(() => {
   return m
 })
 
+/** paxEventEms (:10978): sold tickets when any sold, else the planned capacity. */
+function paxEms(e: Acara) {
+  const laku = (s.value?.ticketClasses ?? []).filter(c => c.event_id === e.id).reduce((a, c) => a + (Number(c.sold) || 0), 0)
+  return laku ? { n: laku, dari: 'tiket terjual' } : { n: Number(e.capacity) || 0, dari: 'kapasitas rencana' }
+}
+
 // "N pax bulan ini" ribbon (`:11047`): follows the type filter, like the old total.
 const paxBulan = computed(() => {
-  const kelas = s.value?.ticketClasses ?? []
   let ems = 0
   for (const e of s.value?.events ?? []) {
     const tgl = tglWIB(e.start_datetime)
-    if (tgl >= bulanDari.value && tgl <= bulanSampai.value) ems += paxAcara(e, kelas)
+    if (tgl >= bulanDari.value && tgl <= bulanSampai.value) ems += paxEms(e).n
   }
   const mktPax = mkt.value.reduce((a, e) => a + (Number(e.pax) || 0), 0)
   const rsvPax = rsv.value.reduce((a, r) => a + (Number(r.pax) || 0), 0)
@@ -162,8 +169,8 @@ const ringkasRsv = (tgl: string) => {
   return { n: rows.length, pax: rows.reduce((a, i) => a + (Number(i.rsv?.pax) || 0), 0) }
 }
 /** Legend counts, unfiltered by the type dropdown: schedules, marketing events, days holding reservations. */
-const hitungJadwal = computed(() => (s.value?.schedules ?? [])
-  .filter(j => j.date >= bulanDari.value && j.date <= bulanSampai.value && j.status !== 'Cancelled').length)
+// the old legend counts every schedule on record, not just this month's
+const hitungJadwal = computed(() => (s.value?.schedules ?? []).length)
 const hitungMkt = computed(() => mkt.value.length)
 const hitungHariRsv = computed(() => new Set(rsv.value.map(r => r.date)).size)
 
@@ -181,11 +188,11 @@ const waNo = (p?: string | null) => {
   return x
 }
 
-const DOW = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
+const DOW = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
 const selBulan = computed(() => {
   const [y, m] = bulan.value.split('-').map(Number)
   const pertama = new Date(y!, m! - 1, 1)
-  const mundur = (pertama.getDay() + 6) % 7
+  const mundur = pertama.getDay()
   const jumlah = new Date(y!, m!, 0).getDate()
   const sel: { tgl: string, num: number, dalam: boolean }[] = []
   const tambah = (t: Date, dalam: boolean) => {
@@ -218,6 +225,16 @@ const WARNA_TIPE: Record<TipeCal, string> = {
 
 const sheet = ref(false)
 const itemAktif = ref<ItemCal | null>(null)
+const paxItem = (it: ItemCal) => it.acara ? paxEms(it.acara).n : it.mkt ? Number(it.mkt.pax) || 0 : 0
+function judulItem(it: ItemCal) {
+  if (it.acara) {
+    const p = paxEms(it.acara)
+    return `${it.judul}${p.n ? ` — ${p.n} pax (${p.dari})` : ''}`
+  }
+  if (it.jadwal) return `${it.judul} — ${it.jadwal.start_time ?? ''} ${it.jadwal.type ?? ''}`
+  if (it.mkt) return `Acara Marketing: ${it.judul}${it.mkt.client ? ` — ${it.mkt.client}` : ''}${it.mkt.pax ? ` · ${it.mkt.pax} pax` : ''}`
+  return it.judul
+}
 function bukaItem(i: ItemCal) {
   itemAktif.value = i
   sheet.value = true
@@ -242,18 +259,6 @@ function bukaHariRsv(tgl: string) {
       title="Event calendar"
       description="Kalender terpadu multi-sumber"
     >
-      <template #actions>
-        <UButton
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-refresh-cw"
-          :loading="status === 'pending' || memuatSilang"
-          @click="() => { refresh(); muatSilang() }"
-        >
-          Muat ulang
-        </UButton>
-      </template>
-
       <UAlert
         v-if="error"
         color="error"
@@ -299,8 +304,8 @@ function bukaHariRsv(tgl: string) {
             class="w-44"
           />
           <span
-            class="ms-auto rounded-full bg-info/12 px-3 py-1 text-xs font-semibold text-info num"
-            :title="`EMS ${angka(paxBulan.ems)} · Marketing ${angka(paxBulan.mkt)} · Reservasi ${angka(paxBulan.rsv)}`"
+            class="ms-auto text-sm font-bold text-primary-700 num"
+            :title="`EMS ${angka(paxBulan.ems)} · Marketing ${angka(paxBulan.mkt)} · Reservasi ${angka(paxBulan.rsv)} pax`"
           >
             {{ angka(paxBulan.total) }} pax bulan ini
           </span>
@@ -310,25 +315,25 @@ function bukaHariRsv(tgl: string) {
             class="rounded-full px-2 py-0.5 font-semibold"
             :class="WARNA_TIPE['Event']"
           >
-            Event
+            Event EMS
           </span>
           <span
             class="rounded-full px-2 py-0.5 font-semibold"
             :class="WARNA_TIPE['Entertainment']"
           >
-            Talent ({{ hitungJadwal }})
+            Talent{{ hitungJadwal ? ` (${hitungJadwal})` : '' }}
           </span>
           <span
             class="rounded-full px-2 py-0.5 font-semibold"
             :class="WARNA_TIPE['Marketing']"
           >
-            Marketing ({{ hitungMkt }})
+            Marketing{{ hitungMkt ? ` (${hitungMkt})` : '' }}
           </span>
           <span
             class="rounded-full px-2 py-0.5 font-semibold"
             :class="WARNA_TIPE['Reservation']"
           >
-            Reservasi ({{ hitungHariRsv }} hari)
+            Reservasi{{ hitungHariRsv ? ` (${hitungHariRsv} hari)` : '' }}
           </span>
         </div>
       </AppPanel>
@@ -350,14 +355,16 @@ function bukaHariRsv(tgl: string) {
             class="min-h-16 border-b border-e border-default p-1 align-top last:border-e-0 sm:min-h-24 sm:p-1.5"
             :class="sel.dalam ? '' : 'bg-muted/50'"
           >
+            <!-- cells outside the month stay empty (`cell other`) -->
             <span
+              v-if="sel.dalam"
               class="text-xs font-semibold num"
-              :class="[
-                sel.tgl === hariIni() ? 'rounded-full bg-primary px-1.5 py-0.5 text-white' : 'text-muted',
-                sel.dalam ? '' : 'opacity-50',
-              ]"
+              :class="sel.tgl === hariIni() ? 'rounded-full bg-primary px-1.5 py-0.5 text-white' : 'text-muted'"
             >{{ sel.num }}</span>
-            <ul class="mt-1 space-y-0.5">
+            <ul
+              v-if="sel.dalam"
+              class="mt-1 space-y-0.5"
+            >
               <li
                 v-for="(it, i) in biasaHari(sel.tgl).slice(0, 4)"
                 :key="i"
@@ -367,13 +374,18 @@ function bukaHariRsv(tgl: string) {
                   type="button"
                   class="block w-full truncate rounded px-1 py-0.5 text-left text-[11px] font-medium"
                   :class="WARNA_TIPE[it.tipe]"
+                  :title="judulItem(it)"
                   @click="bukaItem(it)"
                 >
-                  {{ it.judul }}<template v-if="it.tipe === 'Event'">
-                    · <b class="num">{{ angka(lakuEv(it.acara?.id ?? '')) }} pax</b>
-                  </template><template v-else-if="it.tipe === 'Marketing' && it.mkt?.pax">
-                    · <b class="num">{{ angka(Number(it.mkt.pax) || 0) }} pax</b>
-                  </template>
+                  <b
+                    v-if="paxItem(it)"
+                    class="float-end ms-1.5 hidden num sm:inline"
+                  >{{ angka(paxItem(it)) }} pax</b>
+                  <UIcon
+                    v-if="it.tipe === 'Entertainment'"
+                    name="i-lucide-mic"
+                    class="me-0.5 size-3 align-[-2px]"
+                  />{{ it.judul }}
                 </button>
                 <span
                   v-else
@@ -392,10 +404,13 @@ function bukaHariRsv(tgl: string) {
                   type="button"
                   class="block w-full truncate rounded px-1 py-0.5 text-left text-[11px] font-medium"
                   :class="WARNA_TIPE['Reservation']"
-                  :title="`${ringkasRsv(sel.tgl).n} reservasi hari ini`"
+                  :title="`${ringkasRsv(sel.tgl).n} reservasi · ${ringkasRsv(sel.tgl).pax} pax — klik untuk rinciannya`"
                   @click="bukaHariRsv(sel.tgl)"
                 >
-                  {{ ringkasRsv(sel.tgl).n }} reservasi · <b class="num">{{ angka(ringkasRsv(sel.tgl).pax) }} pax</b>
+                  <b
+                    v-if="ringkasRsv(sel.tgl).pax"
+                    class="float-end ms-1.5 hidden num sm:inline"
+                  >{{ angka(ringkasRsv(sel.tgl).pax) }} pax</b>● {{ ringkasRsv(sel.tgl).n }} reservasi
                 </button>
               </li>
             </ul>
@@ -418,7 +433,7 @@ function bukaHariRsv(tgl: string) {
             <div class="space-y-1.5">
               <div class="flex justify-between gap-3 border-b border-default pb-1.5">
                 <span class="text-muted">Waktu</span>
-                <b>{{ jamWIB(itemAktif.acara.start_datetime) }}{{ itemAktif.acara.end_datetime ? `–${jamWIB(itemAktif.acara.end_datetime)}` : '' }} WIB</b>
+                <b class="text-end">{{ fmtTglJamEms(itemAktif.acara.start_datetime) }}{{ itemAktif.acara.end_datetime ? ` – ${fmtTglJamEms(itemAktif.acara.end_datetime)}` : '' }}</b>
               </div>
               <div class="flex justify-between gap-3 border-b border-default pb-1.5">
                 <span class="text-muted">Lokasi</span>
@@ -428,11 +443,17 @@ function bukaHariRsv(tgl: string) {
                 <span class="text-muted">PIC</span>
                 <span>{{ itemAktif.acara.pic || '—' }}</span>
               </div>
-              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <div
+                v-if="tiketEv(itemAktif.acara.id).length"
+                class="flex justify-between gap-3 border-b border-default pb-1.5"
+              >
                 <span class="text-muted">Tiket</span>
                 <span class="num">{{ angka(lakuEv(itemAktif.acara.id)) }} / {{ angka(kuotaEv(itemAktif.acara.id)) }} terjual</span>
               </div>
-              <div class="flex justify-between gap-3 border-b border-default pb-1.5">
+              <div
+                v-if="omzetEv(itemAktif.acara.id)"
+                class="flex justify-between gap-3 border-b border-default pb-1.5"
+              >
                 <span class="text-muted">Omzet lunas</span>
                 <b class="num">{{ rupiah(omzetEv(itemAktif.acara.id)) }}</b>
               </div>
