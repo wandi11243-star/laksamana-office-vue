@@ -22,7 +22,7 @@ export interface VipPfo { id: string, jenis?: string, tanggal?: string, nama?: s
 /** One event as this module knows it. */
 export interface AcaraPfoMkt {
   srcId: string
-  sumber: 'mkt' | 'vip' | 'bd'
+  sumber: 'mkt' | 'vip' | 'bd' | 'evt'
   date: string
   name: string
   /** Office user id of the marketing PIC on the event / VIP row. */
