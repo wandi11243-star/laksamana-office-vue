@@ -241,29 +241,34 @@ export interface Ide {
   id: string
   name: string
   category: string
-  target?: string
+  /** legacy column name (saveIdea :11368) */
+  target_market?: string
   frequency: string
   budget: number
   potential_revenue: number
   difficulty: string
   description: string
   evaluations: EvaluasiIde[]
+  ever_executed?: boolean
   createdAt: number
   updatedAt: number
   [key: string]: unknown
 }
 
+/** One evaluation, in the shape `simpanEval` (:11372) writes. */
 export interface EvaluasiIde {
-  id: string
-  date: string
+  executed?: string
+  tanggal: string
   omzet: number
-  hadir: number
   biaya: number
-  skor: number
-  ulang: string
-  baik: string
-  perbaiki: string
   profit: number
+  attendance: number
+  score: number
+  ulang: string
+  plus: string
+  minus: string
+  feedback: string
+  at: string
   [key: string]: unknown
 }
 

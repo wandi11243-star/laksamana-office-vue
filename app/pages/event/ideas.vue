@@ -8,7 +8,7 @@ import { createEvent, patchEvent, removeEvent, useDaftarEvent } from '~/composab
 import { FREQS, IDEA_CATS, roiIde } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
-import { rupiah } from '~/utils/format'
+import { hariIni, rupiah } from '~/utils/format'
 import { tanganiKonflik } from '~/utils/versi'
 
 definePageMeta({ access: ['event'] })
@@ -25,15 +25,15 @@ const list = computed(() => daftar.value.rows.filter((i) => {
   if (fKategori.value !== 'semua' && i.category !== fKategori.value) return false
   if (fFrekuensi.value !== 'semua' && i.frequency !== fFrekuensi.value) return false
   return true
-}).sort((a, b) => roiIde(Number(a.budget) || 0, Number(a.potential_revenue) || 0) - roiIde(Number(b.budget) || 0, Number(b.potential_revenue) || 0)).reverse())
+}))
 
 // --- idea form (`ideaForm :11137`) ---
 const sheet = ref(false)
 const ideId = ref('')
-const fi = ref({ name: '', category: IDEA_CATS[0] as string, target: '', frequency: FREQS[0] as string, budget: 10000000, potential_revenue: 20000000, difficulty: 'Medium', description: '' })
+const fi = ref({ name: '', category: IDEA_CATS[0] as string, target_market: '', frequency: FREQS[0] as string, budget: 10000000, potential_revenue: 20000000, difficulty: 'Medium', description: '' })
 function bukaBaru() {
   ideId.value = ''
-  fi.value = { name: '', category: IDEA_CATS[0]!, target: '', frequency: FREQS[0]!, budget: 10000000, potential_revenue: 20000000, difficulty: 'Medium', description: '' }
+  fi.value = { name: '', category: IDEA_CATS[0]!, target_market: '', frequency: FREQS[0]!, budget: 10000000, potential_revenue: 20000000, difficulty: 'Medium', description: '' }
   sheet.value = true
 }
 async function simpan() {
@@ -49,7 +49,7 @@ async function simpan() {
       void lama
     }
     else {
-      await createEvent('ideas', { ...fi.value, name: fi.value.name.trim(), evaluations: [], createdAt: Date.now(), updatedAt: Date.now() })
+      await createEvent('ideas', { ...fi.value, name: fi.value.name.trim(), ever_executed: false, evaluations: [], createdAt: Date.now(), updatedAt: Date.now() })
     }
     toast.add({ title: 'Ide disimpan', color: 'success' })
     await refresh()
@@ -75,40 +75,28 @@ async function hapus() {
 }
 
 // --- spawn event (`spawnEvent :11189`, prefill) ---
+const dariIde = useState<Record<string, unknown> | null>('event-dari-ide', () => null)
 async function buatEvent(ide: Ide) {
-  try {
-    const r = await createEvent('events', {
-      title: ide.name,
-      category: 'Community',
-      theme: '',
-      venue: '',
-      capacity: 100,
-      start_datetime: '',
-      end_datetime: '',
-      pic: me.value?.name ?? '',
-      description: String(ide.description ?? ''),
-      is_ticketed: false,
-      status: 'Planning',
-      createdBy: me.value?.name ?? '',
-      createdById: me.value?.id ?? '',
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    })
-    toast.add({ title: 'Event dibuat dari ide', color: 'success' })
-    await navigateTo(`/event/events/${(r.data as { id: string }).id}`)
+  dariIde.value = {
+    idea_id: ide.id,
+    title: ide.name,
+    category: ide.category === 'Music' ? 'Music' : ide.category === 'Festival' ? 'Festival' : 'Community',
+    capacity: 100,
+    theme: '',
+    venue: '',
+    description: String(ide.description ?? ''),
   }
-  catch (e) {
-    toast.add({ title: apiErrorMessage(e), color: 'error' })
-  }
+  toast.add({ title: 'Lengkapi tanggal & venue-nya, lalu Simpan.', color: 'info' })
+  await navigateTo('/event/planning?baru=1')
 }
 
 // --- evaluation (`evalIdea :11155`, `simpanEval :11171`) ---
 const evalId = ref('')
 const sheetEval = computed({ get: () => evalId.value !== '', set: v => (evalId.value = v ? evalId.value : '') })
 const ideEval = computed(() => daftar.value.rows.find(i => i.id === evalId.value) ?? null)
-const fe = ref({ date: '', omzet: 0, hadir: 0, biaya: 0, skor: 5, ulang: 'Ya', baik: '', perbaiki: '' })
+const fe = ref({ date: hariIni(), omzet: 0, hadir: 0, biaya: 0, skor: 7, ulang: 'Ya', baik: '', perbaiki: '' })
 function bukaEval(ide: Ide) {
-  fe.value = { date: '', omzet: 0, hadir: 0, biaya: Number(ide.budget) || 0, skor: 5, ulang: 'Ya', baik: '', perbaiki: '' }
+  fe.value = { date: hariIni(), omzet: 0, hadir: 0, biaya: Number(ide.budget) || 0, skor: 7, ulang: 'Ya', baik: '', perbaiki: '' }
   evalId.value = ide.id
 }
 async function simpanEval() {
@@ -118,22 +106,28 @@ async function simpanEval() {
     toast.add({ title: 'Skor harus 1–10.', color: 'error' })
     return
   }
+  const omzet = Number(fe.value.omzet) || 0
+  const biaya = Number(fe.value.biaya) || 0
+  const plus = fe.value.baik.trim()
+  const minus = fe.value.perbaiki.trim()
   const ev: EvaluasiIde = {
-    id: `ev${Date.now().toString(36)}`,
-    date: fe.value.date,
-    omzet: fe.value.omzet,
-    hadir: fe.value.hadir,
-    biaya: fe.value.biaya,
-    skor: fe.value.skor,
+    executed: 'Ya',
+    tanggal: fe.value.date,
+    omzet,
+    biaya,
+    profit: omzet - biaya,
+    attendance: Number(fe.value.hadir) || 0,
+    score: Number(fe.value.skor),
     ulang: fe.value.ulang,
-    baik: fe.value.baik,
-    perbaiki: fe.value.perbaiki,
-    profit: fe.value.omzet - fe.value.biaya,
+    plus,
+    minus,
+    feedback: [plus, minus].filter(Boolean).join(' | '),
+    at: new Date().toISOString(),
   }
   sheetEval.value = false
   try {
-    await patchEvent('ideas', ide.id, { evaluations: [...(ide.evaluations ?? []), ev], updatedAt: Date.now() }, daftar.value.versions[ide.id])
-    toast.add({ title: 'Evaluasi disimpan', color: 'success' })
+    await patchEvent('ideas', ide.id, { evaluations: [...(ide.evaluations ?? []), ev], ever_executed: true, updatedAt: Date.now() }, daftar.value.versions[ide.id])
+    toast.add({ title: `✓ Evaluasi tersimpan — profit ${rupiah(ev.profit)}.`, color: 'success' })
     await refresh()
   }
   catch (e) {
@@ -195,22 +189,62 @@ async function simpanEval() {
           v-for="i in list"
           :key="i.id"
         >
-          <b class="block truncate text-base text-highlighted">{{ i.name }}</b>
-          <p class="mt-0.5 text-xs text-muted">
-            {{ i.category }} · {{ i.frequency }} · {{ i.difficulty }}
-          </p>
-          <div class="mt-2 flex items-baseline justify-between text-sm">
-            <span class="text-muted num">Budget {{ rupiah(Number(i.budget) || 0) }}</span>
-            <b
-              class="num"
-              :class="roiIde(Number(i.budget) || 0, Number(i.potential_revenue) || 0) >= 0 ? 'text-success' : 'text-error'"
-            >ROI {{ roiIde(Number(i.budget) || 0, Number(i.potential_revenue) || 0) }}%</b>
+          <div class="flex items-start justify-between gap-2">
+            <b class="text-base text-highlighted">{{ i.name }}</b>
+            <AppStatus
+              color="info"
+              size="sm"
+            >
+              {{ i.category }}
+            </AppStatus>
           </div>
+          <p class="my-1.5 text-xs text-muted">
+            {{ i.description }}
+          </p>
+          <dl class="grid grid-cols-[7rem_1fr] gap-x-2 gap-y-0.5 text-xs">
+            <dt class="text-muted">
+              Target
+            </dt>
+            <dd>{{ i.target_market || '—' }}</dd>
+            <dt class="text-muted">
+              Budget
+            </dt>
+            <dd class="num">
+              {{ rupiah(Number(i.budget) || 0) }}
+            </dd>
+            <dt class="text-muted">
+              Potensi
+            </dt>
+            <dd class="num">
+              {{ rupiah(Number(i.potential_revenue) || 0) }} <span class="text-muted">(ROI ~{{ roiIde(Number(i.budget) || 0, Number(i.potential_revenue) || 0) }}%)</span>
+            </dd>
+            <dt class="text-muted">
+              Frekuensi
+            </dt>
+            <dd>{{ i.frequency }}</dd>
+            <dt class="text-muted">
+              Tingkat kesulitan
+            </dt>
+            <dd>
+              <AppStatus
+                :color="i.difficulty === 'Easy' ? 'success' : i.difficulty === 'Hard' ? 'error' : 'warning'"
+                size="sm"
+              >
+                {{ i.difficulty }}
+              </AppStatus>
+            </dd>
+          </dl>
           <p
-            v-if="(i.evaluations ?? []).length"
-            class="mt-1 text-xs text-muted num"
+            v-if="(i.evaluations ?? [])[0]"
+            class="mt-1.5 text-xs text-success"
           >
-            {{ (i.evaluations ?? []).length }} evaluasi · terakhir skor {{ (i.evaluations ?? []).at(-1)?.skor }}
+            ✓ Pernah dibuat — omzet {{ rupiah(Number(i.evaluations[0]!.omzet) || 0) }}, {{ i.evaluations[0]!.attendance }} hadir, skor {{ i.evaluations[0]!.score }}/10
+          </p>
+          <p
+            v-else
+            class="mt-1.5 text-xs text-muted"
+          >
+            Belum pernah dieksekusi
           </p>
           <div
             v-if="bolehUbah"
@@ -226,9 +260,11 @@ async function simpanEval() {
               Buat event
             </UButton>
             <UButton
+              v-if="!(i.evaluations ?? []).length"
               color="neutral"
               variant="outline"
               size="sm"
+              icon="i-lucide-plus"
               @click="bukaEval(i)"
             >
               Evaluasi
@@ -247,7 +283,7 @@ async function simpanEval() {
         v-if="!list.length && status !== 'pending'"
         class="py-10 text-center text-sm text-dimmed"
       >
-        Belum ada ide di saringan ini.
+        Tidak ada ide.
       </p>
 
       <ResponsiveSheet
@@ -281,7 +317,7 @@ async function simpanEval() {
           </UFormField>
           <UFormField label="Target market">
             <UInput
-              v-model="fi.target"
+              v-model="fi.target_market"
               class="w-full"
             />
           </UFormField>

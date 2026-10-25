@@ -62,11 +62,19 @@ watch(() => route.query, (q) => {
   if (q.baru !== undefined && bolehUbah.value) sheetBaru.value = true
 }, { immediate: true })
 
+// prefill handed over by the idea bank's "Buat event" (spawnEvent :11392)
+const dariIde = useState<Record<string, unknown> | null>('event-dari-ide', () => null)
+const awalIde = computed(() => (dariIde.value ?? undefined) as Partial<Acara> | undefined)
+watch(sheetBaru, (v) => {
+  if (!v) dariIde.value = null
+})
 async function simpanBaru(body: Record<string, unknown>) {
+  const ideaId = dariIde.value?.idea_id ?? null
   sheetBaru.value = false
   try {
     await createEvent('events', {
       ...body,
+      idea_id: ideaId,
       status: 'Planning',
       createdBy: namaSaya.value,
       createdById: me.value?.id ?? '',
@@ -380,6 +388,8 @@ async function hapus() {
         title="Rencana baru"
       >
         <EventForm
+          :key="String(dariIde?.idea_id ?? 'baru')"
+          :awal="awalIde"
           :pic-terkunci="namaSaya"
           @simpan="simpanBaru($event)"
           @batal="sheetBaru = false"
