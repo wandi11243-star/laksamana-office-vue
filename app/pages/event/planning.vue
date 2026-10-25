@@ -388,7 +388,7 @@ async function hapus() {
         title="Rencana baru"
       >
         <EventForm
-          :key="String(dariIde?.idea_id ?? 'baru')"
+          :key="String(dariIde?.title ?? 'baru')"
           :awal="awalIde"
           :pic-terkunci="namaSaya"
           @simpan="simpanBaru($event)"
