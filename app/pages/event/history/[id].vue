@@ -7,9 +7,9 @@
 <script setup lang="ts">
 import type { Checkin, OrderTiket } from '~/composables/useEvent'
 import { getDetail, getEvent, listCheckins, useDaftarEvent } from '~/composables/useEvent'
-import { idCheckin, petaOrder, ringkasPenjualan, tglWIB } from '~/utils/event-hitung'
+import { idCheckin, petaOrder, ringkasPenjualan } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
-import { angka, rupiah, tglPanjang } from '~/utils/format'
+import { angka, rupiah } from '~/utils/format'
 
 definePageMeta({ access: ['event'] })
 
@@ -78,21 +78,10 @@ const pl = computed(() => {
         class="mb-4"
       />
       <template v-if="acara">
-        <AppPanel
-          title="Informasi dasar"
-          icon="i-lucide-info"
-          class="mb-4"
-        >
-          <div class="grid gap-x-6 gap-y-2 text-sm lg:grid-cols-2">
-            <p><b class="text-highlighted">{{ acara.title }}</b> · {{ acara.category }}</p>
-            <p class="text-muted">
-              {{ tglPanjang(tglWIB(acara.start_datetime)) }}
-            </p>
-            <p class="text-muted">
-              Venue: {{ acara.venue || '—' }} · PIC: {{ acara.pic || '—' }}
-            </p>
-          </div>
-        </AppPanel>
+        <EventInfoDasar
+          :acara="acara"
+          :terjual="ringkas.tiketSah"
+        />
 
         <AppSectionTitle title="Pencapaian" />
         <AppStatGrid class="mb-4">
