@@ -8,7 +8,10 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { useAccountUsers, type AccountUser } from '~/composables/useAccount'
+import {
+  hapusUser, setAktif, simpanAkun, useAccountModules, useAccountUsers,
+  type AccountUser,
+} from '~/composables/useAccount'
 import { isAdminOf } from '~/composables/useMe'
 
 const me = useMe()
@@ -17,7 +20,11 @@ if (!isAdminOf(me.value, '*')) {
 }
 
 const { data: akun, status, error, refresh } = useAccountUsers()
+const { data: daftarModul } = useAccountModules()
 const users = computed(() => akun.value.users)
+const timTersedia = computed(() => [...new Set(
+  users.value.map(u => u.keterangan.trim()).filter(t => t !== ''),
+)].sort((a, b) => a.localeCompare(b)))
 
 const nAktif = computed(() => users.value.filter(u => u.active).length)
 const nNonaktif = computed(() => users.value.length - nAktif.value)
@@ -62,12 +69,49 @@ const kolom: TableColumn<AccountUser>[] = [
   { id: 'aksi', header: '' },
 ]
 
-// U3 owns this sheet: the add/edit kru form goes inside, driven by `pilih`.
+// AksesUserSheet owns this form: tambah (pilih null) or ubah one kru.
 const sheet = ref(false)
 const pilih = ref<AccountUser | null>(null)
+function bukaTambah() {
+  pilih.value = null
+  sheet.value = true
+}
 function bukaUbah(u: AccountUser) {
   pilih.value = u
   sheet.value = true
+}
+
+// Delete flow: permanent delete is for deactivated rows only (the server
+// refuses active accounts, self-deletes and Kepala Divisi —
+// must_deactivate_first / cannot_delete_self / is_kepala_divisi). The own
+// row never shows a delete button; an active row offers Nonaktifkan first.
+const hapusBuka = ref(false)
+const hapusTarget = ref<AccountUser | null>(null)
+const hapusAktif = ref(false)
+const menghapus = ref(false)
+function bukaHapus(u: AccountUser) {
+  hapusTarget.value = u
+  hapusAktif.value = u.active
+  hapusBuka.value = true
+}
+async function nonaktifkanTarget() {
+  const t = hapusTarget.value
+  if (!t) return
+  menghapus.value = true
+  const ok = await simpanAkun(() => setAktif(t.id, false), `${t.name} dinonaktifkan`)
+  menghapus.value = false
+  if (ok) hapusAktif.value = false
+}
+async function hapusTargetPermanen() {
+  const t = hapusTarget.value
+  if (!t) return
+  menghapus.value = true
+  const ok = await simpanAkun(() => hapusUser(t.id), `${t.name} dihapus`)
+  menghapus.value = false
+  if (ok) {
+    hapusBuka.value = false
+    hapusTarget.value = null
+  }
 }
 </script>
 
@@ -77,7 +121,11 @@ function bukaUbah(u: AccountUser) {
     description="Akun dan modul yang boleh dibuka. Tidak ada role: akses diberikan langsung per modul."
   >
     <template #actions>
-      <!-- TODO(U3/U4): tombol Tambah kru, Impor/ekspor Excel, dan tab Modul masuk sini. -->
+      <UButton
+        label="Tambah kru"
+        icon="i-lucide-plus"
+        @click="bukaTambah"
+      />
     </template>
 
     <AppStatGrid>
@@ -246,7 +294,7 @@ function bukaUbah(u: AccountUser) {
             </AppStatus>
           </template>
           <template #aksi-cell="{ row }">
-            <div class="flex justify-end">
+            <div class="flex justify-end gap-1">
               <UButton
                 icon="i-lucide-pencil"
                 color="neutral"
@@ -254,6 +302,15 @@ function bukaUbah(u: AccountUser) {
                 size="xs"
                 :aria-label="`Ubah ${row.original.name}`"
                 @click="bukaUbah(row.original)"
+              />
+              <UButton
+                v-if="!saya(row.original)"
+                icon="i-lucide-trash-2"
+                color="error"
+                variant="outline"
+                size="xs"
+                :aria-label="`Hapus ${row.original.name}`"
+                @click="bukaHapus(row.original)"
               />
             </div>
           </template>
@@ -320,23 +377,67 @@ function bukaUbah(u: AccountUser) {
                 >+{{ u.modules.length - 3 }}</span>
               </div>
             </div>
-            <UButton
-              icon="i-lucide-pencil"
-              color="neutral"
-              variant="outline"
-              size="xs"
-              :aria-label="`Ubah ${u.name}`"
-              @click="bukaUbah(u)"
-            />
+            <div class="flex gap-1">
+              <UButton
+                icon="i-lucide-pencil"
+                color="neutral"
+                variant="outline"
+                size="xs"
+                :aria-label="`Ubah ${u.name}`"
+                @click="bukaUbah(u)"
+              />
+              <UButton
+                v-if="!saya(u)"
+                icon="i-lucide-trash-2"
+                color="error"
+                variant="outline"
+                size="xs"
+                :aria-label="`Hapus ${u.name}`"
+                @click="bukaHapus(u)"
+              />
+            </div>
           </div>
         </div>
       </template>
     </AppPanel>
 
-    <!-- TODO(U3): form tambah/ubah kru masuk sini, memakai `pilih`. -->
-    <ResponsiveSheet
+    <AksesUserSheet
       v-model:open="sheet"
-      :title="pilih ? `Ubah ${pilih.name}` : 'Kru'"
+      :user="pilih"
+      :modules="daftarModul"
+      :tim-tersedia="timTersedia"
     />
+
+    <ResponsiveSheet
+      v-model:open="hapusBuka"
+      :title="hapusAktif ? 'Nonaktifkan dulu?' : `Hapus ${hapusTarget?.name || 'kru'}?`"
+      :description="hapusAktif
+        ? `${hapusTarget?.name || 'Kru'} masih aktif — hapus hanya berlaku untuk kru nonaktif. Nonaktifkan dulu, lalu hapus bila perlu.`
+        : 'Kru nonaktif ini dihapus permanen beserta semua aksesnya.'"
+    >
+      <template #footer>
+        <UButton
+          v-if="hapusAktif"
+          label="Nonaktifkan"
+          icon="i-lucide-user-x"
+          :loading="menghapus"
+          @click="nonaktifkanTarget"
+        />
+        <UButton
+          v-else
+          label="Hapus permanen"
+          icon="i-lucide-trash-2"
+          color="error"
+          :loading="menghapus"
+          @click="hapusTargetPermanen"
+        />
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="outline"
+          @click="hapusBuka = false"
+        />
+      </template>
+    </ResponsiveSheet>
   </AppPage>
 </template>
