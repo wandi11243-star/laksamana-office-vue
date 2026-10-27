@@ -62,6 +62,12 @@ const LAYAR_MODUL: Record<string, Layar[]> = {
 
 const layar = computed(() => LAYAR_MODUL[props.m.key] ?? [])
 const nyala = (to: string) => cocokRute(route.path, to)
+
+// Per-card local toggle so long pill lists stay short: first 6 visible,
+// the rest behind a "+N lainnya" / "Sembunyikan" pill.
+const bukaSemua = ref(false)
+const layarTampil = computed(() => (bukaSemua.value ? layar.value : layar.value.slice(0, 6)))
+const sisa = computed(() => layar.value.length - 6)
 </script>
 
 <template>
@@ -100,7 +106,7 @@ const nyala = (to: string) => cocokRute(route.path, to)
       class="flex flex-wrap gap-1.5"
     >
       <NuxtLink
-        v-for="l in layar"
+        v-for="l in layarTampil"
         :key="l.key"
         :to="l.to"
         class="rounded-full border px-2.5 py-1 text-xs"
@@ -109,6 +115,14 @@ const nyala = (to: string) => cocokRute(route.path, to)
       >
         {{ l.label }}
       </NuxtLink>
+      <button
+        v-if="layar.length > 6"
+        type="button"
+        class="rounded-full border border-default px-2.5 py-1 text-xs text-muted"
+        @click.stop="bukaSemua = !bukaSemua"
+      >
+        {{ bukaSemua ? 'Sembunyikan' : `+${sisa} lainnya` }}
+      </button>
     </div>
     <div
       v-else
