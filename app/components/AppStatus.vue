@@ -12,7 +12,7 @@ withDefaults(defineProps<{
 
 const tone = {
   success: 'bg-teal-light text-moss-dark',
-  warning: 'bg-[#fff8e0] text-yellow-dark',
+  warning: 'bg-yellow-light text-yellow-dark',
   error: 'bg-coral-light text-coral-dark',
   info: 'bg-accented text-blue-pressed',
   vip: 'bg-lilac-light text-ink-900',

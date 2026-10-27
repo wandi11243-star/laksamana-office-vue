@@ -28,7 +28,7 @@ const ukuran = computed(() => {
 const bar = {
   gold: 'before:bg-muted',
   success: 'before:bg-teal-light',
-  warning: 'before:bg-[#fff8e0]',
+  warning: 'before:bg-yellow-light',
   error: 'before:bg-coral-light',
   info: 'before:bg-accented',
   vip: 'before:bg-lilac-light',
