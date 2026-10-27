@@ -40,19 +40,30 @@ onMounted(() => {
   >
     <AppPanel
       title="Pilih panel"
-      :description="me?.name ? `Masuk sebagai ${me.name}. Panel yang tampil hanya yang kamu berhak buka.` : 'Panel yang tampil hanya yang kamu berhak buka.'"
+      description="Panel yang tampil hanya yang kamu berhak buka."
     >
+      <div
+        v-if="me?.name"
+        class="mb-4 flex items-center gap-2 text-sm text-muted"
+      >
+        <span class="grid size-8 shrink-0 place-items-center rounded-full bg-ink-900 text-xs font-bold text-white">
+          {{ me.name.charAt(0).toUpperCase() }}
+        </span>
+        <span>Masuk sebagai <b class="text-highlighted">{{ me.name }}</b></span>
+      </div>
       <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <div
           v-for="p in panels"
           :key="p.key"
           class="flex flex-col rounded-panel border border-default bg-default p-4 shadow-panel"
         >
-          <div class="mb-2 flex items-center gap-2">
-            <UIcon
-              :name="p.icon"
-              class="size-5 text-primary-700"
-            />
+          <div class="mb-2 flex items-center gap-3">
+            <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-ink-900 text-white">
+              <UIcon
+                :name="p.icon"
+                class="size-5"
+              />
+            </span>
             <b class="text-highlighted">{{ p.label }}</b>
             <AppStatus
               v-if="!p.to"
@@ -90,7 +101,7 @@ onMounted(() => {
       <p class="mt-4 text-sm text-muted">
         Kembali ke <ULink
           to="/"
-          class="font-semibold text-primary-700"
+          class="font-semibold text-ink-900"
         >Beranda Office</ULink>.
       </p>
     </AppPanel>
