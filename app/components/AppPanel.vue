@@ -31,7 +31,7 @@ defineProps<{
             {{ title }}
             <span
               v-if="count !== undefined"
-              class="rounded-full bg-muted px-2 py-0.5 font-sans text-xs font-bold text-muted num"
+              class="rounded-full bg-muted px-2 py-0.5 font-sans text-xs font-bold text-ink-900 num"
             >{{ count }}</span>
           </h2>
           <p
