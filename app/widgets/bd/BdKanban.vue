@@ -127,14 +127,14 @@ async function tambahKartu(st: string) {
       v-for="st in kolom"
       :key="st"
       class="min-w-0 rounded-panel border bg-muted/40 transition-colors"
-      :class="kolomSasaran === st ? 'border-primary-400 bg-primary-50' : 'border-default'"
+      :class="kolomSasaran === st ? 'border-yellow-deep bg-yellow-light' : 'border-default'"
       @dragover.prevent="kolomSasaran = st"
       @dragleave="dragKeluar($event, st)"
       @drop.prevent="dropKolom(st)"
     >
       <header class="flex items-center justify-between border-b border-default px-3 py-2">
         <span class="text-sm font-bold text-highlighted">{{ st }}</span>
-        <span class="rounded-full bg-table-head px-2 py-0.5 text-xs font-bold text-table-head-text num">{{ arsipKolom(st) }}</span>
+        <span class="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted num">{{ arsipKolom(st) }}</span>
       </header>
       <div class="grid gap-2 p-2">
         <BdKanbanCard
