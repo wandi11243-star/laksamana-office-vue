@@ -6,7 +6,7 @@
   each toggle is its own PUT, there is no staged draft).
 
   PIN is write-only: the API never returns it, so the field always starts
-  empty — blank means the server default (1111) on create, "keep the old
+  empty: blank means the server default (1111) on create, "keep the old
   one" on edit.
 -->
 <script setup lang="ts">
@@ -308,14 +308,14 @@ function isiTim(t: string) {
           </label>
         </div>
         <p class="mt-1 text-xs text-muted">
-          Centang langsung tersimpan — tiap perubahan dikirim saat itu juga.
+          Centang langsung tersimpan. Tiap perubahan dikirim saat itu juga.
         </p>
       </div>
       <p
         v-else
         class="text-xs text-muted"
       >
-        Modul diatur setelah kru dibuat — simpan dulu, lalu buka lagi untuk mencentang modul.
+        Modul diatur setelah kru dibuat. Simpan dulu, lalu buka lagi untuk mencentang modul.
       </p>
 
       <AppSectionTitle
@@ -330,7 +330,7 @@ function isiTim(t: string) {
               :disabled="lagiSibuk('admin:*')"
               @update:model-value="(v) => toggleAdmin('*', v)"
             />
-            <span class="min-w-0 flex-1 truncate font-semibold text-highlighted">Superadmin — semua modul</span>
+            <span class="min-w-0 flex-1 truncate font-semibold text-highlighted">Superadmin (semua modul)</span>
           </label>
           <label
             v-for="m in modules"
@@ -351,7 +351,7 @@ function isiTim(t: string) {
         <USwitch
           :model-value="user.active"
           :disabled="lagiSibuk('aktif')"
-          label="Aktif — bisa login"
+          label="Aktif, bisa login"
           class="mt-3"
           @update:model-value="toggleAktif"
         />

@@ -1,7 +1,7 @@
 <!--
   Kelola Akses › Daftar kru (old Tab User, deploy/index.html:706-897).
 
-  Superadmin only, but no single module key fits — so there is NO
+  Superadmin only, but no single module key fits, so there is NO
   meta.access here. The guard below throws the standard 403 instead (same
   wording as the middleware). U2 builds the shell + user list; the write
   forms (U3/U4) hook into #actions and `sheet`.
@@ -84,7 +84,7 @@ function bukaUbah(u: AccountUser) {
 }
 
 // Delete flow: permanent delete is for deactivated rows only (the server
-// refuses active accounts, self-deletes and Kepala Divisi —
+// refuses active accounts, self-deletes and Kepala Divisi:
 // must_deactivate_first / cannot_delete_self / is_kepala_divisi). The own
 // row never shows a delete button; an active row offers Nonaktifkan first.
 const hapusBuka = ref(false)
@@ -126,7 +126,7 @@ const opsiTab = computed(() => [
 
 // ---- Modul registry (U4) ----
 // The server is ADD-ONLY here: POST /account/modules only adds new keys, and
-// there is no DELETE — so this screen offers no create/delete UI, only relabel
+// there is no DELETE, so this screen offers no create/delete UI, only relabel
 // (PATCH label) and on/off (PATCH active). The key itself never changes.
 const kolomModul: TableColumn<AccountModule>[] = [
   { accessorKey: 'label', header: 'Modul' },
@@ -165,7 +165,7 @@ async function toggleModul(m: AccountModule, v: boolean | 'indeterminate') {
 
 // ---- Ekspor CSV (U4) ----
 // Column contract, shared with the import below: one saveUser body per row, so
-// the CSV header is exactly the bulk body keys. `pin` stays empty on export —
+// the CSV header is exactly the bulk body keys. `pin` stays empty on export:
 // v1 never returns PINs. On import `pin_kosong` and `tim` are accepted as
 // aliases of `pin` and `keterangan`; unknown columns are ignored.
 const KOLOM_KRU = [
@@ -247,7 +247,7 @@ async function pilihBerkasImpor(e: Event) {
     }
     const data = tabel.slice(1)
     if (!data.length) throw new Error('Tidak ada baris data di bawah kepala kolom.')
-    if (data.length > 500) throw new Error(`Berkasnya ${data.length} baris — maksimal 500 per impor. Pecah jadi dua berkas.`)
+    if (data.length > 500) throw new Error(`Berkasnya ${data.length} baris (maksimal 500 per impor). Pecah jadi dua berkas.`)
     const valid: CalonImpor[] = []
     const buruk: BarisBuruk[] = []
     data.forEach((r, i) => {
@@ -407,7 +407,7 @@ async function kirimImpor() {
         />
       </div>
       <p class="px-4 pt-2 text-xs text-muted lg:px-5">
-        Ekspor mengunduh daftar yang tampil. Impor menerima .xlsx/.csv dengan kolom nama, username, pin, keterangan, noHp, talentaId — modul dan hak admin diatur setelah kru dibuat.
+        Ekspor mengunduh daftar yang tampil. Impor menerima .xlsx/.csv dengan kolom nama, username, pin, keterangan, noHp, talentaId (modul dan hak admin diatur setelah kru dibuat).
       </p>
       <p
         v-if="membacaImpor"
@@ -650,7 +650,7 @@ async function kirimImpor() {
       title="Daftar modul"
       icon="i-lucide-key-round"
       :count="daftarModul.length"
-      description="Modul baru didaftarkan lewat sinkronisasi server — daftar ini hanya mengganti label dan mengaktifkan/menonaktifkan."
+      description="Modul baru didaftarkan lewat sinkronisasi server. Daftar ini hanya mengganti label dan mengaktifkan/menonaktifkan."
       flush
     >
       <div
@@ -747,7 +747,7 @@ async function kirimImpor() {
       v-model:open="hapusBuka"
       :title="hapusAktif ? 'Nonaktifkan dulu?' : `Hapus ${hapusTarget?.name || 'kru'}?`"
       :description="hapusAktif
-        ? `${hapusTarget?.name || 'Kru'} masih aktif — hapus hanya berlaku untuk kru nonaktif. Nonaktifkan dulu, lalu hapus bila perlu.`
+        ? `${hapusTarget?.name || 'Kru'} masih aktif. Hapus hanya berlaku untuk kru nonaktif: nonaktifkan dulu, lalu hapus bila perlu.`
         : 'Kru nonaktif ini dihapus permanen beserta semua aksesnya.'"
     >
       <template #footer>
@@ -778,7 +778,7 @@ async function kirimImpor() {
     <ResponsiveSheet
       v-model:open="modulBuka"
       :title="`Ubah label ${modulTarget?.key || 'modul'}`"
-      description="Kunci modul tidak bisa diganti — yang berubah hanya label tampilannya."
+      description="Kunci modul tidak bisa diganti. Yang berubah hanya label tampilannya."
     >
       <UFormField label="Label modul">
         <UInput
@@ -807,7 +807,7 @@ async function kirimImpor() {
     <ResponsiveSheet
       v-model:open="imporBuka"
       title="Impor kru dari berkas"
-      :description="`${imporValid.length} baris valid${imporBuruk.length ? `, ${imporBuruk.length} bermasalah` : ''} — periksa dulu, baru kirim. PIN yang dikosongkan jadi 1111.`"
+      :description="`${imporValid.length} baris valid${imporBuruk.length ? `, ${imporBuruk.length} bermasalah` : ''}. Periksa dulu, baru kirim. PIN yang dikosongkan jadi 1111.`"
     >
       <div
         v-if="imporBuruk.length"
@@ -821,7 +821,7 @@ async function kirimImpor() {
           :key="b.baris"
           class="rounded-field bg-error/12 px-3 py-2 text-sm text-error"
         >
-          Baris {{ b.baris }} · {{ b.nama }} — {{ b.sebab }}
+          Baris {{ b.baris }} · {{ b.nama }}: {{ b.sebab }}
         </p>
         <p
           v-if="imporBuruk.length > 5"
@@ -834,7 +834,7 @@ async function kirimImpor() {
         v-else
         class="text-sm text-muted"
       >
-        Semua baris punya nama — siap dikirim. Modul dan hak admin diatur setelah kru dibuat.
+        Semua baris punya nama, siap dikirim. Modul dan hak admin diatur setelah kru dibuat.
       </p>
       <template #footer>
         <UButton
