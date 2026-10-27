@@ -36,7 +36,7 @@ interface BarisOrder { k: number, item: string, qty: number, unit: string, note:
 let nomor = 0
 const baris = ref<BarisOrder[]>([])
 function tambahBaris() {
-  baris.value.push({ k: ++nomor, item: '', qty: 1, unit: SATUAN_TERSEDIA[0]!, note: '' })
+  baris.value.push({ k: ++nomor, item: '', qty: 5, unit: SATUAN_TERSEDIA[0]!, note: '' })
 }
 function hapusBaris(k: number) {
   if (baris.value.length <= 1) {
@@ -66,6 +66,9 @@ function paksaDaftar(b: BarisOrder) {
   }
   aturSatuan(b)
 }
+// Like the old form: three empty rows ready, qty default 5.
+tambahBaris()
+tambahBaris()
 tambahBaris()
 
 const siap = computed(() => baris.value.filter(b => b.item.trim() && (Number(b.qty) || 0) > 0))
@@ -163,6 +166,8 @@ async function kirim() {
     }
     catch { /* keep going */ }
     baris.value = []
+    tambahBaris()
+    tambahBaris()
     tambahBaris()
     await batchQ.refresh()
   }
