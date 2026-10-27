@@ -6,6 +6,8 @@
   gone; this page is a launcher again.
 -->
 <script setup lang="ts">
+import type { Modul } from '~/utils/modul'
+import { isAdminOf } from '~/composables/useMe'
 import { namaDivisiJadwal } from '~/utils/jadwal'
 
 const me = useMe()
@@ -14,10 +16,30 @@ const { mine } = useModulNav()
 const tim = computed(() => me.value?.tim ?? [])
 const kepala = computed(() => (me.value?.headDivisi ?? []).map(namaDivisiJadwal))
 
+// U2 Kelola Akses: a pseudo-card for superadmins. '/akses' has no module key,
+// so useModulNav never lists it — it is prepended to Lainnya instead.
+const superadmin = computed(() => isAdminOf(me.value, '*'))
+const kartuAkses: Modul & { to: string, ready: boolean } = {
+  key: 'akses',
+  label: 'Kelola Akses',
+  desc: 'Pengguna, modul & akses',
+  icon: 'i-lucide-key-round',
+  group: 'Lainnya',
+  access: ['*'],
+  to: '/akses',
+  ready: true,
+}
+
 // The modules the viewer holds, in launcher group order. Ready or not: the
-// card decides between a module link with screen pills and "Segera".
+// card decides between a module link with screen pills and "Segera" (BerandaModul).
 const grups = computed(() => MODUL_GROUPS
-  .map(group => ({ group, items: mine.value.filter(m => m.group === group) }))
+  .map(group => ({
+    group,
+    items: [
+      ...(group === 'Lainnya' && superadmin.value ? [kartuAkses] : []),
+      ...mine.value.filter(m => m.group === group),
+    ],
+  }))
   .filter(g => g.items.length))
 
 const hour = new Date().getHours()
