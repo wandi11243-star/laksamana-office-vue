@@ -30,8 +30,11 @@ import { LAYAR_STOCK } from '~/utils/layar/stock'
 
 const props = defineProps<{ m: Modul & { to: string, ready: boolean } }>()
 
-const Link = resolveComponent('NuxtLink')
 const route = useRoute()
+
+const buka = () => {
+  if (props.m.ready) navigateTo(props.m.to)
+}
 
 // Roster holds two access keys (jadwal + dw, modul.ts) but one launcher card,
 // so its pills carry both menus. Every other key maps to its own LAYAR array.
@@ -62,12 +65,14 @@ const nyala = (to: string) => cocokRute(route.path, to)
 </script>
 
 <template>
-  <component
-    :is="m.ready ? Link : 'div'"
-    :to="m.ready ? m.to : undefined"
+  <div
     class="group flex flex-col gap-3 rounded-panel border border-default bg-default p-4 shadow-panel"
-    :class="!m.ready && 'opacity-60'"
+    :class="m.ready ? 'cursor-pointer' : 'opacity-60'"
+    :role="m.ready ? 'link' : undefined"
+    :tabindex="m.ready ? 0 : undefined"
     :aria-disabled="!m.ready || undefined"
+    @click="buka"
+    @keydown.enter="buka"
   >
     <div class="flex items-center gap-3">
       <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-ink-900 text-white">
@@ -100,6 +105,7 @@ const nyala = (to: string) => cocokRute(route.path, to)
         :to="l.to"
         class="rounded-full border px-2.5 py-1 text-xs"
         :class="nyala(l.to) ? 'border-yellow-deep bg-yellow-light text-yellow-dark' : 'border-default text-muted'"
+        @click.stop
       >
         {{ l.label }}
       </NuxtLink>
@@ -110,5 +116,5 @@ const nyala = (to: string) => cocokRute(route.path, to)
     >
       <span class="rounded-full border border-default px-2.5 py-1 text-xs text-dimmed">Segera</span>
     </div>
-  </component>
+  </div>
 </template>
