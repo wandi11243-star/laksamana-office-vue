@@ -19,11 +19,11 @@ const { grouped } = useModulNav()
 const namaPengguna = computed(() => me.value?.username ?? 'anon')
 const kunciSimpan = computed(() => `lm-nav-grup:${namaPengguna.value}`)
 
-// Labels of the groups currently open. First use: everything open.
-const terbuka = useState<string[]>('app-sidebar-grup-terbuka', () => [])
-// Labels already seen, so newly appearing groups can start open without
-// reopening groups the user collapsed on purpose.
-const dikenal = new Set<string>()
+// Labels of the groups the user collapsed. Everything else — including groups
+// that appear later (a newly granted module) — starts open, so new access
+// is always discovered. Stored per user; the menu filling in after login can
+// never reopen a remembered collapse because opens are never written back.
+const tutup = useState<string[]>('app-sidebar-grup-tutup', () => [])
 
 const labelGrup = (grup: NavigationMenuItem[]): string | null =>
   grup[0]?.type === 'label' ? (grup[0]?.label ?? null) : null
@@ -34,11 +34,7 @@ const daftar = computed(() => menu.value.map(grup => ({
   items: labelGrup(grup) ? grup.slice(1) : grup,
 })))
 
-const semuaLabel = computed(() => daftar.value
-  .map(g => g.label)
-  .filter((l): l is string => l != null))
-
-const isTerbuka = (label: string) => terbuka.value.includes(label)
+const isTerbuka = (label: string) => !tutup.value.includes(label)
 
 function bacaSimpan(): string[] | null {
   if (typeof localStorage === 'undefined') return null
@@ -58,7 +54,7 @@ function bacaSimpan(): string[] | null {
 function simpan() {
   if (typeof localStorage === 'undefined') return
   try {
-    localStorage.setItem(kunciSimpan.value, JSON.stringify(terbuka.value))
+    localStorage.setItem(kunciSimpan.value, JSON.stringify(tutup.value))
   }
   catch {
     // Private mode or full quota: the menu still works for this session.
@@ -66,47 +62,32 @@ function simpan() {
 }
 
 function alihkan(label: string) {
-  terbuka.value = isTerbuka(label)
-    ? terbuka.value.filter(l => l !== label)
-    : [...terbuka.value, label]
+  tutup.value = isTerbuka(label)
+    ? [...tutup.value, label]
+    : tutup.value.filter(l => l !== label)
   simpan()
 }
 
-// Expand the group of the module shown by the current route, if collapsed.
+// Expand the group of the module shown by the current route, if collapsed:
+// landing in a module must never hide its own navigation.
 function perluasModulAktif() {
   const segmen = route.path.split('/').filter(Boolean)[0]
   if (!segmen) return
   const grup = grouped.value.find(g => g.items.some(m => m.key === segmen))
   if (grup && !isTerbuka(grup.group)) {
-    terbuka.value = [...terbuka.value, grup.group]
+    tutup.value = tutup.value.filter(l => l !== grup.group)
     simpan()
   }
 }
 
 function muat() {
-  const tersimpan = bacaSimpan()
-  terbuka.value = tersimpan ?? [...semuaLabel.value]
-  if (tersimpan) {
-    const baru = semuaLabel.value.filter(l => !dikenal.has(l))
-    if (baru.length) {
-      terbuka.value = [...terbuka.value, ...baru]
-      simpan()
-    }
-  }
-  semuaLabel.value.forEach(l => dikenal.add(l))
+  tutup.value = bacaSimpan() ?? []
   perluasModulAktif()
 }
 
 onMounted(muat)
 watch(kunciSimpan, muat)
-watch(semuaLabel, (baru) => {
-  const tambahan = baru.filter(l => !dikenal.has(l))
-  baru.forEach(l => dikenal.add(l))
-  if (tambahan.length) {
-    terbuka.value = [...terbuka.value, ...tambahan.filter(l => !isTerbuka(l))]
-    simpan()
-  }
-})
+watch(() => route.path, perluasModulAktif)
 watch(() => route.path, perluasModulAktif)
 </script>
 
