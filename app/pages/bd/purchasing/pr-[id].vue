@@ -505,7 +505,7 @@ const toast = useToast()
             <div
               v-for="s in penanda"
               :key="s.k"
-              class="rounded-field border border-default p-3 text-center"
+              class="rounded-panel border border-default p-3 text-center"
             >
               <p class="text-[11px] font-bold uppercase tracking-wide text-muted">
                 {{ s.l }}

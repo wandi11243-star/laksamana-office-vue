@@ -136,7 +136,7 @@ async function hapus() {
               v-for="c in diKolom(st)"
               :key="c.id"
               draggable="true"
-              class="rounded-field border border-default bg-default p-3 shadow-panel"
+              class="rounded-panel border border-default bg-default p-3 shadow-panel"
               @dragstart="dragMulai($event, c)"
             >
               <button

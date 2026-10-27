@@ -430,7 +430,7 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
           v-if="detail.poster"
           :src="detail.poster"
           :alt="`Poster ${detail.nama}`"
-          class="w-full rounded-field border border-default"
+          class="w-full rounded-panel border border-default"
         >
         <p
           v-if="detail.benefit"

@@ -38,7 +38,7 @@ const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.
   <div
     role="button"
     tabindex="0"
-    class="block w-full min-w-0 cursor-pointer overflow-hidden rounded-field border bg-default px-3 py-2.5 text-start transition hover:border-accented"
+    class="block w-full min-w-0 cursor-pointer overflow-hidden rounded-panel border bg-default px-3 py-2.5 text-start transition hover:border-accented"
     :class="[hal.length ? 'border-lilac-light' : 'border-default', dragging ? 'opacity-50' : '']"
     @click="emit('buka')"
     @keydown.enter.self="emit('buka')"
@@ -127,7 +127,7 @@ const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.
 
     <span
       v-if="subBuka && subs(task).length"
-      class="mt-2 grid gap-1 rounded-field bg-muted/50 p-2"
+      class="mt-2 grid gap-1 rounded-xl bg-muted/50 p-2"
       @click.stop
     >
       <label
