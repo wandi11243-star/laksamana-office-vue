@@ -134,7 +134,7 @@ async function tambahKartu(st: string) {
     >
       <header class="flex items-center justify-between border-b border-default px-3 py-2">
         <span class="text-sm font-bold text-highlighted">{{ st }}</span>
-        <span class="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted num">{{ arsipKolom(st) }}</span>
+        <span class="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-ink-900 num">{{ arsipKolom(st) }}</span>
       </header>
       <div class="grid gap-2 p-2">
         <BdKanbanCard
