@@ -127,7 +127,7 @@ const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.
 
     <span
       v-if="subBuka && subs(task).length"
-      class="mt-2 grid gap-1 rounded-xl bg-muted/50 p-2"
+      class="mt-2 grid gap-1 rounded-md bg-muted/50 p-2"
       @click.stop
     >
       <label

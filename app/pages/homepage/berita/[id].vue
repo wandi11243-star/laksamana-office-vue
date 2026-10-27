@@ -440,7 +440,7 @@ const kategoriNama = computed(() => kategori.value.find(k => k.id === form.kateg
           <p class="mb-2 mt-5 text-xs font-semibold uppercase tracking-wide text-dimmed">
             Tampilan di kartu
           </p>
-          <div class="overflow-hidden rounded-field border border-default">
+          <div class="overflow-hidden rounded-panel border border-default">
             <div class="aspect-[16/10] bg-muted">
               <img
                 v-if="form.cover_key"

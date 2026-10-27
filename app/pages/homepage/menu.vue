@@ -278,7 +278,7 @@ const kategoriApi = {
           v-for="n in 5"
           :key="n"
           :ui="{ base: 'bg-accented/70' }"
-          class="h-16 rounded-field"
+          class="h-16 rounded-md"
         />
       </div>
 
@@ -338,7 +338,7 @@ const kategoriApi = {
           >
             <button
               type="button"
-              class="row-span-2 size-14 overflow-hidden rounded-field bg-muted lg:row-span-1"
+              class="row-span-2 size-14 overflow-hidden rounded-md bg-muted lg:row-span-1"
               :aria-label="`Ubah ${row.nama}`"
               @click="buka(row)"
             >

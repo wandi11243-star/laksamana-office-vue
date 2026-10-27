@@ -427,7 +427,7 @@ const namaHapus = computed(() => JENIS_LAPOR.find(j => j.key === hapusTarget.val
 
         <div
           v-if="canUpload"
-          class="mt-4 rounded-field border border-default p-4"
+          class="mt-4 rounded-panel border border-default p-4"
         >
           <AppSectionTitle title="Unggah laporan bulanan" />
           <p class="mb-3 text-[13px] text-muted">
