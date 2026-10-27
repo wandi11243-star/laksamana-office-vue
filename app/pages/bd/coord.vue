@@ -129,7 +129,7 @@ async function hapus() {
         >
           <header class="flex items-center justify-between border-b border-default px-3 py-2">
             <span class="text-sm font-bold text-highlighted">{{ st }}</span>
-            <span class="rounded-full bg-table-head px-2 py-0.5 text-xs font-bold text-table-head-text num">{{ diKolom(st).length }}</span>
+            <span class="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-muted num">{{ diKolom(st).length }}</span>
           </header>
           <div class="grid gap-2 p-2">
             <div

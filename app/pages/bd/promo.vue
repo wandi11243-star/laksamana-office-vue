@@ -320,7 +320,7 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
               <span class="flex items-center gap-1.5 font-semibold text-highlighted">
                 <UIcon
                   :name="promoTipe(p.tipe).icon"
-                  class="size-4 shrink-0 text-primary-700"
+                  class="size-4 shrink-0 text-ink-900"
                 />{{ p.nama }}
               </span>
             </button>
@@ -357,7 +357,7 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
       >
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead class="bg-table-head text-table-head-text">
+            <thead class="bg-muted text-muted">
               <tr>
                 <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
                   Promo

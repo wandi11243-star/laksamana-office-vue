@@ -44,12 +44,12 @@ function toggle(id: string) {
         type="button"
         class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1.5 text-[13px] font-semibold transition-colors"
         :class="(modelValue || []).includes(p.id)
-          ? 'border-primary-400 bg-primary-100 text-highlighted'
+          ? 'border-yellow-deep bg-yellow-light text-highlighted'
           : 'border-default bg-default text-muted hover:border-accented'"
         :aria-pressed="(modelValue || []).includes(p.id)"
         @click="toggle(p.id)"
       >
-        <span class="flex size-5 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-primary-800">{{ inisial(p.name) }}</span>
+        <span class="flex size-5 items-center justify-center rounded-full bg-yellow-light text-[10px] font-bold text-yellow-dark">{{ inisial(p.name) }}</span>
         {{ p.name }}
         <span
           v-if="p.tanpaAkses"

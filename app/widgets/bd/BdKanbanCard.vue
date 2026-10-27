@@ -39,7 +39,7 @@ const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.
     role="button"
     tabindex="0"
     class="block w-full min-w-0 cursor-pointer overflow-hidden rounded-field border bg-default px-3 py-2.5 text-start transition hover:border-accented"
-    :class="[hal.length ? 'border-vip/50' : 'border-default', dragging ? 'opacity-50' : '']"
+    :class="[hal.length ? 'border-lilac-light' : 'border-default', dragging ? 'opacity-50' : '']"
     @click="emit('buka')"
     @keydown.enter.self="emit('buka')"
   >
@@ -49,7 +49,7 @@ const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.
     >{{ task.name }}</span>
     <span
       v-if="hal.length"
-      class="mt-1 flex items-start gap-1 text-[11px] font-semibold text-vip"
+      class="mt-1 flex items-start gap-1 text-[11px] font-semibold text-ink-900"
     >
       <UIcon
         name="i-lucide-lock"
@@ -76,7 +76,7 @@ const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.
         <span
           v-for="p in dipakai.slice(0, 3)"
           :key="p.id"
-          class="flex size-5 items-center justify-center rounded-full border border-default bg-primary-100 text-[9px] font-bold text-primary-800"
+          class="flex size-5 items-center justify-center rounded-full border border-default bg-yellow-light text-[9px] font-bold text-yellow-dark"
         >{{ inisial(p.name) }}</span>
         <span
           v-if="dipakai.length > 3"
@@ -147,7 +147,7 @@ const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.
         <span
           v-if="s.p && namaSubPic(s.p)"
           :title="`Di-assign ke ${namaSubPic(s.p)}`"
-          class="flex size-4 shrink-0 items-center justify-center rounded-full bg-primary-100 text-[8px] font-bold text-primary-800"
+          class="flex size-4 shrink-0 items-center justify-center rounded-full bg-yellow-light text-[8px] font-bold text-yellow-dark"
         >{{ inisial(namaSubPic(s.p)) }}</span>
         <span
           v-if="dlSub(s.d)"
@@ -164,7 +164,7 @@ const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.
       <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
         <span
           class="block h-full rounded-full"
-          :class="sel ? 'bg-success' : 'bg-primary-400'"
+          :class="sel ? 'bg-success' : 'bg-ink-900'"
           :style="{ width: `${progres}%` }"
         />
       </span>

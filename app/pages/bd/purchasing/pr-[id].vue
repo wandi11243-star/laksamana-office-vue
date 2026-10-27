@@ -253,7 +253,7 @@ const toast = useToast()
             </p>
           </div>
           <div class="text-end">
-            <p class="text-[11px] font-bold uppercase tracking-widest text-primary-700">
+            <p class="text-[11px] font-bold uppercase tracking-widest text-ink-900">
               Purchase Request
             </p>
             <p class="font-display text-2xl font-bold text-highlighted">

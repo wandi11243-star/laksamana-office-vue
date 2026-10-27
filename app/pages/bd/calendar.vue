@@ -206,13 +206,13 @@ function dropHari(iso: string) {
             v-for="c in sel"
             :key="c.iso"
             class="min-h-24 rounded-field border p-1.5"
-            :class="[c.luar ? 'border-default bg-muted/40 opacity-60' : 'border-default bg-default', c.iso === hariIni ? 'ring-2 ring-primary-400' : '']"
+            :class="[c.luar ? 'border-default bg-muted/40 opacity-60' : 'border-default bg-default', c.iso === hariIni ? 'ring-2 ring-yellow-deep' : '']"
             @dragover.prevent
             @drop="dropHari(c.iso)"
           >
             <span
               class="text-xs font-semibold"
-              :class="c.iso === hariIni ? 'text-primary-700' : 'text-muted'"
+              :class="c.iso === hariIni ? 'text-ink-900' : 'text-muted'"
             >{{ c.hari }}</span>
             <div class="mt-1 grid gap-1">
               <span
@@ -221,10 +221,10 @@ function dropHari(iso: string) {
                 class="block truncate rounded border px-1 py-0.5 text-[10.5px] font-semibold"
                 :class="[
                   e.tone === 'error' ? 'border-error/40 bg-error/10 text-error'
-                  : e.tone === 'vip' ? 'border-vip/40 bg-vip/10 text-vip'
+                  : e.tone === 'vip' ? 'border-lilac-light bg-lilac-light text-ink-900'
                     : e.tone === 'info' ? 'border-info/40 bg-info/10 text-info'
                       : e.tone === 'warning' ? 'border-warning/40 bg-warning/10 text-warning'
-                        : 'border-primary-400/40 bg-primary-100 text-primary-800',
+                        : 'border-yellow-deep bg-yellow-light text-yellow-dark',
                   e.geser ? 'cursor-grab' : '',
                 ]"
                 :title="`${e.jenis} — ${e.title}`"
@@ -245,11 +245,11 @@ function dropHari(iso: string) {
           v-for="c in hariBerisi"
           :key="c.iso"
           class="rounded-field border border-default p-3"
-          :class="c.iso === hariIni ? 'ring-2 ring-primary-400' : ''"
+          :class="c.iso === hariIni ? 'ring-2 ring-yellow-deep' : ''"
         >
           <p
             class="text-sm font-semibold"
-            :class="c.iso === hariIni ? 'text-primary-700' : 'text-highlighted'"
+            :class="c.iso === hariIni ? 'text-ink-900' : 'text-highlighted'"
           >
             {{ c.hari }} — {{ c.items.length }} agenda
           </p>
@@ -259,10 +259,10 @@ function dropHari(iso: string) {
               :key="i"
               class="block rounded border px-2 py-1 text-xs font-semibold"
               :class="e.tone === 'error' ? 'border-error/40 bg-error/10 text-error'
-                : e.tone === 'vip' ? 'border-vip/40 bg-vip/10 text-vip'
+                : e.tone === 'vip' ? 'border-lilac-light bg-lilac-light text-ink-900'
                   : e.tone === 'info' ? 'border-info/40 bg-info/10 text-info'
                     : e.tone === 'warning' ? 'border-warning/40 bg-warning/10 text-warning'
-                      : 'border-primary-400/40 bg-primary-100 text-primary-800'"
+                      : 'border-yellow-deep bg-yellow-light text-yellow-dark'"
             >{{ e.jenis }} — {{ e.title }}</span>
           </div>
         </div>
@@ -276,11 +276,11 @@ function dropHari(iso: string) {
 
       <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-default pt-3 text-xs text-muted">
         <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-error" /> Deadline task</span>
-        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-vip" /> Milestone</span>
+        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-lilac-light" /> Milestone</span>
         <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-info" /> PO</span>
         <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-warning" /> Koordinasi</span>
-        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-primary-400" /> Agenda tim</span>
-        <span class="text-primary-700">Seret <b>deadline task</b> ke kotak lain untuk memindahkan tanggalnya (di HP: buka task dan ubah deadlinenya).</span>
+        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-brand-yellow" /> Agenda tim</span>
+        <span class="text-ink-900">Seret <b>deadline task</b> ke kotak lain untuk memindahkan tanggalnya (di HP: buka task dan ubah deadlinenya).</span>
       </div>
     </AppPanel>
 
