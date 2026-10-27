@@ -133,7 +133,7 @@
 
 :root {
   --ui-radius: 9999px;
-  --ui-primary: var(--ui-color-primary-600);
+  --ui-primary: #1c1c1e;
 
   /* Status hues: Miro dark-on-tint pairs (HRIS badge), AA as words on white. */
   --ui-success: #187574;
