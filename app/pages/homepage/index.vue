@@ -64,7 +64,7 @@ const cek = computed<Cek[]>(() => {
   const tanpaHarga = items.filter(i => i.tampil && !i.varian.length).length
   if (tanpaHarga) out.push({ icon: 'i-lucide-tag', tone: 'text-warning', teks: `${tanpaHarga} menu tampil tanpa harga`, to: '/homepage/menu?status=tampil' })
   if (menu && unggulan.value.length < SLOT_UNGGULAN) {
-    out.push({ icon: 'i-lucide-star', tone: 'text-primary-700', teks: `${SLOT_UNGGULAN - unggulan.value.length} slot unggulan beranda masih kosong`, to: '/homepage/menu?status=tampil' })
+    out.push({ icon: 'i-lucide-star', tone: 'text-ink-900', teks: `${SLOT_UNGGULAN - unggulan.value.length} slot unggulan beranda masih kosong`, to: '/homepage/menu?status=tampil' })
   }
   if (unggulan.value.length > SLOT_UNGGULAN) {
     out.push({ icon: 'i-lucide-star', tone: 'text-muted', teks: `${unggulan.value.length - SLOT_UNGGULAN} unggulan tidak muat di beranda`, to: '/homepage/menu?status=unggulan' })
@@ -330,7 +330,7 @@ const memuat = computed(() => menu?.status.value === 'pending' || berita?.status
                 >
               </div>
               <div class="min-w-0 py-2 pe-2 sm:p-3">
-                <p class="text-[11px] font-semibold uppercase tracking-wide text-primary-700">
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-ink-900">
                   {{ a.category.nama }}
                 </p>
                 <p class="mt-0.5 line-clamp-2 text-sm font-semibold leading-snug text-highlighted group-hover:underline">
