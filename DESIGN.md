@@ -1,4 +1,4 @@
-# Design language — Laksamana Office
+# Design language — Laksamana Office (tema Miro)
 
 **Office Vue memakai tata letak dan warna Office lama** (`laksamana-office/deploy/…`), atas permintaan
 mentor (29 September 2026). Kru yang berpindah antara Office lama dan Vue harus merasa berada di tempat
@@ -18,8 +18,9 @@ Referensi hidup: `npm run dev`, buka **`/styleguide`**. Contoh layar lengkap: mo
    mengikuti layar lama (U1 paritas). Yang boleh berbeda: ikon, kontras, dan tampilan HP.
 2. **Ikon, bukan emoji.** Setiap emoji lama (📋 ✅ 💰 📞 ⚠️ 🍽️ …) diganti ikon Lucide (`i-lucide-*`) di
    posisi yang sama. Emoji hanya boleh di **isi pesan WhatsApp** yang dikirim ke tamu.
-3. **Emas = aksi dan tanda aktif.** Tombol utama, tombol `+` di top bar, menu aktif, pil terpilih,
-   judul bagian form. Teks emas di atas terang selalu `primary-700` (kontras ≥ 4,5:1), bukan emas cerah.
+3. **Hitam = aksi, kuning = aksen.** Tombol utama, tombol `+` di top bar, menu aktif, pil terpilih,
+   judul bagian form memakai pil hitam `bg-ink-900` teks putih. Kuning `#ffd02f` hanya untuk aksen
+   (wordmark, promo, tag), bukan untuk CTA.
 4. **Warna status punya arti tetap** (sama seperti lama): kuning/`warning` = menunggu (Pending, belum
    dicek), biru/`info` = terkonfirmasi / kapasitas / orang, hijau/`success` = datang / terverifikasi /
    baik, merah/`error` = perlu tindakan / ditolak / no-show, ungu/`vip` = VIP / sharing, emas = hitungan
@@ -44,39 +45,42 @@ Palet diambil dari variabel Office lama (`deploy/reservasi/index.html:62-73`).
 | Teks biasa | `text-default` | `#2A2620` | `#E6DFD2` |
 | Keterangan | `text-muted` | `#5C574D` | `#B5AC9B` |
 | Placeholder, "Segera" | `text-dimmed` | `#7D776B` | `#938A7B` |
-| Emas tombol | `bg-primary` (600) | `#93691A` teks putih | `#C8961F` teks gelap |
-| Emas sebagai teks | `text-primary-700` / `dark:text-primary-300` | `#7A560F` | `#DDBF74` |
-| Emas lembut (menu aktif, pil) | `bg-primary-100` / `dark:bg-primary-950` | `#F2E9D3` | |
-| Kepala tabel | `bg-table-head` + `text-table-head-text` | `#2A2620` + putih | `#0F0D0B` |
-| Status | `text-/bg-success·warning·error·info` | `#17804C` `#946A12` `#B83A24` `#2A6FAD` | lebih terang |
-| VIP / sharing | `text-vip` / `bg-vip/12` | `#6B4FB0` | `#A48DE6` |
-| Radius panel / field | `rounded-panel` / `rounded-field` | 14px / 10px | |
-| Bayangan panel | `shadow-panel` | `0 4px 18px` coklat 6 % | |
+| CTA hitam | `bg-ink-900` teks putih | `#1c1c1e` teks putih | — |
+| Hitam sebagai teks | `text-ink-900` | `#1c1c1e` | — |
+| Kuning lembut (menu aktif, pil) | `bg-yellow-light` / `text-yellow-dark` | `#fff4c4` / `#746019` | — |
+| Kuning aksen (wordmark, promo, tag) | `text-brand-yellow` | `#ffd02f`, bukan untuk CTA | — |
+| Kepala tabel | `bg-muted` + `text-muted` | `#f7f8fa` + `#555a6a` | — |
+| Status | `text-/bg-success·warning·error·info` | sukses `#c3faf5`/`#187574`, tunggu `#fff8e0`/`#746019`, tolak `#ffc6c6`/`#600000`, info tint/`#2a41b6` | — |
+| VIP / sharing | `text-vip` / `bg-vip/12` | `#6B4FB0` | — |
+| Radius panel / field | `rounded-panel` / `rounded-field` | 28px / full (`9999px`) | — |
+| Bayangan panel | `shadow-panel` | `0 12px 32px -4px rgb(5 0 56/.08)` | — |
 
 Emas lama `#A9791F` digeser ke `#93691A` untuk isian tombol: teks putih di atasnya 3,9:1 → 4,9:1.
 Warna status memakai separuh gelap pasangan lama supaya katanya lolos AA di atas pil berwarna 12 %.
 
-**Tipografi.** Font Office lama, self-hosted di `public/fonts/` (tanpa Google Fonts):
-**Plus Jakarta Sans** untuk judul halaman, judul panel, dan angka kartu (`font-display`, otomatis di
-`h1–h3`); **Inter** untuk semua teks lain. Judul halaman 28px bold; judul panel 18px semibold; label
-kartu, label filter, kepala tabel, dan judul bagian form = 11–12px **huruf kapital** bold, tracking lebar.
-Angka yang harus sejajar memakai `num` (tabular).
+**Tipografi.** Font self-hosted di `public/fonts/` (tanpa Google Fonts): **Noto Sans** untuk judul
+halaman, judul panel, dan angka kartu (`font-display`, otomatis di `h1–h3`) maupun semua teks lain,
+dengan **Inter** sebagai cadangan. Tumpukan persisnya: bodi `--font-sans: 'Noto Sans', 'Inter',
+ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`; judul `--font-display:
+'Noto Sans', 'Inter', ui-sans-serif, system-ui, sans-serif`. Judul halaman 28px bold; judul panel
+18px semibold; label kartu, label filter, kepala tabel, dan judul bagian form = 11–12px **huruf kapital**
+bold, tracking lebar. Angka yang harus sejajar memakai `num` (tabular).
 
-**Mode gelap** adalah tema tersendiri dengan coklat yang sama, bukan inversi. Emas naik satu tingkat.
-Cek setiap layar di terang **dan** gelap.
+Aplikasi hanya terang (**light-only**): tidak ada tema gelap, blok `.dark` dihapus, dan tidak ada
+pemilih tema. Cek setiap layar di terang saja.
 
 ## Shell (`app/layouts/default.vue`)
 
 Seperti Office lama (`deploy/reservasi/index.html:851-872`):
 
-- **Sidebar 248px** (`AppSidebar`): logo + "Laksamana Muda" + nama modul dalam huruf kapital emas kecil;
-  menu berkelompok dengan label kapital abu (OPERASI, DATA & ANALISA …); item aktif = latar emas
-  lembut, kata emas, garis emas 3px di kiri; **badge merah** untuk jumlah yang menunggu; di kaki: avatar
-  emas bersudut, nama, peran di modul ini, tombol keluar.
+- **Sidebar 248px** (`AppSidebar`): logo + "Laksamana Muda" + nama modul dalam huruf kapital kecil;
+  menu berkelompok dengan label kapital abu (OPERASI, DATA & ANALISA …); item aktif = latar kuning
+  lembut, garis kuning `#fcb900` 3px di kiri; **badge merah** untuk jumlah yang menunggu; di kaki: avatar
+  hitam bersudut, nama, peran di modul ini, tombol keluar.
 - **Di dalam modul**, sidebar berisi layar modul itu (dari `utils/layar/<modul>.ts`) plus "Beranda Office".
   Di Beranda, sidebar berisi daftar modul.
 - **Top bar**: tombol menu (desktop saja: sembunyikan sidebar), kotak cari bulat, lalu di kanan
-  tombol **`+` emas** (aksi paling sering modul) dan **lonceng** dengan titik merah.
+  tombol **`+` pil hitam** (aksi paling sering modul) dan **lonceng** dengan titik merah.
 - Isi per modul ditulis di `app/utils/modul-shell.ts`: `subjudul`, `layar`, `cari`, `tambah`, `lonceng`,
   `peran`, `lencana` (badge), `siapkan` (memuat matriks peran sebelum menu digambar).
 - Halaman modul (`/reservasi`) langsung membuka layar pertamanya, seperti Office lama.
