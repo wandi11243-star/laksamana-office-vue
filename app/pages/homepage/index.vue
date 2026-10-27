@@ -64,7 +64,7 @@ const cek = computed<Cek[]>(() => {
   const tanpaHarga = items.filter(i => i.tampil && !i.varian.length).length
   if (tanpaHarga) out.push({ icon: 'i-lucide-tag', tone: 'text-warning', teks: `${tanpaHarga} menu tampil tanpa harga`, to: '/homepage/menu?status=tampil' })
   if (menu && unggulan.value.length < SLOT_UNGGULAN) {
-    out.push({ icon: 'i-lucide-star', tone: 'text-primary-700', teks: `${SLOT_UNGGULAN - unggulan.value.length} slot unggulan beranda masih kosong`, to: '/homepage/menu?status=tampil' })
+    out.push({ icon: 'i-lucide-star', tone: 'text-ink-900', teks: `${SLOT_UNGGULAN - unggulan.value.length} slot unggulan beranda masih kosong`, to: '/homepage/menu?status=tampil' })
   }
   if (unggulan.value.length > SLOT_UNGGULAN) {
     out.push({ icon: 'i-lucide-star', tone: 'text-muted', teks: `${unggulan.value.length - SLOT_UNGGULAN} unggulan tidak muat di beranda`, to: '/homepage/menu?status=unggulan' })
@@ -110,7 +110,7 @@ const memuat = computed(() => menu?.status.value === 'pending' || berita?.status
         >
           <NuxtLink
             :to="c.to"
-            class="flex items-center gap-3 rounded-field px-2 py-2 text-sm hover:bg-muted"
+            class="flex items-center gap-3 rounded-md px-2 py-2 text-sm hover:bg-muted"
           >
             <UIcon
               :name="c.icon"
@@ -208,12 +208,12 @@ const memuat = computed(() => menu?.status.value === 'pending' || berita?.status
             <USkeleton
               v-if="memuat && !m"
               :ui="{ base: 'bg-accented/70' }"
-              class="aspect-[4/5] rounded-field"
+              class="aspect-[4/5] rounded-panel"
             />
             <NuxtLink
               v-else-if="m"
               to="/homepage/menu?status=unggulan"
-              class="group overflow-hidden rounded-field border border-default"
+              class="group overflow-hidden rounded-panel border border-default"
             >
               <div class="relative aspect-[4/3] bg-muted">
                 <img
@@ -254,7 +254,7 @@ const memuat = computed(() => menu?.status.value === 'pending' || berita?.status
             <NuxtLink
               v-else
               to="/homepage/menu"
-              class="flex aspect-[4/5] flex-col items-center justify-center gap-1.5 rounded-field border border-dashed border-accented p-3 text-center text-muted hover:text-highlighted"
+              class="flex aspect-[4/5] flex-col items-center justify-center gap-1.5 rounded-panel border border-dashed border-accented p-3 text-center text-muted hover:text-highlighted"
             >
               <UIcon
                 name="i-lucide-star"
@@ -313,12 +313,12 @@ const memuat = computed(() => menu?.status.value === 'pending' || berita?.status
             <USkeleton
               v-if="memuat && !a"
               :ui="{ base: 'bg-accented/70' }"
-              class="h-56 rounded-field"
+              class="h-56 rounded-panel"
             />
             <NuxtLink
               v-else-if="a"
               :to="`/homepage/berita/${a.id}`"
-              class="group flex gap-3 overflow-hidden rounded-field border border-default sm:block"
+              class="group flex gap-3 overflow-hidden rounded-panel border border-default sm:block"
             >
               <div class="aspect-[16/10] w-28 shrink-0 bg-muted sm:w-full">
                 <img
@@ -330,7 +330,7 @@ const memuat = computed(() => menu?.status.value === 'pending' || berita?.status
                 >
               </div>
               <div class="min-w-0 py-2 pe-2 sm:p-3">
-                <p class="text-[11px] font-semibold uppercase tracking-wide text-primary-700">
+                <p class="text-[11px] font-semibold uppercase tracking-wide text-ink-900">
                   {{ a.category.nama }}
                 </p>
                 <p class="mt-0.5 line-clamp-2 text-sm font-semibold leading-snug text-highlighted group-hover:underline">
@@ -344,7 +344,7 @@ const memuat = computed(() => menu?.status.value === 'pending' || berita?.status
             <NuxtLink
               v-else
               to="/homepage/berita/baru"
-              class="flex min-h-24 flex-col items-center justify-center gap-1.5 rounded-field border border-dashed border-accented p-3 text-center text-muted hover:text-highlighted sm:h-56"
+              class="flex min-h-24 flex-col items-center justify-center gap-1.5 rounded-panel border border-dashed border-accented p-3 text-center text-muted hover:text-highlighted sm:h-56"
             >
               <UIcon
                 name="i-lucide-pen-line"

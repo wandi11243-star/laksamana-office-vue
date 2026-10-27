@@ -84,7 +84,7 @@ const sisa = computed(() => dipakai.value.length - tampil.value.length)
           <span
             v-for="p in tampil"
             :key="p.id"
-            class="flex size-5 items-center justify-center rounded-full border border-default bg-primary-100 text-[9px] font-bold text-primary-800"
+            class="flex size-5 items-center justify-center rounded-full border border-default bg-yellow-light text-[9px] font-bold text-yellow-dark"
           >{{ inisial(p.name) }}</span>
           <span
             v-if="sisa"
