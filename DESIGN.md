@@ -21,6 +21,11 @@ Referensi hidup: `npm run dev`, buka **`/styleguide`**. Contoh layar lengkap: mo
 3. **Hitam = aksi, kuning = aksen.** Tombol utama, tombol `+` di top bar, menu aktif, pil terpilih,
    judul bagian form memakai pil hitam `bg-ink-900` teks putih. Kuning `#ffd02f` hanya untuk aksen
    (wordmark, promo, tag), bukan untuk CTA.
+   **Aksen pastel Miro untuk identitas panel** (R-31: supaya panel sejenis mudah dibedakan).
+   Ubin ikon boleh memakai satu tint pastel Miro per panel/modul (`yellow-light`, `surface-pricing`,
+   `teal-light`, `brand-orange-light`, `rose-light`, `coral-light` + pasangan teks gelapnya), selalu
+   gelap-di-terang agar lolos AA. Tidak untuk teks, status, badge, atau CTA — dan tidak dicampur
+   dengan emas lama.
 4. **Warna status punya arti tetap** (sama seperti lama): kuning/`warning` = menunggu (Pending, belum
    dicek), biru/`info` = terkonfirmasi / kapasitas / orang, hijau/`success` = datang / terverifikasi /
    baik, merah/`error` = perlu tindakan / ditolak / no-show, ungu/`vip` = VIP / sharing. Kuning
