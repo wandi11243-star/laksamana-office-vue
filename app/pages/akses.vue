@@ -357,292 +357,292 @@ async function kirimImpor() {
 
     <template v-if="tab === 'pengguna'">
       <AppStatGrid>
-      <AppStat
-        label="Total kru"
-        :value="users.length"
+        <AppStat
+          label="Total kru"
+          :value="users.length"
+          icon="i-lucide-users"
+          tone="gold"
+          sub="Terdaftar di Office"
+        />
+        <AppStat
+          label="Aktif"
+          :value="nAktif"
+          icon="i-lucide-user-check"
+          tone="success"
+          sub="Bisa login"
+        />
+        <AppStat
+          label="Nonaktif"
+          :value="nNonaktif"
+          icon="i-lucide-user-x"
+          tone="warning"
+          sub="Tidak bisa login"
+        />
+        <AppStat
+          label="Superadmin"
+          :value="nSuper"
+          icon="i-lucide-shield-check"
+          tone="info"
+          sub="Kelola semua modul"
+        />
+      </AppStatGrid>
+
+      <AppPanel
+        title="Daftar kru"
         icon="i-lucide-users"
-        tone="gold"
-        sub="Terdaftar di Office"
-      />
-      <AppStat
-        label="Aktif"
-        :value="nAktif"
-        icon="i-lucide-user-check"
-        tone="success"
-        sub="Bisa login"
-      />
-      <AppStat
-        label="Nonaktif"
-        :value="nNonaktif"
-        icon="i-lucide-user-x"
-        tone="warning"
-        sub="Tidak bisa login"
-      />
-      <AppStat
-        label="Superadmin"
-        :value="nSuper"
-        icon="i-lucide-shield-check"
-        tone="info"
-        sub="Kelola semua modul"
-      />
-    </AppStatGrid>
-
-    <AppPanel
-      title="Daftar kru"
-      icon="i-lucide-users"
-      :count="tampil.length"
-      flush
-    >
-      <div class="flex flex-wrap items-center gap-2 px-4 pt-4 lg:px-5">
-        <UInput
-          v-model="cari"
-          icon="i-lucide-search"
-          placeholder="Cari nama atau username"
-          class="min-w-48 flex-1 sm:max-w-72"
-        />
-        <AppSeg
-          v-model="tapis"
-          size="sm"
-          :options="opsiTapis"
-        />
-      </div>
-      <p class="px-4 pt-2 text-xs text-muted lg:px-5">
-        Ekspor mengunduh daftar yang tampil. Impor menerima .xlsx/.csv dengan kolom nama, username, pin, keterangan, noHp, talentaId (modul dan hak admin diatur setelah kru dibuat).
-      </p>
-      <p
-        v-if="membacaImpor"
-        class="px-4 pt-1 text-xs text-muted lg:px-5"
+        :count="tampil.length"
+        flush
       >
-        Membaca berkas…
-      </p>
-      <p
-        v-if="imporGalat"
-        class="mx-4 mt-2 rounded-field bg-error/12 px-3 py-2 text-sm text-error lg:mx-5"
-      >
-        Gagal membaca berkasnya: {{ imporGalat }}
-      </p>
-
-      <div
-        v-if="status === 'pending' && !tampil.length"
-        class="p-6 text-center text-sm text-muted"
-      >
-        Memuat daftar kru dari Office…
-      </div>
-
-      <div
-        v-else-if="error"
-        class="p-4 lg:p-5"
-      >
-        <UAlert
-          color="error"
-          variant="subtle"
-          icon="i-lucide-triangle-alert"
-          title="Tidak bisa memuat daftar kru"
-          :description="apiErrorMessage(error, 'Periksa koneksi internet, lalu muat ulang halaman.')"
-        />
-        <UButton
-          label="Coba lagi"
-          icon="i-lucide-refresh-cw"
-          color="neutral"
-          variant="outline"
-          class="mt-3"
-          @click="refresh()"
-        />
-      </div>
-
-      <div
-        v-else-if="!tampil.length"
-        class="p-6 text-center text-sm text-muted"
-      >
-        <b class="block text-highlighted">Tidak ada kru yang cocok</b>
-        <template v-if="cari">
-          Tidak ada kru{{ tapis === 'semua' ? '' : ` ${tapis}` }} yang cocok dengan “{{ cari.trim() }}”.{{ tapis === 'semua' ? '' : ' Coba tapis Semua.' }}
-        </template>
-        <template v-else>
-          {{ tapis === 'semua' ? 'Belum ada kru terdaftar.' : `Tidak ada kru ${tapis}.` }}
-        </template>
-      </div>
-
-      <template v-else>
-        <UTable
-          class="hidden lg:block"
-          :data="tampil"
-          :columns="kolom"
+        <div class="flex flex-wrap items-center gap-2 px-4 pt-4 lg:px-5">
+          <UInput
+            v-model="cari"
+            icon="i-lucide-search"
+            placeholder="Cari nama atau username"
+            class="min-w-48 flex-1 sm:max-w-72"
+          />
+          <AppSeg
+            v-model="tapis"
+            size="sm"
+            :options="opsiTapis"
+          />
+        </div>
+        <p class="px-4 pt-2 text-xs text-muted lg:px-5">
+          Ekspor mengunduh daftar yang tampil. Impor menerima .xlsx/.csv dengan kolom nama, username, pin, keterangan, noHp, talentaId (modul dan hak admin diatur setelah kru dibuat).
+        </p>
+        <p
+          v-if="membacaImpor"
+          class="px-4 pt-1 text-xs text-muted lg:px-5"
         >
-          <template #name-cell="{ row }">
-            <span class="flex items-center gap-2">
-              <span class="flex size-7 flex-none items-center justify-center rounded-md bg-yellow-light text-[11px] font-bold text-yellow-dark">{{ inisial(row.original.name) }}</span>
-              <span class="min-w-0">
-                <b class="block truncate text-highlighted">{{ row.original.name || '(tanpa nama)' }}</b>
-                <span
-                  v-if="row.original.username"
-                  class="block truncate text-xs text-muted"
-                >@{{ row.original.username }}</span>
-              </span>
-              <AppStatus
-                v-if="saya(row.original)"
-                color="info"
-                size="sm"
-              >kamu</AppStatus>
-            </span>
-          </template>
-          <template #keterangan-cell="{ row }">
-            <span class="text-muted">{{ row.original.keterangan || '—' }}</span>
-          </template>
-          <template #modules-cell="{ row }">
-            <div
-              v-if="row.original.modules.length"
-              class="flex flex-wrap gap-1"
-            >
-              <span
-                v-for="m in row.original.modules.slice(0, 3)"
-                :key="m"
-                class="rounded-full border border-default px-2 py-0.5 text-[11px] text-muted"
-              >{{ labelModul(m) }}</span>
-              <span
-                v-if="row.original.modules.length > 3"
-                class="rounded-full border border-default px-2 py-0.5 text-[11px] font-semibold text-muted"
-              >+{{ row.original.modules.length - 3 }}</span>
-            </div>
-            <span
-              v-else
-              class="text-dimmed"
-            >—</span>
-          </template>
-          <template #adminModules-cell="{ row }">
-            <AppStatus
-              v-if="superadmin(row.original)"
-              color="gold"
-              icon="i-lucide-shield-check"
-              size="sm"
-            >
-              Superadmin
-            </AppStatus>
-            <span
-              v-else-if="row.original.adminModules.length"
-              class="text-xs text-muted"
-            >Admin: {{ row.original.adminModules.map(labelModul).join(', ') }}</span>
-            <span
-              v-else
-              class="text-dimmed"
-            >—</span>
-          </template>
-          <template #active-cell="{ row }">
-            <AppStatus
-              :color="row.original.active ? 'success' : 'neutral'"
-              :icon="row.original.active ? 'i-lucide-check' : 'i-lucide-minus'"
-              size="sm"
-            >
-              {{ row.original.active ? 'Aktif' : 'Nonaktif' }}
-            </AppStatus>
-          </template>
-          <template #aksi-cell="{ row }">
-            <div class="flex justify-end gap-1">
-              <UButton
-                icon="i-lucide-pencil"
-                color="neutral"
-                variant="outline"
-                size="xs"
-                :aria-label="`Ubah ${row.original.name}`"
-                @click="bukaUbah(row.original)"
-              />
-              <UButton
-                v-if="!saya(row.original)"
-                icon="i-lucide-trash-2"
-                color="error"
-                variant="outline"
-                size="xs"
-                :aria-label="`Hapus ${row.original.name}`"
-                @click="bukaHapus(row.original)"
-              />
-            </div>
-          </template>
-        </UTable>
+          Membaca berkas…
+        </p>
+        <p
+          v-if="imporGalat"
+          class="mx-4 mt-2 rounded-field bg-error/12 px-3 py-2 text-sm text-error lg:mx-5"
+        >
+          Gagal membaca berkasnya: {{ imporGalat }}
+        </p>
 
-        <div class="divide-y divide-default lg:hidden">
-          <div
-            v-for="u in tampil"
-            :key="u.id"
-            class="flex items-start gap-3 p-4"
+        <div
+          v-if="status === 'pending' && !tampil.length"
+          class="p-6 text-center text-sm text-muted"
+        >
+          Memuat daftar kru dari Office…
+        </div>
+
+        <div
+          v-else-if="error"
+          class="p-4 lg:p-5"
+        >
+          <UAlert
+            color="error"
+            variant="subtle"
+            icon="i-lucide-triangle-alert"
+            title="Tidak bisa memuat daftar kru"
+            :description="apiErrorMessage(error, 'Periksa koneksi internet, lalu muat ulang halaman.')"
+          />
+          <UButton
+            label="Coba lagi"
+            icon="i-lucide-refresh-cw"
+            color="neutral"
+            variant="outline"
+            class="mt-3"
+            @click="refresh()"
+          />
+        </div>
+
+        <div
+          v-else-if="!tampil.length"
+          class="p-6 text-center text-sm text-muted"
+        >
+          <b class="block text-highlighted">Tidak ada kru yang cocok</b>
+          <template v-if="cari">
+            Tidak ada kru{{ tapis === 'semua' ? '' : ` ${tapis}` }} yang cocok dengan “{{ cari.trim() }}”.{{ tapis === 'semua' ? '' : ' Coba tapis Semua.' }}
+          </template>
+          <template v-else>
+            {{ tapis === 'semua' ? 'Belum ada kru terdaftar.' : `Tidak ada kru ${tapis}.` }}
+          </template>
+        </div>
+
+        <template v-else>
+          <UTable
+            class="hidden lg:block"
+            :data="tampil"
+            :columns="kolom"
           >
-            <span class="flex size-8 flex-none items-center justify-center rounded-md bg-yellow-light text-xs font-bold text-yellow-dark">{{ inisial(u.name) }}</span>
-            <div class="min-w-0 flex-1">
-              <b class="block truncate text-highlighted">{{ u.name || '(tanpa nama)' }}</b>
-              <span class="block truncate text-xs text-muted">
-                <template v-if="u.username">@{{ u.username }}</template>
-                <template v-if="u.username && u.keterangan"> · </template>
-                <template v-if="u.keterangan">{{ u.keterangan }}</template>
-                <template v-if="!u.username && !u.keterangan">—</template>
-              </span>
-              <div class="mt-1.5 flex flex-wrap gap-1.5">
+            <template #name-cell="{ row }">
+              <span class="flex items-center gap-2">
+                <span class="flex size-7 flex-none items-center justify-center rounded-md bg-yellow-light text-[11px] font-bold text-yellow-dark">{{ inisial(row.original.name) }}</span>
+                <span class="min-w-0">
+                  <b class="block truncate text-highlighted">{{ row.original.name || '(tanpa nama)' }}</b>
+                  <span
+                    v-if="row.original.username"
+                    class="block truncate text-xs text-muted"
+                  >@{{ row.original.username }}</span>
+                </span>
                 <AppStatus
-                  :color="u.active ? 'success' : 'neutral'"
-                  :icon="u.active ? 'i-lucide-check' : 'i-lucide-minus'"
-                  size="sm"
-                >
-                  {{ u.active ? 'Aktif' : 'Nonaktif' }}
-                </AppStatus>
-                <AppStatus
-                  v-if="superadmin(u)"
-                  color="gold"
-                  icon="i-lucide-shield-check"
-                  size="sm"
-                >
-                  Superadmin
-                </AppStatus>
-                <AppStatus
-                  v-else-if="u.adminModules.length"
-                  color="neutral"
-                  size="sm"
-                >
-                  Admin: {{ u.adminModules.map(labelModul).join(', ') }}
-                </AppStatus>
-                <AppStatus
-                  v-if="saya(u)"
+                  v-if="saya(row.original)"
                   color="info"
                   size="sm"
-                >
-                  kamu
-                </AppStatus>
-              </div>
+                >kamu</AppStatus>
+              </span>
+            </template>
+            <template #keterangan-cell="{ row }">
+              <span class="text-muted">{{ row.original.keterangan || '—' }}</span>
+            </template>
+            <template #modules-cell="{ row }">
               <div
-                v-if="u.modules.length"
-                class="mt-1.5 flex flex-wrap gap-1"
+                v-if="row.original.modules.length"
+                class="flex flex-wrap gap-1"
               >
                 <span
-                  v-for="m in u.modules.slice(0, 3)"
+                  v-for="m in row.original.modules.slice(0, 3)"
                   :key="m"
                   class="rounded-full border border-default px-2 py-0.5 text-[11px] text-muted"
                 >{{ labelModul(m) }}</span>
                 <span
-                  v-if="u.modules.length > 3"
+                  v-if="row.original.modules.length > 3"
                   class="rounded-full border border-default px-2 py-0.5 text-[11px] font-semibold text-muted"
-                >+{{ u.modules.length - 3 }}</span>
+                >+{{ row.original.modules.length - 3 }}</span>
+              </div>
+              <span
+                v-else
+                class="text-dimmed"
+              >—</span>
+            </template>
+            <template #adminModules-cell="{ row }">
+              <AppStatus
+                v-if="superadmin(row.original)"
+                color="gold"
+                icon="i-lucide-shield-check"
+                size="sm"
+              >
+                Superadmin
+              </AppStatus>
+              <span
+                v-else-if="row.original.adminModules.length"
+                class="text-xs text-muted"
+              >Admin: {{ row.original.adminModules.map(labelModul).join(', ') }}</span>
+              <span
+                v-else
+                class="text-dimmed"
+              >—</span>
+            </template>
+            <template #active-cell="{ row }">
+              <AppStatus
+                :color="row.original.active ? 'success' : 'neutral'"
+                :icon="row.original.active ? 'i-lucide-check' : 'i-lucide-minus'"
+                size="sm"
+              >
+                {{ row.original.active ? 'Aktif' : 'Nonaktif' }}
+              </AppStatus>
+            </template>
+            <template #aksi-cell="{ row }">
+              <div class="flex justify-end gap-1">
+                <UButton
+                  icon="i-lucide-pencil"
+                  color="neutral"
+                  variant="outline"
+                  size="xs"
+                  :aria-label="`Ubah ${row.original.name}`"
+                  @click="bukaUbah(row.original)"
+                />
+                <UButton
+                  v-if="!saya(row.original)"
+                  icon="i-lucide-trash-2"
+                  color="error"
+                  variant="outline"
+                  size="xs"
+                  :aria-label="`Hapus ${row.original.name}`"
+                  @click="bukaHapus(row.original)"
+                />
+              </div>
+            </template>
+          </UTable>
+
+          <div class="divide-y divide-default lg:hidden">
+            <div
+              v-for="u in tampil"
+              :key="u.id"
+              class="flex items-start gap-3 p-4"
+            >
+              <span class="flex size-8 flex-none items-center justify-center rounded-md bg-yellow-light text-xs font-bold text-yellow-dark">{{ inisial(u.name) }}</span>
+              <div class="min-w-0 flex-1">
+                <b class="block truncate text-highlighted">{{ u.name || '(tanpa nama)' }}</b>
+                <span class="block truncate text-xs text-muted">
+                  <template v-if="u.username">@{{ u.username }}</template>
+                  <template v-if="u.username && u.keterangan"> · </template>
+                  <template v-if="u.keterangan">{{ u.keterangan }}</template>
+                  <template v-if="!u.username && !u.keterangan">—</template>
+                </span>
+                <div class="mt-1.5 flex flex-wrap gap-1.5">
+                  <AppStatus
+                    :color="u.active ? 'success' : 'neutral'"
+                    :icon="u.active ? 'i-lucide-check' : 'i-lucide-minus'"
+                    size="sm"
+                  >
+                    {{ u.active ? 'Aktif' : 'Nonaktif' }}
+                  </AppStatus>
+                  <AppStatus
+                    v-if="superadmin(u)"
+                    color="gold"
+                    icon="i-lucide-shield-check"
+                    size="sm"
+                  >
+                    Superadmin
+                  </AppStatus>
+                  <AppStatus
+                    v-else-if="u.adminModules.length"
+                    color="neutral"
+                    size="sm"
+                  >
+                    Admin: {{ u.adminModules.map(labelModul).join(', ') }}
+                  </AppStatus>
+                  <AppStatus
+                    v-if="saya(u)"
+                    color="info"
+                    size="sm"
+                  >
+                    kamu
+                  </AppStatus>
+                </div>
+                <div
+                  v-if="u.modules.length"
+                  class="mt-1.5 flex flex-wrap gap-1"
+                >
+                  <span
+                    v-for="m in u.modules.slice(0, 3)"
+                    :key="m"
+                    class="rounded-full border border-default px-2 py-0.5 text-[11px] text-muted"
+                  >{{ labelModul(m) }}</span>
+                  <span
+                    v-if="u.modules.length > 3"
+                    class="rounded-full border border-default px-2 py-0.5 text-[11px] font-semibold text-muted"
+                  >+{{ u.modules.length - 3 }}</span>
+                </div>
+              </div>
+              <div class="flex gap-1">
+                <UButton
+                  icon="i-lucide-pencil"
+                  color="neutral"
+                  variant="outline"
+                  size="xs"
+                  :aria-label="`Ubah ${u.name}`"
+                  @click="bukaUbah(u)"
+                />
+                <UButton
+                  v-if="!saya(u)"
+                  icon="i-lucide-trash-2"
+                  color="error"
+                  variant="outline"
+                  size="xs"
+                  :aria-label="`Hapus ${u.name}`"
+                  @click="bukaHapus(u)"
+                />
               </div>
             </div>
-            <div class="flex gap-1">
-              <UButton
-                icon="i-lucide-pencil"
-                color="neutral"
-                variant="outline"
-                size="xs"
-                :aria-label="`Ubah ${u.name}`"
-                @click="bukaUbah(u)"
-              />
-              <UButton
-                v-if="!saya(u)"
-                icon="i-lucide-trash-2"
-                color="error"
-                variant="outline"
-                size="xs"
-                :aria-label="`Hapus ${u.name}`"
-                @click="bukaHapus(u)"
-              />
-            </div>
           </div>
-        </div>
-      </template>
-    </AppPanel>
+        </template>
+      </AppPanel>
     </template>
 
     <AppPanel

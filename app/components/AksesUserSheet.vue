@@ -43,8 +43,12 @@ const errUsername = ref('')
 const menyimpan = ref(false)
 /** Toggle keys currently in flight (`akses:<key>`, `admin:<key>`, `aktif`). */
 const sibuk = ref<string[]>([])
-const tandaiSibuk = (k: string) => { sibuk.value.push(k) }
-const selesaiSibuk = (k: string) => { sibuk.value = sibuk.value.filter(x => x !== k) }
+const tandaiSibuk = (k: string) => {
+  sibuk.value.push(k)
+}
+const selesaiSibuk = (k: string) => {
+  sibuk.value = sibuk.value.filter(x => x !== k)
+}
 const lagiSibuk = (k: string): boolean => sibuk.value.includes(k)
 
 watch(open, (buka) => {
