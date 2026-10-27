@@ -26,20 +26,20 @@ const ukuran = computed(() => {
 })
 
 const bar = {
-  gold: 'before:bg-primary-400',
-  success: 'before:bg-success',
-  warning: 'before:bg-warning',
-  error: 'before:bg-error',
-  info: 'before:bg-info',
-  vip: 'before:bg-vip',
+  gold: 'before:bg-muted',
+  success: 'before:bg-teal-light',
+  warning: 'before:bg-[#fff8e0]',
+  error: 'before:bg-coral-light',
+  info: 'before:bg-accented',
+  vip: 'before:bg-lilac-light',
 }
 const ink = {
-  gold: 'text-primary-700 dark:text-primary-300',
-  success: 'text-success',
-  warning: 'text-warning',
-  error: 'text-error',
-  info: 'text-info',
-  vip: 'text-vip',
+  gold: 'text-ink-900',
+  success: 'text-moss-dark',
+  warning: 'text-yellow-dark',
+  error: 'text-coral-dark',
+  info: 'text-blue-pressed',
+  vip: 'text-ink-900',
 }
 </script>
 

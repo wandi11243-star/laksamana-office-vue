@@ -11,13 +11,13 @@ withDefaults(defineProps<{
 }>(), { color: 'neutral', size: 'md' })
 
 const tone = {
-  success: 'bg-success/12 text-success',
-  warning: 'bg-warning/12 text-warning',
-  error: 'bg-error/12 text-error',
-  info: 'bg-info/12 text-info',
-  vip: 'bg-vip/12 text-vip',
-  gold: 'bg-primary-100 text-primary-800 dark:bg-primary-950 dark:text-primary-200',
-  neutral: 'bg-muted text-muted',
+  success: 'bg-teal-light text-moss-dark',
+  warning: 'bg-[#fff8e0] text-yellow-dark',
+  error: 'bg-coral-light text-coral-dark',
+  info: 'bg-accented text-blue-pressed',
+  vip: 'bg-lilac-light text-ink-900',
+  gold: 'bg-yellow-light text-yellow-dark',
+  neutral: 'bg-muted text-ink-900',
 }
 </script>
 

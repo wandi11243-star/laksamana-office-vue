@@ -1,6 +1,6 @@
 <!--
   The sidebar of the old Office (DESIGN.md › Shell): brand with the module's name
-  in small gold capitals, the menu in labelled groups, and the user at the foot.
+  in small ink capitals, the menu in labelled groups, and the user at the foot.
   Inside a module with its own chrome (utils/modul-shell.ts) the menu is that
   module's screens; elsewhere it is Beranda and the modules the user holds.
   Desktop only; on a phone AppNavBawah draws the same menu (useMenuNav).
@@ -23,7 +23,7 @@ const menu = useMenuNav()
       >
       <span class="leading-tight">
         <span class="block font-display text-base font-bold text-highlighted">Laksamana Muda</span>
-        <span class="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.2em] text-primary-700 dark:text-primary-300">
+        <span class="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-900">
           {{ shell?.subjudul ?? 'Office' }}
         </span>
       </span>
