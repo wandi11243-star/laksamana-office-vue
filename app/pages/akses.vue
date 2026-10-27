@@ -9,15 +9,17 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import {
-  hapusUser, setAktif, simpanAkun, useAccountModules, useAccountUsers,
-  type AccountUser,
+  hapusUser, imporMassal, setAktif, simpanAkun, ubahModul, useAccountModules, useAccountUsers,
+  type AccountModule, type AccountUser, type BarisGagalImpor, type SimpanUserBody,
 } from '~/composables/useAccount'
 import { isAdminOf } from '~/composables/useMe'
+import { bacaBerkasTabel, type BarisTabel } from '~/utils/xlsx-baca'
 
 const me = useMe()
 if (!isAdminOf(me.value, '*')) {
   throw createError({ statusCode: 403, statusMessage: 'Anda belum punya akses ke modul ini. Minta admin membukanya di Kelola Akses.' })
 }
+const toast = useToast()
 
 const { data: akun, status, error, refresh } = useAccountUsers()
 const { data: daftarModul } = useAccountModules()
@@ -113,6 +115,199 @@ async function hapusTargetPermanen() {
     hapusTarget.value = null
   }
 }
+
+// ---- Tab Pengguna | Modul (U4) ----
+type TabAkses = 'pengguna' | 'modul'
+const tab = ref<TabAkses>('pengguna')
+const opsiTab = computed(() => [
+  { value: 'pengguna' as TabAkses, label: `Pengguna · ${users.value.length}` },
+  { value: 'modul' as TabAkses, label: `Modul · ${daftarModul.value.length}` },
+])
+
+// ---- Modul registry (U4) ----
+// The server is ADD-ONLY here: POST /account/modules only adds new keys, and
+// there is no DELETE — so this screen offers no create/delete UI, only relabel
+// (PATCH label) and on/off (PATCH active). The key itself never changes.
+const kolomModul: TableColumn<AccountModule>[] = [
+  { accessorKey: 'label', header: 'Modul' },
+  { accessorKey: 'active', header: 'Status' },
+  { id: 'aksi', header: '' },
+]
+const modulBuka = ref(false)
+const modulTarget = ref<AccountModule | null>(null)
+const modulLabel = ref('')
+const modulMenyimpan = ref(false)
+const sibukModul = ref<string[]>([])
+function bukaUbahModul(m: AccountModule) {
+  modulTarget.value = m
+  modulLabel.value = m.label || ''
+  modulBuka.value = true
+}
+async function simpanModul() {
+  const t = modulTarget.value
+  const label = modulLabel.value.trim()
+  if (!t || !label) return
+  modulMenyimpan.value = true
+  const ok = await simpanAkun(() => ubahModul(t.key, { label }), 'Label modul diperbarui')
+  modulMenyimpan.value = false
+  if (ok) modulBuka.value = false
+}
+async function toggleModul(m: AccountModule, v: boolean | 'indeterminate') {
+  if (v === 'indeterminate') return
+  const k = `modul:${m.key}`
+  sibukModul.value.push(k)
+  await simpanAkun(
+    () => ubahModul(m.key, { active: v }),
+    v ? `${m.label || m.key} diaktifkan` : `${m.label || m.key} dinonaktifkan`,
+  )
+  sibukModul.value = sibukModul.value.filter(x => x !== k)
+}
+
+// ---- Ekspor CSV (U4) ----
+// Column contract, shared with the import below: one saveUser body per row, so
+// the CSV header is exactly the bulk body keys. `pin` stays empty on export —
+// v1 never returns PINs. On import `pin_kosong` and `tim` are accepted as
+// aliases of `pin` and `keterangan`; unknown columns are ignored.
+const KOLOM_KRU = [
+  'nama', 'username', 'pin', 'keterangan', 'noHp', 'talentaId', 'email',
+  'branch', 'organization', 'jobPosition', 'jobLevel', 'employmentStatus', 'joinDate',
+] as const
+const selCsv = (v: unknown): string => {
+  const t = String(v ?? '')
+  return /[",\n\r]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t
+}
+function eksporCsv() {
+  const baris = tampil.value.map(u => [
+    u.name, u.username, '', u.keterangan, u.noHp ?? '', u.talentaId ?? '', u.email ?? '',
+    u.branch ?? '', u.organization ?? '', u.jobPosition ?? '', u.jobLevel ?? '',
+    u.employmentStatus ?? '', u.joinDate ?? '',
+  ])
+  const isi = [KOLOM_KRU.join(','), ...baris.map(b => b.map(selCsv).join(','))].join('\r\n')
+  const blob = new Blob([`\uFEFF${isi}`], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `kru-${new Date().toISOString().slice(0, 10)}.csv`
+  document.body.appendChild(a)
+  a.click()
+  a.remove()
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000)
+  toast.add({ title: `${baris.length} baris diekspor`, color: 'success' })
+}
+
+// ---- Impor .xlsx/.csv (U4) ----
+const imporInput = ref<HTMLInputElement | null>(null)
+const membacaImpor = ref(false)
+const imporGalat = ref('')
+const imporBuka = ref(false)
+const mengimpor = ref(false)
+interface CalonImpor { nama: string, body: SimpanUserBody & { _baris?: number } }
+interface BarisBuruk { baris: number, nama: string, sebab: string }
+const imporValid = ref<CalonImpor[]>([])
+const imporBuruk = ref<BarisBuruk[]>([])
+
+/** Spreadsheet header -> bulk body key. Lowercased, spaces/underscores dropped. */
+function kunciKolomImpor(h: string): string | null {
+  const k = h.replace(/^\uFEFF/, '').trim().toLowerCase().replace(/[\s_]+/g, '')
+  switch (k) {
+    case 'nama': case 'name': return 'name'
+    case 'username': case 'user': return 'username'
+    case 'pin': case 'pinkosong': return 'pin'
+    case 'keterangan': case 'tim': return 'keterangan'
+    case 'nohp': case 'hp': case 'telepon': return 'noHp'
+    case 'talentaid': case 'talenta': return 'talentaId'
+    case 'email': return 'email'
+    case 'branch': case 'cabang': return 'branch'
+    case 'organization': case 'organisasi': return 'organization'
+    case 'jobposition': case 'posisi': case 'jabatan': return 'jobPosition'
+    case 'joblevel': case 'level': return 'jobLevel'
+    case 'employmentstatus': case 'statuskerja': return 'employmentStatus'
+    case 'joindate': case 'tanggalmasuk': case 'tglmasuk': return 'joinDate'
+    default: return null
+  }
+}
+
+async function pilihBerkasImpor(e: Event) {
+  const input = e.target as HTMLInputElement
+  const f = input.files?.[0]
+  input.value = ''
+  if (!f) return
+  membacaImpor.value = true
+  imporGalat.value = ''
+  try {
+    const tabel: BarisTabel[] = await bacaBerkasTabel(f)
+    if (!tabel.length) throw new Error('Berkasnya kosong.')
+    const peta = new Map<string, string>()
+    for (const [huruf, judul] of Object.entries(tabel[0] ?? {})) {
+      const k = kunciKolomImpor(String(judul ?? ''))
+      if (k && ![...peta.values()].includes(k)) peta.set(huruf, k)
+    }
+    if (![...peta.values()].includes('name')) {
+      throw new Error('Kolom nama tidak ketemu. Kepala kolomnya harus memuat “nama”.')
+    }
+    const data = tabel.slice(1)
+    if (!data.length) throw new Error('Tidak ada baris data di bawah kepala kolom.')
+    if (data.length > 500) throw new Error(`Berkasnya ${data.length} baris — maksimal 500 per impor. Pecah jadi dua berkas.`)
+    const valid: CalonImpor[] = []
+    const buruk: BarisBuruk[] = []
+    data.forEach((r, i) => {
+      const noBaris = i + 2 // 1-based, counting the header row
+      const nilai: Record<string, string> = {}
+      for (const [huruf, k] of peta) {
+        const v = String(r[huruf] ?? '').trim()
+        if (v) nilai[k] = v
+      }
+      if (!Object.keys(nilai).length) return // skip blank rows silently
+      const nama = nilai.name ?? ''
+      if (!nama) {
+        buruk.push({ baris: noBaris, nama: '(tanpa nama)', sebab: 'Nama wajib diisi' })
+        return
+      }
+      const body: SimpanUserBody & { _baris?: number } = { name: nama, _baris: noBaris }
+      for (const k of ['username', 'pin', 'keterangan', 'noHp', 'talentaId', 'email', 'branch', 'organization', 'jobPosition', 'jobLevel', 'employmentStatus', 'joinDate'] as const) {
+        const v = nilai[k]
+        if (v) (body as unknown as Record<string, string>)[k] = v
+      }
+      valid.push({ nama, body })
+    })
+    imporValid.value = valid
+    imporBuruk.value = buruk
+    if (!valid.length && !buruk.length) throw new Error('Tidak ada baris data di bawah kepala kolom.')
+    imporBuka.value = true
+  }
+  catch (err) {
+    imporGalat.value = (err as Error)?.message || 'Berkasnya tidak bisa dibaca.'
+  }
+  finally {
+    membacaImpor.value = false
+  }
+}
+
+async function kirimImpor() {
+  if (!imporValid.value.length || mengimpor.value) return
+  mengimpor.value = true
+  try {
+    const r = await imporMassal(imporValid.value.map(v => v.body))
+    const d = r.data
+    await refresh()
+    imporBuka.value = false
+    imporValid.value = []
+    imporBuruk.value = []
+    const gagal: BarisGagalImpor[] = d.baris ?? []
+    const rincian = gagal.slice(0, 3).map(b => `${b.nama || `baris ${b.baris}`}: ${b.error}`).join('; ')
+    toast.add({
+      title: `Impor selesai: ${d.sukses} berhasil, ${d.gagal} gagal`,
+      description: rincian || undefined,
+      color: d.gagal ? 'warning' : 'success',
+    })
+  }
+  catch (e) {
+    toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    mengimpor.value = false
+  }
+}
 </script>
 
 <template>
@@ -121,14 +316,47 @@ async function hapusTargetPermanen() {
     description="Akun dan modul yang boleh dibuka. Tidak ada role: akses diberikan langsung per modul."
   >
     <template #actions>
+      <template v-if="tab === 'pengguna'">
+        <UButton
+          label="Ekspor"
+          icon="i-lucide-download"
+          color="neutral"
+          variant="outline"
+          @click="eksporCsv"
+        />
+        <UButton
+          label="Impor"
+          icon="i-lucide-upload"
+          color="neutral"
+          variant="outline"
+          :loading="membacaImpor"
+          @click="imporInput?.click()"
+        />
+      </template>
       <UButton
         label="Tambah kru"
         icon="i-lucide-plus"
         @click="bukaTambah"
       />
+      <input
+        ref="imporInput"
+        type="file"
+        accept=".xlsx,.csv"
+        class="sr-only"
+        tabindex="-1"
+        @change="pilihBerkasImpor"
+      >
     </template>
 
-    <AppStatGrid>
+    <div class="mb-4">
+      <AppSeg
+        v-model="tab"
+        :options="opsiTab"
+      />
+    </div>
+
+    <template v-if="tab === 'pengguna'">
+      <AppStatGrid>
       <AppStat
         label="Total kru"
         :value="users.length"
@@ -178,6 +406,21 @@ async function hapusTargetPermanen() {
           :options="opsiTapis"
         />
       </div>
+      <p class="px-4 pt-2 text-xs text-muted lg:px-5">
+        Ekspor mengunduh daftar yang tampil. Impor menerima .xlsx/.csv dengan kolom nama, username, pin, keterangan, noHp, talentaId — modul dan hak admin diatur setelah kru dibuat.
+      </p>
+      <p
+        v-if="membacaImpor"
+        class="px-4 pt-1 text-xs text-muted lg:px-5"
+      >
+        Membaca berkas…
+      </p>
+      <p
+        v-if="imporGalat"
+        class="mx-4 mt-2 rounded-field bg-error/12 px-3 py-2 text-sm text-error lg:mx-5"
+      >
+        Gagal membaca berkasnya: {{ imporGalat }}
+      </p>
 
       <div
         v-if="status === 'pending' && !tampil.length"
@@ -400,6 +643,98 @@ async function hapusTargetPermanen() {
         </div>
       </template>
     </AppPanel>
+    </template>
+
+    <AppPanel
+      v-else
+      title="Daftar modul"
+      icon="i-lucide-key-round"
+      :count="daftarModul.length"
+      description="Modul baru didaftarkan lewat sinkronisasi server — daftar ini hanya mengganti label dan mengaktifkan/menonaktifkan."
+      flush
+    >
+      <div
+        v-if="!daftarModul.length"
+        class="p-6 text-center text-sm text-muted"
+      >
+        Belum ada modul terdaftar.
+      </div>
+      <template v-else>
+        <UTable
+          class="hidden lg:block"
+          :data="daftarModul"
+          :columns="kolomModul"
+        >
+          <template #label-cell="{ row }">
+            <b class="block text-highlighted">{{ row.original.label || row.original.key }}</b>
+            <span class="block text-xs text-muted">{{ row.original.key }}</span>
+          </template>
+          <template #active-cell="{ row }">
+            <AppStatus
+              :color="row.original.active ? 'success' : 'neutral'"
+              :icon="row.original.active ? 'i-lucide-check' : 'i-lucide-minus'"
+              size="sm"
+            >
+              {{ row.original.active ? 'Aktif' : 'Nonaktif' }}
+            </AppStatus>
+          </template>
+          <template #aksi-cell="{ row }">
+            <div class="flex items-center justify-end gap-3">
+              <USwitch
+                :model-value="row.original.active"
+                :disabled="sibukModul.includes(`modul:${row.original.key}`)"
+                :aria-label="`${row.original.active ? 'Nonaktifkan' : 'Aktifkan'} ${row.original.label || row.original.key}`"
+                @update:model-value="(v) => toggleModul(row.original, v)"
+              />
+              <UButton
+                icon="i-lucide-pencil"
+                color="neutral"
+                variant="outline"
+                size="xs"
+                :aria-label="`Ubah label ${row.original.label || row.original.key}`"
+                @click="bukaUbahModul(row.original)"
+              />
+            </div>
+          </template>
+        </UTable>
+
+        <div class="divide-y divide-default lg:hidden">
+          <div
+            v-for="m in daftarModul"
+            :key="m.key"
+            class="flex items-center gap-3 p-4"
+          >
+            <div class="min-w-0 flex-1">
+              <b class="block truncate text-highlighted">{{ m.label || m.key }}</b>
+              <span class="block truncate text-xs text-muted">{{ m.key }}</span>
+              <div class="mt-1.5">
+                <AppStatus
+                  :color="m.active ? 'success' : 'neutral'"
+                  :icon="m.active ? 'i-lucide-check' : 'i-lucide-minus'"
+                  size="sm"
+                >
+                  {{ m.active ? 'Aktif' : 'Nonaktif' }}
+                </AppStatus>
+              </div>
+            </div>
+            <USwitch
+              :model-value="m.active"
+              :disabled="sibukModul.includes(`modul:${m.key}`)"
+              :aria-label="`${m.active ? 'Nonaktifkan' : 'Aktifkan'} ${m.label || m.key}`"
+              @update:model-value="(v) => toggleModul(m, v)"
+            />
+            <UButton
+              icon="i-lucide-pencil"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              :aria-label="`Ubah label ${m.label || m.key}`"
+              @click="bukaUbahModul(m)"
+            />
+          </div>
+        </div>
+      </template>
+    </AppPanel>
 
     <AksesUserSheet
       v-model:open="sheet"
@@ -436,6 +771,84 @@ async function hapusTargetPermanen() {
           color="neutral"
           variant="outline"
           @click="hapusBuka = false"
+        />
+      </template>
+    </ResponsiveSheet>
+
+    <ResponsiveSheet
+      v-model:open="modulBuka"
+      :title="`Ubah label ${modulTarget?.key || 'modul'}`"
+      description="Kunci modul tidak bisa diganti — yang berubah hanya label tampilannya."
+    >
+      <UFormField label="Label modul">
+        <UInput
+          v-model="modulLabel"
+          placeholder="Nama tampilan modul"
+          class="w-full"
+        />
+      </UFormField>
+      <template #footer>
+        <UButton
+          label="Simpan"
+          icon="i-lucide-check"
+          :loading="modulMenyimpan"
+          :disabled="!modulLabel.trim()"
+          @click="simpanModul"
+        />
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="outline"
+          @click="modulBuka = false"
+        />
+      </template>
+    </ResponsiveSheet>
+
+    <ResponsiveSheet
+      v-model:open="imporBuka"
+      title="Impor kru dari berkas"
+      :description="`${imporValid.length} baris valid${imporBuruk.length ? `, ${imporBuruk.length} bermasalah` : ''} — periksa dulu, baru kirim. PIN yang dikosongkan jadi 1111.`"
+    >
+      <div
+        v-if="imporBuruk.length"
+        class="grid gap-1.5"
+      >
+        <p class="text-sm font-semibold text-highlighted">
+          Baris bermasalah (dilewati):
+        </p>
+        <p
+          v-for="b in imporBuruk.slice(0, 5)"
+          :key="b.baris"
+          class="rounded-field bg-error/12 px-3 py-2 text-sm text-error"
+        >
+          Baris {{ b.baris }} · {{ b.nama }} — {{ b.sebab }}
+        </p>
+        <p
+          v-if="imporBuruk.length > 5"
+          class="text-xs text-muted"
+        >
+          +{{ imporBuruk.length - 5 }} baris bermasalah lainnya.
+        </p>
+      </div>
+      <p
+        v-else
+        class="text-sm text-muted"
+      >
+        Semua baris punya nama — siap dikirim. Modul dan hak admin diatur setelah kru dibuat.
+      </p>
+      <template #footer>
+        <UButton
+          :label="`Impor ${imporValid.length} kru`"
+          icon="i-lucide-upload"
+          :loading="mengimpor"
+          :disabled="!imporValid.length"
+          @click="kirimImpor"
+        />
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="outline"
+          @click="imporBuka = false"
         />
       </template>
     </ResponsiveSheet>
