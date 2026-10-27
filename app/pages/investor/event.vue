@@ -207,13 +207,13 @@ const hitungBulan = computed(() => acara.value.filter(e => String(e.tgl).startsW
             <div
               v-for="(s, i) in selKalender"
               :key="i"
-              class="min-h-16 rounded-field border border-default p-1"
+              class="min-h-16 rounded-panel border border-default p-1"
               :class="!s && 'border-transparent'"
             >
               <template v-if="s">
                 <p
                   class="text-xs font-bold"
-                  :class="s.tgl === hariIni ? 'text-primary-700' : 'text-muted'"
+                  :class="s.tgl === hariIni ? 'text-ink-900' : 'text-muted'"
                 >
                   {{ Number(s.tgl.slice(8)) }}
                 </p>

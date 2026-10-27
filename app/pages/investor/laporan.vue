@@ -293,7 +293,7 @@ const namaHapus = computed(() => JENIS_LAPOR.find(j => j.key === hapusTarget.val
           >
             <p
               v-if="'judul' in b"
-              class="mt-4 text-xs font-bold tracking-wide text-primary-700 uppercase first:mt-0"
+              class="mt-4 text-xs font-bold tracking-wide text-ink-900 uppercase first:mt-0"
               :class="'mati' in b && b.mati && 'text-muted'"
             >
               {{ b.judul }}
@@ -301,7 +301,7 @@ const namaHapus = computed(() => JENIS_LAPOR.find(j => j.key === hapusTarget.val
             <div
               v-else
               class="flex items-baseline justify-between gap-3 border-b border-default py-2"
-              :class="[b.garis && 'border-b-2', b.sorot && 'bg-primary-100/60 -mx-2 px-2 rounded']"
+              :class="[b.garis && 'border-b-2', b.sorot && 'bg-yellow-light/60 -mx-2 px-2 rounded']"
             >
               <span
                 class="text-sm"
@@ -369,7 +369,7 @@ const namaHapus = computed(() => JENIS_LAPOR.find(j => j.key === hapusTarget.val
           >
             <UIcon
               :name="j.icon"
-              class="size-6 shrink-0 text-primary-700"
+              class="size-6 shrink-0 text-ink-900"
             />
             <div class="min-w-0 flex-1">
               <p class="text-sm font-semibold text-highlighted">
