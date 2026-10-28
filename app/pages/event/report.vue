@@ -18,7 +18,7 @@ import { angka, rupiah } from '~/utils/format'
 
 definePageMeta({ access: ['event'] })
 
-const { data: state, status, refresh, error } = useStateEvent()
+const { data: state, error } = useStateEvent()
 const s = computed(() => state.value?.data ?? null)
 
 // --- period band: the whole screen follows it (`pitaPeriodeEms`, default Semua) ---
@@ -115,7 +115,7 @@ const rincian = computed<BarisRincian[]>(() => acara.value.map((e) => {
     id: e.id,
     judul: e.title,
     tanggal: tglAcara(e.start_datetime),
-    top: top && Number(top.sold) ? `${top.name} ${angka(Number(top.sold) || 0)} terjual` : '—',
+    top: top && Number(top.sold) ? `${top.name} ${angka(Number(top.sold) || 0)} terjual` : '',
     terjual: tj,
     tiket: tk.length,
     hadir: hd,
@@ -142,18 +142,6 @@ const fmtTgl = (iso: string) => {
       title="Report & analytics"
       description="Laporan omzet, tiket & kehadiran"
     >
-      <template #actions>
-        <UButton
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-refresh-cw"
-          :loading="status === 'pending'"
-          @click="refresh()"
-        >
-          Muat ulang
-        </UButton>
-      </template>
-
       <UAlert
         v-if="error"
         color="error"
@@ -162,11 +150,7 @@ const fmtTgl = (iso: string) => {
         class="mb-4"
       />
 
-      <AppPanel
-        title="Periode"
-        icon="i-lucide-calendar"
-        class="mb-4"
-      >
+      <AppPanel class="mb-4">
         <div class="flex flex-wrap items-center gap-2">
           <AppChips
             v-model="periode"
@@ -285,6 +269,9 @@ const fmtTgl = (iso: string) => {
           :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 py-2 text-[13px]' }"
           class="hidden lg:block"
         >
+          <template #nama-cell="{ row }">
+            <b class="text-highlighted">{{ row.original.nama }}</b>
+          </template>
           <template #n-cell="{ row }">
             <span class="num">{{ angka(row.original.n) }}</span>
           </template>
@@ -333,19 +320,23 @@ const fmtTgl = (iso: string) => {
           </template>
           <template #top-cell="{ row }">
             <b
-              v-if="row.original.top !== '—'"
+              v-if="row.original.top"
               class="text-highlighted"
             >{{ row.original.top }}</b>
             <span
               v-else
-              class="text-dimmed"
-            >—</span>
+              class="text-xs text-muted"
+            >belum ada penjualan</span>
           </template>
           <template #terjual-cell="{ row }">
             <b class="num">{{ angka(row.original.terjual) }}</b>
           </template>
           <template #hadir-cell="{ row }">
-            <span class="num">{{ angka(row.original.hadir) }} dari {{ angka(row.original.tiket) }} e-ticket · {{ row.original.hadirPct }}%</span>
+            <b class="num">{{ angka(row.original.hadir) }}</b>
+            <span
+              v-if="row.original.tiket"
+              class="block text-xs text-muted num"
+            >dari {{ angka(row.original.tiket) }} e-ticket · {{ row.original.hadirPct }}%</span>
           </template>
           <template #omzet-cell="{ row }">
             <b class="num">{{ rupiah(row.original.omzet) }}</b>
@@ -363,7 +354,7 @@ const fmtTgl = (iso: string) => {
             >
               {{ r.judul }}
             </ULink>
-            <span class="mt-0.5 block text-xs text-muted num">{{ fmtTgl(r.tanggal) }} · {{ r.top }} · {{ r.terjual }} terjual · {{ r.hadir }}/{{ r.tiket }} hadir · {{ rupiah(r.omzet) }}</span>
+            <span class="mt-0.5 block text-xs text-muted num">{{ fmtTgl(r.tanggal) }} · {{ r.top || 'belum ada penjualan' }} · {{ r.terjual }} terjual · {{ r.hadir }}/{{ r.tiket }} hadir · {{ rupiah(r.omzet) }}</span>
           </li>
         </ul>
       </AppPanel>

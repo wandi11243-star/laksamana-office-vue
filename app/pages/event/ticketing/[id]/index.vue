@@ -10,12 +10,12 @@
 <script setup lang="ts">
 import type { KelasTiket, Kursi, OrderTiket, Refund, Tiket } from '~/composables/useEvent'
 import { createEvent, getEvent, patchEvent, removeEvent, useDaftarEvent } from '~/composables/useEvent'
-import { petaOrder, ringkasPenjualan } from '~/utils/event-hitung'
+import { fmtTglEms, petaOrder, ringkasPenjualan, tglWIB } from '~/utils/event-hitung'
 import { jalankanRefund, refundAktif, refundGantung, ringkasRefund } from '~/utils/event-refund'
 import type { RefundBaris } from '~/utils/event-refund'
 import { apiErrorCode, apiErrorMessage } from '~/composables/useApi'
 import { bolehSetujui, bolehUbahEvent, peranEvent } from '~/utils/layar/event'
-import { angka, rupiah } from '~/utils/format'
+import { angka, hariIni, rupiah } from '~/utils/format'
 import { qrSvg } from '~/utils/qr'
 import { tanganiKonflik } from '~/utils/versi'
 
@@ -65,9 +65,22 @@ const refundUntukOrder = (oid: string) =>
   refundAktif(oid, daftarRefund.value.rows)
   ?? daftarRefund.value.rows.filter(r => r.order_id === oid).slice(-1)[0]
 
-const kelas = computed(() => [...daftarKelas.value.rows].sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0)))
+// stored order, like `renderTicketDetail` (:6922) — it never sorts
+const kelas = computed(() => daftarKelas.value.rows)
 const ringkas = computed(() => ringkasPenjualan(id.value, daftarTiket.value.rows, daftarKelas.value.rows, petaOrder(daftarOrder.value.rows)))
-const pesananLunas = computed(() => daftarOrder.value.rows.filter(o => o.payment_status === 'Paid').length)
+// salesBody (:7333): average over ALL orders of the event, quota & remaining over all classes
+const kuotaTotal = computed(() => kelas.value.reduce((a, c) => a + (Number(c.quota) || 0), 0))
+const sisaTotal = computed(() => Math.max(0, kuotaTotal.value - ringkas.value.tiketSah))
+const jmlPesanan = computed(() => daftarOrder.value.rows.filter(o => o.event_id === id.value).length)
+/** salesGrafikHTML (:7249): bar = sold against quota; buyers, price per ticket, PENUH. */
+function infoKat(nama: string, n: number) {
+  const k = kelas.value.find(c => c.name === nama)
+  const kuota = Number(k?.quota) || 0
+  const pembeli = new Set(daftarTiket.value.rows
+    .filter(t => k && t.ticket_class_id === k.id && (t.status ?? '') !== 'Cancelled')
+    .map(t => String(t.order_item_id ?? t.order_id ?? ''))).size
+  return { id: k?.id ?? '', kuota, harga: Number(k?.price) || 0, pembeli, w: kuota ? Math.min(100, Math.round(n / kuota * 100)) : (n ? 100 : 0), penuh: kuota > 0 && n >= kuota }
+}
 
 const kursi = computed(() => {
   const m = new Map<string, { total: number, terjual: number }>()
@@ -91,10 +104,12 @@ const kursi = computed(() => {
 // --- class form ---
 const sheetKelas = ref(false)
 const kelasId = ref('')
-const fk = ref({ name: '', benefit: '', price: 0, quota: 0, sale_start: '', sale_end: '', seating: 'Bebas berdiri' })
+const fk = ref({ name: '', benefit: '', description: '', price: 100000, quota: 100, sale_start: '', sale_end: '', is_seated: false })
+// sale dates are stored as ISO instants; the form edits the WIB calendar day
+const keTgl = (x: unknown) => (x ? tglWIB(x) : '')
 function bukaKelasBaru() {
   kelasId.value = ''
-  fk.value = { name: '', benefit: '', price: 0, quota: 0, sale_start: '', sale_end: '', seating: 'Bebas berdiri' }
+  fk.value = { name: '', benefit: '', description: '', price: 100000, quota: 100, sale_start: hariIni(), sale_end: '', is_seated: false }
   sheetKelas.value = true
 }
 function bukaKelasSunting(k: KelasTiket) {
@@ -102,37 +117,64 @@ function bukaKelasSunting(k: KelasTiket) {
   fk.value = {
     name: k.name ?? '',
     benefit: k.benefit ?? '',
+    description: String(k.description ?? ''),
     price: Number(k.price) || 0,
-    quota: Number(k.quota) || 0,
-    sale_start: String(k.sale_start ?? ''),
-    sale_end: String(k.sale_end ?? ''),
-    seating: String(k.seating ?? 'Bebas berdiri'),
+    quota: Number(k.quota) || 1,
+    sale_start: keTgl(k.sale_start),
+    sale_end: keTgl(k.sale_end),
+    is_seated: Boolean(k.is_seated),
   }
   sheetKelas.value = true
 }
 async function simpanKelas() {
-  if (!fk.value.name.trim()) {
-    toast.add({ title: 'Nama kelas wajib diisi.', color: 'error' })
+  // saveTicketClass (:9789): the same checks, in the same order
+  const f = fk.value
+  const salah = !f.name.trim()
+    ? 'Nama wajib.'
+    : !f.sale_start
+        ? 'Sale Start wajib diisi.'
+        : !f.sale_end
+            ? 'Sale End wajib diisi.'
+            : f.sale_end < f.sale_start
+              ? `Sale End (${f.sale_end}) tidak boleh sebelum Sale Start (${f.sale_start}).`
+              : f.price < 0
+                ? 'Harga tidak boleh minus.'
+                : f.quota < 1 ? 'Kuota minimal 1.' : ''
+  if (salah) {
+    toast.add({ title: salah, color: 'error' })
     return
+  }
+  const lama = kelasId.value ? daftarKelas.value.rows.find(k => k.id === kelasId.value) : undefined
+  // the quota may not drop below what is already sold — "remaining" would go negative
+  if (lama && f.quota < (Number(lama.sold) || 0)) {
+    toast.add({ title: `Sudah terjual ${Number(lama.sold) || 0} tiket — kuota tidak boleh di bawah itu.`, color: 'error' })
+    return
+  }
+  const isi = {
+    name: f.name.trim(),
+    price: f.price,
+    quota: f.quota,
+    benefit: f.benefit,
+    description: f.description,
+    is_seated: f.is_seated,
+    sale_start: new Date(`${f.sale_start}T00:00:00+07:00`).toISOString(),
+    sale_end: new Date(`${f.sale_end}T23:59:59+07:00`).toISOString(),
   }
   sheetKelas.value = false
   try {
     if (kelasId.value) {
-      const lama = daftarKelas.value.rows.find(k => k.id === kelasId.value)
-      await patchEvent('ticket-classes', kelasId.value, { ...fk.value, name: fk.value.name.trim(), updatedAt: Date.now() }, daftarKelas.value.versions[kelasId.value])
-      void lama
-      toast.add({ title: 'Kelas tiket disimpan', color: 'success' })
+      await patchEvent('ticket-classes', kelasId.value, { ...isi, updatedAt: Date.now() }, daftarKelas.value.versions[kelasId.value])
+      toast.add({ title: 'Kelas tiket diperbarui.', color: 'success' })
     }
     else {
       await createEvent('ticket-classes', {
-        ...fk.value,
-        name: fk.value.name.trim(),
+        ...isi,
         event_id: id.value,
         sold: 0,
         createdAt: Date.now(),
         updatedAt: Date.now(),
       })
-      toast.add({ title: 'Kelas tiket baru ditambahkan', color: 'success' })
+      toast.add({ title: 'Kelas tiket dibuat.', color: 'success' })
     }
     await refreshKelas()
   }
@@ -157,19 +199,23 @@ async function hapusKelas() {
 }
 
 // --- sell (`jualBody :6808`, `doPurchase :9802`) ---
-const jual = ref({ class_id: '', name: '', phone: '+628', email: '' })
+const jual = ref({ class_id: '', name: '', phone: '+628', email: '', qty: 1 })
+/** service fee per ticket (`pfRingkas` :9942) */
+const BIAYA_LAYANAN = 5000
 const menjual = ref(false)
 const sisaKelas = (k: KelasTiket) => (Number(k.quota) || 0) - (Number(k.sold) || 0)
-const totalJual = computed(() => {
-  const k = kelas.value.find(x => x.id === jual.value.class_id)
-  return k ? Number(k.price) || 0 : 0
-})
+const kelasJual = computed(() => kelas.value.find(x => x.id === jual.value.class_id) ?? null)
+const qtyJual = computed(() => Math.max(1, Math.floor(Number(jual.value.qty) || 1)))
+// the old select starts on the first class that still has seats
+watch(kelas, (ks) => {
+  if (!jual.value.class_id) jual.value.class_id = ks.find(k => sisaKelas(k) > 0)?.id ?? ''
+}, { immediate: true })
 const uid = () => `t${Date.now().toString(36)}${Math.random().toString(36).slice(2, 9)}`
 // One sale = three writes (order Paid → ticket → class sold+1). The ids are
 // made ONCE per sale and kept here, so pressing again after a failed step
 // reuses them and skips what already went in: a fresh uid() per press used
 // to create a second Paid order (double revenue). `langkah` = steps done.
-const penjualan = ref<{ kelas: string, orderId: string, tiketId: string, qr: string, langkah: number } | null>(null)
+const penjualan = ref<{ kelas: string, orderId: string, tiket: { id: string, qr: string }[], langkah: number } | null>(null)
 watch(() => jual.value.class_id, (k) => {
   // a new class before anything was written is a new sale
   if (penjualan.value && penjualan.value.langkah === 0 && penjualan.value.kelas !== k) penjualan.value = null
@@ -184,33 +230,58 @@ async function sekali(fn: () => Promise<unknown>) {
   }
 }
 async function simpanJual() {
-  const k = kelas.value.find(x => x.id === jual.value.class_id)
+  const name = jual.value.name.trim()
+  const phone = jual.value.phone.trim()
+  // the ONLY key from a buyer to their barcode: the customer site matches orders by lowercase email
+  const email = jual.value.email.replace(/\s+/g, '').toLowerCase()
+  if (!name || !phone || !email) {
+    toast.add({ title: 'Nama, phone, email wajib.', color: 'error' })
+    return
+  }
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+    toast.add({ title: 'Email tidak valid. Ini satu-satunya cara pembeli membuka barcode-nya nanti.', color: 'error' })
+    return
+  }
+  const k = kelasJual.value
   if (!k) {
     toast.add({ title: 'Pilih kelas tiket dulu.', color: 'error' })
     return
   }
-  const sisa = (Number(k.quota) || 0) - (Number(k.sold) || 0)
-  if (sisa <= 0) {
-    toast.add({ title: 'Kelas ini habis.', color: 'error' })
+  // seats are picked on the seat map, which this build does not draw yet
+  if (k.is_seated) {
+    toast.add({ title: 'Kelas ini bertanda Seated — kursinya dipilih di denah, yang belum tersedia di versi ini.', color: 'error' })
     return
   }
-  if (!jual.value.name.trim() || !jual.value.phone.trim()) {
-    toast.add({ title: 'Nama & no. HP wajib diisi.', color: 'error' })
+  const jumlah = qtyJual.value
+  const sisa = sisaKelas(k)
+  if (jumlah > sisa) {
+    toast.add({ title: `Sisa kuota tinggal ${sisa} tiket.`, color: 'error' })
     return
   }
   menjual.value = true
-  if (!penjualan.value || penjualan.value.kelas !== k.id) penjualan.value = { kelas: k.id, orderId: uid(), tiketId: uid(), qr: uid(), langkah: 0 }
+  if (!penjualan.value || penjualan.value.kelas !== k.id || penjualan.value.tiket.length !== jumlah) {
+    const oid = uid()
+    penjualan.value = { kelas: k.id, orderId: oid, tiket: Array.from({ length: jumlah }, (_, i) => ({ id: uid(), qr: `QR${uid()}${oid}${i}` })), langkah: 0 }
+  }
   const p = penjualan.value
+  const harga = Number(k.price) || 0
   try {
     if (p.langkah < 1) {
       await sekali(() => createEvent('orders', {
         id: p.orderId,
         event_id: id.value,
-        total: Number(k.price) || 0,
+        buyer_name: name,
+        phone,
+        email,
+        notes: '',
+        subtotal: harga * jumlah,
+        fee: BIAYA_LAYANAN * jumlah,
+        total: (harga + BIAYA_LAYANAN) * jumlah,
         payment_status: 'Paid',
-        buyer_name: jual.value.name.trim(),
-        buyer_phone: jual.value.phone.trim(),
-        buyer_email: jual.value.email.trim(),
+        payment_ref: `MID-${uid().slice(2, 8).toUpperCase()}`,
+        // who took the money, and from which screen
+        recorded_by: namaSaya.value,
+        recorded_via: 'formulir',
         created: new Date().toISOString(),
         createdAt: Date.now(),
         updatedAt: Date.now(),
@@ -218,25 +289,32 @@ async function simpanJual() {
       p.langkah = 1
     }
     if (p.langkah < 2) {
-      await sekali(() => createEvent('tickets', {
-        id: p.tiketId,
-        event_id: id.value,
-        ticket_class_id: k.id,
-        order_id: p.orderId,
-        qr_token: p.qr,
-        status: 'Valid',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      }))
+      // tickets link to their order through order_item_id (event_tickets has no order_id)
+      const nomorAwal = 1000 + daftarTiket.value.rows.length
+      for (const [i, t] of p.tiket.entries()) {
+        await sekali(() => createEvent('tickets', {
+          id: t.id,
+          event_id: id.value,
+          order_item_id: p.orderId,
+          ticket_number: `LM-${nomorAwal + i}`,
+          qr_token: t.qr,
+          ticket_class_id: k.id,
+          seat_id: null,
+          pdf_url: 'eticket.pdf',
+          status: 'Valid',
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        }))
+      }
       p.langkah = 2
     }
     if (p.langkah < 3) {
-      await patchEvent('ticket-classes', k.id, { sold: (Number(k.sold) || 0) + 1, updatedAt: Date.now() }, daftarKelas.value.versions[k.id])
+      await patchEvent('ticket-classes', k.id, { sold: (Number(k.sold) || 0) + jumlah, updatedAt: Date.now() }, daftarKelas.value.versions[k.id])
       p.langkah = 3
     }
-    toast.add({ title: 'Tiket terjual & ditandai lunas', color: 'success' })
+    toast.add({ title: `${jumlah} tiket tercatat lunas.`, color: 'success' })
     penjualan.value = null
-    jual.value = { class_id: '', name: '', phone: '+628', email: '' }
+    jual.value = { class_id: k.id, name: '', phone: '+628', email: '', qty: 1 }
     await muatUlang()
   }
   catch (e) {
@@ -444,7 +522,7 @@ function kirimWA(t: Tiket) {
     '',
     'Laksamana Muda Coffee & Live Space',
   )
-  const nomor = String(o?.buyer_phone ?? '').replace(/[^0-9]/g, '').replace(/^0/, '62')
+  const nomor = String(o?.phone ?? '').replace(/[^0-9]/g, '').replace(/^0/, '62')
   if (!nomor) {
     toast.add({ title: 'Nomor WhatsApp pembeli kosong.', color: 'error' })
     return
@@ -532,7 +610,7 @@ function labelKursiTiket(sid?: string) {
             </UButton>
           </template>
           <UTable
-            :columns="[{ id: 'nama', header: 'Nama + benefit' }, { id: 'harga', header: 'Harga' }, { id: 'kuota', header: 'Kuota' }, { id: 'laku', header: 'Terjual' }, { id: 'masa', header: 'Masa jual' }, { id: 'duduk', header: 'Tempat duduk' }, ...(bolehUbah ? [{ id: 'aksi', header: '' }] : [])]"
+            :columns="[{ id: 'nama', header: 'Kelas tiket' }, { id: 'harga', header: 'Harga' }, { id: 'kuota', header: 'Kuota' }, { id: 'laku', header: 'Terjual' }, { id: 'masa', header: 'Masa jual' }, { id: 'duduk', header: 'Tempat duduk' }, ...(bolehUbah ? [{ id: 'aksi', header: '' }] : [])]"
             :data="kelas"
             :loading="status === 'pending'"
             class="hidden lg:block"
@@ -557,12 +635,25 @@ function labelKursiTiket(sid?: string) {
             </template>
             <template #laku-cell="{ row }">
               <span class="num">{{ angka(Number(row.original.sold) || 0) }}</span>
+              <AppStatus
+                v-if="(Number(row.original.sold) || 0) >= (Number(row.original.quota) || 0)"
+                color="error"
+                size="sm"
+                class="ms-1.5"
+              >
+                Sold
+              </AppStatus>
             </template>
             <template #masa-cell="{ row }">
-              {{ row.original.sale_start || '—' }}–{{ row.original.sale_end || '—' }}
+              <span class="text-xs">{{ fmtTglEms(row.original.sale_start) }} – {{ fmtTglEms(row.original.sale_end) }}</span>
             </template>
             <template #duduk-cell="{ row }">
-              {{ row.original.seating || 'Bebas berdiri' }}
+              <AppStatus
+                :color="row.original.is_seated ? 'vip' : 'info'"
+                size="sm"
+              >
+                {{ row.original.is_seated ? 'Kursi bernomor' : 'Bebas berdiri' }}
+              </AppStatus>
             </template>
             <template #aksi-cell="{ row }">
               <span class="flex gap-1">
@@ -598,6 +689,9 @@ function labelKursiTiket(sid?: string) {
             </li>
           </ul>
         </AppPanel>
+        <p class="mt-3 text-xs text-muted">
+          Untuk mencatat penjualan atau memesankan kursi, buka tab <b>Jual tiket</b>.
+        </p>
       </template>
 
       <template v-else-if="tab === 'denah'">
@@ -634,25 +728,39 @@ function labelKursiTiket(sid?: string) {
       </template>
 
       <template v-else-if="tab === 'jual'">
+        <div
+          v-if="!kelas.length"
+          class="rounded-field border border-default bg-elevated p-8 text-center text-sm text-muted"
+        >
+          Event ini belum punya satu kelas tiket pun.
+          <span class="mt-1 block text-xs">Buat dulu di tab <b>Kelas tiket</b> — tanpa itu tidak ada yang bisa dijual.</span>
+        </div>
         <AppPanel
-          title="Jual tiket"
+          v-else
+          title="Catat penjualan tiket"
           icon="i-lucide-cash-register"
         >
+          <p class="mb-3 text-xs text-muted">
+            Untuk pembeli yang membayar langsung di tempat — tiketnya terbit begitu disimpan, lengkap dengan QR untuk check-in.
+          </p>
+          <UFormField
+            label="Pilih tiket"
+            class="mb-3"
+          >
+            <USelect
+              v-model="jual.class_id"
+              :items="kelas.map(k => ({ value: k.id, label: `${k.name} — ${rupiah(Number(k.price) || 0)} (${sisaKelas(k) <= 0 ? 'HABIS' : `${sisaKelas(k)} tersisa`})`, disabled: sisaKelas(k) <= 0 }))"
+              class="w-full"
+            />
+          </UFormField>
           <div class="grid gap-3 lg:grid-cols-2">
-            <UFormField label="Tiket">
-              <USelect
-                v-model="jual.class_id"
-                :items="kelas.map(k => ({ value: k.id, label: `${k.name} — ${rupiah(Number(k.price) || 0)} (${sisaKelas(k) <= 0 ? 'HABIS' : `${sisaKelas(k)} tersisa`})`, disabled: sisaKelas(k) <= 0 }))"
-                placeholder="Pilih kelas…"
-                class="w-full"
-              />
-            </UFormField>
             <UFormField
               label="Nama"
               required
             >
               <UInput
                 v-model="jual.name"
+                placeholder="Nama pembeli"
                 class="w-full"
               />
             </UFormField>
@@ -665,19 +773,25 @@ function labelKursiTiket(sid?: string) {
                 class="w-full"
               />
             </UFormField>
-            <UFormField label="Email">
+            <UFormField
+              label="Email"
+              required
+            >
               <UInput
                 v-model="jual.email"
                 type="email"
+                placeholder="untuk kirim e-ticket"
                 class="w-full"
               />
             </UFormField>
           </div>
           <p
-            v-if="jual.class_id"
-            class="mt-2 text-sm text-muted num"
+            v-if="kelasJual"
+            class="mt-3 text-xs text-muted num"
           >
-            Total: <b class="text-highlighted">{{ rupiah(totalJual) }}</b>
+            <b class="text-highlighted">{{ qtyJual }} tiket × {{ rupiah(Number(kelasJual.price) || 0) }}</b>
+            + biaya layanan {{ rupiah(BIAYA_LAYANAN * qtyJual) }} =
+            <b class="text-base text-primary-700">{{ rupiah(((Number(kelasJual.price) || 0) + BIAYA_LAYANAN) * qtyJual) }}</b>
           </p>
           <UButton
             color="primary"
@@ -688,48 +802,114 @@ function labelKursiTiket(sid?: string) {
             Simpan & tandai lunas
           </UButton>
         </AppPanel>
+        <AppPanel
+          v-if="kelasJual"
+          class="mt-4"
+        >
+          <p
+            v-if="kelasJual.is_seated"
+            class="text-xs text-error"
+          >
+            Kelas ini bertanda <b>Seated</b> — kursinya dipilih di denah. Lepas tanda Seated untuk menjualnya sebagai bebas berdiri.
+          </p>
+          <UFormField
+            v-else
+            label="Jumlah tiket"
+          >
+            <UInput
+              v-model.number="jual.qty"
+              type="number"
+              min="1"
+              class="w-32"
+            />
+          </UFormField>
+        </AppPanel>
       </template>
 
       <template v-else>
         <AppStatGrid class="mb-4">
           <AppStat
-            label="Omzet"
+            label="Omzet Bersih"
             :value="rupiah(ringkas.omzet)"
-            :sub=" pesananLunas ? `rata ${rupiah(Math.round(ringkas.omzet / pesananLunas))} · ${angka(pesananLunas)} pesanan` : 'belum ada pesanan lunas'"
+            :sub="jmlPesanan ? `rata-rata ${rupiah(Math.round(ringkas.omzet / jmlPesanan))} / pesanan` : 'belum ada pesanan'"
             icon="i-lucide-banknote"
             tone="gold"
           />
           <AppStat
-            label="Tiket sah"
-            :value="angka(ringkas.tiketSah)"
+            label="Tiket Terjual"
+            :value="`${angka(ringkas.tiketSah)}${kuotaTotal ? ` / ${angka(kuotaTotal)}` : ''}`"
+            :sub="kuotaTotal ? (sisaTotal ? `sisa ${angka(sisaTotal)} tiket` : 'kuota habis') : 'kuota belum disetel'"
             icon="i-lucide-ticket-check"
             tone="success"
           />
           <AppStat
             label="Dikembalikan"
             :value="rupiah(ringkas.dikembalikan)"
+            sub="refund disetujui"
             icon="i-lucide-undo-2"
             tone="error"
           />
           <AppStat
-            label="Pesanan"
-            :value="angka(barisOrder.length)"
+            label="Jumlah Pesanan"
+            :value="angka(jmlPesanan)"
+            sub="termasuk yang direfund"
             icon="i-lucide-receipt-text"
             tone="info"
           />
         </AppStatGrid>
         <AppPanel
-          title="Ringkasan per kategori"
+          title="Penjualan per Kategori"
           icon="i-lucide-chart-column"
           class="mb-4"
         >
-          <AppBar
-            v-for="k in ringkas.perKelas"
-            :key="k.nama"
-            :label="k.nama"
-            :value="`${angka(k.n)} · ${rupiah(k.rp)}`"
-            :persen="ringkas.tiketSah ? Math.round(k.n / ringkas.tiketSah * 100) : 0"
-          />
+          <p
+            v-if="!ringkas.perKelas.length"
+            class="py-4 text-center text-sm text-muted"
+          >
+            Belum ada tiket terjual di event ini.
+          </p>
+          <template v-else>
+            <p class="mb-3 text-xs text-muted">
+              Panjang bar = terjual terhadap kuota. Klik kategorinya untuk melihat siapa saja pembelinya.
+            </p>
+            <div
+              v-for="k in ringkas.perKelas"
+              :key="k.nama"
+              class="mb-3 last:mb-0"
+            >
+              <div class="flex flex-wrap items-center gap-2 text-sm">
+                <b class="text-highlighted">{{ k.nama }}</b>
+                <span class="ms-auto num"><b>{{ angka(k.n) }}</b><span
+                  v-if="infoKat(k.nama, k.n).kuota"
+                  class="text-xs text-muted"
+                >/{{ angka(infoKat(k.nama, k.n).kuota) }}</span></span>
+                <span class="font-semibold text-primary-700 num">{{ rupiah(k.rp) }}</span>
+                <UButton
+                  v-if="infoKat(k.nama, k.n).id"
+                  :to="`/event/ticketing/${id}/${infoKat(k.nama, k.n).id}`"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  trailing-icon="i-lucide-chevron-right"
+                >
+                  Rincian
+                </UButton>
+              </div>
+              <div class="mt-1 h-2 overflow-hidden rounded-full bg-muted">
+                <div
+                  class="h-full rounded-full bg-primary-400"
+                  :style="{ width: `${infoKat(k.nama, k.n).w}%` }"
+                />
+              </div>
+              <p class="mt-1 flex gap-3 text-xs text-muted">
+                <span>{{ infoKat(k.nama, k.n).pembeli }} pembeli<template v-if="infoKat(k.nama, k.n).harga"> · {{ rupiah(infoKat(k.nama, k.n).harga) }}/tiket</template></span>
+                <b
+                  v-if="infoKat(k.nama, k.n).penuh"
+                  class="text-error"
+                >PENUH</b>
+              </p>
+            </div>
+          </template>
         </AppPanel>
         <AppPanel
           title="Daftar pembeli"
@@ -761,8 +941,8 @@ function labelKursiTiket(sid?: string) {
               >{{ String(row.original.payment_ref) }}</span>
             </template>
             <template #kontak-cell="{ row }">
-              <span class="block text-xs">{{ String(row.original.buyer_phone ?? '—') }}</span>
-              <span class="block text-xs text-muted">{{ String(row.original.buyer_email ?? '—') }}</span>
+              <span class="block text-xs">{{ String(row.original.phone || '—') }}</span>
+              <span class="block text-xs text-muted">{{ String(row.original.email || '—') }}</span>
             </template>
             <template #tiket-cell="{ row }">
               <span>{{ daftarKelas.rows.find(c => c.id === tiketOrder(row.original.id)[0]?.ticket_class_id)?.name ?? '—' }}</span>
@@ -1046,9 +1226,9 @@ function labelKursiTiket(sid?: string) {
           </p>
           <div class="rounded-field border border-default bg-muted p-2.5 text-xs text-muted">
             Pembeli membuka barcode-nya sendiri di <b>laksamanamuda.id/ticketing</b> — daftar atau masuk memakai email
-            <b class="break-all">{{ String(etiketOrder?.buyer_email ?? '—') }}</b>, tiketnya langsung muncul di menu
+            <b class="break-all">{{ String(etiketOrder?.email || '—') }}</b>, tiketnya langsung muncul di menu
             <b>Tiket Saya</b>.
-            <template v-if="!etiketOrder?.buyer_email">
+            <template v-if="!etiketOrder?.email">
               <span class="font-semibold text-error">Pesanan ini belum ada emailnya — pembeli tidak akan bisa menemukannya.</span>
             </template>
           </div>
@@ -1101,6 +1281,17 @@ function labelKursiTiket(sid?: string) {
           <UFormField label="Benefit">
             <UInput
               v-model="fk.benefit"
+              placeholder="Free drink, seat, dll"
+              class="w-full"
+            />
+          </UFormField>
+          <UFormField
+            label="Keterangan"
+            help="Tampil ke pembeli di situs ticketing."
+          >
+            <UInput
+              v-model="fk.description"
+              placeholder="Penjelasan singkat kelas ini"
               class="w-full"
             />
           </UFormField>
@@ -1132,17 +1323,21 @@ function labelKursiTiket(sid?: string) {
               <UInput
                 v-model="fk.sale_end"
                 type="date"
+                :min="fk.sale_start || undefined"
                 class="w-full"
               />
             </UFormField>
           </div>
-          <UFormField label="Tempat duduk">
-            <USelect
-              v-model="fk.seating"
-              :items="[{ value: 'Bebas berdiri', label: 'Bebas berdiri' }, { value: 'Kursi bernomor', label: 'Kursi bernomor' }]"
-              class="w-full"
-            />
-          </UFormField>
+          <UCheckbox
+            v-model="fk.is_seated"
+            label="Seated (pilih kursi)"
+          />
+          <p
+            v-if="kelasId && (Number(daftarKelas.rows.find(k => k.id === kelasId)?.sold) || 0) > 0"
+            class="text-xs text-muted"
+          >
+            Sudah {{ Number(daftarKelas.rows.find(k => k.id === kelasId)?.sold) || 0 }} tiket terjual — kuota tidak bisa diturunkan di bawah angka itu.
+          </p>
         </div>
         <template #footer>
           <UButton

@@ -11,11 +11,10 @@
 import type { DetailAcara, OrderTiket, Refund } from '~/composables/useEvent'
 import { getDetail, getEvent, patchEvent, putDetail, removeEvent, useDaftarEvent } from '~/composables/useEvent'
 import { refundGantung } from '~/utils/event-refund'
-import { EVT_STATUS, TIMELINE_PHASES, jamWIB, tglWIB } from '~/utils/event-hitung'
+import { EVT_STATUS, TIMELINE_PHASES, jamWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
-import { angka, rupiah, tglPanjang } from '~/utils/format'
-import { STATUS_IKON_EVENT, STATUS_WARNA_EVENT } from '~/utils/status-event'
+import { angka, rupiah } from '~/utils/format'
 import { tanganiKonflik, versiDari } from '~/utils/versi'
 
 definePageMeta({ access: ['event'] })
@@ -73,6 +72,8 @@ const sheetHapus = ref(false)
 // the trail of money that really came in. A hanging refund is named when it
 // is the reason.
 const { data: daftarOrder } = useDaftarEvent<OrderTiket>('orders', { event_id: id.value }, `event-rinci-orders-${id.value}`)
+const { data: daftarKelas } = useDaftarEvent('ticket-classes', { event_id: id.value }, `event-rinci-kelas-${id.value}`)
+const terjual = computed(() => daftarKelas.value.rows.reduce((t, c) => t + (Number(c.sold) || 0), 0))
 const { data: daftarRefund } = useDaftarEvent<Refund>('refunds', {}, `event-rinci-refunds-${id.value}`)
 const infoHapus = computed(() => {
   const orderIds = new Set(daftarOrder.value.rows.map(o => o.id))
@@ -178,12 +179,11 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
         v-if="acara"
         #actions
       >
-        <USelect
+        <AppSeg
           v-if="bolehUbah && !terkunci"
           :model-value="String(acara.status)"
-          :items="[...new Set([...EVT_STATUS, String(acara.status)])].map(s => ({ value: s, label: s }))"
-          class="w-40"
-          @update:model-value="(v) => setStatus(String(v))"
+          :options="[...new Set([...EVT_STATUS, String(acara.status)])].map(s => ({ value: s, label: s }))"
+          @update:model-value="(v?: string) => setStatus(String(v ?? ''))"
         />
         <UButton
           v-if="bolehUbah && !terkunci"
@@ -214,38 +214,24 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
       />
 
       <template v-if="acara">
+        <EventInfoDasar
+          :acara="acara"
+          :terjual="terjual"
+        />
+
         <AppPanel
-          title="Informasi dasar"
-          icon="i-lucide-info"
+          v-if="acara.is_ticketed"
+          title="Ticketing"
           class="mb-4"
+          icon="i-lucide-ticket"
         >
-          <div class="grid gap-x-6 gap-y-2 text-sm lg:grid-cols-2">
-            <p><b class="text-highlighted">{{ acara.title }}</b> · {{ acara.category }}</p>
-            <p class="text-muted">
-              {{ tglPanjang(tglWIB(acara.start_datetime)) }} · {{ jamWIB(acara.start_datetime) }}
-            </p>
-            <p class="text-muted">
-              Venue: {{ acara.venue || '—' }} · Kapasitas: {{ angka(Number(acara.capacity) || 0) }}
-            </p>
-            <p class="text-muted">
-              PIC: {{ acara.pic || '—' }} · Tema: {{ acara.theme || '—' }}
-            </p>
-            <p>
-              <AppStatus
-                :color="STATUS_WARNA_EVENT[String(acara.status)] ?? 'neutral'"
-                :icon="STATUS_IKON_EVENT[String(acara.status)]"
-                size="sm"
-              >
-                {{ String(acara.status) }}
-              </AppStatus>
-            </p>
-            <p
-              v-if="acara.description"
-              class="text-muted lg:col-span-2"
-            >
-              {{ acara.description }}
-            </p>
-          </div>
+          <UButton
+            :to="`/event/ticketing/${id}`"
+            color="primary"
+            icon="i-lucide-arrow-right"
+          >
+            Kelola ticketing
+          </UButton>
         </AppPanel>
 
         <AppPanel
@@ -571,7 +557,7 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
             </UButton>
           </template>
           <UTable
-            :columns="[{ id: 'nama', header: 'Sponsor' }, { id: 'paket', header: 'Paket' }, { id: 'nom', header: 'Nominal' }, { id: 'st', header: 'Status' }, ...(bolehUbah && !terkunci ? [{ id: 'aksi', header: '' }] : [])]"
+            :columns="[{ id: 'nama', header: 'Sponsor' }, { id: 'paket', header: 'Paket' }, { id: 'nom', header: 'Nominal' }, { id: 'agr', header: 'Agreement' }, { id: 'st', header: 'Status' }, ...(bolehUbah && !terkunci ? [{ id: 'aksi', header: '' }] : [])]"
             :data="detail.sponsors ?? []"
             class="hidden lg:block"
           >
@@ -601,6 +587,14 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
                 @change="simpanDetail(() => {}, 'Sponsor disimpan')"
               />
             </template>
+            <template #agr-cell="{ row }">
+              <UInput
+                v-model="row.original.agreement"
+                size="sm"
+                :disabled="!bolehUbah || terkunci"
+                @change="simpanDetail(() => {}, 'Sponsor disimpan')"
+              />
+            </template>
             <template #st-cell="{ row }">
               <USelect
                 v-model="row.original.status"
@@ -620,6 +614,68 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
               />
             </template>
           </UTable>
+          <ul class="divide-y divide-default lg:hidden">
+            <li
+              v-for="(sp, i) in (detail.sponsors ?? [])"
+              :key="i"
+              class="space-y-1.5 px-4 py-3"
+            >
+              <UInput
+                v-model="sp.name"
+                size="sm"
+                placeholder="Sponsor"
+                :disabled="!bolehUbah || terkunci"
+                @change="simpanDetail(() => {}, 'Sponsor disimpan')"
+              />
+              <div class="grid grid-cols-2 gap-1.5">
+                <UInput
+                  v-model="sp.package"
+                  size="sm"
+                  placeholder="Paket"
+                  :disabled="!bolehUbah || terkunci"
+                  @change="simpanDetail(() => {}, 'Sponsor disimpan')"
+                />
+                <UInput
+                  v-model.number="sp.nominal"
+                  type="number"
+                  min="0"
+                  size="sm"
+                  placeholder="Nominal"
+                  :disabled="!bolehUbah || terkunci"
+                  @change="simpanDetail(() => {}, 'Sponsor disimpan')"
+                />
+                <UInput
+                  v-model="sp.agreement"
+                  size="sm"
+                  placeholder="Agreement"
+                  :disabled="!bolehUbah || terkunci"
+                  @change="simpanDetail(() => {}, 'Sponsor disimpan')"
+                />
+                <USelect
+                  v-model="sp.status"
+                  :items="STATUS_SEKSI.map(s => ({ value: s, label: s }))"
+                  size="sm"
+                  :disabled="!bolehUbah || terkunci"
+                  @update:model-value="simpanDetail(() => {}, 'Sponsor disimpan')"
+                />
+              </div>
+              <UButton
+                v-if="bolehUbah && !terkunci"
+                color="error"
+                variant="ghost"
+                size="sm"
+                icon="i-lucide-trash-2"
+                label="Hapus"
+                @click="hapusBaris('sponsors', sp)"
+              />
+            </li>
+            <li
+              v-if="!(detail.sponsors ?? []).length"
+              class="px-4 py-4 text-center text-sm text-dimmed"
+            >
+              Belum ada sponsor.
+            </li>
+          </ul>
           <p class="px-4 py-2.5 text-right text-sm">
             Total sponsor masuk: <b class="text-highlighted num">{{ rupiah(totalSponsor) }}</b>
           </p>
@@ -683,7 +739,7 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
                 variant="ghost"
                 size="sm"
                 icon="i-lucide-trash-2"
-                @click="hapusBaris('tasks', i)"
+                @click="hapusBaris('tasks', t)"
               />
             </li>
           </ul>
@@ -693,20 +749,6 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
           >
             Belum ada task.
           </p>
-        </AppPanel>
-
-        <AppPanel
-          v-if="acara.is_ticketed"
-          title="Ticketing"
-          icon="i-lucide-ticket"
-        >
-          <UButton
-            :to="`/event/ticketing/${id}`"
-            color="primary"
-            icon="i-lucide-arrow-right"
-          >
-            Kelola ticketing
-          </UButton>
         </AppPanel>
       </template>
 

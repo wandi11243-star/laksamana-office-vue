@@ -11,7 +11,7 @@
 <script setup lang="ts">
 import type { Acara } from '~/composables/useEvent'
 import { patchEvent, useDaftarEvent } from '~/composables/useEvent'
-import { EVT_STATUS, statusPengajuan, tglWIB } from '~/utils/event-hitung'
+import { EVT_STATUS, fmtTglJamEms } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { bolehSetujui, bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka } from '~/utils/format'
@@ -37,8 +37,11 @@ const perTahap = computed(() => {
     l.push(e)
     m.set(String(e.status), l)
   }
+  // each column runs by date, earliest first (renderPipelineEms :4805)
+  for (const l of m.values()) l.sort((a, b) => String(a.start_datetime ?? '').localeCompare(String(b.start_datetime ?? '')))
   return m
 })
+const tabelUrut = computed(() => daftar.value.rows.slice().sort((a, b) => String(b.start_datetime ?? '').localeCompare(String(a.start_datetime ?? ''))))
 
 /** Move rules (`pindahTahapEms :4847`, F.2). Returns the refusal text, if any. */
 function larangan(e: Acara, tahap: string): string | null {
@@ -100,22 +103,30 @@ async function jatuhkan(ev: DragEvent, tahap: string) {
       title="Event pipeline"
       description="Geser kartu antar tahap saat statusnya berubah"
     >
-      <template #actions>
-        <AppSeg
-          v-model="tab"
-          :options="[{ value: 'kanban', label: 'Kanban pipeline', icon: 'i-lucide-kanban-square' }, { value: 'tabel', label: 'Tabel event', icon: 'i-lucide-table' }]"
-        />
-      </template>
+      <AppSeg
+        v-model="tab"
+        class="mb-4"
+        :options="[{ value: 'kanban', label: 'Kanban Pipeline', icon: 'i-lucide-kanban-square' }, { value: 'tabel', label: 'Tabel Event', icon: 'i-lucide-table' }]"
+      />
 
-      <p class="mb-3 text-xs text-muted">
-        Total {{ angka(daftar.rows.length) }} event ·
-        <template
+      <!-- pipe-sum: Total + one tile per stage -->
+      <AppStatGrid class="mb-4 lg:grid-cols-6">
+        <AppStat
+          label="Total Event"
+          :value="angka(daftar.rows.length)"
+          sub="seluruh tahap"
+          icon="i-lucide-layers"
+          tone="gold"
+        />
+        <AppStat
           v-for="s in EVT_STATUS"
           :key="s"
-        >
-          {{ s }} {{ (perTahap.get(s) ?? []).length }} ·
-        </template>
-      </p>
+          :label="s"
+          :value="angka((perTahap.get(s) ?? []).length)"
+          sub="event"
+          :icon="STATUS_IKON_EVENT[s]"
+        />
+      </AppStatGrid>
 
       <div
         v-if="tab === 'kanban'"
@@ -146,14 +157,10 @@ async function jatuhkan(ev: DragEvent, tahap: string) {
                 >
                   {{ e.title }}
                 </ULink>
-                <span class="mt-0.5 block truncate text-xs text-muted">{{ tglWIB(e.start_datetime) }} · {{ e.venue || '—' }}</span>
-                <span
-                  v-if="statusPengajuan({ pengajuan: e.pengajuan }) !== 'Belum diajukan'"
-                  class="mt-0.5 block text-[11px] text-muted"
-                >Pengajuan: {{ statusPengajuan({ pengajuan: e.pengajuan }) }}</span>
+                <span class="mt-0.5 block truncate text-xs text-muted">{{ fmtTglJamEms(e.start_datetime) }}{{ e.venue ? ` · ${e.venue}` : '' }}</span>
                 <USelect
                   v-if="bolehUbah"
-                  :model-value="String(e.status)"
+                  :model-value="undefined"
                   :items="EVT_STATUS.filter(t => t !== e.status).map(t => ({ value: t as string, label: `Pindah ke ${t}` }))"
                   placeholder="Pindah ke…"
                   size="sm"
@@ -174,28 +181,30 @@ async function jatuhkan(ev: DragEvent, tahap: string) {
 
       <AppPanel
         v-else
-        title="Tabel event"
-        icon="i-lucide-table"
         flush
       >
         <UTable
-          :columns="[{ id: 'acara', header: 'Event' }, { id: 'tanggal', header: 'Tanggal' }, { id: 'venue', header: 'Venue' }, { id: 'status', header: 'Status' }]"
-          :data="daftar.rows"
+          :columns="[{ id: 'acara', header: 'Event' }, { id: 'tanggal', header: 'Tanggal' }, { id: 'venue', header: 'Venue' }, { id: 'pic', header: 'PIC' }, { id: 'status', header: 'Tahap' }]"
+          :data="tabelUrut"
           :loading="status === 'pending'"
         >
           <template #acara-cell="{ row }">
             <ULink
               :to="`/event/events/${row.original.id}`"
-              class="font-semibold text-highlighted hover:text-primary-700"
+              class="block hover:text-primary-700"
             >
-              {{ row.original.title }}
+              <b class="block text-highlighted">{{ row.original.title || '(tanpa judul)' }}</b>
+              <span class="block text-xs text-muted">{{ row.original.category }}</span>
             </ULink>
           </template>
           <template #tanggal-cell="{ row }">
-            {{ tglWIB(row.original.start_datetime) }}
+            {{ fmtTglJamEms(row.original.start_datetime) }}
           </template>
           <template #venue-cell="{ row }">
             {{ row.original.venue || '—' }}
+          </template>
+          <template #pic-cell="{ row }">
+            {{ row.original.pic || '—' }}
           </template>
           <template #status-cell="{ row }">
             <AppStatus

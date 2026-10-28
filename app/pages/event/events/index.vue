@@ -4,13 +4,13 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { Acara, OrderTiket, Refund } from '~/composables/useEvent'
-import { createEvent, removeEvent, updateEvent, useDaftarEvent } from '~/composables/useEvent'
+import type { Acara, KelasTiket, OrderTiket, Refund } from '~/composables/useEvent'
+import { removeEvent, useDaftarEvent } from '~/composables/useEvent'
 import { refundGantung } from '~/utils/event-refund'
-import { bulanAktif, geserPeriode, rentangPeriodeEvent, tglWIB } from '~/utils/event-hitung'
+import { bulanAktif, fmtTglJamEms, geserPeriode, rentangPeriodeEvent, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
-import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
-import { angka, rupiah, tglPendek } from '~/utils/format'
+import { bolehBukaEvent, bolehUbahEvent, peranEvent } from '~/utils/layar/event'
+import { angka, rupiah } from '~/utils/format'
 import { STATUS_IKON_EVENT, STATUS_WARNA_EVENT } from '~/utils/status-event'
 import { tanganiKonflik } from '~/utils/versi'
 
@@ -18,10 +18,11 @@ definePageMeta({ access: ['event'] })
 
 const toast = useToast()
 const me = useMe()
-const namaSaya = computed(() => me.value?.name ?? '')
 const bolehUbah = computed(() => bolehUbahEvent('events', peranEvent(me.value)))
+const bolehPlanning = computed(() => bolehBukaEvent('planning', peranEvent(me.value)))
 
-const tabStatus = ref('Semua')
+// Upcoming by default, like evtFilter (`:4536`)
+const tabStatus = ref('Upcoming')
 const TABS = ['Approval', 'Upcoming', 'Event Done', 'Semua']
 // '' | 'hari' | 'minggu' | 'bulan' | 'YYYY-MM' | 'YYYY-MM-DD' (`evtPeriode`).
 const modePeriode = ref('')
@@ -41,21 +42,30 @@ function geserBulan(arah: -1 | 1) {
 const { data: daftar, status, refresh } = useDaftarEvent<Acara>('events', {}, 'event-events')
 const { data: daftarOrder } = useDaftarEvent<OrderTiket>('orders', {}, 'event-events-orders')
 const { data: daftarRefund } = useDaftarEvent<Refund>('refunds', {}, 'event-events-refunds')
+const { data: daftarKelas } = useDaftarEvent<KelasTiket>('ticket-classes', {}, 'event-events-kelas')
+const tiket = (id: string) => {
+  const k = daftarKelas.value.rows.filter(c => c.event_id === id)
+  return { sold: k.reduce((a, c) => a + (Number(c.sold) || 0), 0), kuota: k.reduce((a, c) => a + (Number(c.quota) || 0), 0) }
+}
 
 const omzet = (id: string) => daftarOrder.value.rows
   .filter(o => (o.event_id as string) === id && (o.payment_status as string) === 'Paid')
   .reduce((a, o) => a + (Number(o.total) || 0), 0)
 
-const list = computed(() => {
-  // The period filters FIRST, then status, then text — so "x dari y" means
-  // "shows in this period". Dates are WIB, never a raw UTC slice.
+/** Approved events only — Planning & Prospect live on Perencanaan (`renderEvents` :6198). The period filters first, so "x dari y" means "in this period". Dates are WIB. */
+const semua = computed(() => {
   const r = rentangPeriodeEvent(modePeriode.value)
-  const cariL = cari.value.trim().toLowerCase()
   return daftar.value.rows.filter((e) => {
-    if (tabStatus.value !== 'Semua' && String(e.status) !== tabStatus.value) return false
+    if (e.status === 'Planning' || e.status === 'Prospect') return false
     const tgl = tglWIB(e.start_datetime)
-    if (r && (!tgl || tgl < r.a || tgl > r.b)) return false
-    if (cariL && !`${e.title} ${e.venue} ${e.pic}`.toLowerCase().includes(cariL)) return false
+    return !r || (!!tgl && tgl >= r.a && tgl <= r.b)
+  })
+})
+const list = computed(() => {
+  const cariL = cari.value.trim().toLowerCase()
+  return semua.value.filter((e) => {
+    if (tabStatus.value !== 'Semua' && String(e.status) !== tabStatus.value) return false
+    if (cariL && ![e.title, e.venue, e.pic, e.category].filter(Boolean).join(' ').toLowerCase().includes(cariL)) return false
     return true
   }).sort((a, b) => String(b.start_datetime ?? '').localeCompare(String(a.start_datetime ?? '')))
 })
@@ -68,43 +78,8 @@ const kolom: TableColumn<Acara>[] = [
   { id: 'tiket', header: 'Tiket' },
   { id: 'omzet', header: 'Omzet' },
   { id: 'status', header: 'Status' },
-  { id: 'aksi', header: 'Aksi' },
+  { id: 'aksi', header: '' },
 ]
-
-// --- edit uses the same form; PIC stays as stored (`:6352`) ---
-const sheet = ref(false)
-const sunting = ref<Acara | null>(null)
-function bukaBaru() {
-  sunting.value = null
-  sheet.value = true
-}
-function bukaSunting(e: Acara) {
-  sunting.value = e
-  sheet.value = true
-}
-async function simpan(body: Record<string, unknown>) {
-  sheet.value = false
-  try {
-    if (sunting.value) {
-      await updateEvent('events', sunting.value.id, { ...sunting.value, ...body }, daftar.value.versions[sunting.value.id])
-      toast.add({ title: 'Event disimpan', color: 'success' })
-    }
-    else {
-      await createEvent('events', {
-        ...body,
-        status: 'Planning',
-        createdBy: namaSaya.value,
-        createdById: me.value?.id ?? '',
-        createdAt: Date.now(),
-      })
-      toast.add({ title: 'Event baru dibuat', color: 'success' })
-    }
-    await refresh()
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
-  }
-}
 
 const hapusId = ref('')
 const sheetHapus = computed({ get: () => hapusId.value !== '', set: v => (hapusId.value = v ? hapusId.value : '') })
@@ -143,12 +118,12 @@ async function hapus() {
     >
       <template #actions>
         <UButton
-          v-if="bolehUbah"
-          color="primary"
-          icon="i-lucide-plus"
-          @click="bukaBaru()"
+          v-if="bolehPlanning"
+          color="neutral"
+          variant="outline"
+          to="/event/planning"
         >
-          Event baru
+          Lihat Perencanaan
         </UButton>
       </template>
 
@@ -199,15 +174,11 @@ async function hapus() {
             icon="i-lucide-search"
             class="max-w-md flex-1"
           />
-          <span class="ms-auto text-xs text-muted num">{{ angka(list.length) }} dari {{ angka(daftar.rows.length) }} event</span>
+          <span class="ms-auto text-xs text-muted num">{{ angka(list.length) }} dari {{ angka(semua.length) }} event</span>
         </div>
       </AppPanel>
 
-      <AppPanel
-        title="Daftar event"
-        icon="i-lucide-party-popper"
-        flush
-      >
+      <AppPanel flush>
         <UTable
           :columns="kolom"
           :data="list"
@@ -217,14 +188,17 @@ async function hapus() {
           <template #acara-cell="{ row }">
             <ULink
               :to="`/event/events/${row.original.id}`"
-              class="flex items-center gap-2"
+              class="flex items-center gap-2.5"
             >
-              <b class="text-highlighted">{{ row.original.title }}</b>
-              <span class="text-xs text-muted">{{ row.original.category }}</span>
+              <EventPosterMini :poster="row.original.poster_img" />
+              <span>
+                <b class="block text-highlighted">{{ row.original.title || '(tanpa judul)' }}</b>
+                <span class="block text-xs text-muted">{{ row.original.category }}</span>
+              </span>
             </ULink>
           </template>
           <template #tanggal-cell="{ row }">
-            {{ tglPendek(tglWIB(row.original.start_datetime)) }}
+            {{ fmtTglJamEms(row.original.start_datetime) }}
           </template>
           <template #venue-cell="{ row }">
             {{ row.original.venue || '—' }}
@@ -233,17 +207,24 @@ async function hapus() {
             {{ row.original.pic || '—' }}
           </template>
           <template #tiket-cell="{ row }">
-            <ULink
+            <span
               v-if="row.original.is_ticketed"
-              :to="`/event/ticketing/${row.original.id}`"
-              class="text-primary-700 num"
-            >
-              Kelola
-            </ULink>
-            <span v-else>—</span>
+              class="num"
+            >{{ tiket(row.original.id).sold }}{{ tiket(row.original.id).kuota ? ` / ${tiket(row.original.id).kuota}` : '' }}</span>
+            <span
+              v-else
+              class="text-xs text-muted"
+            >—</span>
           </template>
           <template #omzet-cell="{ row }">
-            <span class="num">{{ rupiah(omzet(row.original.id)) }}</span>
+            <span
+              v-if="omzet(row.original.id)"
+              class="num"
+            >{{ rupiah(omzet(row.original.id)) }}</span>
+            <span
+              v-else
+              class="text-xs text-muted"
+            >—</span>
           </template>
           <template #status-cell="{ row }">
             <AppStatus
@@ -256,13 +237,6 @@ async function hapus() {
           </template>
           <template #aksi-cell="{ row }">
             <span class="flex gap-1">
-              <UButton
-                v-if="bolehUbah"
-                color="neutral"
-                variant="ghost"
-                icon="i-lucide-pencil"
-                @click="bukaSunting(row.original)"
-              />
               <UButton
                 v-if="bolehUbah"
                 color="error"
@@ -283,7 +257,7 @@ async function hapus() {
               class="block px-4 py-3"
             >
               <b class="block truncate text-sm text-highlighted">{{ e.title }}</b>
-              <span class="mt-0.5 block text-xs text-muted">{{ tglPendek(tglWIB(e.start_datetime)) }} · {{ e.venue || '—' }} · {{ e.pic || '—' }}</span>
+              <span class="mt-0.5 block text-xs text-muted">{{ fmtTglJamEms(e.start_datetime) }} · {{ e.venue || '—' }} · {{ e.pic || '—' }}</span>
               <span class="mt-1.5 flex items-center gap-2">
                 <AppStatus
                   :color="STATUS_WARNA_EVENT[String(e.status)] ?? 'neutral'"
@@ -292,7 +266,7 @@ async function hapus() {
                 >
                   {{ e.status }}
                 </AppStatus>
-                <span class="text-xs text-muted num">{{ rupiah(omzet(e.id)) }}</span>
+                <span class="text-xs text-muted num">{{ omzet(e.id) ? rupiah(omzet(e.id)) : '—' }}</span>
               </span>
             </ULink>
           </li>
@@ -301,21 +275,9 @@ async function hapus() {
           v-if="!list.length && status !== 'pending'"
           class="px-4 py-6 text-center text-sm text-dimmed"
         >
-          Tidak ada event yang cocok.
+          {{ cari || modePeriode ? 'Tidak ada yang cocok dengan saringan ini.' : 'Belum ada event.' }}
         </p>
       </AppPanel>
-
-      <ResponsiveSheet
-        v-model:open="sheet"
-        :title="sunting ? 'Edit event' : 'Event baru'"
-      >
-        <EventForm
-          :awal="sunting ?? undefined"
-          :pic-terkunci="namaSaya"
-          @simpan="simpan($event)"
-          @batal="sheet = false"
-        />
-      </ResponsiveSheet>
 
       <ResponsiveSheet
         v-model:open="sheetHapus"

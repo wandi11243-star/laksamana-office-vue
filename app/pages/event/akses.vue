@@ -2,7 +2,7 @@
   Hak Akses — people & roles plus the permission matrix
   (`event/index.html:5963-6073`).
 
-  K-08: the matrix is NEVER persisted — the old backend kept only
+  K-08 (owner decision): the matrix is NEVER persisted — the old backend kept only
   `entertainmentRules`/`role`/`layoutTemplates`, and v1 has no endpoint for
   it either. Changes apply in memory and reset on reload, exactly like the
   old client. Management may not lock itself out of this page (`:6066`).
@@ -12,7 +12,7 @@ import { useModulMembers } from '~/composables/useRoster'
 import type { ModulMember } from '~/composables/useRoster'
 import type { Me } from '~/composables/useMe'
 import type { PeranEvent } from '~/utils/layar/event'
-import { bolehUbahEvent, EMS_HALAMAN_LABEL, peranEvent, PERAN_EVENT, PERAN_LABEL_EVENT, resetMatriksEvent, setIzinEvent, useMatriksEvent } from '~/utils/layar/event'
+import { bolehUbahEvent, EMS_HALAMAN_LABEL, peranEvent, PERAN_EVENT, PERAN_LABEL_EVENT, setIzinEvent, useMatriksEvent } from '~/utils/layar/event'
 
 definePageMeta({ access: ['event'] })
 
@@ -28,7 +28,7 @@ const peranAnggota = (m: ModulMember): PeranEvent =>
   m.isModuleAdmin ? 'manajemen' : peranEvent({ keterangan: m.keterangan ?? '', adminModules: [] } as unknown as Me)
 
 const { data: anggota, status } = useModulMembers('event')
-const daftarAnggota = computed(() => [...(anggota.value ?? [])])
+const daftarAnggota = computed(() => [...(anggota.value ?? [])].sort((a, b) => String(a.name ?? '').localeCompare(String(b.name ?? ''))))
 const matriks = useMatriksEvent()
 
 const OPSI_TINGKAT = [
@@ -44,10 +44,6 @@ function setIzin(halaman: string, p: PeranEvent, tingkat: 0 | 1 | 2) {
   }
   setIzinEvent(halaman, p, tingkat)
 }
-function kembalikan() {
-  resetMatriksEvent()
-  toast.add({ title: 'Matriks dikembalikan ke bawaan', color: 'success' })
-}
 </script>
 
 <template>
@@ -62,6 +58,9 @@ function kembalikan() {
         flush
         class="mb-4"
       >
+        <p class="px-4 pt-3 text-xs text-muted">
+          Ditarik otomatis dari database user Office: isinya kru yang diberi akses modul Event. Perannya diturunkan dari kolom Tim / Keterangan di Office, dan admin modul Event selalu Manajemen — tidak ada lagi yang perlu diketik di sini. Kalau ada peran yang salah, yang dibetulkan adalah kolom Tim orang itu di Office → Kelola User.
+        </p>
         <UTable
           :columns="[{ id: 'nama', header: 'Pengguna' }, { id: 'tim', header: 'Tim / keterangan' }, { id: 'status', header: 'Status' }, { id: 'peran', header: 'Peran EMS' }]"
           :data="daftarAnggota"
@@ -69,7 +68,10 @@ function kembalikan() {
           class="hidden lg:block"
         >
           <template #nama-cell="{ row }">
-            <b class="text-highlighted">{{ row.original.name }}</b>
+            <b class="text-highlighted">{{ row.original.name }}</b><span
+              v-if="row.original.id === me?.id"
+              class="text-xs text-muted"
+            > (kamu)</span>
           </template>
           <template #tim-cell="{ row }">
             {{ row.original.keterangan || '—' }}
@@ -93,10 +95,16 @@ function kembalikan() {
             :key="m.id"
             class="px-4 py-2.5 text-sm"
           >
-            <b class="text-highlighted">{{ m.name }}</b>
+            <b class="text-highlighted">{{ m.name }}</b><span
+              v-if="m.id === me?.id"
+              class="text-xs text-muted"
+            > (kamu)</span>
             <span class="block text-xs text-muted">{{ PERAN_LABEL_EVENT[peranAnggota(m)] }}{{ m.isModuleAdmin ? ' (admin modul)' : '' }} · {{ m.keterangan || '—' }}</span>
           </li>
         </ul>
+        <p class="px-4 pb-3 text-xs text-muted">
+          Roster ditarik otomatis dari Office tiap kali halaman ini dibuka.
+        </p>
       </AppPanel>
 
       <AppPanel
@@ -104,25 +112,9 @@ function kembalikan() {
         icon="i-lucide-shield"
         class="mb-4"
       >
-        <template #actions>
-          <UButton
-            v-if="bolehUbah"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            icon="i-lucide-rotate-ccw"
-            @click="kembalikan()"
-          >
-            Kembalikan ke bawaan
-          </UButton>
-        </template>
-        <UAlert
-          color="info"
-          variant="soft"
-          title="Tidak tersimpan di server (K-08)"
-          description="Ikuti perilaku lama: perubahan di sini berlaku sampai muat ulang, lalu kembali ke bawaan."
-          class="mb-3"
-        />
+        <p class="mb-3 text-xs text-muted">
+          Halaman yang disetel Tak Terlihat hilang dari menu dan ditolak kalau alamatnya diketik langsung.
+        </p>
         <div class="overflow-x-auto">
           <table class="w-full min-w-[560px] text-sm">
             <thead>
@@ -153,14 +145,19 @@ function kembalikan() {
                   :key="p"
                   class="px-2 py-1.5"
                 >
-                  <USelect
-                    :model-value="matriks[halaman]?.[p] ?? 1"
-                    :items="OPSI_TINGKAT"
-                    size="sm"
-                    :disabled="!bolehUbah"
-                    class="w-36"
-                    @update:model-value="(v) => setIzin(halaman, p, Number(v) as 0 | 1 | 2)"
-                  />
+                  <span class="inline-flex overflow-hidden rounded-field border border-default text-[11px] font-semibold">
+                    <button
+                      v-for="o in OPSI_TINGKAT"
+                      :key="o.value"
+                      type="button"
+                      class="whitespace-nowrap px-2 py-1 transition-colors disabled:cursor-not-allowed"
+                      :class="(matriks[halaman]?.[p] ?? 1) === o.value ? 'bg-primary-500 text-white' : 'text-muted hover:bg-muted'"
+                      :disabled="!bolehUbah"
+                      @click="setIzin(halaman, p, o.value)"
+                    >
+                      {{ o.label }}
+                    </button>
+                  </span>
                 </td>
               </tr>
             </tbody>

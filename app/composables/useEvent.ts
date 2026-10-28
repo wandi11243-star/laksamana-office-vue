@@ -34,8 +34,12 @@ export type StatusPengajuan = 'Belum diajukan' | 'Menunggu' | 'Disetujui' | 'Dit
 export interface Pengajuan {
   status: StatusPengajuan
   oleh?: string
-  pada?: number
+  /** ISO string (legacy `ajukanRencana`); older Vue builds wrote epoch ms */
+  pada?: string | number
   alasan?: string
+  /** decider and decision time (`setujuiRencana` :4818) */
+  penyetuju?: string
+  disetujuiPada?: string
 }
 
 /** A talent row, exactly as the old client stored it (`:2522-2538`). */
@@ -79,10 +83,13 @@ export interface JadwalTalent {
   date: string
   start_time: string
   end_time: string
-  /** Performance type (a TAL_CATS value). */
-  type: string
+  /** Performance type (a TAL_CATS value) — the legacy column name. */
+  performance_type: string
   fee: number
   status: string
+  /** where the row came from: manual / mingguan / recurring / monthly_generator */
+  source?: string
+  recurring_rule_id?: string | null
   createdAt: number
   updatedAt: number
   [key: string]: unknown
@@ -91,9 +98,11 @@ export interface JadwalTalent {
 /** A recurring rule that generates schedules (`:3539-3604`). */
 export interface AturanRutin {
   id: string
-  talent_ids: string[]
-  days: number[]
-  type: string
+  /** one rule per talent (`genRecurring` :3732) */
+  talent_id: string
+  /** getDay() numbers, Sunday = 0 */
+  days_of_week: number[]
+  performance_type: string
   fee: number
   start_time: string
   end_time: string
@@ -110,11 +119,17 @@ export interface TagihanTalent {
   id: string
   talent_id: string
   period_month: string
-  amount: number
+  /** legacy columns (genPayment :4224) */
+  show_count: number
+  total_amount: number
   status: string
-  proof_key?: string
+  bank?: string
+  /** {key,name,size,type}; very old rows hold a bare file-name string */
+  transfer_proof?: { key: string, name?: string, size?: number, type?: string } | string | null
+  proof_amount?: number
   pic_finance?: string
-  bank_tujuan?: string
+  paid_at?: string | null
+  created_at?: string
   createdAt: number
   updatedAt: number
   [key: string]: unknown
@@ -167,7 +182,9 @@ export interface KelasTiket {
   sold: number
   sale_start?: string
   sale_end?: string
-  seating?: string
+  description?: string
+  /** numbered seats (true) vs free standing — the legacy field, read by the seat map & customer site */
+  is_seated?: boolean
   class_id?: string
   createdAt: number
   updatedAt: number
@@ -191,8 +208,12 @@ export interface OrderTiket {
   total: number
   payment_status: string
   buyer_name?: string
-  buyer_phone?: string
-  buyer_email?: string
+  /** the legacy columns are `phone` / `email` (event_orders) — the customer
+   *  site finds a buyer's tickets by `email`, so a sale without it is lost */
+  phone?: string
+  email?: string
+  subtotal?: number
+  fee?: number
   created: string
   createdAt: number
   updatedAt: number
@@ -220,29 +241,34 @@ export interface Ide {
   id: string
   name: string
   category: string
-  target?: string
+  /** legacy column name (saveIdea :11368) */
+  target_market?: string
   frequency: string
   budget: number
   potential_revenue: number
   difficulty: string
   description: string
   evaluations: EvaluasiIde[]
+  ever_executed?: boolean
   createdAt: number
   updatedAt: number
   [key: string]: unknown
 }
 
+/** One evaluation, in the shape `simpanEval` (:11372) writes. */
 export interface EvaluasiIde {
-  id: string
-  date: string
+  executed?: string
+  tanggal: string
   omzet: number
-  hadir: number
   biaya: number
-  skor: number
-  ulang: string
-  baik: string
-  perbaiki: string
   profit: number
+  attendance: number
+  score: number
+  ulang: string
+  plus: string
+  minus: string
+  feedback: string
+  at: string
   [key: string]: unknown
 }
 

@@ -8,14 +8,14 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { Acara } from '~/composables/useEvent'
 import { useStateEvent } from '~/composables/useEvent'
-import { angkaEms, bulanAktif, eventTiket, geserPeriode, idCheckin, jamWIB, omzetPerBulan, paxAcara, petaOrder, rentangPeriodeEvent, statusPengajuan, tglWIB } from '~/utils/event-hitung'
+import { angkaEms, bulanAktif, eventTiket, fmtTglJamEms, geserPeriode, idCheckin, omzetPerBulan, paxAcara, petaOrder, rentangPeriodeEvent, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { angka, hariIni, rupiah, tglPanjang } from '~/utils/format'
 import { STATUS_IKON_EVENT, STATUS_WARNA_EVENT } from '~/utils/status-event'
 
 definePageMeta({ access: ['event'] })
 
-const { data: state, status, refresh, error } = useStateEvent()
+const { data: state, error } = useStateEvent()
 const s = computed(() => state.value?.data ?? null)
 
 /** The dashboard opens on the current state, not the whole archive (`:2379-2383`).
@@ -187,8 +187,6 @@ const perhatian = computed(() => {
   if (belumBayar) keluar.push({ tone: 'warning', judul: `${belumBayar} pembayaran talent menunggu`, desc: 'Belum ditandai lunas', to: '/event/fee' })
   const tanpaRek = talent.value.filter(t => t.status === 'Active' && !(t.bank_account || '').trim()).length
   if (tanpaRek) keluar.push({ tone: 'warning', judul: `${tanpaRek} talent tanpa rekening`, desc: 'Fee tidak bisa ditransfer', to: '/event/talents' })
-  const menunggu = semuaAcara.value.filter(e => statusPengajuan({ pengajuan: e.pengajuan }) === 'Menunggu').length
-  if (menunggu) keluar.push({ tone: 'warning', judul: `${menunggu} rencana menunggu keputusan`, desc: 'Perlu putusan manajemen', to: '/event/approval' })
   return keluar
 })
 
@@ -219,18 +217,6 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
       title="Dashboard"
       :description="`Ringkasan operasional · ${tglPanjang(hariIni())}`"
     >
-      <template #actions>
-        <UButton
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-refresh-cw"
-          :loading="status === 'pending'"
-          @click="refresh()"
-        >
-          Muat ulang
-        </UButton>
-      </template>
-
       <UAlert
         v-if="error"
         color="error"
@@ -276,11 +262,7 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
         </ul>
       </AppPanel>
 
-      <AppPanel
-        title="Periode"
-        icon="i-lucide-calendar"
-        class="mb-4"
-      >
+      <AppPanel class="mb-4">
         <div class="flex flex-wrap items-center gap-2">
           <AppChips
             v-model="periode"
@@ -334,12 +316,12 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
           :key="st"
           :label="st"
           :value="acara.filter(e => e.status === st).length"
+          sub="event"
           :icon="STATUS_IKON_EVENT[st]"
           :tone="toneKartu(st)"
         />
       </AppStatGrid>
 
-      <AppSectionTitle title="Angka utama" />
       <AppStatGrid class="mb-5">
         <AppStat
           label="Upcoming events"
@@ -412,7 +394,7 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
         <AppStat
           label="Most active talent"
           :value="talentAktif.talent?.name ?? '—'"
-          :sub="talentAktif.talent ? `${talentAktif.n} show selesai` : ''"
+          :sub="talentAktif.talent ? `${talentAktif.n} show` : ''"
           icon="i-lucide-star"
           tone="vip"
           wrap
@@ -428,7 +410,7 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
         <AppStat
           label="Tiket terjual yang hadir"
           :value="`${ringkas.hadirPct}%`"
-          :sub="`${angka(ringkas.hadir)} dari ${angka(ringkas.tiket)} tiket · ${labelPeriode}`"
+          :sub="`${labelPeriode} · ${angka(ringkas.hadir)} hadir dari ${angka(ringkas.tiket)} tiket`"
           icon="i-lucide-ticket-check"
           tone="info"
         />
@@ -470,7 +452,7 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
             </ULink>
           </template>
           <template #tanggal-cell="{ row }">
-            {{ tglPanjang(tglWIB(row.original.start_datetime)) }} · {{ jamWIB(row.original.start_datetime) }} WIB
+            {{ fmtTglJamEms(row.original.start_datetime) }}
           </template>
           <template #venue-cell="{ row }">
             {{ row.original.venue || '—' }}
@@ -501,7 +483,7 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
               class="block px-4 py-3"
             >
               <b class="block truncate text-sm text-highlighted">{{ e.title }}</b>
-              <span class="mt-0.5 block text-xs text-muted">{{ tglPanjang(tglAcara(e)) }} · {{ jamWIB(e.start_datetime) }} WIB · {{ e.venue || '—' }} · {{ e.pic || '—' }}</span>
+              <span class="mt-0.5 block text-xs text-muted">{{ fmtTglJamEms(e.start_datetime) }} · {{ e.venue || '—' }} · {{ e.pic || '—' }}</span>
               <span class="mt-1.5 flex items-center gap-2">
                 <AppStatus
                   :color="STATUS_WARNA_EVENT[String(e.status)] ?? 'neutral'"
