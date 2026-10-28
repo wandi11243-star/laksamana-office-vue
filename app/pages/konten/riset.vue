@@ -84,11 +84,12 @@ async function simpanBank() {
         </UFormField>
         <UButton
           color="primary"
+          icon="i-lucide-zap"
           :loading="jalan"
           :disabled="!topik || !st?.setting.aiSiap"
           @click="jalankan()"
         >
-          {{ jalan ? 'Menganalisa…' : '⚡ Jalankan riset' }}
+          {{ jalan ? 'Menganalisa…' : 'Jalankan riset' }}
         </UButton>
         <p
           v-if="!st?.setting.aiSiap"
@@ -186,7 +187,10 @@ async function simpanBank() {
               v-if="ide.hook"
               class="text-sm"
             >
-              🎬 {{ String(ide.hook) }}
+              <UIcon
+                name="i-lucide-clapperboard"
+                class="size-4"
+              /> {{ String(ide.hook) }}
             </p>
             <p
               v-if="ide.caption"
@@ -199,17 +203,19 @@ async function simpanBank() {
                 color="neutral"
                 variant="soft"
                 size="xs"
+                icon="i-lucide-plus"
                 @click="simpanKeBank(ide)"
               >
-                ＋ Simpan ke Bank
+                Simpan ke Bank
               </UButton>
               <UButton
                 color="neutral"
                 variant="soft"
                 size="xs"
+                icon="i-lucide-calendar-plus"
                 :to="`./kalender?tanggal=${hariIni()}`"
               >
-                📅 Jadwalkan
+                Jadwalkan
               </UButton>
             </div>
           </div>

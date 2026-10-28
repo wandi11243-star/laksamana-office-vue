@@ -1,16 +1,17 @@
 <!--
-  HR › Performance Review (deploy/hr/index.html renderReview :1974-1992).
+  HR › Performance Review — reimagine (B): Perlu saya isi / Semua.
 
-  12 aspects on a 1–10 scale, four layers (self → manager → HRD → CEO); the
-  final number is the weighted average of the layers that filled each aspect
-  (`reviewAspectScore`), and it also feeds the Teamwork & Initiative
-  components of People Score. A row opens the layer the viewer is allowed to
-  fill; other layers are read-only.
+  Dulu satu tabel untuk semua kru. Versi ini memisah antrean kerja penilai
+  ("Perlu saya isi": kru yang layer saya belum terisi) dari arsip ("Semua").
+  Orang yang membuka halaman ini biasanya mau tahu "siapa yang harus saya
+  nilai", bukan memindai seluruh tabel. Referensi: pemisahan My Review /
+  Team Review di modul performance OmniHR — mental model "diri sendiri"
+  vs "orang lain".
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { HrEmployee, HrReview } from '~/utils/hr'
-import { canHr, divName, scopeEmps } from '~/utils/hr'
+import { canHr, divName, lapisanReview, scopeEmps } from '~/utils/hr'
 import { rataRata, reviewOverallScore } from '~/utils/people-score'
 import { useHrDasar } from '~/composables/useHr'
 import { hariIni } from '~/utils/format'
@@ -62,6 +63,12 @@ const kolom: TableColumn<Baris>[] = [
   { id: 'aksi', header: () => h('span', { class: 'block text-end' }, '') },
 ]
 
+const tab = ref<'saya' | 'semua'>('saya')
+const perluSaya = computed(() => daftar.value.filter((r) => {
+  const L = lapisanReview(cu.value, r.e)
+  return L != null && r.layer[L] == null
+}))
+const tampil = computed(() => (tab.value === 'saya' ? perluSaya.value : daftar.value))
 const sheetOpen = ref(false)
 const pilih = ref<HrEmployee | null>(null)
 function buka(e: HrEmployee) {
@@ -92,6 +99,13 @@ const bolehInput = computed(() => canHr('inputKpi', cu.value, officeAdmin.value)
     <AppPanel>
       <template #head>
         <HrBulan v-model="mk" />
+        <AppSeg
+          v-model="tab"
+          :options="[
+            { value: 'saya', label: 'Perlu saya isi', badge: perluSaya.length || undefined },
+            { value: 'semua', label: 'Semua' },
+          ]"
+        />
       </template>
 
       <p class="mb-3 rounded-field bg-muted px-3 py-2 text-sm text-muted">
@@ -102,9 +116,9 @@ const bolehInput = computed(() => canHr('inputKpi', cu.value, officeAdmin.value)
 
       <UTable
         class="hidden lg:block"
-        :data="daftar"
+        :data="tampil"
         :columns="kolom"
-        empty="Belum ada kru dalam jangkauan Anda."
+        :empty="tab === 'saya' ? 'Semua penilaian bulan ini sudah terisi.' : 'Belum ada kru dalam jangkauan Anda.'"
       >
         <template #kru-cell="{ row }">
           <p class="font-semibold text-highlighted">
@@ -191,7 +205,7 @@ const bolehInput = computed(() => canHr('inputKpi', cu.value, officeAdmin.value)
 
       <div class="space-y-2 lg:hidden">
         <article
-          v-for="r in daftar"
+          v-for="r in tampil"
           :key="r.e.id"
           class="rounded-field border border-default p-3"
         >
@@ -234,10 +248,10 @@ const bolehInput = computed(() => canHr('inputKpi', cu.value, officeAdmin.value)
           </div>
         </article>
         <p
-          v-if="!daftar.length"
+          v-if="!tampil.length"
           class="text-sm text-muted"
         >
-          Belum ada kru dalam jangkauan Anda.
+          {{ tab === 'saya' ? 'Semua penilaian bulan ini sudah terisi.' : 'Belum ada kru dalam jangkauan Anda.' }}
         </p>
       </div>
 

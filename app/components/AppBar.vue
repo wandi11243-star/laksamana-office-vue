@@ -13,11 +13,11 @@ const props = withDefaults(defineProps<{
 }>(), { tone: 'gold' })
 
 const fill = {
-  gold: 'bg-primary-400',
+  gold: 'bg-brand-yellow',
   success: 'bg-success',
   error: 'bg-error',
   info: 'bg-info',
-  vip: 'bg-vip',
+  vip: 'bg-lilac-light',
 }
 const lebar = computed(() => `${Math.max(0, Math.min(100, props.persen))}%`)
 </script>

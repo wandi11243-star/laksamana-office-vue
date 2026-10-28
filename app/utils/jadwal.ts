@@ -11,6 +11,7 @@ import type { RosterUser } from '~/composables/useRoster'
 import type { Me } from '~/composables/useMe'
 import { isAdminOf } from '~/composables/useMe'
 import { tambahHari } from '~/utils/format'
+import { JADWAL_BACA_SAJA } from '~/utils/hris'
 
 /** Source: deploy/jadwal/index.html:765-770. The only divisions that work in shifts. */
 export const DIVISI = [
@@ -351,6 +352,7 @@ export const divPunyaHead = (p: PeranJadwal, div: string) => (p.heads[div] ?? []
 
 /** May this person change the cells of one Divisi (`bolehUbah`, `:1370`)? */
 export function bolehUbah(p: PeranJadwal, div: string): boolean {
+  if (JADWAL_BACA_SAJA) return false
   if (p.admin) return true
   if (!adaHead(p)) return true
   return !!p.id && isHeadUser(p, p.id, div)
@@ -371,13 +373,14 @@ export const bolehRekap = (p: PeranJadwal) => bisaLihatSemua(p) || divisiKuasa(p
 
 /** Step 1 — the head of the requester's Divisi forwards; admin only where the Divisi has no head (`:4497`). */
 export function bisaPutusHead(p: PeranJadwal, a: { status: string }, divPengaju: string | null): boolean {
+  if (JADWAL_BACA_SAJA) return false
   if (a.status !== 'MENUNGGU' || !divPengaju || !p.id) return false
   if (isHeadUser(p, p.id, divPengaju)) return true
   return p.admin && !divPunyaHead(p, divPengaju)
 }
 
 /** Step 2 — HRD (= admin of the module) approves (`:4510`). */
-export const bisaPutusHRD = (p: PeranJadwal, a: { status: string }) => a.status === 'MENUNGGU_HRD' && p.admin
+export const bisaPutusHRD = (p: PeranJadwal, a: { status: string }) => !JADWAL_BACA_SAJA && a.status === 'MENUNGGU_HRD' && p.admin
 
 /** Who may SEE a request: admin, the requester, the head of their Divisi (`bisaLihatAju`, `:4535`). */
 export function bisaLihatAju(p: PeranJadwal, a: { userId: string }, divPengaju: string | null): boolean {

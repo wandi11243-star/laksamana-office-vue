@@ -131,7 +131,7 @@ const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
             v-for="p in dipakai(t).slice(0, 3)"
             :key="p.id"
             :title="dipakai(t).map(x => x.name).join(', ')"
-            class="flex size-5 items-center justify-center rounded-full border border-default bg-primary-100 text-[9px] font-bold text-primary-800"
+            class="flex size-5 items-center justify-center rounded-full border border-default bg-yellow-light text-[9px] font-bold text-yellow-dark"
           >{{ inisial(p.name) }}</span>
           <span
             v-if="dipakai(t).length > 3"
@@ -165,7 +165,7 @@ const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
           <span class="h-2 flex-1 overflow-hidden rounded-full bg-muted">
             <span
               class="block h-full rounded-full"
-              :class="selesai(t) ? 'bg-success' : 'bg-primary-400'"
+              :class="selesai(t) ? 'bg-success' : 'bg-ink-900'"
               :style="{ width: `${Math.max(0, Math.min(100, Number(t.progress) || 0))}%` }"
             />
           </span>
@@ -205,7 +205,7 @@ const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
           <span
             v-if="s.p && namaSubPic(s.p)"
             :title="`Di-assign ke ${namaSubPic(s.p)}`"
-            class="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary-100 text-[9px] font-bold text-primary-800"
+            class="flex size-5 shrink-0 items-center justify-center rounded-full bg-yellow-light text-[9px] font-bold text-yellow-dark"
           >{{ inisial(namaSubPic(s.p)) }}</span>
           <AppStatus
             v-if="dlSub(s.d)"
