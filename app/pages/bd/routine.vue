@@ -182,7 +182,7 @@ async function hapus() {
           </template>
           <template #pic-cell="{ row }">
             <span class="flex items-center gap-1.5">
-              <span class="flex size-5 items-center justify-center rounded-full bg-primary-100 text-[9px] font-bold text-primary-800">{{ inisial(orangById(people, row.original.pic).name) }}</span>
+              <span class="flex size-5 items-center justify-center rounded-full bg-yellow-light text-[9px] font-bold text-yellow-dark">{{ inisial(orangById(people, row.original.pic).name) }}</span>
               {{ orangById(people, row.original.pic).name }}
             </span>
           </template>
@@ -199,7 +199,7 @@ async function hapus() {
               <span class="h-2 w-20 overflow-hidden rounded-full bg-muted">
                 <span
                   class="block h-full rounded-full"
-                  :class="kepatuhanBaris(row.original) >= 90 ? 'bg-success' : 'bg-primary-400'"
+                  :class="kepatuhanBaris(row.original) >= 90 ? 'bg-success' : 'bg-ink-900'"
                   :style="{ width: `${kepatuhanBaris(row.original)}%` }"
                 />
               </span>

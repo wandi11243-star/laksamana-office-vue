@@ -106,7 +106,7 @@ async function hapusGelombang(idx: number) {
     }
   }
 }
-const badgeTf = (s: string) => (s === 'verified' ? 'success' : s === 'rejected' ? 'error' : 'warning') as const
+const badgeTf = (s: string): 'success' | 'error' | 'warning' => (s === 'verified' ? 'success' : s === 'rejected' ? 'error' : 'warning')
 const teksTf = (s: string) => (s === 'verified' ? 'Terverifikasi' : s === 'rejected' ? 'Ditolak' : 'Belum diverifikasi')
 
 // --- proof viewer (a stored file as a data URI: inline as-is, `@f:` from the file endpoint)

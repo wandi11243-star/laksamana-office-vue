@@ -890,7 +890,7 @@ const totalKakiHadir = computed(() => kakiHadir.value.reduce((a, k) => ({ tampil
           <UFormField label="Hari">
             <div class="flex flex-wrap gap-1.5">
               <button
-                v-for="(d, i) in DOW_CEK"
+                v-for="(d, i) in DOW"
                 :key="d"
                 type="button"
                 class="rounded-full border px-2.5 py-1 text-xs font-semibold"
@@ -986,7 +986,7 @@ const totalKakiHadir = computed(() => kakiHadir.value.reduce((a, k) => ({ tampil
           <UFormField label="Tiap hari dalam minggu">
             <div class="flex flex-wrap gap-1.5">
               <button
-                v-for="(d, i) in DOW_CEK"
+                v-for="(d, i) in DOW"
                 :key="d"
                 type="button"
                 class="rounded-full border px-2.5 py-1 text-xs font-semibold"

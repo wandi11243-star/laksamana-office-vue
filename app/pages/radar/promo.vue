@@ -155,7 +155,7 @@ useSegarSenyap(refresh)
           <p class="flex items-start gap-1.5 font-semibold leading-snug text-highlighted">
             <UIcon
               :name="promoTipe(p.tipe).icon"
-              class="mt-0.5 size-4 shrink-0 text-primary-700"
+              class="mt-0.5 size-4 shrink-0 text-ink-900"
             />{{ p.nama || '—' }}
           </p>
           <AppStatus

@@ -83,15 +83,15 @@ function paxSel(iso: string) {
 }
 
 const CHIP: { k: keyof typeof fCal.value, label: string, warna: string }[] = [
-  { k: 'mkt', label: 'Marketing', warna: 'bg-primary-500' },
-  { k: 'evt', label: 'Event', warna: 'bg-vip' },
+  { k: 'mkt', label: 'Marketing', warna: 'bg-brand-yellow' },
+  { k: 'evt', label: 'Event', warna: 'bg-lilac-light' },
   { k: 'rsv', label: 'Reservasi', warna: 'bg-info' },
   { k: 'vip', label: 'Reservasi VIP', warna: 'bg-success' },
 ]
 const KELAS_EV: Record<SumberAgenda, string> = {
-  mkt: 'bg-primary-100 text-primary-800',
-  evt: 'bg-vip/12 text-vip',
-  vip: 'bg-success/12 text-success',
+  mkt: 'bg-yellow-light text-yellow-dark',
+  evt: 'bg-lilac-light text-ink-900',
+  vip: 'bg-teal-light text-moss-dark',
 }
 const semuaMati = computed(() => !fCal.value.mkt && !fCal.value.evt && !fCal.value.rsv && !fCal.value.vip)
 
@@ -222,11 +222,11 @@ useSegarSenyap(refresh, () => buka.value)
           v-for="c in sel"
           :key="c.iso"
           class="min-h-28 border-b border-r border-default p-1.5 [&:nth-child(7n)]:border-r-0"
-          :class="[c.luar ? 'bg-muted/40 text-muted' : '', c.iso === hari ? 'ring-2 ring-inset ring-primary-400' : '']"
+          :class="[c.luar ? 'bg-muted/40 text-muted' : '', c.iso === hari ? 'ring-2 ring-inset ring-yellow-deep' : '']"
         >
           <div
             class="mb-1 text-xs font-bold num"
-            :class="c.iso === hari ? 'text-primary-700' : ''"
+            :class="c.iso === hari ? 'text-ink-900' : ''"
           >
             {{ c.n }}
           </div>

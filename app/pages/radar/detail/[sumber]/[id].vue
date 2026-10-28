@@ -206,7 +206,7 @@ const cetak = () => window.print()
                   v-else
                   :href="urlOf(l)"
                   :download="l.name"
-                  class="inline-flex items-center gap-1 text-sm text-primary-700 hover:underline"
+                  class="inline-flex items-center gap-1 text-sm text-ink-900 hover:underline"
                 ><UIcon
                   name="i-lucide-paperclip"
                   class="size-4"

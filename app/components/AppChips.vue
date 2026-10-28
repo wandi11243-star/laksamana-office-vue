@@ -1,6 +1,6 @@
 <!--
   Quick-choice pills (Hari ini / Besok / Lusa / 7 hari / Bulan ini). The chosen
-  one is gold-soft with a gold edge, like the old .pill.active.
+  one is a canary tint with a deep-yellow edge, like the old .pill.active.
 -->
 <script setup lang="ts" generic="T extends string | number">
 defineProps<{
@@ -20,7 +20,7 @@ const model = defineModel<T | null>()
       type="button"
       class="rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-primary"
       :class="model === o.value
-        ? 'border-primary-400 bg-primary-100 text-primary-800 dark:bg-primary-950 dark:text-primary-200'
+        ? 'border-yellow-deep bg-yellow-light text-yellow-dark'
         : 'border-default bg-muted text-muted hover:border-accented hover:text-highlighted'"
       :aria-pressed="model === o.value"
       @click="model = o.value"

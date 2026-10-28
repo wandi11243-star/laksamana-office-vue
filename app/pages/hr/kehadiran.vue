@@ -1,12 +1,10 @@
 <!--
-  HR › Kehadiran (deploy/hr/index.html renderKehadiran :1638-1731).
+  HR › Kehadiran — reimagine (B): peringatan jadi "Perlu tindakan".
 
-  The uploaded Talenta report is the raw row data; every number on the page is
-  computed from it on each read, so changing the rules in Pengaturan applies
-  retroactively (F.2). Crew with no check-in at all are put below and get NO
-  score — that pattern means the app was not used, not a month of absence
-  (F.4). Matching is by Talenta ID only; names in the file that are not mapped
-  are reported, and their rows stay stored (F.3).
+  Dulu peringatan (tanpa check-in, nama belum terhubung) terselip di antara
+  catatan berkas dan tabel. Versi ini mengangkat keduanya jadi bagian
+  "Perlu tindakan" tepat di bawah info berkas — yang harus dikerjakan
+  dibaca dulu, daftar skor sesudahnya. Isi dan rumus tidak berubah.
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
@@ -161,6 +159,11 @@ const angka = (v: number | null | undefined, digit = 1) => (v == null ? '—' : 
           {{ R.lateCapMin ?? 45 }} menit, check-in tanpa check-out dihitung {{ R.noCheckoutCredit ?? 0.5 }} hari.
           Ubah di Pengaturan.
         </p>
+        <AppSectionTitle
+          v-if="bulan && (noData.length || (bulan.unmatched ?? []).length)"
+          title="Perlu tindakan"
+          icon="i-lucide-siren"
+        />
         <p
           v-if="noData.length"
           class="mb-3 rounded-field bg-warning/12 px-3 py-2 text-sm"
@@ -180,6 +183,10 @@ const angka = (v: number | null | undefined, digit = 1) => (v == null ? '—' : 
           mereka sudah tersimpan, jadi tidak perlu unggah ulang.
         </p>
 
+        <AppSectionTitle
+          title="Daftar skor"
+          icon="i-lucide-table"
+        />
         <UTable
           class="hidden lg:block"
           :data="[...rows, ...noData]"

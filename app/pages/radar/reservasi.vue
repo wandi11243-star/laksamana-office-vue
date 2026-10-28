@@ -246,7 +246,7 @@ useSegarSenyap(refresh, () => buka.value)
           v-for="r in iris(list, hal)"
           :key="r.id"
           type="button"
-          class="min-h-11 rounded-panel border border-default bg-default p-3.5 text-left shadow-panel transition-colors hover:border-primary-300"
+          class="min-h-11 rounded-panel border border-default bg-default p-3.5 text-left shadow-panel transition-colors hover:border-yellow-deep"
           @click="bukaRes(r)"
         >
           <span class="flex items-baseline gap-2">
@@ -321,7 +321,7 @@ useSegarSenyap(refresh, () => buka.value)
       <div
         v-for="r in khusus"
         :key="r.id"
-        class="mb-2 rounded-r-field border-l-4 border-primary-400 bg-primary-50 px-3 py-2 text-sm"
+        class="mb-2 rounded-r-field border-l-4 border-yellow-deep bg-yellow-light px-3 py-2 text-sm"
       >
         <b class="text-highlighted">{{ r.name || '—' }}</b>
         <span class="text-muted num"> ({{ r.time || '—' }} · {{ Number(r.pax) || 0 }} pax{{ r.table ? ` · ${r.table}` : '' }})</span>

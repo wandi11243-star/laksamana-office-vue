@@ -34,7 +34,7 @@ const namaProject = (id?: string | null) => props.projects.find(p => p.id === id
           <span class="block font-semibold text-highlighted">{{ p.item }}</span>
           <span
             v-if="namaProject(p.project)"
-            class="mt-0.5 block text-xs text-vip"
+            class="mt-0.5 block text-xs text-ink-900"
           >{{ namaProject(p.project) }}</span>
           <span class="mt-1 block text-xs text-muted">{{ poRequester(p, people) }} · {{ p.vendor || '—' }}</span>
         </button>
@@ -101,7 +101,7 @@ const namaProject = (id?: string | null) => props.projects.find(p => p.id === id
 
   <div class="hidden overflow-x-auto lg:block">
     <table class="w-full text-sm">
-      <thead class="bg-table-head text-table-head-text">
+      <thead class="bg-muted text-muted">
         <tr>
           <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
             Item
@@ -147,7 +147,7 @@ const namaProject = (id?: string | null) => props.projects.find(p => p.id === id
             <span class="font-semibold text-highlighted">{{ p.item }}</span>
             <div
               v-if="namaProject(p.project)"
-              class="text-xs text-vip"
+              class="text-xs text-ink-900"
             >
               {{ namaProject(p.project) }}
             </div>

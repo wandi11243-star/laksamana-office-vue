@@ -4,6 +4,7 @@
 // modules the user holds. Each inner array is one group, led by a `label` item
 // when the group has a heading. `pilih` runs when an item is chosen.
 import type { NavigationMenuItem } from '@nuxt/ui'
+import { isAdminOf } from '~/composables/useMe'
 
 export function useMenuNav(pilih: () => void = () => {}) {
   const me = useMe()
@@ -39,6 +40,12 @@ export function useMenuNav(pilih: () => void = () => {}) {
       [
         { label: 'Beranda', icon: 'i-lucide-house', to: '/', exact: true, onSelect: pilih },
         { label: 'Semua modul', icon: 'i-lucide-layout-grid', to: '/modul', onSelect: pilih },
+        // Kelola Akses has no module key (superadmin-only page, app/pages/akses.vue),
+        // so it cannot come from useModulNav — it is listed here instead. The same
+        // menu feeds the sidebar and AppNavBawah, so both gain the entry.
+        ...(isAdminOf(me.value, '*')
+          ? [{ label: 'Kelola Akses', icon: 'i-lucide-key-round', to: '/akses', onSelect: pilih }]
+          : []),
       ],
       ...grouped.value.map(g => [
         { label: g.group, type: 'label' as const },

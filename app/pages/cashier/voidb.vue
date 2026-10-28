@@ -249,7 +249,7 @@ const diubahTeks = (r: VoidBaris) => (r.diubahOleh && num(r.diubah) > num(r.dibu
 
 <template>
   <AppPage
-    title="Catatan void menu"
+    title="Void Menu"
     description="Tiap menu yang di-void wajib dicatat di sini berikut kronologinya."
   >
     <AppPanel

@@ -16,6 +16,7 @@ import {
   DIVISI, DIV_NONSHIFT, HR_BRANCH, HR_LEVEL, HR_ORG, HR_STATUS, divisiDariTim, namaDivisiJadwal,
 } from '~/utils/jadwal'
 import { hapusKru, pesanGagalRoster, saveDataDiri, setAktifKru, useJadwalDasar } from '~/composables/useJadwal'
+import { JADWAL_BACA_SAJA } from '~/utils/hris'
 
 definePageMeta({ access: ['jadwal'] })
 
@@ -189,7 +190,7 @@ async function jalanHapus() {
     description="Tambah kru baru, ubah data diri, nonaktifkan yang keluar."
   >
     <template
-      v-if="peran.admin"
+      v-if="peran.admin && !JADWAL_BACA_SAJA"
       #actions
     >
       <UButton
@@ -222,218 +223,223 @@ async function jalanHapus() {
       </div>
     </AppPanel>
 
-    <AppPanel
+    <fieldset
       v-else
-      title="Data pegawai"
-      icon="i-lucide-users"
-      :count="daftar.length"
-      flush
+      :disabled="JADWAL_BACA_SAJA"
+      class="m-0 min-w-0 border-0 p-0"
     >
-      <div class="space-y-3 p-4 lg:p-5">
-        <p class="rounded-field bg-info/10 px-3 py-2 text-sm">
-          Yang diurus di sini <b>data diri</b> kru: nama, Tim, nomor HP, Employee ID Talenta, jabatan, dan aktif/nonaktif.
-          <b>Hak akses modul tidak bisa diubah dari sini</b> — itu tetap di <b>Kelola Akses</b> milik superadmin.
-          Kolom <b>Tim</b> yang menentukan kru masuk lembar divisi mana.
-        </p>
-        <div class="flex flex-wrap items-center gap-2">
-          <AppSeg
-            v-model="tapis"
-            :options="opsiTapis"
-            size="sm"
-          />
-          <USelect
-            v-model="divTapis"
-            :items="opsiDiv"
-            class="w-44"
-          />
-          <UInput
-            v-model="q"
-            icon="i-lucide-search"
-            placeholder="Cari nama, Tim, no HP, Employee ID, jabatan…"
-            class="min-w-56 flex-1"
-          />
-          <UButton
-            v-if="ketTapis"
-            label="Bersihkan saringan"
-            icon="i-lucide-x"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            @click="bersih"
-          />
-        </div>
-        <p
-          v-if="ketTapis"
-          class="rounded-field px-3 py-2 text-sm"
-          :class="daftar.length ? 'bg-muted' : 'bg-warning/12'"
-        >
-          <template v-if="daftar.length">
-            Menampilkan <b>{{ daftar.length }}</b> dari {{ kru.length }} akun
-          </template>
-          <b v-else>Tidak ada yang cocok</b> — {{ ketTapis }}.
-        </p>
-      </div>
-
-      <UTable
-        class="hidden lg:block"
-        :data="daftar"
-        :columns="kolom"
-        :loading="pending"
-        empty="Tidak ada yang cocok dengan saringan ini."
-        :meta="{ class: { tr: (row: { original: KruJadwal }) => (row.original.active === false ? 'opacity-60' : '') } }"
+      <AppPanel
+        title="Data pegawai"
+        icon="i-lucide-users"
+        :count="daftar.length"
+        flush
       >
-        <template #no-cell="{ row }">
-          <span class="text-muted num">{{ row.index + 1 }}</span>
-        </template>
-        <template #nama-cell="{ row }">
-          <p class="font-semibold text-highlighted">
-            {{ row.original.name }}
+        <div class="space-y-3 p-4 lg:p-5">
+          <p class="rounded-field bg-info/10 px-3 py-2 text-sm">
+            Yang diurus di sini <b>data diri</b> kru: nama, Tim, nomor HP, Employee ID Talenta, jabatan, dan aktif/nonaktif.
+            <b>Hak akses modul tidak bisa diubah dari sini</b> — itu tetap di <b>Kelola Akses</b> milik superadmin.
+            Kolom <b>Tim</b> yang menentukan kru masuk lembar divisi mana.
           </p>
-          <p
-            v-if="row.original.jobPosition"
-            class="text-[13px] text-muted"
-          >
-            {{ row.original.jobPosition }}
-          </p>
-        </template>
-        <template #keterangan-cell="{ row }">
-          {{ row.original.keterangan || '—' }}
-        </template>
-        <template #divisi-cell="{ row }">
-          <AppStatus
-            size="sm"
-            :class="row.original.divisi === DIV_NONSHIFT && 'opacity-60'"
-          >
-            {{ namaDivisiJadwal(row.original.divisi) }}
-          </AppStatus>
-          <p
-            v-if="manual(row.original)"
-            class="text-[12px] text-muted"
-          >
-            penempatan manual
-          </p>
-        </template>
-        <template #noHp-cell="{ row }">
-          <span class="num">{{ row.original.noHp || '—' }}</span>
-        </template>
-        <template #talentaId-cell="{ row }">
-          <span class="num">{{ row.original.talentaId || '—' }}</span>
-        </template>
-        <template #status-cell="{ row }">
-          <AppStatus
-            size="sm"
-            :color="row.original.active === false ? 'error' : 'success'"
-            :icon="row.original.active === false ? 'i-lucide-user-x' : 'i-lucide-user-check'"
-          >
-            {{ row.original.active === false ? 'Nonaktif' : 'Aktif' }}
-          </AppStatus>
-        </template>
-        <template #aksi-cell="{ row }">
-          <div class="flex flex-wrap gap-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <AppSeg
+              v-model="tapis"
+              :options="opsiTapis"
+              size="sm"
+            />
+            <USelect
+              v-model="divTapis"
+              :items="opsiDiv"
+              class="w-44"
+            />
+            <UInput
+              v-model="q"
+              icon="i-lucide-search"
+              placeholder="Cari nama, Tim, no HP, Employee ID, jabatan…"
+              class="min-w-56 flex-1"
+            />
             <UButton
-              label="Ubah"
-              icon="i-lucide-pencil"
+              v-if="ketTapis"
+              label="Bersihkan saringan"
+              icon="i-lucide-x"
               color="neutral"
-              variant="outline"
-              size="xs"
-              @click="bukaForm(row.original)"
-            />
-            <UButton
-              v-if="row.original.active !== false"
-              label="Nonaktifkan"
-              color="error"
               variant="ghost"
-              size="xs"
-              @click="konfirmAktif(row.original, false)"
+              size="sm"
+              @click="bersih"
             />
-            <template v-else>
-              <UButton
-                label="Aktifkan"
-                color="success"
-                variant="ghost"
-                size="xs"
-                @click="konfirmAktif(row.original, true)"
-              />
-              <UButton
-                label="Hapus"
-                color="error"
-                variant="ghost"
-                size="xs"
-                title="Hapus permanen — nomor HP & Employee ID-nya bisa dipakai lagi"
-                @click="konfirmHapus(row.original)"
-              />
-            </template>
           </div>
-        </template>
-      </UTable>
+          <p
+            v-if="ketTapis"
+            class="rounded-field px-3 py-2 text-sm"
+            :class="daftar.length ? 'bg-muted' : 'bg-warning/12'"
+          >
+            <template v-if="daftar.length">
+              Menampilkan <b>{{ daftar.length }}</b> dari {{ kru.length }} akun
+            </template>
+            <b v-else>Tidak ada yang cocok</b> — {{ ketTapis }}.
+          </p>
+        </div>
 
-      <div class="divide-y divide-default lg:hidden">
-        <div
-          v-for="u in daftar"
-          :key="u.id"
-          class="space-y-2 px-4 py-3"
-          :class="u.active === false && 'opacity-70'"
+        <UTable
+          class="hidden lg:block"
+          :data="daftar"
+          :columns="kolom"
+          :loading="pending"
+          empty="Tidak ada yang cocok dengan saringan ini."
+          :meta="{ class: { tr: (row: { original: KruJadwal }) => (row.original.active === false ? 'opacity-60' : '') } }"
         >
-          <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-              <p class="truncate font-semibold text-highlighted">
-                {{ u.name }}
-              </p>
-              <p class="text-sm text-muted">
-                {{ u.keterangan || '—' }} · {{ namaDivisiJadwal(u.divisi) }}<template v-if="u.noHp">
-                  · <span class="num">{{ u.noHp }}</span>
-                </template>
-              </p>
-            </div>
+          <template #no-cell="{ row }">
+            <span class="text-muted num">{{ row.index + 1 }}</span>
+          </template>
+          <template #nama-cell="{ row }">
+            <p class="font-semibold text-highlighted">
+              {{ row.original.name }}
+            </p>
+            <p
+              v-if="row.original.jobPosition"
+              class="text-[13px] text-muted"
+            >
+              {{ row.original.jobPosition }}
+            </p>
+          </template>
+          <template #keterangan-cell="{ row }">
+            {{ row.original.keterangan || '—' }}
+          </template>
+          <template #divisi-cell="{ row }">
             <AppStatus
               size="sm"
-              :color="u.active === false ? 'error' : 'success'"
+              :class="row.original.divisi === DIV_NONSHIFT && 'opacity-60'"
             >
-              {{ u.active === false ? 'Nonaktif' : 'Aktif' }}
+              {{ namaDivisiJadwal(row.original.divisi) }}
             </AppStatus>
-          </div>
-          <div class="flex flex-wrap gap-1.5">
-            <UButton
-              label="Ubah"
-              icon="i-lucide-pencil"
-              color="neutral"
-              variant="outline"
+            <p
+              v-if="manual(row.original)"
+              class="text-[12px] text-muted"
+            >
+              penempatan manual
+            </p>
+          </template>
+          <template #noHp-cell="{ row }">
+            <span class="num">{{ row.original.noHp || '—' }}</span>
+          </template>
+          <template #talentaId-cell="{ row }">
+            <span class="num">{{ row.original.talentaId || '—' }}</span>
+          </template>
+          <template #status-cell="{ row }">
+            <AppStatus
               size="sm"
-              @click="bukaForm(u)"
-            />
-            <UButton
-              v-if="u.active !== false"
-              label="Nonaktifkan"
-              color="error"
-              variant="ghost"
-              size="sm"
-              @click="konfirmAktif(u, false)"
-            />
-            <template v-else>
+              :color="row.original.active === false ? 'error' : 'success'"
+              :icon="row.original.active === false ? 'i-lucide-user-x' : 'i-lucide-user-check'"
+            >
+              {{ row.original.active === false ? 'Nonaktif' : 'Aktif' }}
+            </AppStatus>
+          </template>
+          <template #aksi-cell="{ row }">
+            <div class="flex flex-wrap gap-1">
               <UButton
-                label="Aktifkan"
-                color="success"
-                variant="ghost"
-                size="sm"
-                @click="konfirmAktif(u, true)"
+                label="Ubah"
+                icon="i-lucide-pencil"
+                color="neutral"
+                variant="outline"
+                size="xs"
+                @click="bukaForm(row.original)"
               />
               <UButton
-                label="Hapus"
+                v-if="row.original.active !== false"
+                label="Nonaktifkan"
+                color="error"
+                variant="ghost"
+                size="xs"
+                @click="konfirmAktif(row.original, false)"
+              />
+              <template v-else>
+                <UButton
+                  label="Aktifkan"
+                  color="success"
+                  variant="ghost"
+                  size="xs"
+                  @click="konfirmAktif(row.original, true)"
+                />
+                <UButton
+                  label="Hapus"
+                  color="error"
+                  variant="ghost"
+                  size="xs"
+                  title="Hapus permanen — nomor HP & Employee ID-nya bisa dipakai lagi"
+                  @click="konfirmHapus(row.original)"
+                />
+              </template>
+            </div>
+          </template>
+        </UTable>
+
+        <div class="divide-y divide-default lg:hidden">
+          <div
+            v-for="u in daftar"
+            :key="u.id"
+            class="space-y-2 px-4 py-3"
+            :class="u.active === false && 'opacity-70'"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <p class="truncate font-semibold text-highlighted">
+                  {{ u.name }}
+                </p>
+                <p class="text-sm text-muted">
+                  {{ u.keterangan || '—' }} · {{ namaDivisiJadwal(u.divisi) }}<template v-if="u.noHp">
+                    · <span class="num">{{ u.noHp }}</span>
+                  </template>
+                </p>
+              </div>
+              <AppStatus
+                size="sm"
+                :color="u.active === false ? 'error' : 'success'"
+              >
+                {{ u.active === false ? 'Nonaktif' : 'Aktif' }}
+              </AppStatus>
+            </div>
+            <div class="flex flex-wrap gap-1.5">
+              <UButton
+                label="Ubah"
+                icon="i-lucide-pencil"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                @click="bukaForm(u)"
+              />
+              <UButton
+                v-if="u.active !== false"
+                label="Nonaktifkan"
                 color="error"
                 variant="ghost"
                 size="sm"
-                @click="konfirmHapus(u)"
+                @click="konfirmAktif(u, false)"
               />
-            </template>
+              <template v-else>
+                <UButton
+                  label="Aktifkan"
+                  color="success"
+                  variant="ghost"
+                  size="sm"
+                  @click="konfirmAktif(u, true)"
+                />
+                <UButton
+                  label="Hapus"
+                  color="error"
+                  variant="ghost"
+                  size="sm"
+                  @click="konfirmHapus(u)"
+                />
+              </template>
+            </div>
           </div>
         </div>
-      </div>
-      <p class="px-4 py-3 text-sm text-muted lg:px-5">
-        {{ daftar.length }} dari {{ kru.length }} akun Office. Kru yang keluar <b>dinonaktifkan</b> dulu — jadwal bulan-bulan
-        lalu tetap menyebut namanya. Yang sudah nonaktif bisa <b>dihapus permanen</b> kalau nomor HP atau Employee ID-nya perlu
-        dipakai lagi; sesudah itu jadwal lamanya kehilangan nama pemiliknya.
-      </p>
-    </AppPanel>
+        <p class="px-4 py-3 text-sm text-muted lg:px-5">
+          {{ daftar.length }} dari {{ kru.length }} akun Office. Kru yang keluar <b>dinonaktifkan</b> dulu — jadwal bulan-bulan
+          lalu tetap menyebut namanya. Yang sudah nonaktif bisa <b>dihapus permanen</b> kalau nomor HP atau Employee ID-nya perlu
+          dipakai lagi; sesudah itu jadwal lamanya kehilangan nama pemiliknya.
+        </p>
+      </AppPanel>
+    </fieldset>
 
     <ResponsiveSheet
       v-model:open="formOpen"
