@@ -17,268 +17,195 @@ export interface BarisOverview { k: string, l: string, t: string, raw: unknown, 
 const props = defineProps<{ baris: BarisOverview[], ev: EventMkt, settings: SettingsMkt }>()
 
 const RICH = ['rundown', 'files', 'menutbl', 'barangtbl', 'itemtbl', 'rincitbl']
-const sederhana = computed(() => props.baris.filter(b => !RICH.includes(b.t) && adaIsiOverviewMkt(b.t, b.raw, b.ringkas)))
-const kaya = computed(() => props.baris.filter(b => RICH.includes(b.t) && adaIsiOverviewMkt(b.t, b.raw, b.ringkas)))
+const tampil = computed(() => props.baris.filter(b => adaIsiOverviewMkt(b.t, b.raw, b.ringkas)))
+const kaya = (b: BarisOverview) => RICH.includes(b.t)
 
 const tagihan = computed(() => rincianPenawaran(props.ev, props.settings))
 const grand = computed(() => eventFinance(props.ev, props.settings).grand)
 </script>
 
 <template>
-  <dl class="grid gap-y-1.5 text-sm">
-    <div
-      v-for="b in sederhana"
+  <dl class="grid text-sm">
+    <template
+      v-for="b in tampil"
       :key="b.k"
-      class="grid gap-1 sm:grid-cols-[14rem_1fr] sm:gap-3"
-    >
-      <dt class="text-muted">
-        {{ b.l }}
-      </dt>
-      <dd class="whitespace-pre-line">
-        {{ b.ringkas }}
-      </dd>
-    </div>
-  </dl>
-
-  <div
-    v-for="b in kaya"
-    :key="b.k"
-    class="mt-3"
-  >
-    <p class="mb-1 text-sm text-muted">
-      {{ b.l }}
-    </p>
-
-    <!-- Rundown Acara -->
-    <table
-      v-if="b.t === 'rundown'"
-      class="w-full border-collapse text-sm"
-    >
-      <thead>
-        <tr class="bg-muted text-left text-xs text-muted">
-          <th class="border border-default px-2 py-1">
-            Mulai
-          </th>
-          <th class="border border-default px-2 py-1">
-            Selesai
-          </th>
-          <th class="border border-default px-2 py-1">
-            Durasi
-          </th>
-          <th class="border border-default px-2 py-1">
-            Kegiatan
-          </th>
-          <th class="border border-default px-2 py-1">
-            PIC / Catatan
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="(r, i) in barisRundownOv(b.raw)"
-          :key="i"
-        >
-          <td class="border border-default px-2 py-1">
-            {{ r.mulai }}
-          </td>
-          <td class="border border-default px-2 py-1">
-            {{ r.selesai }}
-          </td>
-          <td class="border border-default px-2 py-1">
-            {{ r.durasi }}
-          </td>
-          <td class="border border-default px-2 py-1">
-            {{ r.kegiatan }}
-          </td>
-          <td class="border border-default px-2 py-1">
-            {{ r.pic }}
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
-    <!-- Lampiran / layout: images inline, others as links (all via Bearer blob) -->
-    <div
-      v-else-if="b.t === 'files'"
-      class="grid gap-2"
     >
       <div
-        v-for="f in berkasOv(b.raw)"
-        :key="f.key"
+        v-if="!kaya(b)"
+        class="grid grid-cols-1 gap-1 border-b border-default py-2 sm:grid-cols-[38%_1fr] sm:gap-3"
       >
-        <MarketingGambar
-          v-if="berkasGambarOv(f.name)"
-          :file-key="f.key"
-          :alt="f.name"
-          img-class="max-h-96 rounded border border-default"
-        />
-        <UButton
-          v-else
-          color="neutral"
-          variant="link"
-          size="xs"
-          class="px-0 text-primary-700 underline"
-          @click="bukaBerkasMkt(f.key)"
-        >
-          {{ f.name }}
-        </UButton>
+        <dt class="text-muted">
+          {{ b.l }}
+        </dt>
+        <dd class="whitespace-pre-line font-semibold text-highlighted">
+          {{ b.ringkas }}
+        </dd>
       </div>
-    </div>
-
-    <!-- Menu berkelompok (Menu Final) / daftar (Bar) -->
-    <div v-else-if="b.t === 'menutbl'">
       <div
-        v-for="g in grupMenuOv(b.raw)"
-        :key="g.nama"
-        class="mb-2"
+        v-else
+        class="mt-3"
       >
-        <p
-          v-if="g.nama"
-          class="text-sm font-medium"
-        >
-          {{ g.nama }}{{ g.jam ? ` · ${g.jam}` : '' }}{{ g.qty ? ` · ${g.qty}` : '' }}
+        <p class="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+          {{ b.l }}
         </p>
-        <table class="mt-1 w-full border-collapse text-sm">
+
+        <!-- Rundown Acara -->
+        <table
+          v-if="b.t === 'rundown'"
+          class="w-full table-fixed border-collapse text-sm sm:table-auto print:table-auto"
+        >
           <thead>
             <tr class="bg-muted text-left text-xs text-muted">
-              <th class="border border-default px-2 py-1">
-                Jenis
-              </th>
-              <th class="border border-default px-2 py-1">
-                Menu
-              </th>
-              <th class="border border-default px-2 py-1">
-                Jumlah
-              </th>
-              <th class="border border-default px-2 py-1">
-                Jam
-              </th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Mulai</th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Selesai</th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Durasi</th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Kegiatan</th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">PIC / Catatan</th>
             </tr>
           </thead>
           <tbody>
             <tr
-              v-for="(r, i) in g.rows"
+              v-for="(r, i) in barisRundownOv(b.raw)"
               :key="i"
+              class="border-b border-default last:border-0"
             >
-              <td class="border border-default px-2 py-1">
-                {{ r.kat }}
-              </td>
-              <td class="border border-default px-2 py-1">
-                {{ r.menu }}
-              </td>
-              <td class="border border-default px-2 py-1">
-                {{ r.qty }}
-              </td>
-              <td class="border border-default px-2 py-1">
-                {{ r.jam || g.jam }}
-              </td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.mulai }}</td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.selesai }}</td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.durasi }}</td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.kegiatan }}</td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.pic }}</td>
             </tr>
           </tbody>
         </table>
-      </div>
-    </div>
 
-    <!-- Item / barang rows -->
-    <table
-      v-else-if="b.t === 'barangtbl' || b.t === 'itemtbl'"
-      class="w-full border-collapse text-sm"
-    >
-      <thead>
-        <tr class="bg-muted text-left text-xs text-muted">
-          <th class="border border-default px-2 py-1">
-            Item
-          </th>
-          <th class="border border-default px-2 py-1">
-            Jumlah
-          </th>
-          <th class="border border-default px-2 py-1">
-            Jam
-          </th>
-          <th class="border border-default px-2 py-1">
-            Harga
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="(r, i) in menubarisMkt(b.raw)"
-          :key="i"
+        <!-- Lampiran / layout: images inline, others as links (all via Bearer blob) -->
+        <div
+          v-else-if="b.t === 'files'"
+          class="grid gap-2"
         >
-          <td class="border border-default px-2 py-1">
-            {{ r.menu }}
-          </td>
-          <td class="border border-default px-2 py-1">
-            {{ r.jumlah }}
-          </td>
-          <td class="border border-default px-2 py-1">
-            {{ r.jam }}
-          </td>
-          <td class="border border-default px-2 py-1">
-            {{ r.harga }}
-          </td>
-        </tr>
-      </tbody>
-    </table>
-
-    <!-- Rincian Tagihan -->
-    <table
-      v-else-if="b.t === 'rincitbl'"
-      class="w-full border-collapse text-sm"
-    >
-      <thead>
-        <tr class="bg-muted text-left text-xs text-muted">
-          <th class="border border-default px-2 py-1">
-            No
-          </th>
-          <th class="border border-default px-2 py-1">
-            Deskripsi
-          </th>
-          <th class="border border-default px-2 py-1">
-            Qty
-          </th>
-          <th class="border border-default px-2 py-1">
-            Harga
-          </th>
-          <th class="border border-default px-2 py-1">
-            Total
-          </th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr
-          v-for="(r, i) in tagihan"
-          :key="i"
-        >
-          <td class="border border-default px-2 py-1">
-            {{ i + 1 }}
-          </td>
-          <td class="border border-default px-2 py-1">
-            {{ r.desc }}
-          </td>
-          <td class="border border-default px-2 py-1">
-            {{ r.qty ?? '–' }}
-          </td>
-          <td class="border border-default px-2 py-1">
-            {{ r.gratis || r.tbc ? (r.gratis ? 'FREE' : 'TBC') : rupiah(r.unit ?? 0) }}
-          </td>
-          <td class="border border-default px-2 py-1">
-            {{ r.gratis ? 'FREE' : r.tbc ? 'TBC' : rupiah(r.total) }}
-          </td>
-        </tr>
-      </tbody>
-      <tfoot>
-        <tr>
-          <td
-            colspan="4"
-            class="border border-default px-2 py-1 text-right font-medium"
+          <div
+            v-for="f in berkasOv(b.raw)"
+            :key="f.key"
           >
-            Total Ditagih
-          </td>
-          <td class="border border-default px-2 py-1 font-medium">
-            {{ rupiah(grand) }}
-          </td>
-        </tr>
-      </tfoot>
-    </table>
-  </div>
+            <MarketingGambar
+              v-if="berkasGambarOv(f.name)"
+              :file-key="f.key"
+              :alt="f.name"
+              img-class="max-h-96 rounded border border-default"
+            />
+            <UButton
+              v-else
+              color="neutral"
+              variant="link"
+              size="xs"
+              class="px-0 text-primary-700 underline"
+              @click="bukaBerkasMkt(f.key)"
+            >
+              {{ f.name }}
+            </UButton>
+          </div>
+        </div>
+
+        <!-- Menu berkelompok (Menu Final) / daftar (Bar) -->
+        <div v-else-if="b.t === 'menutbl'">
+          <div
+            v-for="g in grupMenuOv(b.raw)"
+            :key="g.nama"
+            class="mb-3"
+          >
+            <p
+              v-if="g.nama"
+              class="text-sm font-semibold text-highlighted"
+            >
+              {{ g.nama }}{{ g.jam ? ` · ${g.jam}` : '' }}{{ g.qty ? ` · ${g.qty}` : '' }}
+            </p>
+            <table class="mt-1 w-full table-fixed border-collapse text-sm sm:table-auto print:table-auto">
+              <thead>
+                <tr class="bg-muted text-left text-xs text-muted">
+                  <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Jenis</th>
+                  <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Menu</th>
+                  <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Jumlah</th>
+                  <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Jam</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr
+                  v-for="(r, i) in g.rows"
+                  :key="i"
+                  class="border-b border-default last:border-0"
+                >
+                  <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.kat }}</td>
+                  <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.menu }}</td>
+                  <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.qty }}</td>
+                  <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.jam || g.jam }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- Item / barang rows -->
+        <table
+          v-else-if="b.t === 'barangtbl' || b.t === 'itemtbl'"
+          class="w-full table-fixed border-collapse text-sm sm:table-auto print:table-auto"
+        >
+          <thead>
+            <tr class="bg-muted text-left text-xs text-muted">
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Item</th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Jumlah</th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Jam</th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Harga</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(r, i) in menubarisMkt(b.raw)"
+              :key="i"
+              class="border-b border-default last:border-0"
+            >
+              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.menu }}</td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.jumlah }}</td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.jam }}</td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.harga }}</td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Rincian Tagihan -->
+        <table
+          v-else-if="b.t === 'rincitbl'"
+          class="w-full table-fixed border-collapse text-sm sm:table-auto print:table-auto"
+        >
+          <thead>
+            <tr class="bg-muted text-left text-xs text-muted">
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">No</th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Deskripsi</th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Qty</th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Harga</th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(r, i) in tagihan"
+              :key="i"
+              class="border-b border-default last:border-0"
+            >
+              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ i + 1 }}</td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.desc }}</td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.qty ?? '–' }}</td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.gratis || r.tbc ? (r.gratis ? 'FREE' : 'TBC') : rupiah(r.unit ?? 0) }}</td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.gratis ? 'FREE' : r.tbc ? 'TBC' : rupiah(r.total) }}</td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr class="border-t border-default font-semibold">
+              <td colspan="4" class="px-2 py-1.5 text-right print:border print:border-default">Total Ditagih</td>
+              <td class="px-2 py-1.5 print:border print:border-default">{{ rupiah(grand) }}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </template>
+  </dl>
 </template>

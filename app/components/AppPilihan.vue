@@ -1,6 +1,6 @@
 <!--
   Two or three big choice buttons side by side (old .toggle-row: Sudah DP / Belum
-  DP, Ya / Tidak). The chosen one is gold-soft with a gold edge. A radio group
+  DP, Ya / Tidak). The chosen one is a canary tint with a deep-yellow edge. A radio group
   underneath, so keyboard and screen readers get the real semantics.
 -->
 <script setup lang="ts" generic="T extends string | number | boolean">
@@ -21,7 +21,7 @@ const model = defineModel<T>()
       :key="String(o.value)"
       class="flex min-h-11 cursor-pointer items-center justify-center gap-1.5 rounded-field border-[1.5px] px-3 py-2.5 text-sm font-semibold transition-colors has-focus-visible:outline-2 has-focus-visible:outline-primary"
       :class="model === o.value
-        ? 'border-primary-400 bg-primary-100 text-highlighted dark:bg-primary-950'
+        ? 'border-yellow-deep bg-yellow-light text-highlighted'
         : 'border-default bg-default text-muted hover:border-accented'"
     >
       <input

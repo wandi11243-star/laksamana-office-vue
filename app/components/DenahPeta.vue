@@ -57,6 +57,8 @@ const props = withDefaults(defineProps<{
   nunggu?: number
   /** Show the colour legend under the plan. */
   legenda?: boolean
+  /** Fit the complete plan to its available width without an inner scroll area. */
+  fit?: boolean
 }>(), {
   reservasi: () => [],
   mode: 'tampil',
@@ -68,6 +70,7 @@ const props = withDefaults(defineProps<{
   timer: false,
   nunggu: 0,
   legenda: true,
+  fit: false,
 })
 
 export interface PermintaanTumpang {
@@ -295,7 +298,10 @@ function klik(mejaId: string) {
       Saringan dashboard aktif — meja yang tidak tampil masih bisa dipesan. Pilih meja dari daftar, bukan dari denah.
     </p>
 
-    <div class="denah">
+    <div
+      class="denah"
+      :class="{ fit }"
+    >
       <div class="denah-in">
         <div
           v-for="(f, i) in fix"
@@ -375,6 +381,11 @@ function klik(mejaId: string) {
   overscroll-behavior-x: contain;
 }
 
+.denah.fit {
+  max-height: none;
+  overflow: visible;
+}
+
 /*
   A phone cannot show the whole plan at a readable size, so the map becomes its
   own scroll window — both axes, inside the box. The page itself never scrolls
@@ -385,6 +396,11 @@ function klik(mejaId: string) {
     height: 62vh;
     aspect-ratio: auto;
   }
+
+  .denah.fit {
+    height: auto;
+    aspect-ratio: 1600 / 1160;
+  }
 }
 
 .denah-in {
@@ -392,6 +408,10 @@ function klik(mejaId: string) {
   width: 100%;
   min-width: 42rem;
   aspect-ratio: 1600 / 1160;
+}
+
+.denah.fit .denah-in {
+  min-width: 0;
 }
 
 .fix {
@@ -499,6 +519,10 @@ function klik(mejaId: string) {
   white-space: nowrap;
 }
 
+.denah.fit .sn {
+  font-size: clamp(0.65rem, 1.4vw, 0.95rem);
+}
+
 .sp {
   font-size: clamp(0.4rem, 0.85vw, 0.65rem);
   font-weight: 600;
@@ -509,6 +533,10 @@ function klik(mejaId: string) {
   white-space: nowrap;
 }
 
+.denah.fit .sp {
+  font-size: clamp(0.45rem, 0.85vw, 0.65rem);
+}
+
 .sub {
   font-size: clamp(0.35rem, 0.75vw, 0.6rem);
   opacity: 0.7;
@@ -516,6 +544,10 @@ function klik(mejaId: string) {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.denah.fit .sub {
+  font-size: clamp(0.4rem, 0.75vw, 0.6rem);
 }
 
 .titik {

@@ -207,7 +207,7 @@ const kategoriApi = {
             i % 2 === 1 && 'border-s border-default',
             i >= 2 && 'border-t border-default sm:border-t-0',
             i === 2 && 'sm:border-s',
-            status === s.key && s.key !== 'semua' && 'bg-primary-50 dark:bg-primary-950/50',
+            status === s.key && s.key !== 'semua' && 'bg-yellow-light',
           ]"
           @click="status = s.key"
         >
@@ -251,7 +251,7 @@ const kategoriApi = {
           <button
             type="button"
             class="shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors"
-            :class="!kat ? 'border-primary-400 bg-primary-100 text-primary-800 dark:bg-primary-950 dark:text-primary-200' : 'border-default bg-default text-muted hover:text-highlighted'"
+            :class="!kat ? 'border-yellow-deep bg-yellow-light text-yellow-dark' : 'border-default bg-default text-muted hover:text-highlighted'"
             @click="kat = null"
           >
             Semua kategori
@@ -261,7 +261,7 @@ const kategoriApi = {
             :key="c.id"
             type="button"
             class="shrink-0 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors"
-            :class="kat === c.id ? 'border-primary-400 bg-primary-100 text-primary-800 dark:bg-primary-950 dark:text-primary-200' : 'border-default bg-default text-muted hover:text-highlighted'"
+            :class="kat === c.id ? 'border-yellow-deep bg-yellow-light text-yellow-dark' : 'border-default bg-default text-muted hover:text-highlighted'"
             @click="kat = kat === c.id ? null : c.id"
           >
             <span :class="!c.aktif && 'line-through decoration-1'">{{ c.nama }}</span>
@@ -278,7 +278,7 @@ const kategoriApi = {
           v-for="n in 5"
           :key="n"
           :ui="{ base: 'bg-accented/70' }"
-          class="h-16 rounded-field"
+          class="h-16 rounded-md"
         />
       </div>
 
@@ -338,7 +338,7 @@ const kategoriApi = {
           >
             <button
               type="button"
-              class="row-span-2 size-14 overflow-hidden rounded-field bg-muted lg:row-span-1"
+              class="row-span-2 size-14 overflow-hidden rounded-md bg-muted lg:row-span-1"
               :aria-label="`Ubah ${row.nama}`"
               @click="buka(row)"
             >

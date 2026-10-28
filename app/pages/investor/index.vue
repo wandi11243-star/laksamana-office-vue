@@ -54,7 +54,7 @@ const alihTahun = (y: string) => {
 // an empty chart. The pill is disabled with its reason (see template) so a
 // tap that does nothing never reads as broken.
 // Line colours from the token palette (no hex in components).
-const WARNA_TAHUN = ['text-primary-600', 'text-success', 'text-info', 'text-vip', 'text-warning', 'text-error']
+const WARNA_TAHUN = ['text-ink-900', 'text-success', 'text-info', 'text-ink-900', 'text-warning', 'text-error']
 const warnaTahun = (y: string) => WARNA_TAHUN[Math.max(0, tahunSemua.value.indexOf(y)) % WARNA_TAHUN.length]
 
 const W = 600
