@@ -27,6 +27,7 @@ const descJadwal = computed(() => punyaJadwal.value
   : 'Belum diberi akses — minta admin mencentang "Roster · Jadwal Shift" di Kelola Akses Office')
 /** The card unlocks itself the moment the `/dw` page exists (useModulNav does the same). */
 const dwSiap = computed(() => router.getRoutes().some(r => r.path === '/dw'))
+const FITUR = ['Jadwal Bulanan & Input Mingguan', 'Pengajuan & Rekap Pegawai', 'Daily Worker']
 </script>
 
 <template>
@@ -34,48 +35,85 @@ const dwSiap = computed(() => router.getRoutes().some(r => r.path === '/dw'))
     title="Roster kru & daily worker"
     description="Satu lembar untuk semua yang masuk hari itu."
   >
-    <AppList>
-      <AppListRow
-        title="Jadwal Shift"
-        :description="descJadwal"
-        icon="i-lucide-calendar-days"
-        :to="punyaJadwal ? '/jadwal/dashboard' : undefined"
-        :dim="!punyaJadwal"
+    <!-- Old login-promo (left) + login-form (right), :155-207. -->
+    <div class="grid items-start gap-4 lg:grid-cols-2">
+      <AppPanel>
+        <p class="text-sm text-muted">
+          Jadwal shift kru tetap disusun per minggu oleh head divisi. Daily worker mengajukan tanggalnya sendiri, HR menyetujui,
+          lalu namanya muncul di kalender yang sama — di blok terpisah di bawah kru tetap.
+        </p>
+        <div class="mt-4 flex flex-wrap gap-2">
+          <span
+            v-for="f in FITUR"
+            :key="f"
+            class="inline-flex items-center gap-1.5 rounded-full border border-default px-3 py-1 text-xs font-semibold text-muted"
+          >
+            <span class="size-1.5 rounded-full bg-primary-500" />{{ f }}
+          </span>
+        </div>
+      </AppPanel>
+
+      <AppPanel
+        title="Pilih panel"
+        description="Anda sudah masuk lewat Office. Pilih panel yang ingin dibuka."
       >
-        <template
-          v-if="!punyaJadwal"
-          #trailing
+        <div
+          v-if="me?.name"
+          class="mb-4 flex items-center gap-2"
+        >
+          <UAvatar
+            :alt="me.name"
+            size="sm"
+          />
+          <b class="text-highlighted">{{ me.name }}</b>
+        </div>
+        <p class="mb-2 text-xs font-bold uppercase tracking-wide text-muted">
+          Panel tersedia
+        </p>
+        <AppList>
+          <AppListRow
+            title="Jadwal Shift"
+            :description="descJadwal"
+            icon="i-lucide-calendar-days"
+            :to="punyaJadwal ? '/jadwal/dashboard' : undefined"
+            :dim="!punyaJadwal"
+          >
+            <template
+              v-if="!punyaJadwal"
+              #trailing
+            >
+              <UIcon
+                name="i-lucide-lock"
+                class="size-4 text-dimmed"
+              />
+            </template>
+          </AppListRow>
+          <AppListRow
+            v-if="punyaDw"
+            title="Daily Worker"
+            description="Pekerja harian & part time"
+            icon="i-lucide-user-plus"
+            :to="dwSiap ? '/dw' : undefined"
+            :dim="!dwSiap"
+          >
+            <template
+              v-if="!dwSiap"
+              #trailing
+            >
+              <span class="text-dimmed">Segera</span>
+            </template>
+          </AppListRow>
+        </AppList>
+        <ULink
+          to="/"
+          class="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-muted hover:text-highlighted"
         >
           <UIcon
-            name="i-lucide-lock"
-            class="size-4 text-dimmed"
-          />
-        </template>
-      </AppListRow>
-      <AppListRow
-        v-if="punyaDw"
-        title="Daily Worker"
-        description="Pekerja harian & part time"
-        icon="i-lucide-user-plus"
-        :to="dwSiap ? '/dw' : undefined"
-        :dim="!dwSiap"
-      >
-        <template
-          v-if="!dwSiap"
-          #trailing
-        >
-          <span class="text-dimmed">Segera</span>
-        </template>
-      </AppListRow>
-    </AppList>
-    <ULink
-      to="/"
-      class="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-muted hover:text-highlighted"
-    >
-      <UIcon
-        name="i-lucide-chevron-left"
-        class="size-4"
-      />Kembali ke Office
-    </ULink>
+            name="i-lucide-chevron-left"
+            class="size-4"
+          />Kembali ke Office
+        </ULink>
+      </AppPanel>
+    </div>
   </AppPage>
 </template>

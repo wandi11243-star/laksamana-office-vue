@@ -5,7 +5,8 @@
 -->
 <script setup lang="ts" generic="T extends string | number | boolean">
 defineProps<{
-  options: { value: T, label: string, icon?: string, badge?: number }[]
+  /** `badge` = red attention pill; `jumlah` = a quiet count after the label (old `opacity:.6` span). */
+  options: { value: T, label: string, icon?: string, badge?: number, jumlah?: number, title?: string }[]
   size?: 'sm' | 'md'
 }>()
 const model = defineModel<T>()
@@ -22,6 +23,7 @@ const model = defineModel<T>()
       type="button"
       role="tab"
       :aria-selected="model === o.value"
+      :title="o.title"
       class="inline-flex items-center gap-1.5 rounded-full font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-primary"
       :class="[
         size === 'sm' ? 'px-3 py-1 text-[13px]' : 'px-3.5 py-1.5 text-sm',
@@ -37,6 +39,10 @@ const model = defineModel<T>()
         class="size-4"
       />
       {{ o.label }}
+      <span
+        v-if="o.jumlah"
+        class="font-semibold opacity-60 num"
+      >{{ o.jumlah }}</span>
       <span
         v-if="o.badge"
         class="rounded-full bg-error px-1.5 text-[11px] font-bold text-white num"

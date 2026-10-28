@@ -54,9 +54,11 @@ const bisaUbahDiv = computed(() => !semuaDiv.value && bolehUbah(peran.value, div
 const belum = computed(() => kruTampil.value.reduce((n, u) => n + hari.value.filter(d => !peta.value.get(kunciSel(u.id, d))).length, 0))
 const minggIni = computed(() => senin.value === seninDari(hariIni()))
 
+// segDivisi (:2385): each tab counts the crew its sheet will draw.
+const nDiv = (k: string) => kruDivisi(peran.value, kru.value, k).length
 const opsiDiv = computed(() => [
-  { value: 'ALL', label: 'Semua' },
-  ...DIVISI.filter(d => lihat.value.includes(d.k)).map(d => ({ value: d.k as string, label: d.n, icon: d.icon })),
+  { value: 'ALL', label: 'Semua divisi', icon: 'i-lucide-layers', title: 'Susun seluruh divisi yang Anda pegang dalam satu layar', jumlah: lihat.value.reduce((a, k) => a + nDiv(k), 0) },
+  ...DIVISI.filter(d => lihat.value.includes(d.k)).map(d => ({ value: d.k as string, label: d.n, icon: d.icon, jumlah: nDiv(d.k) })),
 ])
 const legenda = computed(() => daftarShift(set.value).map(k => ({ k, def: shiftDef(set.value, k) })))
 const jabatan = (u: KruJadwal) => set.value.jabatan[u.id] || String(u.keterangan || '').trim() || '—'
@@ -343,6 +345,9 @@ const cetak = () => window.print()
         :dw="dwRows ?? []"
         info-label="Tgl"
         info-sub="Hari"
+        hari-panjang
+        status-isi
+        :sub-nama="jabatan"
         @pilih="buka"
       >
         <template #info="{ u, div: dv }">
@@ -358,7 +363,7 @@ const cetak = () => window.print()
           <span
             v-else
             class="text-[11px] text-muted"
-          >{{ jabatan(u) }}</span>
+          >lihat saja</span>
         </template>
       </JadwalLembar>
       <p class="px-4 py-3 text-sm text-muted lg:px-5">
