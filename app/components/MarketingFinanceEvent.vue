@@ -223,94 +223,185 @@ const barisTagih = computed(() => {
 </script>
 
 <template>
-  <div class="grid gap-5 lg:grid-cols-[1fr_22rem]">
-    <div class="grid min-w-0 gap-5">
-      <AppPanel title="Rincian Tagihan">
-        <div class="grid gap-2">
-          <div
-            v-for="(r, i) in rinci"
-            :key="i"
-            class="grid gap-2 rounded-field border border-default p-2.5"
-          >
-            <UFormField label="Deskripsi">
-              <UInput
-                :model-value="String(r.desc ?? '')"
-                :disabled="!bisaUbah"
-                @update:model-value="ubahRinci(i, 'desc', String($event))"
-              />
-            </UFormField>
-            <div class="grid grid-cols-[1fr_1fr_1fr_auto] items-end gap-2">
-              <UFormField label="Jenis">
-                <USelect
-                  :model-value="String(r.jenis || 'bayar')"
-                  :items="[{ value: 'bayar', label: 'Bayar' }, { value: 'free', label: 'Free' }, { value: 'tbc', label: 'TBC' }]"
-                  value-key="value"
-                  label-key="label"
+  <div class="grid gap-5">
+    <AppPanel
+      title="Rincian Tagihan"
+      description="Seluruh yang ditagih ada di sini — konsumsi, sewa venue, sound & lighting, sampai lain-lain. Persis kolom lembar tagihan yang dicetak."
+    >
+      <div class="hidden overflow-x-auto lg:block">
+        <table class="w-full min-w-[760px] text-sm">
+          <thead class="bg-muted text-left text-xs text-muted">
+            <tr>
+              <th class="w-10 px-2 py-2">No</th>
+              <th class="px-2 py-2">Deskripsi</th>
+              <th class="w-20 px-2 py-2">Qty</th>
+              <th class="w-36 px-2 py-2">Harga</th>
+              <th class="w-32 px-2 py-2">Jenis</th>
+              <th class="w-32 px-2 py-2 text-right">Total</th>
+              <th v-if="bisaUbah" class="w-10 px-2 py-2" />
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(r, i) in rinci"
+              :key="i"
+              class="border-b border-default last:border-0"
+            >
+              <td class="px-2 py-2 text-muted num">{{ i + 1 }}</td>
+              <td class="px-2 py-2">
+                <UInput
+                  :model-value="String(r.desc ?? '')"
+                  placeholder="mis. Biaya konsumsi event"
                   :disabled="!bisaUbah"
-                  @update:model-value="ubahRinci(i, 'jenis', String($event))"
+                  class="w-full"
+                  @update:model-value="ubahRinci(i, 'desc', String($event))"
                 />
-              </UFormField>
-              <UFormField label="Jumlah">
+              </td>
+              <td class="px-2 py-2">
                 <UInput
                   :model-value="String(r.jumlah ?? '')"
                   inputmode="numeric"
                   :disabled="!bisaUbah || (r.jenis || 'bayar') !== 'bayar'"
+                  class="w-full"
                   @update:model-value="ubahRinci(i, 'jumlah', String($event))"
                 />
-              </UFormField>
-              <UFormField label="Harga">
+              </td>
+              <td class="px-2 py-2">
                 <UInput
                   :model-value="String(r.harga ?? '')"
                   inputmode="numeric"
                   :disabled="!bisaUbah || (r.jenis || 'bayar') !== 'bayar'"
+                  class="w-full"
                   @update:model-value="ubahRinci(i, 'harga', String($event))"
                 />
-              </UFormField>
-              <UButton
-                v-if="bisaUbah"
-                icon="i-lucide-trash-2"
-                color="error"
-                variant="ghost"
-                aria-label="Hapus baris"
-                @click="hapusRinci(i)"
+              </td>
+              <td class="px-2 py-2">
+                <USelect
+                  :model-value="String(r.jenis || 'bayar')"
+                  :items="[{ value: 'bayar', label: 'Ditagih' }, { value: 'free', label: 'FREE' }, { value: 'tbc', label: 'Belum pasti' }]"
+                  value-key="value"
+                  label-key="label"
+                  :disabled="!bisaUbah"
+                  class="w-full"
+                  @update:model-value="ubahRinci(i, 'jenis', String($event))"
+                />
+              </td>
+              <td class="px-2 py-2 text-right num">
+                {{ (r.jenis || 'bayar') === 'bayar' ? rupiah(totalBaris(r)) : r.jenis === 'free' ? 'FREE' : 'TBC' }}
+              </td>
+              <td v-if="bisaUbah" class="px-1 py-2 text-right">
+                <UButton
+                  icon="i-lucide-trash-2"
+                  color="error"
+                  variant="ghost"
+                  aria-label="Hapus baris"
+                  @click="hapusRinci(i)"
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="grid gap-2 lg:hidden">
+        <div
+          v-for="(r, i) in rinci"
+          :key="i"
+          class="grid gap-2 rounded-xl border border-default p-3"
+        >
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-xs font-semibold text-muted">Baris {{ i + 1 }}</span>
+            <UButton
+              v-if="bisaUbah"
+              icon="i-lucide-trash-2"
+              color="error"
+              variant="ghost"
+              aria-label="Hapus baris"
+              @click="hapusRinci(i)"
+            />
+          </div>
+          <UFormField label="Deskripsi">
+            <UInput
+              :model-value="String(r.desc ?? '')"
+              placeholder="mis. Biaya konsumsi event"
+              :disabled="!bisaUbah"
+              class="w-full"
+              @update:model-value="ubahRinci(i, 'desc', String($event))"
+            />
+          </UFormField>
+          <div class="grid grid-cols-2 gap-2">
+            <UFormField label="Qty">
+              <UInput
+                :model-value="String(r.jumlah ?? '')"
+                inputmode="numeric"
+                :disabled="!bisaUbah || (r.jenis || 'bayar') !== 'bayar'"
+                class="w-full"
+                @update:model-value="ubahRinci(i, 'jumlah', String($event))"
               />
-            </div>
+            </UFormField>
+            <UFormField label="Harga">
+              <UInput
+                :model-value="String(r.harga ?? '')"
+                inputmode="numeric"
+                :disabled="!bisaUbah || (r.jenis || 'bayar') !== 'bayar'"
+                class="w-full"
+                @update:model-value="ubahRinci(i, 'harga', String($event))"
+              />
+            </UFormField>
+          </div>
+          <div class="grid grid-cols-2 items-end gap-2">
+            <UFormField label="Jenis">
+              <USelect
+                :model-value="String(r.jenis || 'bayar')"
+                :items="[{ value: 'bayar', label: 'Ditagih' }, { value: 'free', label: 'FREE' }, { value: 'tbc', label: 'Belum pasti' }]"
+                value-key="value"
+                label-key="label"
+                :disabled="!bisaUbah"
+                class="w-full"
+                @update:model-value="ubahRinci(i, 'jenis', String($event))"
+              />
+            </UFormField>
             <p class="text-right text-sm">
               <span class="text-muted">Total </span>
               <b class="num">{{ (r.jenis || 'bayar') === 'bayar' ? rupiah(totalBaris(r)) : r.jenis === 'free' ? 'FREE' : 'TBC' }}</b>
             </p>
           </div>
-          <div
-            v-if="bisaUbah"
-            class="flex flex-wrap gap-2"
-          >
-            <UButton
-              icon="i-lucide-plus"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              label="Tambah baris"
-              @click="tambahRinci"
-            />
-            <UButton
-              icon="i-lucide-list-plus"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              label="Sisipkan FREE & TBC"
-              @click="sisipkanTemplate"
-            />
-          </div>
         </div>
-      </AppPanel>
+      </div>
 
-      <AppPanel title="Ketentuan">
-        <div class="grid gap-3 lg:grid-cols-2">
+      <div v-if="bisaUbah" class="mt-3 flex flex-wrap gap-2">
+        <UButton
+          icon="i-lucide-plus"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          label="Tambah baris"
+          @click="tambahRinci"
+        />
+        <UButton
+          icon="i-lucide-list-plus"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          label="Sisipkan FREE & TBC"
+          @click="sisipkanTemplate"
+        />
+      </div>
+    </AppPanel>
+
+    <div class="grid gap-5 lg:grid-cols-2">
+      <div class="min-w-0">
+      <AppPanel
+        title="Ketentuan"
+        class="min-w-0"
+      >
+        <div class="grid gap-4">
           <UFormField label="Discount (Rp)">
             <UInput
               :model-value="String(draft.detail.diskon ?? '')"
               inputmode="numeric"
               :disabled="!bisaUbah"
+              class="w-full"
               @update:model-value="draft.detail.diskon = String($event).replace(/\D/g, '') === '' ? '' : +String($event).replace(/\D/g, '')"
             />
           </UFormField>
@@ -335,6 +426,7 @@ const barisTagih = computed(() => {
               :model-value="String(draft.detail.depositNominal ?? '')"
               inputmode="numeric"
               :disabled="!bisaUbah"
+              class="w-full"
               @update:model-value="draft.detail.depositNominal = String($event).replace(/\D/g, '') === '' ? '' : +String($event).replace(/\D/g, '')"
             />
           </UFormField>
@@ -353,6 +445,7 @@ const barisTagih = computed(() => {
               :model-value="String(draft.detail.dpTgl ?? '')"
               type="date"
               :disabled="!bisaUbah"
+              class="w-full"
               @update:model-value="draft.detail.dpTgl = String($event)"
             />
           </UFormField>
@@ -374,6 +467,7 @@ const barisTagih = computed(() => {
                   type="file"
                   accept="image/*,application/pdf"
                   :disabled="mengunggahDp"
+                  class="w-full"
                   @change="pilihBuktiDp(($event.target as HTMLInputElement).files); ($event.target as HTMLInputElement).value = ''"
                 />
               </div>
@@ -403,6 +497,7 @@ const barisTagih = computed(() => {
               :model-value="String(draft.detail.itemFree ?? '')"
               :disabled="!bisaUbah"
               autoresize
+              class="w-full"
               @update:model-value="draft.detail.itemFree = String($event)"
             />
           </UFormField>
@@ -414,6 +509,7 @@ const barisTagih = computed(() => {
               :model-value="String(draft.detail.itemTbc ?? '')"
               :disabled="!bisaUbah"
               autoresize
+              class="w-full"
               @update:model-value="draft.detail.itemTbc = String($event)"
             />
           </UFormField>
@@ -425,6 +521,7 @@ const barisTagih = computed(() => {
               :model-value="String(draft.detail.npwp ?? '')"
               :disabled="!bisaUbah"
               autoresize
+              class="w-full"
               @update:model-value="draft.detail.npwp = String($event)"
             />
           </UFormField>
@@ -438,8 +535,13 @@ const barisTagih = computed(() => {
           </UFormField>
         </div>
       </AppPanel>
+      </div>
 
-      <AppPanel title="Riwayat Pembayaran">
+      <div class="grid min-w-0 content-start gap-5">
+      <AppPanel
+        title="Riwayat Pembayaran"
+        class="order-2 min-w-0"
+      >
         <div
           v-if="!(draft.payments ?? []).length"
           class="py-4 text-center text-sm text-muted"
@@ -525,10 +627,10 @@ const barisTagih = computed(() => {
           class="mt-3"
         />
       </AppPanel>
-    </div>
-
-    <div class="grid min-w-0 content-start gap-5">
-      <AppPanel title="Hitungan">
+      <AppPanel
+        title="Hitungan"
+        class="order-1 min-w-0"
+      >
         <dl class="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 text-sm">
           <dt class="text-muted">
             Baris ditagih
@@ -604,6 +706,8 @@ const barisTagih = computed(() => {
           @click="pratinjau = true"
         />
       </AppPanel>
+      </div>
+
     </div>
 
     <ResponsiveSheet

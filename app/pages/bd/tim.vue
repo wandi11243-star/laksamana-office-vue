@@ -179,7 +179,7 @@ async function hapus() {
               @click="buka(b.p)"
             >
               <span class="flex items-center gap-2 font-semibold text-highlighted">
-                <span class="flex size-6 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-primary-800">{{ inisial(b.p.name) }}</span>
+                <span class="flex size-6 items-center justify-center rounded-full bg-yellow-light text-[10px] font-bold text-yellow-dark">{{ inisial(b.p.name) }}</span>
                 {{ b.p.name }}
                 <AppStatus
                   v-if="aku?.id === b.p.id"
@@ -228,7 +228,7 @@ async function hapus() {
       >
         <div class="overflow-x-auto">
           <table class="w-full text-sm">
-            <thead class="bg-table-head text-table-head-text">
+            <thead class="bg-muted text-muted">
               <tr>
                 <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
                   Nama
@@ -263,7 +263,7 @@ async function hapus() {
                   :style="{ paddingInlineStart: `${13 + b.level * 18}px` }"
                 >
                   <span class="flex items-center gap-2">
-                    <span class="flex size-6 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-primary-800">{{ inisial(b.p.name) }}</span>
+                    <span class="flex size-6 items-center justify-center rounded-full bg-yellow-light text-[10px] font-bold text-yellow-dark">{{ inisial(b.p.name) }}</span>
                     <span class="font-semibold text-highlighted">{{ b.p.name }}</span>
                     <AppStatus
                       v-if="aku?.id === b.p.id"

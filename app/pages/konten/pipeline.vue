@@ -117,7 +117,7 @@ async function lepas(col: string) {
         <section
           v-for="k in kolom"
           :key="k.s"
-          class="flex w-60 flex-none flex-col rounded-panel border bg-muted"
+          class="flex w-60 flex-none flex-col rounded-xl border bg-muted"
           :class="atas === k.s ? 'border-primary-400 bg-primary-50' : 'border-default'"
           @dragover.prevent="atas = k.s"
           @dragleave="atas === k.s && (atas = null)"
@@ -139,7 +139,7 @@ async function lepas(col: string) {
               :key="c.id"
               :to="`/konten/detail/${c.id}`"
               draggable="true"
-              class="block cursor-grab rounded-field border border-default bg-default p-2.5 shadow-panel hover:border-accented"
+              class="block cursor-grab rounded-lg border border-default bg-default p-2.5 shadow-panel hover:border-accented"
               :class="seret === c.id ? 'opacity-50' : ''"
               @dragstart="seret = c.id"
               @dragend="seret = null; atas = null"

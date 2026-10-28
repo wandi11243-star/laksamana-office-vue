@@ -144,7 +144,7 @@ function bukaPoSheet(o: BdPo) {
               v-for="x in dpakai"
               :key="x!.id"
               :title="x!.name"
-              class="flex size-7 items-center justify-center rounded-full bg-primary-100 text-[11px] font-bold text-primary-800"
+              class="flex size-7 items-center justify-center rounded-full bg-yellow-light text-[11px] font-bold text-yellow-dark"
             >{{ inisial(x!.name) }}</span>
             <span
               v-if="!dpakai.length"

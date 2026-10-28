@@ -253,7 +253,7 @@ function keGcal(c: HlifeContent) {
           @drop.prevent="jatuhkan(k.stage)"
         >
           <div
-            class="mb-2 flex items-center justify-between rounded-field border px-3 py-2"
+            class="mb-2 flex items-center justify-between rounded-xl border px-3 py-2"
             :class="dropAktif === k.stage ? 'border-primary-400 bg-primary-100' : 'border-default bg-muted'"
           >
             <span class="text-sm font-semibold text-highlighted">{{ k.stage }}</span>
@@ -263,7 +263,7 @@ function keGcal(c: HlifeContent) {
             <article
               v-for="c in k.items"
               :key="c.id"
-              class="cursor-pointer rounded-panel border border-default bg-default p-3 shadow-panel transition-colors hover:border-accented"
+              class="cursor-pointer rounded-lg border border-default bg-default p-3 shadow-panel transition-colors hover:border-accented"
               draggable="true"
               @dragstart="mulaiDrag($event, c)"
               @dragend="baruSajaDrag = false"

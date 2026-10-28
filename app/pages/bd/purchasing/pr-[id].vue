@@ -238,7 +238,7 @@ const toast = useToast()
             </div>
           </div>
           <div class="text-end">
-            <p class="text-[11px] font-bold uppercase tracking-widest text-primary-700">
+            <p class="text-[11px] font-bold uppercase tracking-widest text-ink-900">
               Purchase Request
             </p>
             <p class="font-display text-2xl font-bold text-highlighted">
@@ -490,7 +490,7 @@ const toast = useToast()
             <div
               v-for="s in penanda"
               :key="s.k"
-              class="rounded-field border border-default p-3 text-center"
+              class="rounded-panel border border-default p-3 text-center"
             >
               <p class="text-[11px] font-bold uppercase tracking-wide text-muted">
                 {{ s.l }}

@@ -23,7 +23,7 @@ const dpakai = computed(() => pics(props.project).map(id => props.people.find(p 
 </script>
 
 <template>
-  <div class="rounded-field border border-default bg-default p-3 shadow-panel">
+  <div class="rounded-panel border border-default bg-default p-3 shadow-panel">
     <button
       type="button"
       class="w-full text-start"
@@ -45,7 +45,7 @@ const dpakai = computed(() => pics(props.project).map(id => props.people.find(p 
         <span
           v-for="p in dpakai.slice(0, 3)"
           :key="p.id"
-          class="flex size-5 items-center justify-center rounded-full border border-default bg-primary-100 text-[9px] font-bold text-primary-800"
+          class="flex size-5 items-center justify-center rounded-full border border-default bg-yellow-light text-[9px] font-bold text-yellow-dark"
         >{{ inisial(p.name) }}</span>
         <span
           v-if="nt"
@@ -60,7 +60,7 @@ const dpakai = computed(() => pics(props.project).map(id => props.people.find(p 
         <span class="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
           <span
             class="block h-full rounded-full"
-            :class="pg >= 100 ? 'bg-success' : 'bg-primary-400'"
+            :class="pg >= 100 ? 'bg-success' : 'bg-ink-900'"
             :style="{ width: `${pg}%` }"
           />
         </span>

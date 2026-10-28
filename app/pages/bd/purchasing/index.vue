@@ -312,7 +312,7 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
           class="overflow-x-auto"
         >
           <table class="w-full text-sm">
-            <thead class="bg-table-head text-table-head-text">
+            <thead class="bg-muted text-muted">
               <tr>
                 <th class="px-2 py-2">
                   <input
@@ -452,7 +452,7 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
           class="overflow-x-auto"
         >
           <table class="w-full text-sm">
-            <thead class="bg-table-head text-table-head-text">
+            <thead class="bg-muted text-muted">
               <tr>
                 <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
                   PR No
@@ -663,7 +663,7 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
           </p>
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
-              <thead class="bg-table-head text-table-head-text">
+              <thead class="bg-muted text-muted">
                 <tr>
                   <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
                     Minggu
@@ -684,7 +684,7 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
                   v-for="g in enamMinggu"
                   :key="g.senin"
                   class="cursor-pointer hover:bg-elevated/50"
-                  :class="g.ini ? 'bg-primary-50' : ''"
+                  :class="g.ini ? 'bg-yellow-light' : ''"
                   @click="poMinggu = enamMinggu.indexOf(g) - 1"
                 >
                   <td class="px-3 py-2 font-semibold text-highlighted">
@@ -806,7 +806,7 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
 
           <div class="overflow-x-auto">
             <table class="w-full text-sm">
-              <thead class="bg-table-head text-table-head-text">
+              <thead class="bg-muted text-muted">
                 <tr>
                   <th class="px-3 py-1.5 text-start text-[11px] uppercase tracking-wide">
                     #

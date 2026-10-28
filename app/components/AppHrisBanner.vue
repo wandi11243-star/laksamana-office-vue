@@ -12,7 +12,7 @@ const props = defineProps<{ modul: 'jadwal' | 'hr' }>()
 const isi = computed(() => props.modul === 'jadwal'
   ? {
       judul: 'Jadwal dan master shift sekarang di HRIS',
-      pesan: 'Roster, master shift, blok SPLIT, dan pengajuan kru disusun di HRIS. Selama masa paralel, layar Jadwal di Office masih bisa dibaca.',
+      pesan: 'Roster, master shift, blok SPLIT, pengajuan, dan data kru diubah di HRIS. Layar Jadwal di Office sekarang hanya bisa dibaca.',
       aksi: 'Buka roster HRIS',
       ke: HRIS.roster,
     }

@@ -1,13 +1,13 @@
 <!--
   BD Timeline Gantt (old `ganttHtml`, deploy/bd/index.html:2337-2471). Geometry
   comes from `app/utils/bd-gantt.ts` (pure); this widget only draws it: bars
-  for dated work, diamonds for dateless deadlines, violet arrows for `dependsOn`
+  for dated work, diamonds for dateless deadlines, ink arrows for `dependsOn`
   (only when both rows show), a red today line. SVG/CSS only, no new
   dependencies. On phones the chart scrolls horizontally INSIDE its panel; the
   page itself never does.
 
   One deliberate deviation: colours map to the app tokens (no hex, no
-  gradients) — the violet lock STRIPE is a solid violet bar, said in the legend.
+  gradients) — the old violet lock stripe is now a solid lilac bar, said in the legend.
 -->
 <script setup lang="ts">
 import type { BdPerson, BdProject, BdTask } from '~/composables/useBd'
@@ -47,11 +47,11 @@ const BAR_BG: Record<string, string> = {
   doing: 'bg-info',
   done: 'bg-success opacity-75',
   over: 'bg-error',
-  lock: 'bg-vip',
+  lock: 'bg-lilac-light',
 }
 const DIV_BG: Record<string, string> = {
-  gold: 'bg-primary-400',
-  vip: 'bg-vip',
+  gold: 'bg-ink-900',
+  vip: 'bg-lilac-light',
   info: 'bg-info',
   error: 'bg-error',
   success: 'bg-success',
@@ -202,7 +202,7 @@ defineExpose({ bukaSemua, tutupSemua, keHariIni })
               <span
                 v-for="pid in pics(r.t).slice(0, 1)"
                 :key="pid"
-                class="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary-100 text-[8px] font-bold text-primary-800"
+                class="flex size-5 shrink-0 items-center justify-center rounded-full bg-yellow-light text-[8px] font-bold text-yellow-dark"
                 :title="(people.find(p => p.id === pid)?.name) || ''"
               >{{ inisial(people.find(p => p.id === pid)?.name) }}</span>
               <button
@@ -298,7 +298,7 @@ defineExpose({ bukaSemua, tutupSemua, keHariIni })
         </div>
 
         <svg
-          class="pointer-events-none absolute z-[2] text-vip"
+          class="pointer-events-none absolute z-[2] text-ink-900"
           :style="{ left: `${G_LW}px`, top: `${G_HH}px` }"
           :width="model.W"
           :height="model.H"
@@ -341,9 +341,9 @@ defineExpose({ bukaSemua, tutupSemua, keHariIni })
       <span><i class="mb-0.5 me-1 inline-block h-2 w-3.5 rounded-[3px] bg-info" />Doing / Review</span>
       <span><i class="mb-0.5 me-1 inline-block h-2 w-3.5 rounded-[3px] bg-success" />Done</span>
       <span><i class="mb-0.5 me-1 inline-block h-2 w-3.5 rounded-[3px] bg-error" />Lewat deadline</span>
-      <span><i class="mb-0.5 me-1 inline-block h-2 w-3.5 rounded-[3px] bg-vip" />Menunggu task lain</span>
+      <span><i class="mb-0.5 me-1 inline-block h-2 w-3.5 rounded-[3px] bg-lilac-light" />Menunggu task lain</span>
       <span>◆ deadline (task tanpa tanggal mulai, sub-task)</span>
-      <span class="text-vip">Panah: urutan task</span>
+      <span class="text-ink-900">Panah: urutan task</span>
       <span class="text-error">Garis merah: hari ini</span>
     </div>
   </div>

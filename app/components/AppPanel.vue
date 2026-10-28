@@ -1,6 +1,6 @@
 <!--
   The old Office panel: a white surface with a line and a soft shadow, a head
-  (title, an optional dark count pill, buttons on the right) and a body.
+  (title, an optional muted count pill, buttons on the right) and a body.
   `flush` drops the body padding, for a table that runs edge to edge.
 -->
 <script setup lang="ts">
@@ -26,12 +26,12 @@ defineProps<{
             <UIcon
               v-if="icon"
               :name="icon"
-              class="size-5 text-primary-600 dark:text-primary-300"
+              class="size-5 text-ink-900"
             />
             {{ title }}
             <span
               v-if="count !== undefined"
-              class="rounded-full bg-table-head px-2 py-0.5 font-sans text-xs font-bold text-table-head-text num"
+              class="rounded-full bg-muted px-2 py-0.5 font-sans text-xs font-bold text-ink-900 num"
             >{{ count }}</span>
           </h2>
           <p

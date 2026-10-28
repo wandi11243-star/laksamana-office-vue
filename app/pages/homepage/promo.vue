@@ -484,7 +484,7 @@ async function hapus() {
           v-for="n in 4"
           :key="n"
           :ui="{ base: 'bg-accented/70' }"
-          class="h-24 rounded-field"
+          class="h-24 rounded-md"
         />
       </div>
 
@@ -530,7 +530,7 @@ async function hapus() {
             :key="promoGambarKey(p)"
             class="flex flex-wrap gap-3 p-3 lg:flex-nowrap lg:items-center lg:gap-4 lg:px-4"
           >
-            <div class="aspect-video w-28 shrink-0 overflow-hidden rounded-field bg-muted sm:w-36 lg:w-44">
+            <div class="aspect-video w-28 shrink-0 overflow-hidden rounded-md bg-muted sm:w-36 lg:w-44">
               <img
                 v-if="p.gambar && gambar[p.gambar]"
                 :src="gambar[p.gambar]"
@@ -654,7 +654,7 @@ async function hapus() {
           <p class="mb-1.5 text-sm font-semibold text-highlighted">
             Gambar <span class="text-error">*</span>
           </p>
-          <div class="relative aspect-video overflow-hidden rounded-field border border-default bg-muted">
+          <div class="relative aspect-video overflow-hidden rounded-panel border border-default bg-muted">
             <img
               v-if="pratinjau"
               :src="pratinjau"
@@ -800,7 +800,7 @@ async function hapus() {
           </p>
           <label
             v-if="!diubah"
-            class="flex cursor-pointer items-center justify-between gap-3 rounded-field border border-default p-3"
+            class="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-default p-3"
           >
             <span>
               <span class="block text-sm font-semibold text-highlighted">Tampil di website</span>
