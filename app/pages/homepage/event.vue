@@ -1,10 +1,11 @@
 <!--
-  Event — choose which Event (EMS) event appears on the public website
-  (laksamana-api docs/api/homepage.md, Office). This screen only flips the
-  `homepage_event.tampil` switch: the title, date, poster and price all come
-  from the Event module and are never edited here. An event may only be switched
-  ON while it is eligible (status Upcoming/Today and not past); switching OFF is
-  always allowed, so an event that fell off the website can still be cleared.
+  Event — reimagine (B): antrean Siap tayang.
+
+  Dulu satu daftar kandidat dengan saringan. Versi ini mengangkat event yang
+  sudah boleh tayang tapi saklarnya masih mati menjadi antrean aksinya
+  sendiri di atas daftar — pekerjaan staf di layar ini memang itu: memilih
+  apa yang tampil malam ini. Referensi: antrean tayang di panel banner
+  (Bevy/vAMSYS) yang memisah "bisa tayang" dari arsip.
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
@@ -67,6 +68,9 @@ const jumlah = computed(() => ({
   tampil: events.value.filter(e => e.tampil).length,
   belum: events.value.filter(e => !e.tampil).length,
 }))
+
+/** Antrean aksi layar ini: boleh tayang tapi saklarnya masih mati. */
+const siapTayang = computed(() => events.value.filter(e => e.eligible && !e.tampil))
 
 const chip = computed(() => [
   { value: 'semua', label: `Semua · ${jumlah.value.semua}` },
@@ -189,6 +193,40 @@ async function toggle(row: EventWeb, tampil: boolean) {
           to="/event"
         />
       </div>
+
+      <AppPanel
+        v-if="siapTayang.length"
+        title="Siap tayang"
+        icon="i-lucide-siren"
+        description="Sudah boleh tampil tapi saklarnya masih mati. Nyalakan yang mau tampil malam ini."
+      >
+        <ul class="divide-y divide-default">
+          <li
+            v-for="e in siapTayang"
+            :key="e.id"
+            class="flex items-center gap-3 py-2.5"
+          >
+            <div class="min-w-0 flex-1">
+              <p class="truncate text-sm font-semibold text-highlighted">
+                {{ e.title }}
+              </p>
+              <p class="text-xs text-muted num">
+                {{ jadwal(e) }} · {{ harga(e) }}
+              </p>
+            </div>
+            <label class="flex shrink-0 cursor-pointer items-center gap-2 text-sm">
+              <USwitch
+                :model-value="e.tampil"
+                :disabled="sibuk[e.id]"
+                color="success"
+                :aria-label="`Tampil di website: ${e.title}`"
+                @update:model-value="toggle(e, $event)"
+              />
+              <span class="text-muted">Belum tampil</span>
+            </label>
+          </li>
+        </ul>
+      </AppPanel>
 
       <div class="mb-4 flex flex-wrap items-center gap-2">
         <AppChips

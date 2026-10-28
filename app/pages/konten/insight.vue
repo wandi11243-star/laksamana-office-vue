@@ -432,7 +432,10 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
             v-if="u.aksi"
             class="text-sm text-muted"
           >
-            💡 {{ String(u.aksi) }}
+            <UIcon
+              name="i-lucide-lightbulb"
+              class="size-4"
+            /> {{ String(u.aksi) }}
           </p>
           <UButton
             class="mt-1"
@@ -498,7 +501,10 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
             v-if="i.aksi"
             class="text-sm text-muted"
           >
-            💡 {{ i.aksi }}
+            <UIcon
+              name="i-lucide-lightbulb"
+              class="size-4"
+            /> {{ i.aksi }}
           </p>
           <div class="mt-1 flex gap-2">
             <UButton

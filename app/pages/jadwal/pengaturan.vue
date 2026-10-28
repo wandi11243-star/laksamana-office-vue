@@ -19,7 +19,7 @@ import {
   DIVISI, DIV_NONSHIFT, SHIFT_BAWAAN, daftarShift, divisiDariTim, gabungShift, isHeadUser, kruDivisi, namaDivisiJadwal,
   normalSetting, shiftDef, shiftKruBawaan, stafKantor,
 } from '~/utils/jadwal'
-import { HRIS } from '~/utils/hris'
+import { HRIS, JADWAL_BACA_SAJA } from '~/utils/hris'
 import { kosongkanJadwal, saveJadwalSettings, useJadwalDasar } from '~/composables/useJadwal'
 
 definePageMeta({ access: ['jadwal'] })
@@ -225,7 +225,11 @@ async function kosongkan() {
       </div>
     </AppPanel>
 
-    <template v-else>
+    <fieldset
+      v-else
+      :disabled="JADWAL_BACA_SAJA"
+      class="m-0 min-w-0 border-0 p-0"
+    >
       <p
         v-if="pesanGagal"
         class="mb-4 rounded-field bg-error/12 px-3 py-2 text-sm"
@@ -503,7 +507,7 @@ async function kosongkan() {
           @click="nolOpen = true"
         />
       </AppPanel>
-    </template>
+    </fieldset>
 
     <ResponsiveSheet
       v-model:open="tambahOpen"

@@ -485,7 +485,7 @@ const lebar = useMediaQuery('(min-width: 1536px)')
 const kolomTampil = computed(() => ({ lantai: lebar.value, rekening: lebar.value }))
 /** "29 Sep" — the old table's date, without the weekday so the column stays narrow. */
 const tglTabel = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
-const kelasBaris = (r: Reservasi) => (telat(r) ? 'bg-warning/15 hover:bg-warning/20' : segera(r) ? 'bg-primary-50 dark:bg-primary-950/40' : '')
+const kelasBaris = (r: Reservasi) => (telat(r) ? 'bg-warning/15 hover:bg-warning/20' : segera(r) ? 'bg-primary-50' : '')
 
 // --- follow up and no-show (`:7577-7622`) ---------------------------------------
 

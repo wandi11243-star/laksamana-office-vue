@@ -52,6 +52,22 @@ const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ??
 
 // ---- tabs ----
 const tab = useState<TabBayarMkt>('mkt-inv-tab', () => 'semua')
+const jumlahTab = computed(() => {
+  const jumlah = { semua: tampil.value.length, lunas: 0, dp: 0, belum: 0 }
+  for (const e of tampil.value) {
+    const ringkas = { inv: inv(e), remaining: uang(e).remaining, paid: uang(e).paid }
+    for (const kelompok of ['lunas', 'dp', 'belum'] as const) {
+      if (kelompokBayarMkt(kelompok, ringkas)) jumlah[kelompok]++
+    }
+  }
+  return jumlah
+})
+const opsiTab = computed(() => [
+  { value: 'semua' as const, label: `Semua (${jumlahTab.value.semua})` },
+  { value: 'lunas' as const, label: `Lunas (${jumlahTab.value.lunas})` },
+  { value: 'dp' as const, label: `Sudah DP (${jumlahTab.value.dp})` },
+  { value: 'belum' as const, label: `Belum Payment (${jumlahTab.value.belum})` },
+])
 const daftar = computed(() => tampil.value.filter(e => kelompokBayarMkt(tab.value, { inv: inv(e), remaining: uang(e).remaining, paid: uang(e).paid })))
 const kosongTab = computed(() => tab.value === 'lunas'
   ? 'Belum ada tagihan yang tertutup penuh.'
@@ -254,7 +270,7 @@ const cetak = () => window.print()
         <template #head>
           <AppSeg
             v-model="tab"
-            :options="[{ value: 'semua', label: 'Semua' }, { value: 'lunas', label: 'Lunas' }, { value: 'dp', label: 'Sudah DP' }, { value: 'belum', label: 'Belum Payment' }]"
+            :options="opsiTab"
           />
         </template>
         <div

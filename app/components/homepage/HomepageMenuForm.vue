@@ -317,7 +317,7 @@ async function hapus() {
             type="button"
             class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-primary"
             :class="form[l.key]
-              ? 'border-primary-400 bg-primary-100 text-primary-800 dark:bg-primary-950 dark:text-primary-200'
+              ? 'border-yellow-deep bg-yellow-light text-yellow-dark'
               : 'border-default bg-muted text-muted hover:text-highlighted'"
             :aria-pressed="form[l.key]"
             @click="form[l.key] = !form[l.key]"

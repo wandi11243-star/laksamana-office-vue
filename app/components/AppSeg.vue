@@ -1,7 +1,7 @@
 <!--
   Segmented tabs in a rounded track (the old Tabel / Kalender / Denah meja /
   Waiting list, Harian / Bulanan, Weekday / Weekend / Lantai 2). The chosen
-  segment is a white chip with gold words.
+  segment is a white chip with ink words.
 -->
 <script setup lang="ts" generic="T extends string | number | boolean">
 defineProps<{
@@ -28,7 +28,7 @@ const model = defineModel<T>()
       :class="[
         size === 'sm' ? 'px-3 py-1 text-[13px]' : 'px-3.5 py-1.5 text-sm',
         model === o.value
-          ? 'bg-default text-primary-700 shadow-sm dark:text-primary-300'
+          ? 'bg-default text-ink-900 shadow-sm'
           : 'text-muted hover:text-highlighted',
       ]"
       @click="model = o.value"

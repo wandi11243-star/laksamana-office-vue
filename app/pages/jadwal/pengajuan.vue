@@ -27,6 +27,7 @@ import {
 } from '~/utils/jadwal'
 import { decideRequest, deleteRequest, saveCells, useJadwalDasar, useJadwalRequests } from '~/composables/useJadwal'
 import { fTgl, fTglP, tambahHari } from '~/utils/format'
+import { JADWAL_BACA_SAJA } from '~/utils/hris'
 
 definePageMeta({ access: ['jadwal'] })
 
@@ -62,7 +63,7 @@ const daftar = computed(() => tersaring.value.slice((halKini.value - 1) * PER, h
 
 const bisaHead = (a: PengajuanJadwal) => bisaPutusHead(peran.value, a, div(a))
 const bisaHRD = (a: PengajuanJadwal) => bisaPutusHRD(peran.value, a)
-const bisaBatal = (a: PengajuanJadwal) => a.userId === peran.value.id && ajuBerjalan(a)
+const bisaBatal = (a: PengajuanJadwal) => !JADWAL_BACA_SAJA && a.userId === peran.value.id && ajuBerjalan(a)
 const nMenunggu = computed(() => menunggu.value.filter(a => bisaHead(a) || bisaHRD(a)).length)
 const nDiHRD = computed(() => (peran.value.admin ? 0 : menunggu.value.filter(a => a.status === 'MENUNGGU_HRD').length))
 const kuasa = computed(() => divisiKuasa(peran.value))
@@ -174,6 +175,7 @@ const form = ref(false)
   >
     <template #actions>
       <UButton
+        v-if="!JADWAL_BACA_SAJA"
         label="Ajukan"
         icon="i-lucide-plus"
         @click="form = true"
