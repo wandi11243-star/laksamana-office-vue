@@ -63,10 +63,6 @@ const opsiTab = computed(() => [
   { value: 'belum' as const, label: `Belum Payment (${jumlahTab.value.belum})` },
 ])
 const daftar = computed(() => tampil.value.filter(e => kelompokBayarMkt(tab.value, { inv: inv(e), remaining: uang(e).remaining, paid: uang(e).paid })))
-// Old tabs carry their count (`<span class="tn">`); written "Label (n)" like the other Marketing tabs.
-const jmlTab = (t: TabBayarMkt) => tampil.value.filter(e => kelompokBayarMkt(t, { inv: inv(e), remaining: uang(e).remaining, paid: uang(e).paid })).length
-const opsiTab = computed(() => ([['semua', 'Semua'], ['lunas', 'Lunas'], ['dp', 'Sudah DP'], ['belum', 'Belum Payment']] as const)
-  .map(([value, label]) => ({ value, label: `${label} (${jmlTab(value)})` })))
 const kosongTab = computed(() => tab.value === 'lunas'
   ? 'Belum ada tagihan yang tertutup penuh.'
   : tab.value === 'dp'
