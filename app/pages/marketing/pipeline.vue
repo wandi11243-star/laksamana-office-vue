@@ -301,7 +301,7 @@ const kosong = computed(() => {
         <section
           v-for="k in kolom"
           :key="k.c"
-          class="flex min-w-0 flex-col rounded-panel border bg-muted"
+          class="flex min-w-0 flex-col rounded-xl border bg-muted"
           :class="atas === k.c ? 'border-primary-400 bg-primary-50' : 'border-default'"
           @dragover.prevent="atas = k.c"
           @dragleave="atas === k.c && (atas = null)"
@@ -322,7 +322,7 @@ const kosong = computed(() => {
               v-for="e in k.items"
               :key="e.id"
               :draggable="can('edit_event')"
-              class="cursor-pointer rounded-field border bg-default p-2.5 shadow-panel"
+              class="cursor-pointer rounded-lg border bg-default p-2.5 shadow-panel"
               :class="[buka === e.id ? 'border-primary-400' : 'border-default hover:border-accented', seret === e.id ? 'opacity-40' : '']"
               @dragstart="seretMulai($event, e.id)"
               @dragend="seret = null; atas = null"

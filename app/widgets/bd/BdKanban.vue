@@ -126,7 +126,7 @@ async function tambahKartu(st: string) {
     <section
       v-for="st in kolom"
       :key="st"
-      class="min-w-0 rounded-panel border bg-muted/40 transition-colors"
+      class="min-w-0 rounded-xl border bg-muted/40 transition-colors"
       :class="kolomSasaran === st ? 'border-yellow-deep bg-yellow-light' : 'border-default'"
       @dragover.prevent="kolomSasaran = st"
       @dragleave="dragKeluar($event, st)"

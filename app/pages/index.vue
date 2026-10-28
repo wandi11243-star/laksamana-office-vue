@@ -91,9 +91,9 @@ const today = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'nu
           :title="g.group"
           class="min-w-0 flex-1"
         />
-        <span class="num mb-3 shrink-0 rounded-full border border-default px-2 py-0.5 text-xs text-muted">{{ g.items.length }}</span>
+        <span class="num mb-3 hidden shrink-0 rounded-full border border-default px-2 py-0.5 text-xs text-muted lg:inline">{{ g.items.length }}</span>
       </div>
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div class="grid grid-cols-3 gap-2 lg:gap-3">
         <BerandaModul
           v-for="m in g.items"
           :key="m.key"

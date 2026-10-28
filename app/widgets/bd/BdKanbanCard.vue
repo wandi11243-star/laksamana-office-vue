@@ -38,7 +38,7 @@ const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.
   <div
     role="button"
     tabindex="0"
-    class="block w-full min-w-0 cursor-pointer overflow-hidden rounded-panel border bg-default px-3 py-2.5 text-start transition hover:border-accented"
+    class="block w-full min-w-0 cursor-pointer overflow-hidden rounded-lg border bg-default px-3 py-2.5 text-start transition hover:border-accented"
     :class="[hal.length ? 'border-lilac-light' : 'border-default', dragging ? 'opacity-50' : '']"
     @click="emit('buka')"
     @keydown.enter.self="emit('buka')"

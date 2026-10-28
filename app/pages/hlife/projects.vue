@@ -241,7 +241,7 @@ const lewat = (p: HlifeProject) => !!p.due && p.due < hari && stageAktif(p) !== 
           @drop.prevent="jatuhkan(k.stage)"
         >
           <div
-            class="mb-2 flex items-center justify-between rounded-field border px-3 py-2"
+            class="mb-2 flex items-center justify-between rounded-xl border px-3 py-2"
             :class="dropAktif === k.stage ? 'border-primary-400 bg-primary-100' : 'border-default bg-muted'"
           >
             <span class="inline-flex items-center gap-1.5 text-sm font-semibold text-highlighted">
@@ -260,7 +260,7 @@ const lewat = (p: HlifeProject) => !!p.due && p.due < hari && stageAktif(p) !== 
             <article
               v-for="p in k.items"
               :key="p.id"
-              class="cursor-pointer rounded-panel border border-default bg-default p-3 shadow-panel transition-colors hover:border-accented"
+              class="cursor-pointer rounded-lg border border-default bg-default p-3 shadow-panel transition-colors hover:border-accented"
               draggable="true"
               @dragstart="mulaiDrag($event, p)"
               @dragend="baruSajaDrag = false"

@@ -32,6 +32,30 @@ const props = defineProps<{ m: Modul & { to: string, ready: boolean } }>()
 
 const route = useRoute()
 
+// Distinct Miro tints give each launcher module a recognizable icon tile.
+const TONE_ICON_MODUL: Record<string, string> = {
+  absensi: 'bg-yellow-light text-yellow-dark',
+  jadwal: 'bg-sky-light text-blue-pressed',
+  akademi: 'bg-rose-light text-vip',
+  hr: 'bg-teal-light text-moss-dark',
+  stock: 'bg-brand-orange-light text-ink-900',
+  reservasi: 'bg-teal-light text-moss-dark',
+  service_excellent: 'bg-coral-light text-coral-dark',
+  radar: 'bg-sky-light text-blue-pressed',
+  cashier: 'bg-yellow-light text-yellow-dark',
+  konten: 'bg-rose-light text-vip',
+  event: 'bg-brand-orange-light text-ink-900',
+  homepage: 'bg-sky-light text-blue-pressed',
+  marketing: 'bg-coral-light text-coral-dark',
+  finance: 'bg-yellow-light text-yellow-dark',
+  bd: 'bg-brand-orange-light text-ink-900',
+  hlife: 'bg-teal-light text-moss-dark',
+  help: 'bg-rose-light text-vip',
+  investor: 'bg-sky-light text-blue-pressed',
+  analytics: 'bg-coral-light text-coral-dark',
+  akses: 'bg-yellow-light text-yellow-dark',
+}
+
 const buka = () => {
   if (props.m.ready) navigateTo(props.m.to)
 }
@@ -72,7 +96,7 @@ const sisa = computed(() => layar.value.length - 6)
 
 <template>
   <div
-    class="group flex flex-col gap-3 rounded-panel border border-default bg-default p-4 shadow-panel"
+    class="group flex min-h-11 flex-col gap-2 rounded-panel border border-default bg-default p-2 shadow-panel lg:gap-3 lg:p-4"
     :class="m.ready ? 'cursor-pointer' : 'opacity-60'"
     :role="m.ready ? 'link' : undefined"
     :tabindex="m.ready ? 0 : undefined"
@@ -80,30 +104,33 @@ const sisa = computed(() => layar.value.length - 6)
     @click="buka"
     @keydown.enter="buka"
   >
-    <div class="flex items-center gap-3">
-      <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-ink-900 text-white">
+    <div class="flex flex-col items-center gap-2 text-center lg:flex-row lg:gap-3 lg:text-left">
+      <span
+        class="grid size-10 shrink-0 place-items-center rounded-xl"
+        :class="TONE_ICON_MODUL[m.key] ?? 'bg-yellow-light text-yellow-dark'"
+      >
         <UIcon
           :name="m.icon"
           class="size-5"
         />
       </span>
-      <div class="min-w-0 flex-1">
-        <h3 class="truncate font-semibold text-highlighted">
+      <div class="w-full lg:min-w-0 lg:flex-1">
+        <h3 class="line-clamp-2 break-words text-sm font-semibold leading-tight text-highlighted lg:truncate lg:text-base">
           {{ m.label }}
         </h3>
-        <p class="truncate text-xs uppercase text-muted">
+        <p class="hidden truncate text-xs uppercase text-muted lg:block">
           {{ m.desc }}
         </p>
       </div>
       <UIcon
         v-if="m.ready"
         name="i-lucide-arrow-right"
-        class="size-4 shrink-0 text-dimmed transition-transform group-hover:translate-x-0.5"
+        class="hidden size-4 shrink-0 text-dimmed transition-transform group-hover:translate-x-0.5 lg:block"
       />
     </div>
     <div
       v-if="m.ready"
-      class="flex flex-wrap gap-1.5"
+      class="hidden flex-wrap gap-1.5 lg:flex"
     >
       <NuxtLink
         v-for="l in layarTampil"
