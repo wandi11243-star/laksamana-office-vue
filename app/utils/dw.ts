@@ -14,7 +14,7 @@
 import type { Me } from '~/composables/useMe'
 import { isAdminOf } from '~/composables/useMe'
 import { DIVISI, idxHari, namaDivisiJadwal, seninDari } from '~/utils/jadwal'
-import { hariIni, tambahHari } from '~/utils/format'
+import { BLN, hariIni, tambahHari } from '~/utils/format'
 
 // ---------------------------------------------------------------- constants
 
@@ -1042,3 +1042,27 @@ export function labelPeranDw(p: PeranDw): string {
 
 /** The month grid starts on Monday, six weeks (`pitaBulan`, :1437 / viewTamu). */
 export const mulaiKisi = (mk: string) => seninDari(`${mk}-01`)
+
+// ---------------------------------------------------------------- trail lines
+
+/** "21 Okt 2025, 05.40" (`waktuJejak`, :1368); '' when never stamped. */
+export function waktuJejakDw(ms: number | null | undefined): string {
+  const t = Number(ms) || 0
+  if (!t) return ''
+  const d = new Date(t)
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${d.getDate()} ${BLN[d.getMonth()]} ${d.getFullYear()}, ${p(d.getHours())}.${p(d.getMinutes())}`
+}
+
+/** "<kata> <nama> · <waktu>" (`jejakTeks`, :1377); '' when there is nothing to name. */
+export function jejakDw(kata: string, oleh: string | null | undefined, at: number | null | undefined): string {
+  const n = String(oleh || '').trim()
+  const w = waktuJejakDw(at)
+  if (!n && !w) return ''
+  return `${kata} ${n || '—'}${w ? ` · ${w}` : ''}`
+}
+
+/** The verb of a decision trail (`kataPutusan`, :4188). A MENUNGGU row with a trail was sent back. */
+export const kataPutusanDw = (status: string) => ({
+  DISETUJUI: 'disetujui', DITOLAK: 'ditolak', BATAL: 'dibatalkan', KEDALUWARSA: 'ditutup', MENUNGGU: 'dikembalikan',
+} as Record<string, string>)[status] ?? 'diputuskan'

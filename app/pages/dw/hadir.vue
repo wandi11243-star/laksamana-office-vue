@@ -36,7 +36,7 @@ const nanti = computed(() => tgl.value > hariIni())
 const konteks = computed(() => KONTEKS_LBL[konteksHariDw(tgl.value, pax.value[tgl.value] ?? 0)])
 
 const kolom: TableColumn<AjuanDw>[] = [
-  { id: 'no', header: '#' },
+  { id: 'no', header: 'No.' },
   { id: 'nama', header: 'Daily worker' },
   { id: 'divisi', header: 'Divisi / Posisi' },
   { id: 'jam', header: 'Jam' },

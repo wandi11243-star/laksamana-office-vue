@@ -51,7 +51,7 @@ const opsiFilter = computed(() => [
 ])
 
 const kolomGrup: TableColumn<GrupBayarDw>[] = [
-  { id: 'no', header: '#' },
+  { id: 'no', header: 'No.' },
   { id: 'tujuan', header: 'Tujuan transfer' },
   { id: 'untuk', header: 'Untuk' },
   { id: 'shift', header: () => h('span', { class: 'block text-end' }, 'Shift') },
@@ -59,7 +59,7 @@ const kolomGrup: TableColumn<GrupBayarDw>[] = [
   { id: 'tandai', header: () => h('span', { class: 'block text-end' }, 'Transfer') },
 ]
 const kolomOrang: TableColumn<BarisBayarDw>[] = [
-  { id: 'no', header: '#' },
+  { id: 'no', header: 'No.' },
   { id: 'nama', header: 'Daily worker' },
   { id: 'divisi', header: 'Divisi / Posisi' },
   { id: 'shift', header: () => h('span', { class: 'block text-end' }, 'Shift') },

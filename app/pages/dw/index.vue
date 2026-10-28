@@ -56,7 +56,7 @@ const maksHal = computed(() => Math.max(1, Math.ceil(setuju.value.length / PER))
 const baris = computed(() => setuju.value.slice((Math.min(hal.value, maksHal.value) - 1) * PER, Math.min(hal.value, maksHal.value) * PER))
 
 const kolom: TableColumn<AjuanDw>[] = [
-  { id: 'no', header: '#' },
+  { id: 'no', header: 'No.' },
   { id: 'nama', header: 'Daily worker' },
   { id: 'divisi', header: 'Divisi' },
   { id: 'posisi', header: 'Posisi' },
@@ -71,7 +71,7 @@ const kolomTabel = computed<TableColumn<AjuanDw>[]>(() => {
   const out = [...kolom]
   if (uang.value) out.push({ id: 'uang', header: () => h('span', { class: 'block text-end' }, 'Est. biaya') })
   if (lewat.value) out.push({ id: 'hadir', header: 'Kehadiran' })
-  out.push({ id: 'aksi', header: () => h('span', { class: 'block text-end' }, 'Aksi') })
+  out.push({ id: 'aksi', header: '' })
   return out
 })
 

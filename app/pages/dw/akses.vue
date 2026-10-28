@@ -299,6 +299,9 @@ function toggleHR(u: ModulMember) {
           <table class="w-full min-w-[42rem] text-sm">
             <thead>
               <tr>
+                <th class="w-10 py-2 text-start text-[11px] font-bold uppercase tracking-wider text-muted">
+                  No.
+                </th>
                 <th class="py-2 text-start text-[11px] font-bold uppercase tracking-wider text-muted">
                   Nama
                 </th>
@@ -316,9 +319,12 @@ function toggleHR(u: ModulMember) {
             </thead>
             <tbody class="divide-y divide-default">
               <tr
-                v-for="u in daftar"
+                v-for="(u, i) in daftar"
                 :key="u.id"
               >
+                <td class="py-2 text-muted num">
+                  {{ i + 1 }}
+                </td>
                 <td class="py-2">
                   <p class="font-semibold text-highlighted">
                     {{ u.name }}
