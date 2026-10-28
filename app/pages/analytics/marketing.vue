@@ -252,7 +252,7 @@ const kolomHari: TableColumn<BarisHari>[] = [
             :sub="!kpState ? 'Breakdown Sumber tidak terbaca' : hitung.omsetEv ? `${(hitung.omsetSaja / hitung.omsetEv * 100).toFixed(1)}% dari omset hari itu · ${pBulan(hitung.omsetSaja)} dari omset sebulan` : 'belum ada nilai acara'"
           />
           <AppStat
-            label="Rata-rata Hari Ada Acara"
+            label="Rata-rata omset hari ada acara"
             :value="rupiah(hitung.rEv)"
             icon="i-lucide-scale"
             tone="info"
@@ -261,7 +261,7 @@ const kolomHari: TableColumn<BarisHari>[] = [
         </AppStatGrid>
 
         <AppPanel
-          title="Tiga Acara Penyumbang Omset Terbesar"
+          title="Tiga Acara Marketing Penyumbang Omset Terbesar"
           description="Nilai acaranya SENDIRI dari Breakdown Sumber — bukan omset satu hari penuh — dan berapa persennya dari seluruh omset bulan ini."
         >
           <UAlert

@@ -1,6 +1,7 @@
 /*
  * tools/uji-analytics.mjs — guard for app/utils/analytics-pos.ts,
- * app/utils/analytics-agregat.ts and app/utils/analytics-dampak.ts
+ * app/utils/analytics-agregat.ts, app/utils/analytics-dampak.ts and
+ * app/utils/analytics-menu.ts
  * (Lane L1/L2/L3, issue #20).
  *
  *   node tools/uji-analytics.mjs      (Node 24: imports the .ts directly)
@@ -13,6 +14,8 @@
 import * as P from '../app/utils/analytics-pos.ts'
 import * as A from '../app/utils/analytics-agregat.ts'
 import * as D from '../app/utils/analytics-dampak.ts'
+import * as M from '../app/utils/analytics-menu.ts'
+import * as E from '../app/utils/analytics-esb.ts'
 
 let ok = 0
 let gagal = 0
@@ -233,6 +236,65 @@ const t3 = D.top3Acara([
 ])
 cek('kelompok per nama tak peka huruf', t3.top[0].nama === '(tanpa nama)' && t3.top[1].nama === 'Nobar' && t3.top[1].omset === 50000)
 cek('nol disaring, sisa dihitung', t3.top.length === 3 && t3.sisa === 2 && t3.sisaOmset === 3000 && t3.tanpaNama === 1)
+
+console.log('\nanalytics-menu: menuNormal (paket, ukuran, kode HPP)')
+{
+  // ICE KOPI 834 plain + 33 named package = 867; 195 of them were LARGE (row under the parent).
+  const lap = {
+    menu: { 'ICE KOPI LAKSAMANA': { qty: 834, nilai: 834000 }, 'ICE KOPI LAKSAMANA (PACKAGE)': { qty: 33, nilai: 0 }, 'LARGE KOPI (PACKAGE)': { qty: 195, nilai: 975000 }, 'Nasi Kotak': { qty: 10, nilai: 300000 } },
+    ukuran: { 'ICE KOPI LAKSAMANA': { LARGE: { KOPISUSU002: { qty: 195, nilai: 975000, induk: 195000 } } } },
+    kategori: { EVENT: { kat: 'OTHERS' }, KOPI: { kat: 'BEVERAGES' } },
+    katMenu: { EVENT: { 'Nasi Kotak': {} }, KOPI: { 'ICE KOPI LAKSAMANA': {} } },
+  }
+  const n1 = M.menuNormal(lap, {})
+  cek('large dipindah, bukan dijumlah (867-195=672)', n1.gab['ICE KOPI LAKSAMANA'].qty === 672 && n1.gab['ICE KOPI LAKSAMANA (LARGE)'].qty === 195)
+  cek('nilai tidak hilang', Object.values(n1.gab).reduce((a, x) => a + x.nilai, 0) + n1.ev.nilai === 834000 + 975000 + 300000)
+  cek('kode tak dikenal dilaporkan berikut induknya', n1.takKenal.KOPISUSU002?.induk === 'ICE KOPI LAKSAMANA' && n1.takKenal.KOPISUSU002.qty === 195)
+  cek('menu EVENT keluar dan dihitung', n1.ev.nama.includes('Nasi Kotak') && n1.ev.qty === 10 && !n1.gab['NASI KOTAK'])
+  cek('kelompok ikut ke baris large', n1.gab['ICE KOPI LAKSAMANA (LARGE)'].kel === 'BEVERAGES')
+  const resep = [{ nama: 'Ice Kopi Laksamana Large', tipe: 'dish', kode: 'kopisusu002' }, { nama: 'A', tipe: 'dish', kode: 'X1' }, { nama: 'B', tipe: 'dish', kode: 'x1' }, { nama: 'Base', tipe: 'base', kode: 'B1' }]
+  const pk = M.petaKode({ KOPISUSU002: 'Manual', y9: 'Y' }, resep)
+  cek('HPP menang atas manual', pk.KOPISUSU002 === 'Ice Kopi Laksamana Large' && pk.Y9 === 'Y')
+  cek('kode kembar tidak dipasangkan, base tidak jadi tujuan', !pk.X1 && !pk.B1 && M.kodeCatatan({}, resep).dobel.X1.length === 2)
+  const n2 = M.menuNormal(lap, pk)
+  cek('nama resep dipakai untuk baris large', n2.gab['ICE KOPI LAKSAMANA LARGE']?.qty === 195 && !n2.takKenal.KOPISUSU002)
+  cek('laporan lama: ukuran tidak dihitung, disebut', M.menuNormal({ menu: lap.menu }, {}).ukLama.qty === 195)
+  const s = M.saranKode('LYCHEE02', ['LYCHEE TEA', 'LARGE (PACKAGE) · LYCHEE02'], ['Lychee Tea Large'], 'LARGE')
+  cek('saran dijepit ke ukuran', s.utama.join() === 'Lychee Tea Large' && s.cadangan.join() === 'LYCHEE TEA')
+  cek('kata utuh: ENLARGED bukan large', !M.punyaKataUkuran('ENLARGED TEA', 'LARGE'))
+  const peta = M.resepPeta([{ nama: 'Kopi', yield_qty: 1, bahan: [{ nama: 'Espresso', qty: 60, satuan: 'Ml' }, { nama: 'Susu', qty: 120, satuan: 'Ml' }] }, { nama: 'Espresso', yield_qty: 30, bahan: [{ nama: 'Biji', qty: 18, satuan: 'Gram' }] }, { nama: 'Roti', bahan: [{ nama: 'Roti', qty: 1 }] }])
+  const b = M.bahanSatuMenu('KOPI', 10, peta)
+  cek('resep bertingkat dibagi yield', b.mentah['Biji (Gram)'] === 360 && b.mentah['Susu (Ml)'] === 1200 && b.prep['Espresso (Ml)'] === 600)
+  const U = M.uraiBaru()
+  M.uraiResep('Roti', 1, peta, U)
+  cek('resep menunjuk dirinya: siklus', U.putar.Roti === 'siklus')
+}
+
+console.log('\nanalytics-esb: bill ESB -> baris Detail Report')
+{
+  const menu = (n, price, qty, extra = {}) => ({ menuName: n, price, qty, total: price * qty * 1.155, otherTaxValue: price * qty * 0.05, vatValue: price * qty * 0.105, discountValue: 0, menuCategoryName: 'BEVERAGES', menuCategoryDetailName: 'COFFEE', createdDate: '2026-08-15 19:10:00', ...extra })
+  const bills = [
+    { salesNum: 'A', salesDate: '2026-08-15', salesDateIn: '2026-08-15 12:00:00', statusName: 'Paid', grandTotal: 57750, paxTotal: 2, visitPurposeName: 'DINE IN', salesPayments: [{ paymentMethodName: 'QRIS', paymentAmount: 57750 }],
+      salesMenus: [menu('ICE KOPI', 25000, 2, { packages: [{ menuName: 'LARGE KOPI', price: 0, qty: 1, total: 0, menuCode: 'K2' }] })] },
+    { salesNum: 'B', salesDate: '2026-08-15', statusName: 'Paid', grandTotal: 115500, salesPayments: [{ paymentMethodName: 'GRABFOOD', paymentAmount: 100000 }, { paymentMethodName: 'CASH', paymentAmount: 15500 }],
+      salesMenus: [menu('NASI', 50000, 2), menu('TEH', 5000, 1, { statusName: 'Cancelled' })] },
+    { salesNum: 'C', salesDate: '2026-08-15', statusName: 'Void', grandTotal: 99999 },
+  ]
+  const { rows, info } = E.esbKeBaris(bills)
+  cek('bill & menu batal dibuang dan dihitung', info.bill === 2 && info.billBatal === 1 && info.menuBatal === 1)
+  cek('paket tepat di bawah menunya, berakhiran (PACKAGE)', rows[2].c17 === 'LARGE KOPI (PACKAGE)' && rows[1].c17 === 'ICE KOPI')
+  cek('bayar gabungan berbentuk "A (n),B (n)"', rows[rows.length - 1].c12 === 'GRABFOOD (100.000),CASH (15.500)')
+  const u = A.uraiLaporanPos(rows, 'API ESB')
+  cek('diurai pengurai Excel yang sama', u.bulan === '2026-08' && u.ringkas.bill === 2 && Math.round(u.ringkas.grand) === 173250)
+  cek('service = otherTax, pajak = vat', Math.round(u.ringkas.svc) === 7500 && Math.round(u.ringkas.tax) === 15750, JSON.stringify(u.ringkas))
+  cek('bulan sinkron: bulan ini + bulan lalu yang belum penuh', E.esbBulanSinkron({ '2026-08': { esb: { sampai: '2026-08-20' } }, '2026-07': { esb: { sampai: '2026-07-31' } }, '2026-06': {} }, '2026-09-03').join() === '2026-08,2026-09')
+  const hal = { 1: { bills: [{ salesNum: 1 }, { salesNum: 2 }], pageCount: 3 }, 2: { bills: [{ salesNum: 2 }, { salesNum: 3 }] }, 3: { bills: [{ salesNum: 4 }] } }
+  const r = await E.esbTarikRentang(async p => hal[p], () => {}, 'x', async () => {})
+  cek('semua halaman ditarik, bill ganda disaring', r.bills.length === 4 && r.ganda === 1)
+  let coba = 0
+  const g = await E.esbTarikRentang(async () => { coba++; throw new Error('putus') }, () => {}, 'x', async () => {}).catch(e => e)
+  cek('halaman gagal 3x menghentikan semuanya', g instanceof E.EsbGagal && coba === 3 && /Halaman 1/.test(g.message))
+}
 
 console.log('\n' + ok + ' lulus, ' + gagal + ' gagal')
 process.exit(gagal ? 1 : 0)

@@ -51,7 +51,12 @@ export interface LaporanBulan {
   error: ErrorBill[]
   meja: Record<string, AgregatMeja>
   ringkas: RingkasPos
+  /** Set when the month came from the ESB sync (not an Excel upload). */
+  esb?: EsbJejak
 }
+
+/** Trail of an ESB sync (synced up to which day, by whom, what was dropped). */
+export interface EsbJejak { sampai: string, at: string, oleh?: string, harian?: boolean, bill: number, billBatal: number, menuBatal: number, ganda: number }
 
 /** Shift bounds + menu-name maps (POS -> HPP) + package-code map. */
 export interface AnalyticsSetting {
@@ -125,6 +130,14 @@ export interface AnalyticsAnggota {
 /** GET /api/v1/kompas/analytics. The envelope is kept whole: screens need
  *  meta.version (saves) and meta.accessVersion (access saves) next to data. */
 export const getAnalytics = () => useApi()<AnalyticsEnvelope>('/kompas/analytics')
+
+/**
+ * GET /api/v1/kompas/esb/sales — ONE page of raw POS ESB bills (laksamana-api#354).
+ * The caller loops the pages (esbTarikRentang); the token stays on the server.
+ */
+export const getEsbSales = (dari: string, sampai: string, page: number) =>
+  useApi()<Envelope<{ bills: unknown[], page: number, pageCount: number | null, totalCount: number | null, perPage: number | null }>>('/kompas/esb/sales', { query: { dari, sampai, page } })
+    .then(r => r.data)
 
 /** The shared analytics read: one request for every screen of the module. */
 export const useAnalyticsState = () =>

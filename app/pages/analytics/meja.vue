@@ -5,6 +5,7 @@
   1 on nearly every bill). Quick Service joins as a seat-less row.
 -->
 <script setup lang="ts">
+import { useAnalyticsHarian } from '~/composables/useAnalyticsEsb'
 import type { TableColumn } from '@nuxt/ui'
 import { useAnalyticsState } from '~/composables/useAnalytics'
 import { ROLE_LABEL_ANALYTICS, useAnalyticsIzin } from '~/utils/layar/analytics'
@@ -24,12 +25,15 @@ const isi = computed(() => balasan.value?.data ?? null)
 const laporan = computed(() => isi.value?.data.laporan ?? {})
 const daftarBulan = computed(() => Object.keys(laporan.value).sort().reverse())
 const blnPilih = useState<string | null>('analytics-bln', () => null)
+// "Per hari": a picked date replaces the month on this page (HARIAN_VIEW)
+const harian = useAnalyticsHarian()
 const bulan = computed(() => {
+  if (harian.hari.value) return harian.hari.value.slice(0, 7)
   const a = daftarBulan.value
   if (blnPilih.value && a.includes(blnPilih.value)) return blnPilih.value
   return a[0] ?? ''
 })
-const d = computed(() => (bulan.value ? laporan.value[bulan.value] ?? null : null))
+const d = computed(() => (harian.hari.value ? harian.laporanHari.value : (bulan.value ? laporan.value[bulan.value] ?? null : null)))
 
 const fmtBln = (b: string) => {
   const p = String(b || '').split('-')
@@ -180,15 +184,23 @@ const kolom: TableColumn<BarisMeja>[] = [
   { accessorKey: 'perKursi', header: 'Rp per kursi' },
   { accessorKey: 'perOrang', header: 'Rp per orang' },
 ]
+/** mjZonaHtml (:5272): zones from the denah; rows without a table never join. */
 const zonaAgregat = computed(() => {
-  const m: Record<string, { meja: number, g: number, b: number }> = {}
+  const m: Record<string, { meja: number, kursi: number, g: number, b: number }> = {}
   for (const x of hitung.value.baris.filter(y => !y.tanpaMeja)) {
-    const o = m[x.zona] || (m[x.zona] = { meja: 0, g: 0, b: 0 })
+    const o = m[x.zona] || (m[x.zona] = { meja: 0, kursi: 0, g: 0, b: 0 })
     o.meja++
+    o.kursi += x.kursi
     o.g += x.g
     o.b += x.b
   }
-  return Object.keys(m).sort((a, b) => m[b]!.g - m[a]!.g).map(z => ({ z, ...m[z]! }))
+  // How many tables each zone has on the denah ("3 dari 8").
+  const total: Record<string, number> = {}
+  for (const id of Object.keys(denah.value ?? {})) {
+    const z = denah.value![id]!.zona
+    total[z] = (total[z] ?? 0) + 1
+  }
+  return Object.keys(m).sort((a, b) => m[b]!.g - m[a]!.g).map(z => ({ z, ...m[z]!, dari: total[z] ?? 0 }))
 })
 </script>
 
@@ -238,15 +250,19 @@ const zonaAgregat = computed(() => {
       <div class="mb-4 flex flex-wrap items-center gap-1.5">
         <span class="text-sm font-semibold">Bulan</span>
         <AppChips
-          v-model="blnPilih"
+          :model-value="blnPilih"
           :options="daftarBulan.map(b => ({ value: b, label: fmtBln(b) }))"
+          @update:model-value="harian.pilihBulan"
         />
         <span class="flex-1" />
         <span class="text-xs text-muted">{{ ketLaporan }}</span>
       </div>
 
+      <AnalyticsHarianPilih />
+
+      <template v-if="harian.hari.value && !d" />
       <div
-        v-if="!d"
+        v-else-if="!d"
         class="rounded-field border border-default bg-elevated p-8 text-center"
       >
         <p class="font-semibold">
@@ -334,26 +350,49 @@ const zonaAgregat = computed(() => {
         />
 
         <AppPanel
-          title="Per Zona"
-          description="Omset sebulan per zona denah."
+          title="Per Zona Denah"
           flush
         >
+          <template #description>
+            Zona diambil dari <b>denah Reservasi</b>, bukan dari berkas POS. "Meja terpakai" dihitung dari meja yang benar-benar punya
+            transaksi bulan ini. Baris <b>tanpa meja</b> (Quick Service) tidak ikut di tabel ini — ia tidak menempati zona mana pun.
+          </template>
           <UTable
             class="hidden lg:block"
             :data="zonaAgregat"
-            :columns="[{ accessorKey: 'z', header: 'Zona' }, { accessorKey: 'meja', header: 'Meja' }, { accessorKey: 'b', header: 'Transaksi' }, { accessorKey: 'g', header: 'Omset' }]"
+            :columns="[
+              { accessorKey: 'z', header: 'Zona' },
+              { accessorKey: 'meja', header: () => h('span', { class: 'block text-end' }, 'Meja terpakai') },
+              { accessorKey: 'kursi', header: () => h('span', { class: 'block text-end' }, 'Kursi') },
+              { accessorKey: 'b', header: () => h('span', { class: 'block text-end' }, 'Transaksi') },
+              { accessorKey: 'g', header: () => h('span', { class: 'block text-end' }, 'Omset') },
+              { id: 'pct', header: () => h('span', { class: 'block text-end' }, '% omset meja') },
+              { id: 'perKursi', header: () => h('span', { class: 'block text-end' }, 'Rp per kursi') },
+            ]"
           >
             <template #z-cell="{ row }">
               <b>{{ row.original.z }}</b>
             </template>
             <template #meja-cell="{ row }">
-              <span class="num">{{ angka(row.original.meja) }}</span>
+              <span class="block text-end num">{{ angka(row.original.meja) }}<span
+                v-if="row.original.dari"
+                class="text-muted"
+              > dari {{ row.original.dari }}</span></span>
+            </template>
+            <template #kursi-cell="{ row }">
+              <span class="block text-end num">{{ angka(row.original.kursi) }}</span>
             </template>
             <template #b-cell="{ row }">
-              <span class="num">{{ angka(row.original.b) }}</span>
+              <span class="block text-end num">{{ angka(row.original.b) }}</span>
             </template>
             <template #g-cell="{ row }">
-              <span class="num">{{ rupiah(row.original.g) }}</span>
+              <b class="block text-end num">{{ rupiah(row.original.g) }}</b>
+            </template>
+            <template #pct-cell="{ row }">
+              <span class="block text-end num">{{ pct1(row.original.g, hitung.gMeja) }}</span>
+            </template>
+            <template #perKursi-cell="{ row }">
+              <span class="block text-end num">{{ row.original.kursi ? rupiah(row.original.g / row.original.kursi) : '—' }}</span>
             </template>
           </UTable>
           <div class="divide-y divide-default lg:hidden">
@@ -364,7 +403,7 @@ const zonaAgregat = computed(() => {
             >
               <div>
                 <b class="block text-sm">{{ z.z }}</b>
-                <span class="text-xs text-muted">{{ angka(z.meja) }} meja · {{ angka(z.b) }} transaksi</span>
+                <span class="text-xs text-muted">{{ angka(z.meja) }}{{ z.dari ? ` dari ${z.dari}` : '' }} meja · {{ angka(z.kursi) }} kursi · {{ angka(z.b) }} transaksi</span>
               </div>
               <span class="num text-sm font-medium">{{ rupiah(z.g) }}</span>
             </div>

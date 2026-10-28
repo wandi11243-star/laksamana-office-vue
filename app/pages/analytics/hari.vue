@@ -6,10 +6,15 @@
   hari[] is cut to the stored month.
 -->
 <script setup lang="ts">
+import { useAnalyticsHarian } from '~/composables/useAnalyticsEsb'
 import type { TableColumn } from '@nuxt/ui'
 import { useAnalyticsState } from '~/composables/useAnalytics'
 import { ROLE_LABEL_ANALYTICS, useAnalyticsIzin } from '~/utils/layar/analytics'
 import { batasShift, diRentang } from '~/utils/analytics-agregat'
+import { barisBdJam, hariBelumBd, hitungAsalShift, petaJamAcara, type KunciShift } from '~/utils/analytics-dampak'
+import { getStateEvent } from '~/composables/useEvent'
+import { getStateMkt } from '~/composables/useMarketing'
+import { tglWIB } from '~/utils/event-hitung'
 import { BLN, HARI, angka, rupiah, tglPanjang } from '~/utils/format'
 
 definePageMeta({ access: ['analytics'] })
@@ -23,12 +28,15 @@ const isi = computed(() => balasan.value?.data ?? null)
 const laporan = computed(() => isi.value?.data.laporan ?? {})
 const daftarBulan = computed(() => Object.keys(laporan.value).sort().reverse())
 const blnPilih = useState<string | null>('analytics-bln', () => null)
+// "Per hari": a picked date replaces the month on this page (HARIAN_VIEW)
+const harian = useAnalyticsHarian()
 const bulan = computed(() => {
+  if (harian.hari.value) return harian.hari.value.slice(0, 7)
   const a = daftarBulan.value
   if (blnPilih.value && a.includes(blnPilih.value)) return blnPilih.value
   return a[0] ?? ''
 })
-const d = computed(() => (bulan.value ? laporan.value[bulan.value] ?? null : null))
+const d = computed(() => (harian.hari.value ? harian.laporanHari.value : (bulan.value ? laporan.value[bulan.value] ?? null : null)))
 
 const fmtBln = (b: string) => {
   const p = String(b || '').split('-')
@@ -95,6 +103,40 @@ const shiftHitung = computed(() => {
   return { g1, g2, b1, b2, gLain, bLain, tot: g1 + g2 + gLain }
 })
 const pct = (x: number, t: number) => t ? Math.round(x / t * 100) : 0
+
+// --- Walk In / Event / Marketing per shift (tabelAsalShift, :1202) ---
+// Three read-only sources, each allowed to fail on its own: the Kompas
+// Breakdown Sumber, and the Event / Marketing states for the start times.
+const { data: kpState, status: kpStatus } = useAsyncData(
+  'analytics-kompas-bd',
+  () => useApi()<Envelope<{ daily?: { date?: unknown, bd?: Record<string, unknown> }[] }>>('/kompas/state').then(r => r.data).catch(() => null),
+)
+const { data: evState } = useAsyncData('analytics-event-agenda', () => getStateEvent().then(r => r.data).catch(() => null))
+const { data: mkState } = useAsyncData('analytics-mkt-jam', () => getStateMkt().then(r => r.data).catch(() => null))
+const kpAda = computed(() => kpStatus.value === 'success' && !!kpState.value)
+type BarisAcara = Record<string, unknown>
+const asal = computed(() => {
+  const daily = Array.isArray(kpState.value?.daily) ? kpState.value!.daily : []
+  const jam = petaJamAcara(evState.value, mkState.value)
+  const ev = barisBdJam(daily, 'Event', bulan.value, jam)
+  const mk = barisBdJam(daily, 'Marketing', bulan.value, jam)
+  const h = shiftHitung.value
+  const hasil = hitungAsalShift(ev, mk, { s1: h.g1, s2: h.g2, lain: h.gLain }, shift.value)
+  const evList = ((evState.value as { events?: BarisAcara[] } | null)?.events ?? [])
+  const mkList = ((mkState.value as { events?: BarisAcara[] } | null)?.events ?? [])
+  const acara = [
+    ...evList.map(e => ({ tgl: tglWIB(e.start_datetime ?? e.tanggal), sumber: 'Event' as const, status: e.status })),
+    ...mkList.map(e => ({ tgl: String(e.tanggal ?? '').slice(0, 10), sumber: 'Marketing' as const, status: e.status })),
+  ]
+  return { ...hasil, nEv: ev.length, nMk: mk.length, belum: hariBelumBd(acara, ev, mk, bulan.value) }
+})
+const judulShift: Record<KunciShift, string> = { s1: 'Siang', s2: 'Malam', lain: 'Di luar keduanya' }
+const totShift = computed<Record<KunciShift, number>>(() => ({ s1: shiftHitung.value.g1, s2: shiftHitung.value.g2, lain: shiftHitung.value.gLain }))
+const barisAsal = computed(() => [
+  { nama: 'Walk In', cat: 'omset shift dikurangi acara', o: asal.value.wi as Record<string, number>, tak: null as number | null },
+  { nama: 'Event', cat: `${asal.value.nEv} baris breakdown`, o: asal.value.ev as Record<string, number>, tak: asal.value.ev[''] },
+  { nama: 'Marketing', cat: `${asal.value.nMk} baris breakdown · termasuk Reservasi VIP`, o: asal.value.mk as Record<string, number>, tak: asal.value.mk[''] },
+])
 
 // --- hourly spread: same denominator as the shift cards, never ringkas ---
 interface BarisJam { j: number, bill: number, grand: number, shift: string }
@@ -180,15 +222,19 @@ const kolomTgl: TableColumn<BarisTgl>[] = [
       <div class="mb-4 flex flex-wrap items-center gap-1.5">
         <span class="text-sm font-semibold">Bulan</span>
         <AppChips
-          v-model="blnPilih"
+          :model-value="blnPilih"
           :options="daftarBulan.map(b => ({ value: b, label: fmtBln(b) }))"
+          @update:model-value="harian.pilihBulan"
         />
         <span class="flex-1" />
         <span class="text-xs text-muted">{{ ketLaporan }}</span>
       </div>
 
+      <AnalyticsHarianPilih />
+
+      <template v-if="harian.hari.value && !d" />
       <div
-        v-if="!d"
+        v-else-if="!d"
         class="rounded-field border border-default bg-elevated p-8 text-center"
       >
         <p class="font-semibold">
@@ -202,7 +248,7 @@ const kolomTgl: TableColumn<BarisTgl>[] = [
       <template v-else>
         <AppPanel
           title="Omset per Hari dalam Seminggu"
-          description="Rata-rata menjawab hari mana yang lebih ramai — dan itu memang harus rata-rata, karena bulan yang punya lima Sabtu dan empat Senin akan selalu menunjukkan Sabtu lebih besar kalau yang dibandingkan jumlahnya. Kontribusi menjawab pertanyaan yang lain: dari mana omset bulan ini datang."
+          description="Rata-rata menjawab hari mana yang lebih ramai — dan itu memang harus rata-rata, karena bulan yang punya lima Sabtu dan empat Senin akan selalu menunjukkan Sabtu lebih besar kalau yang dibandingkan jumlahnya. Kontribusi menjawab pertanyaan yang lain: dari mana omset bulan ini datang — dan itu dihitung dari JUMLAH, jadi hari yang kebetulan muncul lima kali ikut terangkat. Kolom Jumlah hari ada justru supaya keduanya terbaca bersama."
           flush
         >
           <UTable
@@ -295,13 +341,124 @@ const kolomTgl: TableColumn<BarisTgl>[] = [
             Yang di luar keduanya tetap dihitung supaya jumlah ketiganya sama dengan total di Ringkasan.
           </p>
           <UAlert
+            v-if="!kpAda"
             class="mt-3"
             color="warning"
             variant="subtle"
             icon="i-lucide-triangle-alert"
             title="Walk In / Event / Marketing per shift belum bisa dihitung"
-            description="Breakdown Sumber tidak terbaca — perincian asal omset per shift menyusul bersama layar Pengaruh Event & Marketing di L3."
+            description="Breakdown Sumber tidak terbaca."
           />
+          <template v-else>
+            <h4 class="mt-5 mb-2 font-semibold text-highlighted">
+              Walk In, Event & Marketing per Shift
+            </h4>
+            <div class="overflow-x-auto">
+              <table class="w-full text-sm">
+                <thead class="bg-table-head text-xs font-bold uppercase tracking-wide text-table-head-text">
+                  <tr>
+                    <th class="px-3 py-2 text-start">
+                      Asal
+                    </th>
+                    <th
+                      v-for="k in asal.kolom"
+                      :key="k"
+                      class="px-3 py-2 text-end"
+                    >
+                      {{ judulShift[k] }}
+                    </th>
+                    <th
+                      v-if="asal.tak > 0"
+                      class="px-3 py-2 text-end"
+                    >
+                      Jam acara tak diketahui
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-default">
+                  <tr
+                    v-for="r in barisAsal"
+                    :key="r.nama"
+                  >
+                    <td class="px-3 py-2">
+                      <b class="text-highlighted">{{ r.nama }}</b>
+                      <p class="text-[11px] text-muted">
+                        {{ r.cat }}
+                      </p>
+                    </td>
+                    <td
+                      v-for="k in asal.kolom"
+                      :key="k"
+                      class="px-3 py-2 text-end num"
+                    >
+                      {{ rupiah(r.o[k] ?? 0) }}
+                      <p
+                        v-if="totShift[k]"
+                        class="text-[11px] text-muted"
+                      >
+                        {{ pct(r.o[k] ?? 0, totShift[k]) }}% shift ini
+                      </p>
+                    </td>
+                    <td
+                      v-if="asal.tak > 0"
+                      class="px-3 py-2 text-end num"
+                    >
+                      {{ r.tak == null ? '—' : rupiah(r.tak) }}
+                    </td>
+                  </tr>
+                </tbody>
+                <tfoot class="border-t border-default font-bold">
+                  <tr>
+                    <th class="px-3 py-2 text-start">
+                      Total
+                    </th>
+                    <th
+                      v-for="k in asal.kolom"
+                      :key="k"
+                      class="px-3 py-2 text-end num"
+                    >
+                      {{ rupiah(totShift[k]) }}
+                    </th>
+                    <th
+                      v-if="asal.tak > 0"
+                      class="px-3 py-2 text-end num"
+                    >
+                      {{ rupiah(asal.tak) }}
+                    </th>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+            <p class="mt-2 text-xs text-muted">
+              Omset acara dibaca dari <b>Breakdown Sumber</b> (nilai + tax + service + Open Bill, sama dengan kolom
+              <i>Omset event saja</i> di halaman Pengaruh Event/Marketing) dan ditaruh ke shift menurut <b>jam mulai acaranya</b>
+              di modul Event / Marketing. Walk In = omset shift dikurangi keduanya.
+            </p>
+            <UAlert
+              v-if="asal.tak > 0"
+              class="mt-3"
+              color="info"
+              variant="subtle"
+              icon="i-lucide-info"
+              :description="`${rupiah(asal.tak)} omset acara tidak punya jam mulai (baris breakdown yang diketik manual, atau acara yang jamnya kosong di modulnya), jadi tidak ditaruh ke shift mana pun. Walk In di kolom shift karena itu bisa lebih besar dari kenyataannya, paling banyak sebesar angka itu.`"
+            />
+            <UAlert
+              v-if="asal.minus > 0"
+              class="mt-3"
+              color="warning"
+              variant="subtle"
+              icon="i-lucide-triangle-alert"
+              :description="`Di salah satu shift omset acara lebih besar ${rupiah(asal.minus)} daripada omset shift-nya menurut POS, jadi Walk In-nya ditulis Rp0. Biasanya jam mulai acaranya jatuh di shift lain daripada jam bill-nya dibuka, atau nilai di Breakdown Sumber belum cocok dengan POS.`"
+            />
+            <UAlert
+              v-if="asal.belum > 0"
+              class="mt-3"
+              color="warning"
+              variant="subtle"
+              icon="i-lucide-triangle-alert"
+              :description="`${asal.belum} hari ada acara berstatus Event Done tapi Breakdown Sumber-nya belum diisi untuk sumber itu — omset acaranya masih terhitung sebagai Walk In.`"
+            />
+          </template>
         </AppPanel>
 
         <AppPanel
