@@ -1,0 +1,207 @@
+npm notice run lint
+npm notice run eslint .
+
+/Users/howandi/Documents/dwipa/laksamana-office-vue/tools/visual-issues/create.mjs
+    4:26   error  Strings must use singlequote                                                               @stylistic/quotes
+    4:46   error  Extra semicolon                                                                            @stylistic/semi
+    5:42   error  Strings must use singlequote                                                               @stylistic/quotes
+    5:51   error  Extra semicolon                                                                            @stylistic/semi
+    6:31   error  Strings must use singlequote                                                               @stylistic/quotes
+    6:42   error  Extra semicolon                                                                            @stylistic/semi
+    7:31   error  Strings must use singlequote                                                               @stylistic/quotes
+    7:41   error  Extra semicolon                                                                            @stylistic/semi
+    9:60   error  Strings must use singlequote                                                               @stylistic/quotes
+    9:66   error  Strings must use singlequote                                                               @stylistic/quotes
+    9:71   error  Extra semicolon                                                                            @stylistic/semi
+   10:30   error  Strings must use singlequote                                                               @stylistic/quotes
+   10:39   error  Strings must use singlequote                                                               @stylistic/quotes
+   10:56   error  Strings must use singlequote                                                               @stylistic/quotes
+   10:65   error  Extra semicolon                                                                            @stylistic/semi
+   11:42   error  Extra semicolon                                                                            @stylistic/semi
+   14:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   14:28   error  Strings must use singlequote                                                               @stylistic/quotes
+   14:44   error  Strings must use singlequote                                                               @stylistic/quotes
+   14:63   error  Strings must use singlequote                                                               @stylistic/quotes
+   14:85   error  Strings must use singlequote                                                               @stylistic/quotes
+   14:128  error  Strings must use singlequote                                                               @stylistic/quotes
+   14:186  error  Strings must use singlequote                                                               @stylistic/quotes
+   14:231  error  Strings must use singlequote                                                               @stylistic/quotes
+   15:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   15:27   error  Strings must use singlequote                                                               @stylistic/quotes
+   15:43   error  Strings must use singlequote                                                               @stylistic/quotes
+   15:62   error  Strings must use singlequote                                                               @stylistic/quotes
+   15:96   error  Strings must use singlequote                                                               @stylistic/quotes
+   15:138  error  Strings must use singlequote                                                               @stylistic/quotes
+   15:204  error  Strings must use singlequote                                                               @stylistic/quotes
+   15:248  error  Strings must use singlequote                                                               @stylistic/quotes
+   16:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   16:23   error  Strings must use singlequote                                                               @stylistic/quotes
+   16:39   error  Strings must use singlequote                                                               @stylistic/quotes
+   16:58   error  Strings must use singlequote                                                               @stylistic/quotes
+   16:79   error  Strings must use singlequote                                                               @stylistic/quotes
+   16:117  error  Strings must use singlequote                                                               @stylistic/quotes
+   16:174  error  Strings must use singlequote                                                               @stylistic/quotes
+   16:214  error  Strings must use singlequote                                                               @stylistic/quotes
+   17:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   17:28   error  Strings must use singlequote                                                               @stylistic/quotes
+   17:44   error  Strings must use singlequote                                                               @stylistic/quotes
+   17:63   error  Strings must use singlequote                                                               @stylistic/quotes
+   17:84   error  Strings must use singlequote                                                               @stylistic/quotes
+   17:127  error  Strings must use singlequote                                                               @stylistic/quotes
+   17:193  error  Strings must use singlequote                                                               @stylistic/quotes
+   17:238  error  Strings must use singlequote                                                               @stylistic/quotes
+   18:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   18:30   error  Strings must use singlequote                                                               @stylistic/quotes
+   18:46   error  Strings must use singlequote                                                               @stylistic/quotes
+   18:65   error  Strings must use singlequote                                                               @stylistic/quotes
+   18:94   error  Strings must use singlequote                                                               @stylistic/quotes
+   18:188  error  Strings must use singlequote                                                               @stylistic/quotes
+   18:262  error  Strings must use singlequote                                                               @stylistic/quotes
+   18:309  error  Strings must use singlequote                                                               @stylistic/quotes
+   19:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   19:28   error  Strings must use singlequote                                                               @stylistic/quotes
+   19:44   error  Strings must use singlequote                                                               @stylistic/quotes
+   19:63   error  Strings must use singlequote                                                               @stylistic/quotes
+   19:85   error  Strings must use singlequote                                                               @stylistic/quotes
+   19:128  error  Strings must use singlequote                                                               @stylistic/quotes
+   19:189  error  Strings must use singlequote                                                               @stylistic/quotes
+   19:239  error  Strings must use singlequote                                                               @stylistic/quotes
+   20:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   20:23   error  Strings must use singlequote                                                               @stylistic/quotes
+   20:39   error  Strings must use singlequote                                                               @stylistic/quotes
+   20:58   error  Strings must use singlequote                                                               @stylistic/quotes
+   20:87   error  Strings must use singlequote                                                               @stylistic/quotes
+   20:125  error  Strings must use singlequote                                                               @stylistic/quotes
+   20:187  error  Strings must use singlequote                                                               @stylistic/quotes
+   20:227  error  Strings must use singlequote                                                               @stylistic/quotes
+   21:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   21:29   error  Strings must use singlequote                                                               @stylistic/quotes
+   21:44   error  Strings must use singlequote                                                               @stylistic/quotes
+   21:63   error  Strings must use singlequote                                                               @stylistic/quotes
+   21:93   error  Strings must use singlequote                                                               @stylistic/quotes
+   21:170  error  Strings must use singlequote                                                               @stylistic/quotes
+   21:230  error  Strings must use singlequote                                                               @stylistic/quotes
+   21:276  error  Strings must use singlequote                                                               @stylistic/quotes
+   22:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   22:25   error  Strings must use singlequote                                                               @stylistic/quotes
+   22:46   error  Strings must use singlequote                                                               @stylistic/quotes
+   22:65   error  Strings must use singlequote                                                               @stylistic/quotes
+   22:95   error  Strings must use singlequote                                                               @stylistic/quotes
+   22:135  error  Strings must use singlequote                                                               @stylistic/quotes
+   22:178  error  Strings must use singlequote                                                               @stylistic/quotes
+   22:228  error  Strings must use singlequote                                                               @stylistic/quotes
+   23:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   23:29   error  Strings must use singlequote                                                               @stylistic/quotes
+   23:44   error  Strings must use singlequote                                                               @stylistic/quotes
+   23:63   error  Strings must use singlequote                                                               @stylistic/quotes
+   23:93   error  Strings must use singlequote                                                               @stylistic/quotes
+   23:186  error  Strings must use singlequote                                                               @stylistic/quotes
+   23:248  error  Strings must use singlequote                                                               @stylistic/quotes
+   23:298  error  Strings must use singlequote                                                               @stylistic/quotes
+   24:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   24:26   error  Strings must use singlequote                                                               @stylistic/quotes
+   24:41   error  Strings must use singlequote                                                               @stylistic/quotes
+   24:60   error  Strings must use singlequote                                                               @stylistic/quotes
+   24:90   error  Strings must use singlequote                                                               @stylistic/quotes
+   24:131  error  Strings must use singlequote                                                               @stylistic/quotes
+   24:192  error  Strings must use singlequote                                                               @stylistic/quotes
+   24:235  error  Strings must use singlequote                                                               @stylistic/quotes
+   25:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   25:26   error  Strings must use singlequote                                                               @stylistic/quotes
+   25:42   error  Strings must use singlequote                                                               @stylistic/quotes
+   25:68   error  Strings must use singlequote                                                               @stylistic/quotes
+   25:97   error  Strings must use singlequote                                                               @stylistic/quotes
+   25:159  error  Strings must use singlequote                                                               @stylistic/quotes
+   25:225  error  Strings must use singlequote                                                               @stylistic/quotes
+   25:268  error  Strings must use singlequote                                                               @stylistic/quotes
+   26:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   26:30   error  Strings must use singlequote                                                               @stylistic/quotes
+   26:46   error  Strings must use singlequote                                                               @stylistic/quotes
+   26:72   error  Strings must use singlequote                                                               @stylistic/quotes
+   26:106  error  Strings must use singlequote                                                               @stylistic/quotes
+   26:176  error  Strings must use singlequote                                                               @stylistic/quotes
+   26:240  error  Strings must use singlequote                                                               @stylistic/quotes
+   26:287  error  Strings must use singlequote                                                               @stylistic/quotes
+   27:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   27:27   error  Strings must use singlequote                                                               @stylistic/quotes
+   27:52   error  Strings must use singlequote                                                               @stylistic/quotes
+   27:78   error  Strings must use singlequote                                                               @stylistic/quotes
+   27:99   error  Strings must use singlequote                                                               @stylistic/quotes
+   27:187  error  Strings must use singlequote                                                               @stylistic/quotes
+   27:251  error  Strings must use singlequote                                                               @stylistic/quotes
+   27:295  error  Strings must use singlequote                                                               @stylistic/quotes
+   28:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   28:23   error  Strings must use singlequote                                                               @stylistic/quotes
+   28:39   error  Strings must use singlequote                                                               @stylistic/quotes
+   28:65   error  Strings must use singlequote                                                               @stylistic/quotes
+   28:86   error  Strings must use singlequote                                                               @stylistic/quotes
+   28:149  error  Strings must use singlequote                                                               @stylistic/quotes
+   28:207  error  Strings must use singlequote                                                               @stylistic/quotes
+   28:247  error  Strings must use singlequote                                                               @stylistic/quotes
+   29:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   29:30   error  Strings must use singlequote                                                               @stylistic/quotes
+   29:46   error  Strings must use singlequote                                                               @stylistic/quotes
+   29:72   error  Strings must use singlequote                                                               @stylistic/quotes
+   29:102  error  Strings must use singlequote                                                               @stylistic/quotes
+   29:147  error  Strings must use singlequote                                                               @stylistic/quotes
+   29:212  error  Strings must use singlequote                                                               @stylistic/quotes
+   29:262  error  Strings must use singlequote                                                               @stylistic/quotes
+   30:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   30:26   error  Strings must use singlequote                                                               @stylistic/quotes
+   30:47   error  Strings must use singlequote                                                               @stylistic/quotes
+   30:73   error  Strings must use singlequote                                                               @stylistic/quotes
+   30:102  error  Strings must use singlequote                                                               @stylistic/quotes
+   30:143  error  Strings must use singlequote                                                               @stylistic/quotes
+   30:208  error  Strings must use singlequote                                                               @stylistic/quotes
+   30:251  error  Strings must use singlequote                                                               @stylistic/quotes
+   31:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   31:26   error  Strings must use singlequote                                                               @stylistic/quotes
+   31:42   error  Strings must use singlequote                                                               @stylistic/quotes
+   31:68   error  Strings must use singlequote                                                               @stylistic/quotes
+   31:89   error  Strings must use singlequote                                                               @stylistic/quotes
+   31:167  error  Strings must use singlequote                                                               @stylistic/quotes
+   31:227  error  Strings must use singlequote                                                               @stylistic/quotes
+   31:270  error  Strings must use singlequote                                                               @stylistic/quotes
+   32:10   error  Strings must use singlequote                                                               @stylistic/quotes
+   32:28   error  Strings must use singlequote                                                               @stylistic/quotes
+   32:43   error  Strings must use singlequote                                                               @stylistic/quotes
+   32:69   error  Strings must use singlequote                                                               @stylistic/quotes
+   32:90   error  Strings must use singlequote                                                               @stylistic/quotes
+   32:156  error  Strings must use singlequote                                                               @stylistic/quotes
+   32:217  error  Strings must use singlequote                                                               @stylistic/quotes
+   32:262  error  Strings must use singlequote                                                               @stylistic/quotes
+   33:2    error  Extra semicolon                                                                            @stylistic/semi
+   77:2    error  Extra semicolon                                                                            @stylistic/semi
+   81:47   error  Strings must use singlequote                                                               @stylistic/quotes
+   81:63   error  Strings must use singlequote                                                               @stylistic/quotes
+   81:73   error  Strings must use singlequote                                                               @stylistic/quotes
+   81:81   error  Strings must use singlequote                                                               @stylistic/quotes
+   81:98   error  Extra semicolon                                                                            @stylistic/semi
+   84:19   error  Extra semicolon                                                                            @stylistic/semi
+   86:76   error  Extra semicolon                                                                            @stylistic/semi
+   87:7    error  The value assigned to 'exists' is not used in subsequent statements                        no-useless-assignment
+   87:16   error  Strings must use singlequote                                                               @stylistic/quotes
+   87:18   error  Extra semicolon                                                                            @stylistic/semi
+   89:95   error  Extra semicolon                                                                            @stylistic/semi
+   90:3    error  Closing curly brace appears on the same line as the subsequent block                       @stylistic/brace-style
+   90:22   error  Strings must use singlequote                                                               @stylistic/quotes
+   90:24   error  Extra semicolon                                                                            @stylistic/semi
+   91:20   error  Strings must use singlequote                                                               @stylistic/quotes
+   91:32   error  Unexpected parentheses around single function argument having a body with no curly braces  @stylistic/arrow-parens
+   92:40   error  Strings must use singlequote                                                               @stylistic/quotes
+   92:60   error  Extra semicolon                                                                            @stylistic/semi
+   93:48   error  Extra semicolon                                                                            @stylistic/semi
+   94:13   error  Extra semicolon                                                                            @stylistic/semi
+   96:46   error  Extra semicolon                                                                            @stylistic/semi
+   97:31   error  Extra semicolon                                                                            @stylistic/semi
+   98:141  error  Extra semicolon                                                                            @stylistic/semi
+   99:38   error  Strings must use singlequote                                                               @stylistic/quotes
+   99:59   error  Extra semicolon                                                                            @stylistic/semi
+  100:42   error  Extra semicolon                                                                            @stylistic/semi
+  102:75   error  Unexpected parentheses around single function argument having a body with no curly braces  @stylistic/arrow-parens
+  102:94   error  Strings must use singlequote                                                               @stylistic/quotes
+  102:112  error  Extra semicolon                                                                            @stylistic/semi
+
+✖ 199 problems (199 errors, 0 warnings)
+  198 errors and 0 warnings potentially fixable with the `--fix` option.
+

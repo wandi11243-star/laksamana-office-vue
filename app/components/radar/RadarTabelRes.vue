@@ -103,7 +103,7 @@ const kolom = computed<TableColumn<RadarReservasi>[]>(() => [
         v-for="r in halaman"
         :key="r.id"
         type="button"
-        class="flex w-full items-start justify-between gap-3 px-4 py-3 text-left hover:bg-muted/60"
+        class="flex min-h-11 w-full items-start justify-between gap-3 px-4 py-3 text-left hover:bg-muted/60"
         @click="emit('buka', r)"
       >
         <span class="min-w-0">

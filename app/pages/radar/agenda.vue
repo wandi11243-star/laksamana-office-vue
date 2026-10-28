@@ -163,28 +163,28 @@ useSegarSenyap(refresh, () => buka.value)
             v-model="f.q"
             placeholder="Nama, tempat, jenis…"
             icon="i-lucide-search"
-            class="w-full"
+            class="[&_input]:min-h-11 w-full"
           />
         </UFormField>
         <UFormField label="Sumber">
           <USelect
             v-model="f.sumber"
             :items="opsiSumber"
-            class="w-full"
+            class="min-h-11 w-full"
           />
         </UFormField>
         <UFormField label="Status">
           <USelect
             v-model="f.status"
             :items="opsiStatus"
-            class="w-full"
+            class="min-h-11 w-full"
           />
         </UFormField>
         <UFormField label="Format F&B">
           <USelect
             v-model="f.fb"
             :items="opsiFb"
-            class="w-full"
+            class="min-h-11 w-full"
           />
         </UFormField>
       </AppFilterGrid>
@@ -194,12 +194,14 @@ useSegarSenyap(refresh, () => buka.value)
           v-model="f.waktu"
           :options="opsiWaktu"
           size="sm"
+          class="[&_button]:min-h-11"
         />
         <div class="flex-1" />
         <AppSeg
           v-model="f.view"
           :options="OPSI_VIEW"
           size="sm"
+          class="[&_button]:min-h-11"
         />
       </div>
       <p class="mt-3 text-xs text-muted">
@@ -238,6 +240,7 @@ useSegarSenyap(refresh, () => buka.value)
           color="neutral"
           variant="outline"
           size="sm"
+          class="min-h-11"
           @click="f.waktu = f.waktu === 'lewat' ? 'akan' : 'lewat'"
         />
       </div>

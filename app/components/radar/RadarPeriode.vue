@@ -34,12 +34,14 @@ const geserMinggu = (n: number) => {
       v-model="mode"
       :options="OPSI_MODE"
       size="sm"
+      class="[&_button]:min-h-11"
     />
     <UInput
       v-if="p.mode === 'hari'"
       :model-value="p.tgl"
       type="date"
       size="sm"
+      class="[&_input]:min-h-11"
       aria-label="Tanggal"
       @update:model-value="v => set('tgl', String(v))"
     />
@@ -52,6 +54,7 @@ const geserMinggu = (n: number) => {
         color="neutral"
         variant="outline"
         size="sm"
+        class="min-h-11 min-w-11 justify-center"
         aria-label="Minggu sebelumnya"
         @click="geserMinggu(-7)"
       />
@@ -59,6 +62,7 @@ const geserMinggu = (n: number) => {
         :model-value="p.mgg"
         type="date"
         size="sm"
+        class="[&_input]:min-h-11"
         aria-label="Pilih tanggal mana pun, otomatis ke minggunya"
         @update:model-value="v => pilihMinggu(String(v))"
       />
@@ -67,6 +71,7 @@ const geserMinggu = (n: number) => {
         color="neutral"
         variant="outline"
         size="sm"
+        class="min-h-11 min-w-11 justify-center"
         aria-label="Minggu berikutnya"
         @click="geserMinggu(7)"
       />
@@ -76,6 +81,7 @@ const geserMinggu = (n: number) => {
       :model-value="p.bln"
       type="month"
       size="sm"
+      class="[&_input]:min-h-11"
       aria-label="Bulan"
       @update:model-value="v => set('bln', String(v))"
     />

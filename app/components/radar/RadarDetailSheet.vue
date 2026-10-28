@@ -312,6 +312,7 @@ const desk = computed(() => (detail.value?.event?.description ? tanpaTag(detail.
       <UButton
         label="Lihat detail lengkap"
         icon="i-lucide-file-text"
+        class="min-h-11"
         :to="`/radar/detail/${pilih.a.sumber}/${encodeURIComponent(pilih.a.id)}`"
         @click="open = false"
       />

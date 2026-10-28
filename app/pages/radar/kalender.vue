@@ -17,7 +17,7 @@
 <script setup lang="ts">
 import type { RadarAgenda, RadarPilihan, SumberAgenda } from '~/composables/useRadar'
 import { SUMBER_PENDEK, agendaTgl, paxOf, paxRes, resAktif, resTgl } from '~/utils/radar'
-import { BULAN, hariIni } from '~/utils/format'
+import { BULAN, fTgl, hariIni } from '~/utils/format'
 
 definePageMeta({ access: ['radar'] })
 
@@ -41,7 +41,7 @@ const sel = computed(() => {
 })
 const dari = computed(() => sel.value[0]!.iso)
 const sampai = computed(() => sel.value[41]!.iso)
-const { data: board, error, refresh } = useRadarBoard('radar-cal-board', dari, sampai)
+const { data: board, status, error, refresh } = useRadarBoard('radar-cal-board', dari, sampai)
 
 const agenda = computed(() => board.value?.agenda ?? [])
 const res = computed(() => board.value?.reservations ?? [])
@@ -68,6 +68,10 @@ const dobel = computed(() => {
 // Mapped through the object, never a two-way ternary: that sends every source
 // that is not 'mkt' to the Event filter, so unticking Event hides VIP too.
 const agSel = (iso: string) => agendaTgl(agenda.value, iso).filter(a => fCal.value[a.sumber] !== false)
+const hariBerisi = computed(() => sel.value
+  .map(c => ({ ...c, agenda: agSel(c.iso), reservasi: fCal.value.rsv ? resTgl(res.value, c.iso) : [] }))
+  .filter(c => c.agenda.length || c.reservasi.length || c.iso === hari))
+const adaAgendaDiDaftar = computed(() => hariBerisi.value.some(c => c.agenda.length || c.reservasi.length))
 function paxSel(iso: string) {
   const ags = agendaTgl(agenda.value, iso)
   const m = fCal.value.mkt ? paxOf(ags.filter(a => a.sumber === 'mkt')) : 0
@@ -75,7 +79,7 @@ function paxSel(iso: string) {
   const r = fCal.value.rsv ? paxRes(resTgl(res.value, iso)) : 0
   const v = fCal.value.vip ? paxOf(ags.filter(a => a.sumber === 'vip')) : 0
   const rinci = [m && `${m} mkt`, e && `${e} evt`, r && `${r} rsv`, v && `${v} vip*`].filter(Boolean) as string[]
-  return { total: m + e + r, rinci }
+  return { total: m + e + r, vip: v, rinci }
 }
 
 const CHIP: { k: keyof typeof fCal.value, label: string, warna: string }[] = [
@@ -115,12 +119,12 @@ useSegarSenyap(refresh, () => buka.value)
 
     <AppPanel>
       <div class="flex flex-wrap items-center gap-3">
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
           <UButton
             icon="i-lucide-chevron-left"
             color="neutral"
             variant="outline"
-            size="sm"
+            class="min-h-11 min-w-11 justify-center"
             aria-label="Bulan sebelumnya"
             @click="nav(-1)"
           />
@@ -129,7 +133,7 @@ useSegarSenyap(refresh, () => buka.value)
             icon="i-lucide-chevron-right"
             color="neutral"
             variant="outline"
-            size="sm"
+            class="min-h-11 min-w-11 justify-center"
             aria-label="Bulan berikutnya"
             @click="nav(1)"
           />
@@ -137,7 +141,7 @@ useSegarSenyap(refresh, () => buka.value)
             label="Hari ini"
             color="neutral"
             variant="outline"
-            size="sm"
+            class="min-h-11"
             @click="sekarang"
           />
         </div>
@@ -148,7 +152,7 @@ useSegarSenyap(refresh, () => buka.value)
             v-for="c in CHIP"
             :key="c.k"
             type="button"
-            class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors"
+            class="inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors"
             :class="fCal[c.k] ? 'border-default bg-default text-highlighted' : 'border-dashed border-default text-muted line-through'"
             :aria-pressed="fCal[c.k]"
             @click="fCal = { ...fCal, [c.k]: !fCal[c.k] }"
@@ -161,6 +165,13 @@ useSegarSenyap(refresh, () => buka.value)
         </div>
       </div>
     </AppPanel>
+    <p
+      v-if="status === 'pending' && !board"
+      class="mb-4 text-sm text-muted"
+      role="status"
+    >
+      Memuat kalender…
+    </p>
     <p
       v-if="semuaMati"
       class="mb-4 rounded-field border border-warning/30 bg-warning/10 p-3 text-sm text-warning"
@@ -198,8 +209,8 @@ useSegarSenyap(refresh, () => buka.value)
       />
     </AppStatGrid>
 
-    <div class="overflow-x-auto rounded-panel border border-default bg-default shadow-panel">
-      <div class="grid min-w-[720px] grid-cols-7">
+    <div class="hidden overflow-hidden rounded-panel border border-default bg-default shadow-panel lg:block">
+      <div class="grid grid-cols-7">
         <div
           v-for="d in ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']"
           :key="d"
@@ -223,7 +234,7 @@ useSegarSenyap(refresh, () => buka.value)
             v-for="a in agSel(c.iso).slice(0, 3)"
             :key="`${a.sumber}-${a.id}`"
             type="button"
-            class="mb-0.5 block w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] font-semibold"
+            class="mb-0.5 block min-h-11 w-full truncate rounded px-1.5 py-2 text-left text-[11px] font-semibold"
             :class="KELAS_EV[a.sumber]"
             :title="`${a.judul} — ${SUMBER_PENDEK[a.sumber]}${a.pax ? ` · ${a.pax} pax` : ''}`"
             @click="bukaAgenda(a)"
@@ -244,11 +255,17 @@ useSegarSenyap(refresh, () => buka.value)
             {{ resTgl(res, c.iso).length }} rsv
           </NuxtLink>
           <p
-            v-if="paxSel(c.iso).total"
+            v-if="paxSel(c.iso).total || paxSel(c.iso).vip"
             class="mt-1 text-[11px] font-semibold text-highlighted num"
             :title="`Pax event dan pax reservasi meja adalah rombongan berbeda. ${paxSel(c.iso).rinci.join(' + ')}`"
           >
-            Total {{ paxSel(c.iso).total }} pax
+            <template v-if="paxSel(c.iso).total">
+              Total {{ paxSel(c.iso).total }} pax
+            </template>
+            <span
+              v-if="paxSel(c.iso).vip"
+              class="block font-normal text-muted"
+            >{{ paxSel(c.iso).vip }} pax VIP di luar total</span>
             <span
               v-if="paxSel(c.iso).rinci.length > 1"
               class="block font-normal text-muted"
@@ -257,6 +274,78 @@ useSegarSenyap(refresh, () => buka.value)
         </div>
       </div>
     </div>
+    <AppList
+      title="Agenda bulan ini"
+      class="lg:hidden"
+    >
+      <div
+        v-for="c in hariBerisi"
+        :key="c.iso"
+        class="border-b border-default px-4 py-3 last:border-b-0"
+        :class="c.iso === hari ? 'bg-primary-50' : ''"
+      >
+        <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <div class="min-w-0 font-semibold text-highlighted">
+            {{ fTgl(c.iso) }}<span
+              v-if="c.iso === hari"
+              class="ml-1 text-primary-700"
+            >· Hari ini</span>
+          </div>
+          <span
+            v-if="paxSel(c.iso).total || paxSel(c.iso).vip"
+            class="text-right text-xs font-semibold text-muted num"
+          >
+            {{ paxSel(c.iso).total ? `Total ${paxSel(c.iso).total} pax` : '' }}{{ paxSel(c.iso).total && paxSel(c.iso).vip ? ' · ' : '' }}{{ paxSel(c.iso).vip ? `${paxSel(c.iso).vip} VIP di luar total` : '' }}
+          </span>
+        </div>
+        <div class="grid gap-1.5">
+          <button
+            v-for="a in c.agenda"
+            :key="`${a.sumber}-${a.id}`"
+            type="button"
+            class="flex min-h-11 min-w-0 items-center gap-2 rounded-field border border-default bg-default px-2.5 py-2 text-left text-sm"
+            @click="bukaAgenda(a)"
+          >
+            <span
+              class="size-2.5 shrink-0 rounded-full"
+              :class="CHIP.find(x => x.k === a.sumber)?.warna"
+            />
+            <span class="shrink-0 text-xs text-muted">{{ SUMBER_PENDEK[a.sumber] }}</span>
+            <span class="min-w-0 flex-1 truncate font-semibold">{{ a.judul }}</span>
+            <span
+              v-if="a.jam"
+              class="shrink-0 text-xs text-muted num"
+            >{{ a.jam }}</span>
+          </button>
+          <NuxtLink
+            v-if="c.reservasi.length"
+            :to="{ path: '/radar/reservasi', query: { tgl: c.iso } }"
+            class="flex min-h-11 items-center gap-2 rounded-field border border-default bg-default px-2.5 py-2 text-sm text-info"
+          >
+            <UIcon
+              name="i-lucide-book-open"
+              class="size-4 shrink-0"
+            />{{ c.reservasi.length }} reservasi · {{ paxRes(c.reservasi) }} pax
+            <UIcon
+              name="i-lucide-chevron-right"
+              class="ml-auto size-4 shrink-0"
+            />
+          </NuxtLink>
+        </div>
+        <p
+          v-if="paxSel(c.iso).rinci.length"
+          class="mt-1.5 text-[11px] text-muted num"
+        >
+          {{ paxSel(c.iso).rinci.join(' · ') }}<span v-if="paxSel(c.iso).vip"> · pax VIP (*) di luar total</span>
+        </p>
+      </div>
+      <p
+        v-if="status !== 'pending' && !error && board && !adaAgendaDiDaftar"
+        class="px-4 py-3 text-sm text-muted"
+      >
+        Tidak ada agenda atau reservasi pada sumber yang dipilih.
+      </p>
+    </AppList>
     <p class="mt-2 text-xs text-muted">
       Total pax menjumlahkan pax event dan pax reservasi meja — rombongan berbeda, jadi angkanya hanya perkiraan isi gedung malam itu.
       Pax VIP (*) tidak ikut dijumlahkan karena tamunya juga mengunci meja di Reservasi.

@@ -1,0 +1,121 @@
+[
+  {
+    "tag": "BUTTON",
+    "text": " Harian ",
+    "aria": null,
+    "height": 44,
+    "width": 65.234375
+  },
+  {
+    "tag": "BUTTON",
+    "text": " Mingguan ",
+    "aria": null,
+    "height": 44,
+    "width": 87
+  },
+  {
+    "tag": "BUTTON",
+    "text": " Bulanan ",
+    "aria": null,
+    "height": 44,
+    "width": 74.78125
+  },
+  {
+    "tag": "BUTTON",
+    "text": "",
+    "aria": "Minggu sebelumnya",
+    "height": 44,
+    "width": 44
+  },
+  {
+    "tag": "INPUT",
+    "text": "",
+    "aria": "Pilih tanggal mana pun, otomatis ke minggunya",
+    "height": 44,
+    "width": 146
+  },
+  {
+    "tag": "BUTTON",
+    "text": "",
+    "aria": "Minggu berikutnya",
+    "height": 44,
+    "width": 44
+  },
+  {
+    "tag": "INPUT",
+    "text": "",
+    "aria": null,
+    "height": 44,
+    "width": 156
+  },
+  {
+    "tag": "BUTTON",
+    "text": "Semua sumber",
+    "aria": null,
+    "height": 44,
+    "width": 156
+  },
+  {
+    "tag": "BUTTON",
+    "text": "Semua status",
+    "aria": null,
+    "height": 44,
+    "width": 156
+  },
+  {
+    "tag": "BUTTON",
+    "text": "Semua format F&B",
+    "aria": null,
+    "height": 44,
+    "width": 156
+  },
+  {
+    "tag": "BUTTON",
+    "text": " Akan Datang (3) ",
+    "aria": null,
+    "height": 44,
+    "width": 125.859375
+  },
+  {
+    "tag": "BUTTON",
+    "text": " Sudah Lewat (0) ",
+    "aria": null,
+    "height": 44,
+    "width": 126.5625
+  },
+  {
+    "tag": "BUTTON",
+    "text": " Grid ",
+    "aria": null,
+    "height": 44,
+    "width": 72.5
+  },
+  {
+    "tag": "BUTTON",
+    "text": " Tabel ",
+    "aria": null,
+    "height": 44,
+    "width": 80.3125
+  },
+  {
+    "tag": "BUTTON",
+    "text": "23OktJumGathering contoh16:00–18:00Indoor80 pax (kontrak)GatheringMarketingPrasmananHARI-HDeal",
+    "aria": null,
+    "height": 154,
+    "width": 358
+  },
+  {
+    "tag": "BUTTON",
+    "text": "23OktJumVIP contoh18:00–20:00VIP 110 pax (perkiraan atas)Reservasi VIPHARI-HConfirmed",
+    "aria": null,
+    "height": 154,
+    "width": 358
+  },
+  {
+    "tag": "BUTTON",
+    "text": "24OktSabMusik contoh19:00–21:00Panggung106 paxMusikEventH-1Upcoming",
+    "aria": null,
+    "height": 127.5,
+    "width": 358
+  }
+]

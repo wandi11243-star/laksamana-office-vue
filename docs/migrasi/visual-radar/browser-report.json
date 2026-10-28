@@ -1,0 +1,369 @@
+{
+  "report": [
+    {
+      "version": "old",
+      "screen": "radar",
+      "width": 1366,
+      "url": "http://127.0.0.1:4319/radar/?screen=radar&w=1366#radar",
+      "overflow": false,
+      "headings": [
+        "Agenda 14 hari",
+        "Reservasi hari ini",
+        "Hari ini",
+        "Sumber data",
+        "—"
+      ]
+    },
+    {
+      "version": "old",
+      "screen": "kalender",
+      "width": 1366,
+      "url": "http://127.0.0.1:4319/radar/?screen=kalender&w=1366#kalender",
+      "overflow": false,
+      "headings": [
+        "—"
+      ]
+    },
+    {
+      "version": "old",
+      "screen": "agenda",
+      "width": 1366,
+      "url": "http://127.0.0.1:4319/radar/?screen=agenda&w=1366#agenda",
+      "overflow": false,
+      "headings": [
+        "—"
+      ]
+    },
+    {
+      "version": "old",
+      "screen": "reservasi",
+      "width": 1366,
+      "url": "http://127.0.0.1:4319/radar/?screen=reservasi&w=1366#reservasi",
+      "overflow": false,
+      "headings": [
+        "—"
+      ]
+    },
+    {
+      "version": "old",
+      "screen": "promo",
+      "width": 1366,
+      "url": "http://127.0.0.1:4319/radar/?screen=promo&w=1366#promo",
+      "overflow": false,
+      "headings": [
+        "—"
+      ]
+    },
+    {
+      "version": "old",
+      "screen": "detail",
+      "width": 1366,
+      "url": "http://127.0.0.1:4319/radar/?screen=detail&w=1366#agenda",
+      "overflow": false,
+      "headings": [
+        "Gathering contoh",
+        "Detail lengkap",
+        "—"
+      ]
+    },
+    {
+      "version": "old",
+      "screen": "radar",
+      "width": 390,
+      "url": "http://127.0.0.1:4319/radar/?screen=radar&w=390#radar",
+      "overflow": true,
+      "headings": [
+        "Agenda 14 hari",
+        "Reservasi hari ini",
+        "Hari ini",
+        "Sumber data",
+        "—"
+      ]
+    },
+    {
+      "version": "old",
+      "screen": "kalender",
+      "width": 390,
+      "url": "http://127.0.0.1:4319/radar/?screen=kalender&w=390#kalender",
+      "overflow": false,
+      "headings": [
+        "—"
+      ]
+    },
+    {
+      "version": "old",
+      "screen": "agenda",
+      "width": 390,
+      "url": "http://127.0.0.1:4319/radar/?screen=agenda&w=390#agenda",
+      "overflow": false,
+      "headings": [
+        "—"
+      ]
+    },
+    {
+      "version": "old",
+      "screen": "reservasi",
+      "width": 390,
+      "url": "http://127.0.0.1:4319/radar/?screen=reservasi&w=390#reservasi",
+      "overflow": false,
+      "headings": [
+        "—"
+      ]
+    },
+    {
+      "version": "old",
+      "screen": "promo",
+      "width": 390,
+      "url": "http://127.0.0.1:4319/radar/?screen=promo&w=390#promo",
+      "overflow": false,
+      "headings": [
+        "—"
+      ]
+    },
+    {
+      "version": "old",
+      "screen": "detail",
+      "width": 390,
+      "url": "http://127.0.0.1:4319/radar/?screen=detail&w=390#agenda",
+      "overflow": false,
+      "headings": [
+        "Gathering contoh",
+        "Detail lengkap",
+        "—"
+      ]
+    },
+    {
+      "version": "new",
+      "screen": "radar",
+      "width": 1366,
+      "url": "http://127.0.0.1:4317/radar",
+      "overflow": false,
+      "headings": [
+        "Radar",
+        " Agenda 14 hari 3",
+        " Reservasi hari ini 2",
+        " Hari ini ",
+        " Sumber data "
+      ]
+    },
+    {
+      "version": "new",
+      "screen": "kalender",
+      "width": 1366,
+      "url": "http://127.0.0.1:4317/radar/kalender",
+      "overflow": false,
+      "headings": [
+        "Kalender Terpadu",
+        "Agenda bulan ini"
+      ]
+    },
+    {
+      "version": "new",
+      "screen": "agenda",
+      "width": 1366,
+      "url": "http://127.0.0.1:4317/radar/agenda",
+      "overflow": false,
+      "headings": [
+        "Daftar Event"
+      ]
+    },
+    {
+      "version": "new",
+      "screen": "reservasi",
+      "width": 1366,
+      "url": "http://127.0.0.1:4317/radar/reservasi",
+      "overflow": false,
+      "headings": [
+        "Reservasi"
+      ]
+    },
+    {
+      "version": "new",
+      "screen": "promo",
+      "width": 1366,
+      "url": "http://127.0.0.1:4317/radar/promo",
+      "overflow": false,
+      "headings": [
+        "Promo Berjalan & Akan Datang"
+      ]
+    },
+    {
+      "version": "new",
+      "screen": "detail",
+      "width": 1366,
+      "url": "http://127.0.0.1:4317/radar/detail/mkt/m1",
+      "overflow": false,
+      "headings": [
+        "Detail Event",
+        "Gathering contoh",
+        " Detail lengkap"
+      ]
+    },
+    {
+      "version": "new",
+      "screen": "radar",
+      "width": 390,
+      "url": "http://127.0.0.1:4317/radar",
+      "overflow": false,
+      "headings": [
+        "Radar",
+        " Agenda 14 hari 3",
+        " Reservasi hari ini 2",
+        " Hari ini ",
+        " Sumber data "
+      ]
+    },
+    {
+      "version": "new",
+      "screen": "kalender",
+      "width": 390,
+      "url": "http://127.0.0.1:4317/radar/kalender",
+      "overflow": false,
+      "headings": [
+        "Kalender Terpadu",
+        "Agenda bulan ini"
+      ]
+    },
+    {
+      "version": "new",
+      "screen": "agenda",
+      "width": 390,
+      "url": "http://127.0.0.1:4317/radar/agenda",
+      "overflow": false,
+      "headings": [
+        "Daftar Event"
+      ]
+    },
+    {
+      "version": "new",
+      "screen": "reservasi",
+      "width": 390,
+      "url": "http://127.0.0.1:4317/radar/reservasi",
+      "overflow": false,
+      "headings": [
+        "Reservasi"
+      ]
+    },
+    {
+      "version": "new",
+      "screen": "promo",
+      "width": 390,
+      "url": "http://127.0.0.1:4317/radar/promo",
+      "overflow": false,
+      "headings": [
+        "Promo Berjalan & Akan Datang"
+      ]
+    },
+    {
+      "version": "new",
+      "screen": "detail",
+      "width": 390,
+      "url": "http://127.0.0.1:4317/radar/detail/mkt/m1",
+      "overflow": false,
+      "headings": [
+        "Detail Event",
+        "Gathering contoh",
+        " Detail lengkap"
+      ]
+    }
+  ],
+  "errors": [],
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/promos"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/agenda/mkt/m1"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/board"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/promos"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/me"
+    },
+    {
+      "method": "GET",
+      "path": "/api/v1/radar/agenda/mkt/m1"
+    }
+  ]
+}
