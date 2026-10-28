@@ -390,7 +390,7 @@ function bukaPoSheet(o: BdPo) {
                 :key="x!.id"
                 class="inline-flex items-center gap-1.5 rounded-full border border-default px-2.5 py-1 text-[13px] font-semibold"
               >
-                <span class="flex size-5 items-center justify-center rounded-full bg-primary-100 text-[10px] font-bold text-primary-800">{{ inisial(x!.name) }}</span>
+                <span class="flex size-5 items-center justify-center rounded-full bg-yellow-light text-[10px] font-bold text-yellow-dark">{{ inisial(x!.name) }}</span>
                 {{ x!.name }}
               </span>
               <span

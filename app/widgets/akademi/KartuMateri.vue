@@ -25,6 +25,7 @@ const divisi = computed(() => props.divisions ?? [])
 <template>
   <button
     type="button"
+    :aria-label="materi.title"
     class="group relative flex w-full flex-col rounded-panel border border-default bg-default p-4 text-start shadow-panel transition-colors hover:border-accented focus-visible:outline-2 focus-visible:outline-primary"
     @click="emit('buka', materi.id)"
   >

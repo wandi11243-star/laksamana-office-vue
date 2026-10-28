@@ -69,6 +69,28 @@ const kolomKuis: TableColumn<(typeof hasilKuis.value)[number]>[] = [
     description="Pusat kendali training, kondisi standar kru secara keseluruhan"
   >
     <AppPanel
+      v-if="isAdmin && perluDidorong.length"
+      title="Butuh tindakan hari ini"
+      icon="i-lucide-siren"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="font-semibold text-highlighted">
+            {{ perluDidorong.length }} kru di bawah 50% wajib
+          </p>
+          <p class="mt-0.5 text-[12.5px] text-muted">
+            Mulai dari {{ perluDidorong[0]?.k.name ?? '—' }}, yang paling tertinggal.
+          </p>
+        </div>
+        <UButton
+          label="Buka Progress Tim"
+          icon="i-lucide-arrow-right"
+          to="/akademi/tim"
+        />
+      </div>
+    </AppPanel>
+
+    <AppPanel
       v-if="!isAdmin"
       title="Khusus admin modul"
       icon="i-lucide-lock"

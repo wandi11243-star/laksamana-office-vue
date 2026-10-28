@@ -338,7 +338,7 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
           <template #dp-cell="{ row }">
             <span
               class="inline-flex size-6 items-center justify-center rounded-full"
-              :class="row.original.dpStatus === 'Sudah' ? 'bg-success/12 text-success' : 'bg-primary-100 text-primary-700 dark:bg-primary-950 dark:text-primary-300'"
+              :class="row.original.dpStatus === 'Sudah' ? 'bg-success/12 text-success' : 'bg-primary-100 text-primary-700'"
               :title="row.original.dpStatus === 'Sudah' ? 'Sudah DP' : 'Belum DP'"
             >
               <UIcon

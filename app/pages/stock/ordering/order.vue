@@ -7,7 +7,6 @@
   Pre-submit shows the duplicate count ("sudah X, akan jadi Y", old `:4653`).
 -->
 <script setup lang="ts">
-import type { TableColumn } from '@nuxt/ui'
 import { catatLog, createBatch, joinableBatches, useProdukStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { hariIni, tambahHari } from '~/utils/format'
@@ -37,7 +36,7 @@ interface BarisOrder { k: number, item: string, qty: number, unit: string, note:
 let nomor = 0
 const baris = ref<BarisOrder[]>([])
 function tambahBaris() {
-  baris.value.push({ k: ++nomor, item: '', qty: 1, unit: SATUAN_TERSEDIA[0]!, note: '' })
+  baris.value.push({ k: ++nomor, item: '', qty: 5, unit: SATUAN_TERSEDIA[0]!, note: '' })
 }
 function hapusBaris(k: number) {
   if (baris.value.length <= 1) {
@@ -45,6 +44,13 @@ function hapusBaris(k: number) {
     return
   }
   baris.value = baris.value.filter(b => b.k !== k)
+}
+// Like the old `adjustQty`: the stepper clamps at 1, never 0 or empty.
+function naikkan(b: BarisOrder) {
+  b.qty = Math.max(1, Math.round((Number(b.qty) || 0) + 1))
+}
+function turunkan(b: BarisOrder) {
+  b.qty = Math.max(1, Math.round((Number(b.qty) || 0) - 1))
 }
 function aturSatuan(b: BarisOrder) {
   const daftar = satuanOf(b.item)
@@ -60,6 +66,9 @@ function paksaDaftar(b: BarisOrder) {
   }
   aturSatuan(b)
 }
+// Like the old form: three empty rows ready, qty default 5.
+tambahBaris()
+tambahBaris()
 tambahBaris()
 
 const siap = computed(() => baris.value.filter(b => b.item.trim() && (Number(b.qty) || 0) > 0))
@@ -158,6 +167,8 @@ async function kirim() {
     catch { /* keep going */ }
     baris.value = []
     tambahBaris()
+    tambahBaris()
+    tambahBaris()
     await batchQ.refresh()
   }
   catch (e) {
@@ -167,13 +178,6 @@ async function kirim() {
     mengirim.value = false
   }
 }
-
-const kolom: TableColumn<BarisOrder>[] = [
-  { accessorKey: 'item', header: 'Bahan' },
-  { accessorKey: 'qty', header: 'Jumlah' },
-  { accessorKey: 'unit', header: 'Satuan' },
-  { accessorKey: 'note', header: 'Catatan' },
-]
 
 function unduhDraf() {
   const isi = siap.value.map(b => [b.item.trim(), String(Math.max(1, Number(b.qty) || 1)), b.unit, b.note.trim() || '-'])
@@ -197,48 +201,69 @@ function unduhDraf() {
       />
     </template>
 
-    <AppStatGrid>
-      <AppStat
-        label="Item siap dikirim"
-        :value="String(siap.length)"
-        satuan="item"
-        icon="i-lucide-shopping-cart"
-        tone="info"
-      />
-      <AppStat
-        label="Rencana datang"
-        :value="tgl"
-        icon="i-lucide-calendar"
-      />
-      <AppStat
-        label="Batch gabungan"
-        :value="String(batchQ.data.value?.rows.length ?? 0)"
-        satuan="terbuka"
-        icon="i-lucide-boxes"
-      />
-    </AppStatGrid>
-
-    <AppPanel title="Pengajuan order barang baru">
-      <AppFilterGrid>
-        <UFormField label="PIC pemesan">
+    <!-- TAHAP 1 hero: the old dark-gold gradient panel, rebuilt as an ink panel
+      (Miro: no gold, no gradients). PIC + arrival date live inside, like old. -->
+    <section class="mb-5 rounded-panel bg-ink-900 p-4 text-white shadow-panel lg:p-5">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p class="text-[11px] font-bold uppercase tracking-widest text-white/70">
+            Tahap 1
+          </p>
+          <h2 class="font-display text-lg font-bold">
+            Pengajuan order barang baru
+          </h2>
+        </div>
+        <AppStatus
+          color="success"
+          icon="i-lucide-cloud-upload"
+        >
+          Server sinkron
+        </AppStatus>
+      </div>
+      <div class="mt-4 grid gap-3 border-t border-white/15 pt-4 lg:grid-cols-2">
+        <UFormField
+          label="PIC pemesan"
+          :ui="{ label: 'text-xs font-bold uppercase tracking-wider text-white/70' }"
+        >
           <UInput
             :model-value="me?.name ?? ''"
             disabled
+            class="w-full"
           />
         </UFormField>
-        <UFormField label="Tanggal rencana kedatangan">
-          <UInput
-            v-model="tgl"
-            type="date"
-          />
-        </UFormField>
-        <UFormField label="Pintasan tanggal">
+        <div>
+          <UFormField
+            label="Tanggal rencana kedatangan"
+            :ui="{ label: 'text-xs font-bold uppercase tracking-wider text-white/70' }"
+          >
+            <UInput
+              v-model="tgl"
+              type="date"
+              class="w-full"
+            />
+          </UFormField>
           <AppChips
             v-model="tgl"
             :options="pintas.map(p => ({ value: p.value, label: p.label }))"
+            class="mt-2"
           />
-        </UFormField>
-      </AppFilterGrid>
+        </div>
+      </div>
+    </section>
+
+    <AppPanel
+      title="Item pesanan belanja"
+      icon="i-lucide-shopping-cart"
+      :count="baris.length"
+    >
+      <template #actions>
+        <UButton
+          label="Tambah baris bahan"
+          icon="i-lucide-plus"
+          variant="outline"
+          @click="tambahBaris"
+        />
+      </template>
 
       <AppSectionTitle title="Batch" />
       <AppSeg
@@ -275,55 +300,81 @@ function unduhDraf() {
       </p>
 
       <AppSectionTitle title="Baris bahan" />
-      <div class="hidden lg:block">
-        <UTable
-          :columns="kolom"
-          :data="siap"
-        />
-      </div>
       <div class="flex flex-col gap-3">
         <div
           v-for="b in baris"
           :key="b.k"
-          class="rounded-panel border border-default p-3"
+          class="rounded-panel border border-default bg-muted/40 p-3"
         >
-          <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_2fr_auto]">
-            <UFormField label="Bahan">
-              <UInput
-                v-model="b.item"
-                list="stock-order-produk"
-                placeholder="Ketik nama bahan"
-                @change="paksaDaftar(b)"
+          <UFormField label="Bahan">
+            <UInput
+              v-model="b.item"
+              list="stock-order-produk"
+              placeholder="Ketik nama bahan"
+              class="w-full"
+              @change="paksaDaftar(b)"
+            />
+          </UFormField>
+          <div class="mt-2 flex flex-wrap items-end gap-2">
+            <div
+              class="flex items-center gap-1.5"
+              role="group"
+              aria-label="Jumlah"
+            >
+              <UButton
+                icon="i-lucide-minus"
+                variant="outline"
+                square
+                class="size-11 justify-center"
+                aria-label="Kurangi jumlah"
+                @click="turunkan(b)"
               />
-            </UFormField>
-            <UFormField label="Jumlah">
               <UInput
                 v-model.number="b.qty"
                 type="number"
                 min="1"
+                class="w-16"
+                :ui="{ base: 'text-center font-bold' }"
+                aria-label="Jumlah"
               />
-            </UFormField>
-            <UFormField label="Satuan">
+              <UButton
+                icon="i-lucide-plus"
+                variant="outline"
+                square
+                class="size-11 justify-center"
+                aria-label="Tambah jumlah"
+                @click="naikkan(b)"
+              />
+            </div>
+            <UFormField
+              label="Satuan"
+              class="min-w-28 flex-1"
+            >
               <USelect
                 v-model="b.unit"
                 :items="satuanOf(b.item)"
+                class="w-full"
               />
             </UFormField>
-            <UFormField label="Catatan (opsional)">
+            <UFormField
+              label="Catatan (opsional)"
+              class="min-w-40 flex-[2]"
+            >
               <UInput
                 v-model="b.note"
                 placeholder="Kosongkan bila tidak ada"
+                class="w-full"
               />
             </UFormField>
-            <div class="flex items-end">
-              <UButton
-                icon="i-lucide-trash-2"
-                variant="ghost"
-                color="error"
-                aria-label="Hapus baris"
-                @click="hapusBaris(b.k)"
-              />
-            </div>
+            <UButton
+              icon="i-lucide-trash-2"
+              variant="ghost"
+              color="error"
+              square
+              class="size-11 justify-center"
+              aria-label="Hapus baris"
+              @click="hapusBaris(b.k)"
+            />
           </div>
         </div>
       </div>
@@ -335,24 +386,23 @@ function unduhDraf() {
         />
       </datalist>
 
-      <div class="mt-4 flex flex-wrap gap-2">
-        <UButton
-          label="Tambah baris bahan"
-          icon="i-lucide-plus"
-          variant="outline"
-          @click="tambahBaris"
-        />
-        <UButton
-          label="Simpan draft"
-          icon="i-lucide-save"
-          variant="outline"
-          @click="simpanDraf"
-        />
-        <UButton
-          label="Cek & submit pesanan"
-          icon="i-lucide-send"
-          @click="cekSubmit"
-        />
+      <div class="mt-4 flex flex-col gap-3 border-t border-default pt-4 sm:flex-row sm:items-center sm:justify-between">
+        <p class="text-sm font-bold text-muted">
+          {{ siap.length }} baris siap dikirim
+        </p>
+        <div class="flex flex-col gap-2 sm:flex-row">
+          <UButton
+            label="Simpan draft"
+            icon="i-lucide-save"
+            variant="outline"
+            @click="simpanDraf"
+          />
+          <UButton
+            label="Cek & submit pesanan"
+            icon="i-lucide-send"
+            @click="cekSubmit"
+          />
+        </div>
       </div>
     </AppPanel>
 

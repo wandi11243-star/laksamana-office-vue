@@ -38,6 +38,7 @@ export interface FieldEventMkt {
   cond?: { k: string, v: unknown }
   help?: string
   full?: boolean
+  desc?: string
 }
 
 export interface SeksiEventMkt {
@@ -73,7 +74,7 @@ const D1: FieldEventMkt[] = [
   { k: 'highlight', l: 'Poin Penting', t: 'ta', full: true },
   { k: 'rundown', l: 'Rundown Acara', t: 'rundown', help: 'Isi per baris: jam mulai, durasi & kegiatan. Ketik durasi → jam selesai terhitung sendiri.', req: true, full: true },
   { k: 'rundownFiles', l: 'Lampiran Rundown', t: 'files', full: true, help: 'Unggah foto/PDF rundown. Gambar langsung tampil di bawah.' },
-  { k: '_hLoading', l: 'Jadwal Loading', t: 'head', full: true },
+  { k: '_hLoading', l: 'Jadwal Loading', t: 'head', desc: 'Kapan dekorasi & barang masuk-keluar. Dipakai juga oleh Security (D.5).', full: true },
   { k: 'loadDekorTgl', l: 'Loading Dekorasi — Tanggal', t: 'date' },
   { k: 'loadDekorJam', l: 'Loading Dekorasi — Waktu', t: 'time' },
   { k: 'loadDekorNote', l: 'Catatan Loading Dekorasi', t: 'ta', full: true },
@@ -83,7 +84,7 @@ const D1: FieldEventMkt[] = [
   { k: 'loadOutTgl', l: 'Loading Out — Tanggal', t: 'date' },
   { k: 'loadOutJam', l: 'Loading Out — Waktu', t: 'time' },
   { k: 'loadOutNote', l: 'Catatan Loading Out', t: 'ta', full: true },
-  { k: '_hDecor', l: 'Dekorasi & Layout', t: 'head', full: true },
+  { k: '_hDecor', l: 'Dekorasi & Layout', t: 'head', desc: 'Sumber dekorasi, layout & penggunaan area.', full: true },
   { k: 'decorSource', l: 'Sumber Dekorasi', t: 'sel', o: ['Dari Client', 'Dari Laksamana Muda'], req: true },
   { k: 'decorVendorTime', l: 'Jam Vendor Dekorasi Datang', t: 'time', cond: { k: 'decorSource', v: 'Dari Client' } },
   { k: 'decorSupport', l: 'Perlu Support Tim Venue', t: 'yn', req: true },
@@ -101,7 +102,7 @@ const D1: FieldEventMkt[] = [
   { k: 'areaPakai', l: 'Area yang Dipakai untuk Seating dan Dekor', t: 'multi', o: ['Main Hall', 'Lobby', 'Lantai 2', 'VIP', 'Outdoor', 'Seluruh Area', 'Lainnya'], req: true },
   { k: 'areaPakaiLain', l: 'Area — tulis sendiri', t: 'text', cond: { k: 'areaPakai', v: 'Lainnya' } },
   { k: 'areaImgs', l: 'Gambar Area', t: 'files', full: true, help: 'Boleh lebih dari satu. Gambar langsung tampil di bawah.' },
-  { k: '_hVenue', l: 'Venue Needs', t: 'head', full: true },
+  { k: '_hVenue', l: 'Venue Needs', t: 'head', desc: 'Jawab Ya / Tidak. Isi catatan bila perlu detail.', full: true },
   { k: 'sound', l: 'Sound System', t: 'ynnote' },
   { k: 'lighting', l: 'Lighting Khusus', t: 'ynnote' },
   { k: 'screen', l: 'LED / Proyektor / TV', t: 'ynnote' },
@@ -145,12 +146,12 @@ const D4: FieldEventMkt[] = [
   { k: 'dressCode', l: 'Dress Code Staff Floor', t: 'text' },
   { k: 'barangClient', l: 'Barang Bawaan Client Perlu Setup', t: 'ta' },
   { k: 'floorNote', l: 'Note untuk Floor', t: 'ta', full: true, help: 'Termasuk request service khusus.' },
-  { k: '_hGuest', l: 'Host & Guest Handling', t: 'head', full: true },
+  { k: '_hGuest', l: 'Host & Guest Handling', t: 'head', desc: 'Pindahan dari D.5 yang lama.', full: true },
   { k: 'guestList', l: 'Guest List / RSVP', t: 'yn' },
   { k: 'hostBantu', l: 'Perlu Perbantuan Host', t: 'yn' },
   { k: 'hostJumlah', l: 'Berapa Host yang Dibutuhkan', t: 'num', cond: { k: 'hostBantu', v: true } },
   { k: 'penandaTamu', l: 'Penanda Tamu', t: 'ta', help: 'Gelang, kartu undangan, lanyard.' },
-  { k: '_hInfoFloor', l: 'Info dari Seksi Lain', t: 'head', full: true },
+  { k: '_hInfoFloor', l: 'Info dari Seksi Lain', t: 'head', desc: 'Baca-saja. Diubah di seksi asalnya.', full: true },
   { k: 'm_ruangVIP', l: 'Ruang VIP (dari D.1)', t: 'mirror', from: 'ruangVIP' },
   { k: 'm_musholla', l: 'Musholla (dari D.1)', t: 'mirror', from: 'musholla' },
   { k: 'm_layout', l: 'Catatan Layout & Seating (dari D.1)', t: 'mirror', from: 'layoutFile', full: true },
@@ -165,11 +166,11 @@ const D5: FieldEventMkt[] = [
   { k: 'bodyCheck', l: 'Perlu Body Checking?', t: 'yn' },
   { k: 'loadVendor', l: 'Loading Vendor (jadwal masuk-keluar)', t: 'ta' },
   { k: 'loadBarang', l: 'Barang Apa Saja yang Masuk', t: 'barangtbl', full: true, help: 'Sebut barangnya beserta tanggal & jam masuk.' },
-  { k: '_hParkir', l: 'Akses Parkir', t: 'head', full: true },
+  { k: '_hParkir', l: 'Akses Parkir', t: 'head', desc: 'Pindahan dari D.5 yang lama.', full: true },
   { k: 'valet', l: 'Valet / Reservasi Parkir Tamu Penting', t: 'yn' },
   { k: 'vipPark', l: 'VIP Parking — Plat & Nama', t: 'ta' },
   { k: 'parkArea', l: 'Area Parkir yang Digunakan', t: 'text', req: true },
-  { k: '_hInfoSec', l: 'Info dari Seksi Lain', t: 'head', full: true },
+  { k: '_hInfoSec', l: 'Info dari Seksi Lain', t: 'head', desc: 'Baca-saja. Diubah di D.1.', full: true },
   { k: 'm_privacy', l: 'Sifat Acara (dari D.1)', t: 'mirror', from: 'privacy' },
   { k: 'm_loadDekor', l: 'Loading Dekorasi (dari D.1)', t: 'mirror', from: ['loadDekorTgl', 'loadDekorJam', 'loadDekorNote'], full: true },
   { k: 'm_loadIn', l: 'Loading In (dari D.1)', t: 'mirror', from: ['loadInTgl', 'loadInJam', 'loadInNote'], full: true },
@@ -195,7 +196,7 @@ const D7: FieldEventMkt[] = [
   { k: 'dokEvent', l: 'Dokumentasi Selama Event Diizinkan', t: 'yn', req: true },
   { k: 'hashtag', l: 'Hashtag Wajib', t: 'text' },
   { k: 'mktPIC', l: 'PIC Marketing dari Client', t: 'text' },
-  { k: '_hBooth', l: 'Booth (jika client membuka booth)', t: 'head', full: true },
+  { k: '_hBooth', l: 'Booth (jika client membuka booth)', t: 'head', desc: 'Isi hanya bila ada booth. Aktifkan "Ada Booth?" agar detailnya muncul.', full: true },
   { k: 'boothAda', l: 'Ada Booth?', t: 'tog' },
   { k: 'boothUkuran', l: 'Ukuran & Jumlah Booth', t: 'text', cond: { k: 'boothAda', v: true } },
   { k: 'boothPosisi', l: 'Posisi Booth', t: 'sel', o: ['Indoor dekat panggung', 'Indoor dekat entrance', 'Outdoor'], cond: { k: 'boothAda', v: true } },

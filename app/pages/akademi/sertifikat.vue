@@ -30,6 +30,10 @@ const kolom: TableColumn<MateriAkademi>[] = [
 const progresMateri = (m: MateriAkademi) => progress.value[kru.value?.id ?? '']?.[m.id] ?? null
 const tanggalSertifikat = tanggalMs(Date.now())
 const cetak = () => window.print()
+
+// Reimagine (B): linear checklist. One next mandatory item is the focal step,
+// the full table stays as the detail archive.
+const berikutnya = computed(() => matsWajib.value.find(m => kru.value && !selesaiMateri(kru.value.id, m, progress.value)) ?? null)
 </script>
 
 <template>
@@ -81,7 +85,29 @@ const cetak = () => window.print()
 
     <!-- Progress towards it -->
     <AppPanel
-      v-else-if="st"
+      v-if="berikutnya && st && !st.certified"
+      title="Langkah berikutnya"
+      icon="i-lucide-play"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="truncate font-semibold text-highlighted">
+            {{ berikutnya.title }}
+          </p>
+          <p class="mt-0.5 text-[12.5px] text-muted">
+            {{ st.mandDone }} dari {{ st.mandTotal }} wajib selesai, kerjakan satu ini dulu.
+          </p>
+        </div>
+        <UButton
+          label="Lihat materi"
+          icon="i-lucide-arrow-right"
+          to="/akademi/materi"
+        />
+      </div>
+    </AppPanel>
+
+    <AppPanel
+      v-if="st && !st.certified"
       title="Menuju Sertifikasi"
       icon="i-lucide-award"
     >

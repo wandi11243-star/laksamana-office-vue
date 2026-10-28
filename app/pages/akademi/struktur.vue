@@ -13,12 +13,16 @@ import { namaDivisi, statKru } from '~/utils/akademi-hitung'
 definePageMeta({ access: ['akademi'] })
 
 const toast = useToast()
-const { materials, users, divisions, progress, isAdmin, refresh } = useAkademiData()
+const { materials, users, divisions, progress, kru, isAdmin, refresh } = useAkademiData()
 muatAkademiKru()
 
 const dibagi = computed(() => (divisions.value.length ? divisions.value : DIVISI_DEFAULT))
 const aktif = computed(() => users.value.filter(k => k.active))
 const manajemen = computed(() => aktif.value.filter(k => k.role === 'admin' || k.division === 'all'))
+
+// Reimagine (B): linear orientation. My own division and its PIC come first,
+// the full grid stays as the archive below.
+const divisiSaya = computed(() => dibagi.value.find(d => d.id === kru.value?.division) ?? null)
 const timDivisi = (id: string) => aktif.value.filter(k => k.division === id)
 const picDivisi = (id: string) => timDivisi(id).filter(k => k.role === 'manager')
 const stafDivisi = (id: string) => timDivisi(id).filter(k => k.role === 'staff')
@@ -109,6 +113,30 @@ async function konfirmasiHapus() {
         @click="bukaForm()"
       />
     </template>
+
+    <AppPanel
+      v-if="divisiSaya"
+      title="Divisimu"
+      icon="i-lucide-compass"
+    >
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <div class="min-w-0">
+          <p class="font-semibold text-highlighted">
+            {{ divisiSaya.name }}
+          </p>
+          <p class="mt-0.5 text-[12.5px] text-muted">
+            {{ timDivisi(divisiSaya.id).length }} kru · {{ materiDivisi(divisiSaya.id) }} materi · PIC {{ picDivisi(divisiSaya.id)[0]?.name ?? 'belum ada' }}
+          </p>
+        </div>
+        <UButton
+          label="Lihat materi divisi"
+          icon="i-lucide-arrow-right"
+          color="neutral"
+          variant="outline"
+          to="/akademi/materi"
+        />
+      </div>
+    </AppPanel>
 
     <AppPanel
       title="Nahkoda & Manajemen Pusat"

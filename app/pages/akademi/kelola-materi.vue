@@ -20,6 +20,11 @@ muatAkademiKru()
 
 const daftar = computed(() => [...materials.value].sort(terbaruDulu))
 
+// Reimagine (B): actionable queue. Drafts waiting to publish are the focal
+// work, the full table stays as the archive.
+const drafMenunggu = computed(() => daftar.value.filter(m => !m.published))
+const drafPertama = computed(() => drafMenunggu.value[0] ?? null)
+
 const kolom: TableColumn<MateriAkademi>[] = [
   { id: 'materi', header: 'Materi' },
   { id: 'tipe', header: 'Tipe' },
@@ -125,136 +130,159 @@ const divLabel = (m: MateriAkademi) => (Array.isArray(m.division) ? m.division :
       </p>
     </AppPanel>
 
-    <AppPanel
-      v-else
-      title="Materi"
-      icon="i-lucide-folder-cog"
-      :count="daftar.length"
-      flush
-    >
-      <div class="hidden lg:block">
-        <UTable
-          :data="daftar"
-          :columns="kolom"
-        >
-          <template #materi-cell="{ row }">
-            <span class="font-semibold">{{ row.original.title }}</span>
-          </template>
-          <template #tipe-cell="{ row }">
-            <AppStatus
-              :color="statusTipe(row.original.type).tone"
-              :icon="statusTipe(row.original.type).icon"
-              size="sm"
-            >
-              {{ statusTipe(row.original.type).label }}
-            </AppStatus>
-          </template>
-          <template #divisi-cell="{ row }">
-            <span class="text-[12px]">{{ divLabel(row.original) }}</span>
-          </template>
-          <template #kategori-cell="{ row }">
-            <span class="text-[12px]">{{ namaKategori(row.original.cat) }}</span>
-          </template>
-          <template #wajib-cell="{ row }">
-            <UIcon
-              v-if="row.original.mandatory"
-              name="i-lucide-circle-check"
-              class="size-4 text-success"
-            />
-            <span v-else>—</span>
-          </template>
-          <template #status-cell="{ row }">
-            <AppStatus
-              :color="statusTerbit(row.original.published).tone"
-              :icon="statusTerbit(row.original.published).icon"
-              size="sm"
-            >
-              {{ statusTerbit(row.original.published).label }}
-            </AppStatus>
-          </template>
-          <template #aksi-cell="{ row }">
-            <div class="flex items-center gap-1">
-              <UButton
-                icon="i-lucide-pencil"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                aria-label="Ubah materi"
-                @click="ubah(row.original)"
-              />
-              <UButton
-                icon="i-lucide-trash-2"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                aria-label="Hapus materi"
-                @click="mintaHapus(row.original)"
-              />
-            </div>
-          </template>
-        </UTable>
-      </div>
-      <div class="divide-y divide-default lg:hidden">
-        <div
-          v-for="m in daftar"
-          :key="m.id"
-          class="px-4 py-3"
-        >
-          <div class="flex items-start justify-between gap-2">
-            <div class="min-w-0">
-              <p class="font-semibold text-highlighted">
-                {{ m.title }}
-              </p>
-              <p class="text-xs text-muted">
-                {{ divLabel(m) }} · {{ namaKategori(m.cat) }}
-              </p>
-            </div>
-            <div class="flex shrink-0 items-center gap-1">
-              <UButton
-                icon="i-lucide-pencil"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                aria-label="Ubah materi"
-                @click="ubah(m)"
-              />
-              <UButton
-                icon="i-lucide-trash-2"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                aria-label="Hapus materi"
-                @click="mintaHapus(m)"
-              />
-            </div>
+    <template v-else>
+      <AppPanel
+        title="Antrean terbit"
+        icon="i-lucide-play"
+      >
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div class="min-w-0">
+            <p class="font-semibold text-highlighted">
+              {{ drafMenunggu.length ? `${drafMenunggu.length} draft menunggu terbit` : 'Tidak ada draft menunggu' }}
+            </p>
+            <p class="mt-0.5 text-[12.5px] text-muted">
+              {{ drafPertama ? `Mulai dari ${drafPertama.title}.` : 'Semua materi sudah terbit, buat materi baru bila perlu.' }}
+            </p>
           </div>
-          <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
-            <AppStatus
-              :color="statusTipe(m.type).tone"
-              :icon="statusTipe(m.type).icon"
-              size="sm"
-            >
-              {{ statusTipe(m.type).label }}
-            </AppStatus>
-            <AppStatus
-              v-if="m.mandatory"
-              color="error"
-              icon="i-lucide-flag"
-              size="sm"
-            >
-              Wajib
-            </AppStatus>
-            <AppStatus
-              :color="statusTerbit(m.published).tone"
-              :icon="statusTerbit(m.published).icon"
-              size="sm"
-            >
-              {{ statusTerbit(m.published).label }}
-            </AppStatus>
+          <UButton
+            v-if="drafPertama"
+            label="Terbitkan berikutnya"
+            icon="i-lucide-arrow-right"
+            @click="ubah(drafPertama)"
+          />
+        </div>
+      </AppPanel>
+
+      <AppPanel
+        title="Materi"
+        icon="i-lucide-folder-cog"
+        :count="daftar.length"
+        flush
+      >
+        <div class="hidden lg:block">
+          <UTable
+            :data="daftar"
+            :columns="kolom"
+          >
+            <template #materi-cell="{ row }">
+              <span class="font-semibold">{{ row.original.title }}</span>
+            </template>
+            <template #tipe-cell="{ row }">
+              <AppStatus
+                :color="statusTipe(row.original.type).tone"
+                :icon="statusTipe(row.original.type).icon"
+                size="sm"
+              >
+                {{ statusTipe(row.original.type).label }}
+              </AppStatus>
+            </template>
+            <template #divisi-cell="{ row }">
+              <span class="text-[12px]">{{ divLabel(row.original) }}</span>
+            </template>
+            <template #kategori-cell="{ row }">
+              <span class="text-[12px]">{{ namaKategori(row.original.cat) }}</span>
+            </template>
+            <template #wajib-cell="{ row }">
+              <UIcon
+                v-if="row.original.mandatory"
+                name="i-lucide-circle-check"
+                class="size-4 text-success"
+              />
+              <span v-else>—</span>
+            </template>
+            <template #status-cell="{ row }">
+              <AppStatus
+                :color="statusTerbit(row.original.published).tone"
+                :icon="statusTerbit(row.original.published).icon"
+                size="sm"
+              >
+                {{ statusTerbit(row.original.published).label }}
+              </AppStatus>
+            </template>
+            <template #aksi-cell="{ row }">
+              <div class="flex items-center gap-1">
+                <UButton
+                  icon="i-lucide-pencil"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Ubah materi"
+                  @click="ubah(row.original)"
+                />
+                <UButton
+                  icon="i-lucide-trash-2"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Hapus materi"
+                  @click="mintaHapus(row.original)"
+                />
+              </div>
+            </template>
+          </UTable>
+        </div>
+        <div class="divide-y divide-default lg:hidden">
+          <div
+            v-for="m in daftar"
+            :key="m.id"
+            class="px-4 py-3"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <p class="font-semibold text-highlighted">
+                  {{ m.title }}
+                </p>
+                <p class="text-xs text-muted">
+                  {{ divLabel(m) }} · {{ namaKategori(m.cat) }}
+                </p>
+              </div>
+              <div class="flex shrink-0 items-center gap-1">
+                <UButton
+                  icon="i-lucide-pencil"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Ubah materi"
+                  @click="ubah(m)"
+                />
+                <UButton
+                  icon="i-lucide-trash-2"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Hapus materi"
+                  @click="mintaHapus(m)"
+                />
+              </div>
+            </div>
+            <div class="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <AppStatus
+                :color="statusTipe(m.type).tone"
+                :icon="statusTipe(m.type).icon"
+                size="sm"
+              >
+                {{ statusTipe(m.type).label }}
+              </AppStatus>
+              <AppStatus
+                v-if="m.mandatory"
+                color="error"
+                icon="i-lucide-flag"
+                size="sm"
+              >
+                Wajib
+              </AppStatus>
+              <AppStatus
+                :color="statusTerbit(m.published).tone"
+                :icon="statusTerbit(m.published).icon"
+                size="sm"
+              >
+                {{ statusTerbit(m.published).label }}
+              </AppStatus>
+            </div>
           </div>
         </div>
-      </div>
-    </AppPanel>
+      </AppPanel>
+    </template>
 
     <FormMateri
       v-model:open="formOpen"

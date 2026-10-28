@@ -26,9 +26,9 @@ const GF_LOG = new Uint8Array(256)
     x <<= 1
     if (x & 0x100) x ^= 0x11d
   }
-  for (let i = 255; i < 512; i++) GF_EXP[i] = GF_EXP[i - 255]
+  for (let i = 255; i < 512; i++) GF_EXP[i] = GF_EXP[i - 255]!
 }
-const gfMul = (a: number, b: number) => (a === 0 || b === 0 ? 0 : GF_EXP[GF_LOG[a] + GF_LOG[b]]!)
+const gfMul = (a: number, b: number) => (a === 0 || b === 0 ? 0 : GF_EXP[GF_LOG[a]! + GF_LOG[b]!]!)
 
 /** Generator polynomial for n EC codewords, highest degree first. */
 function rsGen(n: number): number[] {

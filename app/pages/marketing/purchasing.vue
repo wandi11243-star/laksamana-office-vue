@@ -204,7 +204,7 @@ const terkirim = computed(() => poMarketingMkt(daftar.value ?? []))
           />
           <UButton
             icon="i-lucide-send"
-            label="Kirim ke BD OS"
+            label="Kirim ke Task Management"
             :loading="mengirim"
             @click="kirim"
           />

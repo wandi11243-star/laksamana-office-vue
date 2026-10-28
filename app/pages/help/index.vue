@@ -47,7 +47,7 @@ onBeforeUnmount(() => {
     title="Help Center"
     :description="`Panduan pemakaian Office Laksamana Muda${nama ? ', ' + nama : ''}. Yang tampil di sini hanya modul yang memang bisa kamu buka, jadi daftarnya bisa berbeda dari daftar milik rekan kerjamu.`"
   >
-    <div class="mx-auto w-full max-w-[900px]">
+    <div class="mx-auto w-full max-w-[860px]">
       <p
         v-if="pesan"
         class="mb-5 rounded-field border border-info/30 bg-info/10 px-4 py-3 text-sm text-default"
