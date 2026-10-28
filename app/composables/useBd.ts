@@ -18,7 +18,8 @@
 // (T-25 → per-record CRUD).
 import type { Versi } from '~/utils/versi'
 import { ifMatch, tanganiKonflik } from '~/utils/versi'
-import { cekBolehDone, deps, normalisasiStatus, penunggu, pesanTunggu, segarkanProgress, selesai } from '~/utils/bd-rumus'
+import { cekBolehDone, deps, lahirkanUlang, namaPendekTask, normalisasiStatus, penunggu, pesanTunggu, segarkanProgress, selesai } from '~/utils/bd-rumus'
+import { fTglP } from '~/utils/format'
 import { BATAS_TULIS_PARALEL, hitungBerhasilParalel, petaParalel } from '~/utils/paralel'
 
 /** API resource names (`docs/api/bd.md:40`). */
@@ -96,6 +97,12 @@ export interface BdTask {
   subtasks?: BdSubtask[]
   /** Ids of tasks that must be Done first. Only Done is held (`cekBolehDone`). */
   dependsOn?: string[]
+  /** Daily Task: this task lives on the Daily board, never inside a project. */
+  daily?: boolean
+  /** Recurrence (`harian`|`kerja`|`mingguan`|`bulanan`); empty = one-off. */
+  ulang?: string
+  /** Guard: the Done task this recurrence was born from — reopening + Done again never twins. */
+  ulangDari?: string
   /** Stamped when the task becomes Done, dropped when reopened: a done deadline stops counting. */
   doneAt?: string
   createdAt?: number
@@ -438,7 +445,21 @@ export async function toggleTask(t: BdTask, semua: BdTask[]): Promise<boolean> {
   const body: Partial<BdTask> = { ...t, status: buka ? 'To Do' : 'Done' }
   delete body.updatedAt
   segarkanProgress(body)
-  return bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
+  const ok = await bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
+  if (ok && !buka) await lahirkanUlangSetelah({ ...t, ...body, id: t.id } as BdTask, semua)
+  return ok
+}
+
+/**
+ * Birth the next occurrence of a recurring task right after its Done is
+ * saved, on every path (tick, modal, drag). No-op without `ulang`.
+ */
+export async function lahirkanUlangSetelah(t: BdTask, semua: BdTask[]): Promise<void> {
+  if (t.status !== 'Done' || !t.ulang) return
+  const b = lahirkanUlang(t, semua)
+  if (!b) return
+  const ok = await bdTulisDiam(() => buatBd<BdTask>('tasks', b))
+  if (ok) toastBd()?.add({ title: `Berikutnya: ${namaPendekTask(b)} — ${fTglP(b.deadline)}`, color: 'success' })
 }
 
 /** Delete sentence for the confirm sheet: dependents are named by count. */

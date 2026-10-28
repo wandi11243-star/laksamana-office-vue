@@ -9,15 +9,15 @@
 // that is UTC and in WIB anything before 07:00 is reported as yesterday, which
 // would mark tasks overdue every morning (deploy/bd/index.html:767-772).
 import type { BdApproverSet, BdPo, BdPerson, BdPr, BdProject, BdSubtask, BdTask } from '~/composables/useBd'
-import { BLN, fTglP, hariIni } from '~/utils/format'
+import { BLN, fTglP, hariIni, tambahHari } from '~/utils/format'
 
 // ─────────────────────────── organisation (deploy/bd/index.html:708-755) ──
 /** `OWNER_DIVS` — the divisions whose work BD OS manages. */
 export const OWNER_DIVS = ['Business Development', 'Project', 'Purchasing']
 /** `COORD_DIVS` — the other divisions, the destinations of a coordination request. */
 export const COORD_DIVS = ['Kitchen', 'Bar', 'Marketing', 'Finance', 'Event', 'Floor', 'HR']
-/** `STATUS_FLOW` — the four Kanban columns (putaran keempat, 7 Okt 2026). */
-export const STATUS_FLOW = ['To Do', 'Doing', 'Review', 'Done']
+/** `STATUS_FLOW` — the five Kanban columns (22 Okt 2026: Projects uses the same columns as tasks). */
+export const STATUS_FLOW = ['To Do', 'Doing', 'Pending', 'Review', 'Done']
 /** `STATUS_LAMA` — read mapping for rows written before the fourth round. */
 export const STATUS_LAMA: Record<string, string> = { Backlog: 'To Do', Waiting: 'Doing' }
 /**
@@ -31,8 +31,8 @@ export function normalisasiStatus(status?: string): string {
 }
 /** `PRIORITAS`. */
 export const PRIORITAS = ['Urgent', 'High', 'Medium', 'Low']
-/** `PROJ_STAGES`. */
-export const PROJ_STAGES = ['Idea', 'Planning', 'Running', 'Review', 'Completed']
+/** `PROJ_STAGES` — same columns as tasks (22 Okt 2026). */
+export const PROJ_STAGES = STATUS_FLOW
 /** `PROJ_HEALTH` keys. */
 export const PROJ_HEALTH = ['on-track', 'at-risk', 'off-track']
 /** `COORD_FLOW`. */
@@ -162,6 +162,80 @@ export const punyaPic = (o: BerPic | null | undefined, id: string) => pics(o).in
 export function tagsOf(t: { tags?: unknown } | null | undefined): string[] {
   return t && Array.isArray(t.tags) ? t.tags.filter((x): x is string => typeof x === 'string' && !!x.trim()) : []
 }
+/** `ULANG` — recurrence options for a task (old `ULANG`, deploy/bd/index.html:2846). */
+export const ULANG: [string, string][] = [
+  ['', 'Tidak berulang'],
+  ['harian', 'Setiap hari'],
+  ['kerja', 'Hari kerja (Sen–Jum)'],
+  ['mingguan', 'Setiap minggu'],
+  ['bulanan', 'Setiap bulan'],
+]
+/** `labelUlang` — the recurrence label, empty when not recurring. */
+export function labelUlang(u?: string): string {
+  const x = ULANG.find(y => y[0] === u)
+  return x && u ? x[1] : ''
+}
+/** `tglSah` — real YYYY-MM-DD date (old `gSah`). */
+export function tglSah(iso?: string): boolean {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || ''))
+  if (!m) return false
+  const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]))
+  return d.getFullYear() === Number(m[1]) && d.getMonth() === Number(m[2]) - 1 && d.getDate() === Number(m[3])
+}
+/** `langkahUlang` — one recurrence step ahead (old :2852-2862). 'bulanan' clamps to month-end (31 Jan → 28/29 Feb). */
+export function langkahUlang(iso: string, u?: string): string {
+  if (u === 'bulanan') {
+    const d = pDate(iso)
+    const x = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+    const akhir = new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate()
+    x.setDate(Math.min(d.getDate(), akhir))
+    return isoOf(x)
+  }
+  if (u === 'mingguan') return tambahHari(iso, 7)
+  let n = tambahHari(iso, 1)
+  if (u === 'kerja') {
+    let aman = 0
+    while ((pDate(n).getDay() === 0 || pDate(n).getDay() === 6) && aman++ < 10) n = tambahHari(n, 1)
+  }
+  return n
+}
+/** `deadlineBerikut` — first occurrence not in the past; a late completion skips ahead instead of spawning overdue twins (old :2863-2871). */
+export function deadlineBerikut(t: { deadline?: string, ulang?: string }): string | null {
+  if (!t.ulang || !labelUlang(t.ulang) || !tglSah(t.deadline)) return null
+  const hari = todayISO()
+  let n = langkahUlang(t.deadline as string, t.ulang)
+  let aman = 0
+  while (n < hari && aman++ < 400) n = langkahUlang(n, t.ulang)
+  return n
+}
+/** `lahirkanUlang` — the next occurrence as a new-row body, or null. Never twins: Done → reopen → Done again is guarded by `ulangDari` (old :2872-2888). */
+export function lahirkanUlang(t: BdTask, semua: BdTask[]): (Partial<BdTask> & { id: string }) | null {
+  const nd = deadlineBerikut(t)
+  if (!nd) return null
+  if (semua.some(x => x.ulangDari === t.id)) return null
+  const geser = Math.round((+pDate(nd) - +pDate(t.deadline as string)) / 86400000)
+  const g = (iso?: string) => (tglSah(iso) ? tambahHari(iso as string, geser) : iso)
+  const b: Partial<BdTask> & { id: string } = {
+    id: uidBd('t'),
+    name: t.name, desc: t.desc || '', div: t.div,
+    status: 'To Do', priority: t.priority || 'Medium',
+    deadline: nd, important: !!t.important, urgent: !!t.urgent,
+    type: t.type || 'Ad-hoc', project: t.project || null,
+    ulang: t.ulang, ulangDari: t.id, progress: 0, dependsOn: [],
+    subtasks: subs(t).map((x) => {
+      const o: BdSubtask = { id: uidBd('s'), t: String(x.t || ''), done: false }
+      const d = g(x.d)
+      if (d) o.d = d
+      return o
+    }),
+  }
+  if (t.daily) b.daily = true
+  if (tagsOf(t).length) b.tags = tagsOf(t).slice()
+  const st = g(t.start)
+  if (st) b.start = st
+  setPics(b, pics(t))
+  return b
+}
 /** `kruTersedia` — crew that may be picked: still active with module access,
  * plus anyone already holding the row being opened, so saving never silently
  * drops an assignee (`:1944-1951`). */
@@ -244,11 +318,11 @@ export function projProgress(p: BdProject, tasks: BdTask[]): number {
   if (m.length) return Math.round((m.filter(x => x.done).length / m.length) * 100)
   return 0
 }
-/** `opsiProject` — Completed is not offered unless it is already linked. */
+/** `opsiProject` — a finished project is not offered unless it is already linked. */
 export function opsiProject(projects: BdProject[], terpilih?: string | null): { value: string, label: string }[] {
   const out: { value: string, label: string }[] = [{ value: PILIHAN_TANPA, label: '— tanpa project —' }]
   projects.forEach((p) => {
-    const beres = p.stage === 'Completed'
+    const beres = p.stage === 'Done'
     if (beres && p.id !== terpilih) return
     out.push({ value: p.id, label: p.name + (beres ? ' (selesai)' : '') })
   })
@@ -534,7 +608,7 @@ export function saringArsip<T extends { status?: string }>(list: T[], mode: Mode
 export type SehatProject = 'done' | 'over' | 'on-track' | 'at-risk' | 'off-track'
 /** `projSehat` — attention state of one project. */
 export function sehatProject(p: { stage?: string, end?: string, health?: string }): { k: SehatProject } {
-  if (p.stage === 'Completed') return { k: 'done' }
+  if (p.stage === 'Done') return { k: 'done' }
   if (p.end && sisaHari(p.end) < 0) return { k: 'over' }
   const h = p.health
   return { k: h === 'off-track' || h === 'at-risk' ? h : 'on-track' }
@@ -557,7 +631,7 @@ export function urutProjectPerhatian<T extends { stage?: string, end?: string, h
  * against progress, it answers "on track or not".
  */
 export function waktuTerpakai(p: { stage?: string, start?: string, end?: string }): string {
-  if (p.stage === 'Completed') return 'Selesai'
+  if (p.stage === 'Done') return 'Selesai'
   if (p.start && p.end && p.end > p.start) {
     const tot = Math.round((+pDate(p.end) - +pDate(p.start)) / 86400000)
     if (tot <= 0) return '—'

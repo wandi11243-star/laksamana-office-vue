@@ -235,7 +235,7 @@ defineExpose({ bukaSemua, tutupSemua, keHariIni })
                 v-if="r.batang"
                 class="absolute flex cursor-pointer items-center overflow-hidden rounded"
                 :class="DIV_BG[divTone(r.p.div)] || 'bg-ink-300'"
-                :style="{ left: `${r.batang.x}px`, width: `${r.batang.w}px`, top: '10px', height: '16px', opacity: r.p.stage === 'Completed' ? 0.45 : 0.9 }"
+                :style="{ left: `${r.batang.x}px`, width: `${r.batang.w}px`, top: '10px', height: '16px', opacity: r.p.stage === 'Done' ? 0.45 : 0.9 }"
                 :title="r.batang.judul"
                 @click="emit('bukaProject', r.p.id)"
               >

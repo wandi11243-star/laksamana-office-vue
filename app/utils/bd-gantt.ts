@@ -223,7 +223,7 @@ export function ganttModel(m: GanttMasukan): GanttModel {
       const pg = projProgress(p, m.tasks)
       r.adaTask = tugasProj(p.id).length > 0
       r.persen = pg
-      const beres = p.stage === 'Completed'
+      const beres = p.stage === 'Done'
       const st = gSah(p.start) ? String(p.start) : (gSah(p.end) ? String(p.end) : '')
       if (st && gSah(p.end)) {
         const x = X(st)

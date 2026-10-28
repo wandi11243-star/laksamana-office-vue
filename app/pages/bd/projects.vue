@@ -2,10 +2,10 @@
   Task Management › Projects (old `vProjects`, deploy/bd/index.html:2653-2703).
 
   Cards by default, most-attention first (overdue, off/at-risk, nearest
-  deadline); the stage Kanban stays as a switch. Moving a card to Completed
-  closes all its tasks, ONLY on that change; the filter narrows what is SHOWN,
-  never what may be moved. On a phone the board scrolls sideways and each card
-  has a "Pindah stage" sheet.
+  deadline); the stage Kanban and the Timeline stay as switches. Moving a card
+  to Done closes all its tasks, ONLY on that change; the filter narrows what is
+  SHOWN, never what may be moved. On a phone the board scrolls sideways and
+  each card has a "Pindah stage" sheet.
 -->
 <script setup lang="ts">
 import type { BdProject, BdTask } from '~/composables/useBd'
@@ -16,6 +16,8 @@ import {
   OWNER_DIVS, PILIHAN_SEMUA, PROJ_STAGES, cariAku, dalamLingkup, lingkupIds, pelaksana, pics, saringArsip, saringLingkup,
   subs, tasksPerluDitutup, todayISO, urutDeadline, urutProjectPerhatian, type ModeArsip,
 } from '~/utils/bd-rumus'
+import type { GZoom } from '~/utils/bd-gantt'
+import BdGantt from '~/widgets/bd/BdGantt.vue'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdPicFilter from '~/widgets/bd/BdPicFilter.vue'
 import BdProjCard from '~/widgets/bd/BdProjCard.vue'
@@ -28,7 +30,7 @@ definePageMeta({ access: ['bd'] })
 const me = useMe()
 const { data: state } = useBdState()
 const fPics = useState<string[]>('bd-fPics', () => [])
-const f = useState('bd-proj-filter', () => ({ scope: 'tim', div: PILIHAN_SEMUA, st: 'aktif', view: 'kartu' as 'kartu' | 'kanban' | 'task' }))
+const f = useState('bd-proj-filter', () => ({ scope: 'tim', div: PILIHAN_SEMUA, st: 'aktif', view: 'kartu' as 'kartu' | 'kanban' | 'task' | 'timeline', zoom: 'week' as GZoom }))
 /** Projects › Task view state: archive switch + keyword (the box redraws only its own list). */
 const pTaskArsip = ref<ModeArsip>('aktif')
 const pTaskQ = ref('')
@@ -44,7 +46,7 @@ const cocokAssign = (t: BdTask) => !fPics.value.length || pelaksana(t).some(id =
 const base = computed(() => saringLingkup(state.value.projects, f.value.scope, lingkup.value, aku.value?.id)
   .filter(f.value.view === 'task' ? () => true : cocokPic)
   .filter(p => f.value.div === PILIHAN_SEMUA || p.div === f.value.div)
-  .filter(p => f.value.st === 'semua' || (f.value.st === 'selesai' ? p.stage === 'Completed' : p.stage !== 'Completed')))
+  .filter(p => f.value.st === 'semua' || (f.value.st === 'selesai' ? p.stage === 'Done' : p.stage !== 'Done')))
 const diStage = (st: string) => base.value.filter(p => p.stage === st)
 /** Cards, most-attention first (`vProjects` kartu view). */
 const kartu = computed(() => urutProjectPerhatian(base.value))
@@ -96,7 +98,7 @@ function reset() {
 async function pindahStage(p: BdProject, st: string) {
   const dulu = p.stage
   if (st === dulu) return
-  const ikut = (st === 'Completed' && dulu !== 'Completed') ? tasksPerluDitutup(state.value.tasks, p.id) : []
+  const ikut = (st === 'Done' && dulu !== 'Done') ? tasksPerluDitutup(state.value.tasks, p.id) : []
   const aksi = async () => {
     await tambalBd<BdProject>('projects', p.id, { stage: st }, versiBaris(p))
     // Closing stamps Done + doneAt (old `tuntaskanTaskProject`): the deadline
@@ -171,6 +173,7 @@ async function hapus() {
 function subToggle(t: BdTask, ix: number, on: boolean) {
   centangSub(t, ix, on)
 }
+const gantt = ref<InstanceType<typeof BdGantt> | null>(null)
 </script>
 
 <template>
@@ -183,7 +186,7 @@ function subToggle(t: BdTask, ix: number, on: boolean) {
     <template #actions>
       <AppSeg
         v-model="f.view"
-        :options="[{ value: 'kartu', label: 'Kartu' }, { value: 'kanban', label: 'Kanban stage' }, { value: 'task', label: 'Task' }]"
+        :options="[{ value: 'kartu', label: 'Kartu' }, { value: 'kanban', label: 'Kanban stage' }, { value: 'task', label: 'Task' }, { value: 'timeline', label: 'Timeline' }]"
         size="sm"
       />
       <UButton
@@ -319,6 +322,54 @@ function subToggle(t: BdTask, ix: number, on: boolean) {
     </div>
 
     <div
+      v-else-if="f.view === 'timeline'"
+      class="mt-4"
+    >
+      <div class="mb-3 flex flex-wrap items-center gap-2">
+        <AppSeg
+          v-model="f.zoom"
+          :options="[{ value: 'day', label: 'Hari' }, { value: 'week', label: 'Minggu' }, { value: 'month', label: 'Bulan' }]"
+          size="sm"
+        />
+        <div class="flex-1" />
+        <UButton
+          label="Buka semua"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          @click="gantt?.bukaSemua()"
+        />
+        <UButton
+          label="Tutup semua"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          @click="gantt?.tutupSemua()"
+        />
+        <UButton
+          label="Ke hari ini"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          @click="gantt?.keHariIni()"
+        />
+      </div>
+      <BdGantt
+        ref="gantt"
+        :projects="base"
+        :tasks="state.tasks"
+        :people="people"
+        :zoom="f.zoom"
+        @buka-project="navigateTo(`/bd/projects/${$event}`)"
+        @buka-task="bukaTaskSheet"
+        @sub-toggle="subToggle"
+      />
+      <p class="mt-2 text-xs text-muted">
+        Klik bar project untuk membukanya, klik task untuk mengubahnya.
+      </p>
+    </div>
+
+    <div
       v-else
       class="grid auto-cols-[minmax(240px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-2"
     >
@@ -400,7 +451,7 @@ function subToggle(t: BdTask, ix: number, on: boolean) {
         />
       </UFormField>
       <p class="mt-3 text-xs text-muted">
-        Memindahkan ke <b>Completed</b> menutup semua task project ini (status Done, progress 100).
+        Memindahkan ke <b>Done</b> menutup semua task project ini (status Done, progress 100).
       </p>
       <template #footer>
         <UButton

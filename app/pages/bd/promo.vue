@@ -249,7 +249,7 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
         icon="i-lucide-circle-play"
         tone="success"
         :value="nStatus('running')"
-        sub="bisa ditawarkan hari ini"
+        sub="aktif hari ini"
       />
       <AppStat
         label="Akan datang"
@@ -269,7 +269,7 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
         label="Selesai"
         icon="i-lucide-circle-check"
         :value="nStatus('ended')"
-        sub="sudah berakhir"
+        sub="arsip"
       />
     </AppStatGrid>
 
@@ -369,13 +369,16 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
                   Periode
                 </th>
                 <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
-                  Outlet
-                </th>
-                <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
-                  Benefit
-                </th>
-                <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
                   Status
+                </th>
+                <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
+                  Berlaku
+                </th>
+                <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
+                  PIC
+                </th>
+                <th class="px-3 py-2 text-end text-[11px] uppercase tracking-wide">
+                  <span class="sr-only">Aksi</span>
                 </th>
               </tr>
             </thead>
@@ -386,20 +389,46 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
                 class="cursor-pointer hover:bg-elevated/50"
                 @click="bukaDet(p)"
               >
-                <td class="px-3 py-2 font-semibold text-highlighted">
-                  {{ p.nama }}
+                <td class="px-3 py-2">
+                  <span class="flex items-center gap-1.5 font-semibold text-highlighted">
+                    <UIcon
+                      v-if="p.poster"
+                      name="i-lucide-image"
+                      class="size-4 shrink-0 text-muted"
+                      title="Ada poster"
+                    />
+                    {{ p.nama }}
+                  </span>
+                  <span
+                    v-if="p.benefit"
+                    class="mt-0.5 block text-xs text-muted"
+                  >{{ p.benefit }}</span>
+                  <span
+                    v-if="p.kode"
+                    class="mt-0.5 block text-xs text-muted"
+                  >kode {{ p.kode }}</span>
                 </td>
                 <td class="px-3 py-2">
-                  {{ promoTipe(p.tipe).l }}
+                  <span class="inline-flex items-center gap-1.5">
+                    <UIcon
+                      :name="promoTipe(p.tipe).icon"
+                      class="size-4 shrink-0 text-muted"
+                    />
+                    {{ promoTipe(p.tipe).l }}
+                  </span>
+                  <span
+                    v-if="promoKat(p.kategori)"
+                    class="mt-1 block"
+                  >
+                    <AppStatus size="sm">{{ promoKat(p.kategori)!.l }}</AppStatus>
+                  </span>
                 </td>
                 <td class="px-3 py-2 whitespace-nowrap text-muted">
                   {{ tgl(p.mulai) }} → {{ tgl(p.selesai) }}
-                </td>
-                <td class="px-3 py-2 text-muted">
-                  {{ p.outlet || '—' }}
-                </td>
-                <td class="px-3 py-2 text-muted">
-                  {{ p.benefit || '—' }}
+                  <span
+                    v-if="promoSisa(p)"
+                    class="mt-0.5 block text-xs"
+                  >{{ promoSisa(p) }}</span>
                 </td>
                 <td class="px-3 py-2">
                   <AppStatus
@@ -408,6 +437,26 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
                   >
                     {{ statut(p).l }}
                   </AppStatus>
+                </td>
+                <td class="px-3 py-2 text-xs text-muted">
+                  {{ promoHariTeks(p.hari) || 'Setiap hari' }}
+                  <span
+                    v-if="promoJam(p)"
+                    class="mt-0.5 block"
+                  >{{ promoJam(p) }}</span>
+                </td>
+                <td class="px-3 py-2 text-muted">
+                  {{ p.lmPIC || '—' }}
+                </td>
+                <td class="px-3 py-2 text-end">
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="neutral"
+                    variant="ghost"
+                    size="xs"
+                    aria-label="Hapus promo"
+                    @click.stop="promoHapus = p"
+                  />
                 </td>
               </tr>
             </tbody>
@@ -530,13 +579,6 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
           label="Ubah"
           icon="i-lucide-pencil"
           @click="detail && ubah(detail)"
-        />
-        <UButton
-          label="Hapus"
-          icon="i-lucide-trash-2"
-          color="error"
-          variant="soft"
-          @click="detail && (promoHapus = detail)"
         />
       </template>
     </ResponsiveSheet>

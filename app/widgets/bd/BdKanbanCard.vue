@@ -8,7 +8,7 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
-import { fDue, inisial, lewat, penghalang, pics, selesai, sisaHari, subHitung, subs } from '~/utils/bd-rumus'
+import { fDue, inisial, labelUlang, lewat, penghalang, pics, selesai, sisaHari, subHitung, subs, tagsOf } from '~/utils/bd-rumus'
 import { fTglP } from '~/utils/format'
 
 const props = defineProps<{
@@ -123,6 +123,28 @@ const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.
       >
         {{ fDue(task.deadline) }}
       </AppStatus>
+    </span>
+
+    <span
+      v-if="tagsOf(task).length || labelUlang(task.ulang)"
+      class="mt-1.5 flex min-w-0 flex-wrap items-center gap-1"
+    >
+      <span
+        v-for="g in tagsOf(task)"
+        :key="g"
+        class="max-w-full truncate rounded-full bg-muted px-2 py-px text-[10px] font-semibold text-muted"
+      >{{ g }}</span>
+      <span
+        v-if="labelUlang(task.ulang)"
+        :title="`Berulang: ${labelUlang(task.ulang)}`"
+        class="inline-flex items-center gap-0.5 whitespace-nowrap rounded-full bg-muted px-2 py-px text-[10px] font-semibold text-muted"
+      >
+        <UIcon
+          name="i-lucide-repeat"
+          class="size-2.5"
+        />
+        {{ labelUlang(task.ulang) }}
+      </span>
     </span>
 
     <span

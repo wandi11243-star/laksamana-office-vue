@@ -11,10 +11,10 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdProject, BdSubtask, BdTask } from '~/composables/useBd'
-import { buatBd, bdSimpan, hapusTaskDenganUrutan, pesanHapusTask, ubahBd, versiBaris } from '~/composables/useBd'
+import { buatBd, bdSimpan, hapusTaskDenganUrutan, lahirkanUlangSetelah, pesanHapusTask, ubahBd, versiBaris } from '~/composables/useBd'
 import {
-  OWNER_DIVS, PILIHAN_TANPA, PRIORITAS, STATUS_FLOW, TASK_TIPE, cekBolehDone, deps, kruTersedia, kuadran,
-  menungguTransitif, opsiProject as opsiProjectBd, pesanTunggu, segarkanProgress, selesai, setPics, subs, todayISO, uidBd,
+  OWNER_DIVS, PILIHAN_TANPA, PRIORITAS, STATUS_FLOW, TASK_TIPE, ULANG, cekBolehDone, deps, kruTersedia, kuadran,
+  menungguTransitif, opsiProject as opsiProjectBd, pesanTunggu, segarkanProgress, selesai, setPics, subs, tagsOf, todayISO, uidBd,
 } from '~/utils/bd-rumus'
 import { WARNA_KUADRAN, WARNA_TASK } from '~/utils/status-bd'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
@@ -23,6 +23,7 @@ import BdPicPicker from '~/widgets/bd/BdPicPicker.vue'
 const props = defineProps<{
   task?: BdTask | null
   presetProject?: string | null
+  presetDaily?: boolean
   /** All tasks: order candidates + the waiters named on delete. */
   tasks: BdTask[]
   projects: BdProject[]
@@ -43,12 +44,22 @@ const f = reactive({
   start: '',
   deadline: todayISO(),
   project: null as string | null,
+  daily: false,
+  ulang: '',
   important: true,
   urgent: false,
 })
 /** Sub-task drafts (`_subDraft`): id kept, empty text dropped on save. `p` is the single assignee. */
 const subDraf = ref<{ id: string, t: string, done: boolean, d: string, p: string }[]>([])
 const subBaru = ref('')
+/** Tag drafts: committed on save, so a tag left in the box is never silently lost. */
+const tagDraf = ref<string[]>([])
+const tagBaru = ref('')
+function tagTambah() {
+  const v = tagBaru.value.trim().replace(/^#+/, '')
+  if (v && !tagDraf.value.includes(v)) tagDraf.value.push(v)
+  tagBaru.value = ''
+}
 /** Order drafts (`_depDraft`): waited-on ids, committed on save. */
 const depDraf = ref<string[]>([])
 const hapusMau = ref(false)
@@ -67,9 +78,12 @@ watch(open, (o) => {
     f.start = t.start || ''
     f.deadline = t.deadline || ''
     f.project = t.project || null
+    f.daily = !!t.daily
+    f.ulang = t.ulang || ''
     f.important = !!t.important
     f.urgent = !!t.urgent
     subDraf.value = subs(t).map(x => ({ id: String(x.id || uidBd('s')), t: String(x.t || ''), done: !!x.done, d: String(x.d || ''), p: String(x.p || '') }))
+    tagDraf.value = tagsOf(t)
     depDraf.value = deps(t).filter(d => d !== t.id && props.tasks.some(x => x.id === d))
   }
   else {
@@ -83,13 +97,17 @@ watch(open, (o) => {
     f.type = 'Ad-hoc'
     f.start = ''
     f.deadline = todayISO()
-    f.project = props.presetProject || null
+    f.project = props.presetDaily ? null : (props.presetProject || null)
+    f.daily = !!props.presetDaily
+    f.ulang = ''
     f.important = true
     f.urgent = false
     subDraf.value = []
+    tagDraf.value = []
     depDraf.value = []
   }
   subBaru.value = ''
+  tagBaru.value = ''
 })
 
 const q = computed(() => kuadran(f))
@@ -145,12 +163,14 @@ async function simpan() {
     .map(s => ({ id: s.id, t: s.t.trim(), done: s.done, ...(s.d ? { d: s.d } : {}), ...(s.p ? { p: s.p } : {}) }))
     .filter(s => s.t)
   const dependsOn = depDraf.value.filter(d => d !== props.task?.id && props.tasks.some(x => x.id === d))
-  if (f.status === 'Done') {
-    const cek = cekBolehDone({ id: props.task?.id, name: f.name }, dependsOn, props.tasks)
-    if (!cek.boleh) {
-      toast.add({ title: pesanTunggu({ name: f.name }, cek.nama), color: 'error' })
-      return
-    }
+  // A leftover tag in the box joins: saving without Enter must not silently drop it.
+  if (tagBaru.value.trim()) tagTambah()
+  const daily = f.daily
+  if (daily) f.project = null
+  // No deadline means no "next when" — refused here, never silently non-recurring.
+  if (f.ulang && !f.deadline) {
+    toast.add({ title: 'Task berulang butuh deadline sebagai patokan.', color: 'error' })
+    return
   }
   const body: Partial<BdTask> = {
     name: f.name.trim(),
@@ -162,10 +182,20 @@ async function simpan() {
     start: f.start || '',
     deadline: f.deadline,
     project: f.project || null,
+    daily,
+    ulang: f.ulang || '',
     important: f.important,
     urgent: f.urgent,
+    tags: tagDraf.value.slice(),
     subtasks,
     dependsOn,
+  }
+  if (f.status === 'Done') {
+    const cek = cekBolehDone({ id: props.task?.id, name: f.name }, dependsOn, props.tasks)
+    if (!cek.boleh) {
+      toast.add({ title: pesanTunggu({ name: f.name }, cek.nama), color: 'error' })
+      return
+    }
   }
   setPics(body, f.pics)
   const lama = props.task
@@ -176,13 +206,19 @@ async function simpan() {
     delete kirim.updatedAt
     segarkanProgress(kirim)
     const ok = await bdSimpan(() => ubahBd<BdTask>('tasks', lama.id, kirim, versiBaris(lama)), 'Task diperbarui')
-    if (ok) open.value = false
+    if (ok) {
+      open.value = false
+      if (kirim.status === 'Done') await lahirkanUlangSetelah({ ...lama, ...kirim } as BdTask, props.tasks)
+    }
   }
   else {
-    const kirim: Partial<BdTask> = { progress: 0, ...body }
+    const kirim: Partial<BdTask> = { id: uidBd('t'), progress: 0, ...body }
     segarkanProgress(kirim)
     const ok = await bdSimpan(() => buatBd<BdTask>('tasks', kirim), 'Task ditambahkan')
-    if (ok) open.value = false
+    if (ok) {
+      open.value = false
+      if (kirim.status === 'Done') await lahirkanUlangSetelah(kirim as BdTask, props.tasks)
+    }
   }
 }
 
@@ -230,7 +266,46 @@ async function hapus() {
           :people="people"
         />
       </UFormField>
-      <div class="grid gap-4 sm:grid-cols-3">
+      <UFormField label="Tag — task ini untuk siapa (boleh lebih dari satu)">
+        <div class="flex flex-wrap gap-1.5">
+          <span
+            v-for="g in tagDraf"
+            :key="g"
+            class="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-default"
+          >
+            {{ g }}
+            <button
+              type="button"
+              class="text-muted hover:text-error"
+              :aria-label="`Buang tag ${g}`"
+              @click="tagDraf = tagDraf.filter(x => x !== g)"
+            >
+              <UIcon
+                name="i-lucide-x"
+                class="size-3.5"
+              />
+            </button>
+          </span>
+        </div>
+        <div class="mt-1.5 flex gap-1.5">
+          <UInput
+            v-model="tagBaru"
+            placeholder="Pilih / ketik tag baru, lalu Enter…"
+            size="sm"
+            class="min-w-0 flex-1 [&_input]:min-w-0"
+            @keydown.enter.prevent="tagTambah"
+          />
+          <UButton
+            label="Tambah"
+            icon="i-lucide-plus"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            @click="tagTambah"
+          />
+        </div>
+      </UFormField>
+      <div class="grid gap-4 *:min-w-0 sm:grid-cols-3">
         <UFormField label="Status">
           <USelect
             v-model="f.status"
@@ -253,7 +328,7 @@ async function hapus() {
           />
         </UFormField>
       </div>
-      <div class="grid gap-4 sm:grid-cols-3">
+      <div class="grid gap-4 *:min-w-0 sm:grid-cols-3">
         <UFormField label="Mulai (opsional)">
           <UInput
             v-model="f.start"
@@ -270,11 +345,34 @@ async function hapus() {
         </UFormField>
         <UFormField label="Project (opsional)">
           <USelect
-            :model-value="f.project ?? PILIHAN_TANPA"
+            :model-value="f.daily ? PILIHAN_TANPA : (f.project ?? PILIHAN_TANPA)"
             :items="opsiProject"
+            :disabled="f.daily"
             class="w-full"
             @update:model-value="(v: string | undefined) => { f.project = !v || v === PILIHAN_TANPA ? null : v }"
           />
+        </UFormField>
+      </div>
+      <div class="grid gap-4 *:min-w-0 sm:grid-cols-2">
+        <UFormField label="Berulang">
+          <USelect
+            :model-value="f.ulang || PILIHAN_TANPA"
+            :items="[{ value: PILIHAN_TANPA, label: 'Tidak berulang' }, ...ULANG.filter(([v]) => !!v).map(([value, label]) => ({ value, label }))]"
+            class="w-full"
+            @update:model-value="(v: string | undefined) => { f.ulang = !v || v === PILIHAN_TANPA ? '' : v }"
+          />
+          <template #hint>
+            Saat ditandai Done, task berikutnya lahir otomatis dengan deadline berikutnya. Butuh deadline.
+          </template>
+        </UFormField>
+        <UFormField label="Daily Task">
+          <UCheckbox
+            v-model="f.daily"
+            label="Masuk Daily Task"
+          />
+          <template #hint>
+            Daily Task tidak masuk project mana pun.
+          </template>
         </UFormField>
       </div>
       <div>
@@ -298,7 +396,7 @@ async function hapus() {
               :model-value="s.t"
               placeholder="Sub-task…"
               size="sm"
-              class="min-w-0 flex-1"
+              class="min-w-0 flex-1 [&_input]:min-w-0"
               :class="s.done ? 'opacity-60 line-through' : ''"
               @update:model-value="(v: string | number) => s.t = String(v)"
             />
@@ -339,7 +437,7 @@ async function hapus() {
             v-model="subBaru"
             placeholder="Tambah sub-task, Enter…"
             size="sm"
-            class="min-w-0 flex-1"
+            class="min-w-0 flex-1 [&_input]:min-w-0"
             @keydown.enter.prevent="subTambah"
           />
           <UButton
@@ -396,7 +494,7 @@ async function hapus() {
         <p class="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted">
           Prioritas Eisenhower
         </p>
-        <div class="grid gap-3 sm:grid-cols-2">
+        <div class="grid gap-3 *:min-w-0 sm:grid-cols-2">
           <AppPilihan
             v-model="f.important"
             name="task-important"
