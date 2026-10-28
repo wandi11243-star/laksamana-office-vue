@@ -101,7 +101,7 @@ const KOL: KolomMkt<BarisApprovalMkt>[] = [
   { k: 'jenis', t: 'Jenis', v: r => r.jenis },
   { k: 'perkara', t: 'Perkara', v: r => r.perkara },
   { k: 'nilai', t: 'Nilai', v: r => r.nilai },
-  { k: 'pada', t: 'Diajukan', v: r => r.pada },
+  { k: 'pada', t: 'Diajukan', v: r => r.pada, def: true, turun: true },
   { k: 'status', t: 'Status', v: r => r.status },
   { k: 'putus', t: 'Diputuskan', v: r => r.putusPada },
 ]
@@ -123,21 +123,21 @@ const warnaAntri = (r: BarisApprovalMkt) => {
         <AppStat
           label="Surat penawaran"
           :value="String(rekap.pen)"
-          :context="`menunggu dari ${rekap.penTotal} pengajuan`"
+          :sub="`menunggu dari ${rekap.penTotal} pengajuan`"
           tone="warning"
           icon="i-lucide-file-text"
         />
         <AppStat
           label="Negosiasi lanjutan"
           :value="String(rekap.rev)"
-          :context="`menunggu dari ${rekap.revTotal} perkara`"
+          :sub="`menunggu dari ${rekap.revTotal} perkara`"
           tone="info"
           icon="i-lucide-repeat"
         />
         <AppStat
           label="Menunggu keputusan"
           :value="String(rekap.antri)"
-          :context="`dari ${rekap.total} perkara`"
+          :sub="`dari ${rekap.total} perkara`"
           tone="error"
           icon="i-lucide-hourglass"
         />
@@ -166,13 +166,13 @@ const warnaAntri = (r: BarisApprovalMkt) => {
           <UTable
             :data="hal"
             :columns="[
-              { accessorKey: 'event', header: 'Event' },
-              { accessorKey: 'jenis', header: 'Jenis' },
-              { accessorKey: 'perkara', header: 'Perkara' },
-              { accessorKey: 'nilai', header: 'Nilai' },
-              { accessorKey: 'pada', header: 'Diajukan' },
-              { accessorKey: 'status', header: 'Status' },
-              { id: 'putus', header: 'Diputuskan' },
+              { id: 'event', header: tbl.kepala('event', 'Event') },
+              { accessorKey: 'jenis', header: tbl.kepala('jenis', 'Jenis') },
+              { id: 'perkara', header: tbl.kepala('perkara', 'Perkara') },
+              { id: 'nilai', header: tbl.kepala('nilai', 'Nilai') },
+              { accessorKey: 'pada', header: tbl.kepala('pada', 'Diajukan') },
+              { id: 'status', header: tbl.kepala('status', 'Status') },
+              { id: 'putus', header: tbl.kepala('putus', 'Diputuskan') },
               { id: 'aksi', header: 'Aksi' },
             ]"
             class="hidden lg:block"

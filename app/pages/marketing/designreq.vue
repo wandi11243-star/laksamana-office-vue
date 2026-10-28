@@ -162,7 +162,7 @@ async function batalkan() {
 
 // ---- table ----
 const KOL: KolomMkt<RequestDesainMkt>[] = [
-  { k: 'judul', t: 'Permintaan', v: r => r.judul ?? '' },
+  { k: 'judul', t: 'Permintaan', v: r => r.judul ?? '', def: true },
   { k: 'jenis', t: 'Jenis', v: r => labelJenis(r.jenis) },
   { k: 'brand', t: 'Brand', v: r => r.brandNama ?? '' },
   { k: 'acara', t: 'Untuk Acara', v: r => r.acara ?? '' },
@@ -219,21 +219,21 @@ const warnaStatus = (r: RequestDesainMkt) => {
         <AppStat
           label="Menunggu dikerjakan"
           :value="String(hitung.open)"
-          context="Ada di antrian modul Konten"
+          sub="Ada di antrian modul Konten"
           tone="warning"
           icon="i-lucide-list-checks"
         />
         <AppStat
           label="Permintaan desain"
           :value="String(st.designreqs.filter(r => r.jenis === 'design' && !r.batalAt).length)"
-          context="Masuk Design Queue"
+          sub="Masuk Design Queue"
           tone="info"
           icon="i-lucide-palette"
         />
         <AppStat
           label="Permintaan video"
           :value="String(st.designreqs.filter(r => r.jenis === 'edit' && !r.batalAt).length)"
-          context="Masuk Editing Queue"
+          sub="Masuk Editing Queue"
           tone="info"
           icon="i-lucide-clapperboard"
         />
@@ -292,14 +292,14 @@ const warnaStatus = (r: RequestDesainMkt) => {
           <UTable
             :data="hal"
             :columns="[
-              { accessorKey: 'judul', header: 'Permintaan' },
-              { accessorKey: 'jenis', header: 'Jenis' },
-              { accessorKey: 'brand', header: 'Brand' },
-              { accessorKey: 'acara', header: 'Untuk Acara' },
-              { accessorKey: 'dl', header: 'Deadline' },
-              { accessorKey: 'prio', header: 'Prioritas' },
-              { accessorKey: 'pic', header: 'PIC Diminta' },
-              { accessorKey: 'status', header: 'Status' },
+              { id: 'judul', header: tbl.kepala('judul', 'Permintaan') },
+              { id: 'jenis', header: tbl.kepala('jenis', 'Jenis') },
+              { id: 'brand', header: tbl.kepala('brand', 'Brand') },
+              { id: 'acara', header: tbl.kepala('acara', 'Untuk Acara') },
+              { id: 'dl', header: tbl.kepala('dl', 'Deadline') },
+              { id: 'prio', header: tbl.kepala('prio', 'Prioritas') },
+              { id: 'pic', header: tbl.kepala('pic', 'PIC Diminta') },
+              { id: 'status', header: tbl.kepala('status', 'Status') },
               { id: 'aksi', header: 'Aksi' },
             ]"
             class="hidden lg:block"

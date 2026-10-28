@@ -20,14 +20,14 @@ const props = defineProps<{
   bisaMinta: boolean
 }>()
 
-const emit = defineEmits<{ minta: [], pdf: [] }>()
+const emit = defineEmits<{ minta: [], pdf: [], ulang: [] }>()
 
 const rid = computed(() => resIdInvMkt(props.ev.id, props.jenis === 'INV_LUNAS' ? 'lunas' : 'dp'))
 const inv = computed(() => props.peta[rid.value])
 </script>
 
 <template>
-  <div class="text-sm">
+  <div class="max-w-52 text-sm whitespace-normal">
     <p
       v-if="!siap"
       class="text-muted"
@@ -47,7 +47,7 @@ const inv = computed(() => props.peta[rid.value])
       size="sm"
       :label="`${label}: status ${galat ? 'gagal dibaca — coba lagi' : '…'}`"
       :title="galat || 'Status invoice belum terbaca dari modul Finance'"
-      @click="emit('minta')"
+      @click="emit('ulang')"
     />
     <template v-else-if="inv && inv.status === 'DIBUAT'">
       <UButton
@@ -101,7 +101,7 @@ const inv = computed(() => props.peta[rid.value])
       color="neutral"
       variant="outline"
       size="sm"
-      :label="`Minta invoice ${label}`"
+      :label="`Request Invoice ${label}`"
       @click="emit('minta')"
     />
     <p

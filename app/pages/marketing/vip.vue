@@ -284,7 +284,7 @@ async function bukaLagi(v: VipMkt | null) {
 
 // ---- table ----
 const KOL: KolomMkt<VipMkt>[] = [
-  { k: 'tanggal', t: 'Tanggal', v: v => v.tanggal ?? '' },
+  { k: 'tanggal', t: 'Tanggal', v: v => v.tanggal ?? '', def: true },
   { k: 'nama', t: 'Atas Nama', v: v => v.nama ?? '' },
   { k: 'jenis', t: 'Jenis', v: v => v.jenis ?? '' },
   { k: 'pax', t: 'Orang', v: v => vipPaxMkt(v) },
@@ -314,28 +314,28 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
         <AppStat
           label="Total reservasi"
           :value="String(rekap.total)"
-          context="Belum dibatalkan"
+          sub="Belum dibatalkan"
           tone="info"
           icon="i-lucide-star"
         />
         <AppStat
           label="Assisted"
           :value="String(rekap.assisted)"
-          context="Dihitung omzet"
+          sub="Dihitung omzet"
           tone="success"
           icon="i-lucide-handshake"
         />
         <AppStat
           label="Regular"
           :value="String(rekap.regular)"
-          context="Tidak dihitung omzet"
+          sub="Tidak dihitung omzet"
           tone="info"
           icon="i-lucide-armchair"
         />
         <AppStat
           label="Nominal assisted"
           :value="rupiah(rekap.nominal)"
-          context="Sudah termasuk tax & service"
+          sub="Sudah termasuk tax & service"
           tone="gold"
           icon="i-lucide-banknote"
         />
@@ -458,13 +458,13 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
           <UTable
             :data="hal"
             :columns="[
-              { accessorKey: 'tanggal', header: 'Tanggal' },
-              { accessorKey: 'nama', header: 'Atas Nama' },
-              { accessorKey: 'jenis', header: 'Jenis' },
-              { accessorKey: 'pax', header: 'Orang' },
-              { accessorKey: 'meja', header: 'Meja' },
-              { accessorKey: 'bayar', header: 'Pembayaran' },
-              { accessorKey: 'nominal', header: 'Nominal' },
+              { accessorKey: 'tanggal', header: tbl.kepala('tanggal', 'Tanggal') },
+              { id: 'nama', header: tbl.kepala('nama', 'Atas Nama') },
+              { id: 'jenis', header: tbl.kepala('jenis', 'Jenis') },
+              { id: 'pax', header: tbl.kepala('pax', 'Orang') },
+              { id: 'meja', header: tbl.kepala('meja', 'Meja') },
+              { id: 'bayar', header: tbl.kepala('bayar', 'Pembayaran') },
+              { id: 'nominal', header: tbl.kepala('nominal', 'Nominal') },
               { id: 'aksi', header: 'Aksi' },
             ]"
             class="hidden lg:block"

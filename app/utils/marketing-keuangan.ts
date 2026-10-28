@@ -257,8 +257,11 @@ export const namaBerkasCsvMkt = (hari: string) => `laksamana_events_${hari}.csv`
 export interface PengingatMkt { type: string, title: string, body: string, link: string }
 export interface NotifMkt { id?: string, type?: string, title?: string, body?: string, link?: string, read?: boolean, at?: string | number, updatedAt?: number }
 
-/** Live reminders, computed — never stored (renderNotifications). */
-export function pengingatMkt(events: EventMkt[], clients: ClientMkt[], st: SettingsMkt, hari: string): PengingatMkt[] {
+/**
+ * Live reminders, computed — never stored (renderNotifications :18797-18803).
+ * `progres` = taskProgress(e) of the old screen (readiness of the divisions, %).
+ */
+export function pengingatMkt(events: EventMkt[], clients: ClientMkt[], st: SettingsMkt, hari: string, progres: (e: EventMkt) => number = () => 0): PengingatMkt[] {
   const live: PengingatMkt[] = []
   const nama = (id: string) => clients.find(c => c.id === id)?.nama ?? '—'
   for (const e of events.filter(x => ['Confirmed', 'Deal'].includes(x.status) && eventFinance(x, st).paid === 0))
@@ -266,10 +269,10 @@ export function pengingatMkt(events: EventMkt[], clients: ClientMkt[], st: Setti
   for (const e of events) {
     const d = hariAntaraMkt(hari, String(e.tanggal ?? ''))
     if (['Confirmed', 'Deal'].includes(e.status) && d >= 0 && d <= 7)
-      live.push({ type: 'event', title: d === 0 ? 'Event hari ini' : `Event H-${d}`, body: `${e.nama} — cek kesiapan divisi.`, link: `/marketing/event/${e.id}` })
+      live.push({ type: 'event', title: d === 0 ? 'Event HARI INI' : `Event H-${d}`, body: `${e.nama} · cek kesiapan divisi (${progres(e)}%).`, link: `/marketing/event/${e.id}` })
   }
   for (const e of events.filter(x => TAHAP_TERBUKA_MKT.includes(x.status) && x.nextFU === hari))
-    live.push({ type: 'fu', title: 'Follow up hari ini', body: `${e.nama} — ${nama(e.clientId)}`, link: '/marketing/pipeline' })
+    live.push({ type: 'fu', title: 'Follow up hari ini', body: `${e.nama} · ${nama(e.clientId)}`, link: '/marketing/pipeline' })
   for (const c of clients.filter(x => x.nextFU === hari && !events.some(e => e.clientId === x.id && TAHAP_TERBUKA_MKT.includes(e.status))))
     live.push({ type: 'fu', title: 'Follow up (nurture)', body: String(c.nama ?? ''), link: '/marketing/pipeline' })
   for (const e of events.filter(x => invStatus(x, st, hari) === 'Overdue'))

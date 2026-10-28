@@ -131,10 +131,15 @@ const POIN = ['DP 30% vs 50%', 'Tarif pajak & service final', 'Integrasi POS in-
       <div class="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_22rem]">
         <AppPanel
           title="Aturan bisnis & tarif"
+          description="Angka bisa dikalibrasi ulang setelah 2–3 bulan data aktual."
           icon="i-lucide-sliders-horizontal"
           flush
         >
           <div class="divide-y divide-default">
+            <!-- Header of the old set-tbl: Pengaturan | Nilai | Keterangan. -->
+            <div class="hidden gap-2 bg-table-head px-4 py-2 text-xs font-bold uppercase tracking-wide text-table-head-text md:grid md:grid-cols-[12rem_10rem_minmax(0,1fr)]">
+              <span>Pengaturan</span><span>Nilai</span><span>Keterangan</span>
+            </div>
             <div class="grid gap-2 px-4 py-3 md:grid-cols-[12rem_10rem_minmax(0,1fr)] md:items-start">
               <b class="text-sm text-highlighted">DP default (%)</b>
               <UInput
@@ -185,20 +190,17 @@ const POIN = ['DP 30% vs 50%', 'Tarif pajak & service final', 'Integrasi POS in-
                 Tanggal FU berikutnya diisi otomatis sejauh ini dari hari catat.
               </p>
             </div>
-            <div class="grid gap-2 px-4 py-3 md:grid-cols-[12rem_minmax(0,1fr)] md:items-start">
+            <div class="grid gap-2 px-4 py-3 md:grid-cols-[12rem_10rem_minmax(0,1fr)] md:items-start">
               <b class="text-sm text-highlighted">Template fasilitas FREE</b>
-              <div>
-                <UTextarea
-                  v-model="f.freeTemplate"
-                  :rows="5"
-                  autoresize
-                  class="w-full"
-                />
-                <p class="mt-1 text-xs text-muted">
-                  Satu baris satu fasilitas, muncul di penawaran bertuliskan FREE. Penanda <b>{jika-sewa-gratis}</b> / <b>{jika-teknis-gratis}</b> membuat barisnya hilang sendiri kalau komponen itu ternyata ditagihkan.
-                  Bisa ditimpa per event di tab Finance.
-                </p>
-              </div>
+              <UTextarea
+                v-model="f.freeTemplate"
+                :rows="5"
+                autoresize
+                class="w-full"
+              />
+              <p class="text-xs text-muted">
+                Satu baris satu fasilitas, muncul di penawaran bertuliskan FREE. Penanda <b>{jika-sewa-gratis}</b> / <b>{jika-teknis-gratis}</b> membuat barisnya hilang sendiri kalau komponen itu ternyata ditagihkan — supaya dokumennya tidak menulis "FREE" tepat di bawah baris yang ada harganya. Bisa ditimpa per event di tab Finance.
+              </p>
             </div>
             <div class="grid gap-2 px-4 py-3 md:grid-cols-[12rem_10rem_minmax(0,1fr)] md:items-start">
               <b class="text-sm text-highlighted">Prefix kwitansi</b>
