@@ -132,7 +132,7 @@ const contohRingkas = computed(() => {
   }
 })
 
-const yellow = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
+const aksen = ['brand-yellow', 'yellow-light', 'yellow-dark', 'brand-blue', 'blue-pressed', 'brand-coral', 'coral-light', 'coral-dark', 'brand-teal', 'teal-light', 'moss-dark']
 const ink = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
 
 const rows = [
@@ -155,14 +155,14 @@ const columns: TableColumn<Row>[] = [
       title="Style guide"
       description="Blok bangunan Laksamana Office. Aturan dan alasannya: DESIGN.md."
     >
-      <AppList title="Warna · kuning (primary) hanya untuk isian: tombol utama, penanda aktif">
+      <AppList title="Warna · aksen Miro (kuning hanya untuk promo/tag, bukan CTA)">
         <div class="grid grid-cols-11">
           <div
-            v-for="n in yellow"
+            v-for="n in aksen"
             :key="n"
             class="h-14"
-            :style="{ background: `var(--color-laksamana-${n})` }"
-            :title="`laksamana-${n}`"
+            :style="{ background: `var(--color-${n})` }"
+            :title="n"
           />
         </div>
       </AppList>
@@ -178,7 +178,7 @@ const columns: TableColumn<Row>[] = [
         </div>
       </AppList>
 
-      <AppList title="Tipografi · Geist">
+      <AppList title="Tipografi · Noto Sans">
         <div class="space-y-2 p-4">
           <p class="text-4xl font-extrabold tracking-tight text-highlighted">
             Judul halaman
@@ -252,7 +252,7 @@ const columns: TableColumn<Row>[] = [
 
       <AppList title="Tombol">
         <div class="flex flex-wrap items-center gap-2 p-4">
-          <UButton label="Utama (kuning)" />
+          <UButton label="Utama (pil hitam)" />
           <UButton
             label="Sekunder"
             color="neutral"

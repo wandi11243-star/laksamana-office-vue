@@ -194,7 +194,7 @@ useSegarSenyap(refresh, () => buka.value)
           title="Hari ini"
           icon="i-lucide-sun"
         >
-          <p class="font-semibold text-primary-700 dark:text-primary-300">
+          <p class="font-semibold text-ink-900">
             {{ fTgl(hari) }}
           </p>
           <p class="mt-2 text-[11px] font-bold uppercase tracking-wide text-muted">

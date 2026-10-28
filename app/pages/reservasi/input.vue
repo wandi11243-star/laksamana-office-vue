@@ -870,6 +870,7 @@ async function hapus() {
           <DenahPeta
             v-if="denah"
             :layout="denah"
+            fit
             :reservasi="sekitar ?? []"
             :tanggal="form.date"
             :jam="normTime(form.time)"

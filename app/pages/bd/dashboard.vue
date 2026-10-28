@@ -127,7 +127,7 @@ async function hapus() {
       Kamu punya akses modul ini, tapi belum muncul di daftar kru — biasanya karena akses baru diberikan dan
       daftarnya masih lama. Tekan Segarkan dari Office di <NuxtLink
         to="/bd/tim"
-        class="font-semibold text-primary-700 underline"
+        class="font-semibold text-ink-900 underline"
       >Kru BD</NuxtLink>.
       Sementara itu papan menampilkan pekerjaan semua orang.
     </p>
@@ -138,7 +138,7 @@ async function hapus() {
       Divisi kamu belum diatur, jadi task barumu jatuh ke divisi bawaan. Atur di
       <NuxtLink
         to="/bd/tim"
-        class="font-semibold text-primary-700 underline"
+        class="font-semibold text-ink-900 underline"
       >Kru BD</NuxtLink>
       — sekalian isi atasanmu, karena itu yang menentukan siapa melihat task siapa.
     </p>
@@ -181,7 +181,7 @@ async function hapus() {
 
     <AppPanel>
       <div class="flex flex-wrap items-center gap-3">
-        <span class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-primary-700"><UIcon
+        <span class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-900"><UIcon
           name="i-lucide-star"
           class="size-3.5"
         /> Fokus utama hari ini</span>
@@ -308,7 +308,7 @@ async function hapus() {
             >
               <UIcon
                 name="i-lucide-calendar"
-                class="mt-0.5 size-4 shrink-0 text-primary-700"
+                class="mt-0.5 size-4 shrink-0 text-ink-900"
               />
               <span>
                 <span class="block font-semibold text-highlighted">{{ e.title }}</span>

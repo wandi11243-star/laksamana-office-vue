@@ -311,7 +311,7 @@ async function simpan() {
             :key="i"
             type="button"
             class="rounded-full border px-2.5 py-1 text-xs font-semibold transition-colors"
-            :class="f.hari.includes(i) ? 'border-primary-400 bg-primary-100 text-primary-800' : 'border-default bg-muted text-muted'"
+            :class="f.hari.includes(i) ? 'border-yellow-deep bg-yellow-light text-yellow-dark' : 'border-default bg-muted text-muted'"
             :title="nama"
             @click="toggleHari(i)"
           >

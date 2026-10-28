@@ -17,7 +17,7 @@ const peran = computed(() => shell.value?.peran?.(me.value) ?? me.value?.keteran
       to="/profil"
       class="flex min-w-0 flex-1 items-center gap-2.5"
     >
-      <span class="flex size-9 shrink-0 items-center justify-center rounded-field bg-primary-600 text-[13px] font-bold text-white">
+      <span class="flex size-9 shrink-0 items-center justify-center rounded-field bg-ink-900 text-[13px] font-bold text-white">
         {{ inisial }}
       </span>
       <span class="min-w-0 leading-tight">

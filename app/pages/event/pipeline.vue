@@ -137,6 +137,7 @@ async function jatuhkan(ev: DragEvent, tahap: string) {
           :key="s"
           :title="`${s} (${(perTahap.get(s) ?? []).length})`"
           :icon="STATUS_IKON_EVENT[s]"
+          class="rounded-xl"
           @dragover.prevent
           @drop="jatuhkan($event, s)"
         >
@@ -147,7 +148,7 @@ async function jatuhkan(ev: DragEvent, tahap: string) {
                 v-for="e in (perTahap.get(s) ?? [])"
                 :key="e.id"
                 :draggable="bolehUbah"
-                class="rounded-field border border-default bg-muted/40 p-2.5"
+                class="rounded-lg border border-default bg-muted/40 p-2.5"
                 @dragstart="seretMulai($event, e.id)"
               >
                 <ULink

@@ -41,6 +41,11 @@ function tulis(k: string, v: unknown) {
 const evGabung = computed(() => ({ ...props.ev, ...draft.value.atas, detail: draft.value.detail }) as EventMkt)
 const terlihat = (f: FieldEventMkt) => condTerpenuhiMkt(f, evGabung.value)
 const progres = (s: SeksiEventMkt) => progresSeksiMkt(evGabung.value, s)
+const kolomField = (f: FieldEventMkt) => f.full || f.t === 'multi'
+  ? 'col-span-full'
+  : f.t === 'ynnote'
+    ? 'col-span-2 min-[1081px]:col-span-3'
+    : 'col-span-2'
 
 /** "Tampil di PDF" per section (old pdfSecOn): never ticked = printed. Saved with the tab. */
 const pdfAktif = (id: string) => ((draft.value.detail._pdfSec ?? {}) as Record<string, unknown>)[id] !== false
@@ -180,32 +185,42 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
       />
       <div
         v-else
-        class="grid gap-3 lg:grid-cols-2"
+        class="grid grid-cols-2 gap-x-[18px] gap-y-0 min-[861px]:grid-cols-4 min-[1081px]:grid-cols-6"
       >
         <template
           v-for="f in s.fields"
           :key="f.k"
         >
-          <AppSectionTitle
+          <div
             v-if="f.t === 'head' && terlihat(f)"
-            :title="f.l"
-            class="lg:col-span-2"
-          />
+            class="col-span-full mb-2 mt-5 rounded-lg bg-yellow-light px-3 py-2.5 first:mt-0"
+          >
+            <p class="text-sm font-semibold text-ink-900">
+              {{ f.l }}
+            </p>
+            <p
+              v-if="f.desc"
+              class="mt-0.5 text-xs text-muted"
+            >
+              {{ f.desc }}
+            </p>
+          </div>
           <div
             v-else-if="f.t !== 'head' && terlihat(f)"
-            :class="f.full ? 'lg:col-span-2' : ''"
+            :class="[kolomField(f), 'mb-[15px]']"
           >
             <UFormField
               v-if="!['tog', 'mirror', 'head', 'mejalock', 'salinlayout'].includes(f.t)"
               :label="f.l"
               :required="!!f.req"
-              :hint="f.help"
+              class="w-full"
             >
               <UInput
                 v-if="f.t === 'text'"
                 :model-value="String(baca(f.k) ?? '')"
                 :list="f.src === 'staff' ? `dl-staf-${f.k}` : undefined"
                 :disabled="!bisaUbah"
+                class="w-full"
                 @update:model-value="tulis(f.k, String($event))"
               />
               <datalist
@@ -223,6 +238,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                 :model-value="String(baca(f.k) ?? '')"
                 :disabled="!bisaUbah"
                 autoresize
+                class="w-full"
                 @update:model-value="tulis(f.k, String($event))"
               />
               <UInput
@@ -230,6 +246,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                 :model-value="String(baca(f.k) ?? '')"
                 type="number"
                 :disabled="!bisaUbah"
+                class="w-full"
                 @update:model-value="tulis(f.k, String($event) === '' ? '' : +String($event))"
               />
               <UInput
@@ -237,6 +254,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                 :model-value="String(baca(f.k) ?? '')"
                 inputmode="numeric"
                 :disabled="!bisaUbah"
+                class="w-full"
                 @update:model-value="tulis(f.k, angka($event))"
               />
               <UInput
@@ -244,6 +262,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                 :model-value="String(baca(f.k) ?? '')"
                 type="date"
                 :disabled="!bisaUbah"
+                class="w-full"
                 @update:model-value="tulis(f.k, String($event))"
               />
               <UInput
@@ -251,11 +270,12 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                 :model-value="String(baca(f.k) ?? '')"
                 type="time"
                 :disabled="!bisaUbah"
+                class="w-full"
                 @update:model-value="tulis(f.k, String($event))"
               />
               <div
                 v-else-if="f.t === 'timerange'"
-                class="flex items-center gap-2"
+                class="flex w-full items-center gap-2"
               >
                 <UInput
                   :model-value="rentang(f)[0] ?? ''"
@@ -324,7 +344,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                   :disabled="!bisaUbah"
                   :rows="1"
                   autoresize
-                  class="min-w-40 flex-1"
+                  class="min-w-0 flex-1"
                   @update:model-value="ynnoteSet(f, ynnoteV(f), String($event))"
                 />
               </div>
@@ -388,6 +408,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                   multiple
                   accept="image/*,application/pdf"
                   :disabled="mengunggah === f.k"
+                  class="w-full"
                   @change="pilihBerkas(f, ($event.target as HTMLInputElement).files); ($event.target as HTMLInputElement).value = ''"
                 />
                 <p
@@ -453,6 +474,12 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                 @click="salinLayout"
               />
             </div>
+            <p
+              v-if="f.help"
+              class="mt-1.5 text-xs text-muted"
+            >
+              {{ f.help }}
+            </p>
           </div>
         </template>
       </div>

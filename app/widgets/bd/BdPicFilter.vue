@@ -37,12 +37,12 @@ function toggle(id: string) {
       type="button"
       class="inline-flex items-center gap-1 rounded-full border px-2 py-1 text-xs font-semibold transition-colors"
       :class="(modelValue || []).includes(p.id)
-        ? 'border-primary-400 bg-primary-100 text-primary-800'
+        ? 'border-yellow-deep bg-yellow-light text-yellow-dark'
         : 'border-default bg-muted text-muted hover:border-accented'"
       :aria-pressed="(modelValue || []).includes(p.id)"
       @click="toggle(p.id)"
     >
-      <span class="flex size-4 items-center justify-center rounded-full bg-primary-100 text-[8px] font-bold text-primary-800">{{ inisial(p.name) }}</span>
+      <span class="flex size-4 items-center justify-center rounded-full bg-yellow-light text-[8px] font-bold text-yellow-dark">{{ inisial(p.name) }}</span>
       {{ p.name.split(' ')[0] }}
     </button>
     <UButton

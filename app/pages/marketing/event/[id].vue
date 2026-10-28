@@ -655,51 +655,60 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
 
       <template v-if="tabKini">
         <!-- 4 · Overview: the summary document, read-only -->
-        <AppPanel v-if="tabKini.id === 'overview'">
-          <div class="flex flex-wrap items-start justify-between gap-3 border-b border-default pb-3">
-            <div>
-              <p class="font-semibold text-highlighted">
+        <article
+          v-if="tabKini.id === 'overview'"
+          class="mx-auto w-full max-w-[860px] rounded-xl border border-default bg-default p-4 text-sm sm:p-6 print:max-w-none print:rounded-none print:border-0 print:shadow-none"
+        >
+          <header class="mb-4 flex flex-wrap items-center gap-3 border-b-4 border-brand-yellow pb-4">
+            <img
+              src="/mark.png"
+              alt=""
+              class="size-11 shrink-0 object-contain"
+            >
+            <div class="min-w-[160px] flex-1">
+              <p class="font-display text-xl font-bold text-highlighted">
                 Laksamana Muda
               </p>
-              <p class="text-xs tracking-wider text-muted">
+              <p class="text-[10px] tracking-[0.2em] text-yellow-dark">
                 COFFEE &amp; LIVE SPACE
               </p>
             </div>
-            <div class="text-right">
-              <p class="text-xs font-bold uppercase tracking-wider text-primary-700">
-                Rangkuman event
+            <div class="min-w-[180px] text-right">
+              <p class="text-[10px] font-bold tracking-[0.15em] text-yellow-dark">
+                RANGKUMAN EVENT
               </p>
-              <p class="font-semibold text-highlighted">
+              <p class="mt-1 font-display text-lg font-bold text-highlighted">
                 {{ ev.nama || '—' }}
               </p>
-              <p class="text-sm text-muted">
+              <p class="text-xs text-muted">
                 {{ rentangTglMkt(ev) }}
               </p>
             </div>
-          </div>
-          <div class="grid gap-x-6 gap-y-1 border-b border-default py-3 text-sm sm:grid-cols-2">
+          </header>
+
+          <div class="mb-3 grid gap-x-6 gap-y-1 rounded-lg bg-muted px-4 py-3 text-sm sm:grid-cols-2">
             <p><b>Client</b> · {{ client?.nama ?? '—' }}{{ client?.perusahaan ? ` — ${client.perusahaan}` : '' }}</p>
             <p><b>Marketing PIC</b> · {{ namaUser(ev.mktPIC) }}</p>
             <p><b>Jenis</b> · {{ ev.jenis || '—' }}</p>
             <p><b>Estimasi</b> · {{ ev.pax || '—' }} pax</p>
           </div>
-          <div class="flex items-center gap-3 py-3 text-sm">
-            <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-elevated">
+          <div class="mb-4 flex flex-wrap items-center gap-2 text-xs text-muted">
+            <div class="h-1.5 w-64 max-w-full overflow-hidden rounded-full bg-ink-200">
               <div
-                class="h-full rounded-full bg-primary-400"
+                class="h-full bg-brand-yellow"
                 :style="{ width: `${overview.total ? Math.round(overview.isi / overview.total * 100) : 0}%` }"
               />
             </div>
-            <span class="num"><b>{{ overview.isi }}</b> dari {{ overview.total }} isian terisi</span>
+            <span class="num"><b class="text-highlighted">{{ overview.isi }}</b> dari {{ overview.total }} isian terisi ({{ overview.total ? Math.round(overview.isi / overview.total * 100) : 0 }}%)</span>
           </div>
           <div
             v-if="sorot"
-            class="mb-4 rounded-md border border-primary-200 bg-primary-50 px-4 py-3 text-sm"
+            class="mb-4 rounded-r-lg border-l-4 border-yellow-deep bg-yellow-light px-4 py-3 text-sm"
           >
-            <p class="text-xs font-bold uppercase tracking-wider text-primary-700">
-              Poin penting
+            <p class="mb-1 text-[10px] font-bold tracking-[0.14em] text-yellow-dark">
+              POIN PENTING
             </p>
-            <p class="whitespace-pre-line">
+            <p class="whitespace-pre-line leading-relaxed">
               {{ sorot }}
             </p>
           </div>
@@ -712,9 +721,14 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
           <section
             v-for="s in overview.secs"
             :key="s.id"
-            class="mt-4"
+            class="mb-5 break-inside-avoid last:mb-0"
           >
-            <AppSectionTitle :title="`${s.n} · ${s.title}`" />
+            <h3 class="mb-2 flex items-center gap-2 border-b border-default pb-2 text-sm font-semibold text-highlighted">
+              <span class="flex h-6 min-w-10 items-center justify-center rounded-md bg-yellow-light px-2 text-xs font-bold text-yellow-dark num">
+                {{ s.n }}
+              </span>
+              {{ s.title }}
+            </h3>
             <MarketingOverviewIsi
               v-if="ev"
               :baris="s.baris"
@@ -722,7 +736,7 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
               :settings="st.settings"
             />
           </section>
-        </AppPanel>
+        </article>
 
         <!-- 1–3 · form tabs: one card per section, one save row for the tab -->
         <template v-else>
