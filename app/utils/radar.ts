@@ -416,7 +416,7 @@ export function fmtDetVal(v: unknown): string {
   return ''
 }
 
-export interface BarisDetail { label: string, teks: string, lampiran?: Lampiran[] }
+export interface BarisDetail { k: string, label: string, teks: string, lampiran?: Lampiran[] }
 
 /** Every filled field of a Marketing event, in schema order, unknown keys after (detailFields). */
 export function detailFields(detail: Obj): BarisDetail[] {
@@ -426,7 +426,7 @@ export function detailFields(detail: Obj): BarisDetail[] {
     const v = detail[k]
     const t = fmtDetVal(v)
     if (t === '') return
-    out.push(adalahLampiran(v) ? { label: detLabel(k), teks: t, lampiran: v } : { label: detLabel(k), teks: t })
+    out.push(adalahLampiran(v) ? { k, label: detLabel(k), teks: t, lampiran: v } : { k, label: detLabel(k), teks: t })
   }
   for (const k of Object.keys(MKT_LABEL)) {
     if (DET_SKIP.has(k)) continue
