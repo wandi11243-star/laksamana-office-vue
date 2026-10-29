@@ -12,7 +12,7 @@
 import type { BdTask } from '~/composables/useBd'
 import { centangSub, hapusTaskDenganUrutan, pesanHapusTask, toggleTask, useBdState } from '~/composables/useBd'
 import {
-  cariAku, lewat, lingkupIds, pelaksana, penghalang, pics, saringLingkup, selesai, sisaHari, urutDeadline,
+  cariAku, lewat, lingkupIds, menungguReviewSaya, pelaksana, penghalang, pics, saringLingkup, selesai, sisaHari, urutDeadline,
   type ModeArsip,
 } from '~/utils/bd-rumus'
 import BdCari, { type HasilPilih } from '~/widgets/bd/BdCari.vue'
@@ -33,9 +33,9 @@ const projects = computed(() => state.value.projects)
 const aku = computed(() => cariAku(people.value, me.value))
 const lingkup = computed(() => lingkupIds(people.value, aku.value?.id, isAdminOf(me.value, 'bd')))
 
-/** `tugasSaya` — visible tasks I hold: my PICs AND my sub-task assignments; the unmatched see everything, said out loud. */
-const tampak = computed(() => saringLingkup(state.value.tasks, 'tim', lingkup.value, aku.value?.id))
-const tampakProject = computed(() => saringLingkup(projects.value, 'tim', lingkup.value, aku.value?.id))
+/** `tugasSaya` — visible tasks I hold: my PICs AND my sub-task assignments; the unmatched see everything, said out loud. Everyone sees every task & project (`tasksTerlihat`): scope only narrows what is SHOWN. */
+const tampak = computed(() => saringLingkup(state.value.tasks, 'semua', lingkup.value, aku.value?.id))
+const tampakProject = computed(() => saringLingkup(projects.value, 'semua', lingkup.value, aku.value?.id))
 const semua = computed(() => {
   const vt = tampak.value
   return aku.value ? vt.filter(t => pelaksana(t).includes(aku.value!.id)) : vt
@@ -46,12 +46,18 @@ const menunggu = computed(() => buka.value.filter(t => penghalang(t, state.value
 const nSelesai = computed(() => semua.value.length - buka.value.length)
 const terkunci = (t: BdTask) => penghalang(t, state.value.tasks).length > 0
 
-const grup = computed(() => [
-  { judul: 'Lewat deadline', items: buka.value.filter(lewat) },
-  { judul: '7 hari ke depan', items: buka.value.filter(t => !lewat(t) && !terkunci(t) && t.deadline && sisaHari(t.deadline) <= 7) },
-  { judul: 'Berikutnya', items: buka.value.filter(t => !lewat(t) && !terkunci(t) && (!t.deadline || sisaHari(t.deadline) > 7)) },
-  { judul: 'Menunggu task lain', items: buka.value.filter(t => !lewat(t) && terkunci(t)) },
-])
+const grup = computed(() => {
+  const review = menungguReviewSaya(buka.value.filter(t => !terkunci(t)), aku.value?.id)
+  const reviewIds = new Set(review.map(t => t.id))
+  const sisa = buka.value.filter(t => !reviewIds.has(t.id))
+  return [
+    { judul: 'Menunggu review kamu', items: review },
+    { judul: 'Lewat deadline', items: sisa.filter(lewat) },
+    { judul: '7 hari ke depan', items: sisa.filter(t => !lewat(t) && !terkunci(t) && t.deadline && sisaHari(t.deadline) <= 7) },
+    { judul: 'Berikutnya', items: sisa.filter(t => !lewat(t) && !terkunci(t) && (!t.deadline || sisaHari(t.deadline) > 7)) },
+    { judul: 'Menunggu task lain', items: sisa.filter(t => !lewat(t) && terkunci(t)) },
+  ]
+})
 const proyekKu = computed(() => projects.value.filter(p => aku.value && pics(p).includes(aku.value.id) && p.stage !== 'Done'))
 const baruSelesai = computed(() => semua.value.filter(selesai)
   .slice().sort((a, b) => (a.doneAt || '') < (b.doneAt || '') ? 1 : -1).slice(0, 6))

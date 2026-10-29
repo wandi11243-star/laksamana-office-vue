@@ -16,7 +16,7 @@
 import type { BdPerson, BdTask } from '~/composables/useBd'
 import { bdTulisDiam, buatBd, lahirkanUlangSetelah, ubahBd, versiBaris } from '~/composables/useBd'
 import {
-  OWNER_DIVS, STATUS_FLOW, cekBolehDone, pesanTunggu, segarkanProgress, setPics, urutDeadline,
+  OWNER_DIVS, STATUS_FLOW, cekBolehDone, kanbanUrut, pesanTunggu, segarkanProgress, setPics,
   type ModeArsip,
 } from '~/utils/bd-rumus'
 import BdKanbanCard from '~/widgets/bd/BdKanbanCard.vue'
@@ -49,7 +49,7 @@ const toast = useToast()
 const bank = computed(() => props.semua ?? props.tasks)
 const kolom = computed(() => (props.arsip === 'arsip' ? ['Done'] : STATUS_FLOW))
 const isiKolom = (st: string) => {
-  const l = props.tasks.filter(t => (t.status || 'To Do') === st).slice().sort(urutDeadline)
+  const l = props.tasks.filter(t => (t.status || 'To Do') === st).slice().sort(kanbanUrut(st))
   return (st === 'Done' && props.arsip === 'aktif') ? [] : l
 }
 const arsipKolom = (st: string) => props.tasks.filter(t => (t.status || 'To Do') === st).length
@@ -86,8 +86,9 @@ async function dropKolom(st: string) {
     }
   }
   // PUT carries the whole row: dragging OUT of Done must also drop `doneAt`.
+  // Dragged cards land at the bottom of their new column (`pindahKe`).
   const { updatedAt: _buang, ...sisa } = t
-  const body = { ...sisa, status: st }
+  const body = { ...sisa, status: st, pindahKe: { st, at: Date.now() } }
   segarkanProgress(body)
   const ok = await bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
   if (ok && st === 'Done') await lahirkanUlangSetelah({ ...t, ...body, id: t.id }, bank.value)

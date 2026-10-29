@@ -8,7 +8,7 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
-import { fDue, inisial, labelUlang, lewat, penghalang, pics, selesai, sisaHari, subHitung, subs, tagsOf } from '~/utils/bd-rumus'
+import { fDue, inisial, labelUlang, lewat, penghalang, pics, reviewers, selesai, sisaHari, subHitung, subs, tagsOf } from '~/utils/bd-rumus'
 import { fTglP } from '~/utils/format'
 
 const props = defineProps<{
@@ -32,6 +32,7 @@ const subBuka = ref(false)
 const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
 /** The crew a sub-task is assigned to (`p`), by name — empty when unassigned. */
 const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.name || '') : '')
+const namaReview = computed(() => reviewers(props.task).map(id => props.people.find(p => p.id === id)?.name || '—'))
 </script>
 
 <template>
@@ -56,6 +57,17 @@ const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.
         class="mt-px size-3 shrink-0"
       />
       <span class="min-w-0 break-words">Menunggu: {{ hal.map(x => x.name).join(', ') }}</span>
+    </span>
+    <span
+      v-if="namaReview.length"
+      class="mt-1 flex items-start gap-1 text-[11px] font-semibold text-muted"
+      :title="`Review oleh ${namaReview.join(', ')}`"
+    >
+      <UIcon
+        name="i-lucide-eye"
+        class="mt-px size-3 shrink-0"
+      />
+      <span class="min-w-0 break-words">Review: {{ namaReview.join(', ') }}</span>
     </span>
 
     <span class="mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
@@ -126,7 +138,7 @@ const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.
     </span>
 
     <span
-      v-if="tagsOf(task).length || labelUlang(task.ulang)"
+      v-if="tagsOf(task).length || labelUlang(task.ulang, task.deadline)"
       class="mt-1.5 flex min-w-0 flex-wrap items-center gap-1"
     >
       <span
@@ -135,15 +147,15 @@ const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.
         class="max-w-full truncate rounded-full bg-muted px-2 py-px text-[10px] font-semibold text-muted"
       >{{ g }}</span>
       <span
-        v-if="labelUlang(task.ulang)"
-        :title="`Berulang: ${labelUlang(task.ulang)}`"
+        v-if="labelUlang(task.ulang, task.deadline)"
+        :title="`Berulang: ${labelUlang(task.ulang, task.deadline)}`"
         class="inline-flex items-center gap-0.5 whitespace-nowrap rounded-full bg-muted px-2 py-px text-[10px] font-semibold text-muted"
       >
         <UIcon
           name="i-lucide-repeat"
           class="size-2.5"
         />
-        {{ labelUlang(task.ulang) }}
+        {{ labelUlang(task.ulang, task.deadline) }}
       </span>
     </span>
 

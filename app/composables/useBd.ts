@@ -99,10 +99,18 @@ export interface BdTask {
   dependsOn?: string[]
   /** Daily Task: this task lives on the Daily board, never inside a project. */
   daily?: boolean
-  /** Recurrence (`harian`|`kerja`|`mingguan`|`bulanan`); empty = one-off. */
+  /** Recurrence (`harian`|`kerja`|`mingguan`|`bulanan` + `bulanan_ke`|`bulanan_akhir`|`tahunan` + custom `k/…`); empty = one-off. */
   ulang?: string
   /** Guard: the Done task this recurrence was born from — reopening + Done again never twins. */
   ulangDari?: string
+  /** Ended-series trace: the pattern parked here while `ulang` is empty. */
+  ulangBerhenti?: { u: string, at: number, by: string }
+  /** Missed dates of a self-rolling series (`gulirUlang`): still readable in Recurring. */
+  terlewat?: { d: string, sub: string }[]
+  /** Reviewers: crew ids asked to review (`reviewers [id kru]`, never the assignee). */
+  reviewers?: string[]
+  /** Drag marker: the column the card was dropped into + drag time (`dropBoard`). */
+  pindahKe?: { st: string, at: number }
   /** Stamped when the task becomes Done, dropped when reopened: a done deadline stops counting. */
   doneAt?: string
   createdAt?: number
@@ -444,6 +452,8 @@ export async function toggleTask(t: BdTask, semua: BdTask[]): Promise<boolean> {
   }
   const body: Partial<BdTask> = { ...t, status: buka ? 'To Do' : 'Done' }
   delete body.updatedAt
+  // The drag marker names its column: a checkbox flip is not a drag.
+  delete body.pindahKe
   segarkanProgress(body)
   const ok = await bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
   if (ok && !buka) await lahirkanUlangSetelah({ ...t, ...body, id: t.id } as BdTask, semua)
@@ -479,6 +489,7 @@ export async function centangSub(t: BdTask, ix: number, on: boolean): Promise<bo
   subs[ix] = { ...subs[ix], done: on }
   const body: Partial<BdTask> = { ...t, subtasks: subs }
   delete body.updatedAt
+  delete body.pindahKe
   segarkanProgress(body)
   return bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
 }

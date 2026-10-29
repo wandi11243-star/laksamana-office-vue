@@ -14,7 +14,8 @@ import type { BdPerson, BdProject, BdSubtask, BdTask } from '~/composables/useBd
 import { buatBd, bdSimpan, hapusTaskDenganUrutan, lahirkanUlangSetelah, pesanHapusTask, ubahBd, versiBaris } from '~/composables/useBd'
 import {
   OWNER_DIVS, PILIHAN_TANPA, PRIORITAS, STATUS_FLOW, TASK_TIPE, ULANG, cekBolehDone, deps, kruTersedia, kuadran,
-  menungguTransitif, opsiProject as opsiProjectBd, pesanTunggu, segarkanProgress, selesai, setPics, subs, tagsOf, todayISO, uidBd,
+  labelUlang, menungguTransitif, opsiProject as opsiProjectBd, parseUlang, pesanTunggu, segarkanProgress, selesai, setPics, subs, susunUlang, tagsOf, todayISO, uidBd,
+  type UlangRumus,
 } from '~/utils/bd-rumus'
 import { WARNA_KUADRAN, WARNA_TASK } from '~/utils/status-bd'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
@@ -38,6 +39,7 @@ const f = reactive({
   desc: '',
   div: OWNER_DIVS[0]!,
   pics: [] as string[],
+  reviewers: [] as string[],
   status: 'To Do',
   priority: 'Medium',
   type: 'Ad-hoc',
@@ -49,6 +51,47 @@ const f = reactive({
   important: true,
   urgent: false,
 })
+/** Custom recurrence draft (`panelKustom`): read once on save, never redrawn mid-typing. */
+const kustom = reactive({ tiap: 1, satuan: 'minggu' as UlangRumus['satuan'], hari: [] as number[], mode: 'tgl' as UlangRumus['mode'], akhir: '' as '' | 'd' | 'x', sampai: '', kali: 13 })
+const HARI_SINGKAT = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
+function kustomDari(ulang: string, deadline: string) {
+  const r = parseUlang(ulang)
+  if (r && !r.preset) {
+    kustom.tiap = r.tiap
+    kustom.satuan = r.satuan
+    kustom.hari = [...r.hari]
+    kustom.mode = r.mode
+    kustom.akhir = r.akhir.j
+    kustom.sampai = r.akhir.j === 'd' ? r.akhir.tgl : ''
+    kustom.kali = r.akhir.j === 'x' ? r.akhir.kali : 13
+  }
+  else {
+    kustom.tiap = 1
+    kustom.satuan = 'minggu'
+    kustom.hari = deadline && /^\d{4}-\d{2}-\d{2}$/.test(deadline) ? [new Date(Number(deadline.slice(0, 4)), Number(deadline.slice(5, 7)) - 1, Number(deadline.slice(8, 10))).getDay()] : [1]
+    kustom.mode = 'tgl'
+    kustom.akhir = ''
+    kustom.sampai = ''
+    kustom.kali = 13
+  }
+}
+const ulangKustom = computed(() => susunUlang({
+  tiap: Math.max(1, Math.min(99, kustom.tiap || 1)),
+  satuan: kustom.satuan,
+  hari: kustom.satuan === 'minggu' ? [...kustom.hari].sort((a, b) => a - b) : [],
+  mode: kustom.mode,
+  akhir: kustom.akhir === 'd' ? { j: 'd', tgl: kustom.sampai } : kustom.akhir === 'x' ? { j: 'x', kali: Math.max(1, kustom.kali || 1) } : { j: '' },
+  preset: '',
+}))
+/** Recurrence select items: presets with deadline-aware labels, the stored custom pattern, then Kustom. */
+const opsiUlang = computed(() => {
+  const items = [{ value: PILIHAN_TANPA, label: 'Tidak berulang' }]
+  for (const [v] of ULANG.filter(([vv]) => !!vv)) items.push({ value: v, label: labelUlang(v, f.deadline) || v })
+  if (f.ulang.startsWith('k/') && parseUlang(f.ulang)) items.push({ value: f.ulang, label: labelUlang(f.ulang, f.deadline) })
+  items.push({ value: '__kustom', label: 'Kustom…' })
+  return items
+})
+const ulangTampilKustom = computed(() => f.ulang === '__kustom' || f.ulang.startsWith('k/'))
 /** Sub-task drafts (`_subDraft`): id kept, empty text dropped on save. `p` is the single assignee. */
 const subDraf = ref<{ id: string, t: string, done: boolean, d: string, p: string }[]>([])
 const subBaru = ref('')
@@ -72,6 +115,7 @@ watch(open, (o) => {
     f.desc = t.desc || ''
     f.div = t.div || OWNER_DIVS[0]!
     f.pics = [...(t.pics || (t.pic ? [t.pic] : []))]
+    f.reviewers = [...(t.reviewers || [])]
     f.status = t.status
     f.priority = t.priority
     f.type = t.type || 'Ad-hoc'
@@ -82,6 +126,7 @@ watch(open, (o) => {
     f.ulang = t.ulang || ''
     f.important = !!t.important
     f.urgent = !!t.urgent
+    kustomDari(t.ulang || '', t.deadline || '')
     subDraf.value = subs(t).map(x => ({ id: String(x.id || uidBd('s')), t: String(x.t || ''), done: !!x.done, d: String(x.d || ''), p: String(x.p || '') }))
     tagDraf.value = tagsOf(t)
     depDraf.value = deps(t).filter(d => d !== t.id && props.tasks.some(x => x.id === d))
@@ -92,6 +137,7 @@ watch(open, (o) => {
     f.desc = ''
     f.div = aku && OWNER_DIVS.includes(aku.div) ? aku.div : OWNER_DIVS[0]!
     f.pics = aku ? [aku.id] : []
+    f.reviewers = []
     f.status = 'To Do'
     f.priority = 'Medium'
     f.type = 'Ad-hoc'
@@ -102,6 +148,7 @@ watch(open, (o) => {
     f.ulang = ''
     f.important = true
     f.urgent = false
+    kustomDari('', todayISO())
     subDraf.value = []
     tagDraf.value = []
     depDraf.value = []
@@ -167,8 +214,34 @@ async function simpan() {
   if (tagBaru.value.trim()) tagTambah()
   const daily = f.daily
   if (daily) f.project = null
+  // Custom recurrence is read once, on save (`bacaKustom`).
+  let ulang = f.ulang
+  if (ulang === '__kustom') {
+    if (!(kustom.tiap >= 1 && kustom.tiap <= 99)) {
+      toast.add({ title: '"Ulangi setiap" harus 1 sampai 99.', color: 'error' })
+      return
+    }
+    if (kustom.satuan === 'minggu' && !kustom.hari.length && /^\d{4}-\d{2}-\d{2}$/.test(f.deadline)) {
+      kustom.hari = [new Date(Number(f.deadline.slice(0, 4)), Number(f.deadline.slice(5, 7)) - 1, Number(f.deadline.slice(8, 10))).getDay()]
+    }
+    if (kustom.akhir === 'd') {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(kustom.sampai)) {
+        toast.add({ title: 'Isi tanggal berakhirnya.', color: 'error' })
+        return
+      }
+      if (f.deadline && kustom.sampai < f.deadline) {
+        toast.add({ title: 'Tanggal berakhir tidak boleh sebelum deadline.', color: 'error' })
+        return
+      }
+    }
+    if (kustom.akhir === 'x' && !(kustom.kali >= 1 && kustom.kali <= 999)) {
+      toast.add({ title: 'Jumlah kali harus 1 sampai 999.', color: 'error' })
+      return
+    }
+    ulang = ulangKustom.value
+  }
   // No deadline means no "next when" — refused here, never silently non-recurring.
-  if (f.ulang && !f.deadline) {
+  if (ulang && !f.deadline) {
     toast.add({ title: 'Task berulang butuh deadline sebagai patokan.', color: 'error' })
     return
   }
@@ -183,7 +256,8 @@ async function simpan() {
     deadline: f.deadline,
     project: f.project || null,
     daily,
-    ulang: f.ulang || '',
+    ulang: ulang || '',
+    reviewers: f.reviewers.slice(),
     important: f.important,
     urgent: f.urgent,
     tags: tagDraf.value.slice(),
@@ -201,9 +275,11 @@ async function simpan() {
   const lama = props.task
   if (lama) {
     // The full row goes out (PUT replaces): `segarkanProgress` also drops a
-    // stale `doneAt` when the task is reopened.
+    // stale `doneAt` when the task is reopened. A status change through the
+    // modal is not a drag, so the bottom-of-column marker is dropped.
     const kirim: Partial<BdTask> = { ...lama, ...body }
     delete kirim.updatedAt
+    if (kirim.status !== lama.status) delete kirim.pindahKe
     segarkanProgress(kirim)
     const ok = await bdSimpan(() => ubahBd<BdTask>('tasks', lama.id, kirim, versiBaris(lama)), 'Task diperbarui')
     if (ok) {
@@ -265,6 +341,15 @@ async function hapus() {
           v-model="f.pics"
           :people="people"
         />
+      </UFormField>
+      <UFormField label="Review oleh — tag siapa yang memeriksa (opsional)">
+        <BdPicPicker
+          v-model="f.reviewers"
+          :people="people"
+        />
+        <template #hint>
+          Task berstatus Review masuk My Task reviewer di kelompok "Menunggu review kamu".
+        </template>
       </UFormField>
       <UFormField label="Tag — task ini untuk siapa (boleh lebih dari satu)">
         <div class="flex flex-wrap gap-1.5">
@@ -357,12 +442,13 @@ async function hapus() {
         <UFormField label="Berulang">
           <USelect
             :model-value="f.ulang || PILIHAN_TANPA"
-            :items="[{ value: PILIHAN_TANPA, label: 'Tidak berulang' }, ...ULANG.filter(([v]) => !!v).map(([value, label]) => ({ value, label }))]"
+            :items="opsiUlang"
             class="w-full"
-            @update:model-value="(v: string | undefined) => { f.ulang = !v || v === PILIHAN_TANPA ? '' : v }"
+            @update:model-value="(v: string | undefined) => { f.ulang = !v || v === PILIHAN_TANPA ? '' : v; if (f.ulang === '__kustom' || f.ulang.startsWith('k/')) kustomDari(f.ulang === '__kustom' ? ulangKustom : f.ulang, f.deadline) }"
           />
           <template #hint>
             Saat ditandai Done, task berikutnya lahir otomatis dengan deadline berikutnya. Butuh deadline.
+            {{ labelUlang(f.ulang === '__kustom' ? ulangKustom : f.ulang, f.deadline) }}
           </template>
         </UFormField>
         <UFormField label="Daily Task">
@@ -374,6 +460,96 @@ async function hapus() {
             Daily Task tidak masuk project mana pun.
           </template>
         </UFormField>
+      </div>
+      <div
+        v-if="ulangTampilKustom"
+        class="rounded-field border border-default p-3"
+      >
+        <p class="mb-2 text-xs font-bold text-highlighted">
+          Kustom — {{ labelUlang(f.ulang === '__kustom' ? ulangKustom : f.ulang, f.deadline) }}
+        </p>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-sm text-muted">Ulangi setiap</span>
+          <UInput
+            v-model="kustom.tiap"
+            type="number"
+            :min="1"
+            :max="99"
+            class="w-20"
+          />
+          <USelect
+            v-model="kustom.satuan"
+            :items="['hari', 'minggu', 'bulan', 'tahun']"
+            class="w-32"
+          />
+        </div>
+        <div
+          v-if="kustom.satuan === 'minggu'"
+          class="mt-2 flex flex-wrap items-center gap-1.5"
+        >
+          <span class="mr-1 text-sm text-muted">Pada hari</span>
+          <button
+            v-for="(h, ix) in HARI_SINGKAT"
+            :key="h"
+            type="button"
+            :title="['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'][ix]"
+            class="flex size-8 items-center justify-center rounded-full border text-xs font-bold transition-colors"
+            :class="kustom.hari.includes(ix) ? 'border-yellow-deep bg-yellow-light text-highlighted' : 'border-default text-muted'"
+            @click="kustom.hari.includes(ix) ? kustom.hari = kustom.hari.filter(x => x !== ix) : kustom.hari.push(ix)"
+          >
+            {{ h }}
+          </button>
+        </div>
+        <div
+          v-if="kustom.satuan === 'bulan'"
+          class="mt-2 flex flex-wrap items-center gap-2"
+        >
+          <span class="text-sm text-muted">Pada</span>
+          <USelect
+            v-model="kustom.mode"
+            :items="[{ value: 'tgl', label: 'Tanggal yang sama' }, { value: 'ke', label: 'Hari ke-N' }, { value: 'akhir', label: 'Hari terakhir' }]"
+            class="w-44"
+          />
+        </div>
+        <div class="mt-2 grid gap-1.5">
+          <span class="text-sm font-semibold text-default">Berakhir</span>
+          <label class="flex items-center gap-2 text-sm">
+            <UCheckbox
+              :model-value="kustom.akhir === ''"
+              @update:model-value="(v: boolean | 'indeterminate') => { if (v === true) kustom.akhir = '' }"
+            />
+            Tidak pernah
+          </label>
+          <label class="flex flex-wrap items-center gap-2 text-sm">
+            <UCheckbox
+              :model-value="kustom.akhir === 'd'"
+              @update:model-value="(v: boolean | 'indeterminate') => { if (v === true) kustom.akhir = 'd' }"
+            />
+            Pada tanggal
+            <UInput
+              v-model="kustom.sampai"
+              type="date"
+              class="w-40"
+              @focus="kustom.akhir = 'd'"
+            />
+          </label>
+          <label class="flex flex-wrap items-center gap-2 text-sm">
+            <UCheckbox
+              :model-value="kustom.akhir === 'x'"
+              @update:model-value="(v: boolean | 'indeterminate') => { if (v === true) kustom.akhir = 'x' }"
+            />
+            Sesudah
+            <UInput
+              v-model="kustom.kali"
+              type="number"
+              :min="1"
+              :max="999"
+              class="w-24"
+              @focus="kustom.akhir = 'x'"
+            />
+            kali
+          </label>
+        </div>
       </div>
       <div>
         <p class="mb-2 text-[11px] font-bold uppercase tracking-wider text-muted">

@@ -32,8 +32,8 @@ const aku = computed(() => cariAku(people.value, me.value))
 const lingkup = computed(() => lingkupIds(people.value, aku.value?.id, isAdminOf(me.value, 'bd')))
 const cocokPic = (o: { pics?: string[], pic?: string }) => !fPics.value.length || pics(o).some(id => fPics.value.includes(id))
 
-/** Daily board: visible daily tasks, narrowed by the PIC filter. */
-const harian = computed(() => saringLingkup(state.value.tasks, 'tim', lingkup.value, aku.value?.id).filter(t => t.daily).filter(cocokPic))
+/** Daily board: every daily task is visible (`dailyTasks`); the PIC filter only narrows what is shown. */
+const harian = computed(() => saringLingkup(state.value.tasks, 'semua', lingkup.value, aku.value?.id).filter(t => t.daily).filter(cocokPic))
 const buka = computed(() => harian.value.filter(t => !selesai(t)).slice().sort(urutDeadline))
 const hariIni = computed(() => todayISO())
 const iniHari = computed(() => buka.value.filter(t => t.deadline === hariIni.value))

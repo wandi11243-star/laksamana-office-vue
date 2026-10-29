@@ -169,9 +169,18 @@ export const ULANG: [string, string][] = [
   ['kerja', 'Hari kerja (Sen–Jum)'],
   ['mingguan', 'Setiap minggu'],
   ['bulanan', 'Setiap bulan'],
+  ['bulanan_ke', 'Setiap bulan, hari ke-N'],
+  ['bulanan_akhir', 'Setiap bulan, hari terakhir'],
+  ['tahunan', 'Setiap tahun'],
 ]
-/** `labelUlang` — the recurrence label, empty when not recurring. */
-export function labelUlang(u?: string): string {
+/** `labelUlang` — the recurrence label, empty when not recurring. Custom
+ * `k/…` patterns and the new presets read the weekday/date from the
+ * deadline (`agent_label_ulang`); without a deadline they fall back to the
+ * generic form. */
+export function labelUlang(u?: string, iso?: string): string {
+  if (!u) return ''
+  const penuh = labelUlangPenuh(u, iso)
+  if (penuh) return penuh
   const x = ULANG.find(y => y[0] === u)
   return x && u ? x[1] : ''
 }
@@ -184,35 +193,66 @@ export function tglSah(iso?: string): boolean {
 }
 /** `langkahUlang` — one recurrence step ahead (old :2852-2862). 'bulanan' clamps to month-end (31 Jan → 28/29 Feb). */
 export function langkahUlang(iso: string, u?: string): string {
-  if (u === 'bulanan') {
-    const d = pDate(iso)
-    const x = new Date(d.getFullYear(), d.getMonth() + 1, 1)
-    const akhir = new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate()
-    x.setDate(Math.min(d.getDate(), akhir))
-    return isoOf(x)
+  const r = parseUlang(u)
+  // Legacy presets keep their exact old behaviour.
+  if (!r || r.preset) {
+    if (u === 'bulanan') {
+      const d = pDate(iso)
+      const x = new Date(d.getFullYear(), d.getMonth() + 1, 1)
+      const akhir = new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate()
+      x.setDate(Math.min(d.getDate(), akhir))
+      return isoOf(x)
+    }
+    if (u === 'mingguan') return tambahHari(iso, 7)
+    let n = tambahHari(iso, 1)
+    if (u === 'kerja') {
+      let aman = 0
+      while ((pDate(n).getDay() === 0 || pDate(n).getDay() === 6) && aman++ < 10) n = tambahHari(n, 1)
+    }
+    return n
   }
-  if (u === 'mingguan') return tambahHari(iso, 7)
-  let n = tambahHari(iso, 1)
-  if (u === 'kerja') {
-    let aman = 0
-    while ((pDate(n).getDay() === 0 || pDate(n).getDay() === 6) && aman++ < 10) n = tambahHari(n, 1)
-  }
-  return n
+  return langkahKustom(iso, r)
 }
 /** `deadlineBerikut` — first occurrence not in the past; a late completion skips ahead instead of spawning overdue twins (old :2863-2871). */
 export function deadlineBerikut(t: { deadline?: string, ulang?: string }): string | null {
-  if (!t.ulang || !labelUlang(t.ulang) || !tglSah(t.deadline)) return null
+  if (!t.ulang || !labelUlang(t.ulang, t.deadline) || !tglSah(t.deadline)) return null
   const hari = todayISO()
   let n = langkahUlang(t.deadline as string, t.ulang)
   let aman = 0
   while (n < hari && aman++ < 400) n = langkahUlang(n, t.ulang)
   return n
 }
-/** `lahirkanUlang` — the next occurrence as a new-row body, or null. Never twins: Done → reopen → Done again is guarded by `ulangDari` (old :2872-2888). */
+/** `seriBerakhir` — a custom `sampai tanggal / N kali` series is spent:
+ * `d:` past the next date, `x:` once chain length (+ missed dates) reaches
+ * the quota. Ended series birth nothing and never roll. */
+export function seriBerakhir(t: { ulang?: string }, berikut: string, rantai = 0, terlewat = 0): boolean {
+  const r = parseUlang(t?.ulang)
+  if (!r || !r.akhir.j) return false
+  if (r.akhir.j === 'd') return berikut > (r.akhir.tgl || '')
+  return (rantai + terlewat) >= (r.akhir.kali || 0)
+}
+/** Chain length of one series: the `ulangDari` ancestry plus missed dates. */
+export function hitungSeri(t: { ulangDari?: string, terlewat?: { d?: string }[] | null }, semua: { id: string, ulangDari?: string }[]): { rantai: number, terlewat: number } {
+  let rantai = 1
+  let cur = t
+  const lihat = new Set<string>()
+  let aman = 0
+  while (cur?.ulangDari && aman++ < 500) {
+    const atas = semua.find(x => x.id === cur.ulangDari)
+    if (!atas || lihat.has(atas.id)) break
+    lihat.add(atas.id)
+    rantai++
+    cur = atas as typeof t
+  }
+  return { rantai, terlewat: Array.isArray(t.terlewat) ? t.terlewat.length : 0 }
+}
+/** `lahirkanUlang` — the next occurrence as a new-row body, or null. Never twins: Done → reopen → Done again is guarded by `ulangDari` (old :2872-2888). Ended custom series birth nothing. */
 export function lahirkanUlang(t: BdTask, semua: BdTask[]): (Partial<BdTask> & { id: string }) | null {
   const nd = deadlineBerikut(t)
   if (!nd) return null
   if (semua.some(x => x.ulangDari === t.id)) return null
+  const { rantai, terlewat } = hitungSeri(t, semua)
+  if (seriBerakhir(t, nd, rantai, terlewat)) return null
   const geser = Math.round((+pDate(nd) - +pDate(t.deadline as string)) / 86400000)
   const g = (iso?: string) => (tglSah(iso) ? tambahHari(iso as string, geser) : iso)
   const b: Partial<BdTask> & { id: string } = {
@@ -235,6 +275,146 @@ export function lahirkanUlang(t: BdTask, semua: BdTask[]): (Partial<BdTask> & { 
   if (st) b.start = st
   setPics(b, pics(t))
   return b
+}
+/** `reviewers` — crew ids asked to review a task (old `reviewers(t)`). Never guessed, never migrated: absent or non-array reads as none. */
+export function reviewers(t: { reviewers?: unknown } | null | undefined): string[] {
+  return t && Array.isArray(t.reviewers) ? t.reviewers.filter((x): x is string => !!x) : []
+}
+/** `menungguReviewSaya` — tasks in Review state asking me to review. */
+export function menungguReviewSaya<T extends { status?: string, reviewers?: unknown }>(daftar: T[], akuId?: string | null): T[] {
+  if (!akuId) return []
+  return daftar.filter(t => t.status === 'Review' && reviewers(t).includes(akuId))
+}
+/**
+ * `kanbanUrut(st)` — a card dragged into a column lands at its BOTTOM: rows
+ * tagged with this column (`pindahKe = {st, at}`) stand AFTER every untagged
+ * row, in drag-time order. A status change through the modal or a checkbox
+ * drops the tag, so the card returns to deadline order in its new column.
+ */
+export function kanbanUrut(st: string): (a: BdTask, b: BdTask) => number {
+  const geser = (t: BdTask) => !!(t.pindahKe && t.pindahKe.st === st)
+  return (a, b) => {
+    const ga = geser(a)
+    const gb = geser(b)
+    if (ga !== gb) return ga ? 1 : -1
+    if (ga && gb) return (a.pindahKe?.at || 0) - (b.pindahKe?.at || 0)
+    return urutDeadline(a, b)
+  }
+}
+
+// ─────────────────────────── recurrence engine (27 Okt 2026) ──
+// `t.ulang` stays one string. Old presets keep their meaning; new presets
+// (`bulanan_ke`, `bulanan_akhir`, `tahunan`) read the weekday/date from the
+// deadline on every computation. Custom = `k/<tiap>/<satuan>/<hari>/<mode>/<akhir>`.
+
+export type UlangAkhir = { j: '', tgl?: string, kali?: number } | { j: 'd', tgl: string } | { j: 'x', kali: number }
+export interface UlangRumus { tiap: number, satuan: 'hari' | 'minggu' | 'bulan' | 'tahun', hari: number[], mode: 'tgl' | 'ke' | 'akhir', akhir: UlangAkhir, preset: string }
+
+const ULANG_PRESET: Record<string, Omit<UlangRumus, 'akhir' | 'preset'>> = {
+  harian: { tiap: 1, satuan: 'hari', hari: [], mode: 'tgl' },
+  kerja: { tiap: 1, satuan: 'minggu', hari: [1, 2, 3, 4, 5], mode: 'tgl' },
+  mingguan: { tiap: 1, satuan: 'minggu', hari: [], mode: 'tgl' },
+  bulanan: { tiap: 1, satuan: 'bulan', hari: [], mode: 'tgl' },
+  bulanan_ke: { tiap: 1, satuan: 'bulan', hari: [], mode: 'ke' },
+  bulanan_akhir: { tiap: 1, satuan: 'bulan', hari: [], mode: 'akhir' },
+  tahunan: { tiap: 1, satuan: 'tahun', hari: [], mode: 'tgl' },
+}
+const HARI_PANJANG = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+const HARI_PENDEK = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
+
+/** `parseUlang` — the single reader; an unreadable string is not recurring. */
+export function parseUlang(u?: string): UlangRumus | null {
+  const s = String(u || '')
+  const p = ULANG_PRESET[s]
+  if (p) return { ...p, hari: [...p.hari], akhir: { j: '' }, preset: s }
+  if (!s.startsWith('k/')) return null
+  const q = s.split('/')
+  const tiap = Number.parseInt(q[1] || '', 10)
+  const sat = q[2] || ''
+  if (!(tiap >= 1 && tiap <= 99) || !['hari', 'minggu', 'bulan', 'tahun'].includes(sat)) return null
+  const hari = String(q[3] || '').split(',').filter(x => /^[0-6]$/.test(x)).map(Number)
+    .filter((x, i, a) => a.indexOf(x) === i).sort((a, b) => a - b)
+  const mode = (['tgl', 'ke', 'akhir'].includes(q[4] || '') ? q[4] : 'tgl') as UlangRumus['mode']
+  const ak = String(q[5] || '')
+  let akhir: UlangAkhir = { j: '' }
+  if (/^d:\d{4}-\d{2}-\d{2}$/.test(ak)) akhir = { j: 'd', tgl: ak.slice(2) }
+  else if (/^x:\d+$/.test(ak) && Number(ak.slice(2)) >= 1) akhir = { j: 'x', kali: Number(ak.slice(2)) }
+  return { tiap, satuan: sat as UlangRumus['satuan'], hari, mode, akhir, preset: '' }
+}
+
+/** `susunUlang` — a custom rule back to its string. */
+export function susunUlang(r: UlangRumus): string {
+  return `k/${r.tiap}/${r.satuan}/${r.satuan === 'minggu' ? r.hari.join(',') : ''}/${r.satuan === 'bulan' ? r.mode : ''}/`
+    + (r.akhir.j === 'd' ? `d:${r.akhir.tgl}` : r.akhir.j === 'x' ? `x:${r.akhir.kali}` : '')
+}
+
+const keBerapa = (iso: string) => Math.ceil(pDate(iso).getDate() / 7)
+function tambahBulan(iso: string, n: number): string {
+  const d = pDate(iso)
+  const tg = d.getDate()
+  const x = new Date(d.getFullYear(), d.getMonth() + n, 1)
+  x.setDate(Math.min(tg, new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate()))
+  return isoOf(x)
+}
+function hariKeN(th: number, bl: number, dow: number, n: number): string | null {
+  const x = new Date(th, bl, 1)
+  const geser = (dow - x.getDay() + 7) % 7
+  const tg = 1 + geser + (n - 1) * 7
+  return tg <= new Date(th, bl + 1, 0).getDate() ? isoOf(new Date(th, bl, tg)) : null
+}
+function hariAkhirBulan(th: number, bl: number, dow: number): string {
+  const x = new Date(th, bl + 1, 0)
+  x.setDate(x.getDate() - ((x.getDay() - dow + 7) % 7))
+  return isoOf(x)
+}
+function langkahKustom(iso: string, r: UlangRumus): string {
+  const d = pDate(iso)
+  const dow = d.getDay()
+  if (r.satuan === 'hari') return tambahHari(iso, r.tiap)
+  if (r.satuan === 'minggu') {
+    if (!r.hari.length) return tambahHari(iso, 7 * r.tiap)
+    for (let k = dow + 1; k <= 6; k++) if (r.hari.includes(k)) return tambahHari(iso, k - dow)
+    return tambahHari(iso, 7 * r.tiap - dow + r.hari[0]!)
+  }
+  if (r.satuan === 'tahun') return tambahBulan(iso, 12 * r.tiap)
+  if (r.mode === 'tgl') return tambahBulan(iso, r.tiap)
+  const n = keBerapa(iso)
+  let m = r.tiap
+  let aman = 0
+  while (aman++ < 60) {
+    const x = new Date(d.getFullYear(), d.getMonth() + m, 1)
+    const hasil = r.mode === 'akhir'
+      ? hariAkhirBulan(x.getFullYear(), x.getMonth(), dow)
+      : hariKeN(x.getFullYear(), x.getMonth(), dow, n)
+    if (hasil) return hasil
+    m += r.tiap
+  }
+  return tambahBulan(iso, r.tiap)
+}
+
+/** `labelUlang` full engine, read against the deadline (agent_label_ulang). */
+export function labelUlangPenuh(u?: string, iso?: string): string {
+  const r = parseUlang(u)
+  if (!r) return ''
+  const ok = tglSah(iso)
+  const d = ok ? pDate(iso) : null
+  const H = d ? HARI_PANJANG[d.getDay()]! : ''
+  const ekor = r.akhir.j === 'd' ? `, sampai ${r.akhir.tgl}` : r.akhir.j === 'x' ? `, ${r.akhir.kali}× saja` : ''
+  switch (r.preset) {
+    case 'harian': return 'Setiap hari'
+    case 'kerja': return 'Hari kerja (Sen–Jum)'
+    case 'mingguan': return ok ? `Setiap minggu hari ${H}` : 'Setiap minggu'
+    case 'bulanan': return ok ? `Setiap bulan tanggal ${d!.getDate()}` : 'Setiap bulan'
+    case 'bulanan_ke': return ok ? `Setiap bulan, ${H} ke-${keBerapa(iso!)}` : 'Setiap bulan (hari ke-N)'
+    case 'bulanan_akhir': return ok ? `Setiap bulan, ${H} terakhir` : 'Setiap bulan (hari terakhir)'
+    case 'tahunan': return ok ? `Setiap tahun ${fTglP(iso!)}` : 'Setiap tahun'
+  }
+  const tiap = r.tiap > 1 ? `Setiap ${r.tiap} ${r.satuan}` : `Setiap ${r.satuan}`
+  let isi = ''
+  if (r.satuan === 'minggu') isi = r.hari.length ? `: ${r.hari.map(x => HARI_PENDEK[x]).join(', ')}` : (ok ? ` hari ${H}` : '')
+  if (r.satuan === 'bulan' && ok) isi = r.mode === 'ke' ? `, ${H} ke-${keBerapa(iso!)}` : r.mode === 'akhir' ? `, ${H} terakhir` : ` tanggal ${d!.getDate()}`
+  if (r.satuan === 'tahun' && ok) isi = ` ${fTglP(iso!)}`
+  return tiap + isi + ekor
 }
 /** `kruTersedia` — crew that may be picked: still active with module access,
  * plus anyone already holding the row being opened, so saving never silently

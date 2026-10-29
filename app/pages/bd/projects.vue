@@ -30,7 +30,7 @@ definePageMeta({ access: ['bd'] })
 const me = useMe()
 const { data: state } = useBdState()
 const fPics = useState<string[]>('bd-fPics', () => [])
-const f = useState('bd-proj-filter', () => ({ scope: 'tim', div: PILIHAN_SEMUA, st: 'aktif', view: 'kartu' as 'kartu' | 'kanban' | 'task' | 'timeline', zoom: 'week' as GZoom }))
+const f = useState('bd-proj-filter', () => ({ scope: 'semua', div: PILIHAN_SEMUA, st: 'aktif', view: 'kartu' as 'kartu' | 'kanban' | 'task' | 'timeline', zoom: 'week' as GZoom }))
 /** Projects › Task view state: archive switch + keyword (the box redraws only its own list). */
 const pTaskArsip = ref<ModeArsip>('aktif')
 const pTaskQ = ref('')
@@ -88,10 +88,10 @@ const skop = [
   { value: 'semua', label: 'Semua' },
 ]
 const opsiDiv = [{ value: PILIHAN_SEMUA, label: 'Semua divisi' }, ...OWNER_DIVS.map(d => ({ value: d, label: d }))]
-const resetAktif = computed(() => fPics.value.length || f.value.div !== PILIHAN_SEMUA || f.value.scope !== 'tim' || f.value.st !== 'aktif')
+const resetAktif = computed(() => fPics.value.length || f.value.div !== PILIHAN_SEMUA || f.value.scope !== 'semua' || f.value.st !== 'aktif')
 function reset() {
   fPics.value = []
-  f.value = { ...f.value, div: PILIHAN_SEMUA, scope: 'tim', st: 'aktif' }
+  f.value = { ...f.value, div: PILIHAN_SEMUA, scope: 'semua', st: 'aktif' }
 }
 
 // ---- move stage ----

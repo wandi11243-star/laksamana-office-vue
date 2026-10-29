@@ -22,7 +22,7 @@ definePageMeta({ access: ['bd'] })
 const me = useMe()
 const { data: state } = useBdState()
 const fPics = useState<string[]>('bd-fPics', () => [])
-const f = useState('bd-proj-filter', () => ({ scope: 'tim', div: PILIHAN_SEMUA }))
+const f = useState('bd-proj-filter', () => ({ scope: 'semua', div: PILIHAN_SEMUA }))
 
 const people = computed(() => state.value.people)
 const aku = computed(() => cariAku(people.value, me.value))
@@ -87,10 +87,10 @@ const skop = [
   { value: 'semua', label: 'Semua' },
 ]
 const opsiDiv = [{ value: PILIHAN_SEMUA, label: 'Semua divisi' }, ...OWNER_DIVS.map(d => ({ value: d, label: d }))]
-const resetAktif = computed(() => fPics.value.length || f.value.div !== PILIHAN_SEMUA || f.value.scope !== 'tim')
+const resetAktif = computed(() => fPics.value.length || f.value.div !== PILIHAN_SEMUA || f.value.scope !== 'semua')
 function reset() {
   fPics.value = []
-  f.value = { ...f.value, div: PILIHAN_SEMUA, scope: 'tim' }
+  f.value = { ...f.value, div: PILIHAN_SEMUA, scope: 'semua' }
 }
 
 // ---- agenda sheet & task drag ----
