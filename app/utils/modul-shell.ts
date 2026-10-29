@@ -150,6 +150,16 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     peran: me => (isAdminOf(me, 'cashier') ? 'Admin modul' : 'Kasir'),
   },
 
+  // ── pos ──
+  pos: {
+    subjudul: 'POS',
+    layar: LAYAR_POS,
+    tambah: { label: 'Order baru', to: '/pos/kasir' },
+    peran: me => (isAdminOf(me, 'pos') ? 'Admin modul' : 'Kasir'),
+    lencana: () => useLencanaPos(),
+    siapkan: () => mulaiPos(),
+  },
+
   // ── finance ──
   finance: {
     subjudul: 'Finance',

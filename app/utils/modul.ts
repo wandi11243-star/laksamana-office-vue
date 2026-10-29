@@ -60,6 +60,7 @@ export const MODUL: Modul[] = [
   // account since 27 Sep 2026 (laksamana-api OfficeAccess::builtinModules).
   { key: 'radar', label: 'Radar', desc: 'Pusat koordinasi', icon: 'i-lucide-radar', group: 'Operasional', access: ['radar'] },
   { key: 'cashier', label: 'Cashier', desc: 'Setoran & dana masuk', icon: 'i-lucide-banknote', group: 'Operasional', access: ['cashier'] },
+  { key: 'pos', label: 'POS', desc: 'Kasir: order, bayar & struk', icon: 'i-lucide-shopping-cart', group: 'Operasional', access: ['pos'] },
   { key: 'konten', label: 'Konten', desc: 'Content operations', icon: 'i-lucide-pen-line', group: 'Marketing & Event', access: ['konten'] },
   { key: 'event', label: 'Event', desc: 'Event management', icon: 'i-lucide-mic-vocal', group: 'Marketing & Event', access: ['event'],
     kartu: defineAsyncComponent(() => import('~/widgets/event/KartuEvent.vue')) },
