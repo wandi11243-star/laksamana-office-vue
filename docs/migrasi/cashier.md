@@ -452,3 +452,12 @@ Catatan build VUE-6 (Sync Performa Kasir; branch `feat/finance-sync-kasir`):
    Total harus cocok dengan POS Compliment + Member Deposit Report Daily.
 8. **Dana Masuk** — pemegang `cashier` tanpa modul reservasi bisa melihat dan memverifikasi DP; tidak ada tombol hapus.
 9. **Kelola Akses** — daftar sama dengan pemegang modul `cashier` di Kelola Akses Office.
+
+## Catatan implementasi ESB Cashier (2026-10-29)
+
+- Report Daily dapat menarik seluruh bill tanggal terpilih ke kolom POS. Actual tidak berubah, hasil tidak tersimpan sampai Submit, dan metode ESB yang tidak dikenal dilaporkan. Pemetaan mengikuti `deploy/assets/esb-pos.js`, termasuk kembalian tunai dan pengecualian ESB ORDER → QRIS POS.
+- Daily Stock Rokok hanya mengisi Keluar untuk item yang cocok. Alias nama POS dan pengali `x2` disimpan di `rokok_items[].pos`; menu ambigu/tidak dikenal dilaporkan. Isian tetap perlu ditinjau dan disimpan manual.
+- Void menampilkan bill/menu batal dari ESB. Pakai mengisi form yang sudah ada dan tetap memerlukan input manual untuk pihak yang salah serta simpan catatan.
+- Compliment menarik bill Compliment/Member Deposit dan menambahkan yang belum ada berdasar tanggal + bill + jenis. PIC Kasir dicocokkan dari roster, sedangkan PIC Pemberi tetap Tamu. Catatan yang sudah disunting tidak ditimpa saat pembaruan PIC otomatis.
+- Semua tarikan memakai `GET /kompas/esb/sales` dan `esbTarikRentang`; penyimpanan memakai part Cashier dengan versinya. Endpoint ESB mengizinkan modul `cashier`, `analytics`, atau `kompas`; pengguna yang hanya memegang akses `finance` tidak dapat menarik ESB.
+- Pemeriksaan browser, lint, typecheck, build, dan tests tidak dijalankan atas permintaan pengguna.

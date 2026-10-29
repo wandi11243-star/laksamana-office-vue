@@ -22,6 +22,8 @@ import { tanganiKonflik } from '~/utils/versi'
 import { hariIni, tglPanjang } from '~/utils/format'
 import RupiahInput from '~/widgets/cashier/RupiahInput.vue'
 import CashierKonfirmasi from '~/widgets/cashier/CashierKonfirmasi.vue'
+import { pesanGagalEsb, tarikCashierEsb } from '~/composables/useCashierEsb'
+import { voidItemsEsb } from '~/utils/cashier-esb'
 
 definePageMeta({ access: ['cashier'] })
 
@@ -65,6 +67,72 @@ const pesan = ref<{ warna: 'error' | 'success', teks: string } | null>(null)
 const subtotalForm = computed(() => voidSubtotal(f.items))
 const totalForm = computed(() => subtotalForm.value + f.svc + f.tax)
 const editBaris = computed(() => (editId.value ? semua.value.find(r => r.id === editId.value) ?? null : null))
+const esbLoading = ref(false)
+const esbTanggal = ref('')
+const esbSummary = ref<Awaited<ReturnType<typeof tarikCashierEsb>>['summary'] | null>(null)
+const esbError = ref('')
+const esbMessage = ref('')
+const esbPakaiTarget = ref<NonNullable<typeof esbSummary.value>['void'][number] | null>(null)
+const esbPakaiBuka = ref(false)
+watch(tanggal, () => {
+  esbSummary.value = null
+  esbTanggal.value = ''
+  esbError.value = ''
+  esbMessage.value = ''
+  esbPakaiTarget.value = null
+  esbPakaiBuka.value = false
+})
+
+async function muatVoidEsb() {
+  if (esbLoading.value || menyimpan.value || !data.value || status.value === 'pending') return
+  const date = tanggal.value
+  esbLoading.value = true
+  esbError.value = ''
+  esbMessage.value = `Menarik bill ${tglPanjang(date)} dari ESB…`
+  try {
+    const { summary, ganda } = await tarikCashierEsb(date, message => { if (tanggal.value === date) esbMessage.value = message })
+    if (tanggal.value !== date) return
+    esbTanggal.value = date
+    esbSummary.value = summary
+    esbMessage.value = `${summary.void.length} bill dengan menu void/cancel${ganda ? ` · ${ganda} bill duplikat disaring` : ''}. Memilih Pakai hanya mengisi form; catatan belum tersimpan.`
+  }
+  catch (e) {
+    if (tanggal.value !== date) return
+    esbSummary.value = null
+    esbMessage.value = ''
+    esbError.value = `Gagal menarik data ESB: ${pesanGagalEsb(e)}`
+  }
+  finally { esbLoading.value = false }
+}
+
+function pakaiVoidEsb(g: NonNullable<typeof esbSummary.value>['void'][number]) {
+  if (menyimpan.value || esbLoading.value || esbTanggal.value !== tanggal.value || !esbSummary.value?.void.includes(g)) return
+  const terisi = !!(f.bill || f.penginput || f.salah || f.alasan || f.svc || f.tax || f.svcManual || f.taxManual || voidItemTerisi(f.items).length)
+  if (terisi) { esbPakaiTarget.value = g; esbPakaiBuka.value = true; return }
+  isiVoidEsb(g)
+}
+function konfirmasiPakaiVoid() {
+  if (
+    !esbPakaiTarget.value
+    || menyimpan.value
+    || esbLoading.value
+    || esbTanggal.value !== tanggal.value
+    || !esbSummary.value?.void.includes(esbPakaiTarget.value)
+  ) return
+  isiVoidEsb(esbPakaiTarget.value)
+  esbPakaiBuka.value = false
+  esbPakaiTarget.value = null
+}
+function isiVoidEsb(g: NonNullable<typeof esbSummary.value>['void'][number]) {
+  if (menyimpan.value) return
+  editId.value = ''
+  tanggal.value = esbTanggal.value
+  Object.assign(f, { bill: g.bill, penginput: g.waiter, salah: '', alasan: g.alasan, items: voidItemsEsb(g.items), svcManual: false, taxManual: false })
+  kembaliOtomatis()
+  merah.value = []
+  pesan.value = null
+  if (import.meta.client) window.scrollTo({ top: 0, behavior: 'smooth' })
+}
 
 // Service & tax follow the formula unless typed by hand. A keystroke in a
 // subtotal must never undo an override (3 POS rows of Aug 2026 had tax 0).
@@ -486,6 +554,120 @@ const diubahTeks = (r: VoidBaris) => (r.diubahOleh && num(r.diubah) > num(r.dibu
       </div>
     </AppPanel>
 
+    <AppPanel title="Void dari ESB" icon="i-lucide-cloud-download" description="Pilih Pakai untuk mengisi form di atas. Kesalahan dari siapa tetap ditentukan manual; catatan belum disimpan sampai Tambah catatan ditekan.">
+      <div class="flex flex-wrap items-center gap-3">
+        <UButton label="Ambil dari ESB" icon="i-lucide-download" :loading="esbLoading" :disabled="!data || menyimpan || status === 'pending'" @click="muatVoidEsb()" />
+        <p v-if="esbMessage" class="text-sm text-muted">
+          {{ esbMessage }}
+        </p>
+      </div>
+      <UAlert
+        v-if="esbError"
+        class="mt-3"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="esbError"
+      />
+      <div v-if="esbSummary" class="mt-3">
+        <table class="hidden w-full text-sm lg:table">
+          <thead class="bg-table-head text-table-head-text">
+            <tr>
+              <th class="px-3 py-2 text-start">Bill</th>
+              <th class="px-3 py-2 text-start">Item</th>
+              <th class="px-3 py-2 text-end">Subtotal</th>
+              <th class="px-3 py-2 text-end">Status</th>
+              <th class="px-3 py-2" />
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-default">
+            <tr
+              v-for="(g, i) in esbSummary.void"
+              :key="`${g.bill}-${i}`"
+            >
+              <td class="px-3 py-2 align-top">
+                <b class="num">{{ g.bill }}</b>
+                <span class="block text-xs text-muted">
+                  {{ g.utuh ? 'Bill dibatalkan' : 'Menu di-void' }}
+                  <template v-if="g.waiter"> · {{ g.waiter }}</template>
+                  <template v-if="g.meja"> · meja {{ g.meja }}</template>
+                  <span v-if="g.alasan" class="block">{{ g.alasan }}</span>
+                </span>
+              </td>
+              <td class="px-3 py-2">{{ g.items.map(x => `${x.item}${x.qty > 1 ? ` ×${x.qty}` : ''}`).join(', ') }}</td>
+              <td class="px-3 py-2 text-end num">{{ fmtRp(Math.round(g.items.reduce((sum, x) => sum + x.sub, 0))) }}</td>
+              <td class="px-3 py-2 text-end">
+                <AppStatus
+                  v-if="hari.some(r => voidAktif(r) && r.bill.trim().toUpperCase() === g.bill.trim().toUpperCase())"
+                  color="success"
+                  size="sm"
+                >
+                  Sudah dicatat
+                </AppStatus>
+              </td>
+              <td class="px-3 py-2 text-end">
+                <UButton
+                  label="Pakai"
+                  size="sm"
+                  color="neutral"
+                  variant="outline"
+                  :disabled="menyimpan || esbLoading"
+                  @click="pakaiVoidEsb(g)"
+                />
+              </td>
+            </tr>
+            <tr v-if="!esbSummary.void.length">
+              <td colspan="5" class="px-3 py-4 text-center text-muted">
+                Tidak ada menu void pada tanggal ini.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+        <div class="divide-y divide-default lg:hidden">
+          <article
+            v-for="(g, i) in esbSummary.void"
+            :key="`mobile-${g.bill}-${i}`"
+            class="space-y-2 py-3"
+          >
+            <div class="flex items-start justify-between gap-2">
+              <div class="min-w-0">
+                <b class="num">{{ g.bill }}</b>
+                <p class="text-xs text-muted">
+                  {{ g.utuh ? 'Bill dibatalkan' : 'Menu di-void' }}
+                  <template v-if="g.waiter"> · {{ g.waiter }}</template>
+                  <template v-if="g.meja"> · meja {{ g.meja }}</template>
+                </p>
+              </div>
+              <AppStatus
+                v-if="hari.some(r => voidAktif(r) && r.bill.trim().toUpperCase() === g.bill.trim().toUpperCase())"
+                color="success"
+                size="sm"
+              >
+                Sudah dicatat
+              </AppStatus>
+            </div>
+            <p class="text-sm">{{ g.items.map(x => `${x.item}${x.qty > 1 ? ` ×${x.qty}` : ''}`).join(', ') }}</p>
+            <p v-if="g.alasan" class="text-xs text-muted">{{ g.alasan }}</p>
+            <div class="flex items-center justify-between gap-2">
+              <span class="num text-sm">{{ fmtRp(Math.round(g.items.reduce((sum, x) => sum + x.sub, 0))) }}</span>
+              <UButton
+                label="Pakai"
+                size="sm"
+                class="min-h-11"
+                color="neutral"
+                variant="outline"
+                :disabled="menyimpan || esbLoading"
+                @click="pakaiVoidEsb(g)"
+              />
+            </div>
+          </article>
+          <p v-if="!esbSummary.void.length" class="px-3 py-4 text-center text-muted lg:hidden">
+            Tidak ada menu void pada tanggal ini.
+          </p>
+        </div>
+      </div>
+    </AppPanel>
+
     <!-- Shown to everyone, editable only by the module admin: a cashier who sees
          10% & 5% can check them against the receipt in hand. -->
     <AppPanel>
@@ -573,6 +755,16 @@ const diubahTeks = (r: VoidBaris) => (r.diubahOleh && num(r.diubah) > num(r.dibu
         sub="Di modul Finance: rekap per orang, per alasan, dan pembanding POS"
       />
     </AppStatGrid>
+
+    <CashierKonfirmasi
+      v-model:open="esbPakaiBuka"
+      title="Timpa form void?"
+      :description="`Form sedang berisi. Timpa dengan bill ${esbPakaiTarget?.bill || '—'} dari ESB?`"
+      confirm-label="Pakai data ESB"
+      color="primary"
+      :loading="menyimpan"
+      @konfirmasi="konfirmasiPakaiVoid"
+    />
 
     <UAlert
       v-if="error"

@@ -5,5 +5,5 @@ definePageMeta({ access: ['cashier'] })
 </script>
 
 <template>
-  <KompasReport />
+  <KompasReport esb-enabled />
 </template>

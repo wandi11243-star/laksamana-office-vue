@@ -317,6 +317,10 @@ export interface ComplimentKasir {
   at?: number
   ubahOleh?: string
   ubahAt?: number
+  /** Source bill keys make automatic ESB imports idempotent. */
+  esbBill?: string
+  esbJenis?: string
+  esbKasir?: string
 }
 
 /** The giver's cut is decided in Performa Marketing/Event; here it is only read. (:1942-1945) */
@@ -515,7 +519,7 @@ export function voidManualDari(r: VoidBaris, set: Pick<VoidSetting, 'tax' | 'ser
 // :3096-3409. `DB.rokok[date] = {items:{kunci:{in,out}}, by, at, log}` and
 // `DB.rokok_items = [{k,n,lain}]`; both are sections of the kompas blob.
 
-export interface RokokItem { k: string, n: string, lain?: boolean }
+export interface RokokItem { k: string, n: string, lain?: boolean, /** POS aliases; blank means use name matching. */ pos?: string }
 
 /**
  * Default item list (`ROKOK_BAWAAN`, :3096-3119). Only a STARTING POINT: once

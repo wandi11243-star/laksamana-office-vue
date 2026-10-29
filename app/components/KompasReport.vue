@@ -24,10 +24,13 @@ import { getPiutang, getReport, putReport } from '~/composables/useCashier'
 import { tanganiKonflik } from '~/utils/versi'
 import { hariIni, tglPanjang } from '~/utils/format'
 import RupiahInput from '~/widgets/cashier/RupiahInput.vue'
+import { pesanGagalEsb, tarikCashierEsb } from '~/composables/useCashierEsb'
+import CashierKonfirmasi from '~/widgets/cashier/CashierKonfirmasi.vue'
 
-const props = defineProps<{ kunci?: string }>()
+const props = defineProps<{ kunci?: string, esbEnabled?: boolean }>()
 
 const me = useMe()
+const esbAllowed = computed(() => props.esbEnabled === true || (!!props.kunci?.startsWith('omset-') && ['cashier', 'analytics', 'kompas'].some(key => me.value?.modules.includes(key))))
 const toast = useToast()
 const tanggal = ref(hariIni())
 
@@ -49,8 +52,10 @@ type Isian = Record<string, { pos: number, actual: number }>
 const form = reactive<Isian>({})
 const kotor = ref(false)
 const ditolak = ref(false)
+let perubahanSaatTarik = 0
 
 function isiDariServer() {
+  perubahanSaatTarik++
   for (const p of PAYS) form[p.k] = { ...repPay(rec.value, p.k) }
   kotor.value = false
 }
@@ -59,8 +64,12 @@ watch(rec, () => {
   isiDariServer()
 }, { immediate: true })
 watch(tanggal, () => {
+  perubahanSaatTarik++
   kotor.value = false
   ditolak.value = false
+  esbConfirmOpen.value = false
+  esbInfo.value = ''
+  esbError.value = ''
 })
 
 const h = computed(() => hitungReport(form, bh.value))
@@ -69,6 +78,43 @@ const jejakAkhir = computed(() => jejak.value[jejak.value.length - 1])
 const jejakSebelum = computed(() => jejak.value.slice(0, -1).reverse())
 const grupBelum = computed(() => bonGrupBelum(data.value?.bon.value ?? []))
 const totOpen = computed(() => grupBelum.value.reduce((s, g) => s + g.total, 0))
+const esbLoading = ref(false)
+const esbInfo = ref('')
+const esbError = ref('')
+const esbConfirmOpen = ref(false)
+
+async function isiPosEsb(force = false) {
+  if (esbLoading.value || menyimpan.value || !data.value || status.value === 'pending') return
+  const date = tanggal.value
+  const filled = PAYS.filter(p => form[p.k]!.pos > 0).length
+  if (filled && !force) { esbConfirmOpen.value = true; return }
+  esbConfirmOpen.value = false
+  esbLoading.value = true
+  const revision = perubahanSaatTarik
+  esbInfo.value = `Menarik bill ${tglPanjang(date)} dari ESB…`
+  esbError.value = ''
+  try {
+    const { summary, ganda } = await tarikCashierEsb(date, message => { if (tanggal.value === date) esbInfo.value = message })
+    if (tanggal.value !== date || perubahanSaatTarik !== revision) {
+      esbInfo.value = 'Tanggal atau isian berubah saat ESB ditarik. Tidak ada angka yang diterapkan; tarik ulang bila perlu.'
+      return
+    }
+    for (const p of PAYS) form[p.k]!.pos = Math.round(summary.bayar[p.k] || 0)
+    kotor.value = true
+    ditolak.value = false
+    const total = Object.values(summary.bayar).reduce((s, value) => s + value, 0)
+    esbInfo.value = `${summary.nBill} bill ESB · Rp${Math.round(total).toLocaleString('id-ID')}${summary.nBatal ? ` · ${summary.nBatal} bill batal/void tidak dihitung` : ''}${summary.order.n ? ` · ${summary.order.n} ESB Order masuk QRIS POS` : ''}${ganda ? ` · ${ganda} bill duplikat disaring` : ''}. POS terisi; Actual tidak berubah. Periksa lalu Submit report.`
+    const unknown = Object.entries(summary.asing)
+    if (unknown.length) esbInfo.value += ` Metode tidak dikenali dan tidak dimasukkan: ${unknown.map(([name, amount]) => `${name} Rp${Math.round(amount).toLocaleString('id-ID')}`).join(' · ')}.`
+    if (!summary.nBill) esbInfo.value += ' ESB tidak memulangkan bill pada tanggal ini.'
+  }
+  catch (e) {
+    if (tanggal.value !== date) return
+    esbInfo.value = ''
+    esbError.value = `Gagal menarik data ESB: ${pesanGagalEsb(e)}`
+  }
+  finally { esbLoading.value = false }
+}
 
 const fmtWaktu = (ts: number) => {
   const d = new Date(ts)
@@ -86,6 +132,7 @@ const sisaFoot = computed(() => {
 })
 
 function ubahAngka(k: string, f: 'pos' | 'actual', v: number) {
+  perubahanSaatTarik++
   form[k]![f] = v
   kotor.value = true
 }
@@ -141,6 +188,25 @@ async function submit() {
           />
         </UFormField>
       </template>
+    </AppPanel>
+
+    <AppPanel
+      v-if="esbAllowed"
+      title="Isi POS dari ESB"
+      icon="i-lucide-cloud-download"
+      description="Menarik seluruh bill tanggal ini. Hanya kolom POS yang berubah; Actual tetap dan laporan belum disimpan."
+    >
+      <div class="flex flex-wrap items-center gap-3">
+        <UButton
+          label="Ambil dari ESB"
+          icon="i-lucide-download"
+          :loading="esbLoading"
+          :disabled="!data || menyimpan || status === 'pending'"
+          @click="isiPosEsb()"
+        />
+        <p v-if="esbInfo" class="min-w-0 flex-1 text-sm text-muted">{{ esbInfo }}</p>
+      </div>
+      <UAlert v-if="esbError" class="mt-3" color="error" variant="subtle" icon="i-lucide-triangle-alert" :title="esbError" />
     </AppPanel>
 
     <UAlert
@@ -512,10 +578,19 @@ async function submit() {
         :label="rec?.submitted ? 'Update report' : 'Submit report'"
         icon="i-lucide-send"
         :loading="menyimpan"
-        :disabled="!data"
+        :disabled="!data || esbLoading"
         @click="submit"
       />
       <span class="text-sm text-muted">Submit atas nama <b>{{ me?.name || '—' }}</b> — nama dan jamnya ikut tercatat di laporan ini.</span>
     </div>
+    <CashierKonfirmasi
+      v-model:open="esbConfirmOpen"
+      title="Timpa kolom POS dari ESB?"
+      description="Semua kolom POS tanggal ini akan diganti. Actual tetap dan perubahan baru tersimpan setelah Anda menekan Submit report."
+      confirm-label="Lanjutkan"
+      color="primary"
+      :loading="esbLoading"
+      @konfirmasi="isiPosEsb(true)"
+    />
   </AppPage>
 </template>

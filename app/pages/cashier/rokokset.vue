@@ -13,6 +13,7 @@ import type { RokokItem } from '~/utils/cashier'
 import { daftarRokok, rokokHariItem, rksKunci } from '~/utils/cashier'
 import { getRokok, getRokokItems, hapusRokokItems, putRokokItems } from '~/composables/useCashier'
 import { tanganiKonflik } from '~/utils/versi'
+import { rokokPosTeks } from '~/utils/cashier-esb'
 
 definePageMeta({ access: ['cashier'] })
 
@@ -55,6 +56,21 @@ function geser(k: string, arah: number) {
 const ubahOpen = ref(false)
 const ubahItem = ref<RokokItem | null>(null)
 const ubahNama = ref('')
+const posOpen = ref(false)
+const posItem = ref<RokokItem | null>(null)
+const posNama = ref('')
+function bukaPos(it: RokokItem) {
+  posItem.value = it
+  posNama.value = rokokPosTeks(it)
+  posOpen.value = true
+}
+async function simpanPos() {
+  const it = posItem.value
+  if (!it) return
+  const list = daftar.value.map(x => x.k === it.k ? { ...x, pos: posNama.value.trim() } : x)
+  posOpen.value = false
+  await simpanDaftar(list, posNama.value.trim() ? `Nama di POS untuk ${it.n} disimpan.` : `Pencocokan nama di POS untuk ${it.n} dikosongkan.`)
+}
 function bukaUbah(it: RokokItem) {
   ubahItem.value = it
   ubahNama.value = it.n
@@ -174,6 +190,9 @@ async function pulihkan() {
               Kunci data
             </th>
             <th class="px-4 py-2.5 text-start text-xs font-bold uppercase tracking-wider">
+              Nama di POS
+            </th>
+            <th class="px-4 py-2.5 text-start text-xs font-bold uppercase tracking-wider">
               Kelompok
             </th>
             <th class="px-4 py-2.5 text-end text-xs font-bold uppercase tracking-wider">
@@ -194,6 +213,10 @@ async function pulihkan() {
             </td>
             <td class="px-4 py-2 text-muted num">
               {{ it.k }}
+            </td>
+            <td class="px-4 py-2 text-sm text-muted">
+              <span>{{ rokokPosTeks(it) || 'Nama mirip' }}</span>
+              <UButton label="Ubah" color="neutral" variant="ghost" size="xs" class="ms-1" @click="bukaPos(it)" />
             </td>
             <td class="px-4 py-2">
               <AppStatus
@@ -298,6 +321,7 @@ async function pulihkan() {
               size="xs"
               @click="bukaUbah(it)"
             />
+            <UButton label="Nama di POS" color="neutral" variant="outline" size="xs" @click="bukaPos(it)" />
             <UButton
               :label="it.lain ? 'Jadikan rokok' : 'Jadikan lainnya'"
               color="neutral"
@@ -357,6 +381,16 @@ async function pulihkan() {
           variant="ghost"
           @click="tambahOpen = false"
         />
+      </template>
+    </ResponsiveSheet>
+
+    <ResponsiveSheet v-model:open="posOpen" :title="posItem ? `Nama di POS untuk ${posItem.n}` : 'Nama di POS'">
+      <UFormField label="Nama menu ESB" help="Pisahkan beberapa nama dengan koma. Akhiran x2 berarti satu porsi menu mengeluarkan dua unit, misalnya KOIN 2 PCS x2. Kosongkan untuk mencocokkan nama secara otomatis.">
+        <UInput v-model="posNama" class="w-full" placeholder="cth. LA ICE PURPLE, LA PURPLE" />
+      </UFormField>
+      <template #footer>
+        <UButton label="Simpan nama POS" @click="simpanPos" />
+        <UButton label="Batal" color="neutral" variant="ghost" @click="posOpen = false" />
       </template>
     </ResponsiveSheet>
 

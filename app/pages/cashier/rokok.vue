@@ -16,6 +16,9 @@ import {
 import { getRokok, getRokokItems, putRokok } from '~/composables/useCashier'
 import { tanganiKonflik } from '~/utils/versi'
 import { hariIni, tglPanjang } from '~/utils/format'
+import { pesanGagalEsb, tarikCashierEsb } from '~/composables/useCashierEsb'
+import { petakanRokokEsb } from '~/utils/cashier-esb'
+import CashierKonfirmasi from '~/widgets/cashier/CashierKonfirmasi.vue'
 
 definePageMeta({ access: ['cashier'] })
 
@@ -40,8 +43,10 @@ type Isian = Record<string, { in: number, out: number }>
 const form = reactive<Isian>({})
 const kotor = ref(false)
 const ditolak = ref(false)
+let perubahanSaatTarik = 0
 
 function isiDariServer() {
+  perubahanSaatTarik++
   for (const it of items.value) form[it.k] = rokokItem(hari.value, it.k)
   kotor.value = false
 }
@@ -50,11 +55,17 @@ watch([hari, items], () => {
   isiDariServer()
 }, { immediate: true })
 watch(tanggal, () => {
+  perubahanSaatTarik++
   kotor.value = false
   ditolak.value = false
+  esbConfirmOpen.value = false
+  esbMessage.value = ''
+  esbError.value = ''
+  esbWarnings.value = []
 })
 
 function ubah(k: string, f: 'in' | 'out', v: string | number) {
+  perubahanSaatTarik++
   if (!form[k]) form[k] = { in: 0, out: 0 }
   form[k][f] = num(v)
   kotor.value = true
@@ -76,6 +87,44 @@ const total = computed(() => {
   return { tAw, tin, tout, tAk: tAw + tin - tout, gerak }
 })
 const minus = computed(() => items.value.filter(it => akhir(it.k) < 0))
+const esbLoading = ref(false)
+const esbMessage = ref('')
+const esbError = ref('')
+const esbWarnings = ref<string[]>([])
+const esbConfirmOpen = ref(false)
+
+async function isiKeluarEsb(force = false) {
+  if (esbLoading.value || menyimpan.value || !data.value || status.value === 'pending') return
+  const date = tanggal.value
+  const filled = items.value.filter(it => form[it.k]?.out > 0).length
+  if (filled && !force) { esbConfirmOpen.value = true; return }
+  esbConfirmOpen.value = false
+  esbLoading.value = true
+  const revision = perubahanSaatTarik
+  esbMessage.value = `Menarik bill ${tglPanjang(date)} dari ESB…`
+  esbError.value = ''
+  esbWarnings.value = []
+  try {
+    const { summary, ganda } = await tarikCashierEsb(date, message => { if (tanggal.value === date) esbMessage.value = message })
+    if (tanggal.value !== date || perubahanSaatTarik !== revision) {
+      esbMessage.value = 'Tanggal atau isian berubah saat ESB ditarik. Tidak ada angka yang diterapkan; tarik ulang bila perlu.'
+      return
+    }
+    const mapped = petakanRokokEsb(items.value, summary.menuQty)
+    const matched = items.value.filter(it => mapped.kena[it.k])
+    for (const it of matched) ubah(it.k, 'out', mapped.out[it.k] || 0)
+    esbMessage.value = `Kolom Keluar diisi untuk ${matched.length} item dari ${summary.nBill} bill ESB${ganda ? ` · ${ganda} duplikat disaring` : ''}. Belum tersimpan — periksa lalu tekan Simpan stock harian.`
+    if (!matched.length) esbMessage.value += ' Tidak ada item lembar yang cocok.'
+    if (mapped.ambigu.length) esbWarnings.value.push(`Menu cocok ke lebih dari satu item dan tidak dihitung: ${mapped.ambigu.map(x => `${x.nama} ×${x.qty} (${x.ke.join(' / ')})`).join(' · ')}.`)
+    if (mapped.takKenal.length) esbWarnings.value.push(`Menu rokok ESB tanpa item lembar: ${mapped.takKenal.map(x => `${x.nama} ×${x.qty}`).join(' · ')}.`)
+  }
+  catch (e) {
+    if (tanggal.value !== date) return
+    esbMessage.value = ''
+    esbError.value = `Gagal menarik data ESB: ${pesanGagalEsb(e)}. Kolom Keluar tidak diubah.`
+  }
+  finally { esbLoading.value = false }
+}
 
 const jejak = computed(() => jejakList(hari.value))
 const jejakAkhir = computed(() => jejak.value[jejak.value.length - 1])
@@ -166,6 +215,16 @@ const kosongKelas = 'w-24 text-end'
             size="sm"
             @click="tanggal = hariIni()"
           />
+          <UButton
+            label="Isi Keluar dari ESB"
+            icon="i-lucide-cloud-download"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :loading="esbLoading"
+            :disabled="!data || menyimpan || status === 'pending'"
+            @click="isiKeluarEsb()"
+          />
         </div>
       </template>
 
@@ -201,6 +260,31 @@ const kosongKelas = 'w-24 text-end'
         :title="`${minus.length} item sisa akhirnya minus (${minus.map(x => x.n).join(', ')}).`"
         description="Biasanya ada hari sebelumnya yang barang masuknya belum dicatat — periksa tanggal-tanggal sebelum ini. Simpan tetap boleh."
         class="mt-2"
+      />
+      <UAlert
+        v-if="esbMessage"
+        class="mt-2"
+        color="info"
+        variant="subtle"
+        icon="i-lucide-info"
+        :title="esbMessage"
+      />
+      <UAlert
+        v-for="warning in esbWarnings"
+        :key="warning"
+        class="mt-2"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="warning"
+      />
+      <UAlert
+        v-if="esbError"
+        class="mt-2"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="esbError"
       />
     </AppPanel>
 
@@ -349,9 +433,19 @@ const kosongKelas = 'w-24 text-end'
           label="Simpan stock harian"
           icon="i-lucide-save"
           :loading="menyimpan"
+          :disabled="esbLoading"
           @click="simpan"
         />
       </div>
     </AppPanel>
+    <CashierKonfirmasi
+      v-model:open="esbConfirmOpen"
+      title="Timpa kolom Keluar dari ESB?"
+      description="Kolom Keluar yang memiliki pasangan menu akan diganti. Kolom Masuk tetap; perubahan baru tersimpan setelah Simpan stock harian."
+      confirm-label="Lanjutkan"
+      color="primary"
+      :loading="esbLoading"
+      @konfirmasi="isiKeluarEsb(true)"
+    />
   </AppPage>
 </template>

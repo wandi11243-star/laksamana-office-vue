@@ -17,15 +17,18 @@ import type { ComplimentKasir } from '~/utils/cashier'
 import {
   PIC_TAMU, angkaRD, compStatusPemberi, divPemberi, fmtRp, fmtSel, gantiPemberi, idBaru, num, rosterComp,
 } from '~/utils/cashier'
-import { getCompliments, getReport, putCompliments } from '~/composables/useCashier'
+import { getCompliments, getKompasState, getReport, putCompliments } from '~/composables/useCashier'
 import { tanganiKonflik } from '~/utils/versi'
 import { hariIni, tglPanjang } from '~/utils/format'
 import RupiahInput from '~/widgets/cashier/RupiahInput.vue'
 import CashierKonfirmasi from '~/widgets/cashier/CashierKonfirmasi.vue'
+import { pesanGagalEsb, tarikCashierEsb } from '~/composables/useCashierEsb'
+import { complimentBaru } from '~/utils/cashier-esb'
 
-const props = defineProps<{ kunci?: string }>()
+const props = defineProps<{ kunci?: string, esbEnabled?: boolean }>()
 
 const me = useMe()
+const esbAllowed = computed(() => props.esbEnabled === true || (!!props.kunci?.startsWith('omset-') && ['cashier', 'analytics', 'kompas'].some(key => me.value?.modules.includes(key))))
 const toast = useToast()
 const tanggal = ref(hariIni())
 
@@ -37,13 +40,74 @@ const { data, error, refresh } = useAsyncData(
   },
   { watch: [tanggal] },
 )
-const { data: roster, status: statusRoster, error: errRoster } = useRoster()
+const { data: roster, status: statusRoster, error: errRoster, refresh: refreshRoster } = useRoster()
 
 const semua = computed<ComplimentKasir[]>(() => data.value?.comps.value ?? [])
 const list = computed(() => semua.value.filter(c => c.date === tanggal.value))
 const total = computed(() => list.value.reduce((s, c) => s + num(c.nominal), 0))
 const rd = computed(() => angkaRD(data.value?.rep.value ?? null, total.value))
 const adaRincian = computed(() => list.value.some(c => c.subTotal != null || c.tax != null || c.service != null))
+const esbLoading = ref(false)
+const esbMessage = ref('')
+const esbError = ref('')
+const esbWarnings = ref<string[]>([])
+let tanggalRevision = 0
+watch(tanggal, () => {
+  tanggalRevision++
+  esbMessage.value = ''
+  esbError.value = ''
+  esbWarnings.value = []
+})
+
+async function tarikComplimentEsb() {
+  if (esbLoading.value || menyimpan.value) return
+  const date = tanggal.value
+  const revision = tanggalRevision
+  esbLoading.value = true
+  esbError.value = ''
+  esbWarnings.value = []
+  esbMessage.value = `Menarik bill ${tglPanjang(date)} dari ESB…`
+  try {
+    if (statusRoster.value === 'pending' || errRoster.value) {
+      try { await refreshRoster() }
+      catch { esbWarnings.value.push('Roster kasir Office gagal dimuat; PIC yang tidak dapat dicocokkan akan tetap Tamu.') }
+    }
+    const { summary, ganda } = await tarikCashierEsb(date, message => { if (tanggalRevision === revision) esbMessage.value = message })
+    if (tanggalRevision !== revision) return
+    if (data.value?.comps.value == null) throw new Error('Daftar compliment belum termuat; tidak ada catatan yang diubah.')
+    let employees: { id: string, name: string, officeUserId?: string | null }[] = []
+    let mapping: Record<string, string> = {}
+    try {
+      const state = await getKompasState()
+      employees = state.value.employees?.kasir ?? []
+      const map = (state.value as Record<string, unknown>).esbAkunKasir
+      if (map && typeof map === 'object') mapping = map as Record<string, string>
+    }
+    catch {
+      esbWarnings.value.push('Data pemetaan kasir Office tidak terbaca; nama PIC tetap akan dicocokkan dari roster bila cocok tunggal.')
+    }
+    if (tanggalRevision !== revision) return
+    const kasir = kasirRoster.value.map(u => ({ id: u.id, name: u.name }))
+    const imported = complimentBaru(summary, date, data.value.comps.value, me.value?.name ?? '', kasir, mapping, employees)
+    if (imported.added.length || imported.corrected) {
+      const saved = await tulis(imported.records, imported.added.length ? `${imported.added.length} compliment dari ESB dicatat` : `${imported.corrected} PIC Kasir diperbarui dari ESB`)
+      if (!saved) return
+    }
+    if (tanggalRevision !== revision) return
+    const unknown = imported.added.filter(c => c.picDiv === 'tamu' && c.esbKasir).map(c => c.esbKasir!).filter((x, i, a) => a.indexOf(x) === i)
+    esbMessage.value = imported.added.length
+      ? `${imported.added.length} catatan baru dari ${summary.komp.length} bill Compliment/Member Deposit · total Rp${imported.added.reduce((sum, c) => sum + num(c.nominal), 0).toLocaleString('id-ID')}${imported.corrected ? ` · ${imported.corrected} PIC lama diperbaiki` : ''}.${ganda ? ` ${ganda} bill duplikat disaring.` : ''} PIC Pemberi tetap Tamu; periksa catatan sebelum lanjut.`
+      : summary.komp.length ? `Semua ${summary.komp.length} bill Compliment/Member Deposit sudah tercatat.${imported.corrected ? ` ${imported.corrected} PIC Kasir lama diperbarui.` : ''}${ganda ? ` ${ganda} bill duplikat disaring.` : ''}` : `Tidak ada bill Compliment atau Member Deposit pada ${tglPanjang(date)}.`
+    if (unknown.length) esbWarnings.value.push(`PIC Kasir tetap Tamu karena akun ESB belum cocok ke roster: ${unknown.join(', ')}. Periksa manual.`)
+  }
+  catch (e) {
+    if (tanggalRevision !== revision) return
+    esbMessage.value = ''
+    esbError.value = `Gagal menarik atau menyimpan data ESB: ${pesanGagalEsb(e)}`
+  }
+  finally { esbLoading.value = false }
+}
+
 
 // PIC Kasir only from Tim Kasir; PIC Pemberi from marketing/event/office (:2004-2011).
 const orang = computed(() => rosterComp(roster.value))
@@ -104,6 +168,7 @@ async function tulis(baru: ComplimentKasir[], pesan: string) {
 }
 
 async function simpan() {
+  if (esbLoading.value) return
   const errs: string[] = []
   const nama = f.nama.trim()
   if (!nama) errs.push('Nama compliment wajib diisi.')
@@ -149,6 +214,7 @@ const hapusBuka = computed({
   },
 })
 async function hapus() {
+  if (esbLoading.value) return
   const c = hapusTarget.value
   if (!c) return
   if (await tulis(semua.value.filter(x => x.id !== c.id), 'Compliment dihapus')) {
@@ -197,6 +263,20 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
           />
         </UFormField>
       </template>
+    </AppPanel>
+
+    <AppPanel
+      v-if="esbAllowed"
+      title="Compliment dari ESB"
+      icon="i-lucide-cloud-download"
+      description="Bill Compliment dan Member Deposit yang belum tercatat akan masuk langsung. PIC Kasir dicocokkan dari akun POS; PIC Pemberi tetap Tamu."
+    >
+      <div class="flex flex-wrap items-center gap-3">
+        <UButton label="Tarik & catat dari ESB" icon="i-lucide-download" :loading="esbLoading" :disabled="!data || menyimpan" @click="tarikComplimentEsb()" />
+        <p v-if="esbMessage" class="text-sm text-muted">{{ esbMessage }}</p>
+      </div>
+      <UAlert v-if="esbError" class="mt-3" color="error" variant="subtle" icon="i-lucide-triangle-alert" :title="esbError" />
+      <UAlert v-for="warning in esbWarnings" :key="warning" class="mt-3" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="warning" />
     </AppPanel>
 
     <UAlert
@@ -269,7 +349,7 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
           :label="editId ? 'Simpan perubahan' : 'Tambah'"
           :icon="editId ? 'i-lucide-save' : 'i-lucide-plus'"
           :loading="menyimpan"
-          :disabled="!data"
+          :disabled="!data || esbLoading"
           @click="simpan"
         />
         <UButton
@@ -352,6 +432,7 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
         >
           <template #nama-cell="{ row }">
             <b class="text-highlighted">{{ row.original.nama }}</b>
+            <span v-if="row.original.esbBill" class="block text-xs text-muted num">Bill {{ row.original.esbBill }} · {{ row.original.esbJenis === 'member_dep' ? 'Member Deposit' : 'Compliment' }}<template v-if="row.original.esbKasir"> · {{ row.original.esbKasir }}</template></span>
             <span
               v-if="row.original.alasan"
               class="block text-xs text-muted"
@@ -408,6 +489,7 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
                 variant="outline"
                 size="xs"
                 aria-label="Ubah catatan ini"
+                :disabled="esbLoading || menyimpan"
                 @click="ubah(row.original)"
               />
               <UButton
@@ -416,6 +498,7 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
                 variant="soft"
                 size="xs"
                 aria-label="Hapus"
+                :disabled="esbLoading || menyimpan"
                 @click="hapusTarget = row.original"
               />
             </div>
@@ -431,6 +514,7 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0">
                 <b class="text-highlighted">{{ c.nama }}</b>
+                <span v-if="c.esbBill" class="block text-xs text-muted num">Bill {{ c.esbBill }} · {{ c.esbJenis === 'member_dep' ? 'Member Deposit' : 'Compliment' }}</span>
                 <span class="block text-xs text-muted">
                   Kasir: {{ kasirTamu(c) ? 'Tamu' : c.picName }} · Pemberi: {{ pemberiTamu(c) ? 'Tamu' : `${c.pemberiName} (${c.pemberiDiv})` }}
                 </span>
@@ -453,6 +537,7 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
                 variant="outline"
                 size="xs"
                 aria-label="Ubah"
+                :disabled="esbLoading || menyimpan"
                 @click="ubah(c)"
               />
               <UButton
@@ -461,6 +546,7 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
                 variant="soft"
                 size="xs"
                 aria-label="Hapus"
+                :disabled="esbLoading || menyimpan"
                 @click="hapusTarget = c"
               />
             </div>
