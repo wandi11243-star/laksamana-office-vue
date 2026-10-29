@@ -166,7 +166,7 @@ const cetak = () => window.print()
         </p>
         <div
           v-else
-          class="overflow-hidden rounded-field border border-default"
+          class="overflow-hidden rounded-xl border border-default"
         >
           <div
             v-for="r in baris"
@@ -237,7 +237,7 @@ const cetak = () => window.print()
             title="Catatan reservasi"
             class="mt-5"
           />
-          <p class="whitespace-pre-wrap rounded-field border border-default p-3 text-sm">
+          <p class="whitespace-pre-wrap rounded-xl border border-default p-3 text-sm">
             {{ d.vip.catatan }}
           </p>
         </template>
@@ -258,7 +258,7 @@ const cetak = () => window.print()
         />
         <p
           v-if="desk"
-          class="mt-4 whitespace-pre-wrap rounded-field border border-default p-3 text-sm"
+          class="mt-4 whitespace-pre-wrap rounded-xl border border-default p-3 text-sm"
         >
           {{ desk }}
         </p>
@@ -291,7 +291,7 @@ const cetak = () => window.print()
         ever does not, say so instead of showing a bare header. -->
       <p
         v-if="(d.sumber === 'mkt' && !d.mkt) || (d.sumber === 'vip' && !d.vip) || (d.sumber === 'evt' && !d.event)"
-        class="mt-4 rounded-field border border-default bg-muted p-3 text-sm text-muted"
+        class="mt-4 rounded-xl border border-default bg-muted p-3 text-sm text-muted"
       >
         Detail acara ini belum lengkap. Coba muat ulang, atau lihat langsung di modul asalnya.
       </p>

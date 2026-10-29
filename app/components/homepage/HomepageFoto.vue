@@ -74,7 +74,7 @@ function hapus() {
       {{ label }}
     </p>
     <div
-      class="group relative overflow-hidden rounded-field border border-default bg-muted"
+      class="group relative overflow-hidden rounded-xl border border-default bg-muted"
       :class="aspect ?? 'aspect-[4/3]'"
     >
       <img

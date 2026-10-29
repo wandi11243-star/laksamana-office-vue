@@ -298,7 +298,7 @@ const POIN = ['DP 30% vs 50%', 'Tarif pajak & service final', 'Integrasi POS in-
           <figure
             v-for="g in galeri"
             :key="g.key"
-            class="relative overflow-hidden rounded-field border border-default"
+            class="relative overflow-hidden rounded-xl border border-default"
           >
             <img
               v-if="gambar[g.key] && gambar[g.key] !== 'gagal'"

@@ -481,7 +481,7 @@ const warnaStatus = (r: RequestDesainMkt) => {
           <p class="mb-1 text-sm font-semibold">
             Brief
           </p>
-          <p class="whitespace-pre-wrap rounded-field border border-default p-2.5 text-sm">
+          <p class="whitespace-pre-wrap rounded-xl border border-default p-2.5 text-sm">
             {{ lihat.brief }}
           </p>
         </div>

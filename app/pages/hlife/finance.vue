@@ -406,7 +406,7 @@ const persenKategori = (v: number) => (ta.value ? Math.round((v / ta.value) * 10
         <p class="mt-4 text-[11px] font-bold uppercase tracking-wide text-muted">
           Per bisnis / brand (juta Rp)
         </p>
-        <div class="mt-2 overflow-hidden rounded-field border border-default">
+        <div class="mt-2 overflow-hidden rounded-xl border border-default">
           <div
             v-for="(b, i) in barisBisnis"
             :key="b.id"

@@ -114,7 +114,7 @@ const desk = computed(() => (detail.value?.event?.description ? tanpaTag(detail.
             <div
               v-for="s in sorot"
               :key="s.label"
-              class="rounded-r-field border-l-3 border-yellow-deep bg-yellow-light px-3 py-2"
+              class="rounded-r-xl border-l-3 border-yellow-deep bg-yellow-light px-3 py-2"
             >
               <p class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-900">
                 <UIcon
@@ -170,7 +170,7 @@ const desk = computed(() => (detail.value?.event?.description ? tanpaTag(detail.
         <template v-if="detail.vip.catatan.trim()">
           <AppSectionTitle title="Catatan reservasi" />
           <!-- Shown WHOLE: a note cut mid-sentence hides the part it was written for. -->
-          <p class="mb-4 whitespace-pre-wrap rounded-field border border-default bg-muted p-3 text-sm">
+          <p class="mb-4 whitespace-pre-wrap rounded-xl border border-default bg-muted p-3 text-sm">
             {{ detail.vip.catatan.trim() }}
           </p>
         </template>
@@ -193,7 +193,7 @@ const desk = computed(() => (detail.value?.event?.description ? tanpaTag(detail.
         />
         <p
           v-if="desk"
-          class="mb-4 whitespace-pre-wrap rounded-field border border-default bg-muted p-3 text-sm"
+          class="mb-4 whitespace-pre-wrap rounded-xl border border-default bg-muted p-3 text-sm"
         >
           {{ desk.slice(0, 400) }}{{ desk.length > 400 ? '…' : '' }}
         </p>
@@ -275,7 +275,7 @@ const desk = computed(() => (detail.value?.event?.description ? tanpaTag(detail.
       />
       <div
         v-if="pilih.r.notes"
-        class="mb-3 rounded-field border border-yellow-deep bg-yellow-light p-3 text-sm"
+        class="mb-3 rounded-xl border border-yellow-deep bg-yellow-light p-3 text-sm"
       >
         <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-ink-900">
           Catatan
@@ -284,7 +284,7 @@ const desk = computed(() => (detail.value?.event?.description ? tanpaTag(detail.
       </div>
       <div
         v-if="pilih.r.foodReq || pilih.r.drinkReq"
-        class="mb-3 rounded-field border border-default p-3 text-sm"
+        class="mb-3 rounded-xl border border-default p-3 text-sm"
       >
         <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted">
           Permintaan F&amp;B
@@ -293,7 +293,7 @@ const desk = computed(() => (detail.value?.event?.description ? tanpaTag(detail.
       </div>
       <div
         v-if="pilih.r.cancelReason"
-        class="mb-3 rounded-field border border-error/40 p-3 text-sm"
+        class="mb-3 rounded-xl border border-error/40 p-3 text-sm"
       >
         <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-error">
           Alasan batal

@@ -306,7 +306,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
         title="Down payment"
         icon="i-lucide-wallet"
       />
-      <div class="rounded-field border border-default p-3 text-sm">
+      <div class="rounded-xl border border-default p-3 text-sm">
         <div class="flex items-center justify-between gap-2">
           <span class="text-muted">Total DP masuk</span>
           <b class="text-highlighted">{{ dpNominal ? rupiah(dpNominal) : 'Belum DP' }}</b>
@@ -384,7 +384,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
 
     <div
       v-if="r.notes"
-      class="rounded-field border border-default p-3 text-sm"
+      class="rounded-xl border border-default p-3 text-sm"
     >
       <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted">
         Catatan khusus
@@ -395,7 +395,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
     </div>
     <div
       v-if="r.foodReq || r.drinkReq"
-      class="rounded-field border border-default p-3 text-sm"
+      class="rounded-xl border border-default p-3 text-sm"
     >
       <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted">
         Menu request
@@ -508,7 +508,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
 
     <div
       v-if="r.cancelReason"
-      class="rounded-field border border-error/40 p-3 text-sm"
+      class="rounded-xl border border-error/40 p-3 text-sm"
     >
       <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-error">
         Alasan batal
@@ -520,7 +520,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
 
     <div
       v-if="r.docReqData"
-      class="rounded-field border border-default p-3 text-sm"
+      class="rounded-xl border border-default p-3 text-sm"
     >
       <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted">
         Dokumen special request

@@ -561,7 +561,7 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
         </ul>
         <p
           v-if="detail.ketentuan"
-          class="whitespace-pre-wrap rounded-field border border-default bg-muted p-3 text-xs text-muted"
+          class="whitespace-pre-wrap rounded-xl border border-default bg-muted p-3 text-xs text-muted"
         >
           {{ detail.ketentuan }}
         </p>
