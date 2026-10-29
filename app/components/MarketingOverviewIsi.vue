@@ -78,7 +78,7 @@ const grand = computed(() => eventFinance(props.ev, props.settings).grand)
           </tbody>
         </table>
 
-        <!-- Lampiran / layout: images inline, others as links (all via Bearer blob) -->
+        <!-- Lampiran / layout: images centred, other files as links (all via Bearer blob) -->
         <div
           v-else-if="b.t === 'files'"
           class="grid gap-2"
@@ -86,12 +86,13 @@ const grand = computed(() => eventFinance(props.ev, props.settings).grand)
           <div
             v-for="f in berkasOv(b.raw)"
             :key="f.key"
+            :class="berkasGambarOv(f.name) ? 'flex justify-center' : ''"
           >
             <MarketingGambar
               v-if="berkasGambarOv(f.name)"
               :file-key="f.key"
               :alt="f.name"
-              img-class="max-h-96 rounded border border-default"
+              img-class="mx-auto max-h-96 rounded border border-default"
             />
             <UButton
               v-else
