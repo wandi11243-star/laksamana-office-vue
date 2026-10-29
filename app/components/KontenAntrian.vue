@@ -465,7 +465,7 @@ watch(reqBuka, async (r) => {
         >
           Untuk acara: <b class="text-default">{{ reqBuka.acara }}</b>
         </p>
-        <div class="whitespace-pre-wrap rounded-field border border-default bg-muted p-3 text-sm leading-relaxed">
+        <div class="whitespace-pre-wrap rounded-xl border border-default bg-muted p-3 text-sm leading-relaxed">
           {{ reqBuka.brief || '(brief kosong)' }}
         </div>
         <div

@@ -6,7 +6,7 @@
 -->
 <script setup lang="ts">
 import {
-  balasGoogleReview, tanganiGoogleReview,
+  balasGoogleReview, tanganiGoogleReview, nomorResmiGreview, NOMOR_RESERVASI_GREVIEW,
   useGoogleReviewState, LABEL_TINGKAT_GREVIEW,
   type ReviewGoogle, type SaringGreview,
 } from '~/composables/useGoogleReview'
@@ -62,7 +62,7 @@ const tempat = computed(() => data.value?.tempat ?? [])
 const bintang = (n: number) => '★★★★★'.slice(0, Math.max(0, Math.min(5, Math.round(Number(n) || 0)))) || '—'
 
 async function kirim(r: ReviewGoogle) {
-  const isi = (draf.value[r.id] ?? r.balasan ?? '').trim()
+  const isi = nomorResmiGreview((draf.value[r.id] ?? r.balasan ?? '').trim())
   if (!isi) {
     toast.add({ title: 'Tulis balasannya dulu.', color: 'error' })
     return
@@ -348,6 +348,9 @@ const segSegera = computed(() => (data.value?.review ?? []).filter(r => r.tingka
                     @click="kirim(r)"
                   />
                 </div>
+                <p class="mt-1 text-xs text-muted">
+                  Nomor reservasi resmi {{ NOMOR_RESERVASI_GREVIEW }} disisipkan otomatis bila balasan menyebut nomor lain.
+                </p>
               </div>
             </div>
           </AppPanel>

@@ -85,6 +85,17 @@ export function tingkatPrioritas(skor: number): '' | 'segera' | 'tinggi' | 'seda
 
 export const LABEL_TINGKAT_GREVIEW: Record<string, string> = { segera: 'Segera', tinggi: 'Tinggi', sedang: 'Sedang' }
 
+/** Official reservation number inserted in public Google replies (mirrors `GR_NOMOR_RESERVASI`). */
+export const NOMOR_RESERVASI_GREVIEW = '0856-5839-2519'
+
+const POLA_HP_GREVIEW = /\(?(?:\+62|62|0)\)?[\s.()-]?8(?:[\s.()-]{0,2}\d){8,12}/g
+
+/** Replace any Indonesian mobile number in a draft with the official one. */
+export function nomorResmiGreview(teks: string): string {
+  if (!teks) return teks
+  return teks.replace(POLA_HP_GREVIEW, NOMOR_RESERVASI_GREVIEW)
+}
+
 /** Planned reads (G-24 — the API does not answer these yet). */
 export const getGoogleReview = () =>
   useApi()<Envelope<GoogleReviewData>>('/konten/analytics/google')
