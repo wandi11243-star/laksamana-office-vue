@@ -3,7 +3,8 @@
 
   Identity + HR save on Simpan (buatUser/ubahUser). Module grants, module
   admins and the Aktif switch write LIVE via simpanAkun (old panel parity:
-  each toggle is its own PUT, there is no staged draft).
+  each toggle is its own PUT). For a new user the access boxes stage locally
+  and are applied right after buatUser, so access can be checked before save.
 
   PIN is write-only: the API never returns it, so the field always starts
   empty: blank means the server default (1111) on create, "keep the old
@@ -41,6 +42,12 @@ const f = reactive({
 const errNama = ref('')
 const errUsername = ref('')
 const menyimpan = ref(false)
+const toast = useToast()
+/** Bulk operations in flight for the two checkbox groups. */
+const massalModul = ref(false)
+const massalAdmin = ref(false)
+/** Staged access keys for a not-yet-created user, applied right after buatUser. */
+const pendingBaru = ref<string[]>([])
 /** Toggle keys currently in flight (`akses:<key>`, `admin:<key>`, `aktif`). */
 const sibuk = ref<string[]>([])
 const tandaiSibuk = (k: string) => {
@@ -68,6 +75,9 @@ watch(open, (buka) => {
   f.joinDate = u?.joinDate ?? ''
   errNama.value = ''
   errUsername.value = ''
+  pendingBaru.value = []
+  massalModul.value = false
+  massalAdmin.value = false
 })
 
 const POLA_USERNAME = /^[A-Za-z0-9._-]{3,40}$/
@@ -102,15 +112,131 @@ async function simpan() {
     joinDate: nul(f.joinDate),
   }
   if (f.pin) body.pin = f.pin
-  const ok = props.user
-    ? await simpanAkun(() => ubahUser(props.user!.id, body), 'Data kru diperbarui')
-    : await simpanAkun(() => buatUser(body), 'Kru ditambahkan')
-  menyimpan.value = false
-  if (ok) open.value = false
+  // Edit mode only rewrites identity/HR here: access checkboxes save live.
+  // Create mode applies the staged checkboxes right after the user exists.
+  if (props.user) {
+    const ok = await simpanAkun(() => ubahUser(props.user!.id, body), 'Data kru diperbarui')
+    menyimpan.value = false
+    if (ok) open.value = false
+    return
+  }
+  try {
+    const r = await buatUser(body)
+    const idBaru = r.data.id
+    const staged = [...pendingBaru.value]
+    if (staged.length && idBaru) {
+      for (const k of staged)
+        await setAkses(idBaru, k, true)
+    }
+    await refreshNuxtData(['account-users', 'account-modules'])
+    toast.add({
+      title: staged.length ? `Kru ditambahkan, ${staged.length} akses dibuka` : 'Kru ditambahkan',
+      color: 'success',
+    })
+    menyimpan.value = false
+    open.value = false
+  }
+  catch (e) {
+    menyimpan.value = false
+    toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
 }
 
 const punyaAkses = (key: string): boolean => props.user?.grants.includes(key) ?? false
 const punyaAdmin = (key: string): boolean => props.user?.adminModules.includes(key) ?? false
+
+// ---- Checkbox system: one box per Modul, checked = granted ----
+// Create mode stages into pendingBaru (no user id yet); edit mode reads grants
+// directly so every box always shows the server truth. '*' is the "Semua modul"
+// box and joins the access bulk actions; the superadmin box stays manual.
+const kunciAkses = computed(() => ['*', ...props.modules.map(m => m.key)])
+const aksesDicentang = (key: string): boolean =>
+  props.user ? punyaAkses(key) : pendingBaru.value.includes(key)
+const nAksesDipilih = computed(() => kunciAkses.value.filter(k => aksesDicentang(k)).length)
+const semuaAksesDipilih = computed(() =>
+  kunciAkses.value.length > 0 && nAksesDipilih.value >= kunciAkses.value.length)
+const adaAksesDipilih = computed(() => nAksesDipilih.value > 0)
+
+// The admin bulk actions only touch per-Modul admin keys: superadmin ('*') is
+// granted or revoked one box at a time, never by "pilih/hapus semua".
+const kunciAdmin = computed(() => props.modules.map(m => m.key))
+const nAdminDipilih = computed(() => kunciAdmin.value.filter(k => punyaAdmin(k)).length)
+const semuaAdminDipilih = computed(() =>
+  kunciAdmin.value.length > 0 && nAdminDipilih.value >= kunciAdmin.value.length)
+const adaAdminDipilih = computed(() => nAdminDipilih.value > 0)
+
+function toggleAksesBaru(key: string, v: boolean) {
+  pendingBaru.value = v
+    ? [...new Set([...pendingBaru.value, key])]
+    : pendingBaru.value.filter(k => k !== key)
+}
+
+async function onToggleAkses(key: string, v: boolean | 'indeterminate') {
+  if (v === 'indeterminate') return
+  if (!props.user) {
+    toggleAksesBaru(key, v)
+    return
+  }
+  await toggleAkses(key, v)
+}
+
+/** Idempotent bulk save: only keys that differ are sent, then one toast. */
+async function bulkAkses(buka: boolean) {
+  // Create mode has no user yet: just stage every box locally.
+  if (!props.user) {
+    pendingBaru.value = buka ? [...kunciAkses.value] : []
+    return
+  }
+  if (massalModul.value) return
+  const perlu = kunciAkses.value.filter(k => punyaAkses(k) !== buka)
+  if (!perlu.length) {
+    toast.add({ title: 'Sudah sesuai, tidak ada perubahan', color: 'success' })
+    return
+  }
+  massalModul.value = true
+  try {
+    for (const k of perlu)
+      await setAkses(props.user.id, k, buka)
+    await refreshNuxtData(['account-users', 'account-modules'])
+    toast.add({
+      title: buka ? `Semua akses dibuka (${perlu.length} modul)` : 'Semua akses ditutup',
+      color: 'success',
+    })
+  }
+  catch (e) {
+    await refreshNuxtData(['account-users', 'account-modules'])
+    toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    massalModul.value = false
+  }
+}
+
+async function bulkAdmin(buka: boolean) {
+  if (!props.user || massalAdmin.value) return
+  const perlu = kunciAdmin.value.filter(k => punyaAdmin(k) !== buka)
+  if (!perlu.length) {
+    toast.add({ title: 'Sudah sesuai, tidak ada perubahan', color: 'success' })
+    return
+  }
+  massalAdmin.value = true
+  try {
+    for (const k of perlu)
+      await setAdmin(props.user.id, k, buka)
+    await refreshNuxtData(['account-users', 'account-modules'])
+    toast.add({
+      title: buka ? `Semua hak admin diberikan (${perlu.length} modul)` : 'Semua hak admin dicabut',
+      color: 'success',
+    })
+  }
+  catch (e) {
+    await refreshNuxtData(['account-users', 'account-modules'])
+    toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    massalAdmin.value = false
+  }
+}
 
 async function toggleAkses(key: string, v: boolean | 'indeterminate') {
   if (!props.user || v === 'indeterminate') return
@@ -288,38 +414,66 @@ function isiTim(t: string) {
         title="Modul yang boleh dibuka"
         icon="i-lucide-key-round"
       />
-      <div v-if="user">
-        <div class="grid gap-1 rounded-field border border-default p-2">
-          <label class="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-elevated/50">
-            <UCheckbox
-              :model-value="punyaAkses('*')"
-              :disabled="lagiSibuk('akses:*')"
-              @update:model-value="(v) => toggleAkses('*', v)"
-            />
-            <span class="min-w-0 flex-1 truncate font-semibold text-highlighted">Semua modul</span>
-          </label>
-          <label
-            v-for="m in modules"
-            :key="m.key"
-            class="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-elevated/50"
-          >
-            <UCheckbox
-              :model-value="punyaAkses(m.key)"
-              :disabled="lagiSibuk(`akses:${m.key}`)"
-              @update:model-value="(v) => toggleAkses(m.key, v)"
-            />
-            <span class="min-w-0 flex-1 truncate text-highlighted">{{ m.label || m.key }}</span>
-          </label>
-        </div>
-        <p class="mt-1 text-xs text-muted">
-          Centang langsung tersimpan. Tiap perubahan dikirim saat itu juga.
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <p class="text-xs text-muted">
+          {{ nAksesDipilih }} dari {{ kunciAkses.length }} dipilih
         </p>
+        <div class="flex gap-1">
+          <UButton
+            label="Pilih semua"
+            icon="i-lucide-check-check"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            :disabled="semuaAksesDipilih || massalModul"
+            :loading="massalModul"
+            @click="bulkAkses(true)"
+          />
+          <UButton
+            label="Hapus semua"
+            icon="i-lucide-x"
+            color="neutral"
+            variant="ghost"
+            size="xs"
+            :disabled="!adaAksesDipilih || massalModul"
+            :loading="massalModul"
+            @click="bulkAkses(false)"
+          />
+        </div>
+      </div>
+      <div class="grid gap-1 rounded-field border border-default p-2">
+        <label class="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-elevated/50">
+          <UCheckbox
+            :model-value="aksesDicentang('*')"
+            :disabled="lagiSibuk('akses:*') || massalModul"
+            @update:model-value="(v) => onToggleAkses('*', v)"
+          />
+          <span class="min-w-0 flex-1 truncate font-semibold text-highlighted">Semua modul</span>
+        </label>
+        <label
+          v-for="m in modules"
+          :key="m.key"
+          class="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-elevated/50"
+        >
+          <UCheckbox
+            :model-value="aksesDicentang(m.key)"
+            :disabled="lagiSibuk(`akses:${m.key}`) || massalModul"
+            @update:model-value="(v) => onToggleAkses(m.key, v)"
+          />
+          <span class="min-w-0 flex-1 truncate text-highlighted">{{ m.label || m.key }}</span>
+        </label>
       </div>
       <p
-        v-else
-        class="text-xs text-muted"
+        v-if="user"
+        class="mt-1 text-xs text-muted"
       >
-        Modul diatur setelah kru dibuat. Simpan dulu, lalu buka lagi untuk mencentang modul.
+        Centang langsung tersimpan. Tiap perubahan dikirim saat itu juga.
+      </p>
+      <p
+        v-else
+        class="mt-1 text-xs text-muted"
+      >
+        Centang dulu modulnya, lalu Simpan: akses dibuka otomatis setelah kru dibuat.
       </p>
 
       <AppSectionTitle
@@ -327,11 +481,38 @@ function isiTim(t: string) {
         icon="i-lucide-shield-check"
       />
       <div v-if="user">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <p class="text-xs text-muted">
+            {{ nAdminDipilih }} dari {{ kunciAdmin.length }} dipilih
+          </p>
+          <div class="flex gap-1">
+            <UButton
+              label="Pilih semua"
+              icon="i-lucide-check-check"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              :disabled="semuaAdminDipilih || massalAdmin"
+              :loading="massalAdmin"
+              @click="bulkAdmin(true)"
+            />
+            <UButton
+              label="Hapus semua"
+              icon="i-lucide-x"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              :disabled="!adaAdminDipilih || massalAdmin"
+              :loading="massalAdmin"
+              @click="bulkAdmin(false)"
+            />
+          </div>
+        </div>
         <div class="grid gap-1 rounded-field border border-default p-2">
           <label class="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-elevated/50">
             <UCheckbox
               :model-value="punyaAdmin('*')"
-              :disabled="lagiSibuk('admin:*')"
+              :disabled="lagiSibuk('admin:*') || massalAdmin"
               @update:model-value="(v) => toggleAdmin('*', v)"
             />
             <span class="min-w-0 flex-1 truncate font-semibold text-highlighted">Superadmin (semua modul)</span>
@@ -343,14 +524,14 @@ function isiTim(t: string) {
           >
             <UCheckbox
               :model-value="punyaAdmin(m.key)"
-              :disabled="lagiSibuk(`admin:${m.key}`)"
+              :disabled="lagiSibuk(`admin:${m.key}`) || massalAdmin"
               @update:model-value="(v) => toggleAdmin(m.key, v)"
             />
             <span class="min-w-0 flex-1 truncate text-highlighted">Admin {{ m.label || m.key }}</span>
           </label>
         </div>
         <p class="mt-1 text-xs text-muted">
-          Admin roster tim HRD diatur lewat kolom Tim dan tidak diubah di sini.
+          Superadmin dicentang manual per orang. Admin roster tim HRD diatur lewat kolom Tim dan tidak diubah di sini.
         </p>
         <USwitch
           :model-value="user.active"
