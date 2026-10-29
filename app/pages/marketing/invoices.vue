@@ -9,18 +9,19 @@
 import type { EventMkt, KolomMkt } from '~/utils/marketing'
 import type { StatusInvMkt, TabBayarMkt } from '~/utils/marketing-keuangan'
 import {
-  INV_KOP_MKT, kelompokBayarMkt, layakTagihMkt, noResmiInvMkt, praPelunasanMkt, punyaDpMkt,
+  kelompokBayarMkt, layakTagihMkt, noResmiInvMkt, praPelunasanMkt, punyaDpMkt,
   punyaPelunasanMkt, rekapInvoiceMkt, resIdInvMkt, ringkasInvMkt,
 } from '~/utils/marketing-keuangan'
 import { dpLabel, eventFinance, invStatus } from '~/utils/marketing-uang'
 import { ikonInvoiceMkt, warnaInvoiceMkt } from '~/utils/status-marketing'
 import {
-  berkasKwitansi, mintaKwitansi, statusKwitansi, type BerkasKwitansi,
+  berkasKwitansi, mintaKwitansi, statusKwitansi, updateInvoiceText, type BerkasKwitansi, type UbahInvoice,
 } from '~/composables/useFinance'
+import { adaBuktiSheet, invoiceHtml, type InvoiceSheetData } from '~/utils/invoice-sheet'
 import {
   logMkt, useAksesMkt, useStateMkt, useTabelMkt,
 } from '~/composables/useMarketing'
-import { hariIni, rupiah, tglPanjang } from '~/utils/format'
+import { hariIni, rupiah } from '~/utils/format'
 
 definePageMeta({ access: ['marketing'] })
 
@@ -71,6 +72,7 @@ const kosongTab = computed(() => tab.value === 'lunas'
 
 // ---- official-invoice statuses (muatInvMkt: one request for the whole list) ----
 const peta = ref<Record<string, StatusInvMkt>>({})
+const versiPeta = ref<Record<string, string>>({})
 const memuat = ref(false)
 const galat = ref('')
 async function muat() {
@@ -87,6 +89,7 @@ async function muat() {
   try {
     const r = await statusKwitansi(ids)
     for (const [k, v] of Object.entries(r.data ?? {})) peta.value[k] = v
+    Object.assign(versiPeta.value, r.meta?.versions ?? {})
     // No answer for an id = no request yet (null), not "still unknown" (undefined).
     for (const k of ids) if (peta.value[k] === undefined) peta.value[k] = null as unknown as StatusInvMkt
   }
@@ -152,18 +155,133 @@ async function kirimMinta() {
 }
 
 // ---- official PDF ----
-const pdf = ref<{ e: EventMkt, berkas: BerkasKwitansi } | null>(null)
-const pdfBuka = computed({ get: () => !!pdf.value, set: (v) => {
-  if (!v) pdf.value = null
-} })
+const pdf = ref<{ e: EventMkt, jenis: 'INV_DP' | 'INV_LUNAS', berkas: BerkasKwitansi } | null>(null)
+const pdfBuka = computed({
+  get: () => !!pdf.value,
+  set: (v) => {
+    if (!v) {
+      pdf.value = null
+      ubahMode.value = false
+    }
+  },
+})
 async function bukaPdf(e: EventMkt, jenis: 'INV_DP' | 'INV_LUNAS') {
   try {
     const r = await berkasKwitansi(resIdInvMkt(e.id, jenis === 'INV_LUNAS' ? 'lunas' : 'dp'))
     if (!r.data) throw new Error('not_issued')
-    pdf.value = { e, berkas: r.data }
+    pdf.value = { e, jenis, berkas: r.data }
   }
   catch (e2) {
     toast.add({ title: 'Belum terbit', description: apiErrorMessage(e2), color: 'error' })
+  }
+}
+
+/** The issued sheet, drawn from the LIVE event + Finance's number, signatures, stamp and text edits. */
+const lembar = computed<InvoiceSheetData | null>(() => {
+  const p = pdf.value
+  if (!p) return null
+  const f = uang(p.e)
+  const pra = praPelunasanMkt(p.e, f)
+  const lunas = p.jenis === 'INV_LUNAS'
+  const c = st.value.clients.find(x => x.id === p.e.clientId)
+  const bawaanKepada = String(c?.perusahaan || c?.nama || '')
+  const bawaanUp = String(c?.pic || c?.nama || '')
+  const u = (p.berkas.ubah ?? {}) as UbahInvoice
+  const totals: { label: string, nilai: number, tebal?: boolean }[] = [
+    { label: 'Subtotal', nilai: f.sub },
+  ]
+  if (f.disc) totals.push({ label: 'Diskon', nilai: -f.disc })
+  if (f.svcOn && f.service) totals.push({ label: 'Service charge', nilai: f.service })
+  if (f.tax) totals.push({ label: `PB1 ${f.taxPct}%${f.taxInc ? ' (termasuk harga)' : ''}`, nilai: f.tax })
+  totals.push({ label: 'Grand Total', nilai: f.grand, tebal: true })
+  if (lunas) {
+    for (const pay of (p.e.payments ?? []).filter(x => String(x.type ?? '') === 'DP')) {
+      totals.push({ label: `Dikurangi pembayaran ${pay.type}${pay.at ? ` · ${pay.at}` : ''}`, nilai: -(+(pay.amount ?? 0) || 0) })
+    }
+    if (pra.dpCentang > 0) totals.push({ label: 'Dikurangi DP yang sudah diterima', nilai: -pra.dpCentang })
+    if (pra.lain > 0) totals.push({ label: 'Dikurangi pembayaran lain yang sudah diterima', nilai: -pra.lain })
+    totals.push({ label: 'SISA PEMBAYARAN', nilai: pra.tagih, tebal: true })
+  }
+  else {
+    totals.push({ label: `${dpLabel(f)} yang ditagih`, nilai: f.dp, tebal: true })
+    if (f.paid > 0) totals.push({ label: 'Sudah diterima', nilai: f.paid })
+  }
+  const d = (p.e.detail ?? {}) as Record<string, unknown>
+  const items = ((Array.isArray(d.rincianItem) ? d.rincianItem : []) as Record<string, unknown>[])
+    .filter(r => String(r.jenis || 'bayar') === 'bayar')
+    .map(r => ({ desc: String(r.desc ?? ''), qty: (+(r.jumlah as number) || 0) || 1, harga: +(r.harga as number) || 0 }))
+  return {
+    no: p.berkas.no, resmi: true, lunas,
+    tanggalTerbit: hari,
+    kepada: String(u.kepada || '').trim() || bawaanKepada,
+    up: String(u.up || '').trim() || bawaanUp,
+    acara: p.e.nama, tanggalAcara: String(p.e.tanggal ?? ''), jenisAcara: String(p.e.jenis ?? ''), pax: String(p.e.pax ?? ''),
+    items, ket: Array.isArray(u.ket) ? u.ket : [],
+    totals,
+    penanda: p.berkas.penanda,
+    cap: adaBuktiSheet((p.e.payments ?? []).map(x => ({ jenis: String(x.type ?? ''), adaBukti: !!x.receiptUrl })), p.jenis) ? (p.berkas.cap || '') : '',
+    kaki: `Dicetak ${hari}`,
+  }
+})
+const lembarHtml = computed(() => (lembar.value ? invoiceHtml(lembar.value) : ''))
+const bawaanKepada = computed(() => {
+  const p = pdf.value
+  if (!p) return ''
+  const c = st.value.clients.find(x => x.id === p.e.clientId)
+  return String(c?.perusahaan || c?.nama || '')
+})
+const bawaanUp = computed(() => {
+  const p = pdf.value
+  if (!p) return ''
+  const c = st.value.clients.find(x => x.id === p.e.clientId)
+  return String(c?.pic || c?.nama || '')
+})
+
+// ---- Ubah Kepada / U.P / Keterangan (invUbah): text only, never numbers ----
+const ubahMode = ref(false)
+const ubahKepada = ref('')
+const ubahUp = ref('')
+const ubahKet = ref<string[]>([])
+const ubahSibuk = ref(false)
+watch(pdf, (p) => {
+  const u = (p?.berkas.ubah ?? {}) as UbahInvoice
+  ubahKepada.value = String(u.kepada ?? '')
+  ubahUp.value = String(u.up ?? '')
+  ubahKet.value = (lembar.value?.items ?? []).map((_, i) => String(u.ket?.[i]?.teks ?? ''))
+})
+async function simpanUbah() {
+  const p = pdf.value
+  if (!p) return
+  const rid = resIdInvMkt(p.e.id, p.jenis === 'INV_LUNAS' ? 'lunas' : 'dp')
+  const st_ = peta.value[rid] as { id?: string } | undefined
+  if (!st_?.id) {
+    toast.add({ title: 'Status belum terbaca', description: 'Muat ulang daftarnya dulu.', color: 'error' })
+    return
+  }
+  ubahSibuk.value = true
+  try {
+    const items = lembar.value?.items ?? []
+    const r = await updateInvoiceText(st_.id, {
+      ubah: {
+        kepada: ubahKepada.value.trim(), up: ubahUp.value.trim(),
+        ket: items.map((it, i) => ({ asal: String(it.desc ?? ''), teks: ubahKet.value[i]?.trim() ?? '' })),
+      },
+    }, versiPeta.value[rid] ?? '')
+    const b = (await berkasKwitansi(rid)).data
+    if (b) pdf.value = { ...p, berkas: b }
+    if (r.data) {
+      peta.value[rid] = r.data as unknown as StatusInvMkt
+      const v = (r as unknown as { meta?: { version?: string } }).meta?.version
+      if (v) versiPeta.value[rid] = v
+    }
+    ubahMode.value = false
+    toast.add({ title: 'Invoice diperbarui', description: 'Lembar di Finance ikut berubah.', color: 'success' })
+  }
+  catch (e) {
+    toast.add({ title: 'Gagal menyimpan', description: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    ubahSibuk.value = false
   }
 }
 
@@ -461,23 +579,96 @@ const cetak = () => window.print()
         :description="pdf ? `${pdf.e.nama} · ${pdf.berkas.no}` : ''"
       >
         <template v-if="pdf">
-          <p class="text-sm font-bold">
-            {{ INV_KOP_MKT.pt }}
-          </p>
-          <p class="text-xs text-muted">
-            {{ INV_KOP_MKT.alamat }}
-          </p>
-          <p class="num mt-2 text-sm">
-            No. {{ pdf.berkas.no }} · diputus {{ pdf.berkas.putusOleh }} {{ tglPanjang(String(pdf.berkas.putusAt ?? '')) }}
-          </p>
-          <p
-            v-if="pdf.berkas.penanda?.length"
-            class="mt-1 text-xs text-muted"
+          <UAlert
+            v-if="pdf.berkas.materai"
+            color="warning"
+            variant="subtle"
+            title="Bermaterai — lembar polos"
+            description="Tanpa tanda tangan & cap digital; ditandatangani basah di atas materai."
+            class="mb-3"
+          />
+          <div
+            v-if="!ubahMode"
+            class="overflow-x-auto rounded-lg border border-default bg-white p-2"
           >
-            Penanda: {{ pdf.berkas.penanda.map(p => `${p.nama} (${p.jabatan})`).join(', ') }}
-          </p>
-          <div class="mt-4 flex justify-end">
+            <!-- eslint-disable vue/no-v-html -- lembar dibangun sendiri oleh invoiceHtml(), semua field di-escape di escSheet -->
+            <div v-html="lembarHtml" />
+            <!-- eslint-enable vue/no-v-html -->
+          </div>
+          <div
+            v-else
+            class="grid gap-3"
+          >
+            <p class="text-sm text-muted">
+              Yang bisa diubah cuma <b>teks</b> — Kepada, U.P, dan Keterangan tiap baris.
+              Angka tetap dari rincian event. Kosongkan kotak untuk kembali ke isi bawaan.
+              Ubahan disimpan di Finance, jadi lembar yang dilihat Finance ikut berubah.
+            </p>
+            <UFormField label="Kepada">
+              <UInput
+                v-model="ubahKepada"
+                class="w-full"
+                :placeholder="bawaanKepada"
+              />
+            </UFormField>
+            <UFormField label="U.P">
+              <UInput
+                v-model="ubahUp"
+                class="w-full"
+                :placeholder="bawaanUp"
+              />
+            </UFormField>
+            <div v-if="(lembar?.items ?? []).length">
+              <p class="mb-1 text-sm font-semibold">
+                Keterangan per baris
+              </p>
+              <div
+                v-for="(it, i) in (lembar?.items ?? [])"
+                :key="i"
+                class="mb-2 grid gap-1"
+              >
+                <UTextarea
+                  v-model="ubahKet[i]"
+                  :rows="1"
+                  class="w-full"
+                  :placeholder="String(it.desc ?? '')"
+                />
+                <p class="num text-right text-xs text-muted">
+                  {{ rupiah((Number(it.qty) || 1) * (Number(it.harga) || 0)) }}
+                </p>
+              </div>
+            </div>
+            <p
+              v-if="pdf.berkas.ubah?.oleh"
+              class="text-xs text-muted"
+            >
+              Terakhir diubah {{ pdf.berkas.ubah.oleh }}
+            </p>
+          </div>
+          <div class="mt-4 flex flex-wrap justify-end gap-2">
             <UButton
+              v-if="!ubahMode && bolehMinta"
+              icon="i-lucide-pen-line"
+              label="Ubah Kepada / U.P / Keterangan"
+              color="neutral"
+              variant="outline"
+              @click="ubahMode = true"
+            />
+            <UButton
+              v-if="ubahMode"
+              label="Simpan perubahan"
+              :loading="ubahSibuk"
+              @click="simpanUbah"
+            />
+            <UButton
+              v-if="ubahMode"
+              label="Batal"
+              color="neutral"
+              variant="ghost"
+              @click="ubahMode = false"
+            />
+            <UButton
+              v-if="!ubahMode"
               icon="i-lucide-printer"
               label="Cetak"
               color="neutral"

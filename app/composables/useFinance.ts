@@ -17,6 +17,19 @@ export interface BerkasKwitansi {
   putusAt: number | string
   cap: string
   penanda: { nama: string, jabatan: string, ttd: string }[]
+  /** Stamped: the sheet prints plain — no signatures or stamp, enforced server-side. */
+  materai?: boolean
+  /** Marketing's text overrides (Kepada, U.P, per-row Keterangan), or null when never edited. */
+  ubah?: UbahInvoice | null
+}
+
+/** Marketing's text overrides on its issued invoice — text only, never numbers. */
+export interface UbahInvoice {
+  kepada?: string
+  up?: string
+  ket?: { asal?: string, teks?: string }[]
+  oleh?: string
+  at?: number
 }
 
 /** A kwitansi request row, as `GET /invoices/status?res=` reports it. */
@@ -29,6 +42,8 @@ export interface StatusKwitansi {
   mintaOleh?: string
   mintaAt?: number
   catatan?: string
+  materai?: boolean
+  ubah?: UbahInvoice | null
 }
 
 /**
@@ -39,15 +54,17 @@ export const mintaKwitansi = (body: { resId: string, jenis?: string, ringkas?: u
   useApi()<Envelope<StatusKwitansi>>('/finance/invoices/requests', { method: 'POST', body })
 
 /** GET /finance/invoices/status?res=a,b,… — at most 400 ids: chunked + merged (S2). */
-export const statusKwitansi = async (resIds: string[]): Promise<Envelope<Record<string, StatusKwitansi>>> => {
+export const statusKwitansi = async (resIds: string[]): Promise<Envelope<Record<string, StatusKwitansi>> & { meta?: { versions?: Record<string, Versi> } }> => {
   const out: Record<string, StatusKwitansi> = {}
+  const versions: Record<string, Versi> = {}
   for (let i = 0; i < resIds.length; i += 400) {
-    const r = await useApi()<Envelope<Record<string, StatusKwitansi>>>('/finance/invoices/status', {
+    const r = await useApi()<Envelope<Record<string, StatusKwitansi>> & { meta?: { versions?: Record<string, Versi> } }>('/finance/invoices/status', {
       query: { res: resIds.slice(i, i + 400).join(',') },
     })
     Object.assign(out, r.data ?? {})
+    Object.assign(versions, r.meta?.versions ?? {})
   }
-  return { data: out }
+  return { data: out, meta: { versions } }
 }
 
 /** GET /finance/invoices/file/{resId} — the printable document, or 404 `not_issued`. */
@@ -344,6 +361,8 @@ export interface InvoiceReq {
   putusOleh?: string
   putusAt?: number
   catatan?: string
+  materai?: boolean
+  ubah?: UbahInvoice | null
   [k: string]: unknown
 }
 
@@ -355,8 +374,17 @@ export async function getInvoices(status?: string, jenis?: string) {
 export const getInvoiceQueue = () =>
   useApi()<Envelope<{ total: number, perJenis: Record<string, number> }>>('/finance/invoices/queue')
 
-export function decideInvoice(id: string, body: { aksi: 'buat' | 'tolak' | 'batal', catatan?: string, penanda?: string[] }, versi: Versi) {
+export function decideInvoice(id: string, body: { aksi: 'buat' | 'tolak' | 'batal', catatan?: string, penanda?: string[], materai?: boolean }, versi: Versi) {
   return useApi()<Envelope<InvoiceReq>>(`/finance/invoices/${id}/decision`, { method: 'POST', body, headers: ifMatch(versi) })
+}
+
+/**
+ * PUT /finance/invoices/{id}/text — Marketing edits the TEXT of its issued
+ * invoice (Kepada, U.P, per-row Keterangan). Empty text returns to the
+ * default; the request version still applies.
+ */
+export function updateInvoiceText(id: string, body: { ubah: { kepada?: string, up?: string, ket?: { asal?: string, teks?: string }[] } }, versi: Versi) {
+  return useApi()<Envelope<InvoiceReq>>(`/finance/invoices/${id}/text`, { method: 'PUT', body, headers: ifMatch(versi) })
 }
 
 export interface InvoiceSetting {

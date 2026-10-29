@@ -123,6 +123,8 @@ export interface DataKwitansi {
   cap: string
   logo: string
   sumber?: string
+  /** Stamped: a materai box on the first signature column, no digital signatures or stamp. */
+  materai?: boolean
 }
 
 export function kwitansiData(r: Reservasi, inv: BerkasKwitansi | null, logo = ''): DataKwitansi {
@@ -176,6 +178,7 @@ export function kwitansiHtml(d: DataKwitansi): string {
   const lunas = !!d.lunas
   const resmi = !!d.resmi
   const total = Number(d.total) || 0
+  const materai = !!d.materai
   // Without an official signatory, one block with the default name — never an
   // empty block, so the sheet's bottom does not jump between versions.
   const pen = (Array.isArray(d.penanda) && d.penanda.length)
@@ -216,7 +219,8 @@ export function kwitansiHtml(d: DataKwitansi): string {
   .ttd-grup{text-align:right;font-size:12.5px}
   .ttd-baris{display:flex;gap:20px;justify-content:flex-end;align-items:flex-end}
   .ttd-baris .ttd{min-width:150px}
-  .ttd .sp{height:58px}
+  .ttd .sp{height:${materai ? 96 : 58}px}
+  .materai{position:absolute;left:4px;top:8px;width:74px;height:74px;border:1.5px dashed #8a8170;border-radius:4px;color:#8a8170;font-size:9.5px;line-height:1.25;display:flex;align-items:center;justify-content:center;text-align:center;letter-spacing:.5px}
   .ttd .nm{border-top:1px solid #1d1a15;padding-top:5px;font-weight:700;display:inline-block;min-width:170px}
   .catatan{margin-top:20px;font-size:11px;color:#5c574d;border-top:1px dashed #D9CDB2;padding-top:9px}
   @page{size:A4;margin:12mm}
@@ -261,8 +265,9 @@ export function kwitansiHtml(d: DataKwitansi): string {
       <div class="ttd-baris">
         ${pen.map((p, i) => `<div class="ttd">`
           + `<div class="sp" style="position:relative">`
-          + ((d.cap && i === 0) ? `<img src="${escLembar(d.cap)}" alt="" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-38%) rotate(-8deg);height:96px;opacity:.85">` : '')
-          + (p.ttd ? `<img src="${escLembar(p.ttd)}" alt="" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-46%);height:64px">` : '')
+          + ((materai && i === 0) ? '<div class="materai">MATERAI<br>10.000</div>' : '')
+          + ((!materai && d.cap && i === 0) ? `<img src="${escLembar(d.cap)}" alt="" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-38%) rotate(-8deg);height:96px;opacity:.85">` : '')
+          + ((!materai && p.ttd) ? `<img src="${escLembar(p.ttd)}" alt="" style="position:absolute;left:50%;top:50%;transform:translate(-50%,-46%);height:64px">` : '')
           + '</div>'
           + `<div class="nm">${escLembar(p.nama || '')}</div>`
           + `<div style="color:#5c574d;font-size:11.5px">${escLembar(p.jabatan || '')}</div>`
@@ -273,7 +278,9 @@ export function kwitansiHtml(d: DataKwitansi): string {
   <div class="catatan">${lunas
     ? 'Pembayaran reservasi ini telah <b>LUNAS</b>. Mohon simpan kwitansi ini sebagai bukti pembayaran.'
     : 'DP ini akan <b>memotong total tagihan</b> saat tamu datang. Mohon simpan kwitansi ini sebagai bukti pembayaran.'}
-    <br>Dokumen ini dicetak dari sistem Laksamana Muda dan sah tanpa tanda tangan basah.</div>
+    <br>${materai
+      ? 'Dokumen ini sah setelah ditandatangani basah di atas materai dan dibubuhi cap perusahaan.'
+      : 'Dokumen ini dicetak dari sistem Laksamana Muda dan sah tanpa tanda tangan basah.'}</div>
   <div class="noprint"><button onclick="window.print()">Simpan sebagai PDF / Cetak</button></div>
 </body></html>`
 }

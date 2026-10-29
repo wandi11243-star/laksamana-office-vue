@@ -11,9 +11,12 @@
 <script setup lang="ts">
 import type { InvoiceReq, Penanda } from '~/composables/useFinance'
 import {
-  createPenanda, decideInvoice, deletePenanda, getInvoices, getInvoiceSettings, getPenanda,
+  berkasKwitansi, createPenanda, decideInvoice, deletePenanda, getInvoices, getInvoiceSettings, getPenanda,
   patchPenanda, putInvoiceSettings,
 } from '~/composables/useFinance'
+import { adaBuktiSheet, invoiceHalaman } from '~/utils/invoice-sheet'
+import { kwitansiHtml } from '~/utils/kwitansi'
+import { hariIni } from '~/utils/format'
 import { useKasIzin } from '~/utils/layar/finance'
 import { fmtRp } from '~/utils/cashier'
 import { tanganiKonflik, type Versi } from '~/utils/versi'
@@ -64,10 +67,15 @@ const putusRow = ref<InvoiceReq | null>(null)
 const putusAksi = ref<'buat' | 'tolak' | 'batal'>('buat')
 const putusCatatan = ref('')
 const putusPenanda = ref<string[]>([])
+// Kwitansi: null = BELUM dijawab; Finance DITANYAI dulu, bukan diberi jawaban
+// bawaan yang bisa terlewat dibaca. Invoice tidak memakai materai.
+const putusMaterai = ref<boolean | undefined>(undefined)
+const perluMaterai = (r: InvoiceReq | null) => r?.jenis === 'KWITANSI' && putusAksi.value === 'buat'
 function bukaPutus(r: InvoiceReq, aksi: 'buat' | 'tolak' | 'batal') {
   putusRow.value = r
   putusAksi.value = aksi
   putusCatatan.value = ''
+  putusMaterai.value = undefined
   const bawaan = String((aksi === 'buat' ? setting.value.penandaDefaultInvoice || setting.value.penandaDefault : setting.value.penandaDefault) || '')
     .split(',').map(s => s.trim()).filter(Boolean)
   putusPenanda.value = bawaan
@@ -80,11 +88,104 @@ async function jalanPutus() {
     toast.add({ title: 'Catatan penolakan wajib diisi.', color: 'error' })
     return
   }
+  if (perluMaterai(r) && putusMaterai.value === undefined) {
+    toast.add({ title: 'Pilih dulu apakah kwitansi ini perlu materai.', color: 'error' })
+    return
+  }
   await jalankan(
-    () => decideInvoice(r.id, { aksi: putusAksi.value, catatan: putusCatatan.value.trim() || undefined, penanda: putusAksi.value === 'buat' ? putusPenanda.value : [] }, versiRiw(r.id)),
+    () => decideInvoice(r.id, {
+      aksi: putusAksi.value,
+      catatan: putusCatatan.value.trim() || undefined,
+      penanda: putusAksi.value === 'buat' ? putusPenanda.value : [],
+      ...(perluMaterai(r) ? { materai: putusMaterai.value === true } : {}),
+    }, versiRiw(r.id)),
     putusAksi.value === 'buat' ? `Kwitansi ${r.resId} diterbitkan.` : putusAksi.value === 'tolak' ? `Permintaan ${r.resId} ditolak.` : 'Penerbitan dibatalkan.',
   )
   putusOpen.value = false
+}
+
+// ---- Lihat PDF: lembar yang diterbitkan, sama dengan yang dicetak peminta.
+// Jendela dibuka SINKRON sebelum satu pun await — kalau sesudah, peramban
+// memblokirnya sebagai popup dan yang terlihat cuma tidak terjadi apa-apa.
+const pdfSibuk = ref('')
+async function lihatPdf(r: InvoiceReq) {
+  const w = window.open('', '_blank', 'width=900,height=1000')
+  if (!w) {
+    toast.add({ title: 'Popup diblokir', description: 'Izinkan popup untuk melihat PDF.', color: 'error' })
+    return
+  }
+  pdfSibuk.value = r.id
+  try {
+    const b = (await berkasKwitansi(String(r.resId))).data
+    if (!b) throw new Error('Dokumen ini belum berstatus terbit di server — segarkan halamannya.')
+    const g = (r.ringkas ?? {}) as Record<string, unknown>
+    const items = (Array.isArray(g.items) ? g.items : []) as { desc?: string, qty?: number, harga?: number }[]
+    const bayar = (Array.isArray(g.bayar) ? g.bayar : []) as { jenis?: string, nominal?: number, tanggal?: string, metode?: string, adaBukti?: boolean }[]
+    const u = (b.ubah ?? {}) as { kepada?: string, up?: string, ket?: { asal?: string, teks?: string }[] }
+    let isi: string
+    if (r.jenis === 'INV_DP' || r.jenis === 'INV_LUNAS') {
+      const jenis = String(r.jenis)
+      const lunas = jenis === 'INV_LUNAS'
+      const totals: { label: string, nilai: number, tebal?: boolean }[] = [
+        { label: 'Subtotal', nilai: Number(g.sub) || 0 },
+      ]
+      if (Number(g.disc)) totals.push({ label: 'Diskon', nilai: -(Number(g.disc) || 0) })
+      if (Number(g.service)) totals.push({ label: 'Service charge', nilai: Number(g.service) || 0 })
+      if (Number(g.tax)) totals.push({ label: `PB1${g.taxPct ? ` ${g.taxPct}%` : ''}`, nilai: Number(g.tax) || 0 })
+      totals.push({ label: 'Grand Total', nilai: Number(g.grand) || 0, tebal: true })
+      if (lunas) {
+        let dpJml = 0
+        for (const p of bayar.filter(p => String(p.jenis || '') === 'DP')) {
+          dpJml += Number(p.nominal) || 0
+          totals.push({ label: `Dikurangi pembayaran DP${p.tanggal ? ` · ${String(p.tanggal).slice(0, 10)}` : ''}`, nilai: -(Number(p.nominal) || 0) })
+        }
+        const sisaPra = (Number(g.praBayar) || 0) - dpJml
+        if (sisaPra > 0) totals.push({ label: 'Dikurangi DP & pembayaran lain yang sudah diterima', nilai: -sisaPra })
+        totals.push({ label: 'SISA PEMBAYARAN', nilai: Number(g.tagih) || 0, tebal: true })
+      }
+      else {
+        totals.push({ label: 'DP yang ditagih', nilai: Number(g.tagih ?? g.dp) || 0, tebal: true })
+        if (Number(g.paid) > 0) totals.push({ label: 'Sudah diterima', nilai: Number(g.paid) || 0 })
+      }
+      isi = invoiceHalaman({
+        no: b.no, resmi: true, lunas,
+        tanggalTerbit: hariIni(),
+        kepada: String(u.kepada || '').trim() || String(g.perusahaan || g.client || ''),
+        up: String(u.up || '').trim() || String(g.picClient || g.client || ''),
+        acara: String(g.event || ''), tanggalAcara: String(g.tanggal || ''),
+        jenisAcara: String(g.jenisAcara || ''), pax: String(g.pax ?? ''),
+        items: items.map(it => ({ desc: String(it.desc || ''), qty: Number(it.qty) || 1, harga: Number(it.harga) || 0 })),
+        ket: Array.isArray(u.ket) ? u.ket : [],
+        totals,
+        penanda: b.penanda, cap: adaBuktiSheet(bayar.map(p => ({ jenis: p.jenis, adaBukti: p.adaBukti })), jenis) ? (b.cap || '') : '',
+        kaki: `Salinan Finance (data saat disetujui) · dilihat ${hariIni()}`,
+      })
+    }
+    else {
+      const dp = bayar
+      isi = kwitansiHtml({
+        no: b.no, resmi: true, lunas: !!g.lunas, nama: String(g.nama || g.client || ''),
+        hp: '', metode: String(dp[0]?.metode || ''),
+        tanggalTerbit: hariIni(),
+        keterangan: String(r.resId || '').startsWith('vip-') ? 'Reservasi VIP' : 'Reservasi',
+        subKeterangan: `${String(g.tanggal || '')}${g.jam ? ` · ${g.jam}` : ''}${g.meja ? ` · Meja ${g.meja}` : ''}`,
+        pax: String(g.pax ?? ''), total: Number(g.dpTotal) || 0,
+        penanda: (Array.isArray(b.penanda) && b.penanda.length) ? b.penanda : null,
+        cap: b.cap || '', logo: '', materai: !!b.materai,
+      })
+    }
+    w.document.open()
+    w.document.write(isi)
+    w.document.close()
+  }
+  catch (e) {
+    w.document.open()
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Gagal</title></head><body style="font:14px sans-serif;padding:40px"><b>Lembar gagal disiapkan</b><br>${apiErrorMessage(e)}</body></html>`)
+    w.document.close()
+  }
+  finally {
+    pdfSibuk.value = ''
+  }
 }
 const ringkasDp = (r: InvoiceReq) => {
   const x = r.ringkas as { dpKurang?: number, dpAda?: number, dpTotal?: number, pax?: number, tgl?: string } | null | undefined
@@ -255,6 +356,18 @@ const jalanHapusP = () => {
                   · {{ r.catatan }}
                 </template>
               </p>
+              <p
+                v-if="r.status === 'DIBUAT' && r.materai"
+                class="mt-1 text-xs text-muted"
+              >
+                Bermaterai — dicetak polos tanpa tanda tangan &amp; cap digital
+              </p>
+              <p
+                v-if="r.ubah && (r.ubah.kepada || r.ubah.up || (r.ubah.ket ?? []).some(k => k && k.teks))"
+                class="mt-1 text-xs text-muted"
+              >
+                Isi diubah Marketing{{ r.ubah.oleh ? ` (${r.ubah.oleh})` : '' }}
+              </p>
             </div>
             <AppStatus
               :color="r.status === 'DIBUAT' ? 'success' : 'error'"
@@ -262,6 +375,16 @@ const jalanHapusP = () => {
             >
               {{ r.status === 'DIBUAT' ? 'Dibuat' : 'Ditolak' }}
             </AppStatus>
+            <UButton
+              v-if="r.status === 'DIBUAT'"
+              label="Lihat PDF"
+              icon="i-lucide-file-text"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              :loading="pdfSibuk === r.id"
+              @click="lihatPdf(r)"
+            />
             <UButton
               v-if="r.status === 'DIBUAT' && izin.ubah('invoice')"
               label="Batalkan"
@@ -419,6 +542,31 @@ const jalanHapusP = () => {
           :label="`${p.nama}${p.jabatan ? ` — ${p.jabatan}` : ''}`"
           @update:model-value="(v: boolean | 'indeterminate') => { putusPenanda = v === true ? [...putusPenanda, p.id] : putusPenanda.filter(x => x !== p.id) }"
         />
+      </div>
+      <div
+        v-if="perluMaterai(putusRow)"
+        class="mb-3 border-t border-default pt-3"
+      >
+        <p class="text-sm font-semibold">
+          Kwitansi ini perlu materai?
+        </p>
+        <div class="mt-2">
+          <AppPilihan
+            v-model="putusMaterai"
+            name="inv_materai"
+            :options="[
+              { value: false, label: 'Tidak — terbit bertanda tangan & cap digital' },
+              { value: true, label: 'Ya — cetak polos untuk materai' },
+            ]"
+          />
+        </div>
+        <p
+          v-if="putusMaterai === true"
+          class="mt-2 text-xs text-muted"
+        >
+          Lembar keluar dengan kotak materai dan kolom tanda tangan kosong — tanpa gambar tanda tangan &amp; cap.
+          Nama penanda yang dicentang tetap tercetak di bawah garisnya, untuk ditandatangani basah di atas materai.
+        </p>
       </div>
       <UFormField
         v-if="putusAksi !== 'buat'"
