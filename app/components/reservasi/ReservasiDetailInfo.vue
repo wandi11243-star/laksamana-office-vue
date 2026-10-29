@@ -29,15 +29,23 @@ const props = withDefaults(defineProps<{
   bolehLangsungKwitansi?: boolean
   /** May arrival waves be removed here (old per-wave undo). The caller gates it by role. */
   bolehUbahGelombang?: boolean
+  /** The dashboard caller opens its existing DP instalment sheet. */
+  bolehTambahDp?: boolean
+  /** Status is rendered beside the record name by the dashboard detail header. */
+  showReservationStatus?: boolean
 }>(), {
   bolehMintaKwitansi: false,
   bolehLangsungKwitansi: false,
   bolehUbahGelombang: false,
+  bolehTambahDp: false,
+  showReservationStatus: true,
 })
 
 const emit = defineEmits<{
   /** The row changed (or conflicted): the caller reloads its list. */
   berubah: []
+  /** Open the caller's existing DP instalment flow. */
+  tambahDp: []
 }>()
 
 const toast = useToast()
@@ -144,6 +152,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
   <div class="space-y-4">
     <div class="flex flex-wrap gap-1.5">
       <AppStatus
+        v-if="showReservationStatus"
         :color="STATUS_WARNA[r.status] ?? 'neutral'"
         :icon="STATUS_IKON[r.status]"
       >
@@ -301,12 +310,31 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
       </div>
     </div>
 
+    <div
+      v-if="r.foodReq || r.drinkReq"
+    >
+      <AppSectionTitle
+        title="Menu request"
+        icon="i-lucide-utensils"
+      />
+      <div class="grid gap-3 sm:grid-cols-2">
+        <div v-if="r.foodReq">
+          <p class="text-xs font-semibold text-muted">Makanan</p>
+          <p class="text-sm text-default">{{ r.foodReq }}</p>
+        </div>
+        <div v-if="r.drinkReq">
+          <p class="text-xs font-semibold text-muted">Minuman</p>
+          <p class="text-sm text-default">{{ r.drinkReq }}</p>
+        </div>
+      </div>
+    </div>
+
     <div>
       <AppSectionTitle
         title="Down payment"
         icon="i-lucide-wallet"
       />
-      <div class="rounded-xl border border-default p-3 text-sm">
+      <div class="rounded-lg border border-default p-3 text-sm">
         <div class="flex items-center justify-between gap-2">
           <span class="text-muted">Total DP masuk</span>
           <b class="text-highlighted">{{ dpNominal ? rupiah(dpNominal) : 'Belum DP' }}</b>
@@ -319,6 +347,16 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
             · dicicil {{ r.dps.length }}×
           </template>
         </p>
+        <UButton
+          v-if="bolehTambahDp"
+          label="Tambah bukti TF DP"
+          icon="i-lucide-plus"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          class="mt-2 min-h-11"
+          @click="emit('tambahDp')"
+        />
         <div
           v-if="dpNominal"
           class="mt-2"
@@ -337,7 +375,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
           <div
             v-for="(p, i) in cicilan"
             :key="p.id || i"
-            class="rounded-field bg-muted p-2.5 text-sm"
+            class="rounded-lg bg-muted p-2.5 text-sm"
           >
             <p class="flex flex-wrap items-center gap-1.5">
               <b class="text-highlighted">DP {{ i + 1 }} · {{ rupiah(Number(p.amount) || 0) }}</b>
@@ -384,7 +422,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
 
     <div
       v-if="r.notes"
-      class="rounded-xl border border-default p-3 text-sm"
+      class="rounded-lg border border-default p-3 text-sm"
     >
       <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted">
         Catatan khusus
@@ -394,15 +432,20 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
       </p>
     </div>
     <div
-      v-if="r.foodReq || r.drinkReq"
-      class="rounded-xl border border-default p-3 text-sm"
+      v-if="r.docReqData"
+      class="rounded-lg border border-default p-3 text-sm"
     >
       <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted">
-        Menu request
+        Dokumen special request
       </p>
-      <p class="text-default">
-        {{ [r.foodReq, r.drinkReq].filter(Boolean).join(' · ') }}
-      </p>
+      <UButton
+        :label="`Lihat (${r.docReqName || 'dokumen'})`"
+        icon="i-lucide-file-text"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        @click="lihatBukti(r.docReqData, r.docReqName)"
+      />
     </div>
 
     <div v-if="gelombang.length">
@@ -447,7 +490,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
         <div
           v-for="(f, i) in r.followups"
           :key="i"
-          class="rounded-field bg-muted p-2.5"
+          class="rounded-lg bg-muted p-2.5"
         >
           <p class="text-default">
             {{ f.note }}
@@ -508,7 +551,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
 
     <div
       v-if="r.cancelReason"
-      class="rounded-xl border border-error/40 p-3 text-sm"
+      class="rounded-lg border border-error/40 p-3 text-sm"
     >
       <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-error">
         Alasan batal
@@ -518,56 +561,47 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
       </p>
     </div>
 
-    <div
-      v-if="r.docReqData"
-      class="rounded-xl border border-default p-3 text-sm"
-    >
-      <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted">
-        Dokumen special request
-      </p>
-      <UButton
-        :label="`Lihat (${r.docReqName || 'dokumen'})`"
-        icon="i-lucide-file-text"
-        color="neutral"
-        variant="ghost"
-        size="xs"
-        @click="lihatBukti(r.docReqData, r.docReqName)"
-      />
-    </div>
-
-    <div v-if="(r.log ?? []).length">
+    <div>
       <AppSectionTitle
         title="Riwayat aktivitas"
         icon="i-lucide-list"
       />
-      <UButton
-        label="Lihat di Audit Log"
-        icon="i-lucide-arrow-up-right"
-        color="neutral"
-        variant="ghost"
-        size="sm"
-        to="/reservasi/audit"
-      />
-      <div class="mt-2 space-y-1.5 text-sm">
-        <div
-          v-for="(l, i) in r.log"
-          :key="i"
-          class="rounded-field bg-muted p-2.5"
-        >
-          <p class="font-semibold text-highlighted">
-            {{ l.action }}
-          </p>
-          <p
-            v-if="l.detail"
-            class="text-default"
+      <p
+        v-if="!(r.log ?? []).length"
+        class="rounded-lg bg-muted p-3 text-sm text-muted"
+      >
+        Belum ada aktivitas yang tercatat untuk reservasi ini.
+      </p>
+      <template v-else>
+        <UButton
+          label="Lihat di Audit Log"
+          icon="i-lucide-arrow-up-right"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          to="/reservasi/audit"
+        />
+        <div class="mt-2 space-y-1.5 text-sm">
+          <div
+            v-for="(l, i) in r.log"
+            :key="i"
+            class="rounded-lg bg-muted p-2.5"
           >
-            {{ l.detail }}
-          </p>
-          <p class="mt-0.5 text-xs text-muted">
-            {{ l.by || '—' }}{{ l.role ? ` (${l.role})` : '' }}, {{ capWaktu(l.ts) }}
-          </p>
+            <p class="font-semibold text-highlighted">
+              {{ l.action }}
+            </p>
+            <p
+              v-if="l.detail"
+              class="text-default"
+            >
+              {{ l.detail }}
+            </p>
+            <p class="mt-0.5 text-xs text-muted">
+              {{ l.by || '—' }}{{ l.role ? ` (${l.role})` : '' }}, {{ capWaktu(l.ts) }}
+            </p>
+          </div>
         </div>
-      </div>
+      </template>
     </div>
   </div>
 

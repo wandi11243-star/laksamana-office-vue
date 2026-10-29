@@ -2754,9 +2754,23 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
 
     <ResponsiveSheet
       v-model:open="sheetAksi"
+      detail
       :title="aksi?.name ?? 'Detail reservasi'"
       :description="aksi ? `${tglPendek(aksi.date)} · ${aksi.time} · meja ${aksi.table || '—'} · ${aksi.pax} pax` : ''"
     >
+      <template #title>
+        <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
+          <span>{{ aksi?.name ?? 'Detail reservasi' }}</span>
+          <AppStatus
+            v-if="aksi"
+            :color="statusWarna[aksi.status] ?? 'neutral'"
+            :icon="statusIkon[aksi.status]"
+            size="sm"
+          >
+            {{ aksi.status }}
+          </AppStatus>
+        </span>
+      </template>
       <div
         v-if="aksi"
         class="space-y-4"
@@ -2767,29 +2781,27 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           :boleh-minta-kwitansi="bolehFinance"
           :boleh-langsung-kwitansi="bolehMaster"
           :boleh-ubah-gelombang="bolehEdit"
+          :boleh-tambah-dp="bolehFinance"
+          :show-reservation-status="false"
           @berubah="refresh"
+          @tambah-dp="sheetAksi = false; sheetTambahDp = true"
         />
 
-        <div>
+        <div v-if="bolehEdit && (['Pending', 'Confirmed'].includes(aksi.status) || aksiTelat || aksiDuduk)">
           <AppSectionTitle
-            title="Aksi cepat"
-            icon="i-lucide-zap"
+            title="Ubah status"
+            icon="i-lucide-arrow-left-right"
           />
-          <div class="flex flex-col gap-2">
+          <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <UButton
               v-if="bolehEdit && ['Pending', 'Confirmed'].includes(aksi.status)"
               label="Tandai datang"
-              size="xl"
-              @click="bukaDatang(aksi, true)"
-            />
-            <UButton
-              v-if="bolehEdit && ['Pending', 'Confirmed'].includes(aksi.status)"
-              :label="aksiTelat ? 'Follow up tamu (telat)' : 'Follow up tamu'"
-              icon="i-lucide-phone"
+              icon="i-lucide-user-round-check"
               color="success"
               variant="soft"
-              size="xl"
-              @click="followUp(aksi)"
+              size="sm"
+              class="min-h-11 justify-center whitespace-normal"
+              @click="bukaDatang(aksi, true)"
             />
             <UButton
               v-if="bolehEdit && aksiTelat"
@@ -2797,15 +2809,56 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               icon="i-lucide-user-x"
               color="error"
               variant="soft"
-              size="xl"
+              size="sm"
+              class="min-h-11 justify-center whitespace-normal"
               @click="bukaNoShow(aksi)"
+            />
+            <UButton
+              v-if="bolehEdit && aksiDuduk"
+              label="Selesai (tamu pulang)"
+              icon="i-lucide-check"
+              color="neutral"
+              variant="soft"
+              size="sm"
+              class="min-h-11 justify-center whitespace-normal"
+              @click="selesai(aksi)"
+            />
+            <UButton
+              v-if="bolehEdit && !['Datang', 'Cancelled', 'No-show'].includes(aksi.status)"
+              label="Batalkan"
+              icon="i-lucide-ban"
+              color="error"
+              variant="soft"
+              size="sm"
+              class="min-h-11 justify-center whitespace-normal"
+              @click="bukaBatal(aksi)"
+            />
+          </div>
+        </div>
+
+        <div>
+          <AppSectionTitle
+            title="Aksi operasional"
+            icon="i-lucide-zap"
+          />
+          <div class="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            <UButton
+              v-if="bolehEdit && ['Pending', 'Confirmed'].includes(aksi.status)"
+              :label="aksiTelat ? 'Follow up tamu (telat)' : 'Follow up tamu'"
+              icon="i-lucide-phone"
+              color="success"
+              variant="soft"
+              size="sm"
+              class="min-h-11 justify-start whitespace-normal"
+              @click="followUp(aksi)"
             />
             <UButton
               v-if="bolehEdit && canAddArrival(aksi)"
               :label="`Tamu datang lagi (sisa ${remainingPax(aksi)})`"
               color="neutral"
               variant="soft"
-              size="xl"
+              size="sm"
+              class="min-h-11 justify-start whitespace-normal"
               @click="bukaDatang(aksi, false)"
             />
             <UButton
@@ -2813,54 +2866,47 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :label="`Kembali ke meja asli (${aksi.tableAsli})`"
               color="neutral"
               variant="soft"
-              size="xl"
+              size="sm"
+              class="min-h-11 justify-start whitespace-normal"
               @click="kembaliKeAsli(aksi)"
-            />
-            <UButton
-              v-if="bolehEdit && aksiDuduk"
-              label="Selesai (tamu pulang)"
-              color="neutral"
-              variant="soft"
-              size="xl"
-              @click="selesai(aksi)"
             />
             <UButton
               v-if="bolehEdit"
               :label="aksi.sharing ? 'Batalkan sharing' : 'Jadikan sharing'"
+              icon="i-lucide-handshake"
               color="neutral"
-              variant="ghost"
-              size="xl"
+              variant="outline"
+              size="sm"
+              class="min-h-11 justify-start whitespace-normal"
               @click="toggleSharing(aksi)"
             />
             <UButton
               v-if="bolehEdit && aksi.table"
               label="Pindah meja"
+              icon="i-lucide-arrow-right-left"
               color="neutral"
-              variant="ghost"
-              size="xl"
+              variant="outline"
+              size="sm"
+              class="min-h-11 justify-start whitespace-normal"
               @click="bukaPindah(aksi, 'move')"
             />
             <UButton
               v-if="bolehEdit && aksi.table"
               label="Tambah meja"
+              icon="i-lucide-armchair"
               color="neutral"
-              variant="ghost"
-              size="xl"
+              variant="outline"
+              size="sm"
+              class="min-h-11 justify-start whitespace-normal"
               @click="bukaPindah(aksi, 'add')"
             />
             <UButton
-              v-if="bolehEdit && !['Datang', 'Cancelled', 'No-show'].includes(aksi.status)"
-              label="Batalkan reservasi"
-              color="error"
-              variant="soft"
-              size="xl"
-              @click="bukaBatal(aksi)"
-            />
-            <UButton
               label="Buka & sunting"
+              icon="i-lucide-square-pen"
               color="neutral"
               variant="outline"
-              size="xl"
+              size="sm"
+              class="min-h-11 justify-start whitespace-normal"
               :to="`/reservasi/input?id=${aksi.id}`"
             />
           </div>

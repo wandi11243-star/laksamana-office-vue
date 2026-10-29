@@ -11,6 +11,8 @@ import { useMediaQuery } from '@vueuse/core'
 defineProps<{
   title: string
   description?: string
+  /** Wider modal and bounded, independently scrollable body for long record details. */
+  detail?: boolean
 }>()
 
 const open = defineModel<boolean>('open', { default: false })
@@ -23,7 +25,18 @@ const desktop = useMediaQuery('(min-width: 1024px)')
     v-model:open="open"
     :title="title"
     :description="description"
+    :ui="detail ? {
+      content: 'max-w-4xl rounded-xl',
+      body: 'max-h-[72vh] overflow-y-auto',
+      footer: 'flex-wrap justify-end',
+    } : undefined"
   >
+    <template
+      v-if="$slots.title"
+      #title
+    >
+      <slot name="title" />
+    </template>
     <template
       v-if="$slots.default"
       #body
@@ -34,7 +47,7 @@ const desktop = useMediaQuery('(min-width: 1024px)')
       v-if="$slots.footer"
       #footer
     >
-      <div class="flex w-full flex-row-reverse gap-2">
+      <div :class="detail ? 'flex w-full flex-wrap items-center justify-end gap-2' : 'flex w-full flex-row-reverse gap-2'">
         <slot name="footer" />
       </div>
     </template>
@@ -44,7 +57,21 @@ const desktop = useMediaQuery('(min-width: 1024px)')
     v-model:open="open"
     :title="title"
     :description="description"
+    :close="detail"
+    :ui="detail ? {
+      content: 'max-h-[92dvh]',
+      container: 'h-[92dvh] max-h-[92dvh] gap-0 overflow-hidden p-0',
+      header: 'px-4 pt-4 pb-3 sm:px-6',
+      body: 'min-h-0 flex-1 overflow-y-auto px-4 py-3',
+      footer: 'shrink-0 border-t border-default bg-default px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))]',
+    } : undefined"
   >
+    <template
+      v-if="$slots.title"
+      #title
+    >
+      <slot name="title" />
+    </template>
     <template
       v-if="$slots.default"
       #body
@@ -55,7 +82,7 @@ const desktop = useMediaQuery('(min-width: 1024px)')
       v-if="$slots.footer"
       #footer
     >
-      <div class="grid gap-2 [&>*]:w-full [&>*]:justify-center">
+      <div :class="detail ? 'grid w-full grid-cols-2 gap-2 [&>*]:min-h-11 [&>*]:w-full [&>*]:justify-center' : 'grid gap-2 [&>*]:w-full [&>*]:justify-center'">
         <slot name="footer" />
       </div>
     </template>
