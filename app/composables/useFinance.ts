@@ -113,7 +113,7 @@ export interface KkState {
 const VERSIONS = (m?: Record<string, unknown>) => (m?.versions ?? {}) as Record<string, Versi>
 
 /** Bootstrap (`getAll`): pos, kategori, trx, akses, peran. */
-export const getKk = () => useApi()<Envelope<KkState>>('/finance/petty-cash/')
+export const getKk = () => useApi()<Envelope<KkState>>('/finance/petty-cash')
 
 /** `GET /transactions?from&to` + `meta.versions` per row. */
 export async function getKkTrx(from?: string, to?: string) {
