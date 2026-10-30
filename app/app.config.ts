@@ -31,7 +31,7 @@ export default defineAppConfig({
     },
     // Active item: canary-tint fill, dark yellow words, a 3px canary bar.
     navigationMenu: {
-      slots: { link: 'rounded-field py-2' },
+      slots: { list: 'flex flex-col gap-1', link: 'rounded-field px-4 py-2.5' },
       compoundVariants: [
         { orientation: 'vertical', active: true, class: {
           link: 'bg-yellow-light text-yellow-dark font-semibold before:bg-yellow-light after:absolute after:inset-y-2 after:start-0 after:w-[3px] after:rounded-full after:bg-yellow-deep',

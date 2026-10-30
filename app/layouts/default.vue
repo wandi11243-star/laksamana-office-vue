@@ -1,9 +1,10 @@
 <!--
   App shell, laid out like the old Office (DESIGN.md › Shell):
   a 248px sidebar on the left and a top bar over the content; the hamburger
-  hides the sidebar. Below lg the sidebar gives way to a bottom bar (AppNavBawah).
-  Inside a module with its own chrome (utils/modul-shell.ts) the top bar carries
-  the module's search, gold "+" and bell.
+  collapses the sidebar to an icon rail. Below lg the sidebar gives way to a
+  bottom bar (AppNavBawah). Inside a module with its own chrome
+  (utils/modul-shell.ts) the top bar carries the module's search, gold "+"
+  and bell.
 -->
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
@@ -45,15 +46,17 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    class="min-h-dvh lg:grid print:block"
-    :class="sembunyi ? 'lg:grid-cols-[0_1fr]' : 'lg:grid-cols-[248px_1fr]'"
+    class="min-h-dvh transition-[grid-template-columns] duration-200 lg:grid print:block"
+    :class="sembunyi ? 'lg:grid-cols-[76px_1fr]' : 'lg:grid-cols-[248px_1fr]'"
   >
     <aside
       v-if="desktop"
       class="sticky top-0 h-dvh overflow-hidden border-e border-default print:hidden"
-      :class="sembunyi && 'invisible'"
     >
-      <AppSidebar :key="key" />
+      <AppSidebar
+        :key="key"
+        :mini="sembunyi"
+      />
     </aside>
 
     <div class="min-w-0">
