@@ -96,7 +96,7 @@ const esbConfirmOpen = ref(false)
 async function isiKeluarEsb(force = false) {
   if (esbLoading.value || menyimpan.value || !data.value || status.value === 'pending') return
   const date = tanggal.value
-  const filled = items.value.filter(it => form[it.k]?.out > 0).length
+  const filled = items.value.filter(it => (form[it.k]?.out ?? 0) > 0).length
   if (filled && !force) { esbConfirmOpen.value = true; return }
   esbConfirmOpen.value = false
   esbLoading.value = true
