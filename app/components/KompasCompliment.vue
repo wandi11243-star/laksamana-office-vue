@@ -69,10 +69,16 @@ async function tarikComplimentEsb() {
   esbMessage.value = `Menarik bill ${tglPanjang(date)} dari ESB…`
   try {
     if (statusRoster.value === 'pending' || errRoster.value) {
-      try { await refreshRoster() }
-      catch { esbWarnings.value.push('Roster kasir Office gagal dimuat; PIC yang tidak dapat dicocokkan akan tetap Tamu.') }
+      try {
+        await refreshRoster()
+      }
+      catch {
+        esbWarnings.value.push('Roster kasir Office gagal dimuat; PIC yang tidak dapat dicocokkan akan tetap Tamu.')
+      }
     }
-    const { summary, ganda } = await tarikCashierEsb(date, message => { if (tanggalRevision === revision) esbMessage.value = message })
+    const { summary, ganda } = await tarikCashierEsb(date, (message) => {
+      if (tanggalRevision === revision) esbMessage.value = message
+    })
     if (tanggalRevision !== revision) return
     if (data.value?.comps.value == null) throw new Error('Daftar compliment belum termuat; tidak ada catatan yang diubah.')
     let employees: { id: string, name: string, officeUserId?: string | null }[] = []
@@ -107,7 +113,6 @@ async function tarikComplimentEsb() {
   }
   finally { esbLoading.value = false }
 }
-
 
 // PIC Kasir only from Tim Kasir; PIC Pemberi from marketing/event/office (:2004-2011).
 const orang = computed(() => rosterComp(roster.value))
@@ -273,7 +278,12 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
     >
       <div class="flex flex-wrap items-center gap-3">
         <UButton label="Tarik & catat dari ESB" icon="i-lucide-download" :loading="esbLoading" :disabled="!data || menyimpan" @click="tarikComplimentEsb()" />
-        <p v-if="esbMessage" class="text-sm text-muted">{{ esbMessage }}</p>
+        <p
+          v-if="esbMessage"
+          class="text-sm text-muted"
+        >
+          {{ esbMessage }}
+        </p>
       </div>
       <UAlert v-if="esbError" class="mt-3" color="error" variant="subtle" icon="i-lucide-triangle-alert" :title="esbError" />
       <UAlert v-for="warning in esbWarnings" :key="warning" class="mt-3" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="warning" />
