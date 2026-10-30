@@ -460,8 +460,8 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
             v-if="bolehEdit && detail"
             label="Edit cepat"
             icon="i-lucide-zap"
-            color="neutral"
-            variant="ghost"
+            color="info"
+            variant="soft"
             size="xl"
             @click="sheetEditCepat = true"
           />
