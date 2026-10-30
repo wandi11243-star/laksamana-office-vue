@@ -39,15 +39,22 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
   <div
     role="button"
     tabindex="0"
-    class="block w-full min-w-0 cursor-pointer overflow-hidden rounded-lg border bg-default px-3 py-2.5 text-start transition hover:border-accented"
+    title="Seret untuk pindah kolom"
+    class="block w-full min-w-0 cursor-grab overflow-hidden rounded-lg border bg-default px-3 py-2.5 text-start transition hover:border-accented active:cursor-grabbing"
     :class="[hal.length ? 'border-lilac-light' : 'border-default', dragging ? 'opacity-50' : '']"
     @click="emit('buka')"
     @keydown.enter.self="emit('buka')"
   >
-    <span
-      class="block break-words text-sm font-semibold leading-snug"
-      :class="sel ? 'text-muted line-through' : 'text-highlighted'"
-    >{{ task.name }}</span>
+    <span class="flex items-start gap-1">
+      <UIcon
+        name="i-lucide-grip-vertical"
+        class="mt-0.5 size-4 shrink-0 cursor-grab text-dimmed"
+      />
+      <span
+        class="block min-w-0 flex-1 break-words text-sm font-semibold leading-snug"
+        :class="sel ? 'text-muted line-through' : 'text-highlighted'"
+      >{{ task.name }}</span>
+    </span>
     <span
       v-if="hal.length"
       class="mt-1 flex items-start gap-1 text-[11px] font-semibold text-ink-900"

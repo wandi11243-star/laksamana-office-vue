@@ -1,16 +1,12 @@
 <!--
   One task list as a Kanban board (old `kanbanHtml`, deploy/bd/index.html:2219).
-  One column per status; in Aktif mode the Done column stays as a drop target
-  but shows only the archived count — without it no card could be finished
-  from the board. Dropping onto Done runs the one guard (`cekBolehDone`);
-  "+ Tambah kartu" births a row with empty sub-tasks and no order.
+  A thin wrapper over AppKanban: the board owns drag state and the
+  always-visible "Pindah ke…" picker, this file only maps BD columns/cards and
+  keeps the two BD behaviours — the Done guard (`cekBolehDone`) and "+ Tambah
+  kartu" birthing a row with no order (new cards sort at the bottom through
+  `kanbanUrut`). Cards are `BdKanbanCard` (old `boardCard`), not the list row.
 
-  Cards are `BdKanbanCard` (old `boardCard`), not the list row: the row's
-  tick, edit and delete buttons left ~100px for the text in a 240px column and
-  pushed nowrap chips out of the card. While dragging, the dragged card fades
-  and the target column is highlighted (old `.dragging` / `.drop`).
-
-  Shared by My Task and the project detail Kanban tab.
+  Shared by My Task, Daily and the project detail Kanban tab.
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
@@ -40,6 +36,7 @@ const props = withDefaults(defineProps<{
   arsip: 'aktif',
   allowAdd: true,
 })
+
 const emit = defineEmits<{
   buka: [t: BdTask]
   subToggle: [t: BdTask, ix: number, on: boolean]
@@ -48,6 +45,12 @@ const emit = defineEmits<{
 const toast = useToast()
 const bank = computed(() => props.semua ?? props.tasks)
 const kolom = computed(() => (props.arsip === 'arsip' ? ['Done'] : STATUS_FLOW))
+const kolomKanban = computed(() => kolom.value.map(st => ({
+  id: st,
+  title: st,
+  count: arsipKolom(st),
+  items: isiKolom(st),
+})))
 const isiKolom = (st: string) => {
   const l = props.tasks.filter(t => (t.status || 'To Do') === st).slice().sort(kanbanUrut(st))
   return (st === 'Done' && props.arsip === 'aktif') ? [] : l
@@ -55,30 +58,12 @@ const isiKolom = (st: string) => {
 const arsipKolom = (st: string) => props.tasks.filter(t => (t.status || 'To Do') === st).length
 const namaProject = (id?: string | null) => props.projects?.find(p => p.id === id)?.name
 
-// ---- drag between columns (desktop) ----
-const dragId = ref<string | null>(null)
-const kolomSasaran = ref<string | null>(null)
-function dragMulai(e: DragEvent, t: BdTask) {
-  dragId.value = t.id
-  if (e.dataTransfer) e.dataTransfer.effectAllowed = 'move'
-  e.dataTransfer?.setData('text/plain', t.id)
-}
-function dragSelesai() {
-  dragId.value = null
-  kolomSasaran.value = null
-}
-function dragKeluar(e: DragEvent, st: string) {
-  // dragleave also fires when moving onto a child card; only clear when the
-  // pointer really left the column.
-  const ke = e.relatedTarget as Node | null
-  if (ke && (e.currentTarget as HTMLElement).contains(ke)) return
-  if (kolomSasaran.value === st) kolomSasaran.value = null
-}
-async function dropKolom(st: string) {
-  const t = bank.value.find(x => x.id === dragId.value)
-  dragSelesai()
-  if (!t || t.status === st) return
-  if (st === 'Done') {
+// Dropping onto Done runs the one guard (`cekBolehDone`); a dragged card
+// lands at the bottom of its new column (`pindahKe` + `kanbanUrut`).
+async function pindahKartu(p: { id: string, to: string }) {
+  const t = bank.value.find(x => x.id === p.id)
+  if (!t || t.status === p.to) return
+  if (p.to === 'Done') {
     const cek = cekBolehDone(t, t.dependsOn, bank.value)
     if (!cek.boleh) {
       toast.add({ title: pesanTunggu(t, cek.nama), color: 'error' })
@@ -88,10 +73,10 @@ async function dropKolom(st: string) {
   // PUT carries the whole row: dragging OUT of Done must also drop `doneAt`.
   // Dragged cards land at the bottom of their new column (`pindahKe`).
   const { updatedAt: _buang, ...sisa } = t
-  const body = { ...sisa, status: st, pindahKe: { st, at: Date.now() } }
+  const body = { ...sisa, status: p.to, pindahKe: { st: p.to, at: Date.now() } }
   segarkanProgress(body)
   const ok = await bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
-  if (ok && st === 'Done') await lahirkanUlangSetelah({ ...t, ...body, id: t.id }, bank.value)
+  if (ok && p.to === 'Done') await lahirkanUlangSetelah({ ...t, ...body, id: t.id }, bank.value)
 }
 
 // ---- "+ Tambah kartu" (boardTambah) ----
@@ -127,56 +112,53 @@ async function tambahKartu(st: string) {
 </script>
 
 <template>
-  <div class="grid auto-cols-[minmax(240px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-2">
-    <section
-      v-for="st in kolom"
-      :key="st"
-      class="min-w-0 rounded-xl border bg-muted/40 transition-colors"
-      :class="kolomSasaran === st ? 'border-yellow-deep bg-yellow-light' : 'border-default'"
-      @dragover.prevent="kolomSasaran = st"
-      @dragleave="dragKeluar($event, st)"
-      @drop.prevent="dropKolom(st)"
-    >
-      <header class="flex items-center justify-between border-b border-default px-3 py-2">
-        <span class="text-sm font-bold text-highlighted">{{ st }}</span>
-        <span class="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-ink-900 num">{{ arsipKolom(st) }}</span>
-      </header>
-      <div class="grid gap-2 p-2">
-        <BdKanbanCard
-          v-for="t in isiKolom(st)"
-          :key="t.id"
-          :task="t"
-          :semua="bank"
-          :people="people"
-          :project-name="showProject ? namaProject(t.project) : undefined"
-          :dragging="dragId === t.id"
-          draggable="true"
-          @dragstart="dragMulai($event, t)"
-          @dragend="dragSelesai"
-          @buka="emit('buka', t)"
-          @sub-toggle="(ix: number, on: boolean) => emit('subToggle', t, ix, on)"
-        />
-        <div
-          v-if="st === 'Done' && arsip === 'aktif'"
-          class="rounded-field border border-dashed border-default px-3 py-4 text-center text-xs text-muted"
-        >
-          {{ arsipKolom(st) ? `${arsipKolom(st)} task Done diarsipkan` : 'Seret kartu ke sini kalau sudah selesai' }}
-        </div>
-        <div
-          v-if="allowAdd && st !== 'Done'"
-          class="px-1 pb-1"
-        >
-          <UInput
-            :ref="(el) => { tambahInput[st] = el }"
-            :model-value="tambah[st] || ''"
-            :placeholder="`+ Tambah kartu, Enter…`"
-            size="sm"
-            class="w-full"
-            @update:model-value="(v: string | number) => tambah[st] = String(v)"
-            @keydown.enter="tambahKartu(st)"
-          />
-        </div>
+  <AppKanban
+    :columns="kolomKanban"
+    layout="scroll"
+    move-placeholder="Pindah ke…"
+    @move="pindahKartu"
+  >
+    <template #header="{ column }">
+      <span class="text-sm font-bold text-highlighted">{{ column.title }}</span>
+      <span class="rounded-full bg-default px-2 py-0.5 text-xs font-bold text-ink-900 num">{{ column.count }}</span>
+    </template>
+    <template #card="{ item, dragging, dragStart, dragEnd }">
+      <BdKanbanCard
+        :task="item"
+        :semua="bank"
+        :people="people"
+        :project-name="showProject ? namaProject(item.project) : undefined"
+        :dragging="dragging"
+        draggable="true"
+        @dragstart="dragStart"
+        @dragend="dragEnd"
+        @buka="emit('buka', item)"
+        @sub-toggle="(ix: number, on: boolean) => emit('subToggle', item, ix, on)"
+      />
+    </template>
+    <template #empty="{ column }">
+      <div
+        v-if="column.id === 'Done' && arsip === 'aktif'"
+        class="rounded-field border border-dashed border-default px-3 py-4 text-center text-xs text-muted"
+      >
+        {{ arsipKolom(column.id) ? `${arsipKolom(column.id)} task Done diarsipkan` : 'Seret kartu ke sini kalau sudah selesai' }}
       </div>
-    </section>
-  </div>
+    </template>
+    <template #footer="{ column }">
+      <div
+        v-if="allowAdd && column.id !== 'Done'"
+        class="px-1 pb-1"
+      >
+        <UInput
+          :ref="(el) => { tambahInput[column.id] = el }"
+          :model-value="tambah[column.id] || ''"
+          :placeholder="`+ Tambah kartu, Enter…`"
+          size="sm"
+          class="w-full"
+          @update:model-value="(v: string | number) => tambah[column.id] = String(v)"
+          @keydown.enter="tambahKartu(column.id)"
+        />
+      </div>
+    </template>
+  </AppKanban>
 </template>

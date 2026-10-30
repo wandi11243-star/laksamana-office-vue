@@ -3,17 +3,21 @@
   deploy/marketing/index.html:6163-6923; marketing.md D.3). One PIC row on top
   for both tabs, the "Peluang Aktif" strip, then:
 
-  - Kanban: the six PIPE_COLS (Event Done has no column, F.11). A card opens
-    in place (Client, Pax, Nilai, Buka Event). Dragging to another column asks
-    "Pindahkan ke X?" first; Quotation Terkirim needs an approved offer letter
-    (pindahBolehMkt, F.3). Moving up is never blocked, only reminded (F.10).
-    Moving to Deal opens the handover tasks. On phones the columns stack and
-    an open card has "Pindah tahap" instead of dragging.
+  - Kanban (AppKanban + AppKanbanCard): the six PIPE_COLS (Event Done has no
+    column, F.11). A card opens in place (Client, Pax, Nilai, Buka Event).
+    Dragging to another column asks "Pindahkan ke X?" first; Quotation Terkirim
+    needs an approved offer letter (pindahBolehMkt, F.3). Moving up is never
+    blocked, only reminded (F.10). Moving to Deal opens the handover tasks.
+    Every card also carries an always-visible "Pindah ke…" picker, so touch
+    users move cards without dragging. Cards are only draggable with
+    edit_event — without it the grip, the card and the picker visibly disable
+    with a reason tooltip instead of silently doing nothing.
   - Daftar Event: period (Semua / Hari ini / Minggu ini / Bulan ini + month
     stepper), status (default "Semua kecuali selesai"), search, Reset filter.
 
   Correction vs the old client: dragging a card never checked edit_event, so
-  anyone who could open the board could move a stage. It needs edit_event here.
+  anyone who could open the board could move a stage. It needs edit_event
+  here, enforced visibly on the card, the grip and the picker.
   Drag carries a dataTransfer payload (Firefox never fires drop without one).
 -->
 <script setup lang="ts">
@@ -66,25 +70,20 @@ const ringkas = computed(() => PIPE_COLS_MKT.map((k) => {
 }))
 const totalAktif = computed(() => aktif.value.reduce((a, e) => a + grand(e), 0))
 
-// ---- kanban ----
-const kolom = computed(() => PIPE_COLS_MKT.map(c => ({ c, items: st.value.events.filter(e => kolomPipeMkt(e) === c && cocokPic(e)) })))
-const seret = ref<string | null>(null)
-const atas = ref<string | null>(null)
-/** A click fires right after a drop on the same card — swallow it once. */
-let klikHantu = false
-function seretMulai(ev: DragEvent, id: string) {
-  seret.value = id
-  klikHantu = false
-  // Firefox never fires drop without payload: the JS ref alone is not enough.
-  ev.dataTransfer?.setData('text/plain', id)
-  if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move'
-}
-function klikKartu(id: string) {
-  if (klikHantu) {
-    klikHantu = false
-    return
-  }
+// ---- kanban (AppKanban owns the drag state; guards stay here) ----
+const kolomKanban = computed(() => PIPE_COLS_MKT.map(c => ({
+  id: c as string,
+  title: c as string,
+  items: st.value.events.filter(e => kolomPipeMkt(e) === c && cocokPic(e)),
+})))
+function alihKartu(id: string, telan: () => boolean) {
+  // A click fires right after a drop on the same card — swallow it once.
+  if (telan()) return
   buka.value = buka.value === id ? '' : id
+}
+function pindahMinta(p: { id: string, to: string }) {
+  const target = st.value.events.find(x => x.id === p.id)
+  if (target) minta(target, p.to)
 }
 const pindah = ref<{ e: EventMkt, ke: string } | null>(null)
 const pindahBuka = computed({ get: () => !!pindah.value, set: (v) => {
@@ -98,16 +97,6 @@ function minta(e: EventMkt, ke: string) {
   const tolak = pindahBolehMkt(e, ke)
   if (tolak) return toast.add({ title: 'Belum bisa ke Quotation Terkirim', description: tolak, color: 'error' })
   pindah.value = { e, ke }
-}
-function lepas(ev: DragEvent, col: string) {
-  ev.preventDefault()
-  // Prefer the payload (survives across frames); fall back to the ref.
-  const id = ev.dataTransfer?.getData('text/plain') || seret.value
-  atas.value = null
-  seret.value = null
-  klikHantu = true
-  const e = st.value.events.find(x => x.id === id)
-  if (e) minta(e, col)
 }
 async function pindahkan() {
   const p = pindah.value
@@ -129,7 +118,6 @@ async function pindahkan() {
   if (ke === 'Deal') toast.add({ title: 'Deal!', description: `${e.nama} masuk tahap eksekusi & handover divisi.`, color: 'success' })
   if (ingat) setTimeout(() => toast.add({ title: 'Data dasar belum lengkap', description: ingat, color: 'warning' }), 700)
 }
-const opsiPindah = (e: EventMkt) => [PIPE_COLS_MKT.filter(c => c !== kolomPipeMkt(e)).map(c => ({ label: c, onSelect: () => minta(e, c) }))]
 /** Old open-card "+ Ajukan Revisi": submitted offer, not yet a deal. */
 const bisaRevisi = (e: EventMkt) => {
   const p = (e.penawaran ?? {}) as Record<string, unknown>
@@ -293,121 +281,100 @@ const kosong = computed(() => {
         </div>
       </div>
 
-      <!-- Kanban -->
-      <div
+      <!-- Kanban: drag state lives in AppKanban, guards + sheet stay here -->
+      <AppKanban
         v-if="tab === 'kanban'"
-        class="grid gap-3 lg:grid-cols-6"
+        :columns="kolomKanban"
+        :can-drag="can('edit_event')"
+        drag-reason="Kamu tidak punya izin mengubah tahap event."
+        layout="grid"
+        empty-text="-"
+        @move="pindahMinta"
       >
-        <section
-          v-for="k in kolom"
-          :key="k.c"
-          class="flex min-w-0 flex-col rounded-xl border bg-muted"
-          :class="atas === k.c ? 'border-primary-400 bg-primary-50' : 'border-default'"
-          @dragover.prevent="atas = k.c"
-          @dragleave="atas === k.c && (atas = null)"
-          @drop="lepas($event, k.c)"
-        >
-          <header class="flex items-center gap-2 px-3 py-2.5">
-            <AppStatus
-              :color="warnaStatusMkt(k.c)"
-              :icon="ikonStatusMkt(k.c)"
-              size="sm"
-            >
-              {{ k.c }}
-            </AppStatus>
-            <span class="num ml-auto rounded-full bg-default px-2 text-xs font-bold">{{ k.items.length }}</span>
-          </header>
-          <div class="flex min-h-16 flex-1 flex-col gap-2 px-2 pb-2">
-            <div
-              v-for="e in k.items"
-              :key="e.id"
-              :draggable="can('edit_event')"
-              class="cursor-pointer rounded-lg border bg-default p-2.5 shadow-panel"
-              :class="[buka === e.id ? 'border-primary-400' : 'border-default hover:border-accented', seret === e.id ? 'opacity-40' : '']"
-              @dragstart="seretMulai($event, e.id)"
-              @dragend="seret = null; atas = null"
-              @click="klikKartu(e.id)"
-            >
+        <template #header="{ column }">
+          <AppStatus
+            :color="warnaStatusMkt(column.id)"
+            :icon="ikonStatusMkt(column.id)"
+            size="sm"
+          >
+            {{ column.title }}
+          </AppStatus>
+          <span class="num ml-auto rounded-full bg-default px-2 text-xs font-bold">{{ column.items.length }}</span>
+        </template>
+        <template #card="{ item, dragging, canDrag: bolehSeret, dragReason: alasanSeret, dragStart, dragEnd, swallowClick }">
+          <AppKanbanCard
+            :dragging="dragging"
+            :can-drag="bolehSeret"
+            :drag-reason="alasanSeret"
+            @dragstart="dragStart"
+            @dragend="dragEnd"
+            @card-click="alihKartu(item.id, swallowClick)"
+          >
+            <template #title>
               <p class="text-sm font-semibold text-highlighted">
-                {{ e.nama }}<span
-                  v-if="e.mktPIC"
+                {{ item.nama }}<span
+                  v-if="item.mktPIC"
                   class="font-normal text-muted"
-                > · {{ depan(e.mktPIC) }}</span>
+                > · {{ depan(item.mktPIC) }}</span>
               </p>
+            </template>
+            <template #meta>
               <p class="truncate text-xs text-muted">
-                {{ namaClient(e.clientId) }} · {{ jenisEvent(e) }}
+                {{ namaClient(item.clientId) }} · {{ jenisEvent(item) }}
               </p>
               <p
-                v-if="grand(e)"
+                v-if="grand(item)"
                 class="num mt-1 truncate text-xs font-semibold text-primary-700"
-                :title="rupiah(grand(e))"
+                :title="rupiah(grand(item))"
               >
-                {{ rupiah(grand(e)) }}
+                {{ rupiah(grand(item)) }}
               </p>
+            </template>
+            <template #actions>
               <div
-                v-if="buka === e.id"
+                v-if="buka === item.id"
                 class="mt-2 border-t border-default pt-2"
-                @click.stop
               >
                 <dl class="grid grid-cols-[3.5rem_1fr] gap-x-2 gap-y-0.5 text-xs">
                   <dt class="text-muted">
                     Client
                   </dt>
                   <dd class="font-semibold">
-                    {{ namaClient(e.clientId) }}
+                    {{ namaClient(item.clientId) }}
                   </dd>
                   <dt class="text-muted">
                     Pax
                   </dt>
                   <dd class="num">
-                    {{ e.pax || '—' }}
+                    {{ item.pax || '—' }}
                   </dd>
                   <dt class="text-muted">
                     Nilai
                   </dt>
                   <dd class="num">
-                    {{ grand(e) ? rupiah(grand(e)) : 'belum ada angka' }}
+                    {{ grand(item) ? rupiah(grand(item)) : 'belum ada angka' }}
                   </dd>
                 </dl>
                 <div class="mt-2 flex flex-wrap gap-1.5">
-                  <UDropdownMenu
-                    v-if="can('edit_event')"
-                    :items="opsiPindah(e)"
-                  >
-                    <UButton
-                      label="Pindah tahap"
-                      size="xs"
-                      color="neutral"
-                      variant="outline"
-                      trailing-icon="i-lucide-chevron-down"
-                      class="lg:hidden"
-                    />
-                  </UDropdownMenu>
                   <UButton
-                    v-if="can('edit_event') && bisaRevisi(e)"
+                    v-if="can('edit_event') && bisaRevisi(item)"
                     label="Ajukan Revisi"
                     size="xs"
                     color="neutral"
                     variant="outline"
-                    @click="router.push(`/marketing/event/${e.id}?revisi=1`)"
+                    @click="router.push(`/marketing/event/${item.id}?revisi=1`)"
                   />
                   <UButton
                     label="Buka Event"
                     size="xs"
-                    @click="router.push(`/marketing/event/${e.id}`)"
+                    @click="router.push(`/marketing/event/${item.id}`)"
                   />
                 </div>
               </div>
-            </div>
-            <p
-              v-if="!k.items.length"
-              class="py-3 text-center text-xs text-dimmed"
-            >
-              -
-            </p>
-          </div>
-        </section>
-      </div>
+            </template>
+          </AppKanbanCard>
+        </template>
+      </AppKanban>
 
       <!-- Daftar Event -->
       <template v-else>
