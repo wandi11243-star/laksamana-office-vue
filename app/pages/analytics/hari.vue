@@ -235,7 +235,7 @@ const kolomTgl: TableColumn<BarisTgl>[] = [
       <template v-if="harian.hari.value && !d" />
       <div
         v-else-if="!d"
-        class="rounded-field border border-default bg-elevated p-8 text-center"
+        class="rounded-panel border border-default bg-elevated p-8 text-center"
       >
         <p class="font-semibold">
           Belum ada laporan yang diunggah.

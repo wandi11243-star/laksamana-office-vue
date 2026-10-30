@@ -236,7 +236,7 @@ async function simpan() {
           <label
             v-for="o in po.baris"
             :key="o.nomorOrder"
-            class="flex flex-wrap items-center gap-2 rounded-field border border-default p-2"
+            class="flex flex-wrap items-center gap-2 rounded-panel border border-default p-2"
           >
             <UCheckbox
               :model-value="cekDatang(o)"

@@ -747,7 +747,7 @@ async function akLepas(i: InvestorBrankas) {
           </div>
           <div
             v-if="tmUrut(i).length"
-            class="mt-2 divide-y divide-default rounded-field border border-default"
+            class="mt-2 divide-y divide-default rounded-panel border border-default"
           >
             <div
               v-for="t in tmUrut(i)"

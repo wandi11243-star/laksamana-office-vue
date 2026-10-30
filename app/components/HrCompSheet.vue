@@ -73,7 +73,7 @@ async function simpan() {
       <div
         v-for="(sk, i) in skills"
         :key="i"
-        class="flex items-end gap-2 rounded-field border border-default p-3"
+        class="flex items-end gap-2 rounded-panel border border-default p-3"
       >
         <UFormField
           label="Kompetensi"

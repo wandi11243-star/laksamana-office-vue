@@ -151,7 +151,7 @@ const kolom: TableColumn<ErrorBill>[] = [
       <template v-if="harian.hari.value && !d" />
       <div
         v-else-if="!d"
-        class="rounded-field border border-default bg-elevated p-8 text-center"
+        class="rounded-panel border border-default bg-elevated p-8 text-center"
       >
         <p class="font-semibold">
           Belum ada laporan yang diunggah.
@@ -320,7 +320,7 @@ const kolom: TableColumn<ErrorBill>[] = [
 
         <div
           v-if="buka"
-          class="rounded-field border border-default bg-elevated p-4"
+          class="rounded-panel border border-default bg-elevated p-4"
         >
           <p class="mb-2 text-xs font-semibold">
             Menu di bill {{ buka }} — kolom Waiter-nya per baris, jadi satu bill bisa menyebut lebih dari satu nama.

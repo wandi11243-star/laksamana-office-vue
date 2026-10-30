@@ -393,7 +393,7 @@ async function segarkan() {
           <div
             v-for="b in baris"
             :key="b.k"
-            class="rounded-field border border-default p-3"
+            class="rounded-panel border border-default p-3"
           >
             <div class="flex flex-col gap-2 lg:flex-row lg:items-center">
               <div class="min-w-0 flex-1">
@@ -712,7 +712,7 @@ async function segarkan() {
                 </div>
                 <div
                   v-if="r.catatan"
-                  class="mt-2 rounded-field border border-default bg-muted px-3 py-2 text-[13px] leading-relaxed"
+                  class="mt-2 rounded-panel border border-default bg-muted px-3 py-2 text-[13px] leading-relaxed"
                 >
                   {{ r.catatan }}
                 </div>

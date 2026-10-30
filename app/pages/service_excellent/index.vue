@@ -612,7 +612,7 @@ async function simpanTarget() {
           <div
             v-for="o in riwayat.baris"
             :key="o.nama"
-            class="rounded-field border border-default p-3"
+            class="rounded-panel border border-default p-3"
           >
             <p class="font-semibold text-highlighted">
               {{ o.nama }}

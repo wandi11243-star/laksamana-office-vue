@@ -242,7 +242,7 @@ async function jalanHapus() {
             </UFormField>
           </div>
 
-          <p class="mt-4 rounded-field border border-dashed border-primary-300 bg-primary-50 px-3.5 py-3 text-sm text-primary-800">
+          <p class="mt-4 rounded-panel border border-dashed border-primary-300 bg-primary-50 px-3.5 py-3 text-sm text-primary-800">
             <b>Service Charge</b> dan <b>Tax</b> dicatat terpisah, tidak menambah/mengurangi omset. Keduanya tetap ditagihkan ke tamu,
             jadi ikut dijumlah saat dibandingkan dengan setoran kasir di <b>Report Daily</b>.
           </p>

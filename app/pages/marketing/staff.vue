@@ -508,7 +508,7 @@ const warnaLevel = (v: number) => (v === 2 ? 'success' : v === 1 ? 'info' : 'neu
           title="Super Admin selalu punya akses penuh dan tidak bisa dibatasi — supaya tidak ada yang terkunci dari sistem."
           class="mb-3"
         />
-        <ul class="divide-y divide-default rounded-field border border-default">
+        <ul class="divide-y divide-default rounded-panel border border-default">
           <li
             v-for="v in VIEW_KEYS_MKT"
             :key="v"

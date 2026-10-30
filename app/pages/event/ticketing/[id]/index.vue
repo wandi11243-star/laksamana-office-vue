@@ -703,7 +703,7 @@ function labelKursiTiket(sid?: string) {
             <li
               v-for="k in kelas"
               :key="k.id"
-              class="rounded-field border border-default px-3 py-2 text-sm"
+              class="rounded-panel border border-default px-3 py-2 text-sm"
             >
               <b class="text-highlighted">{{ k.name }}</b>
               <span class="mt-0.5 block text-xs text-muted num">
@@ -730,7 +730,7 @@ function labelKursiTiket(sid?: string) {
       <template v-else-if="tab === 'jual'">
         <div
           v-if="!kelas.length"
-          class="rounded-field border border-default bg-elevated p-8 text-center text-sm text-muted"
+          class="rounded-panel border border-default bg-elevated p-8 text-center text-sm text-muted"
         >
           Event ini belum punya satu kelas tiket pun.
           <span class="mt-1 block text-xs">Buat dulu di tab <b>Kelas tiket</b> — tanpa itu tidak ada yang bisa dijual.</span>
@@ -1224,7 +1224,7 @@ function labelKursiTiket(sid?: string) {
           <p class="text-xs text-muted">
             QR single-use. Tunjukkan saat check-in.
           </p>
-          <div class="rounded-field border border-default bg-muted p-2.5 text-xs text-muted">
+          <div class="rounded-panel border border-default bg-muted p-2.5 text-xs text-muted">
             Pembeli membuka barcode-nya sendiri di <b>laksamanamuda.id/ticketing</b> — daftar atau masuk memakai email
             <b class="break-all">{{ String(etiketOrder?.email || '—') }}</b>, tiketnya langsung muncul di menu
             <b>Tiket Saya</b>.

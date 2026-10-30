@@ -343,7 +343,7 @@ async function hapus() {
         </p>
       </section>
 
-      <section class="divide-y divide-default rounded-field border border-default">
+      <section class="divide-y divide-default rounded-panel border border-default">
         <label class="flex cursor-pointer items-center justify-between gap-4 px-3.5 py-3">
           <span>
             <span class="block text-sm font-semibold text-highlighted">Tampil di website</span>

@@ -335,7 +335,7 @@ const kolom: TableColumn<BarisRiwayat>[] = [
         description="Berkas .xlsx atau .csv hasil ekspor POS — Sales Recapitulation (omset, menu, jam). Diurai di peramban ini — yang dikirim ke server cuma ringkasannya, bukan barisnya."
       >
         <label
-          class="flex cursor-pointer items-start gap-3 rounded-field border-2 border-dashed border-default p-3 hover:border-primary-400"
+          class="flex cursor-pointer items-start gap-3 rounded-panel border-2 border-dashed border-default p-3 hover:border-primary-400"
           :class="!bolehUbah && 'pointer-events-none opacity-50'"
         >
           <UIcon

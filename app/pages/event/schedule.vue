@@ -871,7 +871,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
             Sudah dijadwalkan hari ini: {{ jadwal.filter(j => j.date === f.tanggal).map(j => `${j.start_time} ${namaTalent(j.talent_id)}`).join(' · ') }}
           </p>
           <UFormField label="Talent (boleh banyak)">
-            <div class="flex max-h-44 flex-wrap gap-1.5 overflow-y-auto rounded-field border border-default p-2">
+            <div class="flex max-h-44 flex-wrap gap-1.5 overflow-y-auto rounded-panel border border-default p-2">
               <button
                 v-for="t in talentUrut"
                 :key="t.id"
@@ -997,7 +997,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
           <div
             v-for="(tgl, i) in tglMinggu"
             :key="tgl"
-            class="rounded-field border border-default p-2"
+            class="rounded-panel border border-default p-2"
           >
             <p class="mb-1.5 flex items-center justify-between gap-2 text-xs font-bold text-highlighted">
               <span>{{ DOW[i] }}, {{ tglPendek(tgl) }}</span>
@@ -1066,7 +1066,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
             />
           </UFormField>
           <UFormField label="Talent (boleh banyak)">
-            <div class="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto rounded-field border border-default p-2">
+            <div class="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto rounded-panel border border-default p-2">
               <button
                 v-for="t in rtCocok"
                 :key="t.id"
@@ -1168,7 +1168,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
       >
         <div class="grid gap-3">
           <UFormField label="Talent (boleh banyak)">
-            <div class="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto rounded-field border border-default p-2">
+            <div class="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto rounded-panel border border-default p-2">
               <button
                 v-for="t in talentUrut"
                 :key="t.id"

@@ -488,7 +488,7 @@ async function segarkan() {
           <div
             v-for="b in baris"
             :key="b.k"
-            class="rounded-field border border-default p-3"
+            class="rounded-panel border border-default p-3"
           >
             <div class="flex flex-col gap-2 lg:flex-row lg:items-center">
               <div class="min-w-0 flex-1">

@@ -502,7 +502,7 @@ onBeforeUnmount(matikanKamera)
           />
           <div
             v-else
-            class="rounded-field border p-3 text-sm"
+            class="rounded-panel border p-3 text-sm"
             :class="hasilScan.jenis === 'masuk' ? 'border-success' : 'border-warning'"
           >
             <h3
@@ -582,7 +582,7 @@ onBeforeUnmount(matikanKamera)
 
         <div
           v-if="katAktif || hitungKat.baris.length > 1"
-          class="mx-4 mt-3 rounded-field border border-default p-3 text-sm"
+          class="mx-4 mt-3 rounded-panel border border-default p-3 text-sm"
         >
           <template v-if="katAktif">
             <div class="flex flex-wrap items-center gap-3">

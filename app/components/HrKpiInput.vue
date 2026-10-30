@@ -81,7 +81,7 @@ async function simpan() {
       <div
         v-for="it in template.items"
         :key="it.id"
-        class="rounded-field border border-default p-3"
+        class="rounded-panel border border-default p-3"
       >
         <UFormField :label="`${it.name} (${it.unit}), target ${angka(it.target)}`">
           <UInput

@@ -142,7 +142,7 @@ const pctBanding = (a: number, b: number) => b ? (a - b) / b * 100 : null
     <template v-else>
       <div
         v-if="!semua.length"
-        class="rounded-field border border-default bg-elevated p-8 text-center"
+        class="rounded-panel border border-default bg-elevated p-8 text-center"
       >
         <p class="font-semibold">
           Belum ada laporan yang diunggah.
@@ -335,7 +335,7 @@ const pctBanding = (a: number, b: number) => b ? (a - b) / b * 100 : null
                 >—</span>
               </template>
             </UTable>
-            <div class="mt-3 divide-y divide-default rounded-field border border-default lg:hidden">
+            <div class="mt-3 divide-y divide-default rounded-panel border border-default lg:hidden">
               <div
                 v-for="r in barisBanding"
                 :key="r.uraian"

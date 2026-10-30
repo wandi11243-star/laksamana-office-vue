@@ -75,7 +75,7 @@ const deskripsi = computed(() => (props.materi ? `Untuk: ${untuk.value}` : undef
 
       <div
         v-if="!dalamLingkup"
-        class="flex items-start gap-2 rounded-field bg-info/10 p-3 text-[13px] font-semibold text-info"
+        class="flex items-start gap-2 rounded-panel bg-info/10 p-3 text-[13px] font-semibold text-info"
       >
         <UIcon
           name="i-lucide-glasses"
@@ -96,7 +96,7 @@ const deskripsi = computed(() => (props.materi ? `Untuk: ${untuk.value}` : undef
       <template v-else-if="materi.type === 'video'">
         <div
           v-if="videoId"
-          class="aspect-video w-full overflow-hidden rounded-field bg-black"
+          class="aspect-video w-full overflow-hidden rounded-panel bg-black"
         >
           <iframe
             :src="`https://www.youtube.com/embed/${videoId}`"
@@ -107,7 +107,7 @@ const deskripsi = computed(() => (props.materi ? `Untuk: ${untuk.value}` : undef
         </div>
         <div
           v-else-if="materi.videoUrl"
-          class="rounded-field border border-default p-3 text-sm"
+          class="rounded-panel border border-default p-3 text-sm"
         >
           Link video:
           <a
@@ -133,7 +133,7 @@ const deskripsi = computed(() => (props.materi ? `Untuk: ${untuk.value}` : undef
         <label
           v-for="(s, i) in materi.steps ?? []"
           :key="i"
-          class="flex cursor-pointer items-start gap-2.5 rounded-field border border-default p-3"
+          class="flex cursor-pointer items-start gap-2.5 rounded-panel border border-default p-3"
         >
           <input
             v-model="sopCek[i]"
@@ -154,7 +154,7 @@ const deskripsi = computed(() => (props.materi ? `Untuk: ${untuk.value}` : undef
 
       <!-- Menu Baru -->
       <template v-else-if="materi.type === 'menu'">
-        <div class="rounded-field border border-default bg-muted p-4">
+        <div class="rounded-panel border border-default bg-muted p-4">
           <p class="text-[11px] font-bold uppercase tracking-wider text-muted">
             {{ materi.menu?.category || 'Menu' }}
           </p>
@@ -168,7 +168,7 @@ const deskripsi = computed(() => (props.materi ? `Untuk: ${untuk.value}` : undef
             {{ materi.menu?.desc || '' }}
           </p>
         </div>
-        <div class="rounded-field border border-default p-4">
+        <div class="rounded-panel border border-default p-4">
           <div class="grid grid-cols-[110px_1fr] gap-y-2 text-sm">
             <div class="text-[11px] font-bold uppercase tracking-wider text-muted">
               Komposisi
@@ -190,7 +190,7 @@ const deskripsi = computed(() => (props.materi ? `Untuk: ${untuk.value}` : undef
           <p class="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-primary-700">
             Selling script (hafalkan gayanya, bukan kata per kata)
           </p>
-          <div class="rounded-field bg-muted p-3 text-sm italic">
+          <div class="rounded-panel bg-muted p-3 text-sm italic">
             {{ materi.menu?.selling || '-' }}
           </div>
         </div>

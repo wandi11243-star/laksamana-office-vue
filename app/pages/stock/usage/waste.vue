@@ -677,7 +677,7 @@ async function segarkan() {
               </div>
               <div
                 v-if="r.catatan"
-                class="mt-2 rounded-field border border-default bg-muted px-3 py-2 text-[13px] leading-relaxed"
+                class="mt-2 rounded-panel border border-default bg-muted px-3 py-2 text-[13px] leading-relaxed"
               >
                 {{ r.catatan }}
               </div>

@@ -278,7 +278,7 @@ const kosong = computed(() => {
 
       <div
         v-if="kosong"
-        class="rounded-field border border-default bg-elevated p-8 text-center text-sm text-muted"
+        class="rounded-panel border border-default bg-elevated p-8 text-center text-sm text-muted"
       >
         {{ kosong }}
       </div>

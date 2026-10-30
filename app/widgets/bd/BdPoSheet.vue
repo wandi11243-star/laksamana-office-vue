@@ -150,7 +150,7 @@ async function hapus() {
     <div class="grid gap-4">
       <p
         v-if="peminta"
-        class="rounded-field border border-info/30 bg-info/10 p-3 text-sm"
+        class="rounded-panel border border-info/30 bg-info/10 p-3 text-sm"
       >
         Diajukan oleh <b>{{ peminta }}</b> {{ sejak }}
       </p>

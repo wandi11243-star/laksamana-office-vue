@@ -139,7 +139,7 @@ async function tambahKartu(st: string) {
     <template #empty="{ column }">
       <div
         v-if="column.id === 'Done' && arsip === 'aktif'"
-        class="rounded-field border border-dashed border-default px-3 py-4 text-center text-xs text-muted"
+        class="rounded-panel border border-dashed border-default px-3 py-4 text-center text-xs text-muted"
       >
         {{ arsipKolom(column.id) ? `${arsipKolom(column.id)} task Done diarsipkan` : 'Seret kartu ke sini kalau sudah selesai' }}
       </div>

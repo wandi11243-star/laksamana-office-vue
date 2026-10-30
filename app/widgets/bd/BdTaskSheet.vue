@@ -463,7 +463,7 @@ async function hapus() {
       </div>
       <div
         v-if="ulangTampilKustom"
-        class="rounded-field border border-default p-3"
+        class="rounded-panel border border-default p-3"
       >
         <p class="mb-2 text-xs font-bold text-highlighted">
           Kustom — {{ labelUlang(f.ulang === '__kustom' ? ulangKustom : f.ulang, f.deadline) }}
@@ -557,7 +557,7 @@ async function hapus() {
         </p>
         <div
           v-if="subDraf.length"
-          class="mb-2 divide-y divide-default rounded-field border border-default"
+          class="mb-2 divide-y divide-default rounded-panel border border-default"
         >
           <div
             v-for="(s, ix) in subDraf"
@@ -632,7 +632,7 @@ async function hapus() {
         </p>
         <div
           v-if="depCalon.length"
-          class="grid max-h-44 gap-1 overflow-y-auto rounded-field border border-default p-2"
+          class="grid max-h-44 gap-1 overflow-y-auto rounded-panel border border-default p-2"
         >
           <label
             v-for="x in depCalon"

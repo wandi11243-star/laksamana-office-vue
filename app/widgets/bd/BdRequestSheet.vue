@@ -86,7 +86,7 @@ async function simpan() {
     description="Tulis semua kebutuhan sekaligus — satu baris per barang."
   >
     <div class="grid gap-4">
-      <p class="rounded-field border border-default bg-muted p-3 text-xs text-muted">
+      <p class="rounded-panel border border-default bg-muted p-3 text-xs text-muted">
         Harga boleh dikosongkan kalau belum tahu; tim purchasing yang melengkapinya.
         Semua baris masuk berstatus <b>Diajukan</b>.
       </p>
@@ -119,7 +119,7 @@ async function simpan() {
         <div
           v-for="(b, i) in baris"
           :key="i"
-          class="rounded-field border border-default p-3"
+          class="rounded-panel border border-default p-3"
         >
           <div class="mb-2 flex items-center justify-between">
             <span class="text-[11px] font-bold uppercase tracking-wider text-muted">Baris {{ i + 1 }}</span>

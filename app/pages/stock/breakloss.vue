@@ -1151,7 +1151,7 @@ async function segarkan() {
                 </div>
                 <div
                   v-if="m.catatan"
-                  class="mt-2 rounded-field border border-default bg-muted px-3 py-2 text-[13px] leading-relaxed"
+                  class="mt-2 rounded-panel border border-default bg-muted px-3 py-2 text-[13px] leading-relaxed"
                 >
                   {{ m.catatan }}
                 </div>
@@ -1640,7 +1640,7 @@ async function segarkan() {
       description="Stok terkini menurut catatan"
     >
       <div class="grid gap-4">
-        <p class="rounded-field border border-default bg-muted px-3.5 py-2.5 text-sm">
+        <p class="rounded-panel border border-default bg-muted px-3.5 py-2.5 text-sm">
           Stok terkini menurut catatan: <b class="num">{{ fmtBil(moItem?.stok) }} {{ moItem?.satuan }}</b>
         </p>
         <div class="grid grid-cols-2 gap-3">

@@ -731,13 +731,13 @@ const namaHari = (tgl: string) => new Date(`${tgl}T00:00:00`).toLocaleDateString
           v-if="detail"
           class="grid grid-cols-2 gap-2 text-sm"
         >
-          <div class="rounded-field border border-default p-2.5">
+          <div class="rounded-panel border border-default p-2.5">
             <p class="text-xs text-muted">
               Hari tampil
             </p>
             <b class="num">{{ detail.hari }}</b>
           </div>
-          <div class="rounded-field border border-default p-2.5">
+          <div class="rounded-panel border border-default p-2.5">
             <p class="text-xs text-muted">
               Total (rata-rata/hari)
             </p>
@@ -746,13 +746,13 @@ const namaHari = (tgl: string) => new Date(`${tgl}T00:00:00`).toLocaleDateString
               {{ detail.hari ? rupiah(Math.round(detail.fee / detail.hari)) : rupiah(0) }}/hari
             </p>
           </div>
-          <div class="rounded-field border border-default p-2.5">
+          <div class="rounded-panel border border-default p-2.5">
             <p class="text-xs text-muted">
               Belum (tidak done)
             </p>
             <b class="num">{{ rupiah(feeBelum) }}</b>
           </div>
-          <div class="rounded-field border border-default p-2.5">
+          <div class="rounded-panel border border-default p-2.5">
             <p class="text-xs text-muted">
               Status tagihan
             </p>
@@ -761,7 +761,7 @@ const namaHari = (tgl: string) => new Date(`${tgl}T00:00:00`).toLocaleDateString
         </div>
         <div
           v-if="detail?.tagihan"
-          class="mt-3 space-y-1.5 rounded-field border border-default p-3 text-sm"
+          class="mt-3 space-y-1.5 rounded-panel border border-default p-3 text-sm"
         >
           <div class="flex justify-between gap-3">
             <span class="text-muted">Nominal tagihan</span>

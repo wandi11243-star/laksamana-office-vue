@@ -794,7 +794,7 @@ async function pulihkanSumber() {
         <div
           v-for="(r, i) in mk"
           :key="`mk${i}`"
-          class="mb-4 rounded-field border border-default p-3"
+          class="mb-4 rounded-panel border border-default p-3"
         >
           <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <UFormField label="PIC">
@@ -975,7 +975,7 @@ async function pulihkanSumber() {
         <div
           v-for="(r, i) in ev"
           :key="`ev${i}`"
-          class="mb-4 rounded-field border border-default p-3"
+          class="mb-4 rounded-panel border border-default p-3"
         >
           <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <UFormField label="PIC">

@@ -545,7 +545,7 @@ async function impor(e: Event) {
         <div
           v-for="(b, i) in f.bahan"
           :key="i"
-          class="grid grid-cols-2 gap-2 rounded-field border border-default p-2"
+          class="grid grid-cols-2 gap-2 rounded-panel border border-default p-2"
         >
           <UFormField label="Nama">
             <UInput v-model="b.nama" />

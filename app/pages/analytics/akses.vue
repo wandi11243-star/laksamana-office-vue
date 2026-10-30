@@ -289,7 +289,7 @@ const opsiPeran = ['staf', 'manajemen', 'viewer'].map(r => ({ value: r, label: R
         </div>
         <div
           v-else-if="!anggota.length"
-          class="rounded-field border border-default bg-elevated p-8 text-center"
+          class="rounded-panel border border-default bg-elevated p-8 text-center"
         >
           <p class="font-semibold">
             Belum ada kru yang diberi kunci modul analytics di Kelola Akses Office.

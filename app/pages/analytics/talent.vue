@@ -298,7 +298,7 @@ const kolomMalam: TableColumn<BarisMalam>[] = [
 
       <div
         v-if="!d"
-        class="rounded-field border border-default bg-elevated p-8 text-center"
+        class="rounded-panel border border-default bg-elevated p-8 text-center"
       >
         <p class="font-semibold">
           Belum ada laporan yang diunggah.
@@ -326,7 +326,7 @@ const kolomMalam: TableColumn<BarisMalam>[] = [
       />
       <div
         v-else-if="!jadwal.length"
-        class="rounded-field border border-default bg-elevated p-8 text-center"
+        class="rounded-panel border border-default bg-elevated p-8 text-center"
       >
         <p class="font-semibold">
           Belum ada jadwal talent di {{ fmtBln(bulan) }}.
@@ -641,7 +641,7 @@ const kolomMalam: TableColumn<BarisMalam>[] = [
               </div>
               <div
                 v-if="bukaOrg === x.n"
-                class="mt-2 space-y-1 rounded-field bg-muted p-2"
+                class="mt-2 space-y-1 rounded-panel bg-muted p-2"
               >
                 <div
                   v-for="m in malamOrg"
@@ -656,7 +656,7 @@ const kolomMalam: TableColumn<BarisMalam>[] = [
           </div>
           <div
             v-if="bukaOrg"
-            class="mx-4 mb-4 hidden rounded-field bg-muted p-3 lg:block"
+            class="mx-4 mb-4 hidden rounded-panel bg-muted p-3 lg:block"
           >
             <p class="mb-2 text-xs font-semibold">
               Malam demi malam — {{ bukaOrg }}

@@ -46,7 +46,7 @@ const tampil = computed(() => props.bentrok.slice(0, BATAS))
       </p>
       <div
         v-if="bentrok.length"
-        class="max-h-72 space-y-1 overflow-y-auto rounded-field border border-default p-2"
+        class="max-h-72 space-y-1 overflow-y-auto rounded-panel border border-default p-2"
       >
         <div
           v-for="(x, i) in tampil"

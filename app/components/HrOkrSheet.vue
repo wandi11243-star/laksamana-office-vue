@@ -130,7 +130,7 @@ async function simpan() {
           <div
             v-for="(k, i) in krs"
             :key="i"
-            class="grid grid-cols-[1fr_auto] gap-2 rounded-field border border-default p-3"
+            class="grid grid-cols-[1fr_auto] gap-2 rounded-panel border border-default p-3"
           >
             <div class="grid grid-cols-3 gap-2">
               <UFormField

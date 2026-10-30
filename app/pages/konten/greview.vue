@@ -173,7 +173,7 @@ const segSegera = computed(() => (data.value?.review ?? []).filter(r => r.tingka
               <div
                 v-for="t in tempat"
                 :key="t.id"
-                class="rounded-field border border-default p-3"
+                class="rounded-panel border border-default p-3"
               >
                 <p class="font-semibold text-highlighted">
                   {{ t.nama || t.id }}

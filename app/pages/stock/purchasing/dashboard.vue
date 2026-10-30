@@ -316,7 +316,7 @@ function unduhCsv() {
             <div
               v-for="o in po.baris"
               :key="o.nomorOrder"
-              class="rounded-field border border-default p-2"
+              class="rounded-panel border border-default p-2"
             >
               <div class="flex flex-wrap items-center gap-2">
                 <b class="min-w-0 flex-1 text-highlighted">{{ o.item }} <span class="font-normal text-muted">— {{ o.qty }} {{ o.unit }}</span></b>

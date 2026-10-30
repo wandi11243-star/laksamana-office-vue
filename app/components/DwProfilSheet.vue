@@ -57,7 +57,7 @@ const riwayat = computed<AjuanDw[]>(() => (props.p
       </div>
 
       <div class="grid grid-cols-3 gap-2">
-        <div class="rounded-field border border-default p-3 text-center">
+        <div class="rounded-panel border border-default p-3 text-center">
           <p class="font-display text-2xl font-bold text-highlighted num">
             {{ st.total }}
           </p>
@@ -65,7 +65,7 @@ const riwayat = computed<AjuanDw[]>(() => (props.p
             Kali kerja
           </p>
         </div>
-        <div class="rounded-field border border-default p-3 text-center">
+        <div class="rounded-panel border border-default p-3 text-center">
           <p class="font-display text-2xl font-bold text-highlighted num">
             {{ st.jam }}
           </p>
@@ -73,7 +73,7 @@ const riwayat = computed<AjuanDw[]>(() => (props.p
             Total jam
           </p>
         </div>
-        <div class="rounded-field border border-default p-3 text-center">
+        <div class="rounded-panel border border-default p-3 text-center">
           <p class="font-display text-2xl font-bold text-highlighted num">
             {{ st.menunggu }}
           </p>
@@ -108,7 +108,7 @@ const riwayat = computed<AjuanDw[]>(() => (props.p
         </p>
         <div
           v-if="riwayat.length"
-          class="divide-y divide-default rounded-field border border-default"
+          class="divide-y divide-default rounded-panel border border-default"
         >
           <div
             v-for="a in riwayat"

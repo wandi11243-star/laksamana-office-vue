@@ -404,7 +404,7 @@ async function jalanHapusSetoran() {
             <div
               v-for="g in grupBulan"
               :key="g.k"
-              class="rounded-field border border-default p-3 text-sm"
+              class="rounded-panel border border-default p-3 text-sm"
             >
               <div class="mb-1 flex items-center justify-between gap-2">
                 <b class="text-highlighted">{{ g.n }}</b>
@@ -524,7 +524,7 @@ async function jalanHapusSetoran() {
                   <div
                     v-for="x in RK_GRUP"
                     :key="x.k"
-                    class="rounded-field border border-default bg-default p-2 text-xs"
+                    class="rounded-panel border border-default bg-default p-2 text-xs"
                   >
                     <div class="flex items-center justify-between gap-2">
                       <b>{{ x.n }}</b>

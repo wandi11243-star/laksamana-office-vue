@@ -702,7 +702,7 @@ async function simpanInvUbah() {
             <li
               v-for="p in (draft.payments ?? [])"
               :key="String(p.id)"
-              class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-field border border-default p-2.5 text-sm"
+              class="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-panel border border-default p-2.5 text-sm"
             >
               <div class="min-w-0 flex-1">
                 <p class="font-semibold">

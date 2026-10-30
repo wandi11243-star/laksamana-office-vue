@@ -303,7 +303,7 @@ async function pasang(kode: string, menu: string) {
       <template v-if="harian.hari.value && !d" />
       <div
         v-else-if="!d"
-        class="rounded-field border border-default bg-elevated p-8 text-center"
+        class="rounded-panel border border-default bg-elevated p-8 text-center"
       >
         <p class="font-semibold">
           Belum ada laporan yang diunggah.
@@ -339,7 +339,7 @@ async function pasang(kode: string, menu: string) {
         <!-- pilihBanding -->
         <div
           v-if="opsiBanding.length && !harian.hari.value"
-          class="mb-4 flex flex-wrap items-center gap-2.5 rounded-field border border-default bg-default px-4 py-3"
+          class="mb-4 flex flex-wrap items-center gap-2.5 rounded-panel border border-default bg-default px-4 py-3"
         >
           <b class="text-sm">Bandingkan dengan</b>
           <USelect
@@ -923,7 +923,7 @@ async function pasang(kode: string, menu: string) {
           </div>
           <p
             v-if="!daftarBahan.tampil.length"
-            class="mt-3 rounded-field border border-default p-6 text-center text-sm text-muted"
+            class="mt-3 rounded-panel border border-default p-6 text-center text-sm text-muted"
           >
             {{ cariBahan ? `Tidak ada bahan yang namanya memuat "${cariBahan}".` : (jenisBahan === 'prep' ? 'Tidak ada menu terjual yang memakai base — seluruh resepnya langsung dari bahan mentah.' : 'Belum ada bahan yang bisa dihitung.') }}
           </p>

@@ -357,7 +357,7 @@ function simpan() {
           <div
             v-for="(q, qi) in pertanyaan"
             :key="qi"
-            class="rounded-field border border-default p-3"
+            class="rounded-panel border border-default p-3"
           >
             <div class="mb-2 flex items-center justify-between gap-2">
               <span class="text-[11px] font-bold uppercase tracking-wider text-muted">Soal {{ qi + 1 }}</span>
@@ -399,7 +399,7 @@ function simpan() {
           </div>
           <p
             v-if="!pertanyaan.length"
-            class="rounded-field border border-dashed border-default p-4 text-sm text-muted"
+            class="rounded-panel border border-dashed border-default p-4 text-sm text-muted"
           >
             Belum ada soal. Klik "Tambah Soal".
           </p>

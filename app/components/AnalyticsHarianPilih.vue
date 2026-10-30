@@ -19,7 +19,7 @@ const L = computed(() => h.laporanHari.value)
 </script>
 
 <template>
-  <div class="mb-4 rounded-field border border-default bg-default px-4 py-3">
+  <div class="mb-4 rounded-panel border border-default bg-default px-4 py-3">
     <div class="flex flex-wrap items-center gap-2">
       <b class="text-sm">Per hari</b>
       <UButton
@@ -87,7 +87,7 @@ const L = computed(() => h.laporanHari.value)
   <template v-if="h.hari.value && !L">
     <div
       v-if="st && st !== 'memuat' && 'kosong' in st"
-      class="rounded-field border border-default bg-elevated p-8 text-center"
+      class="rounded-panel border border-default bg-elevated p-8 text-center"
     >
       <p class="font-semibold">
         Tidak ada bill di ESB pada {{ fmtTgl(h.hari.value) }}.
@@ -116,7 +116,7 @@ const L = computed(() => h.laporanHari.value)
     />
     <div
       v-else
-      class="rounded-field border border-default bg-elevated p-8 text-center"
+      class="rounded-panel border border-default bg-elevated p-8 text-center"
     >
       <p class="font-semibold">
         Menarik {{ fmtTgl(h.hari.value) }} dari ESB…

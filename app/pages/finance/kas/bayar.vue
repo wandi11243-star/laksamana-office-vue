@@ -440,7 +440,7 @@ async function jalanKonfirm() {
                 {{ v.norek ? `${v.bank || ''} ${v.norek}` : 'belum ada rekening' }}
               </option>
             </datalist>
-            <div class="mt-3 overflow-x-auto rounded-field border border-default">
+            <div class="mt-3 overflow-x-auto rounded-panel border border-default">
               <div class="grid min-w-[52rem] grid-cols-[1.3fr_2fr_1fr_1.2fr_1fr_auto] items-center text-sm">
                 <div
                   v-for="h in ['Vendor', 'Keterangan', 'Kategori', 'Dibayar dari', 'Nominal', '']"

@@ -331,7 +331,7 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
         </UFormField>
       </div>
       <!-- The total is shown BEFORE saving: the Sub Total that cuts the PIC comes from it. -->
-      <div class="mt-3 rounded-field bg-muted p-3 text-sm">
+      <div class="mt-3 rounded-panel bg-muted p-3 text-sm">
         Total compliment: <b class="num">{{ fmtRp(totalForm) }}</b>
         <span class="text-xs text-muted">(sub total {{ fmtRp(f.subTotal) }} + tax {{ fmtRp(f.tax) }} + service {{ fmtRp(f.service) }})</span>
         <span class="mt-1 block text-xs text-muted">Yang memotong realisasi: <b>{{ fmtRp(f.subTotal) }}</b> — tax &amp; service charge bukan omset siapa pun. Langsung berlaku untuk <b>PIC Kasir</b>; untuk <b>PIC Pemberi</b> menunggu persetujuan di Performa.</span>

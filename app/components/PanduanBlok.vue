@@ -145,7 +145,7 @@ const gambarPath = computed(() => `public/help/gambar/${props.blok.berkas ?? ''}
     <!-- Note -->
     <div
       v-else-if="blok.t === 'catatan'"
-      class="rounded-field border-s-4 px-4 py-3 text-sm leading-relaxed text-default"
+      class="rounded-panel border-s-4 px-4 py-3 text-sm leading-relaxed text-default"
       :class="nadaKelas[nada]"
     >
       <span
@@ -238,7 +238,7 @@ const gambarPath = computed(() => `public/help/gambar/${props.blok.berkas ?? ''}
     <!-- Unknown block: named, never skipped -->
     <div
       v-else
-      class="rounded-field border-s-4 border-error bg-error/10 px-4 py-3 text-sm text-default"
+      class="rounded-panel border-s-4 border-error bg-error/10 px-4 py-3 text-sm text-default"
     >
       Blok panduan tidak dikenal: <strong class="text-highlighted">{{ blok.t }}</strong>
     </div>

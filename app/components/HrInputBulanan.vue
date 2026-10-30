@@ -91,7 +91,7 @@ async function simpan() {
         <div
           v-for="e in employees"
           :key="e.id"
-          class="rounded-field border border-default p-3"
+          class="rounded-panel border border-default p-3"
         >
           <p class="font-semibold text-highlighted">
             {{ e.name }}

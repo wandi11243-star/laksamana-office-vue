@@ -168,7 +168,7 @@ const menuKat = computed(() => {
       <template v-if="harian.hari.value && !d" />
       <div
         v-else-if="!d"
-        class="rounded-field border border-default bg-elevated p-8 text-center"
+        class="rounded-panel border border-default bg-elevated p-8 text-center"
       >
         <p class="font-semibold">
           Belum ada laporan yang diunggah.
@@ -291,7 +291,7 @@ const menuKat = computed(() => {
               </div>
               <div
                 v-if="buka === x.n && menuKat.length"
-                class="mt-2 space-y-1 rounded-field bg-muted p-2"
+                class="mt-2 space-y-1 rounded-panel bg-muted p-2"
               >
                 <div
                   v-for="m in menuKat"
@@ -307,7 +307,7 @@ const menuKat = computed(() => {
           <div class="hidden lg:block">
             <div
               v-if="buka && menuKat.length"
-              class="mx-4 mb-4 rounded-field bg-muted p-3"
+              class="mx-4 mb-4 rounded-panel bg-muted p-3"
             >
               <p class="mb-2 text-xs font-semibold">
                 Menu di {{ buka }}

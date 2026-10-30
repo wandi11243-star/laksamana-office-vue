@@ -272,7 +272,7 @@ const labelBulan = computed(() => new Date(`${periode.value}-01T00:00:00`).toLoc
         />
         <p
           v-if="!byKasir.some(x => x.disc > 0)"
-          class="rounded-field bg-muted px-3 py-6 text-center text-sm text-muted"
+          class="rounded-panel bg-muted px-3 py-6 text-center text-sm text-muted"
         >
           Tidak ada diskon yang diatribusikan bulan ini.
         </p>

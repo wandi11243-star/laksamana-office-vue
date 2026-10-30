@@ -94,7 +94,7 @@ async function simpan() {
           <div
             v-for="it in t.items"
             :key="it.id"
-            class="grid grid-cols-2 gap-2 rounded-field border border-default p-3"
+            class="grid grid-cols-2 gap-2 rounded-panel border border-default p-3"
           >
             <UFormField
               label="Indikator"

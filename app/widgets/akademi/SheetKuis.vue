@@ -105,7 +105,7 @@ function kumpulkan() {
 
       <!-- Intro -->
       <template v-if="mode === 'intro'">
-        <div class="rounded-field border border-default p-4">
+        <div class="rounded-panel border border-default p-4">
           <div class="grid grid-cols-[130px_1fr] gap-y-2 text-sm">
             <div class="text-[11px] font-bold uppercase tracking-wider text-muted">
               Jumlah soal
@@ -147,7 +147,7 @@ function kumpulkan() {
         <div
           v-for="(q, qi) in soal"
           :key="qi"
-          class="rounded-field border border-default p-3"
+          class="rounded-panel border border-default p-3"
         >
           <p class="mb-2 font-semibold text-highlighted">
             {{ qi + 1 }}. {{ q.q }}
@@ -155,7 +155,7 @@ function kumpulkan() {
           <label
             v-for="(o, oi) in q.opts"
             :key="oi"
-            class="mb-1.5 flex cursor-pointer items-center gap-2 rounded-field border p-2.5 text-sm"
+            class="mb-1.5 flex cursor-pointer items-center gap-2 rounded-panel border p-2.5 text-sm"
             :class="jawaban[qi] === oi ? 'border-primary-400 bg-primary-100' : 'border-default'"
           >
             <input
@@ -178,7 +178,7 @@ function kumpulkan() {
 
       <!-- Result -->
       <template v-else-if="hasil">
-        <div class="rounded-field border border-default bg-muted p-4 text-center">
+        <div class="rounded-panel border border-default bg-muted p-4 text-center">
           <p class="text-[11px] font-bold uppercase tracking-wider text-muted">
             {{ hasil.latihan ? 'Hasil Latihan' : (hasil.lulus ? 'Lulus' : 'Belum lulus') }}
           </p>
@@ -219,7 +219,7 @@ function kumpulkan() {
           <div
             v-for="(q, qi) in soal"
             :key="qi"
-            class="mb-2 rounded-field border border-default p-3"
+            class="mb-2 rounded-panel border border-default p-3"
           >
             <p class="mb-1.5 flex items-start gap-2 font-semibold text-highlighted">
               <span class="flex-1">{{ qi + 1 }}. {{ q.q }}</span>

@@ -614,7 +614,7 @@ async function simpanSemua() {
           <div
             v-for="(d, i) in draft"
             :key="d.key"
-            class="rounded-field border border-default p-3"
+            class="rounded-panel border border-default p-3"
           >
             <div class="grid grid-cols-2 gap-3">
               <UFormField label="Tanggal">
