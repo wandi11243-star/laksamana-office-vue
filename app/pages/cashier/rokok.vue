@@ -97,7 +97,10 @@ async function isiKeluarEsb(force = false) {
   if (esbLoading.value || menyimpan.value || !data.value || status.value === 'pending') return
   const date = tanggal.value
   const filled = items.value.filter(it => (form[it.k]?.out ?? 0) > 0).length
-  if (filled && !force) { esbConfirmOpen.value = true; return }
+  if (filled && !force) {
+    esbConfirmOpen.value = true
+    return
+  }
   esbConfirmOpen.value = false
   esbLoading.value = true
   const revision = perubahanSaatTarik
@@ -105,7 +108,9 @@ async function isiKeluarEsb(force = false) {
   esbError.value = ''
   esbWarnings.value = []
   try {
-    const { summary, ganda } = await tarikCashierEsb(date, message => { if (tanggal.value === date) esbMessage.value = message })
+    const { summary, ganda } = await tarikCashierEsb(date, (message) => {
+      if (tanggal.value === date) esbMessage.value = message
+    })
     if (tanggal.value !== date || perubahanSaatTarik !== revision) {
       esbMessage.value = 'Tanggal atau isian berubah saat ESB ditarik. Tidak ada angka yang diterapkan; tarik ulang bila perlu.'
       return
