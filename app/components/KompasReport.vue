@@ -87,14 +87,19 @@ async function isiPosEsb(force = false) {
   if (esbLoading.value || menyimpan.value || !data.value || status.value === 'pending') return
   const date = tanggal.value
   const filled = PAYS.filter(p => form[p.k]!.pos > 0).length
-  if (filled && !force) { esbConfirmOpen.value = true; return }
+  if (filled && !force) {
+    esbConfirmOpen.value = true
+    return
+  }
   esbConfirmOpen.value = false
   esbLoading.value = true
   const revision = perubahanSaatTarik
   esbInfo.value = `Menarik bill ${tglPanjang(date)} dari ESB…`
   esbError.value = ''
   try {
-    const { summary, ganda } = await tarikCashierEsb(date, message => { if (tanggal.value === date) esbInfo.value = message })
+    const { summary, ganda } = await tarikCashierEsb(date, (message) => {
+      if (tanggal.value === date) esbInfo.value = message
+    })
     if (tanggal.value !== date || perubahanSaatTarik !== revision) {
       esbInfo.value = 'Tanggal atau isian berubah saat ESB ditarik. Tidak ada angka yang diterapkan; tarik ulang bila perlu.'
       return
@@ -204,9 +209,21 @@ async function submit() {
           :disabled="!data || menyimpan || status === 'pending'"
           @click="isiPosEsb()"
         />
-        <p v-if="esbInfo" class="min-w-0 flex-1 text-sm text-muted">{{ esbInfo }}</p>
+        <p
+          v-if="esbInfo"
+          class="min-w-0 flex-1 text-sm text-muted"
+        >
+          {{ esbInfo }}
+        </p>
       </div>
-      <UAlert v-if="esbError" class="mt-3" color="error" variant="subtle" icon="i-lucide-triangle-alert" :title="esbError" />
+      <UAlert
+        v-if="esbError"
+        class="mt-3"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="esbError"
+      />
     </AppPanel>
 
     <UAlert

@@ -90,7 +90,9 @@ async function muatVoidEsb() {
   esbError.value = ''
   esbMessage.value = `Menarik bill ${tglPanjang(date)} dari ESB…`
   try {
-    const { summary, ganda } = await tarikCashierEsb(date, message => { if (tanggal.value === date) esbMessage.value = message })
+    const { summary, ganda } = await tarikCashierEsb(date, (message) => {
+      if (tanggal.value === date) esbMessage.value = message
+    })
     if (tanggal.value !== date) return
     esbTanggal.value = date
     esbSummary.value = summary
@@ -108,7 +110,11 @@ async function muatVoidEsb() {
 function pakaiVoidEsb(g: NonNullable<typeof esbSummary.value>['void'][number]) {
   if (menyimpan.value || esbLoading.value || esbTanggal.value !== tanggal.value || !esbSummary.value?.void.includes(g)) return
   const terisi = !!(f.bill || f.penginput || f.salah || f.alasan || f.svc || f.tax || f.svcManual || f.taxManual || voidItemTerisi(f.items).length)
-  if (terisi) { esbPakaiTarget.value = g; esbPakaiBuka.value = true; return }
+  if (terisi) {
+    esbPakaiTarget.value = g
+    esbPakaiBuka.value = true
+    return
+  }
   isiVoidEsb(g)
 }
 function konfirmasiPakaiVoid() {
@@ -554,10 +560,23 @@ const diubahTeks = (r: VoidBaris) => (r.diubahOleh && num(r.diubah) > num(r.dibu
       </div>
     </AppPanel>
 
-    <AppPanel title="Void dari ESB" icon="i-lucide-cloud-download" description="Pilih Pakai untuk mengisi form di atas. Kesalahan dari siapa tetap ditentukan manual; catatan belum disimpan sampai Tambah catatan ditekan.">
+    <AppPanel
+      title="Void dari ESB"
+      icon="i-lucide-cloud-download"
+      description="Pilih Pakai untuk mengisi form di atas. Kesalahan dari siapa tetap ditentukan manual; catatan belum disimpan sampai Tambah catatan ditekan."
+    >
       <div class="flex flex-wrap items-center gap-3">
-        <UButton label="Ambil dari ESB" icon="i-lucide-download" :loading="esbLoading" :disabled="!data || menyimpan || status === 'pending'" @click="muatVoidEsb()" />
-        <p v-if="esbMessage" class="text-sm text-muted">
+        <UButton
+          label="Ambil dari ESB"
+          icon="i-lucide-download"
+          :loading="esbLoading"
+          :disabled="!data || menyimpan || status === 'pending'"
+          @click="muatVoidEsb()"
+        />
+        <p
+          v-if="esbMessage"
+          class="text-sm text-muted"
+        >
           {{ esbMessage }}
         </p>
       </div>
@@ -569,14 +588,25 @@ const diubahTeks = (r: VoidBaris) => (r.diubahOleh && num(r.diubah) > num(r.dibu
         icon="i-lucide-triangle-alert"
         :title="esbError"
       />
-      <div v-if="esbSummary" class="mt-3">
+      <div
+        v-if="esbSummary"
+        class="mt-3"
+      >
         <table class="hidden w-full text-sm lg:table">
           <thead class="bg-table-head text-table-head-text">
             <tr>
-              <th class="px-3 py-2 text-start">Bill</th>
-              <th class="px-3 py-2 text-start">Item</th>
-              <th class="px-3 py-2 text-end">Subtotal</th>
-              <th class="px-3 py-2 text-end">Status</th>
+              <th class="px-3 py-2 text-start">
+                Bill
+              </th>
+              <th class="px-3 py-2 text-start">
+                Item
+              </th>
+              <th class="px-3 py-2 text-end">
+                Subtotal
+              </th>
+              <th class="px-3 py-2 text-end">
+                Status
+              </th>
               <th class="px-3 py-2" />
             </tr>
           </thead>
@@ -591,11 +621,18 @@ const diubahTeks = (r: VoidBaris) => (r.diubahOleh && num(r.diubah) > num(r.dibu
                   {{ g.utuh ? 'Bill dibatalkan' : 'Menu di-void' }}
                   <template v-if="g.waiter"> · {{ g.waiter }}</template>
                   <template v-if="g.meja"> · meja {{ g.meja }}</template>
-                  <span v-if="g.alasan" class="block">{{ g.alasan }}</span>
+                  <span
+                    v-if="g.alasan"
+                    class="block"
+                  >{{ g.alasan }}</span>
                 </span>
               </td>
-              <td class="px-3 py-2">{{ g.items.map(x => `${x.item}${x.qty > 1 ? ` ×${x.qty}` : ''}`).join(', ') }}</td>
-              <td class="px-3 py-2 text-end num">{{ fmtRp(Math.round(g.items.reduce((sum, x) => sum + x.sub, 0))) }}</td>
+              <td class="px-3 py-2">
+                {{ g.items.map(x => `${x.item}${x.qty > 1 ? ` ×${x.qty}` : ''}`).join(', ') }}
+              </td>
+              <td class="px-3 py-2 text-end num">
+                {{ fmtRp(Math.round(g.items.reduce((sum, x) => sum + x.sub, 0))) }}
+              </td>
               <td class="px-3 py-2 text-end">
                 <AppStatus
                   v-if="hari.some(r => voidAktif(r) && r.bill.trim().toUpperCase() === g.bill.trim().toUpperCase())"
@@ -617,7 +654,10 @@ const diubahTeks = (r: VoidBaris) => (r.diubahOleh && num(r.diubah) > num(r.dibu
               </td>
             </tr>
             <tr v-if="!esbSummary.void.length">
-              <td colspan="5" class="px-3 py-4 text-center text-muted">
+              <td
+                colspan="5"
+                class="px-3 py-4 text-center text-muted"
+              >
                 Tidak ada menu void pada tanggal ini.
               </td>
             </tr>
@@ -634,8 +674,12 @@ const diubahTeks = (r: VoidBaris) => (r.diubahOleh && num(r.diubah) > num(r.dibu
                 <b class="num">{{ g.bill }}</b>
                 <p class="text-xs text-muted">
                   {{ g.utuh ? 'Bill dibatalkan' : 'Menu di-void' }}
-                  <template v-if="g.waiter"> · {{ g.waiter }}</template>
-                  <template v-if="g.meja"> · meja {{ g.meja }}</template>
+                  <template v-if="g.waiter">
+                    · {{ g.waiter }}
+                  </template>
+                  <template v-if="g.meja">
+                    · meja {{ g.meja }}
+                  </template>
                 </p>
               </div>
               <AppStatus
@@ -646,8 +690,15 @@ const diubahTeks = (r: VoidBaris) => (r.diubahOleh && num(r.diubah) > num(r.dibu
                 Sudah dicatat
               </AppStatus>
             </div>
-            <p class="text-sm">{{ g.items.map(x => `${x.item}${x.qty > 1 ? ` ×${x.qty}` : ''}`).join(', ') }}</p>
-            <p v-if="g.alasan" class="text-xs text-muted">{{ g.alasan }}</p>
+            <p class="text-sm">
+              {{ g.items.map(x => `${x.item}${x.qty > 1 ? ` ×${x.qty}` : ''}`).join(', ') }}
+            </p>
+            <p
+              v-if="g.alasan"
+              class="text-xs text-muted"
+            >
+              {{ g.alasan }}
+            </p>
             <div class="flex items-center justify-between gap-2">
               <span class="num text-sm">{{ fmtRp(Math.round(g.items.reduce((sum, x) => sum + x.sub, 0))) }}</span>
               <UButton
@@ -661,7 +712,10 @@ const diubahTeks = (r: VoidBaris) => (r.diubahOleh && num(r.diubah) > num(r.dibu
               />
             </div>
           </article>
-          <p v-if="!esbSummary.void.length" class="px-3 py-4 text-center text-muted lg:hidden">
+          <p
+            v-if="!esbSummary.void.length"
+            class="px-3 py-4 text-center text-muted lg:hidden"
+          >
             Tidak ada menu void pada tanggal ini.
           </p>
         </div>

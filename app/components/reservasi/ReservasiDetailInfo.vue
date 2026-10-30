@@ -319,12 +319,20 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
       />
       <div class="grid gap-3 sm:grid-cols-2">
         <div v-if="r.foodReq">
-          <p class="text-xs font-semibold text-muted">Makanan</p>
-          <p class="text-sm text-default">{{ r.foodReq }}</p>
+          <p class="text-xs font-semibold text-muted">
+            Makanan
+          </p>
+          <p class="text-sm text-default">
+            {{ r.foodReq }}
+          </p>
         </div>
         <div v-if="r.drinkReq">
-          <p class="text-xs font-semibold text-muted">Minuman</p>
-          <p class="text-sm text-default">{{ r.drinkReq }}</p>
+          <p class="text-xs font-semibold text-muted">
+            Minuman
+          </p>
+          <p class="text-sm text-default">
+            {{ r.drinkReq }}
+          </p>
         </div>
       </div>
     </div>

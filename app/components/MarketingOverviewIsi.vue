@@ -56,11 +56,21 @@ const grand = computed(() => eventFinance(props.ev, props.settings).grand)
         >
           <thead>
             <tr class="bg-muted text-left text-xs text-muted">
-              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Mulai</th>
-              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Selesai</th>
-              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Durasi</th>
-              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Kegiatan</th>
-              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">PIC / Catatan</th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                Mulai
+              </th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                Selesai
+              </th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                Durasi
+              </th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                Kegiatan
+              </th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                PIC / Catatan
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -69,11 +79,21 @@ const grand = computed(() => eventFinance(props.ev, props.settings).grand)
               :key="i"
               class="border-b border-default last:border-0"
             >
-              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.mulai }}</td>
-              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.selesai }}</td>
-              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.durasi }}</td>
-              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.kegiatan }}</td>
-              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.pic }}</td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">
+                {{ r.mulai }}
+              </td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">
+                {{ r.selesai }}
+              </td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">
+                {{ r.durasi }}
+              </td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">
+                {{ r.kegiatan }}
+              </td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">
+                {{ r.pic }}
+              </td>
             </tr>
           </tbody>
         </table>
@@ -123,10 +143,18 @@ const grand = computed(() => eventFinance(props.ev, props.settings).grand)
             <table class="mt-1 w-full table-fixed border-collapse text-sm sm:table-auto print:table-auto">
               <thead>
                 <tr class="bg-muted text-left text-xs text-muted">
-                  <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Jenis</th>
-                  <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Menu</th>
-                  <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Jumlah</th>
-                  <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Jam</th>
+                  <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                    Jenis
+                  </th>
+                  <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                    Menu
+                  </th>
+                  <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                    Jumlah
+                  </th>
+                  <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                    Jam
+                  </th>
                 </tr>
               </thead>
               <tbody>
@@ -135,10 +163,18 @@ const grand = computed(() => eventFinance(props.ev, props.settings).grand)
                   :key="i"
                   class="border-b border-default last:border-0"
                 >
-                  <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.kat }}</td>
-                  <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.menu }}</td>
-                  <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.qty }}</td>
-                  <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.jam || g.jam }}</td>
+                  <td class="break-words px-2 py-1.5 print:border print:border-default">
+                    {{ r.kat }}
+                  </td>
+                  <td class="break-words px-2 py-1.5 print:border print:border-default">
+                    {{ r.menu }}
+                  </td>
+                  <td class="break-words px-2 py-1.5 print:border print:border-default">
+                    {{ r.qty }}
+                  </td>
+                  <td class="break-words px-2 py-1.5 print:border print:border-default">
+                    {{ r.jam || g.jam }}
+                  </td>
                 </tr>
               </tbody>
             </table>
@@ -152,10 +188,18 @@ const grand = computed(() => eventFinance(props.ev, props.settings).grand)
         >
           <thead>
             <tr class="bg-muted text-left text-xs text-muted">
-              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Item</th>
-              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Jumlah</th>
-              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Jam</th>
-              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Harga</th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                Item
+              </th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                Jumlah
+              </th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                Jam
+              </th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                Harga
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -164,10 +208,18 @@ const grand = computed(() => eventFinance(props.ev, props.settings).grand)
               :key="i"
               class="border-b border-default last:border-0"
             >
-              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.menu }}</td>
-              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.jumlah }}</td>
-              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.jam }}</td>
-              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.harga }}</td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">
+                {{ r.menu }}
+              </td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">
+                {{ r.jumlah }}
+              </td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">
+                {{ r.jam }}
+              </td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">
+                {{ r.harga }}
+              </td>
             </tr>
           </tbody>
         </table>
@@ -179,11 +231,21 @@ const grand = computed(() => eventFinance(props.ev, props.settings).grand)
         >
           <thead>
             <tr class="bg-muted text-left text-xs text-muted">
-              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">No</th>
-              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Deskripsi</th>
-              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Qty</th>
-              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Harga</th>
-              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">Total</th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                No
+              </th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                Deskripsi
+              </th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                Qty
+              </th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                Harga
+              </th>
+              <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
+                Total
+              </th>
             </tr>
           </thead>
           <tbody>
@@ -192,17 +254,34 @@ const grand = computed(() => eventFinance(props.ev, props.settings).grand)
               :key="i"
               class="border-b border-default last:border-0"
             >
-              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ i + 1 }}</td>
-              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.desc }}</td>
-              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.qty ?? '–' }}</td>
-              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.gratis || r.tbc ? (r.gratis ? 'FREE' : 'TBC') : rupiah(r.unit ?? 0) }}</td>
-              <td class="break-words px-2 py-1.5 print:border print:border-default">{{ r.gratis ? 'FREE' : r.tbc ? 'TBC' : rupiah(r.total) }}</td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">
+                {{ i + 1 }}
+              </td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">
+                {{ r.desc }}
+              </td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">
+                {{ r.qty ?? '–' }}
+              </td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">
+                {{ r.gratis || r.tbc ? (r.gratis ? 'FREE' : 'TBC') : rupiah(r.unit ?? 0) }}
+              </td>
+              <td class="break-words px-2 py-1.5 print:border print:border-default">
+                {{ r.gratis ? 'FREE' : r.tbc ? 'TBC' : rupiah(r.total) }}
+              </td>
             </tr>
           </tbody>
           <tfoot>
             <tr class="border-t border-default font-semibold">
-              <td colspan="4" class="px-2 py-1.5 text-right print:border print:border-default">Total Ditagih</td>
-              <td class="px-2 py-1.5 print:border print:border-default">{{ rupiah(grand) }}</td>
+              <td
+                colspan="4"
+                class="px-2 py-1.5 text-right print:border print:border-default"
+              >
+                Total Ditagih
+              </td>
+              <td class="px-2 py-1.5 print:border print:border-default">
+                {{ rupiah(grand) }}
+              </td>
             </tr>
           </tfoot>
         </table>

@@ -109,8 +109,16 @@ export function petakanRokokEsb(items: RokokItem[], menuQty: EsbHari['menuQty'])
   const free = items.filter(it => !aliasRokok(it).length)
   for (const [nama, m] of Object.entries(menuQty)) {
     const match = exact.get(baku(nama))
-    if (match?.length === 1) { const k = match[0]!.it.k; out[k] = (out[k] ?? 0) + m.qty * match[0]!.kali; kena[k] = true; continue }
-    if (match && match.length > 1) { ambigu.push({ nama, qty: m.qty, ke: match.map(x => x.it.n) }); continue }
+    if (match?.length === 1) {
+      const k = match[0]!.it.k
+      out[k] = (out[k] ?? 0) + m.qty * match[0]!.kali
+      kena[k] = true
+      continue
+    }
+    if (match && match.length > 1) {
+      ambigu.push({ nama, qty: m.qty, ke: match.map(x => x.it.n) })
+      continue
+    }
     const candidates = free.filter(it => cocokToken(it.n, nama))
     if (!candidates.length) {
       if (/ROKOK|CIGAR|TOBACCO|SMOK|COIN|KOIN/.test(m.kat)) takKenal.push({ nama, qty: m.qty })
@@ -118,14 +126,21 @@ export function petakanRokokEsb(items: RokokItem[], menuQty: EsbHari['menuQty'])
     }
     const score = Math.max(...candidates.map(it => tokens(it.n).length)), best = candidates.filter(it => tokens(it.n).length === score)
     if (best.length > 1) ambigu.push({ nama, qty: m.qty, ke: best.map(it => it.n) })
-    else { const k = best[0]!.k; out[k] = (out[k] ?? 0) + m.qty; kena[k] = true }
+    else {
+      const k = best[0]!.k
+      out[k] = (out[k] ?? 0) + m.qty
+      kena[k] = true
+    }
   }
   return { out, kena, ambigu, takKenal }
 }
 
 const EMPLOYEE_ESB: Record<string, string> = { MUDAKASIR2: 'ANDY', MUDACINDY: 'CINDY', MUDADEVANI: 'DEVANI', MUDADEVI: 'DEVI', MUDAFEILA: 'FEILA', MUDAGITA: 'GITA', MUDAGRACE: 'GRACE', MUDAKASIR1: 'NOVI', MUDARIZKI: 'RIZKI', MUDASPV: 'SPV', MUDASULIS: 'SULIS', MUDANINDY: 'TASYA', MUDAYASMIN: 'YASMIN' }
 const OFFICE_ALIAS: Record<string, string> = { FEILA: 'FAILA', ANDY: 'SAFRIANDI', NOVI: 'NOVIANTI', GRACE: 'GRESYA' }
-export const namaKasirEsb = (u: unknown) => { const b = baku(u).replace(/ /g, ''); return EMPLOYEE_ESB[b] || (b.replace(/^MUDA/, '')) }
+export const namaKasirEsb = (u: unknown) => {
+  const b = baku(u).replace(/ /g, '')
+  return EMPLOYEE_ESB[b] || (b.replace(/^MUDA/, ''))
+}
 export function cariPicEsb(akun: string, roster: { id: string, name: string }[], mapping: Record<string, string> = {}, employees: { id: string, name: string, officeUserId?: string | null }[] = []) {
   const mapped = mapping[baku(akun).replace(/ /g, '')] ?? mapping[akun]
   const employee = employees.find(e => String(e.id) === String(mapped))
@@ -151,7 +166,7 @@ export function complimentBaru(R: EsbHari, date: string, old: ComplimentKasir[],
       picName: pic?.name || 'Tamu', picOfficeId: pic?.id || '', picDiv: pic ? 'kasir' : 'tamu', pemberiName: 'Tamu', pemberiOfficeId: '', pemberiDiv: 'tamu', pemberiStatus: 'menunggu', putusOleh: '', putusAt: 0,
       esbBill: x.bill, esbJenis: x.jenis, esbKasir: x.akun, by: recorder, at: Date.now() })
   }
-  const updated = old.map(c => {
+  const updated = old.map((c) => {
     if (c.date !== date || !c.esbBill || c.picDiv !== 'tamu' || c.ubahOleh) return c
     const x = R.komp.find(item => item.bill === c.esbBill && item.jenis === (c.esbJenis || 'compliment'))
     const pic = x && cariPicEsb(x.akun, roster, mapping, employees)

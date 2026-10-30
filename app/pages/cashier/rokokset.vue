@@ -216,7 +216,14 @@ async function pulihkan() {
             </td>
             <td class="px-4 py-2 text-sm text-muted">
               <span>{{ rokokPosTeks(it) || 'Nama mirip' }}</span>
-              <UButton label="Ubah" color="neutral" variant="ghost" size="xs" class="ms-1" @click="bukaPos(it)" />
+              <UButton
+                label="Ubah"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                class="ms-1"
+                @click="bukaPos(it)"
+              />
             </td>
             <td class="px-4 py-2">
               <AppStatus
@@ -321,7 +328,13 @@ async function pulihkan() {
               size="xs"
               @click="bukaUbah(it)"
             />
-            <UButton label="Nama di POS" color="neutral" variant="outline" size="xs" @click="bukaPos(it)" />
+            <UButton
+              label="Nama di POS"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              @click="bukaPos(it)"
+            />
             <UButton
               :label="it.lain ? 'Jadikan rokok' : 'Jadikan lainnya'"
               color="neutral"
@@ -384,13 +397,31 @@ async function pulihkan() {
       </template>
     </ResponsiveSheet>
 
-    <ResponsiveSheet v-model:open="posOpen" :title="posItem ? `Nama di POS untuk ${posItem.n}` : 'Nama di POS'">
-      <UFormField label="Nama menu ESB" help="Pisahkan beberapa nama dengan koma. Akhiran x2 berarti satu porsi menu mengeluarkan dua unit, misalnya KOIN 2 PCS x2. Kosongkan untuk mencocokkan nama secara otomatis.">
-        <UInput v-model="posNama" class="w-full" placeholder="cth. LA ICE PURPLE, LA PURPLE" />
+    <ResponsiveSheet
+      v-model:open="posOpen"
+      :title="posItem ? `Nama di POS untuk ${posItem.n}` : 'Nama di POS'"
+    >
+      <UFormField
+        label="Nama menu ESB"
+        help="Pisahkan beberapa nama dengan koma. Akhiran x2 berarti satu porsi menu mengeluarkan dua unit, misalnya KOIN 2 PCS x2. Kosongkan untuk mencocokkan nama secara otomatis."
+      >
+        <UInput
+          v-model="posNama"
+          class="w-full"
+          placeholder="cth. LA ICE PURPLE, LA PURPLE"
+        />
       </UFormField>
       <template #footer>
-        <UButton label="Simpan nama POS" @click="simpanPos" />
-        <UButton label="Batal" color="neutral" variant="ghost" @click="posOpen = false" />
+        <UButton
+          label="Simpan nama POS"
+          @click="simpanPos"
+        />
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="ghost"
+          @click="posOpen = false"
+        />
       </template>
     </ResponsiveSheet>
 

@@ -292,7 +292,10 @@ console.log('\nanalytics-esb: bill ESB -> baris Detail Report')
   const r = await E.esbTarikRentang(async p => hal[p], () => {}, 'x', async () => {})
   cek('semua halaman ditarik, bill ganda disaring', r.bills.length === 4 && r.ganda === 1)
   let coba = 0
-  const g = await E.esbTarikRentang(async () => { coba++; throw new Error('putus') }, () => {}, 'x', async () => {}).catch(e => e)
+  const g = await E.esbTarikRentang(async () => {
+    coba++
+    throw new Error('putus')
+  }, () => {}, 'x', async () => {}).catch(e => e)
   cek('halaman gagal 3x menghentikan semuanya', g instanceof E.EsbGagal && coba === 3 && /Halaman 1/.test(g.message))
 }
 

@@ -9,7 +9,7 @@ export async function tarikCashierEsb(date: string, progress: (message: string) 
       return await getEsbSales(date, date, page)
     }
     catch (error) {
-      throw new Error(apiErrorMessage(error))
+      throw new Error(apiErrorMessage(error), { cause: error })
     }
   }, progress, `ESB ${date}`)
   return { summary: ringkasEsb(bills), ganda }

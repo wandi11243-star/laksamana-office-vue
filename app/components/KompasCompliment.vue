@@ -277,7 +277,13 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
       description="Bill Compliment dan Member Deposit yang belum tercatat akan masuk langsung. PIC Kasir dicocokkan dari akun POS; PIC Pemberi tetap Tamu."
     >
       <div class="flex flex-wrap items-center gap-3">
-        <UButton label="Tarik & catat dari ESB" icon="i-lucide-download" :loading="esbLoading" :disabled="!data || menyimpan" @click="tarikComplimentEsb()" />
+        <UButton
+          label="Tarik & catat dari ESB"
+          icon="i-lucide-download"
+          :loading="esbLoading"
+          :disabled="!data || menyimpan"
+          @click="tarikComplimentEsb()"
+        />
         <p
           v-if="esbMessage"
           class="text-sm text-muted"
@@ -285,8 +291,23 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
           {{ esbMessage }}
         </p>
       </div>
-      <UAlert v-if="esbError" class="mt-3" color="error" variant="subtle" icon="i-lucide-triangle-alert" :title="esbError" />
-      <UAlert v-for="warning in esbWarnings" :key="warning" class="mt-3" color="warning" variant="subtle" icon="i-lucide-triangle-alert" :title="warning" />
+      <UAlert
+        v-if="esbError"
+        class="mt-3"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="esbError"
+      />
+      <UAlert
+        v-for="warning in esbWarnings"
+        :key="warning"
+        class="mt-3"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        :title="warning"
+      />
     </AppPanel>
 
     <UAlert
@@ -442,7 +463,10 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
         >
           <template #nama-cell="{ row }">
             <b class="text-highlighted">{{ row.original.nama }}</b>
-            <span v-if="row.original.esbBill" class="block text-xs text-muted num">Bill {{ row.original.esbBill }} · {{ row.original.esbJenis === 'member_dep' ? 'Member Deposit' : 'Compliment' }}<template v-if="row.original.esbKasir"> · {{ row.original.esbKasir }}</template></span>
+            <span
+              v-if="row.original.esbBill"
+              class="block text-xs text-muted num"
+            >Bill {{ row.original.esbBill }} · {{ row.original.esbJenis === 'member_dep' ? 'Member Deposit' : 'Compliment' }}<template v-if="row.original.esbKasir"> · {{ row.original.esbKasir }}</template></span>
             <span
               v-if="row.original.alasan"
               class="block text-xs text-muted"
@@ -524,7 +548,10 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0">
                 <b class="text-highlighted">{{ c.nama }}</b>
-                <span v-if="c.esbBill" class="block text-xs text-muted num">Bill {{ c.esbBill }} · {{ c.esbJenis === 'member_dep' ? 'Member Deposit' : 'Compliment' }}</span>
+                <span
+                  v-if="c.esbBill"
+                  class="block text-xs text-muted num"
+                >Bill {{ c.esbBill }} · {{ c.esbJenis === 'member_dep' ? 'Member Deposit' : 'Compliment' }}</span>
                 <span class="block text-xs text-muted">
                   Kasir: {{ kasirTamu(c) ? 'Tamu' : c.picName }} · Pemberi: {{ pemberiTamu(c) ? 'Tamu' : `${c.pemberiName} (${c.pemberiDiv})` }}
                 </span>
