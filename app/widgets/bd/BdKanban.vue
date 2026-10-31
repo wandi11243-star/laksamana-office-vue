@@ -127,6 +127,7 @@ async function tambahKartu(st: string) {
         :semua="bank"
         :people="people"
         :project-name="showProject ? namaProject(item.project) : undefined"
+        :show-daily="showProject"
         :dragging="dragging"
         draggable="true"
         @dragstart="dragStart"

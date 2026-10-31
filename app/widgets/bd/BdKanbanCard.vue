@@ -16,6 +16,7 @@ const props = defineProps<{
   semua: BdTask[]
   people: BdPerson[]
   projectName?: string
+  showDaily?: boolean
   dragging?: boolean
 }>()
 const emit = defineEmits<{ buka: [], subToggle: [ix: number, on: boolean] }>()
@@ -86,6 +87,13 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
         :title="projectName"
       >
         <span class="min-w-0 truncate">{{ projectName }}</span>
+      </AppStatus>
+      <AppStatus
+        v-if="showDaily && task.daily"
+        size="sm"
+        color="vip"
+      >
+        Daily
       </AppStatus>
       <span
         v-if="dipakai.length"

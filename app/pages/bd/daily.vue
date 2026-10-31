@@ -9,7 +9,7 @@
 import type { BdTask } from '~/composables/useBd'
 import { centangSub, hapusTaskDenganUrutan, pesanHapusTask, toggleTask, useBdState } from '~/composables/useBd'
 import {
-  cariAku, lewat, lingkupIds, pics, saringArsip, saringLingkup, selesai, todayISO, urutDeadline,
+  cariAku, lewat, lingkupIds, pelaksana, saringArsip, saringLingkup, selesai, todayISO, urutDeadline,
   type ModeArsip,
 } from '~/utils/bd-rumus'
 import type { GZoom } from '~/utils/bd-gantt'
@@ -30,7 +30,7 @@ const fPics = useState<string[]>('bd-daily-pics', () => [])
 const people = computed(() => state.value.people)
 const aku = computed(() => cariAku(people.value, me.value))
 const lingkup = computed(() => lingkupIds(people.value, aku.value?.id, isAdminOf(me.value, 'bd')))
-const cocokPic = (o: { pics?: string[], pic?: string }) => !fPics.value.length || pics(o).some(id => fPics.value.includes(id))
+const cocokPic = (t: BdTask) => !fPics.value.length || pelaksana(t).some(id => fPics.value.includes(id))
 
 /** Daily board: every daily task is visible (`dailyTasks`); the PIC filter only narrows what is shown. */
 const harian = computed(() => saringLingkup(state.value.tasks, 'semua', lingkup.value, aku.value?.id).filter(t => t.daily).filter(cocokPic))

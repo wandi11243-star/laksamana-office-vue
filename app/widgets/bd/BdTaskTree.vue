@@ -96,6 +96,11 @@ const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
               size="sm"
               color="vip"
             >{{ namaProject(t.project) }}</AppStatus>
+            <AppStatus
+              v-if="showProject && t.daily"
+              size="sm"
+              color="vip"
+            >Daily</AppStatus>
             <button
               v-if="subHitung(t).n"
               type="button"
