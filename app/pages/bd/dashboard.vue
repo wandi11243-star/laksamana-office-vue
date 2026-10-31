@@ -10,7 +10,7 @@ import type { BdTask } from '~/composables/useBd'
 import {
   bdTulisDiam, hapusTaskDenganUrutan, pesanHapusTask, putSetelan, toggleTask, useBdSettings, useBdState, versiSetelan,
 } from '~/composables/useBd'
-import { catIniAku, cariAku, dalamLingkup, fRp, lewat, lingkupIds, selesai, todayISO } from '~/utils/bd-rumus'
+import { catIniAku, cariAku, dalamLingkup, fRp, lewat, lingkupIds, menungguReviewSaya, selesai, todayISO, urutDeadline } from '~/utils/bd-rumus'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdProjMini from '~/widgets/bd/BdProjMini.vue'
 import BdTaskRow from '~/widgets/bd/BdTaskRow.vue'
@@ -56,6 +56,9 @@ const top = computed(() => [...aktif.value].sort((a, b) => {
   if (qa !== qb) return qb - qa
   return (a.deadline || '9999') < (b.deadline || '9999') ? -1 : 1
 }).slice(0, 6))
+// ---- action lists: dateless triage, my review queue, running projects ----
+const tanpaDeadline = computed(() => aktif.value.filter(t => !t.deadline).sort(urutDeadline))
+const menunggu = computed(() => menungguReviewSaya(aktif.value, aku.value?.id))
 
 const namaProject = (id?: string | null) => projects.value.find(p => p.id === id)?.name
 
@@ -248,39 +251,6 @@ async function hapus() {
             </p>
           </div>
         </AppPanel>
-
-        <AppPanel
-          title="Kesehatan project"
-          icon="i-lucide-activity"
-          :count="jalan.length"
-        >
-          <template #actions>
-            <UButton
-              label="Buka"
-              trailing-icon="i-lucide-chevron-right"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              to="/bd/projects"
-            />
-          </template>
-          <div class="divide-y divide-default">
-            <BdProjMini
-              v-for="p in jalan"
-              :key="p.id"
-              :project="p"
-              :tasks="tasks"
-              :people="people"
-              @buka="navigateTo(`/bd/projects/${p.id}`)"
-            />
-            <p
-              v-if="!jalan.length"
-              class="py-6 text-center text-sm text-muted"
-            >
-              <b class="block text-highlighted">Belum ada project berjalan</b>
-            </p>
-          </div>
-        </AppPanel>
       </div>
 
       <div class="min-w-0">
@@ -388,6 +358,106 @@ async function hapus() {
           </div>
         </AppPanel>
       </div>
+    </div>
+
+    <div class="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+      <AppPanel
+        title="Belum ada deadline"
+        icon="i-lucide-calendar-x"
+        :count="tanpaDeadline.length"
+      >
+        <div class="divide-y divide-default">
+          <div
+            v-for="t in tanpaDeadline.slice(0, 6)"
+            :key="t.id"
+          >
+            <BdTaskRow
+              :task="t"
+              :people="people"
+              :project-name="namaProject(t.project)"
+              hide-quad
+              @buka="buka(t)"
+              @toggle="toggle(t)"
+              @hapus="taskHapus = t"
+            />
+            <div class="px-4 pb-3">
+              <UButton
+                label="Atur deadline"
+                icon="i-lucide-calendar-plus"
+                color="neutral"
+                variant="outline"
+                size="xs"
+                @click="buka(t)"
+              />
+            </div>
+          </div>
+          <p
+            v-if="!tanpaDeadline.length"
+            class="py-6 text-center text-sm text-muted"
+          >
+            <b class="block text-highlighted">Semua task sudah berdeadline</b>Bagus, tidak ada yang menggantung.
+          </p>
+        </div>
+      </AppPanel>
+
+      <AppPanel
+        title="Menunggu respons"
+        icon="i-lucide-inbox"
+        :count="menunggu.length"
+      >
+        <div class="divide-y divide-default">
+          <BdTaskRow
+            v-for="t in menunggu.slice(0, 6)"
+            :key="t.id"
+            :task="t"
+            :people="people"
+            :project-name="namaProject(t.project)"
+            hide-quad
+            @buka="buka(t)"
+            @toggle="toggle(t)"
+            @hapus="taskHapus = t"
+          />
+          <p
+            v-if="!menunggu.length"
+            class="py-6 text-center text-sm text-muted"
+          >
+            <b class="block text-highlighted">Tidak ada yang menunggu jawabanmu</b>
+          </p>
+        </div>
+      </AppPanel>
+
+      <AppPanel
+        title="Project berjalan"
+        icon="i-lucide-activity"
+        :count="jalan.length"
+      >
+        <template #actions>
+          <UButton
+            label="Buka"
+            trailing-icon="i-lucide-chevron-right"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            to="/bd/projects"
+          />
+        </template>
+        <div class="divide-y divide-default">
+          <BdProjMini
+            v-for="p in jalan"
+            :key="p.id"
+            :project="p"
+            :tasks="tasks"
+            :people="people"
+            @buka="navigateTo(`/bd/projects/${p.id}`)"
+          />
+          <p
+            v-if="!jalan.length"
+            class="py-6 text-center text-sm text-muted"
+          >
+            <b class="block text-highlighted">Belum ada project berjalan</b>
+          </p>
+        </div>
+      </AppPanel>
     </div>
 
     <BdTaskSheet
