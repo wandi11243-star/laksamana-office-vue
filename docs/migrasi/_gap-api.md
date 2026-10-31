@@ -35,7 +35,7 @@ Status: ⬜ belum diajukan · 📨 issue dibuat (tulis nomornya) · ✅ ada di v
 | G-22 | ✅ | [laksamana-api#261](https://github.com/dwipapap/laksamana-api/issues/261) → [PR #263](https://github.com/dwipapap/laksamana-api/pull/263) |
 | G-23 | ⬜ | — |
 | G-24 | ⬜ | — |
-| G-25 | ⬜ | — |
+| G-25 | 📨 | [laksamana-api#364](https://github.com/dwipapap/laksamana-api/issues/364) → [PR #365](https://github.com/dwipapap/laksamana-api/pull/365) (menunggu CI hijau) |
 
 ---
 
@@ -242,7 +242,7 @@ sekelas endpoint OAuth TikTok/Instagram yang sudah ada), atau nyatakan menu ini 
 dipanggil. Inventaris: `docs/migrasi/konten.md` D.24.
 
 ### G-25 — BD: dokumen setelan `tagWarna` (warna tag, delta BD Okt 2026)
-Status: ⬜ belum diajukan.
+Status: 📨 diajukan — [laksamana-api#364](https://github.com/dwipapap/laksamana-api/issues/364) → [PR #365](https://github.com/dwipapap/laksamana-api/pull/365) (menunggu CI hijau; belum bisa tes lokal, tidak ada PHP di mesin ini).
 Klien lama menyimpan warna tag di `DB.tagWarna` (`{lowercaseTag: '#rrggbb'}`, palet
 tertutup 12 warna, kunci lowercase, `deploy/bd/index.html:2312-2360`) sebagai bagian dari
 blob `saveAll`. Vue sudah membaca/menulisnya lewat `PUT /bd/settings/tagWarna`
