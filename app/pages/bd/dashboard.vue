@@ -15,7 +15,7 @@ import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdProjMini from '~/widgets/bd/BdProjMini.vue'
 import BdTaskRow from '~/widgets/bd/BdTaskRow.vue'
 import BdTaskSheet from '~/widgets/bd/BdTaskSheet.vue'
-import { fTgl } from '~/utils/format'
+import { fTgl, tambahHari } from '~/utils/format'
 
 definePageMeta({ access: ['bd'] })
 
@@ -38,8 +38,15 @@ const od = computed(() => vt.value.filter(lewat))
 const jalan = computed(() => projects.value.filter(p => dalamLingkup(p, lingkup.value) && p.stage !== 'Done' && p.stage !== 'To Do'))
 const coordP = computed(() => state.value.coord.filter(c => c.status !== 'Selesai'))
 const poP = computed(() => state.value.po.filter(p => p.status !== 'Diterima'))
-const dueHariIni = computed(() => aktif.value.filter(t => t.deadline === hari))
-const agHariIni = computed(() => state.value.agenda.filter(e => e.date === hari))
+// ---- three-day columns: today / tomorrow / day after (Task 2) ----
+// Invalid dates never equal a computed ISO, so broken rows are ignored.
+const isoBesok = computed(() => tambahHari(hari, 1))
+const isoLusa = computed(() => tambahHari(hari, 2))
+const kolomHari = computed(() => [
+  { label: 'Hari ini', iso: hari, agenda: state.value.agenda.filter(e => e.date === hari), deadline: aktif.value.filter(t => t.deadline === hari) },
+  { label: 'Besok', iso: isoBesok.value, agenda: state.value.agenda.filter(e => e.date === isoBesok.value), deadline: aktif.value.filter(t => t.deadline === isoBesok.value) },
+  { label: 'Lusa', iso: isoLusa.value, agenda: state.value.agenda.filter(e => e.date === isoLusa.value), deadline: aktif.value.filter(t => t.deadline === isoLusa.value) },
+])
 const top = computed(() => [...aktif.value].sort((a, b) => {
   const oa = lewat(a)
   const ob = lewat(b)
@@ -304,46 +311,80 @@ async function hapus() {
         </AppPanel>
 
         <AppPanel
-          title="Agenda hari ini"
+          title="Tiga hari ke depan"
           icon="i-lucide-calendar-check"
-          :count="agHariIni.length + dueHariIni.length"
-          :description="fTgl(hari)"
+          :count="kolomHari.reduce((s, k) => s + k.agenda.length + k.deadline.length, 0)"
         >
-          <div class="divide-y divide-default">
-            <div
-              v-for="e in agHariIni"
-              :key="e.id"
-              class="flex items-start gap-2 px-1 py-2"
+          <div class="grid gap-5 md:grid-cols-3">
+            <section
+              v-for="k in kolomHari"
+              :key="k.iso"
+              :aria-label="k.label"
             >
-              <UIcon
-                name="i-lucide-calendar"
-                class="mt-0.5 size-4 shrink-0 text-ink-900"
-              />
-              <span>
-                <span class="block font-semibold text-highlighted">{{ e.title }}</span>
-                <span class="text-xs text-muted">{{ e.type }} · {{ e.div }}</span>
-              </span>
-            </div>
-            <div
-              v-for="t in dueHariIni"
-              :key="t.id"
-              class="flex items-start gap-2 px-1 py-2"
-            >
-              <UIcon
-                name="i-lucide-triangle-alert"
-                class="mt-0.5 size-4 shrink-0 text-error"
-              />
-              <span>
-                <span class="block font-semibold text-highlighted">{{ t.name }}</span>
-                <span class="text-xs text-muted">Deadline hari ini · {{ t.div }}</span>
-              </span>
-            </div>
-            <p
-              v-if="!agHariIni.length && !dueHariIni.length"
-              class="py-6 text-center text-sm text-muted"
-            >
-              <b class="block text-highlighted">Agenda kosong hari ini</b>
-            </p>
+              <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-ink-900">
+                {{ k.label }}
+              </p>
+              <p class="mb-2 text-xs text-muted">
+                {{ fTgl(k.iso) }}
+              </p>
+              <div class="divide-y divide-default rounded-xl border border-default">
+                <NuxtLink
+                  v-for="e in k.agenda.slice(0, 6)"
+                  :key="e.id"
+                  to="/bd/calendar"
+                  class="flex items-start gap-2 px-2 py-2"
+                >
+                  <UIcon
+                    name="i-lucide-calendar"
+                    class="mt-0.5 size-4 shrink-0 text-ink-900"
+                  />
+                  <span>
+                    <span class="block font-semibold text-highlighted">{{ e.title }}</span>
+                    <span class="text-xs text-muted">{{ e.type }} · {{ e.div }}</span>
+                  </span>
+                </NuxtLink>
+                <BdTaskRow
+                  v-for="t in k.deadline.slice(0, 6)"
+                  :key="t.id"
+                  :task="t"
+                  :people="people"
+                  :project-name="namaProject(t.project)"
+                  hide-quad
+                  @buka="buka(t)"
+                  @toggle="toggle(t)"
+                  @hapus="taskHapus = t"
+                />
+                <p
+                  v-if="!k.agenda.length && !k.deadline.length"
+                  class="py-6 text-center text-sm text-muted"
+                >
+                  <b class="block text-highlighted">Tidak ada agenda/deadline</b>
+                </p>
+                <div
+                  v-else-if="k.agenda.length > 6 || k.deadline.length > 6"
+                  class="flex gap-2 px-2 py-2"
+                >
+                  <UButton
+                    v-if="k.deadline.length > 6"
+                    label="My Task"
+                    trailing-icon="i-lucide-chevron-right"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    to="/bd/mytask"
+                  />
+                  <UButton
+                    v-if="k.agenda.length > 6"
+                    label="Kalender"
+                    trailing-icon="i-lucide-chevron-right"
+                    color="neutral"
+                    variant="ghost"
+                    size="sm"
+                    to="/bd/calendar"
+                  />
+                </div>
+              </div>
+            </section>
           </div>
         </AppPanel>
       </div>
