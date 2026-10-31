@@ -820,3 +820,98 @@ export function waktuTerpakai(p: { stage?: string, start?: string, end?: string 
   }
   return '—'
 }
+
+// ─────────────────────────── Recurrence series (delta BD, Okt 2026) ──
+// Pure companions to `langkahUlang`/`lahirkanUlang` for the Recurring page:
+// series are read from the `ulangDari` chains already stored, never copied.
+
+/** One recurrence series: the running head plus its Done ancestry. */
+export interface Seri {
+  head: BdTask
+  rantai: BdTask[]
+  pola: string
+  aktif: boolean
+  nSelesai: number
+  terakhir: string
+  terlewat: { d: string, sub: string }[]
+}
+
+/** `rantaiUlang` — the `ulangDari` ancestry, oldest first (old `rantaiUlang`). */
+export function rantaiUlang(t: BdTask, semua: BdTask[]): BdTask[] {
+  const l: BdTask[] = [t]
+  const lihat = new Set<string>([t.id])
+  let x: BdTask | undefined = t
+  let aman = 0
+  while (x?.ulangDari && aman++ < 500) {
+    const atas = semua.find(y => y.id === x!.ulangDari)
+    if (!atas || lihat.has(atas.id)) break
+    lihat.add(atas.id)
+    l.unshift(atas)
+    x = atas
+  }
+  return l
+}
+
+/**
+ * `seriUlang` — one entry per chain head (a task nobody continues). The head
+ * pattern wins when still valid; a stopped head parks its pattern in
+ * `ulangBerhenti.u`; otherwise the newest valid pattern down the chain is
+ * shown (old `seriUlang`, minus the screen's visibility filter).
+ */
+export function seriUlang(semua: BdTask[]): Seri[] {
+  const penerus = new Set<string>()
+  semua.forEach((x) => {
+    if (x.ulangDari) penerus.add(x.ulangDari)
+  })
+  const out: Seri[] = []
+  semua.forEach((t) => {
+    if (penerus.has(t.id)) return
+    const r = rantaiUlang(t, semua)
+    const asal = r.slice().reverse().find(x => x.ulang && labelUlang(x.ulang))
+    const pola = (t.ulang && labelUlang(t.ulang)) ? t.ulang : (t.ulangBerhenti?.u || asal?.ulang || '')
+    if (!pola) return
+    const done = r.filter(selesai)
+    const akhir = done.map(x => x.doneAt || '').filter(Boolean).sort().pop() || ''
+    const lewat: { d: string, sub: string }[] = []
+    r.forEach((x) => {
+      if (Array.isArray(x.terlewat)) lewat.push(...x.terlewat)
+    })
+    out.push({ head: t, rantai: r, pola, aktif: !!(t.ulang && labelUlang(t.ulang)), nSelesai: done.length, terakhir: akhir, terlewat: lewat })
+  })
+  return out
+}
+
+/**
+ * `gulirPatch` — the self-roll of ONE overdue occurrence as a patch (old
+ * `gulirUlang` loop body). The stepping reimplements `deadlineBerikut`
+ * against the injected `hariIni` so the result stays deterministic; ended
+ * custom series (`d:` past the date, `x:` quota spent) roll nothing.
+ */
+export function gulirPatch(t: BdTask, hariIni: string): Partial<BdTask> | null {
+  if (!t || !t.ulang || !labelUlang(t.ulang) || selesai(t) || !tglSah(t.deadline) || !(t.deadline < hariIni)) return null
+  let nd = langkahUlang(t.deadline, t.ulang)
+  let aman = 0
+  while (nd < hariIni && aman++ < 400) nd = langkahUlang(nd, t.ulang)
+  const geser = Math.round((+pDate(nd) - +pDate(t.deadline)) / 86400000)
+  if (geser <= 0) return null
+  const { rantai, terlewat } = hitungSeri(t, [t])
+  if (seriBerakhir(t, nd, rantai, terlewat)) return null
+  const ss = subs(t)
+  const h = ss.filter(x => x && x.done).length
+  const catat = [...(Array.isArray(t.terlewat) ? t.terlewat : []), { d: t.deadline, sub: ss.length ? `${h}/${ss.length}` : '' }]
+  const patch: Partial<BdTask> = {
+    deadline: nd,
+    terlewat: catat.length > 52 ? catat.slice(-52) : catat,
+    status: 'To Do',
+    progress: 0,
+    subtasks: ss.map(x => ({ ...x, done: false, ...(tglSah(x.d) ? { d: tambahHari(x.d as string, geser) } : {}) })),
+  }
+  if (tglSah(t.start)) patch.start = tambahHari(t.start as string, geser)
+  return patch
+}
+
+/** `tempatLabel` — where a task lives: Daily Task, its project id, or "—". */
+export function tempatLabel(t: { daily?: boolean, project?: string | null }): string {
+  if (t.daily) return 'Daily Task'
+  return t.project || '—'
+}
