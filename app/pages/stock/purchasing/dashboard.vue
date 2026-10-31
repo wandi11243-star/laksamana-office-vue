@@ -87,6 +87,40 @@ const bukanCk = (o: OrderStock) => (o.batchName || '') !== 'Central Kitchen' && 
 const aktif = computed(() => (ordersQ.data.value?.rows ?? []).filter(o => bukanCk(o) && (o.status || 'Aktif') === 'Aktif' && !o.terarsip))
 const arsip = computed(() => (ordersQ.data.value?.rows ?? []).filter(o => bukanCk(o) && ((o.status || '') === 'Arsip' || o.terarsip)))
 
+/* Archive tab reads its own server page (`GET /stock/orders` with paging):
+ *  only server-supported filters travel (status/tim/tglDatang). The free-text
+ *  search, the vendor-by-master dropdown and the submit-date filter have no
+ *  server equivalent, so while any of them is active the tab falls back to
+ *  the full fetch + local slice — never filtering silently inside one page. */
+const arsipHal = ref(1)
+const arsipPer = ref(50)
+const arsipJatuhPenuh = computed(() => cari.value.trim() !== '' || tglSubmit.value !== '' || vendorAktif.value !== 'SEMUA')
+const arsipServerParams = computed(() => ({
+  status: 'Arsip',
+  tim: divisi.value !== 'SEMUA' ? divisi.value : undefined,
+  tglDatang: tglDatang.value || undefined,
+}))
+const arsipQ = useAsyncData('stock-purch-arsip', () => listOrders({
+  ...arsipServerParams.value,
+  page: arsipHal.value,
+  per_page: arsipPer.value,
+}), {
+  watch: [arsipServerParams, arsipHal, arsipPer],
+  default: () => ({ rows: [] as OrderStock[], versions: {} as Record<string, Versi>, total: undefined as number | undefined, page: undefined as number | undefined, perPage: undefined as number | undefined }),
+})
+/* Back to page 1 whenever the archive tab is entered or its filters change —
+ *  the server page numbering restarts from the new result set. */
+watch([sub, divisi, tglDatang, vendorAktif, cari, tglSubmit], () => { arsipHal.value = 1 })
+/* Tab count, badge and stat read the server total; the local fallback reads
+ *  the filtered length instead, so both modes stay honest. */
+const arsipTotal = computed(() => arsipJatuhPenuh.value
+  ? saring(arsip.value, true).length
+  : (arsipQ.data.value?.total ?? arsip.value.length))
+const arsipPotongLokal = computed(() => {
+  const semua = saring(arsip.value, true)
+  return semua.slice((arsipHal.value - 1) * arsipPer.value, arsipHal.value * arsipPer.value)
+})
+
 const saring = (rows: OrderStock[], pakaiDivisi: boolean) => {
   const q = cari.value.trim().toLowerCase()
   return rows.filter(o =>
@@ -162,17 +196,19 @@ const poItem = computed<Po[]>(() => {
  *  visibility only (`v-show`), never redraws the list (old `toggleArsipBatch`). */
 interface BatchArsip { kunci: string, nama: string, asli: boolean, pic: string, ts: string, divisi: string, baris: OrderStock[] }
 interface HariArsip { hari: string, baris: OrderStock[], divisi: { nama: string, jumlah: number }[], batch: BatchArsip[] }
-const arsipHari = computed<HariArsip[]>(() => {
+/* Archive grouping (day → batch) runs over one page of rows only: the
+ *  server page in server mode, the local slice in full-fetch fallback. */
+function kelompokArsip(rows: OrderStock[]): HariArsip[] {
   const perHari = new Map<string, OrderStock[]>()
-  for (const o of saring(arsip.value, true)) {
+  for (const o of rows) {
     const hari = normalisasiTgl(o.tglDatang) || normalisasiTgl(o.timestamp) || '-'
     const l = perHari.get(hari)
     if (l) l.push(o)
     else perHari.set(hari, [o])
   }
   const keluar: HariArsip[] = []
-  for (const [hari, rows] of perHari) {
-    const baris = [...rows].sort((a, b) => waktuSubmit(b) - waktuSubmit(a))
+  for (const [hari, barisAsli] of perHari) {
+    const baris = [...barisAsli].sort((a, b) => waktuSubmit(b) - waktuSubmit(a))
     const hit: Record<string, number> = {}
     for (const o of baris) {
       const d = o.tim || '(Lainnya)'
@@ -200,7 +236,12 @@ const arsipHari = computed<HariArsip[]>(() => {
   }
   const terbaru = (h: HariArsip) => h.baris.reduce((m, o) => Math.max(m, waktuSubmit(o)), 0)
   return keluar.sort((a, b) => (terbaru(b) - terbaru(a)) || (a.hari < b.hari ? 1 : -1))
-})
+}
+const arsipHari = computed<HariArsip[]>(() => kelompokArsip(
+  arsipJatuhPenuh.value
+    ? arsipPotongLokal.value
+    : saring((arsipQ.data.value?.rows ?? []).filter(bukanCk), true),
+))
 const arsipBuka = ref<Record<string, boolean>>({})
 function tukarArsipBatch(kunci: string) {
   arsipBuka.value[kunci] = !arsipBuka.value[kunci]
@@ -226,7 +267,7 @@ const poVendor = computed<GrupVendor[]>(() => {
 // --- actions --------------------------------------------------------------------
 const sibuk = ref(false)
 async function segarkan(pesan?: string) {
-  await ordersQ.refresh()
+  await Promise.all([ordersQ.refresh(), arsipQ.refresh()])
   if (pesan) toast.add({ title: pesan, color: 'success' })
 }
 
@@ -414,7 +455,7 @@ function unduhCsv() {
         label="Segarkan"
         icon="i-lucide-refresh-cw"
         variant="outline"
-        @click="ordersQ.refresh()"
+        @click="segarkan()"
       />
       <UButton
         label="Unduh CSV"
@@ -441,7 +482,7 @@ function unduhCsv() {
       />
       <AppStat
         label="Arsip selesai"
-        :value="String(arsip.length)"
+        :value="String(arsipTotal)"
         satuan="baris"
         icon="i-lucide-archive"
         tone="success"
@@ -455,7 +496,7 @@ function unduhCsv() {
           :options="[
             { value: 'item', label: 'Per item', icon: 'i-lucide-list', jumlah: hitungItem },
             { value: 'vendor', label: 'Gabung per vendor', icon: 'i-lucide-store', jumlah: hitungVendor },
-            { value: 'arsip', label: 'Arsip selesai', icon: 'i-lucide-archive', badge: arsip.length },
+            { value: 'arsip', label: 'Arsip selesai', icon: 'i-lucide-archive', badge: arsipTotal },
           ]"
         />
       </template>
@@ -859,11 +900,23 @@ function unduhCsv() {
           </div>
         </div>
         <p
+          v-if="arsipJatuhPenuh"
+          class="rounded-panel border border-default bg-muted px-4 py-2.5 text-xs leading-relaxed text-muted"
+        >
+          Pencarian teks, filter vendor, atau tgl submit aktif — arsip dibaca penuh lalu disaring di sini supaya hasilnya tetap lengkap.
+        </p>
+        <p
           v-if="!arsipHari.length"
           class="text-sm text-dimmed"
         >
           Belum ada riwayat pesanan yang cocok dengan kriteria filter.
         </p>
+        <KontenPager
+          v-model:hal="arsipHal"
+          v-model:per="arsipPer"
+          :total="arsipTotal"
+          satuan="order"
+        />
       </div>
     </AppPanel>
 
