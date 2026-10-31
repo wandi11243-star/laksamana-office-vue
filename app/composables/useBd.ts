@@ -17,8 +17,8 @@
 // `ping`/`stats` (U3 — no screen uses them) and the legacy whole-state `saveAll`
 // (T-25 → per-record CRUD).
 import type { Versi } from '~/utils/versi'
-import { ifMatch, tanganiKonflik } from '~/utils/versi'
-import { cekBolehDone, deps, lahirkanUlang, namaPendekTask, normalisasiStatus, penunggu, pesanTunggu, segarkanProgress, selesai } from '~/utils/bd-rumus'
+import { ifMatch, isKonflik, isVersiWajib, tanganiKonflik } from '~/utils/versi'
+import { cekBolehDone, deps, gulirPatch, labelUlang, lahirkanUlang, namaPendekTask, normalisasiStatus, parseUlang, penunggu, pesanTunggu, rantaiUlang, segarkanProgress, selesai, seriBerakhir, todayISO } from '~/utils/bd-rumus'
 import { fTglP } from '~/utils/format'
 import { BATAS_TULIS_PARALEL, hitungBerhasilParalel, petaParalel } from '~/utils/paralel'
 
@@ -470,6 +470,127 @@ export async function lahirkanUlangSetelah(t: BdTask, semua: BdTask[]): Promise<
   if (!b) return
   const ok = await bdTulisDiam(() => buatBd<BdTask>('tasks', b))
   if (ok) toastBd()?.add({ title: `Berikutnya: ${namaPendekTask(b)} — ${fTglP(b.deadline)}`, color: 'success' })
+}
+
+/**
+ * Who stopped a series (`ulangBerhenti.by`). Read through the Nuxt context
+ * like `toastBd`: these writers run from event handlers where it is gone.
+ */
+function namaPenyetop(): string {
+  try {
+    const me = tryUseNuxtApp()?.vueApp.runWithContext(() => useMe().value) ?? null
+    return me?.name ?? ''
+  }
+  catch {
+    return ''
+  }
+}
+
+/**
+ * Stop a series: park the pattern in `ulangBerhenti` and empty `ulang` on
+ * the head (old `hentikanUlang`). The running task stays; its Done just
+ * births nothing more. PUT carries the whole row. The confirm sheet lives
+ * in the Recurring screen (Task 3).
+ */
+export async function hentikanUlang(t: BdTask): Promise<boolean> {
+  if (!t.ulang) return false
+  const body: Partial<BdTask> = {
+    ...t,
+    ulang: '',
+    ulangBerhenti: { u: t.ulang, at: Date.now(), by: namaPenyetop() },
+  }
+  delete body.updatedAt
+  delete body.pindahKe
+  return bdSimpan(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)), 'Pengulangan dihentikan')
+}
+
+/**
+ * Resume a stopped series (old `lanjutkanUlang`): refuse a Done head, take
+ * the parked pattern else walk back down the chain for the newest valid one,
+ * restore `ulang` and drop `ulangBerhenti`. PUT carries the whole row, since
+ * a PATCH merge could not remove the trace.
+ */
+export async function lanjutkanUlang(t: BdTask, semua: BdTask[]): Promise<boolean> {
+  if (selesai(t)) return false
+  const pola = t.ulangBerhenti?.u
+    || rantaiUlang(t, semua).slice().reverse().find(x => x.ulang && labelUlang(x.ulang))?.ulang
+    || ''
+  if (!labelUlang(pola, t.deadline)) return false
+  const body: Partial<BdTask> = { ...t, ulang: pola }
+  delete body.updatedAt
+  delete body.pindahKe
+  delete body.ulangBerhenti
+  return bdSimpan(
+    () => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)),
+    `Pengulangan dilanjutkan: ${labelUlang(pola, t.deadline)}`,
+  )
+}
+
+/**
+ * A custom `x:` series is spent once chain length (+ missed dates) reaches
+ * the quota — the same count the old client used (completed AND skipped
+ * occurrences). `gulirPatch` only sees the single row, so re-check here
+ * against the FULL chain before rolling an `x:` series; `d:` series are
+ * exact as returned.
+ */
+function seriHabisRantaiPenuh(t: BdTask, semua: BdTask[], berikut: string): boolean {
+  const r = parseUlang(t.ulang)
+  if (!r || r.akhir.j !== 'x') return false
+  const n = rantaiUlang(t, semua).reduce((a, x) => a + 1 + (Array.isArray(x.terlewat) ? x.terlewat.length : 0), 0)
+  return seriBerakhir(t, berikut, n, 0)
+}
+
+/**
+ * Roll every overdue occurrence forward to its next unelapsed schedule
+ * (old `gulirUlang` loop). Each row goes through its own versioned PUT, so
+ * two tabs rolling together converge: both compute the same deterministic
+ * target, one wins, the loser takes a 409 and just reloads — never retries
+ * blindly. Returns the rolled count.
+ */
+export async function gulirUlangOtomatis(semua: BdTask[]): Promise<number> {
+  const hari = todayISO()
+  const muatUlang = () => refreshNuxtData(['bd-state', 'bd-settings'])
+  let n = 0
+  let konflik: unknown = null
+  for (const t of semua) {
+    const patch = gulirPatch(t, hari)
+    if (!patch || !patch.deadline) continue
+    if (seriHabisRantaiPenuh(t, semua, patch.deadline)) continue
+    const body: Partial<BdTask> = { ...t, ...patch }
+    delete body.updatedAt
+    // The drag marker names its column: an automatic roll is not a drag.
+    delete body.pindahKe
+    try {
+      await ubahBd<BdTask>('tasks', t.id, body, versiBaris(t))
+      n++
+    }
+    catch (e) {
+      // A 409 from a lost race means another tab won: reload once at the
+      // end instead of refighting it. Any other failure still speaks.
+      if (isKonflik(e) || isVersiWajib(e)) konflik = e
+      else toastBd()?.add({ title: apiErrorMessage(e), color: 'error' })
+    }
+  }
+  if (konflik) await tanganiKonflik(konflik, muatUlang)
+  else if (n) await muatUlang()
+  if (n) toastBd()?.add({ title: `${n} task berulang maju ke jadwal berikutnya`, color: 'success' })
+  return n
+}
+
+/**
+ * Mark the running occurrence Done through the one guard (`toggleTask`, old
+ * `selesaiUlang`): dependency check and next-occurrence birth apply. The
+ * birth path already toasts "Berikutnya: …"; only an ended series speaks
+ * here, so the toast tells scheduled-apart from ended.
+ */
+export async function selesaiUlang(t: BdTask, semua: BdTask[]): Promise<boolean> {
+  if (selesai(t)) return false
+  const ok = await toggleTask(t, semua)
+  if (ok && t.ulang && labelUlang(t.ulang, t.deadline)) {
+    const lahir = lahirkanUlang({ ...t, status: 'Done' } as BdTask, semua)
+    if (!lahir) toastBd()?.add({ title: `${namaPendekTask(t)} selesai — seri berulangnya sudah berakhir`, color: 'success' })
+  }
+  return ok
 }
 
 /** Delete sentence for the confirm sheet: dependents are named by count. */
