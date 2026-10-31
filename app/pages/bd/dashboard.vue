@@ -170,6 +170,43 @@ async function hapus() {
       </div>
     </AppPanel>
 
+    <!-- Condition strip (formulas unchanged) -->
+    <AppStatGrid>
+      <AppStat
+        label="Task aktif"
+        icon="i-lucide-list-todo"
+        :value="aktif.length"
+        :sub="`${vt.filter(selesai).length} selesai tercatat`"
+      />
+      <AppStat
+        label="Overdue"
+        icon="i-lucide-triangle-alert"
+        :tone="od.length ? 'error' : 'success'"
+        :value="od.length"
+        :sub="od.length ? 'Perlu perhatian' : 'Semua terkendali'"
+      />
+      <AppStat
+        label="Project jalan"
+        icon="i-lucide-folder-kanban"
+        tone="vip"
+        :value="jalan.length"
+        :sub="`${projects.filter(p => p.health === 'at-risk').length} at-risk`"
+      />
+      <AppStat
+        label="Koordinasi pending"
+        icon="i-lucide-handshake"
+        tone="warning"
+        :value="coordP.length"
+        sub="ke divisi lain"
+      />
+      <AppStat
+        label="PO berjalan"
+        icon="i-lucide-shopping-cart"
+        :value="poP.length"
+        :sub="fRp(poP.reduce((s, p) => s + (Number(p.amount) || 0), 0))"
+      />
+    </AppStatGrid>
+
     <!-- Three-day triage columns (Task 2) -->
     <AppPanel
       title="Tiga hari ke depan"
@@ -410,43 +447,6 @@ async function hapus() {
         </div>
       </AppPanel>
     </div>
-
-    <!-- Condition strip (moved down from the top; formulas unchanged) -->
-    <AppStatGrid>
-      <AppStat
-        label="Task aktif"
-        icon="i-lucide-list-todo"
-        :value="aktif.length"
-        :sub="`${vt.filter(selesai).length} selesai tercatat`"
-      />
-      <AppStat
-        label="Overdue"
-        icon="i-lucide-triangle-alert"
-        :tone="od.length ? 'error' : 'success'"
-        :value="od.length"
-        :sub="od.length ? 'Perlu perhatian' : 'Semua terkendali'"
-      />
-      <AppStat
-        label="Project jalan"
-        icon="i-lucide-folder-kanban"
-        tone="vip"
-        :value="jalan.length"
-        :sub="`${projects.filter(p => p.health === 'at-risk').length} at-risk`"
-      />
-      <AppStat
-        label="Koordinasi pending"
-        icon="i-lucide-handshake"
-        tone="warning"
-        :value="coordP.length"
-        sub="ke divisi lain"
-      />
-      <AppStat
-        label="PO berjalan"
-        icon="i-lucide-shopping-cart"
-        :value="poP.length"
-        :sub="fRp(poP.reduce((s, p) => s + (Number(p.amount) || 0), 0))"
-      />
-    </AppStatGrid>
 
     <BdTaskSheet
       v-model:open="bukaTask"
