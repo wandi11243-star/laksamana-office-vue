@@ -113,9 +113,16 @@ function baru() {
   formBuka.value = true
 }
 function ubah(v: VipMkt) {
+  // Close the detail sheet first: two open sheets fight over focus and the
+  // form ends up behind the detail. The watcher below reopens the detail
+  // if the form is closed without saving.
+  lihatId.value = null
   formAwal.value = v
   formBuka.value = true
 }
+watch(formBuka, (buka) => {
+  if (!buka && formAwal.value && !lihatId.value) lihatId.value = formAwal.value.id
+})
 async function simpanForm(v: VipMkt) {
   const lama = st.value.vip.find(x => x.id === v.id)
   const ok = lama
@@ -346,13 +353,12 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
         variant="subtle"
         icon="i-lucide-triangle-alert"
         :description="`${rekap.tanpaNominal} Assisted belum ada nominalnya — isi lewat tombol Isi Nominal di barisnya.`"
-        class="mb-4"
+        class="mb-5"
       />
 
       <AppPanel
         v-if="rsvGalat || yatim.length"
         title="Reservasi di Reservasi yang belum ada di Marketing"
-        class="mb-4"
       >
         <UAlert
           v-if="rsvGalat"

@@ -1,10 +1,12 @@
 <!--
   One stat card of the old recap row (deploy/reservasi/index.html .recap):
-  a coloured bar on the left, the label in small capitals with its icon, the
-  number, an optional "/ total", and one line of context. Sit several in
-  <AppStatGrid>. The tone names what the number means, not decoration:
-  gold = neutral count, success = good, warning = needs a look, error = act now,
-  info = capacity / people, vip = special guests.
+  the whole card sits on a soft pastel tint, the label in small capitals
+  with its icon, the number, an optional "/ total", and one line of
+  context. Sit several in <AppStatGrid>. The tone names what the number
+  means, not decoration: gold = neutral count, success = good,
+  warning = needs a look, error = act now, info = capacity / people,
+  vip = special guests. Every tint pairs with its dark text so the number
+  (text-highlighted) and the label (text-muted) stay AA-readable.
 -->
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
@@ -25,13 +27,14 @@ const ukuran = computed(() => {
   return n > 11 ? 'text-xl' : n > 7 ? 'text-2xl' : 'text-3xl'
 })
 
-const bar = {
-  gold: 'before:bg-muted',
-  success: 'before:bg-teal-light',
-  warning: 'before:bg-yellow-light',
-  error: 'before:bg-coral-light',
-  info: 'before:bg-accented',
-  vip: 'before:bg-lilac-light',
+/** Full-card pastel tint per tone (Miro brand pastels from main.css). */
+const latar = {
+  gold: 'bg-sand-light',
+  success: 'bg-teal-light',
+  warning: 'bg-yellow-light',
+  error: 'bg-coral-light',
+  info: 'bg-sky-light',
+  vip: 'bg-lilac-light',
 }
 const ink = {
   gold: 'text-ink-900',
@@ -39,14 +42,14 @@ const ink = {
   warning: 'text-yellow-dark',
   error: 'text-coral-dark',
   info: 'text-blue-pressed',
-  vip: 'text-ink-900',
+  vip: 'text-vip',
 }
 </script>
 
 <template>
   <div
-    class="relative overflow-hidden rounded-panel border border-default bg-default py-4 pe-4 ps-5 shadow-panel before:absolute before:inset-y-0 before:start-0 before:w-1"
-    :class="bar[tone]"
+    class="rounded-panel border border-default px-5 py-4 shadow-panel"
+    :class="latar[tone]"
   >
     <p class="flex items-start gap-1.5 text-xs font-semibold uppercase leading-snug tracking-wide text-muted">
       <UIcon

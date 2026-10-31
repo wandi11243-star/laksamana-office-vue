@@ -157,7 +157,7 @@ async function pilihBerkas(b: BuktiVipMkt, files: FileList | null) {
         <div
           v-for="b in f.bukti"
           :key="b.id"
-          class="grid gap-2 rounded-field border border-default p-2.5"
+          class="grid gap-2 rounded-xl border border-default p-2.5"
         >
           <div class="grid grid-cols-2 gap-2">
             <UFormField

@@ -14,7 +14,10 @@ defineProps<{
 </script>
 
 <template>
-  <section class="mb-5 overflow-hidden rounded-panel border border-default bg-default shadow-panel">
+  <section
+    class="mb-5 overflow-hidden border border-default bg-default shadow-panel"
+    :class="flush ? 'rounded-xl' : 'rounded-panel'"
+  >
     <header
       v-if="title || $slots.head || $slots.actions"
       class="flex flex-wrap items-center justify-between gap-3 px-4 py-3.5 lg:px-5"

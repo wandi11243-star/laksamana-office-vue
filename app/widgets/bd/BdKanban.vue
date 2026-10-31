@@ -1,10 +1,10 @@
 <!--
   One task list as a Kanban board (old `kanbanHtml`, deploy/bd/index.html:2219).
-  A thin wrapper over AppKanban: the board owns drag state and the
-  always-visible "Pindah ke…" picker, this file only maps BD columns/cards and
-  keeps the two BD behaviours — the Done guard (`cekBolehDone`) and "+ Tambah
-  kartu" birthing a row with no order (new cards sort at the bottom through
-  `kanbanUrut`). Cards are `BdKanbanCard` (old `boardCard`), not the list row.
+  A thin wrapper over AppKanban: the board owns drag state, this file only maps
+  BD columns/cards and keeps the two BD behaviours — the Done guard
+  (`cekBolehDone`) and "+ Tambah kartu" birthing a row with no order (new cards
+  sort at the bottom through `kanbanUrut`). Cards are `BdKanbanCard` (old
+  `boardCard`), not the list row. Moving a card is drag & drop only.
 
   Shared by My Task, Daily and the project detail Kanban tab.
 -->
@@ -115,12 +115,11 @@ async function tambahKartu(st: string) {
   <AppKanban
     :columns="kolomKanban"
     layout="scroll"
-    move-placeholder="Pindah ke…"
     @move="pindahKartu"
   >
     <template #header="{ column }">
       <span class="text-sm font-bold text-highlighted">{{ column.title }}</span>
-      <span class="rounded-full bg-default px-2 py-0.5 text-xs font-bold text-ink-900 num">{{ column.count }}</span>
+      <span class="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-ink-900 num">{{ column.count }}</span>
     </template>
     <template #card="{ item, dragging, dragStart, dragEnd }">
       <BdKanbanCard

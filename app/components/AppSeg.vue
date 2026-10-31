@@ -1,7 +1,7 @@
 <!--
   Segmented tabs in a rounded track (the old Tabel / Kalender / Denah meja /
   Waiting list, Harian / Bulanan, Weekday / Weekend / Lantai 2). The chosen
-  segment is a white chip with ink words.
+  segment is a black pill with white words (DESIGN.md rule 3).
 -->
 <script setup lang="ts" generic="T extends string | number | boolean">
 defineProps<{
@@ -28,7 +28,7 @@ const model = defineModel<T>()
       :class="[
         size === 'sm' ? 'px-3 py-1 text-[13px]' : 'px-3.5 py-1.5 text-sm',
         model === o.value
-          ? 'bg-default text-ink-900 shadow-sm'
+          ? 'bg-ink-900 text-white shadow-sm'
           : 'text-muted hover:text-highlighted',
       ]"
       @click="model = o.value"
@@ -41,7 +41,8 @@ const model = defineModel<T>()
       {{ o.label }}
       <span
         v-if="o.jumlah"
-        class="font-semibold opacity-60 num"
+        class="font-semibold num"
+        :class="model === o.value ? 'text-white/75' : 'opacity-60'"
       >{{ o.jumlah }}</span>
       <span
         v-if="o.badge"

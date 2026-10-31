@@ -138,6 +138,7 @@ const kolom: TableColumn<KontenItem>[] = [
         color="error"
         variant="subtle"
         icon="i-lucide-triangle-alert"
+        class="mb-5"
         :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
       />
 

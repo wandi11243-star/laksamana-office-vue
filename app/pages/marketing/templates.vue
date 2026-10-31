@@ -311,13 +311,12 @@ async function hapusLama(div: string) {
             color="warning"
             variant="subtle"
             icon="i-lucide-triangle-alert"
-            class="mb-3"
+            class="mb-5"
             description="Ini template dari waktu divisi masih jadi kategori to-do. Isinya tidak hilang dan tidak dipindah otomatis — menebak kategorinya salah berarti menaruh pekerjaan di event yang keliru. Pindahkan sendiri ke kategori yang sesuai; item beserta progres yang sudah tercatat ikut pindah."
           />
         </template>
         <AppPanel
           v-if="i >= formats.length && bisaUbah && formats.length"
-          class="mb-2"
         >
           <div class="flex flex-wrap items-center gap-2">
             <div class="min-w-40 flex-1">
@@ -343,7 +342,6 @@ async function hapusLama(div: string) {
         </AppPanel>
 
         <AppPanel
-          class="mb-3"
           flush
         >
           <div class="flex flex-wrap items-start gap-2 p-4">

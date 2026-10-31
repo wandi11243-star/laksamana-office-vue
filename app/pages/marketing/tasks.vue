@@ -281,7 +281,7 @@ function wa(div: string, item: ItemTugasMkt) {
 
       <!-- level 2: standard board -->
       <template v-else>
-        <AppPanel class="mb-4">
+        <AppPanel>
           <div class="flex flex-wrap items-center gap-4">
             <div class="min-w-48 flex-1">
               <p class="text-xs font-semibold tracking-wide text-muted uppercase">

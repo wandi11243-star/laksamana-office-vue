@@ -2123,7 +2123,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
     </AppPanel>
 
     <template v-if="tab === 'calendar'">
-      <div class="mb-3 flex flex-wrap items-center gap-2">
+      <div class="mb-5 flex flex-wrap items-center gap-2">
         <UButton
           label="‹"
           color="neutral"

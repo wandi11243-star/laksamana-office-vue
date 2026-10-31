@@ -182,7 +182,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
       />
 
       <template v-else-if="kompas">
-        <div class="space-y-2">
+        <div class="mb-5 space-y-3">
           <AppSeg
             v-model="seg"
             :options="opsiSeg"
@@ -218,6 +218,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
           color="warning"
           variant="soft"
           icon="i-lucide-user-x"
+          class="mb-5"
           :title="`${yatim.length} baris breakdown belum punya PIC${yatimTotal ? ` — total ${rupiah(yatimTotal)}` : ''}`"
           description="Nominalnya tidak diakui untuk siapa pun. Yang membetulkannya Finance, di Omset → Breakdown Sumber."
         />

@@ -64,6 +64,7 @@ function buka(a: AssetKonten) {
         color="error"
         variant="subtle"
         icon="i-lucide-triangle-alert"
+        class="mb-5"
         :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
       />
       <KontenBrandBar :brands="st.brands" />
@@ -71,7 +72,7 @@ function buka(a: AssetKonten) {
       <AppChips
         v-model="kat"
         :options="opsiKat"
-        class="mb-4"
+        class="mb-5"
       />
 
       <div

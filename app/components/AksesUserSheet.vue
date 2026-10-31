@@ -441,7 +441,7 @@ function isiTim(t: string) {
           />
         </div>
       </div>
-      <div class="grid gap-1 rounded-field border border-default p-2">
+      <div class="grid gap-1 rounded-xl border border-default p-2">
         <label class="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-elevated/50">
           <UCheckbox
             :model-value="aksesDicentang('*')"
@@ -508,7 +508,7 @@ function isiTim(t: string) {
             />
           </div>
         </div>
-        <div class="grid gap-1 rounded-field border border-default p-2">
+        <div class="grid gap-1 rounded-xl border border-default p-2">
           <label class="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-elevated/50">
             <UCheckbox
               :model-value="punyaAdmin('*')"

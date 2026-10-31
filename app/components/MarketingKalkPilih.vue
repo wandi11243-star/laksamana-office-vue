@@ -154,7 +154,7 @@ function pakai() {
             @click="semua(false)"
           />
         </div>
-        <ul class="max-h-80 divide-y divide-default overflow-y-auto rounded-field border border-default">
+        <ul class="max-h-80 divide-y divide-default overflow-y-auto rounded-xl border border-default">
           <li
             v-for="m in daftar"
             :key="m.n"

@@ -8,16 +8,15 @@
     Dragging to another column asks "Pindahkan ke X?" first; Quotation Terkirim
     needs an approved offer letter (pindahBolehMkt, F.3). Moving up is never
     blocked, only reminded (F.10). Moving to Deal opens the handover tasks.
-    Every card also carries an always-visible "Pindah ke…" picker, so touch
-    users move cards without dragging. Cards are only draggable with
-    edit_event — without it the grip, the card and the picker visibly disable
+    Drag & drop is the only way to move a card. Cards are only draggable with
+    edit_event — without it the grip and the card visibly disable
     with a reason tooltip instead of silently doing nothing.
   - Daftar Event: period (Semua / Hari ini / Minggu ini / Bulan ini + month
     stepper), status (default "Semua kecuali selesai"), search, Reset filter.
 
   Correction vs the old client: dragging a card never checked edit_event, so
   anyone who could open the board could move a stage. It needs edit_event
-  here, enforced visibly on the card, the grip and the picker.
+  here, enforced visibly on the card and the grip.
   Drag carries a dataTransfer payload (Firefox never fires drop without one).
 -->
 <script setup lang="ts">
@@ -228,7 +227,7 @@ const kosong = computed(() => {
 
       <div
         v-if="daftarPic.length"
-        class="mb-4 flex flex-wrap items-center gap-2"
+        class="mb-5 flex flex-wrap items-center gap-2"
       >
         <span class="flex items-center gap-1 text-xs font-bold tracking-wider text-muted uppercase">
           <UIcon
@@ -299,7 +298,7 @@ const kosong = computed(() => {
           >
             {{ column.title }}
           </AppStatus>
-          <span class="num ml-auto rounded-full bg-default px-2 text-xs font-bold">{{ column.items.length }}</span>
+          <span class="num ml-auto rounded-full bg-muted px-2 text-xs font-bold">{{ column.items.length }}</span>
         </template>
         <template #card="{ item, dragging, canDrag: bolehSeret, dragReason: alasanSeret, dragStart, dragEnd, swallowClick }">
           <AppKanbanCard

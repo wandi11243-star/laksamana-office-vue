@@ -1,6 +1,6 @@
 <!--
   Konten › Pipeline (old VIEWS.pipeline + kDrop, deploy/konten/index.html:2532-2568;
-  konten.md D.3). Kanban over the ten pipeline steps; dragging a card to another
+  konten.md D.3). Shared AppKanban over the ten pipeline steps; dragging a card to another
   column sets its status (needs edit on `content`; moving into Approval
   notifies). The board scrolls inside its own box, not the page.
 
@@ -19,6 +19,7 @@ const { data: st, error, status } = useStateKonten()
 const { saya, can } = useAksesKonten()
 const brand = useBrandKonten()
 const pic = useState('konten-pipe-pic', () => '')
+const router = useRouter()
 const toast = useToast()
 
 const SEMUA = '__semua'
@@ -36,21 +37,22 @@ const opsiPic = computed(() => opsiPicKonten(
   saya.value?.user.id,
 ).map(o => ({ ...o, value: o.value || SEMUA })))
 const kolom = computed(() => PIPELINE_KONTEN.map(s => ({ s, items: tersaring.value.filter(c => c.status === s) })))
+const kolomKanban = computed(() => kolom.value.map(k => ({ id: k.s, title: k.s, items: k.items })))
 
 const namaBrand = (id?: string) => st.value.brands.find(b => b.id === id)?.name.split(' (')[0] ?? ''
 const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ?? ''
 const inisial = (n: string) => n.trim().split(/\s+/).slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase()
 
-// ---- drag & drop (desktop) ----
-const seret = ref<string | null>(null)
-const atas = ref<string | null>(null)
-async function lepas(col: string) {
-  atas.value = null
-  const id = seret.value
-  seret.value = null
-  if (!id) return
+// ---- board moves (drag state lives in AppKanban; guards + save stay here) ----
+function alihKartu(id: string, telan: () => boolean) {
+  // A click fires right after a drop on the same card — swallow it once.
+  if (telan()) return
+  router.push(`/konten/detail/${id}`)
+}
+async function lepas(p: { id: string, to: string }) {
+  const col = p.to
   if (!can('content')) return toast.add({ title: 'Tidak punya akses ubah status', color: 'error' })
-  const c = st.value.content.find(x => x.id === id)
+  const c = st.value.content.find(x => x.id === p.id)
   if (!c || c.status === col) return
   const ok = await kontenSimpan(
     () => tambalKonten<KontenItem>('content', c.id, { status: col }, c.updatedAt),
@@ -109,74 +111,69 @@ async function lepas(col: string) {
         </div>
       </AppPanel>
 
-      <!-- Desktop: the board. -->
+      <!-- Desktop: shared board (AppKanban owns the drag state). -->
       <div
-        class="hidden gap-3 overflow-x-auto pb-2 lg:flex"
+        class="hidden lg:block"
         :class="status === 'pending' ? 'opacity-60' : ''"
       >
-        <section
-          v-for="k in kolom"
-          :key="k.s"
-          class="flex w-60 flex-none flex-col rounded-xl border bg-muted"
-          :class="atas === k.s ? 'border-primary-400 bg-primary-50' : 'border-default'"
-          @dragover.prevent="atas = k.s"
-          @dragleave="atas === k.s && (atas = null)"
-          @drop.prevent="lepas(k.s)"
+        <AppKanban
+          :columns="kolomKanban"
+          :can-drag="can('content')"
+          drag-reason="Kamu tidak punya izin mengubah status konten."
+          layout="scroll"
+          empty-text="-"
+          @move="lepas"
         >
-          <header class="flex items-center gap-2 px-3 py-2.5">
+          <template #header="{ column }">
             <AppStatus
-              :color="warnaStatusKonten(k.s)"
-              :icon="ikonStatusKonten(k.s)"
+              :color="warnaStatusKonten(column.id)"
+              :icon="ikonStatusKonten(column.id)"
               size="sm"
             >
-              {{ k.s }}
+              {{ column.title }}
             </AppStatus>
-            <span class="num ml-auto rounded-full bg-default px-2 text-xs font-bold">{{ k.items.length }}</span>
-          </header>
-          <div class="flex min-h-24 flex-1 flex-col gap-2 px-2 pb-2">
-            <NuxtLink
-              v-for="c in k.items"
-              :key="c.id"
-              :to="`/konten/detail/${c.id}`"
-              draggable="true"
-              class="block cursor-grab rounded-lg border border-default bg-default p-2.5 shadow-panel hover:border-accented"
-              :class="seret === c.id ? 'opacity-50' : ''"
-              @dragstart="seret = c.id"
-              @dragend="seret = null; atas = null"
+            <span class="num ml-auto rounded-full bg-muted px-2 text-xs font-bold">{{ column.items.length }}</span>
+          </template>
+          <template #card="{ item, dragging, canDrag: bolehSeret, dragReason: alasanSeret, dragStart, dragEnd, swallowClick }">
+            <AppKanbanCard
+              :dragging="dragging"
+              :can-drag="bolehSeret"
+              :drag-reason="alasanSeret"
+              @dragstart="dragStart"
+              @dragend="dragEnd"
+              @card-click="alihKartu(item.id, swallowClick)"
             >
-              <p class="truncate text-[11px] text-muted">
-                {{ [namaBrand(c.brand), contentPlatforms(c).slice(0, 2).join(' · ')].filter(Boolean).join(' · ') }}
-              </p>
-              <p class="mt-0.5 line-clamp-2 text-sm font-semibold text-highlighted">
-                {{ c.title || '(tanpa judul)' }}
-              </p>
-              <div class="mt-2 flex items-center justify-between gap-2">
-                <KontenDeadline
-                  :tgl="c.deadline"
-                  :selesai="sudahArsip(c)"
-                />
-                <span
-                  v-if="c.pic"
-                  class="flex size-6 items-center justify-center rounded-md bg-primary-100 text-[10px] font-bold text-primary-800"
-                  :title="namaUser(c.pic)"
-                >{{ inisial(namaUser(c.pic) || '?') }}</span>
-                <UBadge
-                  v-else
-                  label="Belum ada PIC"
-                  color="neutral"
-                  variant="soft"
-                  size="sm"
-                />
-              </div>
-            </NuxtLink>
-            <p
-              v-if="!k.items.length"
-              class="py-4 text-center text-xs text-dimmed"
-            >
-              -
-            </p>
-          </div>
-        </section>
+              <template #title>
+                <p class="truncate text-[11px] font-normal text-muted">
+                  {{ [namaBrand(item.brand), contentPlatforms(item).slice(0, 2).join(' · ')].filter(Boolean).join(' · ') }}
+                </p>
+                <p class="mt-0.5 line-clamp-2 text-sm font-semibold text-highlighted">
+                  {{ item.title || '(tanpa judul)' }}
+                </p>
+              </template>
+              <template #meta>
+                <div class="mt-2 flex items-center justify-between gap-2">
+                  <KontenDeadline
+                    :tgl="item.deadline"
+                    :selesai="sudahArsip(item)"
+                  />
+                  <span
+                    v-if="item.pic"
+                    class="flex size-6 items-center justify-center rounded-md bg-primary-100 text-[10px] font-bold text-primary-800"
+                    :title="namaUser(item.pic)"
+                  >{{ inisial(namaUser(item.pic) || '?') }}</span>
+                  <UBadge
+                    v-else
+                    label="Belum ada PIC"
+                    color="neutral"
+                    variant="soft"
+                    size="sm"
+                  />
+                </div>
+              </template>
+            </AppKanbanCard>
+          </template>
+        </AppKanban>
       </div>
 
       <!-- Phone: grouped list. -->

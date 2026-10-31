@@ -16,5 +16,6 @@ const opsi = computed(() => [{ value: 'all', label: 'Semua Brand' }, ...props.br
     v-if="brands.length"
     v-model="brand"
     :options="opsi"
+    class="mb-5"
   />
 </template>

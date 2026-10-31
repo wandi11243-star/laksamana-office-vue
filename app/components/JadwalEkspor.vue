@@ -85,7 +85,7 @@ function unduh() {
           @click="semua(false)"
         />
       </div>
-      <div class="max-h-80 divide-y divide-default overflow-y-auto rounded-field border border-default">
+      <div class="max-h-80 divide-y divide-default overflow-y-auto rounded-xl border border-default">
         <label
           v-for="u in daftar"
           :key="u.id"

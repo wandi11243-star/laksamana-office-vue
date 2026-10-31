@@ -56,9 +56,12 @@ Palet dari DESIGN.md laksamana-hris (analisis Miro).
 | Kuning lembut (menu aktif, pil) | `bg-yellow-light` / `text-yellow-dark` | `#fff4c4` / `#746019` | — |
 | Kuning aksen (wordmark, promo, tag) | `text-brand-yellow` | `#ffd02f`, bukan untuk CTA | — |
 | Kepala tabel | `bg-muted` + `text-muted` | `#f7f8fa` + `#555a6a` | — |
-| Status | `text-/bg-success·warning·error·info` | sukses `#c3faf5`/`#187574`, tunggu `#fff4c4`/`#746019`, tolak `#ffc6c6`/`#600000`, info tint/`#2a41b6` | — |
+| Status | `text-/bg-success·warning·error·info` | sukses `#c3faf5`/`#187574`, tunggu `#fff4c4`/`#746019`, tolak `#ffc6c6`/`#600000`, info `#d8ebff`/`#2a41b6` | — |
+| Kartu stat | `AppStat` `tone` → tint penuh | netral `bg-sand-light`, sukses `bg-teal-light`, tunggu `bg-yellow-light`, tolak `bg-coral-light`, info `bg-sky-light`, VIP `bg-lilac-light`/`text-vip`; angka `text-highlighted`, label `text-muted`, ikon pasangan gelap tiap tone | — |
 | VIP / sharing | `text-vip` / `bg-vip/12` | `#6B4FB0` | — |
-| Radius panel / field | `rounded-panel` / `rounded-field` | 28px / full (`9999px`) | — |
+| Radius panel besar | `rounded-panel` | 28px | — |
+| Radius kotak grup kecil bersarang | `rounded-xl` | 12px | — |
+| Radius field | `rounded-field` | full (`9999px`) | — |
 | Bayangan panel | `shadow-panel` | `0 12px 32px -4px rgb(5 0 56/.08)` | — |
 
 Ramp emas lama (`--color-laksamana-*`) tidak dipakai lagi — bloknya dipertahankan di `main.css`
@@ -97,11 +100,11 @@ Seperti Office lama (`deploy/reservasi/index.html:851-872`):
 | Komponen | Padanan Office lama | Dipakai untuk |
 |---|---|---|
 | `AppPage` | `.page-head` | Judul + satu baris keterangan di kiri, tombol halaman di slot `#actions` di kanan |
-| `AppStatGrid` + `AppStat` | `.recap-grid` / `.recap` | Baris kartu statistik: garis warna kiri, label kapital + ikon, angka besar (+ `satuan` "/ 32"), satu baris konteks. `tone` = arti angka (aturan 4) |
+| `AppStatGrid` + `AppStat` | `.recap-grid` / `.recap` | Baris kartu statistik: latar tint pastel penuh per `tone`, label kapital + ikon, angka besar (+ `satuan` "/ 32"), satu baris konteks. `tone` = arti angka (aturan 4) |
 | `AppPanel` | `.panel` | Wadah semua isi: judul (+ ikon, + pil jumlah gelap), tombol kanan, slot `#head` untuk tab/cari; `flush` untuk tabel sampai tepi |
 | `AppFilterGrid` | blok filter | Isi dengan `UFormField` biasa; label otomatis kapital abu kecil |
 | `AppChips` | `.pill` | Pilihan cepat (Hari ini / Besok / 7 hari / Bulan ini) |
-| `AppSeg` | tab bulat | Tab di dalam trek bulat (Tabel / Kalender / Denah / Waiting list; Harian / Bulanan), boleh ikon & badge |
+| `AppSeg` | tab bulat | Tab di dalam trek bulat (Tabel / Kalender / Denah / Waiting list; Harian / Bulanan), boleh ikon & badge; opsi aktif = pil hitam (`bg-ink-900` teks putih), nonaktif = teks abu di atas trek |
 | `AppStatus` | `.badge-status` | Pil status: warna + ikon + kata. `size="sm"` di dalam tabel |
 | `AppSectionTitle` | `.section-title` | Judul bagian di form panjang: kapital tinta di atas garis; aksi memakai pil hitam |
 | `AppPilihan` | `.toggle-row` | Dua–tiga tombol pilihan besar (Sudah DP / Belum DP, Ya / Tidak) |
@@ -112,6 +115,24 @@ Seperti Office lama (`deploy/reservasi/index.html:851-872`):
 | `AppFocus` | — | Hanya untuk widget Beranda. Layar modul memakai `AppStat` |
 
 Komponen Nuxt UI lain dipakai langsung, tidak dibungkus. Ubah gaya bawaannya di `app.config.ts`.
+
+**Kotak grup kecil bersarang memakai `rounded-xl` (12px), bukan `rounded-panel`.**
+Grup field ber-border dengan padding kecil (`p-2`/`p-2.5`/`p-3`) dan kotak daftar
+scroll kecil (`max-h-*` + `divide-y`/`space-y`) yang duduk di dalam panel atau sheet
+tampil lebih kotak (12px) supaya hirarki panel 28px → grup 12px → field pil terbaca.
+Panel besar (`AppPanel`, kartu stat, sheet, kartu daftar) tetap `rounded-panel` (28px);
+pengecualian: `AppPanel flush` (tabel/daftar sampai tepi) memakai `rounded-xl`
+(12px) — sudut 28px memakan kepala tabel muted yang menempel tepi dan terbaca
+kebesaran, sedangkan 12px sejajar kotak grup bersarang; token `--radius-panel`
+di `main.css` tidak berubah.
+
+Kolom kanban (`AppKanban`) adalah baki pastel di atas halaman muted — satu warna
+`bg-brand-orange-light` untuk semua kolom + `border-default` + `rounded-xl`
+tanpa bayangan; kartu putih di dalamnya terangkat lewat garis dan
+`shadow-panel`-nya sendiri, pil jumlah kolom memakai `bg-muted`. Bahasa highlight
+drop-target tetap satu: `border-primary-400` + `bg-primary-50`, yang tetap terbaca
+di atas pastel. Satu-satunya cara pindah kartu adalah drag & drop — tidak ada
+picker "Pindah ke…" di dalam board.
 
 ### Pola layar
 
@@ -126,6 +147,9 @@ Komponen Nuxt UI lain dipakai langsung, tidak dibungkus. Ubah gaya bawaannya di 
 - **Baris tabel yang butuh perhatian** diberi latar: telat = `bg-error/10`, perlu perhatian = `bg-warning/10`.
 - **Aksi per baris** berwarna seperti lama: Datang/Verifikasi = `success`, Follow up (WA) = `success soft`,
   No-show/Tolak = `error`, Selesai = pil hitam, sunting = ikon pensil `outline`.
+- **Jarak vertikal antar-seksi besar selalu `mb-5` (20px)** — itu bawaan `AppPage` (kepala), `AppStatGrid`,
+  `AppPanel`, dan `KontenBrandBar`. Jangan sisipkan `mb-2`/`mb-3`/`mb-4` atau `space-y-1`/`space-y-2`
+  sebagai pemisah seksi; di dalam seksi (kepala panel, deret pil) pakai `mt-4`/`space-y-3`.
 
 ## HP dan desktop
 

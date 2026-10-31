@@ -188,6 +188,7 @@ const warnaLevel = (v: number) => (v === 2 ? 'success' : v === 1 ? 'info' : 'neu
         color="neutral"
         variant="soft"
         icon="i-lucide-refresh-cw"
+        class="mb-5"
         title="Menyinkronkan daftar pegawai dari Office…"
       />
       <UAlert
@@ -195,6 +196,7 @@ const warnaLevel = (v: number) => (v === 2 ? 'success' : v === 1 ? 'info' : 'neu
         color="error"
         variant="soft"
         icon="i-lucide-triangle-alert"
+        class="mb-5"
         :title="`Office tidak bisa dihubungi${jamSinkron ? ` (${jamSinkron})` : ''}`"
         :description="`Daftar di bawah adalah data terakhir yang tersimpan, bukan yang terbaru. Sinkronisasi dicoba lagi otomatis saat halaman ini dibuka ulang. ${sinkron.pesan}`"
       />
@@ -203,6 +205,7 @@ const warnaLevel = (v: number) => (v === 2 ? 'success' : v === 1 ? 'info' : 'neu
         :color="sinkron.tertahan ? 'warning' : 'success'"
         variant="soft"
         :icon="sinkron.tertahan ? 'i-lucide-triangle-alert' : 'i-lucide-check'"
+        class="mb-5"
         :title="sinkron.tertahan ? `Office terbaca${jamSinkron ? ` pukul ${jamSinkron}` : ''}, tapi sebagian perubahan belum tersimpan` : `Tersinkron otomatis dari database user Office${jamSinkron ? ` pukul ${jamSinkron}` : ''}`"
         :description="`${sinkron.baru || sinkron.ubah ? `${sinkron.baru} pegawai baru, ${sinkron.ubah} diperbarui.` : 'Tidak ada perubahan.'} ${sinkron.pesan}`"
       />

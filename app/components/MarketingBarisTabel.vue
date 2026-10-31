@@ -96,7 +96,7 @@ const nominal = (v: unknown) => {
     <div
       v-for="r in baris"
       :key="String(r._id ?? r.nama ?? r.menu ?? Math.random())"
-      class="grid gap-2 rounded-field border border-default bg-default p-2.5"
+      class="grid gap-2 rounded-xl border border-default bg-default p-2.5"
     >
       <template v-if="kind === 'rundown'">
         <div class="grid grid-cols-3 gap-2">
@@ -217,7 +217,7 @@ const nominal = (v: unknown) => {
     <div
       v-for="g in grupAktif"
       :key="g"
-      class="rounded-field border border-default p-2.5"
+      class="rounded-xl border border-default p-2.5"
     >
       <div class="mb-2 flex flex-wrap items-center gap-2">
         <p class="text-sm font-semibold">
@@ -262,7 +262,7 @@ const nominal = (v: unknown) => {
         <div
           v-for="(r, i) in (grup[g]?.rows ?? [])"
           :key="i"
-          class="grid gap-2 rounded-field bg-muted p-2"
+          class="grid gap-2 rounded-xl bg-muted p-2"
         >
           <div
             v-if="!bar"
