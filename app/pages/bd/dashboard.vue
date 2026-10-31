@@ -30,6 +30,8 @@ const aku = computed(() => cariAku(people.value, me.value))
 const lingkup = computed(() => lingkupIds(people.value, aku.value?.id, isAdminOf(me.value, 'bd')))
 
 const hari = todayISO()
+// Greeting name: first word of the session user, fallback when not loaded yet.
+const namaDepan = computed(() => (me.value?.name ?? 'Kru').split(' ')[0])
 const vt = computed(() => tasks.value.filter(t => dalamLingkup(t, lingkup.value)))
 const aktif = computed(() => vt.value.filter(t => !selesai(t)))
 const od = computed(() => vt.value.filter(lewat))
@@ -102,14 +104,21 @@ async function hapus() {
 
 <template>
   <AppPage
-    title="Dashboard"
-    description="Kondisi hari ini — task, project & purchasing"
+    :title="`Halo, ${namaDepan}`"
+    :description="`${fTgl(hari)} · Kondisi hari ini — task, project & purchasing`"
   >
     <template #actions>
       <UButton
-        label="Task baru"
+        label="Tugas Baru"
         icon="i-lucide-plus"
         @click="baru"
+      />
+      <UButton
+        label="Agenda"
+        icon="i-lucide-calendar-days"
+        color="neutral"
+        variant="outline"
+        to="/bd/calendar"
       />
     </template>
 
