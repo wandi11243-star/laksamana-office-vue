@@ -174,8 +174,30 @@ async function hapus() {
     <AppPanel
       title="Tiga hari ke depan"
       icon="i-lucide-calendar-check"
-      :count="kolomHari.reduce((s, k) => s + k.agenda.length + k.deadline.length, 0)"
+      :count="kolomHari.reduce((s, k) => s + Math.min(k.agenda.length, 6) + Math.min(k.deadline.length, 6), 0) + od.length"
     >
+      <!-- Overdue tasks sit above the day columns so late work stays actionable -->
+      <div
+        v-if="od.length"
+        class="mb-5"
+      >
+        <p class="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-900">
+          Terlambat · {{ od.length }}
+        </p>
+        <div class="divide-y divide-default rounded-xl border border-default">
+          <BdTaskRow
+            v-for="t in od"
+            :key="t.id"
+            :task="t"
+            :people="people"
+            :project-name="namaProject(t.project)"
+            hide-quad
+            @buka="buka(t)"
+            @toggle="toggle(t)"
+            @hapus="taskHapus = t"
+          />
+        </div>
+      </div>
       <div class="grid gap-5 md:grid-cols-3">
         <section
           v-for="k in kolomHari"
@@ -287,6 +309,19 @@ async function hapus() {
           >
             <b class="block text-highlighted">Semua task sudah berdeadline</b>Bagus, tidak ada yang menggantung.
           </p>
+          <div
+            v-else-if="tanpaDeadline.length > 6"
+            class="px-2 py-2"
+          >
+            <UButton
+              label="Lihat semua di My Task"
+              trailing-icon="i-lucide-chevron-right"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              to="/bd/mytask"
+            />
+          </div>
         </div>
       </AppPanel>
 
@@ -313,6 +348,19 @@ async function hapus() {
           >
             <b class="block text-highlighted">Tidak ada yang menunggu jawabanmu</b>
           </p>
+          <div
+            v-else-if="menunggu.length > 6"
+            class="px-2 py-2"
+          >
+            <UButton
+              label="Lihat semua di My Task"
+              trailing-icon="i-lucide-chevron-right"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              to="/bd/mytask"
+            />
+          </div>
         </div>
       </AppPanel>
 
@@ -333,7 +381,7 @@ async function hapus() {
         </template>
         <div class="divide-y divide-default">
           <BdProjMini
-            v-for="p in jalan"
+            v-for="p in jalan.slice(0, 6)"
             :key="p.id"
             :project="p"
             :tasks="tasks"
@@ -346,12 +394,25 @@ async function hapus() {
           >
             <b class="block text-highlighted">Belum ada project berjalan</b>
           </p>
+          <div
+            v-else-if="jalan.length > 6"
+            class="px-2 py-2"
+          >
+            <UButton
+              label="Lihat semua project"
+              trailing-icon="i-lucide-chevron-right"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              to="/bd/projects"
+            />
+          </div>
         </div>
       </AppPanel>
     </div>
 
     <!-- Condition strip (moved down from the top; formulas unchanged) -->
-    <AppStatGrid class="mt-5">
+    <AppStatGrid>
       <AppStat
         label="Task aktif"
         icon="i-lucide-list-todo"
