@@ -44,7 +44,11 @@ const tglGeser = (hari: number) => {
 /** Quick chips fill the arrival-date filter (old `setQuickArrival`); pressing
  *  the active chip switches it back off. */
 const qa = ref<number | null>(null)
-function aturQa(hari: number) {
+function aturQa(hari?: number | null) {
+  if (hari === null || hari === undefined) {
+    tglDatang.value = ''
+    return
+  }
   const target = tglGeser(hari)
   tglDatang.value = tglDatang.value === target ? '' : target
 }
