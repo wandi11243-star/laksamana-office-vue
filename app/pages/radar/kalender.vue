@@ -93,6 +93,14 @@ const KELAS_EV: Record<SumberAgenda, string> = {
   evt: 'bg-lilac-light text-ink-900',
   vip: 'bg-teal-light text-moss-dark',
 }
+// Left stripe of an event pill, in the source colour (same family as CHIP:
+// evt uses vip, the dark pair of its lilac tint, so the bar stays visible
+// on the tint). Token classes only, no hex.
+const GARIS_EV: Record<SumberAgenda, string> = {
+  mkt: 'bg-brand-yellow',
+  evt: 'bg-vip',
+  vip: 'bg-success',
+}
 const semuaMati = computed(() => !fCal.value.mkt && !fCal.value.evt && !fCal.value.rsv && !fCal.value.vip)
 
 const pilih = ref<RadarPilihan>(null)
@@ -174,7 +182,7 @@ useSegarSenyap(refresh, () => buka.value)
       <USkeleton
         v-for="i in 3"
         :key="i"
-        class="h-16 w-full"
+        class="h-16 w-full rounded-xl"
       />
       <p class="pt-1 text-sm text-muted">
         Memuat kalender…
@@ -242,29 +250,36 @@ useSegarSenyap(refresh, () => buka.value)
             v-for="a in agSel(c.iso).slice(0, 3)"
             :key="`${a.sumber}-${a.id}`"
             type="button"
-            class="mb-0.5 block min-h-11 w-full truncate rounded px-1.5 py-2 text-left text-[11px] font-semibold"
-            :class="KELAS_EV[a.sumber]"
+            class="relative mb-1 block min-h-11 w-full overflow-hidden rounded-lg py-2 pl-3.5 pr-1.5 text-left text-[11px] font-semibold"
+            :class="[KELAS_EV[a.sumber], c.luar ? 'opacity-60' : '']"
             :title="`${a.judul} — ${SUMBER_PENDEK[a.sumber]}${a.pax ? ` · ${a.pax} pax` : ''}`"
             @click="bukaAgenda(a)"
           >
-            {{ a.judul }}
+            <i
+              class="absolute inset-y-0 left-0 w-1.5"
+              :class="GARIS_EV[a.sumber]"
+              aria-hidden="true"
+            />
+            <span class="block truncate">{{ a.judul }}</span>
           </button>
           <p
             v-if="agSel(c.iso).length > 3"
-            class="text-[11px] text-muted"
+            class="px-1 text-[11px] text-muted"
           >
             +{{ agSel(c.iso).length - 3 }} lagi
           </p>
           <NuxtLink
             v-if="fCal.rsv && resTgl(res, c.iso).length"
             :to="{ path: '/radar/reservasi', query: { tgl: c.iso } }"
-            class="block text-[11px] text-info hover:underline"
+            class="block px-1 text-[11px] text-info hover:underline"
+            :class="c.luar ? 'opacity-60' : ''"
           >
             {{ resTgl(res, c.iso).length }} rsv
           </NuxtLink>
           <p
             v-if="paxSel(c.iso).total || paxSel(c.iso).vip"
-            class="mt-1 text-[11px] font-semibold text-highlighted num"
+            class="mt-1 border-t border-default px-1 pt-1 text-[11px] font-semibold text-highlighted num"
+            :class="c.luar ? 'opacity-60' : ''"
             :title="`Pax event dan pax reservasi meja adalah rombongan berbeda. ${paxSel(c.iso).rinci.join(' + ')}`"
           >
             <template v-if="paxSel(c.iso).total">
@@ -311,12 +326,14 @@ useSegarSenyap(refresh, () => buka.value)
             v-for="a in c.agenda"
             :key="`${a.sumber}-${a.id}`"
             type="button"
-            class="flex min-h-11 min-w-0 items-center gap-2 rounded-field border border-default bg-default px-2.5 py-2 text-left text-sm"
+            class="relative flex min-h-11 min-w-0 items-center gap-2 overflow-hidden rounded-field py-2 pl-4 pr-2.5 text-left text-sm"
+            :class="KELAS_EV[a.sumber]"
             @click="bukaAgenda(a)"
           >
             <span
-              class="size-2.5 shrink-0 rounded-full"
-              :class="CHIP.find(x => x.k === a.sumber)?.warna"
+              class="absolute inset-y-0 left-0 w-1.5"
+              :class="GARIS_EV[a.sumber]"
+              aria-hidden="true"
             />
             <span class="shrink-0 text-xs text-muted">{{ SUMBER_PENDEK[a.sumber] }}</span>
             <span class="min-w-0 flex-1 truncate font-semibold">{{ a.judul }}</span>
@@ -342,7 +359,7 @@ useSegarSenyap(refresh, () => buka.value)
         </div>
         <p
           v-if="paxSel(c.iso).rinci.length"
-          class="mt-1.5 text-[11px] text-muted num"
+          class="mt-1.5 border-t border-default pt-1.5 text-[11px] text-muted num"
         >
           {{ paxSel(c.iso).rinci.join(' · ') }}<span v-if="paxSel(c.iso).vip"> · pax VIP (*) di luar total</span>
         </p>

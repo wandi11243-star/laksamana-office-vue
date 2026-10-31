@@ -1,9 +1,9 @@
 <!--
-  Generic kanban card shell: a grip handle plus title / meta / actions slots.
-  The drag affordance is always visible (cursor-grab on the card and the grip,
-  never cursor-pointer); when dragging is not allowed the reason shows as a
-  tooltip instead of silently doing nothing. Clicks inside `actions` never
-  bubble up to the card, so buttons and pickers there don't open the card.
+  Generic kanban card shell: title / meta / actions slots. The whole card is
+  the drag affordance (cursor-grab, never cursor-pointer, with a "drag to
+  move" tooltip); when dragging is not allowed the reason shows as a tooltip
+  instead of silently doing nothing. Clicks inside `actions` never bubble up
+  to the card, so buttons there don't open the card.
 -->
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
@@ -11,12 +11,10 @@ const props = withDefaults(defineProps<{
   /** False when the signer may not move cards — the how, not a silent off. */
   canDrag?: boolean
   dragReason?: string
-  showGrip?: boolean
 }>(), {
   dragging: false,
   canDrag: true,
   dragReason: '',
-  showGrip: true,
 })
 
 const emit = defineEmits<{
@@ -43,16 +41,8 @@ const hint = computed(() => props.canDrag
     @click="emit('cardClick')"
     @keydown.enter="emit('cardClick')"
   >
-    <div class="flex items-start gap-1.5">
-      <UIcon
-        v-if="showGrip"
-        name="i-lucide-grip-vertical"
-        class="mt-0.5 size-4 shrink-0 text-dimmed"
-        :class="canDrag ? 'cursor-grab' : 'cursor-not-allowed'"
-      />
-      <div class="min-w-0 flex-1">
-        <slot name="title" />
-      </div>
+    <div class="min-w-0">
+      <slot name="title" />
     </div>
     <slot name="meta" />
     <div

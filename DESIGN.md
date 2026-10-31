@@ -127,7 +127,7 @@ kebesaran, sedangkan 12px sejajar kotak grup bersarang; token `--radius-panel`
 di `main.css` tidak berubah.
 
 Kolom kanban (`AppKanban`) adalah baki pastel di atas halaman muted — satu warna
-`bg-brand-orange-light` untuk semua kolom + `border-default` + `rounded-xl`
+`bg-mint-light` untuk semua kolom + `border-default` + `rounded-xl`
 tanpa bayangan; kartu putih di dalamnya terangkat lewat garis dan
 `shadow-panel`-nya sendiri, pil jumlah kolom memakai `bg-muted`. Bahasa highlight
 drop-target tetap satu: `border-primary-400` + `bg-primary-50`, yang tetap terbaca

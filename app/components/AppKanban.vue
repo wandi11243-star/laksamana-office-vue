@@ -1,6 +1,6 @@
 <!--
   One shared kanban board (marketing pipeline, BD boards). Columns are pastel
-  trays (bg-brand-orange-light + border-default) sitting on the muted page, in
+  trays (bg-mint-light + border-default) sitting on the muted page, in
   the same family as AppPanel — white cards (AppKanbanCard) lift off the peach
   through their own border and shadow. The single highlight language while
   dragging stays (border-primary-400 + bg-primary-50), which reads clearly over
@@ -77,7 +77,7 @@ defineExpose({ swallowClick: drag.swallowClick })
     <section
       v-for="col in columns"
       :key="col.id"
-      class="kanban-col flex min-w-0 flex-col rounded-xl border border-default bg-brand-orange-light transition-[background-color,border-color] duration-200 ease-laks"
+      class="kanban-col flex min-w-0 flex-col rounded-xl border border-default bg-mint-light transition-[background-color,border-color] duration-200 ease-laks"
       :class="drag.overColumn.value === col.id ? 'border-primary-400 bg-primary-50' : 'border-default'"
       @dragover.prevent="onDragOver(col.id)"
       @dragleave="drag.leaveColumn($event, col.id)"

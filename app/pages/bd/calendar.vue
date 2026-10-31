@@ -205,7 +205,7 @@ function dropHari(iso: string) {
           <div
             v-for="c in sel"
             :key="c.iso"
-            class="min-h-24 rounded-panel border p-1.5"
+            class="min-h-24 rounded-md border p-1.5"
             :class="[c.luar ? 'border-default bg-muted/40 opacity-60' : 'border-default bg-default', c.iso === hariIni ? 'ring-2 ring-yellow-deep' : '']"
             @dragover.prevent
             @drop="dropHari(c.iso)"

@@ -49,7 +49,7 @@ const jam = (d: string) => jamSel(props.set, sel(d))
       v-for="d in tanggal"
       :key="d"
       type="button"
-      class="flex min-h-16 flex-col items-stretch gap-0.5 rounded-field border p-1 text-start focus-visible:outline-2 focus-visible:outline-primary sm:min-h-20 sm:p-1.5"
+      class="flex min-h-16 flex-col items-stretch gap-0.5 rounded-md border p-1 text-start focus-visible:outline-2 focus-visible:outline-primary sm:min-h-20 sm:p-1.5"
       :class="[
         d === hariIni() ? 'border-primary-500 ring-1 ring-primary-400' : 'border-default',
         sel(d) ? 'bg-default' : 'bg-muted',
