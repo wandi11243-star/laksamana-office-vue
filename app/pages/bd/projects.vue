@@ -13,7 +13,7 @@ import {
   bdSimpan, centangSub, hapusTaskDenganUrutan, pesanHapusTask, tambalBd, toggleTask, useBdState, versiBaris,
 } from '~/composables/useBd'
 import {
-  OWNER_DIVS, PILIHAN_SEMUA, PROJ_STAGES, cariAku, dalamLingkup, lingkupIds, pelaksana, pics, saringArsip, saringLingkup,
+  OWNER_DIVS, PILIHAN_SEMUA, PROJ_STAGES, cariAku, lingkupIds, pelaksana, pics, saringArsip, saringLingkup,
   subs, tasksPerluDitutup, todayISO, urutDeadline, urutProjectPerhatian, type ModeArsip,
 } from '~/utils/bd-rumus'
 import type { GZoom } from '~/utils/bd-gantt'
@@ -57,7 +57,6 @@ const tugasTampil = computed(() => {
   const ids = new Set(base.value.map(p => p.id))
   const q = pTaskQ.value.trim().toLowerCase()
   const semua = state.value.tasks
-    .filter(t => dalamLingkup(t, lingkup.value))
     .filter(t => t.project && ids.has(t.project))
     .filter(cocokAssign)
     .filter(t => !q || String(t.name || '').toLowerCase().includes(q) || subs(t).some(x => String(x.t || '').toLowerCase().includes(q)))
