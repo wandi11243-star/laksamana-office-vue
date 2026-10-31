@@ -8,9 +8,10 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
-import { fDue, inisial, lewat, penghalang, pics, selesai, sisaHari, subHitung, subs } from '~/utils/bd-rumus'
+import { fDue, inisial, lewat, penghalang, pics, selesai, sisaHari, subHitung, subs, tagsOf } from '~/utils/bd-rumus'
 import { IKON_TASK, WARNA_TASK } from '~/utils/status-bd'
 import { fTgl } from '~/utils/format'
+import BdTagChip from '~/widgets/bd/BdTagChip.vue'
 
 const props = defineProps<{
   tasks: BdTask[]
@@ -129,6 +130,16 @@ const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
             >
               Mulai {{ fTgl(t.start) }}
             </AppStatus>
+          </span>
+          <span
+            v-if="tagsOf(t).length"
+            class="mt-1.5 flex flex-wrap items-center gap-1"
+          >
+            <BdTagChip
+              v-for="g in tagsOf(t)"
+              :key="g"
+              :tag="g"
+            />
           </span>
         </button>
         <span class="flex shrink-0 items-center gap-1">

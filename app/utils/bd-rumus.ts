@@ -162,6 +162,60 @@ export const punyaPic = (o: BerPic | null | undefined, id: string) => pics(o).in
 export function tagsOf(t: { tags?: unknown } | null | undefined): string[] {
   return t && Array.isArray(t.tags) ? t.tags.filter((x): x is string => typeof x === 'string' && !!x.trim()) : []
 }
+
+// ─────────────────────────── Tag colours (delta BD, Okt 2026) ──
+// Faithful port of the old client's tag colours
+// (deploy/bd/index.html:2312-2360, `kunciTag/warnaTag/warnaAcak/gayaTag/semuaTag`).
+// A colour belongs to the TAG, never the task: renaming #Andi's colour
+// repaints every task wearing #Andi. The palette is closed so text stays
+// readable on its own faded background — a free colour picker could paint
+// light yellow on light yellow.
+
+/** `TAG_PALET` — the 12 closed-palette colours, verbatim from the old client. */
+export const TAG_PALET = ['#B7791F', '#C53030', '#D53F8C', '#805AD5', '#3182CE', '#00A3C4', '#2F855A', '#68A63A', '#DD6B20', '#718096', '#2C5282', '#975A16']
+/** `kunciTag` — the settings key: lowercase, so "andi" and "Andi" never stand as two tags. */
+export const kunciTag = (x: string) => String(x || '').trim().toLowerCase()
+/** A stored colour is a `#rrggbb` hex. */
+export const warnaSah = (c: unknown): c is string => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c)
+/**
+ * `warnaTag` — the colour of one tag. A tag without a stored colour (old
+ * rows, or a server not yet carrying `tagWarna`) falls back to its NAME hash
+ * — stable, never random per render: a colour that reshuffles on every paint
+ * cannot identify anything.
+ */
+export function warnaTag(x: string, peta?: Record<string, string> | null): string {
+  const k = kunciTag(x)
+  const c = peta?.[k]
+  if (warnaSah(c)) return c
+  let h = 0
+  for (let i = 0; i < k.length; i++) h = ((h * 31 + k.charCodeAt(i)) >>> 0)
+  return TAG_PALET[h % TAG_PALET.length]!
+}
+/**
+ * `warnaAcak` — a colour for a brand-new tag, preferring one no other tag
+ * uses yet: two tags sharing a colour on one card stop meaning anything.
+ */
+export function warnaAcakTag(terpakai: string[]): string {
+  const ada = new Set(terpakai.map(c => String(c).toLowerCase()))
+  const bebas = TAG_PALET.filter(c => !ada.has(c.toLowerCase()))
+  const dari = bebas.length ? bebas : TAG_PALET
+  return dari[Math.floor(Math.random() * dari.length)]!
+}
+/** `semuaTag` — every tag worn by any task, deduplicated case-insensitively keeping the stored spelling. */
+export function semuaTag(semua: { tags?: unknown }[]): string[] {
+  const peta: Record<string, string> = {}
+  semua.forEach(t => tagsOf(t).forEach((x) => {
+    const k = kunciTag(x)
+    if (k && !peta[k]) peta[k] = x.trim()
+  }))
+  return Object.keys(peta).map(k => peta[k]!).sort((a, b) => a.localeCompare(b, 'id'))
+}
+/** `gayaTag` — the chip style for one colour: filled when on, outline when off. */
+export function gayaTag(c: string, on = true): Record<string, string> {
+  return on
+    ? { backgroundColor: `${c}1f`, borderColor: c, color: c }
+    : { borderColor: `${c}55`, color: c }
+}
 /** `ULANG` — recurrence options for a task (old `ULANG`, deploy/bd/index.html:2846). */
 export const ULANG: [string, string][] = [
   ['', 'Tidak berulang'],

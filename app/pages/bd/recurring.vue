@@ -10,12 +10,13 @@ import type { BdTask } from '~/composables/useBd'
 import { hentikanUlang, lanjutkanUlang, selesaiUlang, useBdState } from '~/composables/useBd'
 import {
   cariAku, fDue, inisial, labelUlang, lewat, lingkupIds, orangById, pelaksana, pics, saringLingkup, selesai,
-  seriUlang, todayISO, urutDeadline,
+  seriUlang, tagsOf, todayISO, urutDeadline,
   type Seri,
 } from '~/utils/bd-rumus'
 import { tglLabel } from '~/utils/format'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdPicFilter from '~/widgets/bd/BdPicFilter.vue'
+import BdTagChip from '~/widgets/bd/BdTagChip.vue'
 import BdTaskSheet from '~/widgets/bd/BdTaskSheet.vue'
 
 definePageMeta({ access: ['bd'] })
@@ -208,6 +209,16 @@ async function hentikan() {
           >
             {{ s.head.deadline ? `${tglLabel(s.head.deadline)} · ${fDue(s.head.deadline)}` : 'Tanpa deadline' }}
           </p>
+          <div
+            v-if="tagsOf(s.head).length"
+            class="mt-1.5 flex flex-wrap gap-1"
+          >
+            <BdTagChip
+              v-for="g in tagsOf(s.head)"
+              :key="g"
+              :tag="g"
+            />
+          </div>
           <div class="mt-2 flex flex-wrap items-center gap-1.5">
             <span
               v-for="a in avatars(s.head)"
@@ -271,6 +282,16 @@ async function hentikan() {
         >
           <template #task-cell="{ row }">
             <b class="text-highlighted">{{ row.original.head.name }}</b>
+            <span
+              v-if="tagsOf(row.original.head).length"
+              class="mt-1 flex flex-wrap gap-1"
+            >
+              <BdTagChip
+                v-for="g in tagsOf(row.original.head)"
+                :key="g"
+                :tag="g"
+              />
+            </span>
           </template>
           <template #pola-cell="{ row }">
             <AppStatus size="sm">

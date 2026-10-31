@@ -5,8 +5,9 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
-import { fDue, inisial, kuadran, lewat, pics, selesai } from '~/utils/bd-rumus'
+import { fDue, inisial, kuadran, lewat, pics, selesai, tagsOf } from '~/utils/bd-rumus'
 import { WARNA_KUADRAN } from '~/utils/status-bd'
+import BdTagChip from '~/widgets/bd/BdTagChip.vue'
 
 const props = defineProps<{
   task: BdTask
@@ -109,6 +110,16 @@ const sisa = computed(() => dipakai.value.length - tampil.value.length)
         >
           {{ fDue(task.deadline) }}
         </AppStatus>
+      </span>
+      <span
+        v-if="tagsOf(task).length"
+        class="mt-1.5 flex flex-wrap items-center gap-1"
+      >
+        <BdTagChip
+          v-for="g in tagsOf(task)"
+          :key="g"
+          :tag="g"
+        />
       </span>
     </button>
     <div class="flex shrink-0 items-center gap-1">

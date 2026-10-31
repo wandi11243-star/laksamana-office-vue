@@ -10,6 +10,7 @@
 import type { BdPerson, BdTask } from '~/composables/useBd'
 import { fDue, inisial, labelUlang, lewat, penghalang, pics, reviewers, selesai, sisaHari, subHitung, subs, tagsOf } from '~/utils/bd-rumus'
 import { fTglP } from '~/utils/format'
+import BdTagChip from '~/widgets/bd/BdTagChip.vue'
 
 const props = defineProps<{
   task: BdTask
@@ -156,11 +157,11 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
       v-if="tagsOf(task).length || labelUlang(task.ulang, task.deadline)"
       class="mt-1.5 flex min-w-0 flex-wrap items-center gap-1"
     >
-      <span
+      <BdTagChip
         v-for="g in tagsOf(task)"
         :key="g"
-        class="max-w-full truncate rounded-full bg-muted px-2 py-px text-[10px] font-semibold text-muted"
-      >{{ g }}</span>
+        :tag="g"
+      />
       <span
         v-if="labelUlang(task.ulang, task.deadline)"
         :title="`Berulang: ${labelUlang(task.ulang, task.deadline)}`"

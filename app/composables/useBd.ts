@@ -25,7 +25,7 @@ import { BATAS_TULIS_PARALEL, hitungBerhasilParalel, petaParalel } from '~/utils
 /** API resource names (`docs/api/bd.md:40`). */
 export type BdResource = 'people' | 'projects' | 'tasks' | 'routines' | 'coord-requests' | 'purchase-orders' | 'purchase-requests' | 'agenda'
 /** Setting documents (`docs/api/bd.md:60-68`). */
-export type BdSetting = 'focus' | 'approverSets' | 'promos'
+export type BdSetting = 'focus' | 'approverSets' | 'promos' | 'tagWarna'
 
 /** One BD crew row. `ket/name/active/tanpaAkses` belong to the Office roster; `role/div/boss` are BD OS's. */
 export interface BdPerson {
@@ -262,6 +262,8 @@ export interface BdSettings {
   focus: Record<string, BdFocusEntry>
   approverSets: BdApproverSet[]
   promos: BdPromo[]
+  /** Tag colours (`{lowercaseTag: hex}`); absent until the API carries it — readers fall back to the name hash. */
+  tagWarna: Record<string, string>
 }
 
 export const stateKosong = (): BdState => ({
@@ -335,6 +337,16 @@ export function useBdState(key = 'bd-state') {
 /** The setting documents with their envelope (a write needs `meta.versions`). */
 export function useBdSettings() {
   return useAsyncData('bd-settings', () => getBdSettings(), { dedupe: 'defer', default: () => undefined })
+}
+
+/**
+ * Tag colours (`tagWarna {lowercaseTag: hex}`): missing reads as no
+ * overrides — `warnaTag` falls back to the stable name hash, so chips never
+ * render grey while the document is still travelling.
+ */
+export function useTagWarna() {
+  const { data: setelan } = useBdSettings()
+  return computed(() => (setelan.value?.data.tagWarna || {}) as Record<string, string>)
 }
 
 // ---------------------------------------------------------------- writes

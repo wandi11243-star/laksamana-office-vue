@@ -11,10 +11,11 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdProject, BdSubtask, BdTask } from '~/composables/useBd'
-import { buatBd, bdSimpan, hapusTaskDenganUrutan, lahirkanUlangSetelah, pesanHapusTask, ubahBd, versiBaris } from '~/composables/useBd'
+import { buatBd, bdSimpan, bdTulisDiam, hapusTaskDenganUrutan, lahirkanUlangSetelah, pesanHapusTask, putSetelan, ubahBd, useBdSettings, versiBaris, versiSetelan } from '~/composables/useBd'
 import {
-  OWNER_DIVS, PILIHAN_TANPA, PRIORITAS, STATUS_FLOW, TASK_TIPE, ULANG, cekBolehDone, deps, kruTersedia, kuadran,
-  labelUlang, menungguTransitif, opsiProject as opsiProjectBd, parseUlang, pesanTunggu, segarkanProgress, selesai, setPics, subs, susunUlang, tagsOf, todayISO, uidBd,
+  OWNER_DIVS, PILIHAN_TANPA, PRIORITAS, STATUS_FLOW, TAG_PALET, TASK_TIPE, ULANG, cekBolehDone, deps, gayaTag, kruTersedia, kuadran,
+  kunciTag, labelUlang, menungguTransitif, opsiProject as opsiProjectBd, parseUlang, pesanTunggu, segarkanProgress, selesai, semuaTag, setPics, subs, susunUlang, tagsOf, todayISO, uidBd,
+  warnaAcakTag, warnaTag,
   type UlangRumus,
 } from '~/utils/bd-rumus'
 import { WARNA_KUADRAN, WARNA_TASK } from '~/utils/status-bd'
@@ -98,10 +99,62 @@ const subBaru = ref('')
 /** Tag drafts: committed on save, so a tag left in the box is never silently lost. */
 const tagDraf = ref<string[]>([])
 const tagBaru = ref('')
+/** Session tags: typed while the form is open — stay choices even when unticked, or the chip vanishes the moment it is pressed. */
+const tagSesi = ref<string[]>([])
+/** Draft colours (`{lowercaseTag: hex}`): committed to `tagWarna` on save. */
+const warnaDraf = ref<Record<string, string>>({})
+/** The tag whose palette is open (`tagBukaWarna`). */
+const warnaBuka = ref('')
+const { data: setelan } = useBdSettings()
+/** Stored colours; absent until the API carries the document — readers hash the name. */
+const warnaSimpan = computed(() => (setelan.value?.data.tagWarna || {}) as Record<string, string>)
+const versiWarna = computed(() => versiSetelan(setelan.value, 'tagWarna'))
+/** Colours as the picker shows them: stored overridden by this form's drafts. */
+const warnaLihat = computed(() => ({ ...warnaSimpan.value, ...warnaDraf.value }))
+/** Every tag on offer: worn by any task, plus this session's, picked ones always. */
+const semuaPilih = computed(() => {
+  const ada = semuaTag(props.tasks)
+  const lihat = new Set(ada.map(kunciTag))
+  const out = ada.slice()
+  for (const x of [...tagSesi.value, ...tagDraf.value]) {
+    if (!lihat.has(kunciTag(x))) {
+      lihat.add(kunciTag(x))
+      out.push(x.trim())
+    }
+  }
+  return out.sort((a, b) => a.localeCompare(b, 'id'))
+})
+const tagDipakai = (x: string) => tagDraf.value.some(y => kunciTag(y) === kunciTag(x))
+function tagToggle(x: string) {
+  const i = tagDraf.value.findIndex(y => kunciTag(y) === kunciTag(x))
+  if (i > -1) tagDraf.value.splice(i, 1)
+  else {
+    tagDraf.value.push(x)
+    if (!tagSesi.value.some(y => kunciTag(y) === kunciTag(x))) tagSesi.value.push(x)
+  }
+}
 function tagTambah() {
-  const v = tagBaru.value.trim().replace(/^#+/, '')
-  if (v && !tagDraf.value.includes(v)) tagDraf.value.push(v)
+  String(tagBaru.value || '').split(',').forEach((v) => {
+    v = v.trim().replace(/^#+/, '').slice(0, 40)
+    if (!v) return
+    const k = kunciTag(v)
+    const ada = semuaPilih.value.find(y => kunciTag(y) === k)
+    // A TRULY new tag (worn by no task, no stored colour, no draft colour
+    // yet) draws a random one, preferring an unused colour. Old tags are
+    // never redrawn.
+    if (!ada && !warnaSimpan.value[k] && !warnaDraf.value[k]) {
+      warnaDraf.value[k] = warnaAcakTag(semuaPilih.value.map(x => warnaTag(x, warnaLihat.value)))
+    }
+    v = ada || v
+    if (!tagDraf.value.some(y => kunciTag(y) === k)) tagDraf.value.push(v)
+    if (!tagSesi.value.some(y => kunciTag(y) === k)) tagSesi.value.push(v)
+  })
   tagBaru.value = ''
+}
+/** Recolour one tag (`tagSetWarna`): applies to every task wearing it. */
+function tagSetWarna(c: string) {
+  if (!warnaBuka.value || !TAG_PALET.includes(c)) return
+  warnaDraf.value[kunciTag(warnaBuka.value)] = c
 }
 /** Order drafts (`_depDraft`): waited-on ids, committed on save. */
 const depDraf = ref<string[]>([])
@@ -155,6 +208,9 @@ watch(open, (o) => {
   }
   subBaru.value = ''
   tagBaru.value = ''
+  tagSesi.value = []
+  warnaDraf.value = {}
+  warnaBuka.value = ''
 })
 
 const q = computed(() => kuadran(f))
@@ -212,6 +268,13 @@ async function simpan() {
   const dependsOn = depDraf.value.filter(d => d !== props.task?.id && props.tasks.some(x => x.id === d))
   // A leftover tag in the box joins: saving without Enter must not silently drop it.
   if (tagBaru.value.trim()) tagTambah()
+  // Tag colours ride in the `tagWarna` settings document: this form's drafts
+  // over the stored map, replaced when anything changed. A failed colour save
+  // never blocks the task itself.
+  const gabungWarna = { ...warnaSimpan.value, ...warnaDraf.value }
+  if (Object.keys(gabungWarna).some(k => warnaSimpan.value[k] !== gabungWarna[k])) {
+    await bdTulisDiam(() => putSetelan('tagWarna', gabungWarna, versiWarna.value))
+  }
   const daily = f.daily
   if (daily) f.project = null
   // Custom recurrence is read once, on save (`bacaKustom`).
@@ -352,30 +415,80 @@ async function hapus() {
         </template>
       </UFormField>
       <UFormField label="Tag — task ini untuk siapa (boleh lebih dari satu)">
-        <div class="flex flex-wrap gap-1.5">
-          <span
-            v-for="g in tagDraf"
-            :key="g"
-            class="inline-flex items-center gap-1 rounded-full bg-muted px-2.5 py-1 text-xs font-semibold text-default"
+        <div
+          v-if="semuaPilih.length"
+          class="flex flex-wrap gap-1.5"
+        >
+          <button
+            v-for="x in semuaPilih"
+            :key="kunciTag(x)"
+            type="button"
+            class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold"
+            :style="gayaTag(warnaTag(x, warnaLihat), tagDipakai(x))"
+            :title="tagDipakai(x) ? `Buang tag ${x}` : `Pakai tag ${x}`"
+            @click="tagToggle(x)"
           >
-            {{ g }}
+            <span
+              class="size-2.5 shrink-0 rounded-full"
+              :style="{ backgroundColor: warnaTag(x, warnaLihat) }"
+              title="Ganti warna"
+              role="button"
+              :aria-label="`Ganti warna tag ${x}`"
+              @click.stop="warnaBuka = kunciTag(warnaBuka) === kunciTag(x) ? '' : x"
+            />
+            #{{ x }}
+            <UIcon
+              :name="tagDipakai(x) ? 'i-lucide-check' : 'i-lucide-plus'"
+              class="size-3.5"
+            />
+          </button>
+        </div>
+        <p
+          v-else
+          class="text-xs text-muted"
+        >
+          Belum ada tag — ketik yang pertama di bawah.
+        </p>
+        <div
+          v-if="warnaBuka"
+          class="mt-2 rounded-panel border border-default p-2.5"
+        >
+          <p class="mb-2 text-xs font-semibold text-default">
+            Warna <b :style="{ color: warnaTag(warnaBuka, warnaLihat) }">#{{ warnaBuka }}</b>
+          </p>
+          <div class="flex flex-wrap items-center gap-1.5">
             <button
+              v-for="c in TAG_PALET"
+              :key="c"
               type="button"
-              class="text-muted hover:text-error"
-              :aria-label="`Buang tag ${g}`"
-              @click="tagDraf = tagDraf.filter(x => x !== g)"
+              class="flex size-7 items-center justify-center rounded-full border transition-transform"
+              :style="{ backgroundColor: c, borderColor: warnaTag(warnaBuka, warnaLihat) === c ? warnaTag(warnaBuka, warnaLihat) : 'transparent' }"
+              :title="c"
+              :aria-label="`Pakai warna ${c} untuk tag ${warnaBuka}`"
+              @click="tagSetWarna(c)"
             >
               <UIcon
-                name="i-lucide-x"
-                class="size-3.5"
+                v-if="warnaTag(warnaBuka, warnaLihat) === c"
+                name="i-lucide-check"
+                class="size-3.5 text-white"
               />
             </button>
-          </span>
+            <UButton
+              label="Selesai"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              @click="warnaBuka = ''"
+            />
+          </div>
+          <p class="mt-1.5 text-[11px] text-muted">
+            Berlaku untuk semua task yang memakai tag ini.
+          </p>
         </div>
         <div class="mt-1.5 flex gap-1.5">
           <UInput
             v-model="tagBaru"
-            placeholder="Pilih / ketik tag baru, lalu Enter…"
+            placeholder="Ketik tag baru (pisahkan koma), lalu Enter…"
             size="sm"
             class="min-w-0 flex-1 [&_input]:min-w-0"
             @keydown.enter.prevent="tagTambah"

@@ -35,6 +35,7 @@ Status: ⬜ belum diajukan · 📨 issue dibuat (tulis nomornya) · ✅ ada di v
 | G-22 | ✅ | [laksamana-api#261](https://github.com/dwipapap/laksamana-api/issues/261) → [PR #263](https://github.com/dwipapap/laksamana-api/pull/263) |
 | G-23 | ⬜ | — |
 | G-24 | ⬜ | — |
+| G-25 | ⬜ | — |
 
 ---
 
@@ -239,3 +240,19 @@ sekelas endpoint OAuth TikTok/Instagram yang sudah ada), atau nyatakan menu ini 
 **Vue sudah lapang:** `app/pages/konten/greview.vue` + `app/composables/useGoogleReview.ts` menampilkan pola
 "Segera" (`idle/muat/ok/galat` + Coba lagi, deep-link `#greview`) sampai API ada; tidak ada URL legacy yang
 dipanggil. Inventaris: `docs/migrasi/konten.md` D.24.
+
+### G-25 — BD: dokumen setelan `tagWarna` (warna tag, delta BD Okt 2026)
+Status: ⬜ belum diajukan.
+Klien lama menyimpan warna tag di `DB.tagWarna` (`{lowercaseTag: '#rrggbb'}`, palet
+tertutup 12 warna, kunci lowercase, `deploy/bd/index.html:2312-2360`) sebagai bagian dari
+blob `saveAll`. Vue sudah membaca/menulisnya lewat `PUT /bd/settings/tagWarna`
+(`BdSetting` + `BdSettings.tagWarna`, `BdTaskSheet`, chip `BdTagChip`) — tanpa kunci ini
+`PUT` kena 404 (rute `where('key', 'focus|approverSets|promos')`) dan warna pilihan user
+tidak tersimpan (chip tetap tampil via hash nama yang stabil, jadi layar tidak rusak).
+**Usul:** tambah `tagWarna` (object, default `{}`) ke `BdRecords::DOCUMENTS`, regex rute
+`$docs` (`app/Modules/Bd/routes/v1.php:23`), `GET /settings` + `GET /state`
+(`BdState.php:154`), dan `docs/api/bd.md:62-68`. Validasi nilai sekelas `focus` (peta
+`{string: '#rrggbb'}`).
+**Vue sudah lapang:** tanpa dokumen, `warnaTag` memakai hash nama yang stabil; `PUT`
+hanya dicoba saat ada perubahan warna draf, dan gagalnya bersuara tanpa menggagalkan
+simpanan task.
