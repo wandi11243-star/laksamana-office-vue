@@ -319,12 +319,22 @@ export interface OrderStock {
 
 export interface BatchGabung { batchId: string, batchName?: string, tglDatang?: string, jumlah?: number, terarsip?: boolean }
 
-/** `GET /stock/orders` — exact filters, ordered by rowIndex. */
-export async function listOrders(params?: Record<string, string | undefined>) {
+/** `GET /stock/orders` — exact filters, ordered by rowIndex. Without
+ *  `page`/`per_page` the server returns every row (legacy compat); with them
+ *  it returns one page plus `meta.total`. Extra params pass through as-is. */
+export async function listOrders(params?: Record<string, string | number | undefined>) {
   const r = await useApi()<Envelope<OrderStock[]>>('/stock/orders', {
-    params: Object.fromEntries(Object.entries(params ?? {}).filter(([, v]) => v)),
+    params: Object.fromEntries(Object.entries(params ?? {}).filter(([, v]) => v !== undefined && v !== '')),
   })
-  return { rows: r.data ?? [], versions: (r.meta?.versions ?? {}) as Record<string, Versi> }
+  const meta = r.meta ?? {}
+  const num = (v: unknown) => typeof v === 'number' && Number.isFinite(v) ? v : undefined
+  return {
+    rows: r.data ?? [],
+    versions: (meta.versions ?? {}) as Record<string, Versi>,
+    total: num(meta.total),
+    page: num(meta.page),
+    perPage: num(meta.per_page),
+  }
 }
 
 /** `GET /stock/orders/batches?tim=&tgl=` — batches that can still be joined. */
