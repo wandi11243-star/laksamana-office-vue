@@ -9,7 +9,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { BdTask } from '~/composables/useBd'
 import { hentikanUlang, lanjutkanUlang, selesaiUlang, useBdState } from '~/composables/useBd'
 import {
-  cariAku, fDue, inisial, labelUlang, lewat, lingkupIds, orangById, pelaksana, pics, saringLingkup, selesai,
+  cariAku, fDue, inisial, kunciTag, labelUlang, lewat, lingkupIds, orangById, pelaksana, pics, saringLingkup, selesai,
   seriUlang, tagsOf, todayISO, urutDeadline,
   type Seri,
 } from '~/utils/bd-rumus'
@@ -215,7 +215,7 @@ async function hentikan() {
           >
             <BdTagChip
               v-for="g in tagsOf(s.head)"
-              :key="g"
+              :key="kunciTag(g)"
               :tag="g"
             />
           </div>
@@ -288,7 +288,7 @@ async function hentikan() {
             >
               <BdTagChip
                 v-for="g in tagsOf(row.original.head)"
-                :key="g"
+                :key="kunciTag(g)"
                 :tag="g"
               />
             </span>

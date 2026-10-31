@@ -8,7 +8,7 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
-import { fDue, inisial, lewat, penghalang, pics, selesai, sisaHari, subHitung, subs, tagsOf } from '~/utils/bd-rumus'
+import { fDue, inisial, kunciTag, lewat, penghalang, pics, selesai, sisaHari, subHitung, subs, tagsOf } from '~/utils/bd-rumus'
 import { IKON_TASK, WARNA_TASK } from '~/utils/status-bd'
 import { fTgl } from '~/utils/format'
 import BdTagChip from '~/widgets/bd/BdTagChip.vue'
@@ -137,7 +137,7 @@ const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
           >
             <BdTagChip
               v-for="g in tagsOf(t)"
-              :key="g"
+              :key="kunciTag(g)"
               :tag="g"
             />
           </span>

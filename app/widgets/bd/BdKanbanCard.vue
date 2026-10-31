@@ -8,7 +8,7 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
-import { fDue, inisial, labelUlang, lewat, penghalang, pics, reviewers, selesai, sisaHari, subHitung, subs, tagsOf } from '~/utils/bd-rumus'
+import { fDue, inisial, kunciTag, labelUlang, lewat, penghalang, pics, reviewers, selesai, sisaHari, subHitung, subs, tagsOf } from '~/utils/bd-rumus'
 import { fTglP } from '~/utils/format'
 import BdTagChip from '~/widgets/bd/BdTagChip.vue'
 
@@ -159,7 +159,7 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
     >
       <BdTagChip
         v-for="g in tagsOf(task)"
-        :key="g"
+        :key="kunciTag(g)"
         :tag="g"
       />
       <span

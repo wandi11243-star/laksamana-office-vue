@@ -5,7 +5,7 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
-import { fDue, inisial, kuadran, lewat, pics, selesai, tagsOf } from '~/utils/bd-rumus'
+import { fDue, inisial, kuadran, kunciTag, lewat, pics, selesai, tagsOf } from '~/utils/bd-rumus'
 import { WARNA_KUADRAN } from '~/utils/status-bd'
 import BdTagChip from '~/widgets/bd/BdTagChip.vue'
 
@@ -117,7 +117,7 @@ const sisa = computed(() => dipakai.value.length - tampil.value.length)
       >
         <BdTagChip
           v-for="g in tagsOf(task)"
-          :key="g"
+          :key="kunciTag(g)"
           :tag="g"
         />
       </span>
