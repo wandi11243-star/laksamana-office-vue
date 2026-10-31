@@ -48,7 +48,7 @@ onMounted(() => {
         <div
           v-for="p in panels"
           :key="p.key"
-          class="flex flex-col rounded-panel border border-default bg-default p-4 shadow-panel"
+          class="flex flex-col rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel lg:px-5"
         >
           <div class="mb-2 flex items-center gap-3">
             <span

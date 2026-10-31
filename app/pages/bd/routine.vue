@@ -110,7 +110,7 @@ async function hapus() {
         <div
           v-for="r in state.routines"
           :key="r.id"
-          class="rounded-panel border border-default bg-default p-4 shadow-panel"
+          class="rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel lg:px-5"
         >
           <div class="flex items-start justify-between gap-2">
             <button

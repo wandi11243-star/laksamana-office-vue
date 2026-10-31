@@ -727,7 +727,7 @@ async function segarkan() {
             <div
               v-for="s in blk.list"
               :key="s.id"
-              class="mb-3 flex flex-wrap items-start gap-3 rounded-panel border border-default bg-default p-4 shadow-panel"
+              class="mb-3 flex flex-wrap items-start gap-3 rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel"
             >
               <AppStatus
                 :color="s.tujuan === 'Bar' ? 'vip' : 'warning'"

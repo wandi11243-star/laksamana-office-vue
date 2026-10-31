@@ -23,7 +23,7 @@ const namaProject = (id?: string | null) => props.projects.find(p => p.id === id
     <div
       v-for="p in list"
       :key="p.id"
-      class="rounded-panel border border-default bg-default p-4 shadow-panel"
+      class="rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel lg:px-5"
     >
       <div class="flex items-start justify-between gap-2">
         <button

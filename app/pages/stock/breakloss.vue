@@ -1093,7 +1093,7 @@ async function segarkan() {
             <div
               v-for="m in daftarTampil"
               :key="m.id"
-              class="mb-3 flex flex-wrap items-start gap-3 rounded-panel border border-default bg-default p-4 shadow-panel"
+              class="mb-3 flex flex-wrap items-start gap-3 rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel"
               :class="m.batalAt && 'opacity-60'"
             >
               <img
@@ -1146,7 +1146,7 @@ async function segarkan() {
                     {{ rupiah(Math.abs(Number(m.qty)) * Number(m.harga)) }}
                   </AppStatus>
                 </div>
-                <div class="mt-1.5 text-[12px] text-muted">
+                <div class="mt-1 text-[12px] text-muted">
                   {{ tglPendek(String(m.tanggal || '')) }} · {{ m.pic || '-' }} · dicatat {{ m.oleh || '-' }} {{ m.waktu || '' }}
                 </div>
                 <div
@@ -1505,7 +1505,7 @@ async function segarkan() {
         <div
           v-for="i in stokTampil"
           :key="i.id"
-          class="mb-3 flex flex-wrap items-center gap-3 rounded-panel border border-default bg-default p-4 shadow-panel"
+          class="mb-3 flex flex-wrap items-center gap-3 rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel"
           :class="!i.aktif && 'opacity-60'"
         >
           <img
@@ -1556,7 +1556,7 @@ async function segarkan() {
                 Stok menipis
               </AppStatus>
             </div>
-            <div class="mt-1.5 text-[12px] text-muted">
+            <div class="mt-1 text-[12px] text-muted">
               Total break <b class="text-error num">{{ fmtBil(i.totBreak) }}</b> · loss <b class="text-vip num">{{ fmtBil(i.totLoss) }}</b>
               <template v-if="Number(i.harga)">
                 · {{ rupiah(Number(i.harga)) }}/{{ i.satuan }}

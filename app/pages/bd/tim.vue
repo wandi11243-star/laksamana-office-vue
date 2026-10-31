@@ -150,7 +150,7 @@ async function hapus() {
       />
     </template>
 
-    <p class="mb-5 rounded-field border border-info/30 bg-info/10 p-3 text-sm">
+    <p class="mb-5 rounded-xl border border-info/30 bg-info/10 p-3 text-sm">
       Daftar ini datang dari <b>database account</b> — isinya persis pemegang hak akses modul <b>bd</b>.
       Menambah/menghapus orang dilakukan di <b>Kelola Akses</b> di Office, bukan di sini. Yang diatur di
       halaman ini hanya <b>jabatan, divisi, dan atasan</b>, karena atasanlah yang menentukan siapa melihat
@@ -169,7 +169,7 @@ async function hapus() {
         <div
           v-for="b in baris"
           :key="b.p.id"
-          class="rounded-panel border border-default bg-default p-4 shadow-panel"
+          class="rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel lg:px-5"
           :style="{ marginInlineStart: `${b.level * 14}px` }"
         >
           <div class="flex items-start justify-between gap-2">

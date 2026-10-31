@@ -647,7 +647,7 @@ async function segarkan() {
           <div
             v-for="r in daftarTampil"
             :key="r.id"
-            class="mb-3 flex flex-wrap items-start gap-3 rounded-panel border border-default bg-default p-4 shadow-panel"
+            class="mb-3 flex flex-wrap items-start gap-3 rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel"
           >
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-2">

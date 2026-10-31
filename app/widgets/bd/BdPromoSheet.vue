@@ -312,7 +312,7 @@ async function hapus() {
         </p>
         <p
           v-if="f.hariLama"
-          class="mb-2 rounded-field border border-warning/30 bg-warning/10 p-2 text-xs"
+          class="mb-2 rounded-xl border border-warning/30 bg-warning/10 p-2 text-xs"
         >
           Isian lama berbunyi <b>{{ f.hariLama }}</b>. Pilih ulang dengan tombol di bawah — bentuk teksnya sudah tidak dipakai lagi.
         </p>
@@ -336,7 +336,7 @@ async function hapus() {
             @click="semuaHari"
           />
         </div>
-        <p class="mt-1.5 text-xs text-muted">
+        <p class="mt-1 text-xs text-muted">
           Tidak ada yang dipilih = berlaku setiap hari.
         </p>
       </div>

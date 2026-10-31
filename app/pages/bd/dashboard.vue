@@ -115,14 +115,14 @@ async function hapus() {
 
     <p
       v-if="error"
-      class="mb-4 rounded-field border border-error/30 bg-error/10 p-3 text-sm"
+      class="mb-4 rounded-xl border border-error/30 bg-error/10 p-3 text-sm"
     >
       <b>Papan tidak terbaca:</b> {{ apiErrorMessage(error) }}
     </p>
 
     <p
       v-if="!aku && people.length"
-      class="mb-4 rounded-field border border-warning/30 bg-warning/10 p-3 text-sm"
+      class="mb-4 rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm"
     >
       Kamu punya akses modul ini, tapi belum muncul di daftar kru — biasanya karena akses baru diberikan dan
       daftarnya masih lama. Tekan Segarkan dari Office di <NuxtLink
@@ -133,7 +133,7 @@ async function hapus() {
     </p>
     <p
       v-else-if="aku && !aku.div"
-      class="mb-4 rounded-field border border-warning/30 bg-warning/10 p-3 text-sm"
+      class="mb-4 rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm"
     >
       Divisi kamu belum diatur, jadi task barumu jatuh ke divisi bawaan. Atur di
       <NuxtLink

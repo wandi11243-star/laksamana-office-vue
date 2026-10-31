@@ -309,7 +309,7 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
         <div
           v-for="p in terlihat"
           :key="p.id"
-          class="rounded-panel border border-default bg-default p-4 shadow-panel"
+          class="rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel lg:px-5"
         >
           <div class="flex items-start justify-between gap-2">
             <button
@@ -597,7 +597,7 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
           Yang diambil dari berkas hanya <b>nama promo, tanggal mulai, tanggal selesai, dan benefit/diskon</b> —
           kolom lain diabaikan. Promo yang sudah ada dicocokkan lewat ID, lalu lewat namanya.
         </p>
-        <p class="rounded-field border border-warning/30 bg-warning/10 p-3 text-xs">
+        <p class="rounded-xl border border-warning/30 bg-warning/10 p-3 text-xs">
           Perhatian: tanggal <b>17-08-2026</b> dibaca hari-bulan-tahun. Periksa sekilas sebelum menerapkan.
         </p>
         <div v-if="impor.baru.length">
@@ -643,7 +643,7 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
         </div>
         <p
           v-if="impor.baru.length"
-          class="rounded-field border border-info/30 bg-info/10 p-3 text-xs"
+          class="rounded-xl border border-info/30 bg-info/10 p-3 text-xs"
         >
           Promo baru masuk sebagai <b>Promo Laksamana</b>, berlaku setiap hari, di <b>{{ PROMO_OUTLET_BAWAAN }}</b>,
           tanpa kategori & ketentuan. Lengkapi lewat tombol Ubah sesudah ini.

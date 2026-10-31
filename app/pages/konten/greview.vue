@@ -298,7 +298,7 @@ const segSegera = computed(() => (data.value?.review ?? []).filter(r => r.tingka
               </p>
               <div
                 v-if="r.balasan"
-                class="mt-2 rounded-field bg-muted p-2.5 text-sm"
+                class="mt-2 rounded-xl bg-muted p-2.5 text-sm"
               >
                 <p class="mb-1 text-[11px] text-muted">
                   Balasan bisnis<template v-if="r.balasanAt > 0">

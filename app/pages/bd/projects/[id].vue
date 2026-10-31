@@ -134,12 +134,12 @@ function bukaPoSheet(o: BdPo) {
       >
         {{ p.desc }}
       </p>
-      <div class="grid gap-x-6 gap-y-4 rounded-panel border border-default bg-default p-4 shadow-panel sm:grid-cols-2 lg:grid-cols-3">
+      <div class="mb-5 grid gap-x-6 gap-y-4 rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel sm:grid-cols-2 lg:grid-cols-3 lg:px-5">
         <div>
           <p class="text-[11px] font-bold uppercase tracking-wider text-muted">
             PIC project
           </p>
-          <div class="mt-1.5 flex flex-wrap gap-1.5">
+          <div class="mt-1 flex flex-wrap gap-1.5">
             <span
               v-for="x in dpakai"
               :key="x!.id"
@@ -329,7 +329,7 @@ function bukaPoSheet(o: BdPo) {
                 v-for="(m, i) in p.milestones || []"
                 :key="i"
                 type="button"
-                class="flex items-start gap-2 rounded-field border p-2.5 text-start transition-colors"
+                class="flex items-start gap-2 rounded-xl border p-2.5 text-start transition-colors"
                 :class="m.done ? 'border-success/40 bg-success/10' : 'border-default hover:border-accented'"
                 @click="toggleMilestone(i)"
               >

@@ -82,7 +82,7 @@ async function tandai(semua: OrderStock[]) {
         <div
           v-for="o in antre"
           :key="o.nomorOrder"
-          class="flex flex-wrap items-center gap-2 rounded-panel border border-default p-3"
+          class="flex flex-wrap items-center gap-2 rounded-md border border-default p-3"
         >
           <div class="min-w-0 flex-1">
             <b class="text-highlighted">{{ o.item }}</b>

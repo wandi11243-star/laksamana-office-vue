@@ -668,7 +668,7 @@ async function hapus() {
   >
     <p
       v-if="galat"
-      class="mb-4 flex items-start gap-2 rounded-field border border-error/30 bg-error/10 p-3 text-sm font-semibold text-error"
+      class="mb-4 flex items-start gap-2 rounded-xl border border-error/30 bg-error/10 p-3 text-sm font-semibold text-error"
       role="alert"
     >
       <UIcon
@@ -799,7 +799,7 @@ async function hapus() {
 
         <p
           v-if="butuhApproval"
-          class="col-span-full flex items-center gap-2 rounded-field bg-warning/10 p-3 text-sm font-semibold text-warning"
+          class="col-span-full flex items-center gap-2 rounded-xl bg-warning/10 p-3 text-sm font-semibold text-warning"
         >
           <UIcon
             name="i-lucide-users"
@@ -808,7 +808,7 @@ async function hapus() {
         </p>
         <div
           v-if="paxTidakLogis"
-          class="col-span-full rounded-field bg-warning/10 p-3 text-sm text-default"
+          class="col-span-full rounded-xl bg-warning/10 p-3 text-sm text-default"
         >
           Tercatat <b>{{ paxDatang }}</b> orang sudah masuk — lebih banyak dari yang dipesan
           ({{ form.pax }} pax). Angka inilah yang tampil di daftar & dashboard.
@@ -823,7 +823,7 @@ async function hapus() {
         </div>
         <p
           v-else-if="pendingArrivals"
-          class="col-span-full rounded-field bg-info/10 p-3 text-sm text-default"
+          class="col-span-full rounded-xl bg-info/10 p-3 text-sm text-default"
         >
           Catatan kedatangan akan diperbaiki jadi <b>{{ paxDatang }} pax</b> begitu
           <b>Simpan</b> ditekan.
@@ -1018,7 +1018,7 @@ async function hapus() {
         />
         <div
           v-if="profilNomor && profilNomor.totalBaris > 0"
-          class="col-span-full flex items-start gap-2 rounded-field bg-info/10 p-3 text-sm text-default"
+          class="col-span-full flex items-start gap-2 rounded-xl bg-info/10 p-3 text-sm text-default"
         >
           <UIcon
             name="i-lucide-user-round"

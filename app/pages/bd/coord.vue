@@ -112,7 +112,7 @@ async function hapus() {
       />
     </template>
 
-    <p class="mb-5 rounded-field border border-info/30 bg-info/10 p-3 text-sm">
+    <p class="mb-5 rounded-xl border border-info/30 bg-info/10 p-3 text-sm">
       Tim BD/Project/Purchasing meminta pekerjaan ke divisi lain (Kitchen, Bar, Marketing, dll) — lacak dari
       <b>Diminta → Diproses → Review → Selesai</b>. Ini catatan permintaan kita, bukan task divisi tujuan:
       mereka mengerjakannya di modulnya masing-masing.
@@ -145,7 +145,7 @@ async function hapus() {
                 @click="buka(c)"
               >
                 <span class="block font-semibold leading-snug text-highlighted">{{ c.title }}</span>
-                <span class="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <span class="mt-1 flex flex-wrap items-center gap-1.5">
                   <AppStatus size="sm">{{ c.fromDiv?.split(' ')[0] }}</AppStatus>
                   <UIcon
                     name="i-lucide-chevron-right"
@@ -153,7 +153,7 @@ async function hapus() {
                   />
                   <AppStatus size="sm">{{ c.toDiv }}</AppStatus>
                 </span>
-                <span class="mt-1.5 flex flex-wrap items-center gap-1.5">
+                <span class="mt-1 flex flex-wrap items-center gap-1.5">
                   <AppStatus
                     :color="WARNA_PRIO[c.priority] || 'neutral'"
                     :icon="IKON_PRIO[c.priority]"
@@ -206,7 +206,7 @@ async function hapus() {
         <div
           v-for="c in state.coord"
           :key="c.id"
-          class="rounded-panel border border-default bg-default p-4 shadow-panel"
+          class="rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel lg:px-5"
         >
           <div class="flex items-start justify-between gap-2">
             <button

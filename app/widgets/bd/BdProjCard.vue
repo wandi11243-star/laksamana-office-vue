@@ -30,7 +30,7 @@ const dpakai = computed(() => pics(props.project).map(id => props.people.find(p 
       @click="emit('buka')"
     >
       <span class="block font-semibold leading-snug text-highlighted">{{ project.name }}</span>
-      <span class="mt-1.5 flex flex-wrap items-center gap-1.5">
+      <span class="mt-1 flex flex-wrap items-center gap-1.5">
         <AppStatus
           size="sm"
           :color="divTone(project.div)"
@@ -41,7 +41,7 @@ const dpakai = computed(() => pics(props.project).map(id => props.people.find(p 
           size="sm"
         >{{ LABEL_HEALTH[project.health] || 'On track' }}</AppStatus>
       </span>
-      <span class="mt-1.5 flex flex-wrap items-center gap-1.5">
+      <span class="mt-1 flex flex-wrap items-center gap-1.5">
         <span
           v-for="p in dpakai.slice(0, 3)"
           :key="p.id"

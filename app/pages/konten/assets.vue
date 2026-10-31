@@ -84,13 +84,13 @@ function buka(a: AssetKonten) {
           :key="a.id"
           role="link"
           tabindex="0"
-          class="cursor-pointer rounded-panel border border-default bg-default p-4 shadow-panel hover:border-accented"
+          class="cursor-pointer rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel hover:border-accented lg:px-5"
           :title="a.link || 'Belum ada link'"
           @click="buka(a)"
           @keydown.enter="buka(a)"
         >
           <div class="mb-2.5 flex items-center gap-2.5">
-            <span class="flex size-11 shrink-0 items-center justify-center rounded-field bg-muted">
+            <span class="flex size-11 shrink-0 items-center justify-center rounded-xl bg-muted">
               <UIcon
                 :name="IKON[a.category ?? ''] ?? 'i-lucide-folder'"
                 class="size-5 text-primary-700"

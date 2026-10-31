@@ -96,7 +96,7 @@ async function hapus() {
           />
         </UFormField>
       </div>
-      <p class="rounded-field border border-default bg-muted p-3 text-xs text-muted">
+      <p class="rounded-xl border border-default bg-muted p-3 text-xs text-muted">
         Agenda di sini adalah agenda <b>internal tim BD</b>. Acara perusahaan (event klien, jadwal talent)
         tetap dikelola di modul Marketing dan Event — jadwal gabungannya dibaca di modul Radar.
       </p>

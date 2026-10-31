@@ -336,7 +336,7 @@ async function simpanTemplate() {
             >
           </div>
         </AppFilterGrid>
-        <div class="hidden lg:block">
+        <div class="mt-4 hidden lg:block">
           <UTable
             :columns="kolomVendor"
             :data="vendorTampil"
@@ -436,7 +436,7 @@ async function simpanTemplate() {
             >
           </div>
         </AppFilterGrid>
-        <div class="hidden lg:block">
+        <div class="mt-4 hidden lg:block">
           <UTable
             :columns="kolomProduk"
             :data="produkTampil"

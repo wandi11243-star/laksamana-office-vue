@@ -153,6 +153,8 @@ picker "Pindah ke…" di dalam board.
 - **Jarak vertikal antar-seksi besar selalu `mb-5` (20px)** — itu bawaan `AppPage` (kepala), `AppStatGrid`,
   `AppPanel`, dan `KontenBrandBar`. Jangan sisipkan `mb-2`/`mb-3`/`mb-4` atau `space-y-1`/`space-y-2`
   sebagai pemisah seksi; di dalam seksi (kepala panel, deret pil) pakai `mt-4`/`space-y-3`.
+- **Isi panel kustom** (`rounded-panel` + `border` + `shadow-panel` di luar `AppPanel`) memakai `px-4 py-3.5 lg:px-5`, sama seperti kepala `AppPanel`; kotak info/notis di dalamnya memakai `rounded-xl`, bukan `rounded-field`.
+- **Jarak label kapital → nilai selalu `mt-1`** di semua layar; `mt-1.5` hanya untuk deret pil/aksi di bawah judul kartu.
 
 ## HP dan desktop
 

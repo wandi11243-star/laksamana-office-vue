@@ -175,7 +175,7 @@ async function hentikan() {
         <div
           v-for="s in daftar"
           :key="s.head.id"
-          class="rounded-panel border border-default bg-default p-4 shadow-panel"
+          class="rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel lg:px-5"
         >
           <div class="flex items-start justify-between gap-2">
             <button
@@ -211,7 +211,7 @@ async function hentikan() {
           </p>
           <div
             v-if="tagsOf(s.head).length"
-            class="mt-1.5 flex flex-wrap gap-1"
+            class="mt-1 flex flex-wrap gap-1"
           >
             <BdTagChip
               v-for="g in tagsOf(s.head)"

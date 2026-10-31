@@ -760,7 +760,7 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
         </p>
         <p
           v-if="!admin"
-          class="mb-4 rounded-field border border-warning/30 bg-warning/10 p-3 text-sm"
+          class="mb-4 rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm"
         >
           Hanya admin BD yang bisa mengubah susunan ini.
         </p>

@@ -302,6 +302,8 @@ export interface OrderStock {
   qty: number
   unit: string
   note?: string
+  /** Submit time (`waktu`, the server clock in WIB) — the old Tgl Submit filter reads this. */
+  timestamp?: string
   tglDatang?: string
   kedatangan?: string
   catatanAktual?: string

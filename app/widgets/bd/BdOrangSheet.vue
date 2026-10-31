@@ -64,7 +64,7 @@ async function simpan() {
     description="Nama dan hak akses dikelola di Office › Kelola Akses."
   >
     <div class="grid gap-4">
-      <p class="rounded-field border border-default bg-muted p-3 text-xs text-muted">
+      <p class="rounded-xl border border-default bg-muted p-3 text-xs text-muted">
         Nama dan hak akses tidak bisa diubah dari sini — perubahannya akan ditimpa saat daftar disegarkan.
         Yang di bawah ini milik BD OS.
       </p>

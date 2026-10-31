@@ -204,14 +204,14 @@ const toast = useToast()
     <template v-else>
       <p
         v-if="diajukan"
-        class="no-print mb-4 rounded-field border border-warning/30 bg-warning/10 p-3 text-sm"
+        class="no-print mb-4 rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm"
       >
         Lembar ini sudah <b>{{ pr.status }}</b>. Itemnya <b>masih bisa diubah</b> — tapi kalau PDF-nya sudah
         dikirim ke Finance, <b>kirim ulang</b> sesudah merevisi.
       </p>
       <p
         v-else
-        class="no-print mb-4 rounded-field border border-default bg-muted p-3 text-sm"
+        class="no-print mb-4 rounded-xl border border-default bg-muted p-3 text-sm"
       >
         Masih <b>Draft</b> — belum terkirim ke siapa pun. Tekan <b>Kunci & ajukan</b> saat lembarnya siap dikirim.
       </p>
