@@ -446,7 +446,27 @@ Sumber Office lama: commit `e865822` (`ganttHtml`) + `tools/uji-timeline-bd.js`.
   lock violet jadi batang solid, disebut di legenda.
 - **Belum dijalankan**: `npm run lint/typecheck/build`, cek browser 390/1366 dengan mock.
 
-## K. Daftar uji cutover
+### VUE-12 — Import delta BD Oktober: Recurring + reviewers + tag (branch `feat/bd-delta`)
+
+Sumber Office lama: perubahan 15–28 Okt 2026 (`deploy/bd/index.html`, `lib_agent.php`
+tidak dipakai — S4/WA diparkir). Desain: `docs/superpowers/specs/2026-10-31-bd-delta-design.md`;
+rencana: `docs/superpowers/plans/2026-10-31-bd-delta.md` (Task 0–6, review per task bersih).
+
+- **S1 Recurring** — layar baru `recurring.vue` (4 stat, segmen Aktif/Henti, filter PIC,
+  tabel 8 kolom paritas lama + kartu HP, aksi Selesai/Hentikan/Lanjutkan); fungsi seri murni
+  di `bd-rumus.ts` (`rantaiUlang`, `seriUlang`, `gulirPatch`, `tempatLabel`); penulis
+  ber-`If-Match` di `useBd.ts` (cek rantai penuh untuk kuota `x:`, tanpa retry buta saat 409).
+- **S2 reviewers + visibilitas** — My Task mencakup reviewer-bukan-pelaksana + seksi
+  "Menunggu review kamu" teratas; gerbang lingkup di `projects.vue` dicabut (semua kru
+  lihat semua, ikut aturan lama 28 Okt, tanpa kecuali).
+- **S3 sub-assignee + tag + kanban** — pilih assignee per sub-task, filter Daily
+  `pelaksana`-based, chip Daily konteks-campuran; warna tag (`tagWarna`, palet 12 +
+  hash stabil, chip tunggal `BdTagChip`, picker di `BdTaskSheet`); drop kanban sudah
+  mendarat bawah via `pindahKe`+`kanbanUrut` (tanpa perubahan); sub-baris tag di tabel Recurring.
+- **Gap G-25 (API)** — kunci `tagWarna` belum didukung `PUT /bd/settings/*` (404 sampai API
+  menambahkannya + kontrak + Pest); fallback aman: hash stabil, save tak diblokir.
+  Lihat `docs/migrasi/_gap-api.md` G-25.
+- **Belum dijalankan**: cek browser 390/1366 (linter + typecheck hijau per task).
 
 Daftar untuk **manusia** (agen tidak menjalankan app). Setiap butir **layar**: dibuka di
 **1366px** dan **390px**, tanpa error runtime, susunan/kolom/kartu sama dengan Office lama

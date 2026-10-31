@@ -54,7 +54,7 @@ Urutan mempertimbangkan ukuran, risiko, dan **siapa yang membangun komponen bers
 | 2 | akademi | 13 layar | — | — | ⚠️ (gelombang 1, 2026-10-01; cek visual #19 2026-10-09; 3 tombol sync/restore "Segera", G-16/G-17/G-18 menunggu owner di `laksamana-api#228`) |
 | 3 | hlife | 14 layar | K-01 (G-13) | — | ⚠️ (gelombang 1, 2026-10-01; cek visual #19 2026-10-09; Reset data "Segera" K-01/G-13 `laksamana-api#187`) |
 | 4 | konten | 20 layar | K-01 (G-13), K-05 | `performa-konten.ts`, `xlsx-baca.ts` | ✅ (20 layar digabung 2026-10-08, #66–#69; G-01 hapus performa per platform #110; antrean desain lintas modul G-20 #112; impor/reset massal "Segera" G-13) |
-| 5 | bd | 11 layar | — (G-02) | — | ✅ (gelombang 1, 2026-10-01; cek visual #19 2026-10-09; master vendor G-02 tersambung #109) |
+| 5 | bd | 11 layar + Recurring (VUE-12) | — (G-02, G-25) | — | ✅ (gelombang 1, 2026-10-01; cek visual #19 2026-10-09; master vendor G-02 tersambung #109; delta Okt S1–S3 di `feat/bd-delta`, tagWarna menunggu API G-25) |
 | 6 | hr | 17 layar | K-01 (G-13), K-05 | `people-score.ts` | ✅ (dibangun 2026-10-07 + cek visual mock 1366/390 sebagai HRD & kru; impor/reset massal "Segera" G-13; sinkron roster subset aman) |
 | 7 | jadwal | jadwal + dw + roster, 20 layar | K-10 (G-03/05) | `pax-harian.ts` (`satukan()`) | ✅ (dibangun 2026-10-07; cek visual mock 1366/390 untuk bagian 1, 4–5; bagian 2–3 Jadwal Shift dilewati atas persetujuan owner; blok DW G-03 & pax tamu G-05 tersambung 2026-10-09, #108) |
 | 8 | reservasi | reservasi + service_excellent, 12 layar | K-05: OCR `tesseract.js` diizinkan, lazy (G-07/08) | `DanaMasukPanel`, `Denah` + `venue-layouts.ts`, `kwitansi.ts` | ✅ (ringkasTamu G-07 + paging/ekspor server G-08 tersambung #113, 2026-10-09) |
