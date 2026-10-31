@@ -201,12 +201,20 @@ async function jalanHapus() {
       :actions="[{ label: 'Coba muat lagi', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
       class="mb-4"
     />
-    <p
+    <div
       v-if="status === 'pending' && !data"
-      class="mb-4 text-sm text-muted"
+      class="mb-4 space-y-2"
     >
-      Memuat kas kecil…
-    </p>
+      <!-- Loading rows mirror the petty-cash summary below. -->
+      <USkeleton
+        v-for="i in 4"
+        :key="i"
+        class="h-10 w-full"
+      />
+      <p class="pt-1 text-sm text-muted">
+        Memuat kas kecil…
+      </p>
+    </div>
 
     <template v-if="izin.lihat('kk_buku') && data">
       <UAlert

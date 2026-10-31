@@ -576,7 +576,22 @@ async function pulihkanSumber() {
       :title="`Gagal memuat: ${apiErrorMessage(error)}`"
     />
 
-    <AppPanel v-if="!rec && status !== 'pending'">
+    <AppPanel v-if="status === 'pending' && !rec">
+      <!-- Loading rows mirror the breakdown below. -->
+      <div class="space-y-2">
+        <USkeleton class="h-20 rounded-xl" />
+        <USkeleton
+          v-for="i in 5"
+          :key="i"
+          class="h-10 w-full"
+        />
+        <p class="pt-1 text-center text-sm text-muted">
+          Memuat…
+        </p>
+      </div>
+    </AppPanel>
+
+    <AppPanel v-else-if="!rec">
       <p class="py-4 text-center text-sm text-muted">
         Belum ada omset untuk <b>{{ tglPanjang(tanggal) }}</b>.<br>
         Input omsetnya dulu di menu <ULink

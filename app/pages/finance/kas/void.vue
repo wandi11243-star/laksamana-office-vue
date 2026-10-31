@@ -176,12 +176,20 @@ const selisihPos = computed(() => (nPos.value === null ? null : Math.max(0, nPos
         />
       </div>
 
-      <p
+      <div
         v-if="status === 'pending' && !baris.length"
-        class="text-sm text-muted"
+        class="space-y-2"
       >
-        Memuat catatan void dari server…
-      </p>
+        <!-- Loading rows mirror the void notes below. -->
+        <USkeleton
+          v-for="i in 3"
+          :key="i"
+          class="h-12 w-full"
+        />
+        <p class="pt-1 text-sm text-muted">
+          Memuat catatan void dari server…
+        </p>
+      </div>
 
       <div class="grid items-start gap-4 lg:grid-cols-2">
         <AppPanel

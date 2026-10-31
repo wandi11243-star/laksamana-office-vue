@@ -949,12 +949,16 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
       v-model:open="sheetBukti"
       :title="buktiJudul"
     >
-      <p
+      <div
         v-if="buktiMemuat"
-        class="text-sm text-muted"
+        class="space-y-2"
       >
-        Memuat bukti…
-      </p>
+        <!-- Photo placeholder mirrors the proof image below. -->
+        <USkeleton class="h-40 w-full rounded-lg" />
+        <p class="pt-1 text-sm text-muted">
+          Memuat bukti…
+        </p>
+      </div>
       <img
         v-else-if="buktiData"
         :src="buktiData"

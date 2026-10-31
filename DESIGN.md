@@ -145,6 +145,9 @@ picker "Pindah ke…" di dalam board.
   `AppStatGrid`, dan daftar `AppBar`; lalu `AppSectionTitle` "Ringkasan keseluruhan", `AppStatGrid`,
   dan panel `AppBar` dua kolom.
 - **Baris tabel yang butuh perhatian** diberi latar: telat = `bg-error/10`, perlu perhatian = `bg-warning/10`.
+- **Skeleton saat memuat**: layar yang menunggu data menampilkan `USkeleton` menyerupai tata letak kontennya
+  (deret kartu stat, baris tabel, kolom kanban, paragraf kertas) hanya saat `pending` dan belum ada data;
+  shimmer-nya runtuh jadi blok statis di `prefers-reduced-motion`.
 - **Aksi per baris** berwarna seperti lama: Datang/Verifikasi = `success`, Follow up (WA) = `success soft`,
   No-show/Tolak = `error`, Selesai = pil hitam, sunting = ikon pensil `outline`.
 - **Jarak vertikal antar-seksi besar selalu `mb-5` (20px)** — itu bawaan `AppPage` (kepala), `AppStatGrid`,

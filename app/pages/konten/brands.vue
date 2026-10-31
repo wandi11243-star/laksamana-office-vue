@@ -53,12 +53,20 @@ function bukaForm(b?: BrandKonten) {
         icon="i-lucide-triangle-alert"
         :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
       />
-      <p
+      <div
         v-else-if="status === 'pending' && !st.brands.length"
-        class="p-6 text-center text-sm text-muted"
+        class="space-y-2 p-6"
       >
-        Memuat…
-      </p>
+        <!-- Loading cards mirror the brand panels below. -->
+        <USkeleton
+          v-for="i in 2"
+          :key="i"
+          class="h-24 rounded-panel"
+        />
+        <p class="pt-1 text-center text-sm text-muted">
+          Memuat…
+        </p>
+      </div>
 
       <div class="grid gap-4 lg:grid-cols-2">
         <AppPanel

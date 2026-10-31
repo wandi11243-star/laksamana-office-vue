@@ -181,12 +181,19 @@ async function hapusTask() {
     :title="proyek?.name ?? 'Project'"
     :back="{ label: 'Semua project', to: '/hlife/projects' }"
   >
-    <p
+    <div
       v-if="status === 'pending' && !proyek"
-      class="text-sm text-muted"
+      class="space-y-2"
     >
-      Memuat project…
-    </p>
+      <!-- Loading paper mirrors the project detail below. -->
+      <USkeleton class="h-5 w-1/3" />
+      <USkeleton class="h-3 w-full" />
+      <USkeleton class="h-3 w-full" />
+      <USkeleton class="h-3 w-5/6" />
+      <p class="pt-1 text-sm text-muted">
+        Memuat project…
+      </p>
+    </div>
     <div
       v-else-if="!proyek"
       class="rounded-panel border border-default bg-default p-6 text-center text-muted shadow-panel"

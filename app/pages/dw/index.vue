@@ -23,7 +23,7 @@ definePageMeta({ access: ['dw'] })
 
 const PER = 10
 const toast = useToast()
-const { set, pekerja, ajuan, permintaan, peran, error, refresh } = useDwDasar()
+const { set, pekerja, ajuan, permintaan, peran, pending, error, refresh } = useDwDasar()
 const tgl = useDwDashTgl()
 const pax = useDwPax()
 const hal = ref(1)
@@ -444,8 +444,19 @@ function chat(a: AjuanDw) {
             </template>
           </div>
         </article>
+        <div
+          v-if="pending && !baris.length"
+          class="space-y-2 p-4"
+        >
+          <!-- Loading cards mirror the schedule list below. -->
+          <USkeleton
+            v-for="i in 3"
+            :key="i"
+            class="h-16 w-full rounded-panel"
+          />
+        </div>
         <p
-          v-if="!baris.length"
+          v-else-if="!baris.length"
           class="px-4 py-8 text-center text-muted"
         >
           Belum ada daily worker yang disetujui untuk tanggal ini.

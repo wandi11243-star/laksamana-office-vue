@@ -152,7 +152,15 @@ function toggleHR(u: ModulMember) {
       v-if="!siap"
       title="Memuat hak akses…"
     >
-      <p class="py-6 text-center text-sm text-muted">
+      <!-- Loading rows mirror the access table below. -->
+      <div class="space-y-2 py-2">
+        <USkeleton
+          v-for="i in 5"
+          :key="i"
+          class="h-10 w-full"
+        />
+      </div>
+      <p class="py-2 text-center text-sm text-muted">
         Memuat…
       </p>
     </AppPanel>
@@ -288,9 +296,17 @@ function toggleHR(u: ModulMember) {
 
         <div
           v-if="membersStatus === 'pending' && !daftar.length"
-          class="text-sm text-muted"
+          class="space-y-2"
         >
-          Mengambil daftar anggota modul…
+          <!-- Loading rows mirror the member table below. -->
+          <USkeleton
+            v-for="i in 4"
+            :key="i"
+            class="h-10 w-full"
+          />
+          <p class="pt-1 text-sm text-muted">
+            Mengambil daftar anggota modul…
+          </p>
         </div>
         <div
           v-else

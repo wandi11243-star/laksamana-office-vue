@@ -68,9 +68,17 @@ const kolom: TableColumn<ModulMember>[] = [
       >
         <div
           v-if="status === 'pending' && !baris.length"
-          class="p-6 text-center text-sm text-muted"
+          class="space-y-2 p-6"
         >
-          Memuat daftar akses dari Office…
+          <!-- Loading rows mirror the access table below. -->
+          <USkeleton
+            v-for="i in 5"
+            :key="i"
+            class="h-10 w-full"
+          />
+          <p class="pt-2 text-center text-sm text-muted">
+            Memuat daftar akses dari Office…
+          </p>
         </div>
         <div
           v-else-if="!baris.length"

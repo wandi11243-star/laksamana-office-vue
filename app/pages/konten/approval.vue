@@ -79,12 +79,20 @@ function mintaRevisi(c: KontenItem) {
         </template>
       </UAlert>
 
-      <p
+      <div
         v-if="status === 'pending' && !st.content.length"
-        class="p-6 text-center text-sm text-muted"
+        class="space-y-2 p-6"
       >
-        Memuat…
-      </p>
+        <!-- Loading rows mirror the approval queue below. -->
+        <USkeleton
+          v-for="i in 4"
+          :key="i"
+          class="h-12 w-full"
+        />
+        <p class="pt-1 text-center text-sm text-muted">
+          Memuat…
+        </p>
+      </div>
       <AppPanel v-else-if="!list.length">
         <div class="p-6 text-center">
           <UIcon

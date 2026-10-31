@@ -262,12 +262,27 @@ const persenKategori = (v: number) => (ta.value ? Math.round((v / ta.value) * 10
       />
     </template>
 
-    <p
+    <div
       v-if="status === 'pending' && !ledger.length && !aset.length"
-      class="mb-4 text-sm text-muted"
+      class="mb-4 space-y-2"
     >
-      Memuat keuangan…
-    </p>
+      <!-- Loading stats mirror the finance summary below. -->
+      <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <USkeleton
+          v-for="i in 4"
+          :key="i"
+          class="h-20 rounded-xl"
+        />
+      </div>
+      <USkeleton
+        v-for="i in 4"
+        :key="`r${i}`"
+        class="h-10 w-full"
+      />
+      <p class="pt-1 text-sm text-muted">
+        Memuat keuangan…
+      </p>
+    </div>
 
     <!-- Summary -->
     <template v-if="tampilan === 'summary'">

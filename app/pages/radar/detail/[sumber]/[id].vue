@@ -190,12 +190,22 @@ const cetak = () => window.print()
       </div>
     </template>
 
-    <p
+    <div
       v-if="status === 'pending'"
-      class="text-sm text-muted"
+      class="space-y-2"
     >
-      Memuat…
-    </p>
+      <!-- Loading paper mirrors the report below. -->
+      <USkeleton class="h-5 w-1/3" />
+      <USkeleton class="h-3 w-full" />
+      <USkeleton class="h-3 w-full" />
+      <USkeleton class="h-3 w-5/6" />
+      <USkeleton class="mt-4 h-5 w-1/4" />
+      <USkeleton class="h-3 w-full" />
+      <USkeleton class="h-3 w-4/6" />
+      <p class="pt-1 text-sm text-muted">
+        Memuat…
+      </p>
+    </div>
     <AppPanel v-else-if="error || !d">
       <p class="text-center text-sm">
         <b class="block text-highlighted">Event tidak ditemukan</b>

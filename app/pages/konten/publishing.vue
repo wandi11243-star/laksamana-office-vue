@@ -65,7 +65,27 @@ function bukaTayang(c: KontenItem) {
 
       <KontenBrandBar :brands="st.brands" />
 
+      <!-- Loading rows mirror the two schedule lists below. -->
       <div
+        v-if="status === 'pending' && !st.content.length"
+        class="grid items-start gap-4 lg:grid-cols-2"
+      >
+        <div
+          v-for="i in 2"
+          :key="i"
+          class="space-y-2 rounded-panel border border-default bg-default p-4"
+        >
+          <USkeleton class="h-5 w-1/3" />
+          <USkeleton
+            v-for="j in 3"
+            :key="j"
+            class="h-12 w-full"
+          />
+        </div>
+      </div>
+
+      <div
+        v-else
         class="grid items-start gap-4 lg:grid-cols-2"
         :class="status === 'pending' ? 'opacity-60' : ''"
       >

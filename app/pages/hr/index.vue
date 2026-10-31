@@ -329,11 +329,20 @@ const namaDiv = (e: HrEmployee) => divName(s.value, e.divId)
       </template>
     </AppPanel>
 
-    <p
+    <div
       v-if="pending"
-      class="text-sm text-muted"
+      class="space-y-2"
     >
-      Memuat data…
-    </p>
+      <!-- Loading rows mirror the HR recap below. -->
+      <USkeleton class="h-20 rounded-xl" />
+      <USkeleton
+        v-for="i in 4"
+        :key="i"
+        class="h-10 w-full"
+      />
+      <p class="pt-1 text-sm text-muted">
+        Memuat data…
+      </p>
+    </div>
   </AppPage>
 </template>

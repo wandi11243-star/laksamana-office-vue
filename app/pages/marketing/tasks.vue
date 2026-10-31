@@ -128,192 +128,110 @@ function wa(div: string, item: ItemTugasMkt) {
       />
     </template>
     <MarketingGerbang layar="tasks">
-      <!-- level 1 -->
-      <template v-if="!ev">
-        <p
-          v-if="status === 'pending' && !st.events.length"
-          class="p-6 text-center text-sm text-muted"
-        >
-          Memuat…
-        </p>
-        <AppPanel v-else-if="!evs.length">
-          <div class="py-8 text-center">
-            <UIcon
-              name="i-lucide-list-checks"
-              class="size-8 text-dimmed"
-            />
-            <p class="mt-2 font-semibold text-highlighted">
-              Belum ada handover
-            </p>
-            <p class="text-sm text-muted">
-              Event yang sudah Confirmed akan muncul di sini dengan checklist per divisi.
-            </p>
-          </div>
-        </AppPanel>
-        <div
-          v-else
-          class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
-        >
-          <button
-            v-for="e in evs"
-            :key="e.id"
-            type="button"
-            class="flex flex-col rounded-xl border border-default bg-default p-4 text-start transition hover:border-primary-400"
-            @click="buka(e.id)"
-          >
-            <span class="flex items-start gap-2">
-              <span class="min-w-0 flex-1 font-semibold text-highlighted">{{ e.nama }}</span>
-              <UBadge
-                :label="kartu(e).kapan"
-                :color="kartu(e).mendesak ? 'warning' : 'neutral'"
-                variant="soft"
-                size="sm"
-              />
-            </span>
-            <span class="mt-3 grid gap-1.5">
-              <span
-                v-for="r in kartu(e).ringkas"
-                :key="r.i"
-                class="flex items-center gap-2 text-xs text-muted"
-              >
-                <UIcon
-                  :name="r.i"
-                  class="size-3.5 shrink-0"
-                />
-                <span class="truncate">{{ r.v }}</span>
-              </span>
-            </span>
-            <span class="mt-4 flex justify-between text-xs text-muted">
-              <span>Progres to-do</span>
-              <span class="num">{{ kartu(e).jml.selesai }}/{{ kartu(e).jml.total }} · {{ kartu(e).jml.pct }}%</span>
-            </span>
-            <UProgress
-              :model-value="kartu(e).jml.pct"
-              size="sm"
-              class="mt-1.5"
-            />
-            <span class="mt-2 text-xs text-muted">{{ kartu(e).kat ? `${kartu(e).siap}/${kartu(e).nSub} sub kategori siap` : 'Format F&B belum dipilih' }}</span>
-            <span class="mt-3 flex items-center gap-1 text-xs font-semibold text-primary-700">
-              Buka papan to-do
-              <UIcon
-                name="i-lucide-chevron-right"
-                class="size-3.5"
-              />
-            </span>
-          </button>
-        </div>
-      </template>
-
-      <!-- level 2: free board -->
-      <AppPanel
-        v-else-if="!kat(ev).length"
-        title="Tugas Bebas"
-        :count="bebas.length ? `${bebas.filter(j => jobSelesaiMkt(ev!, DIV_BEBAS_MKT, j.id)).length}/${bebas.length}` : undefined"
-        flush
+      <!-- Level 1 ↔ 2 replaces the working surface, so the swap crossfades. -->
+      <Transition
+        name="mkt-swap"
+        mode="out-in"
       >
-        <p class="border-b border-default px-4 py-3 text-sm text-muted">
-          Event ini belum memilih Format F&B, jadi belum ada daftar to-do standar. Susun tugasnya sendiri di sini — sub kategori & isian bebas. (Kalau nanti Format F&B diisi, papan standar muncul otomatis dan tugas bebas ini tetap tersimpan.)
-        </p>
-        <p
-          v-if="!bebas.length"
-          class="px-4 py-6 text-center text-sm text-muted"
-        >
-          Belum ada tugas. Tambahkan di bawah.
-        </p>
+        <!-- level 1 -->
         <div
-          v-else
-          class="hidden grid-cols-[2rem_minmax(10rem,1fr)_5rem_10rem_9.5rem_minmax(8rem,1fr)_4.5rem] gap-x-2 border-b border-default px-3 py-2 text-xs font-semibold text-muted lg:grid"
-        >
-          <span /><span>Item</span><span>Timeline</span><span>PIC</span><span>Deadline</span><span>Catatan</span><span />
-        </div>
-        <template
-          v-for="g in urutBebasMkt(bebas)"
-          :key="g.sub"
+          v-if="!ev"
+          key="daftar"
         >
           <div
-            v-if="g.sub"
-            class="flex items-center gap-2 bg-muted px-4 py-1.5 text-xs font-semibold"
+            v-if="status === 'pending' && !st.events.length"
+            class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
           >
-            {{ g.sub }}
-            <UButton
-              v-if="bisaUbah"
-              icon="i-lucide-plus"
-              label="item"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              @click="tambah(DIV_BEBAS_MKT, g.sub)"
+            <USkeleton
+              v-for="i in 6"
+              :key="i"
+              class="h-28 rounded-xl"
             />
           </div>
-          <MarketingItemTugas
-            v-for="j in g.items"
-            :key="j.id"
-            :ev="ev"
-            :div="DIV_BEBAS_MKT"
-            :item="j"
-            :bisa-ubah="bisaUbah"
-            :staf="staf"
-            nama-bebas
-            @simpan="simpan"
-            @hapus="hapus(DIV_BEBAS_MKT, j)"
-            @wa="wa(DIV_BEBAS_MKT, j)"
-          />
-        </template>
-        <div
-          v-if="bisaUbah"
-          class="flex flex-wrap gap-2 border-t border-default p-4"
-        >
-          <UInput
-            v-model="subBebas"
-            placeholder="Sub kategori (mis. Persiapan, Hari-H)…"
-            class="min-w-0 flex-1 sm:max-w-72"
-            @keydown.enter.prevent="tambahBebas"
-          />
-          <UButton
-            icon="i-lucide-plus"
-            label="Tambah tugas"
-            color="neutral"
-            variant="outline"
-            @click="tambahBebas"
-          />
-        </div>
-      </AppPanel>
-
-      <!-- level 2: standard board -->
-      <template v-else>
-        <AppPanel>
-          <div class="flex flex-wrap items-center gap-4">
-            <div class="min-w-48 flex-1">
-              <p class="text-xs font-semibold tracking-wide text-muted uppercase">
-                Progres keseluruhan
-              </p>
-              <UProgress
-                :model-value="jml.pct"
-                class="mt-2"
+          <AppPanel v-else-if="!evs.length">
+            <div class="py-8 text-center">
+              <UIcon
+                name="i-lucide-list-checks"
+                class="size-8 text-dimmed"
               />
-            </div>
-            <div class="text-end">
-              <p class="num text-2xl font-bold text-highlighted">
-                {{ jml.pct }}%
+              <p class="mt-2 font-semibold text-highlighted">
+                Belum ada handover
               </p>
-              <p class="text-xs text-muted">
-                <b class="num">{{ jml.selesai }}</b>/{{ jml.total }} item selesai
+              <p class="text-sm text-muted">
+                Event yang sudah Confirmed akan muncul di sini dengan checklist per divisi.
               </p>
             </div>
+          </AppPanel>
+          <div
+            v-else
+            class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
+          >
+            <button
+              v-for="e in evs"
+              :key="e.id"
+              type="button"
+              class="flex flex-col rounded-xl border border-default bg-default p-4 text-start transition hover:border-primary-400"
+              @click="buka(e.id)"
+            >
+              <span class="flex items-start gap-2">
+                <span class="min-w-0 flex-1 font-semibold text-highlighted">{{ e.nama }}</span>
+                <UBadge
+                  :label="kartu(e).kapan"
+                  :color="kartu(e).mendesak ? 'warning' : 'neutral'"
+                  variant="soft"
+                  size="sm"
+                />
+              </span>
+              <span class="mt-3 grid gap-1.5">
+                <span
+                  v-for="r in kartu(e).ringkas"
+                  :key="r.i"
+                  class="flex items-center gap-2 text-xs text-muted"
+                >
+                  <UIcon
+                    :name="r.i"
+                    class="size-3.5 shrink-0"
+                  />
+                  <span class="truncate">{{ r.v }}</span>
+                </span>
+              </span>
+              <span class="mt-4 flex justify-between text-xs text-muted">
+                <span>Progres to-do</span>
+                <span class="num">{{ kartu(e).jml.selesai }}/{{ kartu(e).jml.total }} · {{ kartu(e).jml.pct }}%</span>
+              </span>
+              <UProgress
+                :model-value="kartu(e).jml.pct"
+                size="sm"
+                class="mt-1.5"
+              />
+              <span class="mt-2 text-xs text-muted">{{ kartu(e).kat ? `${kartu(e).siap}/${kartu(e).nSub} sub kategori siap` : 'Format F&B belum dipilih' }}</span>
+              <span class="mt-3 flex items-center gap-1 text-xs font-semibold text-primary-700">
+                Buka papan to-do
+                <UIcon
+                  name="i-lucide-chevron-right"
+                  class="size-3.5"
+                />
+              </span>
+            </button>
           </div>
-        </AppPanel>
+        </div>
+
+        <!-- level 2: free board -->
         <AppPanel
-          v-for="div in kat(ev)"
-          :key="div"
-          :title="opDiv ? `${div} · ${opDiv}` : div"
-          :count="`${kelompok(ev, div).selesai}/${kelompok(ev, div).items.length} · ${kelompok(ev, div).pct}%`"
+          v-else-if="!kat(ev).length"
+          key="bebas"
+          title="Tugas Bebas"
+          :count="bebas.length ? `${bebas.filter(j => jobSelesaiMkt(ev!, DIV_BEBAS_MKT, j.id)).length}/${bebas.length}` : undefined"
           flush
         >
+          <p class="border-b border-default px-4 py-3 text-sm text-muted">
+            Event ini belum memilih Format F&B, jadi belum ada daftar to-do standar. Susun tugasnya sendiri di sini — sub kategori & isian bebas. (Kalau nanti Format F&B diisi, papan standar muncul otomatis dan tugas bebas ini tetap tersimpan.)
+          </p>
           <p
-            v-if="!kelompok(ev, div).items.length"
+            v-if="!bebas.length"
             class="px-4 py-6 text-center text-sm text-muted"
           >
-            Belum ada job. Tambahkan di bawah, atau susun standarnya di Template Task.
+            Belum ada tugas. Tambahkan di bawah.
           </p>
           <div
             v-else
@@ -322,7 +240,7 @@ function wa(div: string, item: ItemTugasMkt) {
             <span /><span>Item</span><span>Timeline</span><span>PIC</span><span>Deadline</span><span>Catatan</span><span />
           </div>
           <template
-            v-for="g in kelompok(ev, div).grup"
+            v-for="g in urutBebasMkt(bebas)"
             :key="g.sub"
           >
             <div
@@ -337,38 +255,137 @@ function wa(div: string, item: ItemTugasMkt) {
                 size="xs"
                 color="neutral"
                 variant="ghost"
-                :aria-label="`Tambah item ke ${g.sub}`"
-                @click="tambah(div, g.sub)"
+                @click="tambah(DIV_BEBAS_MKT, g.sub)"
               />
             </div>
             <MarketingItemTugas
-              v-for="t in g.items"
-              :key="t.id"
+              v-for="j in g.items"
+              :key="j.id"
               :ev="ev"
-              :div="div"
-              :item="t"
+              :div="DIV_BEBAS_MKT"
+              :item="j"
               :bisa-ubah="bisaUbah"
               :staf="staf"
+              nama-bebas
               @simpan="simpan"
-              @hapus="hapus(div, t)"
-              @wa="wa(div, t)"
+              @hapus="hapus(DIV_BEBAS_MKT, j)"
+              @wa="wa(DIV_BEBAS_MKT, j)"
             />
           </template>
           <div
             v-if="bisaUbah"
-            class="border-t border-default p-3"
+            class="flex flex-wrap gap-2 border-t border-default p-4"
           >
+            <UInput
+              v-model="subBebas"
+              placeholder="Sub kategori (mis. Persiapan, Hari-H)…"
+              class="min-w-0 flex-1 sm:max-w-72"
+              @keydown.enter.prevent="tambahBebas"
+            />
             <UButton
               icon="i-lucide-plus"
-              label="Tambah item tanpa sub kategori…"
-              size="sm"
+              label="Tambah tugas"
               color="neutral"
-              variant="ghost"
-              @click="tambah(div)"
+              variant="outline"
+              @click="tambahBebas"
             />
           </div>
         </AppPanel>
-      </template>
+
+        <!-- level 2: standard board -->
+        <div
+          v-else
+          key="papan"
+        >
+          <AppPanel>
+            <div class="flex flex-wrap items-center gap-4">
+              <div class="min-w-48 flex-1">
+                <p class="text-xs font-semibold tracking-wide text-muted uppercase">
+                  Progres keseluruhan
+                </p>
+                <UProgress
+                  :model-value="jml.pct"
+                  class="mt-2"
+                />
+              </div>
+              <div class="text-end">
+                <p class="num text-2xl font-bold text-highlighted">
+                  {{ jml.pct }}%
+                </p>
+                <p class="text-xs text-muted">
+                  <b class="num">{{ jml.selesai }}</b>/{{ jml.total }} item selesai
+                </p>
+              </div>
+            </div>
+          </AppPanel>
+          <AppPanel
+            v-for="div in kat(ev)"
+            :key="div"
+            :title="opDiv ? `${div} · ${opDiv}` : div"
+            :count="`${kelompok(ev, div).selesai}/${kelompok(ev, div).items.length} · ${kelompok(ev, div).pct}%`"
+            flush
+          >
+            <p
+              v-if="!kelompok(ev, div).items.length"
+              class="px-4 py-6 text-center text-sm text-muted"
+            >
+              Belum ada job. Tambahkan di bawah, atau susun standarnya di Template Task.
+            </p>
+            <div
+              v-else
+              class="hidden grid-cols-[2rem_minmax(10rem,1fr)_5rem_10rem_9.5rem_minmax(8rem,1fr)_4.5rem] gap-x-2 border-b border-default px-3 py-2 text-xs font-semibold text-muted lg:grid"
+            >
+              <span /><span>Item</span><span>Timeline</span><span>PIC</span><span>Deadline</span><span>Catatan</span><span />
+            </div>
+            <template
+              v-for="g in kelompok(ev, div).grup"
+              :key="g.sub"
+            >
+              <div
+                v-if="g.sub"
+                class="flex items-center gap-2 bg-muted px-4 py-1.5 text-xs font-semibold"
+              >
+                {{ g.sub }}
+                <UButton
+                  v-if="bisaUbah"
+                  icon="i-lucide-plus"
+                  label="item"
+                  size="xs"
+                  color="neutral"
+                  variant="ghost"
+                  :aria-label="`Tambah item ke ${g.sub}`"
+                  @click="tambah(div, g.sub)"
+                />
+              </div>
+              <MarketingItemTugas
+                v-for="t in g.items"
+                :key="t.id"
+                :ev="ev"
+                :div="div"
+                :item="t"
+                :bisa-ubah="bisaUbah"
+                :staf="staf"
+                @simpan="simpan"
+                @hapus="hapus(div, t)"
+                @wa="wa(div, t)"
+              />
+            </template>
+            <div
+              v-if="bisaUbah"
+              class="border-t border-default p-3"
+            >
+              <UButton
+                icon="i-lucide-plus"
+                label="Tambah item tanpa sub kategori…"
+                size="sm"
+                color="neutral"
+                variant="ghost"
+                @click="tambah(div)"
+              />
+            </div>
+          </AppPanel>
+        </div>
+      </Transition>
     </MarketingGerbang>
   </AppPage>
 </template>

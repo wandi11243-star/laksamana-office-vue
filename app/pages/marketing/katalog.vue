@@ -134,12 +134,22 @@ function presentasi(i: number) {
       </label>
     </template>
     <MarketingGerbang layar="katalog">
-      <p
+      <div
         v-if="status === 'pending' && !slides.length"
-        class="p-6 text-center text-sm text-muted"
+        class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3"
       >
-        Memuat…
-      </p>
+        <div
+          v-for="i in 6"
+          :key="i"
+          class="overflow-hidden rounded-xl border border-default bg-default"
+        >
+          <USkeleton class="aspect-video w-full rounded-none" />
+          <div class="space-y-2 p-4">
+            <USkeleton class="h-4 w-2/3" />
+            <USkeleton class="h-3 w-full" />
+          </div>
+        </div>
+      </div>
       <AppPanel v-else-if="!slides.length">
         <div class="py-8 text-center">
           <UIcon

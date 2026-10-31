@@ -353,12 +353,20 @@ async function jalanHapus() {
               :to="`/finance/omset/breakdown?tgl=${tanggal}`"
             />
           </div>
-          <p
+          <div
             v-if="status === 'pending'"
-            class="mt-2 text-sm text-muted"
+            class="mt-2 space-y-2"
           >
-            Memuat…
-          </p>
+            <!-- Loading rows mirror the omset form above. -->
+            <USkeleton
+              v-for="i in 3"
+              :key="i"
+              class="h-10 w-full"
+            />
+            <p class="text-sm text-muted">
+              Memuat…
+            </p>
+          </div>
         </AppPanel>
 
         <AppPanel

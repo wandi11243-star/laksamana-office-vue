@@ -24,7 +24,7 @@ const model = defineModel<T>()
       role="tab"
       :aria-selected="model === o.value"
       :title="o.title"
-      class="inline-flex items-center gap-1.5 rounded-full font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-primary"
+      class="seg-btn inline-flex items-center gap-1.5 rounded-full font-semibold transition-[color,background-color,transform] duration-150 ease-laks active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-primary"
       :class="[
         size === 'sm' ? 'px-3 py-1 text-[13px]' : 'px-3.5 py-1.5 text-sm',
         model === o.value

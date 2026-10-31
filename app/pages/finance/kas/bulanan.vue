@@ -188,12 +188,21 @@ function kirimWhatsApp() {
       icon="i-lucide-triangle-alert"
       :title="`Gagal memuat: ${apiErrorMessage(error)}`"
     />
-    <p
+    <div
       v-else-if="status === 'pending' && !data"
-      class="text-sm text-muted"
+      class="space-y-2"
     >
-      Memuat…
-    </p>
+      <!-- Loading rows mirror the monthly report below. -->
+      <USkeleton class="h-20 rounded-xl" />
+      <USkeleton
+        v-for="i in 4"
+        :key="i"
+        class="h-10 w-full"
+      />
+      <p class="pt-1 text-sm text-muted">
+        Memuat…
+      </p>
+    </div>
 
     <div
       v-else

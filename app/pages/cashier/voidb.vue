@@ -843,12 +843,20 @@ const diubahTeks = (r: VoidBaris) => (r.diubahOleh && num(r.diubah) > num(r.dibu
       :count="rHari.item"
       flush
     >
-      <p
+      <div
         v-if="status === 'pending' && !data"
-        class="p-6 text-center text-sm text-muted"
+        class="space-y-2 p-6"
       >
-        Memuat dari server…
-      </p>
+        <!-- Loading rows mirror the void list below. -->
+        <USkeleton
+          v-for="i in 4"
+          :key="i"
+          class="h-12 w-full"
+        />
+        <p class="pt-1 text-center text-sm text-muted">
+          Memuat dari server…
+        </p>
+      </div>
       <p
         v-else-if="!hari.length"
         class="p-6 text-center text-sm text-muted"

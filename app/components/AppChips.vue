@@ -18,7 +18,7 @@ const model = defineModel<T | null>()
       v-for="o in options"
       :key="String(o.value)"
       type="button"
-      class="rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-primary"
+      class="chip-btn rounded-full border px-3 py-1.5 text-[13px] font-semibold transition-[color,background-color,border-color,transform] duration-150 ease-laks active:scale-[0.96] focus-visible:outline-2 focus-visible:outline-primary"
       :class="model === o.value
         ? 'border-yellow-deep bg-yellow-light text-yellow-dark'
         : 'border-default bg-muted text-muted hover:border-accented hover:text-highlighted'"

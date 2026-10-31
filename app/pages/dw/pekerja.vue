@@ -323,8 +323,19 @@ const pernahKerja = (p: PekerjaDw) => !!(p.terakhirKerja || st(p).total || st(p)
             </template>
           </div>
         </article>
+        <div
+          v-if="pending && !daftar.length"
+          class="space-y-2 p-4"
+        >
+          <!-- Loading cards mirror the worker list below. -->
+          <USkeleton
+            v-for="i in 3"
+            :key="i"
+            class="h-16 w-full rounded-panel"
+          />
+        </div>
         <p
-          v-if="!daftar.length"
+          v-else-if="!daftar.length"
           class="px-4 py-8 text-center text-muted"
         >
           {{ q || tapis !== 'ALL' ? 'Tidak ada yang cocok dengan saringan ini.' : 'Belum ada daily worker terdaftar.' }}

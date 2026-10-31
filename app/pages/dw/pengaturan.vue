@@ -188,7 +188,14 @@ async function jalanKosongkan() {
       v-if="!siap"
       title="Memuat pengaturan…"
     >
-      <p class="py-6 text-center text-sm text-muted">
+      <!-- Loading rows mirror the settings form below. -->
+      <div class="space-y-2 py-2">
+        <USkeleton class="h-5 w-1/3" />
+        <USkeleton class="h-10 w-full" />
+        <USkeleton class="h-10 w-full" />
+        <USkeleton class="h-10 w-5/6" />
+      </div>
+      <p class="py-2 text-center text-sm text-muted">
         Memuat…
       </p>
     </AppPanel>

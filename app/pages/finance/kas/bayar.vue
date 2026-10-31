@@ -302,12 +302,20 @@ async function jalanKonfirm() {
       :title="`Lembar pembayaran tidak bisa dibaca: ${apiErrorMessage(error)}`"
       :actions="[{ label: 'Coba lagi', color: 'neutral', variant: 'outline', onClick: () => refresh() }]"
     />
-    <p
+    <div
       v-else-if="status === 'pending' && !data"
-      class="text-sm text-muted"
+      class="space-y-2"
     >
-      Memuat lembar pembayaran…
-    </p>
+      <!-- Loading rows mirror the payment sheet below. -->
+      <USkeleton
+        v-for="i in 4"
+        :key="i"
+        class="h-12 w-full"
+      />
+      <p class="pt-1 text-sm text-muted">
+        Memuat lembar pembayaran…
+      </p>
+    </div>
 
     <div
       v-else

@@ -379,8 +379,19 @@ async function selesaiGanti(pesan: string) {
               />
             </div>
           </article>
+          <div
+            v-if="pending && !hariItu.length"
+            class="space-y-2 p-4"
+          >
+            <!-- Loading cards mirror the attendance list below. -->
+            <USkeleton
+              v-for="i in 3"
+              :key="i"
+              class="h-16 w-full rounded-panel"
+            />
+          </div>
           <p
-            v-if="!hariItu.length"
+            v-else-if="!hariItu.length"
             class="px-4 py-8 text-center text-muted"
           >
             Tidak ada daily worker yang disetujui untuk tanggal ini.

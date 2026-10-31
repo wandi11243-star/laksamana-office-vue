@@ -209,8 +209,19 @@ const kolom: TableColumn<KontenItem>[] = [
         flush
         :class="status === 'pending' ? 'opacity-60' : ''"
       >
+        <!-- Loading rows mirror the content table below. -->
         <div
-          v-if="!list.length"
+          v-if="status === 'pending' && !list.length"
+          class="space-y-2 p-4"
+        >
+          <USkeleton
+            v-for="i in 5"
+            :key="i"
+            class="h-12 w-full"
+          />
+        </div>
+        <div
+          v-else-if="!list.length"
           class="p-8 text-center"
         >
           <UIcon

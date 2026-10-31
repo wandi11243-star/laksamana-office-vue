@@ -305,8 +305,19 @@ function bukaDana(x?: DanaIklan) {
           />
           <span class="text-xs text-muted sm:ms-auto">{{ list.length }} iklan</span>
         </div>
+        <!-- Loading rows mirror the ads table below. -->
         <div
-          v-if="!list.length"
+          v-if="status === 'pending' && !list.length"
+          class="space-y-2 p-4"
+        >
+          <USkeleton
+            v-for="i in 5"
+            :key="i"
+            class="h-12 w-full"
+          />
+        </div>
+        <div
+          v-else-if="!list.length"
           class="p-8 text-center"
         >
           <UIcon

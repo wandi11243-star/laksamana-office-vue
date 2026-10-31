@@ -839,12 +839,16 @@ async function lihatBukti(fb: Feedback) {
       v-model:open="sheetBukti"
       title="Foto bukti"
     >
-      <p
+      <div
         v-if="buktiMemuat"
-        class="text-sm text-muted"
+        class="space-y-2"
       >
-        Memuat foto…
-      </p>
+        <!-- Photo placeholder mirrors the proof image below. -->
+        <USkeleton class="h-40 w-full rounded-lg" />
+        <p class="pt-1 text-sm text-muted">
+          Memuat foto…
+        </p>
+      </div>
       <img
         v-else-if="buktiData"
         :src="buktiData"

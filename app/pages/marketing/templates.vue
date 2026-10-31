@@ -287,12 +287,20 @@ async function hapusLama(div: string) {
         class="mb-4"
         description="Tiap event mengambil satu kategori to-do — kategori yang dipakai mengikuti isian Format F&B di form event. Event yang memilih Prasmanan mendapat seluruh daftar di bawah kartu Prasmanan; divisi (Kitchen, Bar, Floor, …) jadi sub kategori di dalamnya."
       />
-      <p
+      <div
         v-if="status === 'pending' && !st.taskTemplates.length"
-        class="p-6 text-center text-sm text-muted"
+        class="space-y-4"
       >
-        Memuat…
-      </p>
+        <div
+          v-for="i in 3"
+          :key="i"
+          class="space-y-2 rounded-xl border border-default bg-default p-4"
+        >
+          <USkeleton class="h-4 w-40" />
+          <USkeleton class="h-8 w-full" />
+          <USkeleton class="h-8 w-full" />
+        </div>
+      </div>
       <AppPanel v-else-if="!formats.length">
         <p class="text-sm text-muted">
           Belum ada kategori. Tambahkan satu supaya event bisa memilihnya dan punya daftar to-do.
@@ -353,7 +361,7 @@ async function hapusLama(div: string) {
             >
               <UIcon
                 name="i-lucide-chevron-right"
-                class="mt-1 size-4 shrink-0 transition"
+                class="putar-ikon mt-1 size-4 shrink-0 transition-transform duration-200 ease-laks"
                 :class="ditutup(div) ? '' : 'rotate-90'"
               />
               <span class="min-w-0">
@@ -426,121 +434,124 @@ async function hapusLama(div: string) {
             </div>
           </div>
 
-          <div
-            v-if="!ditutup(div)"
-            class="border-t border-default"
-          >
-            <p
-              v-if="!templateDivMkt(tpl, div).length && !subsDariMkt(subs, div).length"
-              class="px-4 py-3 text-sm text-muted"
+          <!-- Collapse only fades the section in place; height stays natural. -->
+          <Transition name="mkt-fade">
+            <div
+              v-if="!ditutup(div)"
+              class="border-t border-default"
             >
-              —
-            </p>
-            <template v-else>
-              <template v-if="templateSubMkt(tpl, div, '').length">
-                <p
-                  v-if="subsDariMkt(subs, div).length"
-                  class="px-4 pt-3 text-xs font-semibold tracking-wide text-muted uppercase"
-                >
-                  Tanpa sub kategori
-                </p>
-                <MarketingTabelTemplate
-                  :items="templateSubMkt(tpl, div, '')"
-                  :bisa-ubah="bisaUbah"
-                  :tgl="tglMkt"
-                  @ubah="bukaItem(div, $event)"
-                  @hapus="hapusItem"
-                  @tambah="bukaItem(div)"
-                />
-              </template>
-              <div
-                v-for="(sc, k) in subsDariMkt(subs, div)"
-                :key="sc.id"
+              <p
+                v-if="!templateDivMkt(tpl, div).length && !subsDariMkt(subs, div).length"
+                class="px-4 py-3 text-sm text-muted"
               >
-                <div
-                  class="flex flex-wrap items-center gap-2 border-t border-default bg-muted px-4 py-2"
-                  :class="sasaran === sc.id ? 'ring-2 ring-primary-400 ring-inset' : ''"
-                  :draggable="bisaUbah"
-                  @dragstart="seret = sc"
-                  @dragend="seret = null; sasaran = ''"
-                  @dragover.prevent="seret && seret.div === sc.div && seret.id !== sc.id && (sasaran = sc.id)"
-                  @dragleave="sasaran === sc.id && (sasaran = '')"
-                  @drop.prevent="lepas(sc)"
-                >
-                  <UIcon
-                    v-if="bisaUbah"
-                    name="i-lucide-grip-vertical"
-                    class="hidden size-4 cursor-grab text-dimmed lg:block"
-                    title="Tarik untuk mengubah urutan"
-                  />
-                  <span class="min-w-0 flex-1 text-sm font-semibold">
-                    {{ sc.nama }}
-                    <UBadge
-                      :label="String(templateSubMkt(tpl, div, sc.nama).length)"
-                      color="neutral"
-                      variant="soft"
-                      size="sm"
-                    />
-                  </span>
-                  <div
-                    v-if="bisaUbah"
-                    class="flex gap-1"
+                —
+              </p>
+              <template v-else>
+                <template v-if="templateSubMkt(tpl, div, '').length">
+                  <p
+                    v-if="subsDariMkt(subs, div).length"
+                    class="px-4 pt-3 text-xs font-semibold tracking-wide text-muted uppercase"
                   >
-                    <UButton
-                      icon="i-lucide-arrow-up"
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      :disabled="k === 0 || sibuk"
-                      aria-label="Naikkan urutan"
-                      @click="geserSub(sc, -1)"
+                    Tanpa sub kategori
+                  </p>
+                  <MarketingTabelTemplate
+                    :items="templateSubMkt(tpl, div, '')"
+                    :bisa-ubah="bisaUbah"
+                    :tgl="tglMkt"
+                    @ubah="bukaItem(div, $event)"
+                    @hapus="hapusItem"
+                    @tambah="bukaItem(div)"
+                  />
+                </template>
+                <div
+                  v-for="(sc, k) in subsDariMkt(subs, div)"
+                  :key="sc.id"
+                >
+                  <div
+                    class="flex flex-wrap items-center gap-2 border-t border-default bg-muted px-4 py-2"
+                    :class="sasaran === sc.id ? 'ring-2 ring-primary-400 ring-inset' : ''"
+                    :draggable="bisaUbah"
+                    @dragstart="seret = sc"
+                    @dragend="seret = null; sasaran = ''"
+                    @dragover.prevent="seret && seret.div === sc.div && seret.id !== sc.id && (sasaran = sc.id)"
+                    @dragleave="sasaran === sc.id && (sasaran = '')"
+                    @drop.prevent="lepas(sc)"
+                  >
+                    <UIcon
+                      v-if="bisaUbah"
+                      name="i-lucide-grip-vertical"
+                      class="hidden size-4 cursor-grab text-dimmed lg:block"
+                      title="Tarik untuk mengubah urutan"
                     />
-                    <UButton
-                      icon="i-lucide-arrow-down"
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      :disabled="k === subsDariMkt(subs, div).length - 1 || sibuk"
-                      aria-label="Turunkan urutan"
-                      @click="geserSub(sc, 1)"
-                    />
-                    <UButton
-                      icon="i-lucide-plus"
-                      label="Item"
-                      size="xs"
-                      color="neutral"
-                      variant="outline"
-                      @click="bukaItem(div, null, sc.nama)"
-                    />
-                    <UButton
-                      icon="i-lucide-pencil"
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      aria-label="Ubah nama sub kategori"
-                      @click="ubahNamaSub(sc)"
-                    />
-                    <UButton
-                      icon="i-lucide-trash-2"
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      aria-label="Hapus sub kategori"
-                      @click="hapusSub(sc)"
-                    />
+                    <span class="min-w-0 flex-1 text-sm font-semibold">
+                      {{ sc.nama }}
+                      <UBadge
+                        :label="String(templateSubMkt(tpl, div, sc.nama).length)"
+                        color="neutral"
+                        variant="soft"
+                        size="sm"
+                      />
+                    </span>
+                    <div
+                      v-if="bisaUbah"
+                      class="flex gap-1"
+                    >
+                      <UButton
+                        icon="i-lucide-arrow-up"
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        :disabled="k === 0 || sibuk"
+                        aria-label="Naikkan urutan"
+                        @click="geserSub(sc, -1)"
+                      />
+                      <UButton
+                        icon="i-lucide-arrow-down"
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        :disabled="k === subsDariMkt(subs, div).length - 1 || sibuk"
+                        aria-label="Turunkan urutan"
+                        @click="geserSub(sc, 1)"
+                      />
+                      <UButton
+                        icon="i-lucide-plus"
+                        label="Item"
+                        size="xs"
+                        color="neutral"
+                        variant="outline"
+                        @click="bukaItem(div, null, sc.nama)"
+                      />
+                      <UButton
+                        icon="i-lucide-pencil"
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        aria-label="Ubah nama sub kategori"
+                        @click="ubahNamaSub(sc)"
+                      />
+                      <UButton
+                        icon="i-lucide-trash-2"
+                        size="xs"
+                        color="neutral"
+                        variant="ghost"
+                        aria-label="Hapus sub kategori"
+                        @click="hapusSub(sc)"
+                      />
+                    </div>
                   </div>
+                  <MarketingTabelTemplate
+                    :items="templateSubMkt(tpl, div, sc.nama)"
+                    :bisa-ubah="bisaUbah"
+                    :tgl="tglMkt"
+                    @ubah="bukaItem(div, $event)"
+                    @hapus="hapusItem"
+                    @tambah="bukaItem(div, null, sc.nama)"
+                  />
                 </div>
-                <MarketingTabelTemplate
-                  :items="templateSubMkt(tpl, div, sc.nama)"
-                  :bisa-ubah="bisaUbah"
-                  :tgl="tglMkt"
-                  @ubah="bukaItem(div, $event)"
-                  @hapus="hapusItem"
-                  @tambah="bukaItem(div, null, sc.nama)"
-                />
-              </div>
-            </template>
-          </div>
+              </template>
+            </div>
+          </Transition>
         </AppPanel>
       </template>
 

@@ -29,12 +29,22 @@ const waktu = (v?: number) => (v ? new Date(v).toLocaleString('id-ID', { day: 'n
         :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
       />
       <AppPanel flush>
-        <p
+        <div
           v-if="!logs.length"
-          class="p-6 text-center text-sm text-muted"
+          class="space-y-2 p-6"
         >
-          {{ status === 'pending' ? 'Memuat…' : 'Belum ada aktivitas.' }}
-        </p>
+          <!-- Loading rows mirror the activity list below. -->
+          <template v-if="status === 'pending'">
+            <USkeleton
+              v-for="i in 4"
+              :key="i"
+              class="h-10 w-full"
+            />
+          </template>
+          <p class="pt-1 text-center text-sm text-muted">
+            {{ status === 'pending' ? 'Memuat…' : 'Belum ada aktivitas.' }}
+          </p>
+        </div>
         <ul
           v-else
           class="divide-y divide-default"

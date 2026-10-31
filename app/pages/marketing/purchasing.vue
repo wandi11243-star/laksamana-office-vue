@@ -256,12 +256,20 @@ const terkirim = computed(() => poMarketingMkt(daftar.value ?? []))
             />
           </template>
         </UAlert>
-        <p
+        <div
           v-if="daftar === null"
-          class="p-6 text-center text-sm text-muted"
+          class="space-y-2 p-6"
         >
-          Memuat dari BD OS…
-        </p>
+          <!-- Loading rows mirror the request table below. -->
+          <USkeleton
+            v-for="i in 4"
+            :key="i"
+            class="h-12 w-full"
+          />
+          <p class="pt-1 text-center text-sm text-muted">
+            Memuat dari BD OS…
+          </p>
+        </div>
         <p
           v-else-if="!terkirim.length && !galat"
           class="p-6 text-center text-sm text-muted"

@@ -388,12 +388,21 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
       v-if="!ev"
       layar="event"
     >
-      <AppPanel>
+      <AppPanel v-if="status === 'pending'">
+        <div class="space-y-3">
+          <div class="flex flex-wrap gap-1.5">
+            <USkeleton class="h-6 w-24" />
+            <USkeleton class="h-6 w-20" />
+            <USkeleton class="h-6 w-28" />
+          </div>
+          <USkeleton class="h-24 w-full" />
+          <USkeleton class="h-40 w-full" />
+        </div>
+      </AppPanel>
+      <AppPanel v-else>
         <p class="py-6 text-center text-sm text-muted">
-          <b class="block text-base text-highlighted">{{ status === 'pending' ? 'Memuat…' : 'Event tidak ditemukan' }}</b>
-          <template v-if="status !== 'pending'">
-            Kembali ke daftar event.
-          </template>
+          <b class="block text-base text-highlighted">Event tidak ditemukan</b>
+          Kembali ke daftar event.
         </p>
       </AppPanel>
     </MarketingGerbang>
@@ -654,149 +663,159 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
       </div>
 
       <template v-if="tabKini">
-        <!-- 4 · Overview: the summary document, read-only -->
-        <article
-          v-if="tabKini.id === 'overview'"
-          class="mx-auto w-full max-w-[860px] rounded-xl border border-default bg-default p-4 text-sm sm:p-6 print:max-w-none print:rounded-none print:border-0 print:shadow-none"
+        <!-- Overview ↔ form replaces the working surface, so the swap crossfades. -->
+        <Transition
+          name="mkt-swap"
+          mode="out-in"
         >
-          <header class="mb-4 flex flex-wrap items-center gap-3 border-b-4 border-brand-yellow pb-4">
-            <img
-              src="/mark.png"
-              alt=""
-              class="size-11 shrink-0 object-contain"
+          <!-- 4 · Overview: the summary document, read-only -->
+          <article
+            v-if="tabKini.id === 'overview'"
+            key="overview"
+            class="mx-auto w-full max-w-[860px] rounded-xl border border-default bg-default p-4 text-sm sm:p-6 print:max-w-none print:rounded-none print:border-0 print:shadow-none"
+          >
+            <header class="mb-4 flex flex-wrap items-center gap-3 border-b-4 border-brand-yellow pb-4">
+              <img
+                src="/mark.png"
+                alt=""
+                class="size-11 shrink-0 object-contain"
+              >
+              <div class="min-w-[160px] flex-1">
+                <p class="font-display text-xl font-bold text-highlighted">
+                  Laksamana Muda
+                </p>
+                <p class="text-[10px] tracking-[0.2em] text-yellow-dark">
+                  COFFEE &amp; LIVE SPACE
+                </p>
+              </div>
+              <div class="min-w-[180px] text-right">
+                <p class="text-[10px] font-bold tracking-[0.15em] text-yellow-dark">
+                  RANGKUMAN EVENT
+                </p>
+                <p class="mt-1 font-display text-lg font-bold text-highlighted">
+                  {{ ev.nama || '—' }}
+                </p>
+                <p class="text-xs text-muted">
+                  {{ rentangTglMkt(ev) }}
+                </p>
+              </div>
+            </header>
+
+            <div class="mb-3 grid gap-x-6 gap-y-1 rounded-lg bg-muted px-4 py-3 text-sm sm:grid-cols-2">
+              <p><b>Client</b> · {{ client?.nama ?? '—' }}{{ client?.perusahaan ? ` — ${client.perusahaan}` : '' }}</p>
+              <p><b>Marketing PIC</b> · {{ namaUser(ev.mktPIC) }}</p>
+              <p><b>Jenis</b> · {{ ev.jenis || '—' }}</p>
+              <p><b>Estimasi</b> · {{ ev.pax || '—' }} pax</p>
+            </div>
+            <div class="mb-4 flex flex-wrap items-center gap-2 text-xs text-muted">
+              <div class="h-1.5 w-64 max-w-full overflow-hidden rounded-full bg-ink-200">
+                <div
+                  class="h-full bg-brand-yellow"
+                  :style="{ width: `${overview.total ? Math.round(overview.isi / overview.total * 100) : 0}%` }"
+                />
+              </div>
+              <span class="num"><b class="text-highlighted">{{ overview.isi }}</b> dari {{ overview.total }} isian terisi ({{ overview.total ? Math.round(overview.isi / overview.total * 100) : 0 }}%)</span>
+            </div>
+            <div
+              v-if="sorot"
+              class="mb-4 rounded-r-lg border-l-4 border-yellow-deep bg-yellow-light px-4 py-3 text-sm"
             >
-            <div class="min-w-[160px] flex-1">
-              <p class="font-display text-xl font-bold text-highlighted">
-                Laksamana Muda
+              <p class="mb-1 text-[10px] font-bold tracking-[0.14em] text-yellow-dark">
+                POIN PENTING
               </p>
-              <p class="text-[10px] tracking-[0.2em] text-yellow-dark">
-                COFFEE &amp; LIVE SPACE
-              </p>
-            </div>
-            <div class="min-w-[180px] text-right">
-              <p class="text-[10px] font-bold tracking-[0.15em] text-yellow-dark">
-                RANGKUMAN EVENT
-              </p>
-              <p class="mt-1 font-display text-lg font-bold text-highlighted">
-                {{ ev.nama || '—' }}
-              </p>
-              <p class="text-xs text-muted">
-                {{ rentangTglMkt(ev) }}
+              <p class="whitespace-pre-line leading-relaxed">
+                {{ sorot }}
               </p>
             </div>
-          </header>
-
-          <div class="mb-3 grid gap-x-6 gap-y-1 rounded-lg bg-muted px-4 py-3 text-sm sm:grid-cols-2">
-            <p><b>Client</b> · {{ client?.nama ?? '—' }}{{ client?.perusahaan ? ` — ${client.perusahaan}` : '' }}</p>
-            <p><b>Marketing PIC</b> · {{ namaUser(ev.mktPIC) }}</p>
-            <p><b>Jenis</b> · {{ ev.jenis || '—' }}</p>
-            <p><b>Estimasi</b> · {{ ev.pax || '—' }} pax</p>
-          </div>
-          <div class="mb-4 flex flex-wrap items-center gap-2 text-xs text-muted">
-            <div class="h-1.5 w-64 max-w-full overflow-hidden rounded-full bg-ink-200">
-              <div
-                class="h-full bg-brand-yellow"
-                :style="{ width: `${overview.total ? Math.round(overview.isi / overview.total * 100) : 0}%` }"
-              />
-            </div>
-            <span class="num"><b class="text-highlighted">{{ overview.isi }}</b> dari {{ overview.total }} isian terisi ({{ overview.total ? Math.round(overview.isi / overview.total * 100) : 0 }}%)</span>
-          </div>
-          <div
-            v-if="sorot"
-            class="mb-4 rounded-r-lg border-l-4 border-yellow-deep bg-yellow-light px-4 py-3 text-sm"
-          >
-            <p class="mb-1 text-[10px] font-bold tracking-[0.14em] text-yellow-dark">
-              POIN PENTING
+            <p
+              v-if="!overview.secs.length"
+              class="text-sm text-muted"
+            >
+              Belum ada isian sama sekali.
             </p>
-            <p class="whitespace-pre-line leading-relaxed">
-              {{ sorot }}
-            </p>
-          </div>
-          <p
-            v-if="!overview.secs.length"
-            class="text-sm text-muted"
-          >
-            Belum ada isian sama sekali.
-          </p>
-          <section
-            v-for="s in overview.secs"
-            :key="s.id"
-            class="mb-5 break-inside-avoid last:mb-0"
-          >
-            <h3 class="mb-2 flex items-center gap-2 border-b border-default pb-2 text-sm font-semibold text-highlighted">
-              <span class="flex h-6 min-w-10 items-center justify-center rounded-md bg-yellow-light px-2 text-xs font-bold text-yellow-dark num">
-                {{ s.n }}
-              </span>
-              {{ s.title }}
-            </h3>
-            <MarketingOverviewIsi
-              v-if="ev"
-              :baris="s.baris"
-              :ev="ev"
-              :settings="st.settings"
-            />
-          </section>
-        </article>
-
-        <!-- 1–3 · form tabs: one card per section, one save row for the tab -->
-        <template v-else>
-          <MarketingEventForm
-            :key="`${tabKini.id}-${ev.updatedAt}`"
-            v-model:draft="draf"
-            :ev="ev"
-            :seksi="seksiTab(tabKini.id)"
-            :bisa-ubah="bisaUbah"
-            :fb-formats="formatFbMkt(st)"
-            :staff-names="st.users.map(u => u.name)"
-            :events="st.events"
-          >
-            <template #finance>
-              <MarketingFinanceEvent
-                :key="`fin-${ev.updatedAt}`"
-                v-model:draft="draf"
+            <section
+              v-for="s in overview.secs"
+              :key="s.id"
+              class="mb-5 break-inside-avoid last:mb-0"
+            >
+              <h3 class="mb-2 flex items-center gap-2 border-b border-default pb-2 text-sm font-semibold text-highlighted">
+                <span class="flex h-6 min-w-10 items-center justify-center rounded-md bg-yellow-light px-2 text-xs font-bold text-yellow-dark num">
+                  {{ s.n }}
+                </span>
+                {{ s.title }}
+              </h3>
+              <MarketingOverviewIsi
+                v-if="ev"
+                :baris="s.baris"
                 :ev="ev"
-                :nama-client="client?.nama ?? ''"
-                :client-hp="client?.hp ?? ''"
                 :settings="st.settings"
-                :bisa-ubah="bisaUbah"
-                :bisa-verif="bisaVerif"
-                :saya-nama="saya?.user.name ?? ''"
               />
-            </template>
-          </MarketingEventForm>
+            </section>
+          </article>
+
+          <!-- 1–3 · form tabs: one card per section, one save row for the tab -->
           <div
-            v-if="bisaUbah"
-            class="flex flex-wrap items-center justify-end gap-2"
+            v-else
+            key="form"
           >
-            <span
-              v-if="autoState === 'menyimpan'"
-              class="text-xs text-muted"
-            >Menyimpan…</span>
-            <span
-              v-else-if="autoMati"
-              class="text-xs text-warning"
-            >Auto nonaktif — data berubah di tempat lain.</span>
-            <span
-              v-else-if="autoWaktu && tabKini.id !== 'finance'"
-              class="text-xs text-muted"
-            >Tersimpan otomatis {{ autoWaktu }}</span>
-            <UButton
-              :label="`Simpan ${tabKini.title}`"
-              icon="i-lucide-check"
-              color="neutral"
-              variant="outline"
-              :loading="sibuk"
-              @click="simpan(tabKini.id)"
-            />
-            <UButton
-              v-if="tabLanjut(tabKini.id)"
-              :label="`Simpan & Lanjut · ${tabLanjut(tabKini.id)!.title}`"
-              trailing-icon="i-lucide-chevron-right"
-              :loading="sibuk"
-              @click="simpan(tabKini.id, tabLanjut(tabKini.id)!.id)"
-            />
+            <MarketingEventForm
+              :key="`${tabKini.id}-${ev.updatedAt}`"
+              v-model:draft="draf"
+              :ev="ev"
+              :seksi="seksiTab(tabKini.id)"
+              :bisa-ubah="bisaUbah"
+              :fb-formats="formatFbMkt(st)"
+              :staff-names="st.users.map(u => u.name)"
+              :events="st.events"
+            >
+              <template #finance>
+                <MarketingFinanceEvent
+                  :key="`fin-${ev.updatedAt}`"
+                  v-model:draft="draf"
+                  :ev="ev"
+                  :nama-client="client?.nama ?? ''"
+                  :client-hp="client?.hp ?? ''"
+                  :settings="st.settings"
+                  :bisa-ubah="bisaUbah"
+                  :bisa-verif="bisaVerif"
+                  :saya-nama="saya?.user.name ?? ''"
+                />
+              </template>
+            </MarketingEventForm>
+            <div
+              v-if="bisaUbah"
+              class="flex flex-wrap items-center justify-end gap-2"
+            >
+              <span
+                v-if="autoState === 'menyimpan'"
+                class="text-xs text-muted"
+              >Menyimpan…</span>
+              <span
+                v-else-if="autoMati"
+                class="text-xs text-warning"
+              >Auto nonaktif — data berubah di tempat lain.</span>
+              <span
+                v-else-if="autoWaktu && tabKini.id !== 'finance'"
+                class="text-xs text-muted"
+              >Tersimpan otomatis {{ autoWaktu }}</span>
+              <UButton
+                :label="`Simpan ${tabKini.title}`"
+                icon="i-lucide-check"
+                color="neutral"
+                variant="outline"
+                :loading="sibuk"
+                @click="simpan(tabKini.id)"
+              />
+              <UButton
+                v-if="tabLanjut(tabKini.id)"
+                :label="`Simpan & Lanjut · ${tabLanjut(tabKini.id)!.title}`"
+                trailing-icon="i-lucide-chevron-right"
+                :loading="sibuk"
+                @click="simpan(tabKini.id, tabLanjut(tabKini.id)!.id)"
+              />
+            </div>
           </div>
-        </template>
+        </Transition>
       </template>
 
       <ResponsiveSheet

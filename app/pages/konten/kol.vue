@@ -242,8 +242,19 @@ const kolomV: TableColumn<VisitPenuh>[] = [
           flush
           :class="status === 'pending' ? 'opacity-60' : ''"
         >
+          <!-- Loading rows mirror the KOL table below. -->
           <div
-            v-if="!listK.length"
+            v-if="status === 'pending' && !listK.length"
+            class="space-y-2 p-4"
+          >
+            <USkeleton
+              v-for="i in 5"
+              :key="i"
+              class="h-12 w-full"
+            />
+          </div>
+          <div
+            v-else-if="!listK.length"
             class="p-8 text-center"
           >
             <UIcon
@@ -473,8 +484,19 @@ const kolomV: TableColumn<VisitPenuh>[] = [
           flush
           :class="status === 'pending' ? 'opacity-60' : ''"
         >
+          <!-- Loading rows mirror the visit table below. -->
           <div
-            v-if="!listV.length"
+            v-if="status === 'pending' && !listV.length"
+            class="space-y-2 p-4"
+          >
+            <USkeleton
+              v-for="i in 5"
+              :key="i"
+              class="h-12 w-full"
+            />
+          </div>
+          <div
+            v-else-if="!listV.length"
             class="p-8 text-center"
           >
             <UIcon

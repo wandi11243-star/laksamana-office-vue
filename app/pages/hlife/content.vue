@@ -235,12 +235,22 @@ function keGcal(c: HlifeContent) {
       />
     </div>
 
-    <p
+    <div
       v-if="status === 'pending' && !konten.length"
-      class="mb-4 text-sm text-muted"
+      class="mb-4 space-y-2"
     >
-      Memuat konten…
-    </p>
+      <!-- Loading columns mirror the content kanban below. -->
+      <div class="flex gap-3">
+        <USkeleton
+          v-for="i in 4"
+          :key="i"
+          class="h-40 w-60 shrink-0 rounded-panel"
+        />
+      </div>
+      <p class="pt-1 text-sm text-muted">
+        Memuat konten…
+      </p>
+    </div>
 
     <div class="-mx-4 overflow-x-auto px-4 pb-2 lg:mx-0 lg:px-0">
       <div class="flex min-w-max gap-3">

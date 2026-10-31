@@ -339,6 +339,17 @@ function perTgl(tgl: string) {
         :count="list.length"
         flush
       >
+        <!-- Loading rows mirror the recap table below. -->
+        <div
+          v-if="pending && !list.length"
+          class="space-y-2 p-4"
+        >
+          <USkeleton
+            v-for="i in 5"
+            :key="i"
+            class="h-10 w-full"
+          />
+        </div>
         <UTable
           class="hidden lg:block"
           :data="list"
@@ -411,8 +422,19 @@ function perTgl(tgl: string) {
               </p>
             </div>
           </article>
+          <div
+            v-if="pending && !list.length"
+            class="space-y-2 p-4"
+          >
+            <!-- Loading cards mirror the recap list below. -->
+            <USkeleton
+              v-for="i in 3"
+              :key="i"
+              class="h-16 w-full rounded-panel"
+            />
+          </div>
           <p
-            v-if="!list.length"
+            v-else-if="!list.length"
             class="px-4 py-8 text-center text-muted"
           >
             Belum ada ajuan pada bulan ini.

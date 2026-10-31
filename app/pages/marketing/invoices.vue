@@ -376,10 +376,14 @@ const cetak = () => window.print()
           />
         </template>
         <div
-          v-if="status === 'pending'"
-          class="p-8 text-center text-sm text-muted"
+          v-if="status === 'pending' && !daftar.length"
+          class="space-y-2 p-4"
         >
-          Memuat…
+          <USkeleton
+            v-for="i in 5"
+            :key="i"
+            class="h-12 w-full"
+          />
         </div>
         <div
           v-else-if="!daftar.length"

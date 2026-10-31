@@ -120,12 +120,20 @@ const segSegera = computed(() => (data.value?.review ?? []).filter(r => r.tingka
           v-if="status !== 'ok'"
           title="Google Review"
         >
-          <p
+          <div
             v-if="status === 'muat' || status === 'idle'"
-            class="py-6 text-center text-sm text-muted"
+            class="space-y-2 py-6"
           >
-            Memuat review…
-          </p>
+            <!-- Loading rows mirror the review list below. -->
+            <USkeleton
+              v-for="i in 3"
+              :key="i"
+              class="h-12 w-full"
+            />
+            <p class="pt-1 text-center text-sm text-muted">
+              Memuat review…
+            </p>
+          </div>
           <div v-else>
             <UAlert
               color="warning"

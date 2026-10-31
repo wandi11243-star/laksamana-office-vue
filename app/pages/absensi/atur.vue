@@ -209,9 +209,17 @@ async function simpanAturan() {
           <div class="col-span-full">
             <div
               v-if="statusLokasi === 'pending' && !lokasi?.length"
-              class="rounded-panel border border-default px-4 py-6 text-center text-muted"
+              class="space-y-2 rounded-panel border border-default px-4 py-6"
             >
-              Memuat titik kerja…
+              <!-- Loading rows mirror the work-point list below. -->
+              <USkeleton
+                v-for="i in 3"
+                :key="i"
+                class="h-10 w-full"
+              />
+              <p class="pt-1 text-center text-sm text-muted">
+                Memuat titik kerja…
+              </p>
             </div>
             <div
               v-else-if="lokasi?.length"

@@ -587,12 +587,17 @@ async function akLepas(i: InvestorBrankas) {
               <p class="mb-2 text-[12px] text-muted">
                 Akun yang dipilih diberi hak modul investor (tidak pernah admin); nama dan PIN-nya tidak diubah.
               </p>
-              <p
+              <div
                 v-if="akMemuat"
-                class="text-sm text-muted"
+                class="space-y-2"
               >
-                Memuat daftar akun…
-              </p>
+                <!-- Loading rows mirror the account picker below. -->
+                <USkeleton class="h-10 w-full" />
+                <USkeleton class="h-10 w-full" />
+                <p class="pt-1 text-sm text-muted">
+                  Memuat daftar akun…
+                </p>
+              </div>
               <UAlert
                 v-else-if="akUsersErr"
                 color="error"

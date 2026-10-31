@@ -99,5 +99,25 @@ const inisial = computed(() => String(u.value?.name ?? '').split(/\s+/).filter(B
         <b>PIN akses</b> — login kini dikelola lewat Office. Hubungi admin untuk mengubah PIN kamu.
       </p>
     </AppPanel>
+    <!-- Loading profile mirrors the panel above. -->
+    <AppPanel
+      v-else-if="!error"
+      class="max-w-2xl"
+    >
+      <div class="flex items-center gap-4">
+        <USkeleton class="size-14 shrink-0 rounded-xl" />
+        <div class="min-w-0 flex-1 space-y-2">
+          <USkeleton class="h-5 w-1/2" />
+          <USkeleton class="h-3 w-2/3" />
+        </div>
+      </div>
+      <div class="mt-5 space-y-1.5">
+        <USkeleton
+          v-for="i in 2"
+          :key="i"
+          class="h-12 w-full rounded-lg"
+        />
+      </div>
+    </AppPanel>
   </AppPage>
 </template>

@@ -120,12 +120,19 @@ onBeforeUnmount(() => {
       @touchstart.passive="bangun"
     >
       <div class="relative flex min-h-0 flex-1 items-center justify-center">
-        <MarketingGambar
-          :file-key="it.key"
-          :alt="it.judul ?? ''"
-          img-class="max-h-full max-w-full object-contain"
-          @ukur="potret[it.id] = $event"
-        />
+        <!-- Slide change crossfades the picture; controls and text stay put. -->
+        <Transition
+          name="mkt-fade"
+          mode="out-in"
+        >
+          <MarketingGambar
+            :key="it.id"
+            :file-key="it.key"
+            :alt="it.judul ?? ''"
+            img-class="max-h-full max-w-full object-contain"
+            @ukur="potret[it.id] = $event"
+          />
+        </Transition>
         <button
           type="button"
           class="absolute inset-y-0 left-0 w-1/4"

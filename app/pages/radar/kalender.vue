@@ -165,13 +165,21 @@ useSegarSenyap(refresh, () => buka.value)
         </div>
       </div>
     </AppPanel>
-    <p
+    <div
       v-if="status === 'pending' && !board"
-      class="mb-4 text-sm text-muted"
+      class="mb-4 space-y-2"
       role="status"
     >
-      Memuat kalender…
-    </p>
+      <!-- Loading rows mirror the calendar below. -->
+      <USkeleton
+        v-for="i in 3"
+        :key="i"
+        class="h-16 w-full"
+      />
+      <p class="pt-1 text-sm text-muted">
+        Memuat kalender…
+      </p>
+    </div>
     <p
       v-if="semuaMati"
       class="mb-4 rounded-field border border-warning/30 bg-warning/10 p-3 text-sm text-warning"

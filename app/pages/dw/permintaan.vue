@@ -353,8 +353,19 @@ async function jalanHapus() {
               />
             </div>
           </article>
+          <div
+            v-if="pending && !daftar.length"
+            class="space-y-2 p-4"
+          >
+            <!-- Loading cards mirror the request list below. -->
+            <USkeleton
+              v-for="i in 3"
+              :key="i"
+              class="h-16 w-full rounded-panel"
+            />
+          </div>
           <p
-            v-if="!daftar.length"
+            v-else-if="!daftar.length"
             class="px-4 py-8 text-center text-muted"
           >
             {{ tab === 'antri' ? 'Tidak ada permintaan yang menunggu.' : 'Belum ada permintaan yang diputuskan.' }}

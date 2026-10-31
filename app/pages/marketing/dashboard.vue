@@ -23,7 +23,7 @@ import { BULAN, hariIni, rupiah } from '~/utils/format'
 definePageMeta({ access: ['marketing'] })
 
 const router = useRouter()
-const { data: st, error } = useStateMkt()
+const { data: st, status, error } = useStateMkt()
 const { saya, can } = useAksesMkt()
 const hari = hariIni()
 const bulanIni = hari.slice(0, 7)
@@ -108,6 +108,33 @@ const namaDepan = computed(() => String(saya.value?.user.name ?? '').split(' ')[
         :title="`Gagal memuat data Marketing: ${apiErrorMessage(error)}`"
         class="mb-5"
       />
+
+      <div
+        v-if="status === 'pending' && !st.events.length"
+        class="space-y-5"
+      >
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(150px,1fr))]">
+          <USkeleton
+            v-for="i in 4"
+            :key="i"
+            class="h-20 rounded-xl"
+          />
+        </div>
+        <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
+          <USkeleton
+            v-for="i in 7"
+            :key="i"
+            class="h-16 rounded-panel"
+          />
+        </div>
+        <div class="space-y-2 rounded-panel border border-default bg-default p-4">
+          <USkeleton
+            v-for="i in 5"
+            :key="i"
+            class="h-10 w-full"
+          />
+        </div>
+      </div>
 
       <AppStatGrid>
         <AppStat

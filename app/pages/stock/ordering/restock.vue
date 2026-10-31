@@ -292,6 +292,17 @@ async function unggahStok(e: Event) {
           />
         </div>
       </template>
+      <!-- Loading rows mirror the restock table below. -->
+      <div
+        v-if="memuat && !payload"
+        class="space-y-2 p-4"
+      >
+        <USkeleton
+          v-for="i in 5"
+          :key="i"
+          class="h-12 w-full"
+        />
+      </div>
       <div class="hidden lg:block">
         <UTable
           :columns="kolom"

@@ -312,12 +312,22 @@ watch(tasks, (list) => {
       </div>
     </AppPanel>
 
-    <p
+    <div
       v-if="status === 'pending' && !tasks.length"
-      class="mb-4 text-sm text-muted"
+      class="mb-4 space-y-2"
     >
-      Memuat task…
-    </p>
+      <!-- Loading cards mirror the Eisenhower panels below. -->
+      <div class="grid gap-4 md:grid-cols-2">
+        <USkeleton
+          v-for="i in 4"
+          :key="i"
+          class="h-28 rounded-panel"
+        />
+      </div>
+      <p class="pt-1 text-sm text-muted">
+        Memuat task…
+      </p>
+    </div>
 
     <!-- Eisenhower matrix: two columns on phone, four on desktop -->
     <div

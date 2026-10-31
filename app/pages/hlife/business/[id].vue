@@ -153,12 +153,19 @@ async function hapusTask() {
     :title="bisnis?.name ?? 'Bisnis'"
     :back="{ label: 'Semua bisnis', to: '/hlife/business' }"
   >
-    <p
+    <div
       v-if="status === 'pending' && !bisnis"
-      class="text-sm text-muted"
+      class="space-y-2"
     >
-      Memuat bisnis…
-    </p>
+      <!-- Loading paper mirrors the business detail below. -->
+      <USkeleton class="h-5 w-1/3" />
+      <USkeleton class="h-3 w-full" />
+      <USkeleton class="h-3 w-full" />
+      <USkeleton class="h-3 w-5/6" />
+      <p class="pt-1 text-sm text-muted">
+        Memuat bisnis…
+      </p>
+    </div>
     <div
       v-else-if="!bisnis"
       class="rounded-panel border border-default bg-default p-6 text-center text-muted shadow-panel"

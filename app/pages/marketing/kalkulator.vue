@@ -601,6 +601,7 @@ async function hapusRiwayat(x: RiwayatKalkMkt) {
                 <tr
                   v-for="x in riwayat"
                   :key="x.id"
+                  class="baris-sorot transition-colors duration-150 ease-laks"
                   :class="x.id === bukaId ? 'bg-primary-50' : ''"
                 >
                   <td class="px-3 py-2">

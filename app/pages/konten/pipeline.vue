@@ -111,6 +111,22 @@ async function lepas(p: { id: string, to: string }) {
         </div>
       </AppPanel>
 
+      <!-- Loading board mirrors the kanban columns below. -->
+      <div
+        v-if="status === 'pending' && !st.content.length"
+        class="hidden gap-3 lg:grid lg:grid-cols-5"
+        aria-hidden="true"
+      >
+        <div
+          v-for="i in 5"
+          :key="i"
+          class="space-y-2 rounded-panel border border-default bg-default p-2"
+        >
+          <USkeleton class="h-6 w-2/3" />
+          <USkeleton class="h-16 w-full" />
+          <USkeleton class="h-16 w-full" />
+        </div>
+      </div>
       <!-- Desktop: shared board (AppKanban owns the drag state). -->
       <div
         class="hidden lg:block"

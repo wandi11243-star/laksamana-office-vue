@@ -36,7 +36,7 @@ definePageMeta({ access: ['marketing'] })
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
-const { data: st, error } = useStateMkt()
+const { data: st, status, error } = useStateMkt()
 const { can } = useAksesMkt()
 const hari = hariIni()
 
@@ -226,6 +226,31 @@ const kosong = computed(() => {
       />
 
       <div
+        v-if="status === 'pending' && !st.events.length"
+        class="space-y-4"
+      >
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:grid-cols-7">
+          <USkeleton
+            v-for="i in 7"
+            :key="i"
+            class="h-20 rounded-panel"
+          />
+        </div>
+        <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <div
+            v-for="i in 4"
+            :key="i"
+            class="space-y-2 rounded-xl border border-default bg-brand-orange-light p-2"
+          >
+            <USkeleton class="h-6 w-2/3" />
+            <USkeleton class="h-16 w-full" />
+            <USkeleton class="h-16 w-full" />
+            <USkeleton class="hidden h-16 w-full xl:block" />
+          </div>
+        </div>
+      </div>
+
+      <div
         v-if="daftarPic.length"
         class="mb-5 flex flex-wrap items-center gap-2"
       >
@@ -281,302 +306,313 @@ const kosong = computed(() => {
       </div>
 
       <!-- Kanban: drag state lives in AppKanban, guards + sheet stay here -->
-      <AppKanban
-        v-if="tab === 'kanban'"
-        :columns="kolomKanban"
-        :can-drag="can('edit_event')"
-        drag-reason="Kamu tidak punya izin mengubah tahap event."
-        layout="grid"
-        empty-text="-"
-        @move="pindahMinta"
+      <Transition
+        name="mkt-swap"
+        mode="out-in"
       >
-        <template #header="{ column }">
-          <AppStatus
-            :color="warnaStatusMkt(column.id)"
-            :icon="ikonStatusMkt(column.id)"
-            size="sm"
-          >
-            {{ column.title }}
-          </AppStatus>
-          <span class="num ml-auto rounded-full bg-muted px-2 text-xs font-bold">{{ column.items.length }}</span>
-        </template>
-        <template #card="{ item, dragging, canDrag: bolehSeret, dragReason: alasanSeret, dragStart, dragEnd, swallowClick }">
-          <AppKanbanCard
-            :dragging="dragging"
-            :can-drag="bolehSeret"
-            :drag-reason="alasanSeret"
-            @dragstart="dragStart"
-            @dragend="dragEnd"
-            @card-click="alihKartu(item.id, swallowClick)"
-          >
-            <template #title>
-              <p class="text-sm font-semibold text-highlighted">
-                {{ item.nama }}<span
-                  v-if="item.mktPIC"
-                  class="font-normal text-muted"
-                > · {{ depan(item.mktPIC) }}</span>
-              </p>
-            </template>
-            <template #meta>
-              <p class="truncate text-xs text-muted">
-                {{ namaClient(item.clientId) }} · {{ jenisEvent(item) }}
-              </p>
-              <p
-                v-if="grand(item)"
-                class="num mt-1 truncate text-xs font-semibold text-primary-700"
-                :title="rupiah(grand(item))"
-              >
-                {{ rupiah(grand(item)) }}
-              </p>
-            </template>
-            <template #actions>
-              <div
-                v-if="buka === item.id"
-                class="mt-2 border-t border-default pt-2"
-              >
-                <dl class="grid grid-cols-[3.5rem_1fr] gap-x-2 gap-y-0.5 text-xs">
-                  <dt class="text-muted">
-                    Client
-                  </dt>
-                  <dd class="font-semibold">
-                    {{ namaClient(item.clientId) }}
-                  </dd>
-                  <dt class="text-muted">
-                    Pax
-                  </dt>
-                  <dd class="num">
-                    {{ item.pax || '—' }}
-                  </dd>
-                  <dt class="text-muted">
-                    Nilai
-                  </dt>
-                  <dd class="num">
-                    {{ grand(item) ? rupiah(grand(item)) : 'belum ada angka' }}
-                  </dd>
-                </dl>
-                <div class="mt-2 flex flex-wrap gap-1.5">
-                  <UButton
-                    v-if="can('edit_event') && bisaRevisi(item)"
-                    label="Ajukan Revisi"
-                    size="xs"
-                    color="neutral"
-                    variant="outline"
-                    @click="router.push(`/marketing/event/${item.id}?revisi=1`)"
-                  />
-                  <UButton
-                    label="Buka Event"
-                    size="xs"
-                    @click="router.push(`/marketing/event/${item.id}`)"
-                  />
-                </div>
-              </div>
-            </template>
-          </AppKanbanCard>
-        </template>
-      </AppKanban>
-
-      <!-- Daftar Event -->
-      <template v-else>
-        <AppPanel>
-          <div class="flex flex-wrap items-center gap-2.5">
-            <AppSeg
-              v-model="periodeSeg"
-              :options="PERIODE_EVENT_MKT"
+        <AppKanban
+          v-if="tab === 'kanban'"
+          key="kanban"
+          :columns="kolomKanban"
+          :can-drag="can('edit_event')"
+          drag-reason="Kamu tidak punya izin mengubah tahap event."
+          layout="grid"
+          empty-text="-"
+          @move="pindahMinta"
+        >
+          <template #header="{ column }">
+            <AppStatus
+              :color="warnaStatusMkt(column.id)"
+              :icon="ikonStatusMkt(column.id)"
               size="sm"
-            />
-            <div class="flex items-center gap-1.5">
-              <UButton
-                icon="i-lucide-chevron-left"
-                color="neutral"
-                variant="outline"
-                size="xs"
-                aria-label="Bulan sebelumnya"
-                @click="geserBulan(-1)"
-              />
-              <b
-                class="min-w-32 text-center text-sm"
-                :class="fe.periode === 'pilih' ? 'text-primary-700' : ''"
-              >{{ labelBulan }}</b>
-              <UButton
-                icon="i-lucide-chevron-right"
-                color="neutral"
-                variant="outline"
-                size="xs"
-                aria-label="Bulan berikutnya"
-                @click="geserBulan(1)"
-              />
-              <UButton
-                v-if="fe.periode === 'pilih'"
-                label="Bulan ini"
-                color="neutral"
-                variant="outline"
-                size="xs"
-                @click="bulanIni"
-              />
-            </div>
-            <USelect
-              v-model="fStatus"
-              :items="opsiStatus"
-              class="w-full sm:w-60"
-              aria-label="Status"
-            />
-            <UInput
-              v-model="fe.q"
-              icon="i-lucide-search"
-              placeholder="Cari event / client..."
-              class="w-full sm:w-64"
-            />
-            <UButton
-              v-if="!bawaan"
-              label="Reset filter"
-              icon="i-lucide-rotate-ccw"
-              color="neutral"
-              variant="outline"
-              size="sm"
-              @click="reset"
-            />
-            <span class="text-xs text-muted">{{ hitung }}</span>
-          </div>
-        </AppPanel>
-
-        <AppPanel flush>
-          <div
-            v-if="!daftar.length"
-            class="p-8 text-center text-sm text-muted"
-          >
-            <b class="block text-base text-highlighted">{{ kosong.t }}</b>
-            {{ kosong.d }}
-          </div>
-          <template v-else>
-            <UTable
-              :data="hal"
-              :columns="kolomTabel"
-              class="hidden lg:block"
-              :ui="{ tr: 'cursor-pointer' }"
-              @select="(_e: Event, r: { original: EventMkt }) => router.push(`/marketing/event/${r.original.id}`)"
             >
-              <template #nama-cell="{ row }">
-                <p class="flex flex-wrap items-center gap-1.5 font-semibold text-highlighted">
-                  {{ row.original.nama }}
-                  <AppStatus
-                    :color="warnaJenisMkt(row.original.jenis)"
-                    size="sm"
-                  >
-                    {{ jenisEvent(row.original) }}
-                  </AppStatus>
-                  <AppStatus
-                    v-if="!menuFixMkt(row.original)"
-                    color="warning"
-                    icon="i-lucide-circle-help"
-                    size="sm"
-                  >
-                    Menu belum ditentukan
-                  </AppStatus>
-                </p>
-                <p class="text-xs text-muted">
-                  {{ namaClient(row.original.clientId) }}
-                </p>
-              </template>
-              <template #tanggal-cell="{ row }">
-                <p class="num">
-                  {{ rentangTglMkt(row.original) }}
-                </p>
-                <p class="text-xs text-muted">
-                  {{ hMinusMkt(row.original.tanggal, hari) }}
-                </p>
-              </template>
-              <template #pax-cell="{ row }">
-                <span class="num">{{ row.original.pax || '—' }}</span>
-              </template>
-              <template #status-cell="{ row }">
-                <AppStatus
-                  :color="warnaStatusMkt(row.original.status)"
-                  :icon="ikonStatusMkt(row.original.status)"
-                  size="sm"
-                >
-                  {{ row.original.status }}
-                </AppStatus>
-              </template>
-              <template #pic-cell="{ row }">
-                <span
-                  v-if="row.original.mktPIC"
-                  class="flex items-center gap-2"
-                >
-                  <span class="flex size-6 items-center justify-center rounded-md bg-primary-100 text-[10px] font-bold text-primary-800">{{ inisial(namaUser(row.original.mktPIC)) }}</span>
-                  {{ depan(row.original.mktPIC) }}
-                </span>
-                <span
-                  v-else
-                  class="text-xs text-muted"
-                >belum ada PIC</span>
-              </template>
-              <template #grand-cell="{ row }">
-                <span class="num">{{ rupiah(grand(row.original)) }}</span>
-              </template>
-              <template #dok-cell="{ row }">
-                <div
-                  class="flex gap-1"
-                  @click.stop
-                >
-                  <UButton
-                    v-for="d in [{ l: 'Internal', m: 'internal' }, { l: 'Client', m: 'client' }, { l: 'Draft', m: 'quote' }]"
-                    :key="d.l"
-                    :label="d.l"
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    :to="`/marketing/brief?id=${row.original.id}&mode=${d.m}`"
-                  />
-                </div>
-              </template>
-              <template #buka-cell>
-                <UIcon
-                  name="i-lucide-chevron-right"
-                  class="size-4 text-muted"
-                />
-              </template>
-            </UTable>
-            <ul class="divide-y divide-default lg:hidden">
-              <li
-                v-for="e in hal"
-                :key="e.id"
-              >
-                <NuxtLink
-                  :to="`/marketing/event/${e.id}`"
-                  class="flex items-start justify-between gap-3 p-4 hover:bg-muted"
-                >
-                  <span class="min-w-0">
-                    <b class="block text-highlighted">{{ e.nama }}</b>
-                    <span class="block text-xs text-muted">{{ namaClient(e.clientId) }} · {{ jenisEvent(e) }} · {{ e.pax || '—' }} pax</span>
-                    <span class="num block text-xs text-muted">{{ rentangTglMkt(e) }} · {{ hMinusMkt(e.tanggal, hari) }}</span>
-                    <span class="mt-1 flex flex-wrap gap-1">
-                      <AppStatus
-                        :color="warnaStatusMkt(e.status)"
-                        :icon="ikonStatusMkt(e.status)"
-                        size="sm"
-                      >{{ e.status }}</AppStatus>
-                      <AppStatus
-                        v-if="!menuFixMkt(e)"
-                        color="warning"
-                        icon="i-lucide-circle-help"
-                        size="sm"
-                      >Menu belum ditentukan</AppStatus>
-                    </span>
-                  </span>
-                  <span class="shrink-0 text-right">
-                    <span class="num block text-sm font-semibold">{{ rupiah(grand(e)) }}</span>
-                    <span class="block text-xs text-muted">{{ e.mktPIC ? depan(e.mktPIC) : 'belum ada PIC' }}</span>
-                  </span>
-                </NuxtLink>
-              </li>
-            </ul>
-            <MarketingPager
-              v-model="tbl.hal.value"
-              :total="daftar.length"
-            />
+              {{ column.title }}
+            </AppStatus>
+            <span class="num ml-auto rounded-full bg-muted px-2 text-xs font-bold">{{ column.items.length }}</span>
           </template>
-        </AppPanel>
-      </template>
+          <template #card="{ item, dragging, canDrag: bolehSeret, dragReason: alasanSeret, dragStart, dragEnd, swallowClick }">
+            <AppKanbanCard
+              :dragging="dragging"
+              :can-drag="bolehSeret"
+              :drag-reason="alasanSeret"
+              @dragstart="dragStart"
+              @dragend="dragEnd"
+              @card-click="alihKartu(item.id, swallowClick)"
+            >
+              <template #title>
+                <p class="text-sm font-semibold text-highlighted">
+                  {{ item.nama }}<span
+                    v-if="item.mktPIC"
+                    class="font-normal text-muted"
+                  > · {{ depan(item.mktPIC) }}</span>
+                </p>
+              </template>
+              <template #meta>
+                <p class="truncate text-xs text-muted">
+                  {{ namaClient(item.clientId) }} · {{ jenisEvent(item) }}
+                </p>
+                <p
+                  v-if="grand(item)"
+                  class="num mt-1 truncate text-xs font-semibold text-primary-700"
+                  :title="rupiah(grand(item))"
+                >
+                  {{ rupiah(grand(item)) }}
+                </p>
+              </template>
+              <template #actions>
+                <Transition name="mkt-fade">
+                  <div
+                    v-if="buka === item.id"
+                    class="mt-2 border-t border-default pt-2"
+                  >
+                    <dl class="grid grid-cols-[3.5rem_1fr] gap-x-2 gap-y-0.5 text-xs">
+                      <dt class="text-muted">
+                        Client
+                      </dt>
+                      <dd class="font-semibold">
+                        {{ namaClient(item.clientId) }}
+                      </dd>
+                      <dt class="text-muted">
+                        Pax
+                      </dt>
+                      <dd class="num">
+                        {{ item.pax || '—' }}
+                      </dd>
+                      <dt class="text-muted">
+                        Nilai
+                      </dt>
+                      <dd class="num">
+                        {{ grand(item) ? rupiah(grand(item)) : 'belum ada angka' }}
+                      </dd>
+                    </dl>
+                    <div class="mt-2 flex flex-wrap gap-1.5">
+                      <UButton
+                        v-if="can('edit_event') && bisaRevisi(item)"
+                        label="Ajukan Revisi"
+                        size="xs"
+                        color="neutral"
+                        variant="outline"
+                        @click="router.push(`/marketing/event/${item.id}?revisi=1`)"
+                      />
+                      <UButton
+                        label="Buka Event"
+                        size="xs"
+                        @click="router.push(`/marketing/event/${item.id}`)"
+                      />
+                    </div>
+                  </div>
+                </Transition>
+              </template>
+            </AppKanbanCard>
+          </template>
+        </AppKanban>
+
+        <!-- Daftar Event -->
+        <div
+          v-else
+          key="events"
+        >
+          <AppPanel>
+            <div class="flex flex-wrap items-center gap-2.5">
+              <AppSeg
+                v-model="periodeSeg"
+                :options="PERIODE_EVENT_MKT"
+                size="sm"
+              />
+              <div class="flex items-center gap-1.5">
+                <UButton
+                  icon="i-lucide-chevron-left"
+                  color="neutral"
+                  variant="outline"
+                  size="xs"
+                  aria-label="Bulan sebelumnya"
+                  @click="geserBulan(-1)"
+                />
+                <b
+                  class="min-w-32 text-center text-sm"
+                  :class="fe.periode === 'pilih' ? 'text-primary-700' : ''"
+                >{{ labelBulan }}</b>
+                <UButton
+                  icon="i-lucide-chevron-right"
+                  color="neutral"
+                  variant="outline"
+                  size="xs"
+                  aria-label="Bulan berikutnya"
+                  @click="geserBulan(1)"
+                />
+                <UButton
+                  v-if="fe.periode === 'pilih'"
+                  label="Bulan ini"
+                  color="neutral"
+                  variant="outline"
+                  size="xs"
+                  @click="bulanIni"
+                />
+              </div>
+              <USelect
+                v-model="fStatus"
+                :items="opsiStatus"
+                class="w-full sm:w-60"
+                aria-label="Status"
+              />
+              <UInput
+                v-model="fe.q"
+                icon="i-lucide-search"
+                placeholder="Cari event / client..."
+                class="w-full sm:w-64"
+              />
+              <UButton
+                v-if="!bawaan"
+                label="Reset filter"
+                icon="i-lucide-rotate-ccw"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                @click="reset"
+              />
+              <span class="text-xs text-muted">{{ hitung }}</span>
+            </div>
+          </AppPanel>
+
+          <AppPanel flush>
+            <div
+              v-if="!daftar.length"
+              class="p-8 text-center text-sm text-muted"
+            >
+              <b class="block text-base text-highlighted">{{ kosong.t }}</b>
+              {{ kosong.d }}
+            </div>
+            <template v-else>
+              <UTable
+                :data="hal"
+                :columns="kolomTabel"
+                class="hidden lg:block"
+                :ui="{ tr: 'cursor-pointer' }"
+                @select="(_e: Event, r: { original: EventMkt }) => router.push(`/marketing/event/${r.original.id}`)"
+              >
+                <template #nama-cell="{ row }">
+                  <p class="flex flex-wrap items-center gap-1.5 font-semibold text-highlighted">
+                    {{ row.original.nama }}
+                    <AppStatus
+                      :color="warnaJenisMkt(row.original.jenis)"
+                      size="sm"
+                    >
+                      {{ jenisEvent(row.original) }}
+                    </AppStatus>
+                    <AppStatus
+                      v-if="!menuFixMkt(row.original)"
+                      color="warning"
+                      icon="i-lucide-circle-help"
+                      size="sm"
+                    >
+                      Menu belum ditentukan
+                    </AppStatus>
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ namaClient(row.original.clientId) }}
+                  </p>
+                </template>
+                <template #tanggal-cell="{ row }">
+                  <p class="num">
+                    {{ rentangTglMkt(row.original) }}
+                  </p>
+                  <p class="text-xs text-muted">
+                    {{ hMinusMkt(row.original.tanggal, hari) }}
+                  </p>
+                </template>
+                <template #pax-cell="{ row }">
+                  <span class="num">{{ row.original.pax || '—' }}</span>
+                </template>
+                <template #status-cell="{ row }">
+                  <AppStatus
+                    :color="warnaStatusMkt(row.original.status)"
+                    :icon="ikonStatusMkt(row.original.status)"
+                    size="sm"
+                  >
+                    {{ row.original.status }}
+                  </AppStatus>
+                </template>
+                <template #pic-cell="{ row }">
+                  <span
+                    v-if="row.original.mktPIC"
+                    class="flex items-center gap-2"
+                  >
+                    <span class="flex size-6 items-center justify-center rounded-md bg-primary-100 text-[10px] font-bold text-primary-800">{{ inisial(namaUser(row.original.mktPIC)) }}</span>
+                    {{ depan(row.original.mktPIC) }}
+                  </span>
+                  <span
+                    v-else
+                    class="text-xs text-muted"
+                  >belum ada PIC</span>
+                </template>
+                <template #grand-cell="{ row }">
+                  <span class="num">{{ rupiah(grand(row.original)) }}</span>
+                </template>
+                <template #dok-cell="{ row }">
+                  <div
+                    class="flex gap-1"
+                    @click.stop
+                  >
+                    <UButton
+                      v-for="d in [{ l: 'Internal', m: 'internal' }, { l: 'Client', m: 'client' }, { l: 'Draft', m: 'quote' }]"
+                      :key="d.l"
+                      :label="d.l"
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      :to="`/marketing/brief?id=${row.original.id}&mode=${d.m}`"
+                    />
+                  </div>
+                </template>
+                <template #buka-cell>
+                  <UIcon
+                    name="i-lucide-chevron-right"
+                    class="size-4 text-muted"
+                  />
+                </template>
+              </UTable>
+              <ul class="divide-y divide-default lg:hidden">
+                <li
+                  v-for="e in hal"
+                  :key="e.id"
+                >
+                  <NuxtLink
+                    :to="`/marketing/event/${e.id}`"
+                    class="flex items-start justify-between gap-3 p-4 hover:bg-muted"
+                  >
+                    <span class="min-w-0">
+                      <b class="block text-highlighted">{{ e.nama }}</b>
+                      <span class="block text-xs text-muted">{{ namaClient(e.clientId) }} · {{ jenisEvent(e) }} · {{ e.pax || '—' }} pax</span>
+                      <span class="num block text-xs text-muted">{{ rentangTglMkt(e) }} · {{ hMinusMkt(e.tanggal, hari) }}</span>
+                      <span class="mt-1 flex flex-wrap gap-1">
+                        <AppStatus
+                          :color="warnaStatusMkt(e.status)"
+                          :icon="ikonStatusMkt(e.status)"
+                          size="sm"
+                        >{{ e.status }}</AppStatus>
+                        <AppStatus
+                          v-if="!menuFixMkt(e)"
+                          color="warning"
+                          icon="i-lucide-circle-help"
+                          size="sm"
+                        >Menu belum ditentukan</AppStatus>
+                      </span>
+                    </span>
+                    <span class="shrink-0 text-right">
+                      <span class="num block text-sm font-semibold">{{ rupiah(grand(e)) }}</span>
+                      <span class="block text-xs text-muted">{{ e.mktPIC ? depan(e.mktPIC) : 'belum ada PIC' }}</span>
+                    </span>
+                  </NuxtLink>
+                </li>
+              </ul>
+              <MarketingPager
+                v-model="tbl.hal.value"
+                :total="daftar.length"
+              />
+            </template>
+          </AppPanel>
+        </div>
+      </Transition>
     </MarketingGerbang>
 
     <MarketingEventBaru v-model:open="eventBaru" />

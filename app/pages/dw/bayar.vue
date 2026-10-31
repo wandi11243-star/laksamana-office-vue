@@ -462,8 +462,19 @@ function cetak() {
               @click="pindahTanda(kunciBayarDw(x.p, x.id), !bayarSudahDw(set, senin, kunciBayarDw(x.p, x.id)))"
             />
           </article>
+          <div
+            v-if="pending && !baris.length"
+            class="space-y-2 p-4"
+          >
+            <!-- Loading cards mirror the payout list below. -->
+            <USkeleton
+              v-for="i in 3"
+              :key="i"
+              class="h-16 w-full rounded-panel"
+            />
+          </div>
           <p
-            v-if="!baris.length"
+            v-else-if="!baris.length"
             class="px-4 py-8 text-center text-muted"
           >
             Tidak ada shift disetujui pada minggu ini.

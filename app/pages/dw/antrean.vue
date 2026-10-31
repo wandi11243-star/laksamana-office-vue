@@ -361,7 +361,20 @@ const kosongTeks = computed(() => (tab.value === 'antri'
           </tr>
         </thead>
         <tbody class="divide-y divide-default">
-          <tr v-if="!daftar.length">
+          <tr v-if="pending && !daftar.length">
+            <td
+              colspan="7"
+              class="space-y-2 px-4 py-4"
+            >
+              <!-- Loading rows mirror the queue table below. -->
+              <USkeleton
+                v-for="i in 4"
+                :key="i"
+                class="h-10 w-full"
+              />
+            </td>
+          </tr>
+          <tr v-else-if="!daftar.length">
             <td
               colspan="7"
               class="px-4 py-8 text-center text-muted"
@@ -630,8 +643,19 @@ const kosongTeks = computed(() => (tab.value === 'antri'
             />
           </div>
         </article>
+        <div
+          v-if="pending && !daftar.length"
+          class="space-y-2 p-4"
+        >
+          <!-- Loading cards mirror the queue below. -->
+          <USkeleton
+            v-for="i in 3"
+            :key="i"
+            class="h-16 w-full rounded-panel"
+          />
+        </div>
         <p
-          v-if="!daftar.length"
+          v-else-if="!daftar.length"
           class="px-4 py-8 text-center text-muted"
         >
           {{ kosongTeks }}

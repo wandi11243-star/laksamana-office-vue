@@ -77,7 +77,7 @@ defineExpose({ swallowClick: drag.swallowClick })
     <section
       v-for="col in columns"
       :key="col.id"
-      class="flex min-w-0 flex-col rounded-xl border border-default bg-brand-orange-light transition-colors"
+      class="kanban-col flex min-w-0 flex-col rounded-xl border border-default bg-brand-orange-light transition-[background-color,border-color] duration-200 ease-laks"
       :class="drag.overColumn.value === col.id ? 'border-primary-400 bg-primary-50' : 'border-default'"
       @dragover.prevent="onDragOver(col.id)"
       @dragleave="drag.leaveColumn($event, col.id)"

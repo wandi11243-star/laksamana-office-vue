@@ -112,12 +112,27 @@ const jamCapWaktu = (ts: number) => ts
           </template>
         </p>
 
-        <p
+        <div
           v-if="status === 'pending' && !adaData"
-          class="mb-4 text-sm text-muted"
+          class="mb-4 space-y-2"
         >
-          Memuat…
-        </p>
+          <!-- Loading stats mirror the operational figures below. -->
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <USkeleton
+              v-for="i in 4"
+              :key="i"
+              class="h-20 rounded-xl"
+            />
+          </div>
+          <USkeleton
+            v-for="i in 3"
+            :key="`r${i}`"
+            class="h-10 w-full"
+          />
+          <p class="pt-1 text-sm text-muted">
+            Memuat…
+          </p>
+        </div>
         <p
           v-else-if="!adaData"
           class="mb-4 text-sm text-muted"

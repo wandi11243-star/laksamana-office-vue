@@ -92,6 +92,18 @@ function tujuanTugas(x: { jenis: string, kind?: keyof typeof PROD_TYPES, ref: st
 
     <KontenBrandBar :brands="st.brands" />
 
+    <!-- Loading stats mirror the cards below. -->
+    <div
+      v-if="status === 'pending' && !st.content.length"
+      class="grid grid-cols-2 gap-3 sm:grid-cols-4"
+    >
+      <USkeleton
+        v-for="i in 4"
+        :key="i"
+        class="h-20 rounded-xl"
+      />
+    </div>
+
     <AppStatGrid :class="status === 'pending' ? 'opacity-60' : ''">
       <AppStat
         label="Total konten"

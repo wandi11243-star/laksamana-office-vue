@@ -170,12 +170,22 @@ function tanyaHapus(r: HlifeReview) {
       </div>
     </template>
 
-    <p
+    <div
       v-if="status === 'pending' && !review.length"
-      class="mb-4 text-sm text-muted"
+      class="mb-4 space-y-2"
     >
-      Memuat evaluasi…
-    </p>
+      <!-- Loading cards mirror the review panels below. -->
+      <div class="grid gap-5 lg:grid-cols-2">
+        <USkeleton
+          v-for="i in 2"
+          :key="i"
+          class="h-28 rounded-panel"
+        />
+      </div>
+      <p class="pt-1 text-sm text-muted">
+        Memuat evaluasi…
+      </p>
+    </div>
 
     <!-- Weekly -->
     <div

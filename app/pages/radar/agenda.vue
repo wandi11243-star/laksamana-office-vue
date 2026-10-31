@@ -213,12 +213,20 @@ useSegarSenyap(refresh, () => buka.value)
       </p>
     </AppPanel>
 
-    <p
+    <div
       v-if="status === 'pending' && !board"
-      class="text-sm text-muted"
+      class="space-y-2"
     >
-      Memuat…
-    </p>
+      <!-- Loading rows mirror the agenda list below. -->
+      <USkeleton
+        v-for="i in 4"
+        :key="i"
+        class="h-12 w-full"
+      />
+      <p class="pt-1 text-sm text-muted">
+        Memuat…
+      </p>
+    </div>
     <AppPanel v-else-if="!list.length">
       <p class="text-center text-sm">
         <b class="block text-highlighted">

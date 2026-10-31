@@ -156,12 +156,22 @@ async function hapus() {
       />
     </AppStatGrid>
 
-    <p
+    <div
       v-if="status === 'pending' && !bisnis.length"
-      class="mb-4 text-sm text-muted"
+      class="mb-4 space-y-2"
     >
-      Memuat bisnis…
-    </p>
+      <!-- Loading cards mirror the business grid below. -->
+      <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+        <USkeleton
+          v-for="i in 3"
+          :key="i"
+          class="h-28 rounded-panel"
+        />
+      </div>
+      <p class="pt-1 text-sm text-muted">
+        Memuat bisnis…
+      </p>
+    </div>
 
     <div class="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
       <article

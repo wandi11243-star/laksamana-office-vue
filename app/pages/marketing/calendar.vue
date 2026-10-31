@@ -194,53 +194,62 @@ const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ??
             {{ x }}
           </div>
         </div>
-        <div class="grid grid-cols-7">
+        <!-- Month step replaces the grid, so it crossfades on one key. -->
+        <Transition
+          name="mkt-swap"
+          mode="out-in"
+        >
           <div
-            v-for="(s, i) in sel"
-            :key="i"
-            class="min-h-20 min-w-0 border-r border-b border-default p-1 lg:min-h-28 lg:p-1.5"
-            :class="[!s.tgl ? 'bg-muted/60' : '', s.tgl === hari ? 'bg-primary-50' : '']"
+            :key="bulan"
+            class="grid grid-cols-7"
           >
-            <p
-              class="num mb-1 text-xs"
-              :class="s.tgl === hari ? 'font-bold text-primary-700' : s.tgl ? 'text-muted' : 'text-dimmed'"
+            <div
+              v-for="(s, i) in sel"
+              :key="i"
+              class="min-h-20 min-w-0 border-r border-b border-default p-1 lg:min-h-28 lg:p-1.5"
+              :class="[!s.tgl ? 'bg-muted/60' : '', s.tgl === hari ? 'bg-primary-50' : '']"
             >
-              {{ s.d }}
-            </p>
-            <button
-              v-for="e in evTgl(s.tgl)"
-              :key="e.id"
-              type="button"
-              class="mb-0.5 block w-full truncate rounded border-l-2 border-primary-400 bg-primary-100 px-1 py-0.5 text-left text-[10.5px] leading-tight text-primary-900 lg:text-[11px]"
-              :title="`${e.nama} — ${jenisEvent(e)}${e.pax ? ` · ${e.pax} pax` : ''}`"
-              @click="evBuka = e"
-            >
-              {{ e.nama }}<b
-                v-if="e.pax"
-                class="float-right ml-1 hidden lg:inline"
-              >{{ e.pax }} pax</b>
-            </button>
-            <button
-              v-for="x in emsTgl(s.tgl)"
-              :key="x.id"
-              type="button"
-              class="mb-0.5 block w-full truncate rounded border-l-2 border-vip bg-vip/12 px-1 py-0.5 text-left text-[10.5px] leading-tight text-vip lg:text-[11px]"
-              :title="`Acara EMS: ${x.nama}`"
-              @click="emsBuka = x"
-            >
-              {{ x.nama }}
-            </button>
-            <button
-              v-if="s.tgl && rsv[s.tgl]"
-              type="button"
-              class="block w-full truncate rounded border-l-2 border-info bg-info/12 px-1 py-0.5 text-left text-[10.5px] leading-tight text-info lg:text-[11px]"
-              :title="`${rsv[s.tgl]!.jml} reservasi · ${rsv[s.tgl]!.pax} pax — klik untuk rinciannya`"
-              @click="rsvBuka = s.tgl"
-            >
-              {{ rsv[s.tgl]!.jml }} reservasi<span class="hidden lg:inline">{{ rsv[s.tgl]!.pax ? ` · ${rsv[s.tgl]!.pax} pax` : '' }}</span>
-            </button>
+              <p
+                class="num mb-1 text-xs"
+                :class="s.tgl === hari ? 'font-bold text-primary-700' : s.tgl ? 'text-muted' : 'text-dimmed'"
+              >
+                {{ s.d }}
+              </p>
+              <button
+                v-for="e in evTgl(s.tgl)"
+                :key="e.id"
+                type="button"
+                class="mb-0.5 block w-full truncate rounded border-l-2 border-primary-400 bg-primary-100 px-1 py-0.5 text-left text-[10.5px] leading-tight text-primary-900 lg:text-[11px]"
+                :title="`${e.nama} — ${jenisEvent(e)}${e.pax ? ` · ${e.pax} pax` : ''}`"
+                @click="evBuka = e"
+              >
+                {{ e.nama }}<b
+                  v-if="e.pax"
+                  class="float-right ml-1 hidden lg:inline"
+                >{{ e.pax }} pax</b>
+              </button>
+              <button
+                v-for="x in emsTgl(s.tgl)"
+                :key="x.id"
+                type="button"
+                class="mb-0.5 block w-full truncate rounded border-l-2 border-vip bg-vip/12 px-1 py-0.5 text-left text-[10.5px] leading-tight text-vip lg:text-[11px]"
+                :title="`Acara EMS: ${x.nama}`"
+                @click="emsBuka = x"
+              >
+                {{ x.nama }}
+              </button>
+              <button
+                v-if="s.tgl && rsv[s.tgl]"
+                type="button"
+                class="block w-full truncate rounded border-l-2 border-info bg-info/12 px-1 py-0.5 text-left text-[10.5px] leading-tight text-info lg:text-[11px]"
+                :title="`${rsv[s.tgl]!.jml} reservasi · ${rsv[s.tgl]!.pax} pax — klik untuk rinciannya`"
+                @click="rsvBuka = s.tgl"
+              >
+                {{ rsv[s.tgl]!.jml }} reservasi<span class="hidden lg:inline">{{ rsv[s.tgl]!.pax ? ` · ${rsv[s.tgl]!.pax} pax` : '' }}</span>
+              </button>
+            </div>
           </div>
-        </div>
+        </Transition>
       </AppPanel>
     </MarketingGerbang>
 

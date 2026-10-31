@@ -141,12 +141,20 @@ useSegarSenyap(refresh, () => buka.value)
           :count="dua.length"
           :description="saringAktif(fb) ? labelFb : undefined"
         >
-          <p
+          <div
             v-if="status === 'pending' && !board"
-            class="text-sm text-muted"
+            class="space-y-2"
           >
-            Memuat…
-          </p>
+            <!-- Loading rows mirror the agenda list below. -->
+            <USkeleton
+              v-for="i in 4"
+              :key="i"
+              class="h-12 w-full"
+            />
+            <p class="pt-1 text-sm text-muted">
+              Memuat…
+            </p>
+          </div>
           <p
             v-else-if="!dua.length"
             class="text-sm text-muted"

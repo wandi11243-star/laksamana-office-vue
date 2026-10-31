@@ -39,12 +39,22 @@ onMounted(gulirBagian)
     :back="{ label: 'Help Center', to: '/help' }"
   >
     <div class="mx-auto w-full max-w-[860px]">
-      <p
+      <div
         v-if="statusBab === 'belum' && !panduan"
-        class="text-sm text-muted"
+        class="space-y-2"
       >
-        Memuat…
-      </p>
+        <!-- Loading paper mirrors the guide below. -->
+        <USkeleton class="h-5 w-1/3" />
+        <USkeleton class="h-3 w-full" />
+        <USkeleton class="h-3 w-full" />
+        <USkeleton class="h-3 w-5/6" />
+        <USkeleton class="mt-4 h-5 w-1/4" />
+        <USkeleton class="h-3 w-full" />
+        <USkeleton class="h-3 w-4/6" />
+        <p class="pt-1 text-sm text-muted">
+          Memuat…
+        </p>
+      </div>
 
       <template v-else-if="panduan">
         <span

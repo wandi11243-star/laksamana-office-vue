@@ -144,12 +144,22 @@ async function hapus() {
       />
     </template>
 
-    <p
+    <div
       v-if="status === 'pending' && !goals.length"
-      class="mb-4 text-sm text-muted"
+      class="mb-4 space-y-2"
     >
-      Memuat goal…
-    </p>
+      <!-- Loading cards mirror the goal panels below. -->
+      <div class="grid gap-5 lg:grid-cols-2">
+        <USkeleton
+          v-for="i in 2"
+          :key="i"
+          class="h-28 rounded-panel"
+        />
+      </div>
+      <p class="pt-1 text-sm text-muted">
+        Memuat goal…
+      </p>
+    </div>
 
     <div class="grid gap-5 lg:grid-cols-2">
       <AppPanel

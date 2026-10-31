@@ -95,122 +95,212 @@ function cetak() {
     :back="id ? { label: 'Kembali', to: `/marketing/event/${id}` } : { label: 'Pipeline', to: '/marketing/pipeline?tab=events' }"
   >
     <MarketingGerbang layar="brief">
-      <template v-if="id && ev">
-        <div class="mb-4 flex flex-wrap items-center gap-2">
-          <AppSeg
-            :model-value="mode"
-            :options="[{ value: 'internal', label: 'Internal' }, { value: 'client', label: 'Client' }, { value: 'quote', label: 'Draft' }]"
-            @update:model-value="keDok(id, $event as ModeBriefMkt)"
-          />
-          <span class="text-xs text-muted">{{ judulMode }}</span>
-          <span class="flex-1" />
-          <UButton
-            v-if="mode === 'quote' && pdfSendiri"
-            icon="i-lucide-file-text"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            label="Buka PDF unggahan sendiri"
-            @click="bukaBerkasMkt(String(pdfSendiri.key))"
-          />
-          <UButton
-            icon="i-lucide-printer"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            label="Cetak"
-            @click="cetak"
-          />
-        </div>
-        <AppPanel>
-          <!-- eslint-disable vue/no-v-html — dok dibangun sendiri dari field yang di-escape di buildBriefDocMkt -->
-          <div
-            class="brief-dok text-sm"
-            v-html="dok"
-          />
-          <!-- eslint-enable vue/no-v-html -->
-        </AppPanel>
-      </template>
-      <AppPanel v-else-if="id">
-        <p class="py-6 text-center text-sm text-muted">
-          {{ status === 'pending' ? 'Memuat…' : 'Event tidak ditemukan.' }}
-        </p>
-      </AppPanel>
-      <template v-else>
-        <AppPanel flush>
-          <template #head>
-            <div class="flex w-full flex-wrap items-center gap-3">
-              <UInput
-                v-model="q"
-                placeholder="Cari nama event, klien, jenis, atau tanggal…"
-                icon="i-lucide-search"
-                class="min-w-0 flex-1"
+      <!-- Table ↔ paper replaces the working surface, so the swap crossfades. -->
+      <Transition
+        name="mkt-swap"
+        mode="out-in"
+      >
+        <div
+          v-if="id && ev"
+          key="dok"
+        >
+          <div class="mb-4 flex flex-wrap items-center gap-2">
+            <AppSeg
+              :model-value="mode"
+              :options="[{ value: 'internal', label: 'Internal' }, { value: 'client', label: 'Client' }, { value: 'quote', label: 'Draft' }]"
+              @update:model-value="keDok(id, $event as ModeBriefMkt)"
+            />
+            <span class="text-xs text-muted">{{ judulMode }}</span>
+            <span class="flex-1" />
+            <UButton
+              v-if="mode === 'quote' && pdfSendiri"
+              icon="i-lucide-file-text"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              label="Buka PDF unggahan sendiri"
+              @click="bukaBerkasMkt(String(pdfSendiri.key))"
+            />
+            <UButton
+              icon="i-lucide-printer"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              label="Cetak"
+              @click="cetak"
+            />
+          </div>
+          <AppPanel>
+            <!-- Mode switch reprints the same paper, keyed so it crossfades. -->
+            <Transition
+              name="mkt-swap"
+              mode="out-in"
+            >
+              <!-- eslint-disable-next-line vue/no-v-html — dok dibangun sendiri dari field yang di-escape di buildBriefDocMkt -->
+              <div
+                :key="mode"
+                class="brief-dok text-sm"
+                v-html="dok"
               />
-              <span class="text-xs text-muted">{{ daftar.length }} dari {{ st.events.length }} event</span>
+            </Transition>
+          </AppPanel>
+        </div>
+        <AppPanel
+          v-else-if="id"
+          key="hilang"
+        >
+          <div
+            v-if="status === 'pending'"
+            class="brief-dok space-y-2 py-2"
+          >
+            <USkeleton class="h-5 w-1/3" />
+            <USkeleton class="h-3 w-full" />
+            <USkeleton class="h-3 w-full" />
+            <USkeleton class="h-3 w-5/6" />
+            <USkeleton class="mt-4 h-5 w-1/4" />
+            <USkeleton class="h-3 w-full" />
+            <USkeleton class="h-3 w-4/6" />
+          </div>
+          <p
+            v-else
+            class="py-6 text-center text-sm text-muted"
+          >
+            Event tidak ditemukan.
+          </p>
+        </AppPanel>
+        <div
+          v-else
+          key="daftar"
+        >
+          <AppPanel flush>
+            <template #head>
+              <div class="flex w-full flex-wrap items-center gap-3">
+                <UInput
+                  v-model="q"
+                  placeholder="Cari nama event, klien, jenis, atau tanggal…"
+                  icon="i-lucide-search"
+                  class="min-w-0 flex-1"
+                />
+                <span class="text-xs text-muted">{{ daftar.length }} dari {{ st.events.length }} event</span>
+              </div>
+            </template>
+            <div
+              v-if="status === 'pending' && !st.events.length"
+              class="space-y-2 p-4"
+            >
+              <USkeleton
+                v-for="i in 5"
+                :key="i"
+                class="h-12 w-full"
+              />
             </div>
-          </template>
-          <p
-            v-if="!st.events.length"
-            class="p-8 text-center text-sm text-muted"
-          >
-            <b class="block text-highlighted">Belum ada event</b>
-            Brief & quotation dibuat dari event yang sudah ada. Buat event dulu di menu Input & Event.
-          </p>
-          <p
-            v-else-if="!daftar.length"
-            class="p-8 text-center text-sm text-muted"
-          >
-            <b class="block text-highlighted">Tidak ada yang cocok</b>
-            Coba kata kunci lain, atau kosongkan pencariannya.
-          </p>
-          <template v-else>
-            <table class="hidden w-full text-sm lg:table">
-              <thead class="bg-table-head text-left text-xs font-bold uppercase tracking-wide text-table-head-text">
-                <tr>
-                  <th
-                    v-for="k in KOL"
-                    :key="k.k"
-                    class="px-4 py-2"
+            <p
+              v-else-if="!st.events.length"
+              class="p-8 text-center text-sm text-muted"
+            >
+              <b class="block text-highlighted">Belum ada event</b>
+              Brief & quotation dibuat dari event yang sudah ada. Buat event dulu di menu Input & Event.
+            </p>
+            <p
+              v-else-if="!daftar.length"
+              class="p-8 text-center text-sm text-muted"
+            >
+              <b class="block text-highlighted">Tidak ada yang cocok</b>
+              Coba kata kunci lain, atau kosongkan pencariannya.
+            </p>
+            <template v-else>
+              <table class="hidden w-full text-sm lg:table">
+                <thead class="bg-table-head text-left text-xs font-bold uppercase tracking-wide text-table-head-text">
+                  <tr>
+                    <th
+                      v-for="k in KOL"
+                      :key="k.k"
+                      class="px-4 py-2"
+                    >
+                      <component :is="tbl.kepala(k.k, k.t)" />
+                    </th>
+                    <th class="px-4 py-2">
+                      Generate
+                    </th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-default">
+                  <template
+                    v-for="r in baris"
+                    :key="r.e.id"
                   >
-                    <component :is="tbl.kepala(k.k, k.t)" />
-                  </th>
-                  <th class="px-4 py-2">
-                    Generate
-                  </th>
-                </tr>
-              </thead>
-              <tbody class="divide-y divide-default">
+                    <tr
+                      v-if="r.bulan"
+                      class="bg-muted"
+                    >
+                      <td
+                        colspan="5"
+                        class="px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-muted"
+                      >
+                        {{ r.bulan.label }} <span class="ml-2 font-semibold normal-case">{{ r.bulan.n }} event</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td class="px-4 py-2">
+                        <NuxtLink
+                          :to="`/marketing/event/${r.e.id}`"
+                          class="font-semibold text-highlighted hover:text-primary-700"
+                        >
+                          {{ r.e.nama }}
+                        </NuxtLink>
+                      </td>
+                      <td class="px-4 py-2">
+                        {{ clientNama(r.e.clientId) }}
+                      </td>
+                      <td class="px-4 py-2 num">
+                        {{ rentangTglMkt(r.e) }}
+                      </td>
+                      <td class="px-4 py-2">
+                        <AppStatus
+                          :color="warnaStatusMkt(r.e.status)"
+                          :icon="ikonStatusMkt(r.e.status)"
+                          size="sm"
+                        >
+                          {{ r.e.status }}
+                        </AppStatus>
+                      </td>
+                      <td class="px-4 py-2">
+                        <div class="flex gap-1">
+                          <UButton
+                            v-for="m in TOMBOL"
+                            :key="m.m"
+                            size="xs"
+                            color="neutral"
+                            variant="ghost"
+                            :label="m.l"
+                            :title="m.t"
+                            @click="keDok(r.e.id, m.m)"
+                          />
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
+                </tbody>
+              </table>
+              <ul class="divide-y divide-default lg:hidden">
                 <template
                   v-for="r in baris"
                   :key="r.e.id"
                 >
-                  <tr
+                  <li
                     v-if="r.bulan"
-                    class="bg-muted"
+                    class="bg-muted px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-muted"
                   >
-                    <td
-                      colspan="5"
-                      class="px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-muted"
-                    >
-                      {{ r.bulan.label }} <span class="ml-2 font-semibold normal-case">{{ r.bulan.n }} event</span>
-                    </td>
-                  </tr>
-                  <tr>
-                    <td class="px-4 py-2">
+                    {{ r.bulan.label }} · {{ r.bulan.n }} event
+                  </li>
+                  <li class="space-y-2 p-4">
+                    <div class="flex items-start justify-between gap-2">
                       <NuxtLink
                         :to="`/marketing/event/${r.e.id}`"
-                        class="font-semibold text-highlighted hover:text-primary-700"
+                        class="min-w-0 font-semibold text-highlighted"
                       >
                         {{ r.e.nama }}
                       </NuxtLink>
-                    </td>
-                    <td class="px-4 py-2">
-                      {{ clientNama(r.e.clientId) }}
-                    </td>
-                    <td class="px-4 py-2 num">
-                      {{ rentangTglMkt(r.e) }}
-                    </td>
-                    <td class="px-4 py-2">
                       <AppStatus
                         :color="warnaStatusMkt(r.e.status)"
                         :icon="ikonStatusMkt(r.e.status)"
@@ -218,76 +308,32 @@ function cetak() {
                       >
                         {{ r.e.status }}
                       </AppStatus>
-                    </td>
-                    <td class="px-4 py-2">
-                      <div class="flex gap-1">
-                        <UButton
-                          v-for="m in TOMBOL"
-                          :key="m.m"
-                          size="xs"
-                          color="neutral"
-                          variant="ghost"
-                          :label="m.l"
-                          :title="m.t"
-                          @click="keDok(r.e.id, m.m)"
-                        />
-                      </div>
-                    </td>
-                  </tr>
+                    </div>
+                    <p class="text-xs text-muted">
+                      {{ clientNama(r.e.clientId) }} · <span class="num">{{ rentangTglMkt(r.e) }}</span>
+                    </p>
+                    <div class="flex gap-1">
+                      <UButton
+                        v-for="m in TOMBOL"
+                        :key="m.m"
+                        size="sm"
+                        color="neutral"
+                        variant="outline"
+                        :label="m.l"
+                        @click="keDok(r.e.id, m.m)"
+                      />
+                    </div>
+                  </li>
                 </template>
-              </tbody>
-            </table>
-            <ul class="divide-y divide-default lg:hidden">
-              <template
-                v-for="r in baris"
-                :key="r.e.id"
-              >
-                <li
-                  v-if="r.bulan"
-                  class="bg-muted px-4 py-1.5 text-xs font-bold uppercase tracking-wide text-muted"
-                >
-                  {{ r.bulan.label }} · {{ r.bulan.n }} event
-                </li>
-                <li class="space-y-2 p-4">
-                  <div class="flex items-start justify-between gap-2">
-                    <NuxtLink
-                      :to="`/marketing/event/${r.e.id}`"
-                      class="min-w-0 font-semibold text-highlighted"
-                    >
-                      {{ r.e.nama }}
-                    </NuxtLink>
-                    <AppStatus
-                      :color="warnaStatusMkt(r.e.status)"
-                      :icon="ikonStatusMkt(r.e.status)"
-                      size="sm"
-                    >
-                      {{ r.e.status }}
-                    </AppStatus>
-                  </div>
-                  <p class="text-xs text-muted">
-                    {{ clientNama(r.e.clientId) }} · <span class="num">{{ rentangTglMkt(r.e) }}</span>
-                  </p>
-                  <div class="flex gap-1">
-                    <UButton
-                      v-for="m in TOMBOL"
-                      :key="m.m"
-                      size="sm"
-                      color="neutral"
-                      variant="outline"
-                      :label="m.l"
-                      @click="keDok(r.e.id, m.m)"
-                    />
-                  </div>
-                </li>
-              </template>
-            </ul>
-            <MarketingPager
-              v-model="tbl.hal.value"
-              :total="daftar.length"
-            />
-          </template>
-        </AppPanel>
-      </template>
+              </ul>
+              <MarketingPager
+                v-model="tbl.hal.value"
+                :total="daftar.length"
+              />
+            </template>
+          </AppPanel>
+        </div>
+      </Transition>
     </MarketingGerbang>
   </AppPage>
 </template>

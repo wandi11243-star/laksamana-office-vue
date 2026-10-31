@@ -19,6 +19,28 @@ const adaLayar = computed(() => punyaLayarMkt(saya.value?.user, st.value.roleAcc
 
 <template>
   <slot v-if="siap && (boleh || error)" />
+  <!-- Pending fallback: generic skeleton so gated screens never sit blank
+    while the shared state loads (one point covers every screen in Marketing). -->
+  <div
+    v-else-if="!siap"
+    class="space-y-4"
+    aria-hidden="true"
+  >
+    <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <USkeleton
+        v-for="i in 4"
+        :key="i"
+        class="h-20 rounded-xl"
+      />
+    </div>
+    <div class="space-y-2 rounded-panel border border-default bg-default p-4">
+      <USkeleton
+        v-for="i in 5"
+        :key="`r${i}`"
+        class="h-10 w-full"
+      />
+    </div>
+  </div>
   <AppPanel v-else-if="siap">
     <div class="flex flex-col items-center gap-2 py-8 text-center">
       <UIcon

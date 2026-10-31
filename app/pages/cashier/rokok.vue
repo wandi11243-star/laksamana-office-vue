@@ -297,6 +297,17 @@ const kosongKelas = 'w-24 text-end'
       flush
       :class="status === 'pending' ? 'opacity-60' : ''"
     >
+      <!-- Loading rows mirror the stock table below. -->
+      <div
+        v-if="status === 'pending' && !data"
+        class="space-y-2 p-4"
+      >
+        <USkeleton
+          v-for="i in 8"
+          :key="i"
+          class="h-10 w-full"
+        />
+      </div>
       <table class="hidden w-full text-sm lg:table">
         <thead class="bg-table-head text-table-head-text">
           <tr>

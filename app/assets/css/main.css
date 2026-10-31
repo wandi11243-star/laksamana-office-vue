@@ -110,6 +110,10 @@
   --radius-panel: 28px;
   --radius-field: 9999px;
 
+  /* Operate motion: one confident arrival curve for every routine
+     state change (100–300 ms). Pages reference it as `ease-laks`. */
+  --ease-laks: cubic-bezier(0.16, 1, 0.3, 1);
+
   /* One soft shadow for panels (Miro mockup). */
   --shadow-panel: 0 12px 32px -4px rgb(5 0 56 / 0.08);
 
@@ -179,4 +183,75 @@ h1, h2, h3, .font-display {
 /* Digits that line up (money, times, counts). */
 .num {
   font-variant-numeric: tabular-nums;
+}
+
+/*
+  Operate motion (marketing + every module through the shared blocks).
+  One shared crossfade for a surface replacing another (`mkt-swap`:
+  Kanban ↔ Daftar Event, task levels, brief table ↔ paper, event tabs,
+  month steps) and one opacity-only fade for in-place expands
+  (`mkt-fade`: card detail, template sections, katalog slides).
+  Transform + opacity only, 100–300 ms, always `var(--ease-laks)`.
+  Filtering a list is not a surface change, so filtered tables and
+  page loads deliberately get no motion.
+*/
+.mkt-swap-enter-active {
+  transition: opacity 200ms var(--ease-laks), transform 200ms var(--ease-laks);
+}
+.mkt-swap-leave-active {
+  transition: opacity 150ms var(--ease-laks), transform 150ms var(--ease-laks);
+}
+.mkt-swap-enter-from,
+.mkt-swap-leave-to {
+  opacity: 0;
+  transform: translateY(6px);
+}
+.mkt-fade-enter-active,
+.mkt-fade-leave-active {
+  transition: opacity 150ms var(--ease-laks);
+}
+.mkt-fade-enter-from,
+.mkt-fade-leave-to {
+  opacity: 0;
+}
+
+/* Reduced motion: collapse every spatial move, keep the feedback that
+   confirms an action (opacity + colour reach their end state instantly). */
+@media (prefers-reduced-motion: reduce) {
+  .mkt-swap-enter-active,
+  .mkt-swap-leave-active,
+  .mkt-fade-enter-active,
+  .mkt-fade-leave-active,
+  .seg-btn,
+  .chip-btn,
+  .kanban-card,
+  .kanban-col,
+  .putar-ikon,
+  .baris-sorot {
+    transition-duration: 0.01ms !important;
+  }
+  .mkt-swap-enter-from,
+  .mkt-swap-leave-to {
+    transform: none !important;
+  }
+  .seg-btn:active,
+  .chip-btn:active,
+  .kanban-card:active,
+  .kanban-card.is-drag {
+    transform: none !important;
+  }
+  /* USkeleton shimmer (animate-pulse) runtuh jadi blok statis. */
+  .animate-pulse {
+    animation: none !important;
+  }
+}
+
+/* Print (brief paper): motion never reaches paper. */
+@media print {
+  *,
+  ::before,
+  ::after {
+    transition: none !important;
+    animation: none !important;
+  }
 }

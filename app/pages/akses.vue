@@ -424,9 +424,17 @@ async function kirimImpor() {
 
         <div
           v-if="status === 'pending' && !tampil.length"
-          class="p-6 text-center text-sm text-muted"
+          class="space-y-2 p-6"
         >
-          Memuat daftar kru dari Office…
+          <!-- Loading rows mirror the crew table below. -->
+          <USkeleton
+            v-for="i in 6"
+            :key="i"
+            class="h-10 w-full"
+          />
+          <p class="pt-2 text-center text-sm text-muted">
+            Memuat daftar kru dari Office…
+          </p>
         </div>
 
         <div
