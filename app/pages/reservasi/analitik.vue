@@ -51,6 +51,11 @@ const perf = computed(() => analitik.value?.periode ?? PERF_KOSONG)
 const ring = computed(() => analitik.value?.ringkasan ?? RING_KOSONG)
 const adaData = computed(() => perf.value.reservasi + perf.value.walkin > 0)
 
+/** First-load skeleton for both stat grids below: show skeleton cells only
+ *  until the first answer lands. Filter refetch keeps old numbers visible, so
+ *  the cards never flash "0" while reloading. */
+const statMemuat = computed(() => !analitik.value && (status.value === 'pending' || status.value === 'idle'))
+
 const maksTren = computed(() => Math.max(1, ...perf.value.trenHarian.map(t => t.total)))
 // Each bar list is scaled to its own largest value, like the old .bar-fill.
 const maksDuduk = computed(() => Math.max(1, ...perf.value.dudukTerlama.map(d => d.durasi)))
@@ -112,35 +117,17 @@ const jamCapWaktu = (ts: number) => ts
           </template>
         </p>
 
-        <div
-          v-if="status === 'pending' && !adaData"
-          class="mb-4 space-y-2"
-        >
-          <!-- Loading stats mirror the operational figures below. -->
-          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <USkeleton
-              v-for="i in 4"
-              :key="i"
-              class="h-20 rounded-xl"
-            />
-          </div>
-          <USkeleton
-            v-for="i in 3"
-            :key="`r${i}`"
-            class="h-10 w-full"
-          />
-          <p class="pt-1 text-sm text-muted">
-            Memuat…
-          </p>
-        </div>
         <p
-          v-else-if="!adaData"
+          v-if="!statMemuat && !adaData"
           class="mb-4 text-sm text-muted"
         >
           Belum ada data pada {{ mode === 'bulanan' ? 'bulan' : 'tanggal' }} ini.
         </p>
 
-        <AppStatGrid>
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="mode === 'bulanan' ? 7 : 6"
+        >
           <AppStat
             label="Tingkat kehadiran"
             icon="i-lucide-user-check"
@@ -270,7 +257,10 @@ const jamCapWaktu = (ts: number) => ts
         title="Ringkasan keseluruhan"
         icon="i-lucide-trending-up"
       />
-      <AppStatGrid>
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="5"
+      >
         <AppStat
           label="Total reservasi"
           :value="angka(ring.total)"

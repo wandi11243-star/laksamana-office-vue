@@ -43,7 +43,7 @@ definePageMeta({ access: ['reservasi'] })
 
 const me = useMe()
 const toast = useToast()
-const { master, versi: versiDenah, layouts: secLayouts, layoutOverrides: secOv1, layoutOverrides2: secOv2, layoutTanggal: secTgl } = useDenah()
+const { master, versi: versiDenah, layouts: secLayouts, layoutOverrides: secOv1, layoutOverrides2: secOv2, layoutTanggal: secTgl, status: statusDenah } = useDenah()
 const namaSaya = computed(() => me.value?.name ?? '')
 const role = computed(() => roleReservasi(me.value))
 const bolehEdit = computed(() => bolehAksi('input', role.value))
@@ -110,6 +110,13 @@ const sampai = computed(() => {
 })
 
 const { data: semua, refresh, status } = useDaftarReservasi(dari, sampai, 'reservasi-dashboard')
+
+/** The six stat cards below read three async sources (booking window, floor
+ *  plan, queue): until the first load lands they would all read as 0, so the
+ *  grid shows skeleton cells instead. Old rows stay visible on refetch, so a
+ *  filter change never blanks the cards. */
+const statMemuat = computed(() => !(semua.value?.length)
+  && [status.value, statusDenah.value, statusAntrean.value].some(s => s === 'pending' || s === 'idle'))
 
 /** Whole-history guest map for the guest-type filter, before the loaded window (`dari`). */
 const { data: ringkasan } = useRingkasanTamu(dari, 'reservasi-tamu-dashboard')
@@ -629,7 +636,7 @@ const { data: dineEstMin } = useSection<number>('dineEstMin')
 const { data: clashLeadMin } = useSection<number>('clashLeadMin')
 // The envelope is kept, not just the value: a queue write needs the SECTION's
 // own version, and a section write replaces the whole list.
-const { data: waitlist, refresh: refreshWaitlist } = useSectionVersi<Waitlist[]>('waitlist')
+const { data: waitlist, refresh: refreshWaitlist, status: statusAntrean } = useSectionVersi<Waitlist[]>('waitlist')
 const versiWaitlist = computed(() => versiDari(waitlist.value))
 
 /** The master bits the seat rules need — never the 180/10 default by accident. */
@@ -980,6 +987,31 @@ async function simpanBatal() {
   sheetBatal.value = false
   const ok = await patch(r, { status: 'Cancelled', cancelReason: alasanBatal.value.trim() }, `${r.name} dibatalkan — meja kembali tersedia`)
   if (ok) await catat(`${r.name} dibatalkan${alasanBatal.value ? `: ${alasanBatal.value}` : ''}`, r.id, 'Batalkan Reservasi')
+}
+
+/** Back to a not-arrived status: the old `changeStatus` to Pending/Confirmed
+ *  first strips the whole sitting trace (`bersihkanKunjungan`), and asks first
+ *  when the guest is seated or any arrival trace would be erased. */
+async function ubahStatus(r: Reservasi, ns: 'Pending' | 'Confirmed') {
+  if (!r || r.status === ns) return
+  const masuk = (r.arrivals ?? []).reduce((a, x) => a + (Number(x.pax) || 0), 0)
+  const duduk = r.status === 'Datang' && !r.leftAt
+  const hapusJejak = !!(r.checkinAt || masuk > 0 || r.leftAt)
+  if ((duduk || hapusJejak) && !window.confirm(
+    `Ubah status ${r.name} jadi ${ns}?`
+    + (duduk ? ` Tamu ini sedang duduk di meja ${r.table || '-'}. Sesudah diubah, mejanya tampil kosong di denah.` : '')
+    + (hapusJejak ? ` Catatan kedatangan (${masuk} pax) akan dihapus dari reservasi ini.` : ''),
+  )) return
+  sheetAksi.value = false
+  const ok = await patch(r, {
+    status: ns,
+    arrivals: [],
+    actualPax: null,
+    checkinAt: null,
+    leftAt: 0,
+    datangDiasumsikan: 0,
+  }, `${r.name} diubah jadi ${ns}`)
+  if (ok) await catat(`${r.name} → ${ns}`, r.id, 'Ubah Status')
 }
 
 /** Audit is appended by the server for reservation writes; these lines are for
@@ -1483,7 +1515,10 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
     </template>
 
     <!-- The old recap row (:5380-5391): six cards, each one question the desk asks. -->
-    <AppStatGrid>
+    <AppStatGrid
+      :loading="statMemuat"
+      :count="6"
+    >
       <AppStat
         label="Total reservasi"
         icon="i-lucide-clipboard-list"
@@ -2781,57 +2816,67 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           :boleh-minta-kwitansi="bolehFinance"
           :boleh-langsung-kwitansi="bolehMaster"
           :boleh-ubah-gelombang="bolehEdit"
-          :boleh-tambah-dp="bolehFinance"
+          :boleh-tambah-dp="bolehEdit"
           :show-reservation-status="false"
           @berubah="refresh"
           @tambah-dp="sheetAksi = false; sheetTambahDp = true"
         />
 
-        <div v-if="bolehEdit && (['Pending', 'Confirmed'].includes(aksi.status) || aksiTelat || aksiDuduk)">
+        <div v-if="bolehEdit">
           <AppSectionTitle
             title="Ubah status"
             icon="i-lucide-arrow-left-right"
           />
           <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
             <UButton
-              v-if="bolehEdit && ['Pending', 'Confirmed'].includes(aksi.status)"
-              label="Tandai datang"
-              icon="i-lucide-user-round-check"
-              color="success"
+              v-if="aksi.status !== 'Pending'"
+              label="Pending"
+              :icon="statusIkon['Pending']"
+              :color="statusWarna['Pending']"
+              variant="soft"
+              size="sm"
+              class="min-h-11 justify-center whitespace-normal"
+              @click="ubahStatus(aksi, 'Pending')"
+            />
+            <UButton
+              v-if="aksi.status !== 'Confirmed'"
+              label="Confirmed"
+              :icon="statusIkon['Confirmed']"
+              :color="statusWarna['Confirmed']"
+              variant="soft"
+              size="sm"
+              class="min-h-11 justify-center whitespace-normal"
+              @click="ubahStatus(aksi, 'Confirmed')"
+            />
+            <UButton
+              v-if="aksi.status !== 'Datang'"
+              label="Datang"
+              :icon="statusIkon['Datang']"
+              :color="statusWarna['Datang']"
               variant="soft"
               size="sm"
               class="min-h-11 justify-center whitespace-normal"
               @click="bukaDatang(aksi, true)"
             />
             <UButton
-              v-if="bolehEdit && aksiTelat"
-              label="Tandai no-show"
-              icon="i-lucide-user-x"
-              color="error"
-              variant="soft"
-              size="sm"
-              class="min-h-11 justify-center whitespace-normal"
-              @click="bukaNoShow(aksi)"
-            />
-            <UButton
-              v-if="bolehEdit && aksiDuduk"
-              label="Selesai (tamu pulang)"
-              icon="i-lucide-check"
-              color="neutral"
-              variant="soft"
-              size="sm"
-              class="min-h-11 justify-center whitespace-normal"
-              @click="selesai(aksi)"
-            />
-            <UButton
-              v-if="bolehEdit && !['Datang', 'Cancelled', 'No-show'].includes(aksi.status)"
-              label="Batalkan"
-              icon="i-lucide-ban"
-              color="error"
+              v-if="aksi.status !== 'Cancelled'"
+              label="Cancelled"
+              :icon="statusIkon['Cancelled']"
+              :color="statusWarna['Cancelled']"
               variant="soft"
               size="sm"
               class="min-h-11 justify-center whitespace-normal"
               @click="bukaBatal(aksi)"
+            />
+            <UButton
+              v-if="aksi.status !== 'No-show'"
+              label="No-show"
+              :icon="statusIkon['No-show']"
+              :color="statusWarna['No-show']"
+              variant="soft"
+              size="sm"
+              class="min-h-11 justify-center whitespace-normal"
+              @click="bukaNoShow(aksi)"
             />
           </div>
         </div>
@@ -2860,6 +2905,16 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               size="sm"
               class="min-h-11 justify-start whitespace-normal"
               @click="bukaDatang(aksi, false)"
+            />
+            <UButton
+              v-if="bolehEdit && aksiDuduk"
+              label="Selesai (tamu pulang)"
+              icon="i-lucide-check"
+              color="neutral"
+              variant="soft"
+              size="sm"
+              class="min-h-11 justify-start whitespace-normal"
+              @click="selesai(aksi)"
             />
             <UButton
               v-if="bolehEdit && sedangDialihkan(aksi)"
@@ -2920,7 +2975,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
       </div>
       <template #footer>
         <UButton
-          v-if="bolehFinance"
+          v-if="bolehEdit || bolehFinance"
           label="Tambah DP"
           icon="i-lucide-plus"
           size="xl"
@@ -2956,7 +3011,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
     <ReservasiTambahDp
       v-model:open="sheetTambahDp"
       :r="aksi"
-      :boleh-simpan="bolehFinance"
+      :boleh-simpan="bolehEdit || bolehFinance"
       @tersimpan="refresh"
       @konflik="refresh"
     />

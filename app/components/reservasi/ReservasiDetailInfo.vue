@@ -29,7 +29,9 @@ const props = withDefaults(defineProps<{
   bolehLangsungKwitansi?: boolean
   /** May arrival waves be removed here (old per-wave undo). The caller gates it by role. */
   bolehUbahGelombang?: boolean
-  /** The dashboard caller opens its existing DP instalment sheet. */
+  /** The dashboard caller opens its existing DP instalment sheet. Shown to
+   *  anyone who may edit the booking (old `canEdit`); the sheet itself still
+   *  gates who may save. */
   bolehTambahDp?: boolean
   /** Status is rendered beside the record name by the dashboard detail header. */
   showReservationStatus?: boolean

@@ -18,7 +18,8 @@ import { apiErrorMessage } from '~/composables/useApi'
 import { tanganiKonflik } from '~/utils/versi'
 import { arrivedPax, conflictCheck } from '~/utils/kunci-meja'
 import { dpTotal, normPhone, tampilPhone } from '~/utils/dp-reservasi'
-import { normTime, rupiah } from '~/utils/format'
+import { normTime, rupiah, hariIni, tambahHari, tglPendek } from '~/utils/format'
+import { parseDate, type DateValue } from '@internationalized/date'
 
 const props = defineProps<{
   r: Reservasi | null
@@ -42,6 +43,53 @@ const pax = ref(1)
 const kategori = ref('')
 const catatan = ref('')
 const menyimpan = ref(false)
+
+/**
+ * The TANGGAL picker panel (same pattern as app/pages/reservasi/input.vue):
+ * a field button opening a sheet with Hari ini/Besok/Lusa shortcuts and a
+ * monthly grid. Everything reads and writes `tanggal` as a plain YYYY-MM-DD
+ * string, so the save flow (clash re-check, audit line) fires untouched.
+ */
+const sheetTanggal = ref(false)
+
+/** Button label in long Indonesian form ("Sel, 3 Nov 2026"). */
+const tglTampil = computed(() => (tanggal.value ? `${tglPendek(tanggal.value)} ${tanggal.value.slice(0, 4)}` : 'Pilih tanggal'))
+
+/**
+ * The earliest pickable day: today — or the stored date when it lies before
+ * today, so old bookings stay openable and savable (parity with the old
+ * `min: r.date < today ? r.date : today`).
+ */
+const tglMin = computed(() => (tanggal.value && tanggal.value < hariIni() ? tanggal.value : hariIni()))
+
+/** Shortcut chips under the sheet title: today and the next two days. */
+const pintasanTanggal = computed(() => (['Hari ini', 'Besok', 'Lusa'] as const).map((label, i) => ({ label, tgl: tambahHari(hariIni(), i) })))
+
+/** YYYY-MM-DD -> DateValue for UCalendar; undefined when empty so nothing is forced. */
+function ubahKeTanggal(iso: string): DateValue | undefined {
+  try {
+    return parseDate(iso)
+  }
+  catch {
+    return undefined
+  }
+}
+
+/** The calendar's selected day, bridged to the `tanggal` string. Picking closes the sheet. */
+const tglKalender = computed<DateValue | undefined>({
+  get: () => (tanggal.value ? ubahKeTanggal(tanggal.value) : undefined),
+  set: (v) => {
+    if (!v) return
+    tanggal.value = v.toString()
+    sheetTanggal.value = false
+  },
+})
+
+/** A shortcut chip: write the day straight to `tanggal` and close. */
+function pilihPintasanTanggal(i: number) {
+  tanggal.value = tambahHari(hariIni(), i)
+  sheetTanggal.value = false
+}
 
 /** Fresh form whenever the sheet opens for (another) booking. */
 watch([open, () => props.r?.id], () => {
@@ -190,11 +238,14 @@ async function simpan() {
           label="Tanggal"
           required
         >
-          <UInput
-            v-model="tanggal"
-            type="date"
+          <UButton
+            :label="tglTampil"
+            icon="i-lucide-calendar"
+            color="neutral"
+            variant="outline"
             size="xl"
-            class="w-full"
+            block
+            @click="sheetTanggal = true"
           />
         </UFormField>
         <UFormField
@@ -278,5 +329,31 @@ async function simpan() {
         @click="open = false"
       />
     </template>
+  </ResponsiveSheet>
+  <ResponsiveSheet
+    v-model:open="sheetTanggal"
+    title="Pilih tanggal"
+  >
+    <div class="grid grid-cols-3 gap-2">
+      <UButton
+        v-for="(p, i) in pintasanTanggal"
+        :key="p.label"
+        :label="p.label"
+        size="lg"
+        :color="tanggal === p.tgl ? 'primary' : 'neutral'"
+        :variant="tanggal === p.tgl ? 'solid' : 'soft'"
+        class="min-h-11 justify-center"
+        @click="pilihPintasanTanggal(i)"
+      />
+    </div>
+    <!-- Remounted on every open + default-value so the grid starts on tanggal's month (reka-ui seeds the visible month from defaultValue, not the controlled value). -->
+    <UCalendar
+      :key="String(sheetTanggal)"
+      v-model="tglKalender"
+      :default-value="tglKalender"
+      :min-value="ubahKeTanggal(tglMin)"
+      locale="id"
+      class="mx-auto mt-3 w-fit"
+    />
   </ResponsiveSheet>
 </template>

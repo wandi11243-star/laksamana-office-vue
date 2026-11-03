@@ -25,8 +25,9 @@ import { dayTypeLayoutLt, getLayout, parseKeyTanggal } from '~/utils/venue-layou
 import { buatIzinTumpang, conflictCheck, tablesOf } from '~/utils/kunci-meja'
 import { adaBuktiDp, dpBaru, dpMetodeBawaan, normPhone, pastikanDps, resetDpScan, syncDp, tampilPhone, uid } from '~/utils/dp-reservasi'
 import { cariTamuLewatNama, cariTamuLewatNomor, direktoriTamu, kelompokBarisTamu, profilTamuGabung } from '~/utils/riwayat'
-import { fmtRupiah, hariIni, normTime, opsiJam, rupiahVal, tambahHari, tglPendek } from '~/utils/format'
+import { fmtRupiah, hariIni, normTime, rupiahVal, tambahHari, tglPendek } from '~/utils/format'
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
+import { parseDate, type DateValue } from '@internationalized/date'
 
 definePageMeta({ access: ['reservasi'] })
 
@@ -63,7 +64,7 @@ const form = reactive({
   name: '',
   phone: '',
   date: hariIni(),
-  time: '00:00',
+  time: '19:00',
   pax: 1,
   table: '',
   sharing: false,
@@ -79,6 +80,134 @@ const form = reactive({
   memberNo: '',
   notes: '',
 })
+
+/**
+ * Split a typed time into hour/minute WITHOUT clamping. Out-of-range parts
+ * (hour > 23, minute > 59) come back as null so the caller can refuse them
+ * instead of silently storing a clamped lookalike (`25:99` must never become
+ * `23:59`). Tokenizing stays tolerant like normTime (`1930` -> 19:30, `7` -> 07:00).
+ */
+function bagiJamMentah(v: unknown): { h: number, m: number } | null {
+  let s = String(v ?? '').trim()
+  if (!s) return null
+  s = s.replace(/[^\d:]/g, '')
+  if (!s) return null
+  let h: number
+  let m: number
+  if (s.includes(':')) {
+    const p = s.split(':')
+    if (p.length !== 2 && p.length !== 3) return null
+    h = Number.parseInt(p[0]!, 10)
+    m = Number.parseInt(p[1] || '0', 10)
+    // Legacy rows store seconds (`19:00:00`): tolerate and ignore them so an
+    // old booking still opens and saves.
+    if (p.length === 3) {
+      const d = Number.parseInt(p[2] ?? '', 10)
+      if (Number.isNaN(d) || d < 0 || d > 59) return null
+    }
+  }
+  else if (s.length <= 2) {
+    h = Number.parseInt(s, 10)
+    m = 0
+  }
+  else {
+    h = Number.parseInt(s.slice(0, s.length - 2), 10)
+    m = Number.parseInt(s.slice(-2), 10)
+  }
+  if (Number.isNaN(h) || Number.isNaN(m)) return null
+  if (h < 0 || h > 23 || m < 0 || m > 59) return null
+  return { h, m }
+}
+
+/**
+ * Round a time to the nearest 5-minute mark and store it in `form.time`.
+ * Values already on a multiple are kept as-is, an empty value is left alone so the required
+ * validation still fires. Out-of-range values are refused, never clamped:
+ * nothing is written and '' is returned so the caller surfaces an error
+ * instead of storing a plausible-but-wrong time. Returns the snapped string
+ * so callers can use it directly (e.g. when filling the form for an old booking).
+ */
+function snapJamKeLima(nilai?: string): string {
+  const mentah = bagiJamMentah(nilai ?? form.time)
+  if (!mentah) return ''
+  const snapped = Math.round(mentah.m / 5) * 5
+  const hasil = snapped === 60
+    ? `${String((mentah.h + 1) % 24).padStart(2, '0')}:00`
+    : `${String(mentah.h).padStart(2, '0')}:${String(snapped).padStart(2, '0')}`
+  form.time = hasil
+  return hasil
+}
+
+/**
+ * The JAM | MENIT picker panel (old `timePickerHtml`, 1:1): a field button
+ * opening a sheet with two columns — hours 00–23, minutes 00–55 step 5.
+ * Picking an hour keeps the minutes and stays open; picking a minute fills
+ * the value through `snapJamKeLima` (the 5-minute guarantee) and closes.
+ * Writes go to `form.time`, so the clash re-check watcher keeps firing.
+ */
+const sheetJam = ref(false)
+const daftarJam = Array.from({ length: 24 }, (_, h) => String(h).padStart(2, '0'))
+const daftarMenit = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))
+
+/** Validated hour/minute for the highlight and the button label; 19:00 fallback like the old picker. */
+const jamAktif = computed(() => bagiJamMentah(form.time) ?? { h: 19, m: 0 })
+const jamTampil = computed(() => `${String(jamAktif.value.h).padStart(2, '0')}:${String(jamAktif.value.m).padStart(2, '0')}`)
+
+function pilihJamPanel(h: string) {
+  snapJamKeLima(`${h}:${String(jamAktif.value.m).padStart(2, '0')}`)
+}
+
+function pilihMenitPanel(m: string) {
+  snapJamKeLima(`${String(jamAktif.value.h).padStart(2, '0')}:${m}`)
+  sheetJam.value = false
+}
+
+/**
+ * The TANGGAL picker panel (old `datePickerHtml`, 1:1): a field button
+ * opening a sheet with Hari Ini/Besok/Lusa shortcuts and a monthly grid.
+ * Everything reads and writes `form.date` as a plain YYYY-MM-DD string, so
+ * the denah watcher and the clash re-check keep firing untouched.
+ */
+const sheetTanggal = ref(false)
+
+/** Button label in long Indonesian form ("Sel, 3 Nov 2026"), like the old client. */
+const tglTampil = computed(() => (form.date ? `${tglPendek(form.date)} ${form.date.slice(0, 4)}` : 'Pilih tanggal'))
+
+/**
+ * The earliest pickable day: today — or the stored date when editing a
+ * booking written before today, so it stays openable and savable (parity
+ * with the old `min: r.date < today ? r.date : today`).
+ */
+const tglMin = computed(() => (modeEdit.value && form.date && form.date < hariIni() ? form.date : hariIni()))
+
+/** Shortcut chips under the sheet title: today and the next two days. */
+const pintasanTanggal = computed(() => (['Hari ini', 'Besok', 'Lusa'] as const).map((label, i) => ({ label, tgl: tambahHari(hariIni(), i) })))
+
+/** YYYY-MM-DD -> DateValue for UCalendar; undefined when empty so nothing is forced. */
+function ubahKeTanggal(iso: string): DateValue | undefined {
+  try {
+    return parseDate(iso)
+  }
+  catch {
+    return undefined
+  }
+}
+
+/** The calendar's selected day, bridged to the `form.date` string. Picking closes the sheet, like the old panel. */
+const tglKalender = computed<DateValue | undefined>({
+  get: () => (form.date ? ubahKeTanggal(form.date) : undefined),
+  set: (v) => {
+    if (!v) return
+    form.date = v.toString()
+    sheetTanggal.value = false
+  },
+})
+
+/** A shortcut chip: write the day straight to `form.date` and close. */
+function pilihPintasanTanggal(i: number) {
+  form.date = tambahHari(hariIni(), i)
+  sheetTanggal.value = false
+}
 
 /** Which floor is drawn, and which plan on it. The three buttons are the old ones: they change what is DRAWN, never what is stored — the date decides the stored one. */
 const layer = ref<1 | 2>(1)
@@ -120,11 +249,12 @@ const lama = ref<Reservasi | null>(null)
 
 function isiForm(r: Reservasi) {
   lama.value = r
+  const mentah = r.time || '19:00'
   Object.assign(form, {
     name: r.name,
     phone: r.phone,
     date: r.date,
-    time: r.time || '00:00',
+    time: mentah,
     pax: r.pax || 1,
     table: r.table,
     sharing: !!r.sharing,
@@ -141,6 +271,13 @@ function isiForm(r: Reservasi) {
     notes: r.notes ?? '',
   })
   terpilih.value = tablesOf(r)
+  // Old rows may hold off-step minutes: snap to the nearest 5 and say so once.
+  // The toast fires only when the MINUTES really change, so a pure format
+  // normalization (`7` -> `07:00`) stays silent.
+  const menitLama = bagiJamMentah(mentah)?.m
+  const hasil = snapJamKeLima(mentah)
+  if (hasil && menitLama !== undefined && bagiJamMentah(hasil)?.m !== menitLama)
+    toast.add({ title: `Jam dibulatkan ke ${hasil}`, color: 'info' })
 }
 
 watch(ini, (res) => {
@@ -333,7 +470,7 @@ function validasi(): boolean {
       return false
     }
   }
-  if (!normTime(form.time)) {
+  if (!bagiJamMentah(form.time)) {
     galat.value = 'Jam Datang tidak valid — pakai format 24 jam, mis. 19:00'
     return false
   }
@@ -691,13 +828,6 @@ async function hapus() {
         :value="n"
       />
     </datalist>
-    <datalist id="opsi-jam">
-      <option
-        v-for="t in opsiJam(5)"
-        :key="t"
-        :value="t"
-      />
-    </datalist>
 
     <!-- One panel, two columns, in the old form's order (:4330-4497). -->
     <AppPanel>
@@ -734,25 +864,29 @@ async function hapus() {
           label="Tanggal reservasi"
           required
         >
-          <UInput
-            v-model="form.date"
-            type="date"
+          <UButton
+            :label="tglTampil"
+            icon="i-lucide-calendar"
+            color="neutral"
+            variant="outline"
             size="xl"
-            class="w-full"
+            block
+            @click="sheetTanggal = true"
           />
         </UFormField>
         <UFormField
           label="Jam datang"
           required
-          help="Format 24 jam, mis. 19:00"
+          help="Kelipatan 5 menit, mis. 19:00 atau 19:05"
         >
-          <UInput
-            v-model="form.time"
-            list="opsi-jam"
+          <UButton
+            :label="jamTampil"
             icon="i-lucide-clock"
+            color="neutral"
+            variant="outline"
             size="xl"
-            class="w-full"
-            @blur="form.time = normTime(form.time) || form.time"
+            block
+            @click="sheetJam = true"
           />
         </UFormField>
         <UFormField
@@ -1112,6 +1246,76 @@ async function hapus() {
         />
       </div>
     </AppPanel>
+
+    <ResponsiveSheet
+      v-model:open="sheetJam"
+      title="Pilih jam datang"
+      description="Kelipatan 5 menit, mis. 19:00 atau 19:05"
+    >
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <p class="mb-2 text-center text-sm font-semibold text-highlighted">
+            Jam
+          </p>
+          <div class="grid max-h-64 grid-cols-3 gap-1.5 overflow-y-auto">
+            <UButton
+              v-for="h in daftarJam"
+              :key="h"
+              :label="h"
+              size="lg"
+              :color="jamAktif.h === Number(h) ? 'primary' : 'neutral'"
+              :variant="jamAktif.h === Number(h) ? 'solid' : 'soft'"
+              class="min-h-11 justify-center"
+              @click="pilihJamPanel(h)"
+            />
+          </div>
+        </div>
+        <div>
+          <p class="mb-2 text-center text-sm font-semibold text-highlighted">
+            Menit
+          </p>
+          <div class="grid max-h-64 grid-cols-3 gap-1.5 overflow-y-auto">
+            <UButton
+              v-for="m in daftarMenit"
+              :key="m"
+              :label="m"
+              size="lg"
+              :color="jamAktif.m === Number(m) ? 'primary' : 'neutral'"
+              :variant="jamAktif.m === Number(m) ? 'solid' : 'soft'"
+              class="min-h-11 justify-center"
+              @click="pilihMenitPanel(m)"
+            />
+          </div>
+        </div>
+      </div>
+    </ResponsiveSheet>
+
+    <ResponsiveSheet
+      v-model:open="sheetTanggal"
+      title="Pilih tanggal"
+    >
+      <div class="grid grid-cols-3 gap-2">
+        <UButton
+          v-for="(p, i) in pintasanTanggal"
+          :key="p.label"
+          :label="p.label"
+          size="lg"
+          :color="form.date === p.tgl ? 'primary' : 'neutral'"
+          :variant="form.date === p.tgl ? 'solid' : 'soft'"
+          class="min-h-11 justify-center"
+          @click="pilihPintasanTanggal(i)"
+        />
+      </div>
+      <!-- Remounted on every open + default-value so the grid starts on form.date's month (reka-ui seeds the visible month from defaultValue, not the controlled value). -->
+      <UCalendar
+        :key="String(sheetTanggal)"
+        v-model="tglKalender"
+        :default-value="tglKalender"
+        :min-value="ubahKeTanggal(tglMin)"
+        locale="id"
+        class="mx-auto mt-3 w-fit"
+      />
+    </ResponsiveSheet>
 
     <ResponsiveSheet
       v-model:open="sheetTumpang"
