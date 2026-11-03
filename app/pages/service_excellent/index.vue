@@ -45,8 +45,8 @@ const labelPeriode = computed(() => labelRentang(
   new Date(`${periode.value.month}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }),
 ))
 
-const { data: reviews } = useReviews()
-const { data: feedbacks } = useFeedbacks()
+const { data: reviews, status: statusReviews } = useReviews()
+const { data: feedbacks, status: statusFeedbacks } = useFeedbacks()
 const cfgSec = useSectionVersi<ReviewCfg>('reviewCfg')
 const cfg = computed(() => cfgSec.data.value?.data)
 const aturan = computed(() => normalisasiReward({
@@ -59,7 +59,7 @@ const targetTimBulan = computed(() => targetTim(targets.value))
 const { data: crew } = useSeCrew()
 const { data: roster, status: statusRoster } = useRoster()
 
-const { data: reservasi } = useAsyncData(
+const { data: reservasi, status: statusReservasi } = useAsyncData(
   'se-capaian-reservasi',
   () => listReservations(rentang.value.from, rentang.value.to).then(r => r.data),
   { watch: [rentang], default: () => [] },
@@ -115,6 +115,13 @@ const target = computed(() => layakDiminta(
 const cakupan = computed(() => target.value.layak.length
   ? Math.round(target.value.sudah.length / target.value.layak.length * 100)
   : 0)
+
+/** First-load skeleton for the seven recap cards below: skeleton cells stand
+ *  in until the first lists land. Refetch (period change) keeps old numbers,
+ *  so the cards never blank. */
+const statMemuat = computed(() => !(reviews.value.length || feedbacks.value.length || (reservasi.value ?? []).length)
+  && [statusReviews.value, statusFeedbacks.value, statusReservasi.value, statusRoster.value, cfgSec.status.value]
+    .some(s => s === 'pending' || s === 'idle'))
 
 const pctTim = computed(() => targetTimBulan.value
   ? Math.min(100, Math.round(sah.value.length / targetTimBulan.value * 100))
@@ -382,7 +389,10 @@ async function simpanTarget() {
         </div>
       </AppPanel>
 
-      <AppStatGrid>
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="7"
+      >
         <AppStat
           label="Diminta"
           icon="i-lucide-send"

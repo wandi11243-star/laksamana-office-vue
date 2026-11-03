@@ -18,8 +18,8 @@ definePageMeta({ access: ['brankas'] })
 
 const izin = useBrankasIzin()
 
-const { data: vaultData, error: vaultError, refresh } = useAsyncData('brankas-vault', () => getVault())
-const { data: kompasData } = useAsyncData('brankas-kompas', async () => {
+const { data: vaultData, status: statusVault, error: vaultError, refresh } = useAsyncData('brankas-vault', () => getVault())
+const { data: kompasData, status: statusKompas } = useAsyncData('brankas-kompas', async () => {
   try {
     return { state: (await getKompasState()).value, gagal: false as boolean }
   }
@@ -31,6 +31,10 @@ const { data: kompasData } = useAsyncData('brankas-kompas', async () => {
 const vault = computed(() => vaultData.value?.vault ?? {})
 const kompas = computed(() => kompasData.value?.state ?? null)
 const kompasGagal = computed(() => kompasData.value?.gagal === true)
+
+// Skeleton only for the first load: the cards need both blobs, and a refresh keeps the old numbers.
+const statMemuat = computed(() => (!vaultData.value || !kompasData.value)
+  && ((statusVault.value === 'pending' || statusVault.value === 'idle') || (statusKompas.value === 'pending' || statusKompas.value === 'idle')))
 
 const saldo = computed(() => saldoSemua({
   reports: (kompas.value?.reports ?? {}) as never,
@@ -118,7 +122,10 @@ function jatuhTempo(due?: string): string {
         class="mb-4"
       />
 
-      <AppStatGrid>
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="4"
+      >
         <AppStat
           label="Total kas likuid"
           icon="i-lucide-vault"

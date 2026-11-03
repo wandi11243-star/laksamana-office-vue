@@ -64,6 +64,9 @@ const opsiTab = computed(() => [
   { value: 'belum' as const, label: `Belum Payment (${jumlahTab.value.belum})` },
 ])
 const daftar = computed(() => tampil.value.filter(e => kelompokBayarMkt(tab.value, { inv: inv(e), remaining: uang(e).remaining, paid: uang(e).paid })))
+// First-load skeleton for the stat cards: while no billable invoice is in,
+// the grid shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !tampil.value.length && (status.value === 'pending' || status.value === 'idle'))
 const kosongTab = computed(() => tab.value === 'lunas'
   ? 'Belum ada tagihan yang tertutup penuh.'
   : tab.value === 'dp'
@@ -311,7 +314,7 @@ const cetak = () => window.print()
     description="Status pembayaran tiap event, real-time untuk Finance & Marketing."
   >
     <MarketingGerbang layar="invoices">
-      <AppStatGrid>
+      <AppStatGrid :loading="statMemuat" :count="4">
         <AppStat
           label="Total piutang"
           :value="rupiah(rekap.piutang)"

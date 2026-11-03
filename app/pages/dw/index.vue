@@ -41,6 +41,9 @@ const tunggu = computed(() => ajuan.value.filter(a => a.status === 'MENUNGGU' &&
 const tungguHariItu = computed(() => hariItu.value.filter(a => a.status === 'MENUNGGU'))
 const mintaTunggu = computed(() => permintaan.value.filter(x => x.status === 'MENUNGGU' && punya(x)))
 
+// Skeleton only for the first load: day tabs and filters reuse the same overview slice, so later loads keep the old cards.
+const statMemuat = computed(() => pending.value && !ajuan.value.length && !pekerja.value.length)
+
 const biaya = computed(() => biayaListDw(set.value, setuju.value))
 const jam = computed(() => jamListDw(set.value, setuju.value))
 const alfa = computed(() => alfaListDw(setuju.value))
@@ -238,7 +241,10 @@ function chat(a: AjuanDw) {
         Lebih dari panduan: <b>{{ lebih.join(', ') }}</b>. Bukan larangan — pastikan saja anggarannya memang disiapkan.
       </div>
 
-      <AppStatGrid>
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="7"
+      >
         <AppStat
           label="DW masuk"
           icon="i-lucide-user-check"

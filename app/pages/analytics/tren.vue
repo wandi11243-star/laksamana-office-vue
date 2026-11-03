@@ -19,6 +19,9 @@ const roleSaya = computed(() => ROLE_LABEL_ANALYTICS[izin.role.value] ?? izin.ro
 
 const { data: balasan, status, error, refresh } = useAnalyticsState()
 const isi = computed(() => balasan.value?.data ?? null)
+// First-load skeleton for the stat cards: while the payload is absent the
+// grid shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !isi.value && (status.value === 'pending' || status.value === 'idle'))
 const laporan = computed(() => isi.value?.data.laporan ?? {})
 
 const fmtBln = (b: string) => {
@@ -162,7 +165,7 @@ const pctBanding = (a: number, b: number) => b ? (a - b) / b * 100 : null
       />
 
       <template v-else>
-        <AppStatGrid>
+        <AppStatGrid :loading="statMemuat" :count="4">
           <AppStat
             label="Bulan Terunggah"
             :value="angka(semua.length)"

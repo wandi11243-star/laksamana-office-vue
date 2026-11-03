@@ -20,6 +20,9 @@ const { data, status, error, refresh } = useRadarPromos()
 const f = useState('radar-fPromo', () => ({ q: '', tipe: SEMUA }))
 
 const aktif = computed(() => data.value?.promos ?? [])
+// First-load skeleton for the stat cards: while the payload is absent the
+// grid shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !data.value && (status.value === 'pending' || status.value === 'idle'))
 const list = computed(() => {
   const q = f.value.q.trim().toLowerCase()
   return aktif.value
@@ -80,7 +83,7 @@ useSegarSenyap(refresh)
       <b>Promo tidak terbaca:</b> {{ apiErrorMessage(error) }}
     </p>
 
-    <AppStatGrid>
+    <AppStatGrid :loading="statMemuat" :count="3">
       <AppStat
         label="Berlangsung"
         icon="i-lucide-circle-play"

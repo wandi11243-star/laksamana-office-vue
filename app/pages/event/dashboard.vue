@@ -15,8 +15,13 @@ import { STATUS_IKON_EVENT, STATUS_WARNA_EVENT } from '~/utils/status-event'
 
 definePageMeta({ access: ['event'] })
 
-const { data: state, error } = useStateEvent()
+const { data: state, error, status } = useStateEvent()
 const s = computed(() => state.value?.data ?? null)
+
+/** First-load skeleton for the stat grids below: skeleton cells stand in
+ *  while the first state lands. Refetch keeps old numbers, so filter or
+ *  period changes never blank the cards. */
+const statMemuat = computed(() => !s.value && (status.value === 'pending' || status.value === 'idle'))
 
 /** The dashboard opens on the current state, not the whole archive (`:2379-2383`).
  *  A picked `YYYY-MM` or `YYYY-MM-DD` is a period too, like the old band. */
@@ -310,7 +315,11 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
       </AppPanel>
 
       <AppSectionTitle title="Status event" />
-      <AppStatGrid class="mb-5">
+      <AppStatGrid
+        class="mb-5"
+        :loading="statMemuat"
+        :count="4"
+      >
         <AppStat
           v-for="st in STATUS_KARTU"
           :key="st"
@@ -322,7 +331,11 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
         />
       </AppStatGrid>
 
-      <AppStatGrid class="mb-5">
+      <AppStatGrid
+        class="mb-5"
+        :loading="statMemuat"
+        :count="8"
+      >
         <AppStat
           label="Upcoming events"
           :value="upcoming"
@@ -382,7 +395,11 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
       </AppStatGrid>
 
       <AppSectionTitle title="Insight" />
-      <AppStatGrid class="mb-5">
+      <AppStatGrid
+        class="mb-5"
+        :loading="statMemuat"
+        :count="4"
+      >
         <AppStat
           label="Best selling event"
           :value="acaraTerlaris.acara?.title ?? '—'"

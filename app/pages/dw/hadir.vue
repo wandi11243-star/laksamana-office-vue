@@ -35,6 +35,9 @@ const alfaN = computed(() => hariItu.value.filter(a => hadirNilai(a) === 'ALFA')
 const nanti = computed(() => tgl.value > hariIni())
 const konteks = computed(() => KONTEKS_LBL[konteksHariDw(tgl.value, pax.value[tgl.value] ?? 0)])
 
+// Skeleton only for the first load: day tabs reuse the same overview slice, so later loads keep the old cards.
+const statMemuat = computed(() => pending.value && !ajuan.value.length && !pekerja.value.length)
+
 const kolom: TableColumn<AjuanDw>[] = [
   { id: 'no', header: 'No.' },
   { id: 'nama', header: 'Daily worker' },
@@ -183,7 +186,10 @@ async function selesaiGanti(pesan: string) {
           Head hanya melihat dan menandai divisi sendiri. HRD melihat seluruh divisi.
         </p>
 
-        <AppStatGrid>
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="4"
+        >
           <AppStat
             label="Disetujui"
             icon="i-lucide-clipboard-check"

@@ -44,6 +44,9 @@ const sampai = computed(() => sel.value[41]!.iso)
 const { data: board, status, error, refresh } = useRadarBoard('radar-cal-board', dari, sampai)
 
 const agenda = computed(() => board.value?.agenda ?? [])
+// First-load skeleton for the stat cards: while the board is absent the
+// grid shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !board.value && (status.value === 'pending' || status.value === 'idle'))
 const res = computed(() => board.value?.reservations ?? [])
 
 const nav = (n: number) => {
@@ -195,7 +198,7 @@ useSegarSenyap(refresh, () => buka.value)
       Semua sumber sedang dimatikan, jadi kalendernya kosong bukan karena tidak ada jadwal.
     </p>
 
-    <AppStatGrid>
+    <AppStatGrid :loading="statMemuat" :count="4">
       <AppStat
         :label="`Total pax ${BULAN[cur.m]}`"
         icon="i-lucide-users"

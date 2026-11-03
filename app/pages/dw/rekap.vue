@@ -47,6 +47,9 @@ watch([kandidat, mk], () => {
 }, { immediate: true })
 const p = computed<PekerjaDw | null>(() => kandidat.value.find(x => x.id === pilihId.value) ?? null)
 const b = computed(() => (p.value ? rekapBebanDw(set.value, ajuan.value, p.value.id, mk.value) : null))
+
+// Skeleton only for the first load: the month picker reuses the same overview slice, so later loads keep the old cards.
+const statMemuat = computed(() => pending.value && !kandidat.value.length)
 const list = computed(() => (p.value ? rekapAjuanDw(ajuan.value, p.value.id, mk.value) : []))
 const rata = computed(() => (b.value && b.value.hariMasuk ? Math.round((b.value.jam / b.value.hariMasuk) * 10) / 10 : 0))
 
@@ -201,10 +204,13 @@ function perTgl(tgl: string) {
         </div>
 
         <div
-          v-if="b"
+          v-if="b || statMemuat"
           class="mb-4"
         >
-          <AppStatGrid>
+          <AppStatGrid
+            :loading="statMemuat"
+            :count="8"
+          >
             <AppStat
               label="Hari masuk"
               icon="i-lucide-calendar-check"

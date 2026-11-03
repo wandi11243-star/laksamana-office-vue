@@ -27,7 +27,12 @@ const id = computed(() => String(route.params.id ?? ''))
 const bolehUbah = computed(() => bolehUbahEvent('events', peranEvent(me.value)))
 
 const { data: envAcara, refresh: refreshAcara, error } = useAsyncData(`event-acara-${id.value}`, () => getEvent('events', id.value))
-const { data: envDetail, refresh: refreshDetail } = useAsyncData(`event-detail-${id.value}`, () => getDetail(id.value).catch(() => null))
+const { data: envDetail, refresh: refreshDetail, status: statusDetail } = useAsyncData(`event-detail-${id.value}`, () => getDetail(id.value).catch(() => null))
+
+/** First-load skeleton for the budget cards below: skeleton cells stand in
+ *  until the first detail lands. Refetch keeps old numbers, so saving a row
+ *  never blanks the cards. */
+const statMemuat = computed(() => !envDetail.value && (statusDetail.value === 'pending' || statusDetail.value === 'idle'))
 const acara = computed(() => (envAcara.value?.data ?? null) as Record<string, unknown> | null)
 const versiAcara = computed(() => versiDari(envAcara.value))
 const versiDetail = computed(() => versiDari(envDetail.value))
@@ -451,7 +456,11 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
               Baris
             </UButton>
           </template>
-          <AppStatGrid class="mb-3">
+          <AppStatGrid
+            class="mb-3"
+            :loading="statMemuat"
+            :count="3"
+          >
             <AppStat
               label="Income (actual)"
               :value="rupiah(statBudget.income)"

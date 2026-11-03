@@ -22,7 +22,7 @@ import BdTaskSheet from '~/widgets/bd/BdTaskSheet.vue'
 definePageMeta({ access: ['bd'] })
 
 const me = useMe()
-const { data: state } = useBdState()
+const { data: state, status } = useBdState()
 const f = useState('bd-recurring', () => ({ tab: 'aktif' as 'aktif' | 'henti' }))
 const fPics = useState<string[]>('bd-recurring-pics', () => [])
 
@@ -34,6 +34,11 @@ const cocokPic = (t: BdTask) => !fPics.value.length || pelaksana(t).some(id => f
 
 /** Series whose head is visible to me; the PIC filter only narrows the display. */
 const semua = computed(() => seriUlang(saringLingkup(state.value.tasks, 'semua', lingkup.value, aku.value?.id)).filter(s => cocokPic(s.head)))
+
+/** First-load skeleton for the four recap cards below: skeleton cells stand
+ *  in until the first state lands. Refetch keeps old numbers, so the cards
+ *  never blank. */
+const statMemuat = computed(() => !state.value.tasks.length && (status.value === 'pending' || status.value === 'idle'))
 const aktif = computed(() => semua.value.filter(s => s.aktif))
 const henti = computed(() => semua.value.filter(s => !s.aktif))
 const jalan = computed(() => aktif.value.filter(s => !selesai(s.head)))
@@ -109,7 +114,10 @@ async function hentikan() {
       />
     </template>
 
-    <AppStatGrid>
+    <AppStatGrid
+      :loading="statMemuat"
+      :count="4"
+    >
       <AppStat
         label="Seri aktif"
         icon="i-lucide-repeat"

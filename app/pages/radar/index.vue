@@ -34,6 +34,9 @@ const sampai = computed(() => [rentangPeriode(p.value).sampai, tambahHari(hari, 
 const { data: board, status, error, refresh } = useRadarBoard('radar-board', dari, sampai)
 
 const agenda = computed(() => board.value?.agenda ?? [])
+// First-load skeleton for the stat cards: while the board is absent the
+// grid shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !board.value && (status.value === 'pending' || status.value === 'idle'))
 const res = computed(() => board.value?.reservations ?? [])
 
 const agPer = computed(() => agenda.value.filter(a => dalamPeriode(a.tgl, p.value) && cocokFb(a, fb.value)))
@@ -98,7 +101,7 @@ useSegarSenyap(refresh, () => buka.value)
       </div>
     </AppPanel>
 
-    <AppStatGrid>
+    <AppStatGrid :loading="statMemuat" :count="4">
       <AppStat
         label="Total reservasi"
         icon="i-lucide-book-open"

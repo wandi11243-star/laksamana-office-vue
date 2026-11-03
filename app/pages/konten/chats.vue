@@ -18,8 +18,13 @@ import { angka, rupiah } from '~/utils/format'
 
 definePageMeta({ access: ['konten'] })
 
-const { data: st, error } = useStateKonten()
+const { data: st, error, status } = useStateKonten()
 const brand = useBrandKonten()
+
+/** First-load skeleton for the four chat-cost cards below: skeleton cells
+ *  stand in until the first state lands. Refetch keeps old numbers, so the
+ *  cards never blank. */
+const statMemuat = computed(() => !st.value.ads.length && (status.value === 'pending' || status.value === 'idle'))
 const pil = useState('konten-chats', () => ({ bulan: '', urut: 'chats' as UrutChat }))
 
 const scope = computed(() => saringBrand(st.value.ads, brand.value))
@@ -110,7 +115,10 @@ function buka(a: IklanKonten) {
         </div>
       </AppPanel>
 
-      <AppStatGrid>
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="4"
+      >
         <AppStat
           label="Total percakapan"
           :value="angka(r.totChats)"

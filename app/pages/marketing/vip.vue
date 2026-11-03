@@ -30,6 +30,9 @@ const hari = hariIni()
 const bisaUbah = computed(() => can('edit_vip'))
 
 const rekap = computed(() => rekapVipMkt(st.value.vip))
+// First-load skeleton for the stat cards: while the VIP list is empty the
+// grid shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !st.value.vip.length && (status.value === 'pending' || status.value === 'idle'))
 const perusahaan = (v: VipMkt) => vipPerusahaanMkt(v, id => st.value.clients.find(c => c.id === id)?.perusahaan ?? st.value.clients.find(c => c.id === id)?.nama ?? '')
 const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ?? '—'
 
@@ -317,7 +320,7 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
       />
     </template>
     <MarketingGerbang layar="vip">
-      <AppStatGrid>
+      <AppStatGrid :loading="statMemuat" :count="4">
         <AppStat
           label="Total reservasi"
           :value="String(rekap.total)"

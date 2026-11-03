@@ -29,6 +29,9 @@ const roleSaya = computed(() => ROLE_LABEL_ANALYTICS[izin.role.value] ?? izin.ro
 
 const { data: balasan, status, error, refresh } = useAnalyticsState()
 const isi = computed(() => balasan.value?.data ?? null)
+// First-load skeleton for the stat cards: while the payload is absent the
+// grid shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !isi.value && (status.value === 'pending' || status.value === 'idle'))
 const versi = computed(() => versiDari(balasan.value))
 const laporan = computed(() => isi.value?.data.laporan ?? {})
 const daftarBulan = computed(() => Object.keys(laporan.value).sort().reverse())
@@ -361,7 +364,7 @@ async function pasang(kode: string, menu: string) {
           :description="`Laporan bulan itu Bill Report — satu baris per bill, tanpa satu pun nama menu. Yang memuat nama menu Sales Recapitulation Detail Report; unggah berkas itu untuk ${fmtBln(bandingAktif)}, lalu pembandingnya jalan sendiri.`"
         />
 
-        <AppStatGrid>
+        <AppStatGrid :loading="statMemuat" :count="4">
           <AppStat
             label="Menu Berbeda"
             :value="angka(urut.length)"

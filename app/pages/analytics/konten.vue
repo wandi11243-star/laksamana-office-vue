@@ -44,6 +44,9 @@ const fase = computed(() => {
   return 'idle'
 })
 const galatPesan = computed(() => apiErrorMessage(stError.value, 'Modul Konten tidak menjawab.'))
+// First-load skeleton for the stat cards: while the Konten blob is absent the
+// grid shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !stKonten.value && (stStatus.value === 'pending' || stStatus.value === 'idle'))
 
 const kumpul = computed(() => pkKumpul(stKonten.value?.content ?? [], {
   bulan: keadaan.value.bulan,
@@ -169,7 +172,7 @@ const kolomPilar = kolomPlat
         />
 
         <template v-else>
-          <AppStatGrid>
+          <AppStatGrid :loading="statMemuat" :count="4">
             <AppStat
               label="Reach"
               :value="angka(total.dasar)"

@@ -24,6 +24,9 @@ definePageMeta({ access: ['marketing'] })
 
 const router = useRouter()
 const { data: st, status, error } = useStateMkt()
+// First-load skeleton for the stat cards: while the module state is empty
+// the grid shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !st.value.events.length && (status.value === 'pending' || status.value === 'idle'))
 const { saya, can } = useAksesMkt()
 const hari = hariIni()
 const bulanIni = hari.slice(0, 7)
@@ -136,7 +139,7 @@ const namaDepan = computed(() => String(saya.value?.user.name ?? '').split(' ')[
         </div>
       </div>
 
-      <AppStatGrid>
+      <AppStatGrid :loading="statMemuat" :count="4">
         <AppStat
           label="Event Hari Ini"
           :value="evHariIni.length"

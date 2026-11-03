@@ -31,6 +31,11 @@ const { data: daftarKursi } = useDaftarEvent<Kursi>('seats', q, `event-kat-kursi
 const { data: daftarTiket, status } = useDaftarEvent<Tiket>('tickets', { ticket_class_id: kelasId.value } as never, `event-kat-tiket-${id.value}-${kelasId.value}`)
 
 const kelas = computed(() => daftarKelas.value.rows.find(c => c.id === kelasId.value))
+
+/** First-load skeleton for the four recap cards below: skeleton cells stand
+ *  in until the first ticket list lands. Refetch keeps old numbers, so the
+ *  cards never blank. */
+const statMemuat = computed(() => !daftarTiket.value.rows.length && (status.value === 'pending' || status.value === 'idle'))
 const harga = computed(() => Number(kelas.value?.price) || 0)
 const kuota = computed(() => Number(kelas.value?.quota) || 0)
 const kursiDari = computed(() => new Map(daftarKursi.value.rows.map(s => [String(s.id), s])))
@@ -115,7 +120,11 @@ const halaman = computed(() => ringkas.value.pembeli.slice(mulai.value, mulai.va
         </UBadge>
       </div>
 
-      <AppStatGrid class="mb-4">
+      <AppStatGrid
+        class="mb-4"
+        :loading="statMemuat"
+        :count="4"
+      >
         <AppStat
           label="Terjual"
           :value="kuota ? `${angka(ringkas.n)} / ${angka(kuota)}` : angka(ringkas.n)"

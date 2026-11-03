@@ -76,6 +76,12 @@ const cek = computed<Cek[]>(() => {
 
 const memuat = computed(() => menu?.status.value === 'pending' || berita?.status.value === 'pending'
   || eventWeb?.status.value === 'pending' || promoWeb?.status.value === 'pending')
+
+/** First-load skeleton for the two publish-status cards below: skeleton cells
+ *  stand in until the first website answers land. Refetch keeps old numbers,
+ *  so the cards never blank. */
+const statMemuat = computed(() => (!eventWeb?.data.value || !promoWeb?.data.value)
+  && [eventWeb?.status.value, promoWeb?.status.value].some(s => s === 'pending' || s === 'idle'))
 </script>
 
 <template>
@@ -137,7 +143,11 @@ const memuat = computed(() => menu?.status.value === 'pending' || berita?.status
       </p>
     </AppPanel>
 
-    <AppStatGrid v-if="eventWeb || promoWeb">
+    <AppStatGrid
+      v-if="eventWeb || promoWeb"
+      :loading="statMemuat"
+      :count="2"
+    >
       <NuxtLink
         v-if="eventWeb"
         to="/homepage/event"

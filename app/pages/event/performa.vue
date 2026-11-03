@@ -14,7 +14,12 @@ import { angka, rupiah } from '~/utils/format'
 
 definePageMeta({ access: ['event'] })
 
-const { data: state, error } = useStateEvent()
+const { data: state, error, status } = useStateEvent()
+
+/** First-load skeleton for the stat grid below: skeleton cells stand in while
+ *  the first state lands. Refetch keeps old numbers, so period changes never
+ *  blank the cards. */
+const statMemuat = computed(() => !state.value && (status.value === 'pending' || status.value === 'idle'))
 const s = computed(() => state.value?.data ?? null)
 
 // --- period band: the whole screen follows it (`pitaPeriodeEms`, default Semua) ---
@@ -198,7 +203,11 @@ const fmtTgl = (iso: string) => {
         </div>
       </AppPanel>
 
-      <AppStatGrid class="mb-5">
+      <AppStatGrid
+        class="mb-5"
+        :loading="statMemuat"
+        :count="4"
+      >
         <AppStat
           label="Omzet tiket"
           :value="rupiah(omzet)"

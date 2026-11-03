@@ -16,12 +16,15 @@ import { rupiah, tglPendek } from '~/utils/format'
 definePageMeta({ access: ['marketing'] })
 
 const toast = useToast()
-const { data: st } = useStateMkt()
+const { data: st, status } = useStateMkt()
 const { can, saya } = useAksesMkt()
 const bisaPutus = computed(() => can('approve'))
 
 const semua = computed(() => barisApprovalMkt(st.value.events, st.value.approvals, st.value.settings))
 const rekap = computed(() => rekapApprovalMkt(semua.value))
+// First-load skeleton for the stat cards: while no case is in, the grid
+// shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !semua.value.length && (status.value === 'pending' || status.value === 'idle'))
 
 const tab = useState<'antri' | 'riwayat' | 'semua'>('mkt-appr-tab', () => 'antri')
 const daftar = computed(() => {
@@ -119,7 +122,7 @@ const warnaAntri = (r: BarisApprovalMkt) => {
     description="Meja putusan manajemen."
   >
     <MarketingGerbang layar="approvals">
-      <AppStatGrid>
+      <AppStatGrid :loading="statMemuat" :count="3">
         <AppStat
           label="Surat penawaran"
           :value="String(rekap.pen)"

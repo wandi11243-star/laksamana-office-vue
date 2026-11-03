@@ -17,14 +17,20 @@ const route = useRoute()
 const id = computed(() => String(route.params.id ?? ''))
 
 const { data: envAcara, error } = useAsyncData(`event-hist-acara-${id.value}`, () => getEvent('events', id.value))
-const { data: envDetail } = useAsyncData(`event-hist-detail-${id.value}`, () => getDetail(id.value).catch(() => null))
+const { data: envDetail, status: statusDetail } = useAsyncData(`event-hist-detail-${id.value}`, () => getDetail(id.value).catch(() => null))
 const acara = computed(() => envAcara.value?.data as Record<string, unknown> | undefined)
 const detail = computed(() => envDetail.value?.data as Record<string, { item: string, type: string, budget: number, actual: number }[]> | { budget?: { item: string, type: string, budget: number, actual: number }[] } | undefined)
 
 const q = computed<Record<string, string>>(() => ({ event_id: id.value }))
 const { data: daftarKelas } = useDaftarEvent('ticket-classes', q, `event-hist-kelas-${id.value}`)
-const { data: daftarTiket } = useDaftarEvent('tickets', q, `event-hist-tiket-${id.value}`)
+const { data: daftarTiket, status: statusTiket } = useDaftarEvent('tickets', q, `event-hist-tiket-${id.value}`)
 const { data: daftarOrder } = useDaftarEvent<OrderTiket>('orders', q, `event-hist-order-${id.value}`)
+
+/** First-load skeleton for both stat grids below (sales + profit): skeleton
+ *  cells stand in until the first answers land. Refetch keeps old numbers,
+ *  so the cards never blank. */
+const statMemuat = computed(() => (!daftarTiket.value.rows.length && (statusTiket.value === 'pending' || statusTiket.value === 'idle'))
+  || (!envDetail.value && (statusDetail.value === 'pending' || statusDetail.value === 'idle')))
 const orderById = computed(() => petaOrder(daftarOrder.value.rows))
 
 // GET /checkins returns the newest 2000 only (`meta.total` = all): an old event
@@ -84,7 +90,11 @@ const pl = computed(() => {
         />
 
         <AppSectionTitle title="Pencapaian" />
-        <AppStatGrid class="mb-4">
+        <AppStatGrid
+          class="mb-4"
+          :loading="statMemuat"
+          :count="4"
+        >
           <AppStat
             label="Omzet tiket"
             :value="rupiah(ringkas.omzet)"
@@ -115,7 +125,10 @@ const pl = computed(() => {
 
         <template v-if="budget.length">
           <AppSectionTitle title="Laba-rugi" />
-          <AppStatGrid>
+          <AppStatGrid
+            :loading="statMemuat"
+            :count="3"
+          >
             <AppStat
               label="Income"
               :value="rupiah(pl.income)"

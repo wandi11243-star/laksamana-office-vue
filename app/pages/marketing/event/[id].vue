@@ -72,6 +72,9 @@ const tabLanjut = (tabId: string) => {
 }
 
 const uang = computed(() => (ev.value ? eventFinance(ev.value, st.value.settings) : null))
+// First-load skeleton for the stat cards: while the event is not found yet
+// the grid shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !ev.value && (status.value === 'pending' || status.value === 'idle'))
 const bisaUbah = computed(() => can('edit_event'))
 const bisaVerif = computed(() => can('verify_payment'))
 const terbuka = computed(() => !!ev.value && TAHAP_TERBUKA_MKT.includes(ev.value.status))
@@ -492,7 +495,7 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
         </div>
       </div>
 
-      <AppStatGrid v-if="uang">
+      <AppStatGrid v-if="uang" :loading="statMemuat" :count="4">
         <AppStat
           label="Grand Total"
           :value="rupiahRingkas(uang.grand)"

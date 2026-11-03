@@ -17,7 +17,7 @@ definePageMeta({ access: ['brankas'] })
 
 const izin = useBrankasIzin()
 
-const { data: kompasData, error, refresh } = useAsyncData('brankas-kompas', async () => {
+const { data: kompasData, status, error, refresh } = useAsyncData('brankas-kompas', async () => {
   try {
     return { state: (await getKompasState()).value, gagal: false as boolean }
   }
@@ -53,6 +53,9 @@ const umurTertua = computed(() => (tertua.value ? -(selisihHari(tertua.value) ??
 const rincian = computed(() => (belum.value as { date?: string, nama?: string, tipe?: string, bill?: string, nominal?: unknown }[])
   .slice()
   .sort((a, b) => String(a.date) < String(b.date) ? -1 : 1))
+
+// Skeleton only for the first load: this page only reads the shared kompas blob.
+const statMemuat = computed(() => !kompasData.value && (status.value === 'pending' || status.value === 'idle'))
 </script>
 
 <template>
@@ -95,7 +98,10 @@ const rincian = computed(() => (belum.value as { date?: string, nama?: string, t
         class="mb-4"
       />
 
-      <AppStatGrid>
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="3"
+      >
         <AppStat
           label="Belum dibayar"
           icon="i-lucide-hourglass"

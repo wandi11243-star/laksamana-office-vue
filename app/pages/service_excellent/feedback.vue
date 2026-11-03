@@ -45,6 +45,11 @@ const bolehHapus = computed(() => bolehAksiSe('deleteReview', tingkat.value))
 
 const dalam = computed(() => daftarFb.value.filter(x => dalamRentang(x.date, rentang.value)))
 
+/** First-load skeleton for the five recap cards below: skeleton cells stand
+ *  in until the first feedback list lands. Refetch keeps old numbers, so the
+ *  cards never blank. */
+const statMemuat = computed(() => !feedbacks.data.value && (feedbacks.status.value === 'pending' || feedbacks.status.value === 'idle'))
+
 // --- recap -----------------------------------------------------------------------
 
 const hitung = (s: string) => dalam.value.filter(x => (x.status || 'baru') === s).length
@@ -375,7 +380,10 @@ async function lihatBukti(fb: Feedback) {
         </div>
       </div>
 
-      <AppStatGrid>
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="5"
+      >
         <AppStat
           label="Total feedback"
           icon="i-lucide-messages-square"

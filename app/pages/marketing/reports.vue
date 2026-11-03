@@ -11,11 +11,14 @@ import { hariIni, rupiah } from '~/utils/format'
 definePageMeta({ access: ['marketing'] })
 
 const toast = useToast()
-const { data: st } = useStateMkt()
+const { data: st, status } = useStateMkt()
 
 const bulan = useState('mkt-rep-bulan', () => hariIni().slice(0, 7))
 const labelBulan = computed(() => new Date(`${bulan.value}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }))
 const lap = computed(() => laporanMkt(st.value.events, st.value.settings, bulan.value))
+// First-load skeleton for the stat cards: while the module state is empty
+// the grid shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !st.value.events.length && (status.value === 'pending' || status.value === 'idle'))
 const namaClient = (id: string) => st.value.clients.find(c => c.id === id)?.nama ?? '—'
 const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ?? '—'
 
@@ -59,7 +62,7 @@ function ekspor() {
         </p>
       </AppPanel>
 
-      <AppStatGrid>
+      <AppStatGrid :loading="statMemuat" :count="3">
         <AppStat
           :label="`Total omset ${labelBulan}`"
           :value="rupiah(lap.total)"

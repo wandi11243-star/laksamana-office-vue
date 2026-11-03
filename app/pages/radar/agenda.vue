@@ -30,6 +30,9 @@ const dari = computed(() => rentangPeriode(p.value).dari)
 const sampai = computed(() => rentangPeriode(p.value).sampai)
 const { data: board, status, error, refresh } = useRadarBoard('radar-ag-board', dari, sampai)
 const agenda = computed(() => board.value?.agenda ?? [])
+// First-load skeleton for the stat cards: while the board is absent the
+// grid shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !board.value && (status.value === 'pending' || status.value === 'idle'))
 
 const dasar = computed(() => {
   const q = f.value.q.trim().toLowerCase()
@@ -120,7 +123,7 @@ useSegarSenyap(refresh, () => buka.value)
       </div>
     </AppPanel>
 
-    <AppStatGrid>
+    <AppStatGrid :loading="statMemuat" :count="5">
       <AppStat
         label="Acara tampil"
         icon="i-lucide-calendar-days"

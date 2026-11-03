@@ -26,6 +26,9 @@ watch(hr, (v) => {
 
 const rows = computed(() => queue.value ?? [])
 
+// Skeleton only for the first load: the queue read is lazy (HR only), so idle counts as loading too.
+const statMemuat = computed(() => !rows.value.length && (status.value === 'pending' || status.value === 'idle'))
+
 const sheet = ref(false)
 const sibuk = ref(false)
 const pilihan = ref<{ id: string, status: 'VALID' | 'DITOLAK', nama: string } | null>(null)
@@ -83,7 +86,10 @@ async function putus() {
         {{ apiErrorMessage(error) }}
       </p>
 
-      <AppStatGrid>
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="1"
+      >
         <AppStat
           label="Menunggu"
           icon="i-lucide-hourglass"

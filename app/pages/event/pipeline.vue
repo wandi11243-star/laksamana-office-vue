@@ -29,6 +29,11 @@ const manajemen = computed(() => bolehSetujui(peran.value))
 const tab = ref<'kanban' | 'tabel'>('kanban')
 const { data: daftar, status, refresh } = useDaftarEvent<Acara>('events', {}, 'event-pipeline')
 
+/** First-load skeleton for the stage cards below (one total plus one per
+ *  stage): skeleton cells stand in until the first list lands. Refetch keeps
+ *  old numbers, so moving a card never blanks the row. */
+const statMemuat = computed(() => !daftar.value.rows.length && (status.value === 'pending' || status.value === 'idle'))
+
 const perTahap = computed(() => {
   const m = new Map<string, Acara[]>()
   for (const s of EVT_STATUS) m.set(s, [])
@@ -110,7 +115,11 @@ async function jatuhkan(ev: DragEvent, tahap: string) {
       />
 
       <!-- pipe-sum: Total + one tile per stage -->
-      <AppStatGrid class="mb-4 lg:grid-cols-6">
+      <AppStatGrid
+        class="mb-4 lg:grid-cols-6"
+        :loading="statMemuat"
+        :count="6"
+      >
         <AppStat
           label="Total Event"
           :value="angka(daftar.rows.length)"

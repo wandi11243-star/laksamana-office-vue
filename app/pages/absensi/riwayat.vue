@@ -35,6 +35,9 @@ const { data: hari, status, error } = useAbsensiRecap(dari, sampai)
 /** Newest first, like the old client's sort (`:1483`). */
 const rows = computed(() => [...(hari.value ?? [])].sort((a, b) => b.tgl.localeCompare(a.tgl)))
 
+// Skeleton only for the first load: the range filter refetches in place, so later loads keep the old cards.
+const statMemuat = computed(() => !rows.value.length && (status.value === 'pending' || status.value === 'idle'))
+
 const totHari = computed(() => rows.value.filter(h => h.hitung.lengkap).length)
 const totTelat = computed(() => rows.value.reduce((a, h) => a + (h.hitung.telat || 0), 0))
 const totLembur = computed(() => rows.value.reduce((a, h) => a + (h.hitung.lembur || 0), 0))
@@ -135,7 +138,10 @@ const kolom = computed<TableColumn<AbsensiHari>[]>(() => [
       {{ apiErrorMessage(error) }}
     </p>
 
-    <AppStatGrid>
+    <AppStatGrid
+      :loading="statMemuat"
+      :count="3"
+    >
       <AppStat
         label="Hari kerja"
         icon="i-lucide-calendar-check"

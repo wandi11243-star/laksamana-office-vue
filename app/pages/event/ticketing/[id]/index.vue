@@ -42,11 +42,16 @@ const acara = computed(() => envAcara.value?.data as Record<string, unknown> | u
 
 const q = computed<Record<string, string>>(() => ({ event_id: id.value }))
 const { data: daftarKelas, status, refresh: refreshKelas } = useDaftarEvent<KelasTiket>('ticket-classes', q, `event-tix-kelas-${id.value}`)
-const { data: daftarTiket, refresh: refreshTiket } = useDaftarEvent<Tiket>('tickets', q, `event-tix-tiket-${id.value}`)
+const { data: daftarTiket, refresh: refreshTiket, status: statusTiket } = useDaftarEvent<Tiket>('tickets', q, `event-tix-tiket-${id.value}`)
 const { data: daftarKursi } = useDaftarEvent<Kursi>('seats', q, `event-tix-kursi-${id.value}`)
 const { data: daftarRefundSemua, refresh: refreshRefund } = useDaftarEvent<Refund>('refunds', {}, `event-tix-refund-${id.value}`)
 const { data: daftarOrder, refresh: refreshOrder } = useDaftarEvent<OrderTiket>('orders', q, `event-tix-order-${id.value}`)
 const muatUlang = () => Promise.all([refreshKelas(), refreshTiket(), refreshRefund(), refreshOrder()])
+
+/** First-load skeleton for the sales recap cards below: skeleton cells stand
+ *  in until the first ticket list lands. Refetch keeps old numbers, so
+ *  selling or refunding never blanks the cards. */
+const statMemuat = computed(() => !daftarTiket.value.rows.length && (statusTiket.value === 'pending' || statusTiket.value === 'idle'))
 
 // The order behind a ticket or refund (`refundGantung :10182` needs it).
 const orderDariId = computed(() => new Map(daftarOrder.value.rows.map(o => [o.id, o])))
@@ -827,7 +832,11 @@ function labelKursiTiket(sid?: string) {
       </template>
 
       <template v-else>
-        <AppStatGrid class="mb-4">
+        <AppStatGrid
+          class="mb-4"
+          :loading="statMemuat"
+          :count="4"
+        >
           <AppStat
             label="Omzet Bersih"
             :value="rupiah(ringkas.omzet)"

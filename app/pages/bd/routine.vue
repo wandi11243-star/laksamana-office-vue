@@ -15,13 +15,18 @@ import BdRoutineSheet from '~/widgets/bd/BdRoutineSheet.vue'
 definePageMeta({ access: ['bd'] })
 
 const me = useMe()
-const { data: state } = useBdState()
+const { data: state, status } = useBdState()
 const people = computed(() => state.value.people)
 const aku = computed(() => cariAku(people.value, me.value))
 
 const aktif = computed(() => state.value.routines.filter(r => r.active))
 const rate = computed(() => kepatuhanRoutine(state.value.routines))
 const lewatTotal = computed(() => aktif.value.reduce((s, r) => s + (Number(r.missed) || 0), 0))
+
+/** First-load skeleton for the three recap cards below: skeleton cells stand
+ *  in until the first state lands. Refetch keeps old numbers, so the cards
+ *  never blank. */
+const statMemuat = computed(() => !state.value.routines.length && (status.value === 'pending' || status.value === 'idle'))
 
 const kolom: TableColumn<BdRoutine>[] = [
   { accessorKey: 'name', header: 'Routine' },
@@ -73,7 +78,10 @@ async function hapus() {
       />
     </template>
 
-    <AppStatGrid>
+    <AppStatGrid
+      :loading="statMemuat"
+      :count="3"
+    >
       <AppStat
         label="Routine aktif"
         icon="i-lucide-repeat"

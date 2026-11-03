@@ -96,6 +96,9 @@ watch(statusSt, (s) => {
 
 // ---------------------------------------------------------------- list
 const daftar = computed(() => st.value.users.filter(u => u?.name))
+// First-load skeleton for the stat cards: while the user list is empty the
+// grid shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !st.value.users.length && (statusSt.value === 'pending' || statusSt.value === 'idle'))
 const KOL: KolomMkt<UserMkt>[] = [
   { k: 'nama', t: 'Nama', v: u => u.name, def: true },
   { k: 'tim', t: 'Tim', v: u => timUserMkt(u) },
@@ -210,7 +213,7 @@ const warnaLevel = (v: number) => (v === 2 ? 'success' : v === 1 ? 'info' : 'neu
         :description="`${sinkron.baru || sinkron.ubah ? `${sinkron.baru} pegawai baru, ${sinkron.ubah} diperbarui.` : 'Tidak ada perubahan.'} ${sinkron.pesan}`"
       />
 
-      <AppStatGrid>
+      <AppStatGrid :loading="statMemuat" :count="4">
         <AppStat
           label="Total pegawai"
           :value="daftar.length"

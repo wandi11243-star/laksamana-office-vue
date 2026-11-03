@@ -32,6 +32,11 @@ watch(status, (s) => {
 
 const adsScope = computed(() => saringBrand(st.value.ads, brand.value))
 const fundScope = computed(() => saringBrand(st.value.adFunds, brand.value))
+
+/** First-load skeleton for the four fund cards below: skeleton cells stand in
+ *  until the first state lands. Refetch keeps old numbers, so brand switches
+ *  never blank the cards. */
+const statMemuat = computed(() => !st.value.ads.length && !st.value.adFunds.length && (status.value === 'pending' || status.value === 'idle'))
 const totIn = computed(() => fundScope.value.reduce((s, x) => s + (Number(x.amount) || 0), 0))
 const totOut = computed(() => adsScope.value.reduce((s, a) => s + danaKeluarIklan(a), 0))
 const aktif = computed(() => adsScope.value.filter(a => a.status === 'active').length)
@@ -174,7 +179,10 @@ function bukaDana(x?: DanaIklan) {
 
       <KontenBrandBar :brands="st.brands" />
 
-      <AppStatGrid>
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="4"
+      >
         <AppStat
           label="Iklan aktif"
           :value="angka(aktif)"

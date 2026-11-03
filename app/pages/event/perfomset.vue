@@ -99,7 +99,13 @@ const a = computed(() => (pid.value === '__all__'
 
 // ---- Daftar Event: this module's events (pevAcaraModul :5220)
 const LEWAT = ['Planning', 'Draft', 'Cancelled'] // same as events_hari()
-const { data: daftar, refresh: refreshAcara } = useDaftarEvent<Acara>('events', {}, 'event-pev-events')
+const { data: daftar, refresh: refreshAcara, status: statusAcara } = useDaftarEvent<Acara>('events', {}, 'event-pev-events')
+
+/** First-load skeleton for the three recap cards below: skeleton cells stand
+ *  in until both the performance breakdown and the event list land. Refetch
+ *  (month change) keeps old numbers, so the cards never blank. */
+const statMemuat = computed(() => (!kompas.value || !daftar.value.rows.length)
+  && (status.value === 'pending' || status.value === 'idle' || statusAcara.value === 'pending' || statusAcara.value === 'idle'))
 const acara = computed<AcaraPfoMkt[]>(() => daftar.value.rows
   .filter(e => !LEWAT.includes(String(e.status)) && tglWIB(e.start_datetime).slice(0, 7) === bulan.value)
   .map((e) => {
@@ -235,7 +241,10 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
           description="Nominalnya tidak diakui untuk siapa pun. Yang membetulkannya Finance, di Omset → Breakdown Sumber."
         />
 
-        <AppStatGrid>
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="3"
+        >
           <AppStat
             label="Realisasi"
             :value="rupiah(a.real)"

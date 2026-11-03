@@ -50,7 +50,7 @@ const daftarReview = computed(() => reviews.data.value?.data ?? [])
 const versiReviews = computed(() => versiDari(reviews.data.value))
 const { data: cfg } = useReviewCfg()
 
-const { data: reservasi } = useAsyncData(
+const { data: reservasi, status: statusReservasi } = useAsyncData(
   'se-review-reservasi',
   () => listReservations(rentang.value.from, rentang.value.to).then(r => r.data),
   { watch: [rentang], default: () => [] },
@@ -88,6 +88,13 @@ const belumTampil = computed(() => {
   const q = cariBelum.value.trim().toLowerCase()
   return target.value.belum.filter(r => !q || [r.name, r.phone, r.table].some(v => String(v || '').toLowerCase().includes(q)))
 })
+
+/** First-load skeleton for the three recap cards below: skeleton cells stand
+ *  in until the first review and reservation lists land. Refetch (period
+ *  change) keeps old numbers, so the cards never blank. */
+const statMemuat = computed(() => !daftarReview.value.length && !(reservasi.value ?? []).length
+  && (reviews.status.value === 'pending' || reviews.status.value === 'idle'
+    || statusReservasi.value === 'pending' || statusReservasi.value === 'idle'))
 
 // --- the review list -------------------------------------------------------------------
 
@@ -515,7 +522,10 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
       </div>
 
       <template v-if="panelMintaTampil">
-        <AppStatGrid>
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="3"
+        >
           <AppStat
             label="Belum diminta"
             icon="i-lucide-user-round-search"

@@ -28,7 +28,7 @@ const mk = useState('jadwal-bulan', () => bulanDari(hariIni()))
 // One extra day so the rest between the last day and the 1st of next month is not invented.
 const dari = computed(() => awalBulan(mk.value))
 const sampai = computed(() => tambahHari(akhirBulan(mk.value), 1))
-const { data: cells, refresh: refreshSel } = useJadwalCells('jadwal-cells-rekap', dari, sampai)
+const { data: cells, status: statusSel, refresh: refreshSel } = useJadwalCells('jadwal-cells-rekap', dari, sampai)
 const peta = computed(() => petaSel(cells.value ?? []))
 
 const kandidat = computed(() => DIVISI.flatMap(d => kruDivisi(peran.value, kru.value, d.k).map(u => ({ u, div: d.k }))))
@@ -46,6 +46,11 @@ const u = computed(() => kruById(uid.value))
 const div = computed(() => u.value?.divisi ?? '')
 const b = computed(() => bebanKru(set.value, peta.value, uid.value, mk.value))
 const det = computed(() => rekapDetail(set.value, peta.value, uid.value, mk.value))
+
+// Skeleton only for the first load: the month picker refetches cells in place, so later loads keep the old cards.
+// (The surrounding panel still mounts only once a crew row is picked, so on a cold open the skeleton appears together with the panel.)
+const statMemuat = computed(() => !kru.value.length && !(cells.value ?? []).length
+  && (pending.value || statusSel.value === 'pending' || statusSel.value === 'idle'))
 const rata = computed(() => (b.value.masuk ? Math.round(b.value.jam / b.value.masuk * 10) / 10 : 0))
 const rinci = computed(() => Object.entries(rincianShift(peta.value, uid.value, mk.value))
   .sort(([x], [y]) => (shiftDef(set.value, x).urut || 99) - (shiftDef(set.value, y).urut || 99)))
@@ -169,7 +174,10 @@ const cetak = () => window.print()
           </div>
         </template>
 
-        <AppStatGrid>
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="8"
+        >
           <AppStat
             label="Hari masuk"
             icon="i-lucide-user-check"

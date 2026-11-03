@@ -28,7 +28,7 @@ import { hariIni, tambahHari } from '~/utils/format'
 
 definePageMeta({ access: ['dw'] })
 
-const { ajuan, peran, error, refresh } = useDwDasar()
+const { ajuan, peran, pending, error, refresh } = useDwDasar()
 const mk = useDwBulan()
 const bulanIni = hariIni().slice(0, 7)
 
@@ -37,7 +37,7 @@ const akhir = computed(() => akhirBulan(mk.value))
 /** The visible 42-box grid, so neighbouring-month boxes have pax too. */
 const gridDari = computed(() => mulaiKisi(mk.value))
 const gridSampai = computed(() => tambahHari(gridDari.value, 41))
-const { data: tamu, error: tamuError, refresh: refreshTamu } = useDwGuests('dw-guests', gridDari, gridSampai)
+const { data: tamu, status: statusTamu, error: tamuError, refresh: refreshTamu } = useDwGuests('dw-guests', gridDari, gridSampai)
 
 const rows = computed(() => tamu.value?.rows ?? [])
 const acaraHari = (tgl: string) => (tamu.value?.acara ?? []).filter(x => x.tgl === tgl)
@@ -95,6 +95,10 @@ const stat = computed(() => {
 })
 
 const muatUlang = () => Promise.all([refresh(), refreshTamu()])
+
+// Skeleton only for the first load: the month picker refetches guests in place, so later loads keep the old cards.
+const statMemuat = computed(() => !ajuan.value.length && !rows.value.length
+  && (pending.value || statusTamu.value === 'pending' || statusTamu.value === 'idle'))
 
 const ajukanOpen = ref(false)
 const ajukanTgl = ref('')
@@ -188,7 +192,10 @@ const bisaKlik = () => true
         />
       </p>
 
-      <AppStatGrid>
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="7"
+      >
         <AppStat
           label="Total pax"
           icon="i-lucide-users"

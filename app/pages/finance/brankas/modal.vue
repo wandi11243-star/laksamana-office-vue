@@ -35,9 +35,12 @@ const toast = useToast()
  * investor, brankas or finance. The server checks again. */
 const akunBoleh = computed(() => isAdminOf(me.value, 'investor') || isAdminOf(me.value, 'brankas') || isAdminOf(me.value, 'finance'))
 
-const { data: vaultData, error, refresh } = useAsyncData('brankas-vault', () => getVault())
+const { data: vaultData, status, error, refresh } = useAsyncData('brankas-vault', () => getVault())
 const daftar = computed<InvestorBrankas[]>(() => ((vault.value.investor ?? []) as InvestorBrankas[]).slice())
 const vault = computed(() => vaultData.value?.vault ?? {})
+
+// Skeleton only for the first load: saving a row refetches in place, so a refetch must not blank the cards.
+const statMemuat = computed(() => !vaultData.value && (status.value === 'pending' || status.value === 'idle'))
 
 const modal = computed(() => daftar.value.reduce((s, i) => s + modalTotal(i), 0))
 const kembali = computed(() => daftar.value.reduce((s, i) => s + (i.returns ?? []).reduce((x, r) => x + num(r.amount), 0), 0))
@@ -431,7 +434,10 @@ async function akLepas(i: InvestorBrankas) {
         :title="`${gantung.length} catatan pengembalian belum menyebut keluar dari wallet mana. Uangnya sudah dibayarkan tapi saldo wallet belum berkurang, jadi saldo di halaman Saldo & Rekening lebih besar daripada kenyataan sebesar ${fmtRp(gantungTotal)}. Perbaiki lewat tombol Ubah di barisnya lalu pilih wallet asalnya.`"
       />
 
-      <AppStatGrid>
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="3"
+      >
         <AppStat
           label="Modal masuk"
           icon="i-lucide-hand-coins"

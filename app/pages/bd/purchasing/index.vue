@@ -28,7 +28,7 @@ definePageMeta({ access: ['bd'] })
 
 const me = useMe()
 const toast = useToast()
-const { data: state } = useBdState()
+const { data: state, status } = useBdState()
 const { data: setelan } = useBdSettings()
 
 const poMode = useState('bd-po-mode', () => 'pr')
@@ -44,6 +44,11 @@ const semuaPo = computed(() => state.value.po)
 
 // ---- summary ----
 const berjalan = computed(() => semuaPo.value.filter(p => !poBeres(p)))
+
+/** First-load skeleton for both stat grids below (summary + weekly recap):
+ *  skeleton cells stand in until the first state lands. Refetch keeps old
+ *  numbers, so the cards never blank. */
+const statMemuat = computed(() => !state.value.po.length && (status.value === 'pending' || status.value === 'idle'))
 const nilai = computed(() => berjalan.value.reduce((s, p) => s + (Number(p.amount) || 0), 0))
 const perluApproval = computed(() => semuaPo.value.filter(p => !poBeres(p) && p.status === 'Diajukan').length)
 
@@ -262,7 +267,10 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
       />
     </div>
 
-    <AppStatGrid>
+    <AppStatGrid
+      :loading="statMemuat"
+      :count="3"
+    >
       <AppStat
         label="Total PO"
         icon="i-lucide-shopping-cart"
@@ -607,7 +615,10 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
           />
         </template>
 
-        <AppStatGrid>
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="4"
+        >
           <AppStat
             label="PO minggu ini"
             icon="i-lucide-shopping-cart"

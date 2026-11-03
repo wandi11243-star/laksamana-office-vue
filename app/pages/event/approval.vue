@@ -35,6 +35,11 @@ const { data: daftarTiket, refresh: refreshTiket } = useDaftarEvent<Tiket>('tick
 const { data: daftarKursi, refresh: refreshKursi } = useDaftarEvent<Kursi>('seats', {}, 'event-approval-seats')
 const { data: daftarKelas, refresh: refreshKelas } = useDaftarEvent<KelasTiket>('ticket-classes', {}, 'event-approval-classes')
 
+/** First-load skeleton for the three recap cards below: show skeleton cells
+ *  until the first lists land. Refetch keeps old numbers, so the cards never
+ *  blank while a decision is saving. */
+const statMemuat = computed(() => !daftar.value.rows.length && (status.value === 'pending' || status.value === 'idle'))
+
 // The order behind a refund request (`refundGantung :10182` needs it).
 const orderDariId = computed(() => new Map(daftarOrder.value.rows.map(o => [o.id, o])))
 const gantung = (r: RefundBaris) => refundGantung(r, orderDariId.value.get(r.order_id ?? ''))
@@ -235,7 +240,11 @@ const kosong = computed(() => {
         </UButton>
       </template>
 
-      <AppStatGrid class="mb-4">
+      <AppStatGrid
+        class="mb-4"
+        :loading="statMemuat"
+        :count="3"
+      >
         <AppStat
           label="Rencana Menunggu"
           :value="angka(antreRencana.length)"

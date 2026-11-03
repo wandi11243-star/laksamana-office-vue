@@ -38,6 +38,9 @@ const fase = computed(() => {
   return 'idle'
 })
 const galatPesan = computed(() => apiErrorMessage(stError.value, 'Modul Konten tidak menjawab.'))
+// First-load skeleton for the stat cards: while the Konten blob is absent the
+// grid shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !stKonten.value && (stStatus.value === 'pending' || stStatus.value === 'idle'))
 
 const kumpul = computed(() => pkKumpul(stKonten.value?.content ?? [], { bulan: keadaan.value.bulan }))
 const banding = computed(() => pkBandingDesain(kumpul.value))
@@ -141,7 +144,7 @@ const kolomKat: TableColumn<BarisKat>[] = [
           title="Virality: Berdesain vs Tanpa Desain"
           description="Perbandingannya harus ada — kalau seluruh konten bulan ini berdesain (atau tidak satu pun), sisi yang kosong mengatakannya, bukan nol."
         >
-          <AppStatGrid>
+          <AppStatGrid :loading="statMemuat" :count="2">
             <AppStat
               label="Berdesain"
               :value="fmtPersen(pkAggViral(banding.pakai))"

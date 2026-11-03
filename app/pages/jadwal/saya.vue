@@ -24,15 +24,20 @@ definePageMeta({ access: ['jadwal'] })
 const route = useRoute()
 const router = useRouter()
 const { set, kru, peran, kruById, pending, error } = useJadwalDasar()
-const { data: requests, refresh: refreshAju } = useJadwalRequests()
+const { data: requests, status: statusAju, refresh: refreshAju } = useJadwalRequests()
 
 const mk = useState('jadwal-bulan', () => bulanDari(hariIni()))
 const dari = computed(() => awalBulan(mk.value))
 const sampai = computed(() => akhirBulan(mk.value))
-const { data: cells, refresh: refreshSel } = useJadwalCells('jadwal-cells-saya', dari, sampai)
+const { data: cells, status: statusSel, refresh: refreshSel } = useJadwalCells('jadwal-cells-saya', dari, sampai)
 const peta = computed(() => petaSel(cells.value ?? []))
 
 const aku = computed(() => kruById(peran.value.id))
+
+// Skeleton only for the first load: the month picker refetches cells in place, so later loads keep the old cards.
+// (The surrounding panel still mounts only once the crew row is known, so on a cold open the skeleton appears together with the panel.)
+const statMemuat = computed(() => !(cells.value ?? []).length && !(requests.value ?? []).length
+  && (pending.value || statusSel.value === 'pending' || statusSel.value === 'idle' || statusAju.value === 'pending' || statusAju.value === 'idle'))
 const labelBulan = computed(() => {
   const [y, m] = mk.value.split('-')
   return `${BULAN[Number(m) - 1]} ${y}`
@@ -174,7 +179,10 @@ const sesudahKirim = () => Promise.all([refreshAju(), refreshSel()])
           </div>
         </template>
 
-        <AppStatGrid>
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="4"
+        >
           <AppStat
             label="Hari masuk"
             icon="i-lucide-user-check"

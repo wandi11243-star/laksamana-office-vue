@@ -20,6 +20,9 @@ const PWA = PWA_ABSENSI
 const { data: ctx, status, error } = useAbsensiContext()
 const hari = computed(() => ctx.value?.hariIni ?? null)
 
+// Skeleton only for the first load: there is no filter on this screen, the cards just wait for context.
+const statMemuat = computed(() => !ctx.value && (status.value === 'pending' || status.value === 'idle'))
+
 const shift = computed(() => {
   const s = ctx.value?.shift
   if (s === false) return { value: 'Jadwal tak terbaca', sub: 'Jadwal shift tidak menjawab; ketukan tetap dicatat.', tone: 'warning' as const }
@@ -111,7 +114,10 @@ const wajahStatus = computed(() => (terdaftar.value
       {{ apiErrorMessage(error) }}
     </p>
 
-    <AppStatGrid>
+    <AppStatGrid
+      :loading="statMemuat"
+      :count="5"
+    >
       <AppStat
         label="Shift"
         icon="i-lucide-calendar-clock"

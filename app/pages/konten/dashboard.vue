@@ -41,6 +41,11 @@ const overdue = computed(() => cs.value.filter((c) => {
 }))
 const todayPub = computed(() => cs.value.filter(c => c.publishDate === hari))
 
+/** First-load skeleton for the four recap cards below: skeleton cells stand
+ *  in until the first state lands. Refetch keeps old numbers, so the cards
+ *  never blank. */
+const statMemuat = computed(() => !st.value.content.length && (status.value === 'pending' || status.value === 'idle'))
+
 const kontenBrand = computed(() => saringBrand(cs.value, brand.value))
 const my = computed(() => (saya.value ? tugasSaya(saya.value.user.id, kontenBrand.value, saringBrand(st.value.prodTasks, brand.value)) : []))
 const myLewat = computed(() => my.value.filter(x => x.sisa != null && x.sisa < 0))
@@ -92,19 +97,10 @@ function tujuanTugas(x: { jenis: string, kind?: keyof typeof PROD_TYPES, ref: st
 
     <KontenBrandBar :brands="st.brands" />
 
-    <!-- Loading stats mirror the cards below. -->
-    <div
-      v-if="status === 'pending' && !st.content.length"
-      class="grid grid-cols-2 gap-3 sm:grid-cols-4"
+    <AppStatGrid
+      :loading="statMemuat"
+      :count="4"
     >
-      <USkeleton
-        v-for="i in 4"
-        :key="i"
-        class="h-20 rounded-xl"
-      />
-    </div>
-
-    <AppStatGrid :class="status === 'pending' ? 'opacity-60' : ''">
       <AppStat
         label="Total konten"
         icon="i-lucide-layers"

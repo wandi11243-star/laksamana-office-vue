@@ -21,7 +21,7 @@ import { hariIni } from '~/utils/format'
 definePageMeta({ access: ['marketing'] })
 
 const toast = useToast()
-const { data: st } = useStateMkt()
+const { data: st, status } = useStateMkt()
 const { can, saya } = useAksesMkt()
 const bisaUbah = computed(() => can('edit_designreq'))
 const hari = hariIni()
@@ -58,6 +58,9 @@ watch([() => st.value.designreqs.length], () => {
 }, { immediate: true })
 
 const hitung = computed(() => drHitungKatMkt(st.value.designreqs, prog.value))
+// First-load skeleton for the stat cards: while the request list is empty
+// the grid shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !st.value.designreqs.length && (status.value === 'pending' || status.value === 'idle'))
 const fJenis = useState('mkt-req-jenis', () => '__semua')
 const fKat = useState<KatDesainMkt>('mkt-req-kat', () => 'open')
 const fQ = useState('mkt-req-q', () => '')
@@ -215,7 +218,7 @@ const warnaStatus = (r: RequestDesainMkt) => {
       />
     </template>
     <MarketingGerbang layar="designreq">
-      <AppStatGrid>
+      <AppStatGrid :loading="statMemuat" :count="3">
         <AppStat
           label="Menunggu dikerjakan"
           :value="String(hitung.open)"

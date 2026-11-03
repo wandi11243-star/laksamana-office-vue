@@ -30,8 +30,8 @@ const MUT_JENIS = [
 ]
 const jenisNama = (k?: string) => MUT_JENIS.find(j => j.k === k)?.n ?? String(k ?? '—')
 
-const { data: vaultData, error: vaultError, refresh } = useAsyncData('brankas-vault', () => getVault())
-const { data: kompasData } = useAsyncData('brankas-kompas', async () => {
+const { data: vaultData, status: statusVault, error: vaultError, refresh } = useAsyncData('brankas-vault', () => getVault())
+const { data: kompasData, status: statusKompas } = useAsyncData('brankas-kompas', async () => {
   try {
     return { state: (await getKompasState()).value, gagal: false as boolean }
   }
@@ -43,6 +43,10 @@ const { data: kompasData } = useAsyncData('brankas-kompas', async () => {
 const vault = computed(() => vaultData.value?.vault ?? {})
 const kompas = computed(() => kompasData.value?.state ?? null)
 const kompasGagal = computed(() => kompasData.value?.gagal === true)
+
+// Skeleton only for the first load: the balances need both blobs, and a save refetch must not blank the cards.
+const statMemuat = computed(() => (!vaultData.value || !kompasData.value)
+  && ((statusVault.value === 'pending' || statusVault.value === 'idle') || (statusKompas.value === 'pending' || statusKompas.value === 'idle')))
 
 const saldo = computed(() => saldoSemua({
   reports: (kompas.value?.reports ?? {}) as never,
@@ -203,7 +207,10 @@ const opsiWallet = computed(() => SEMUA_WADAH.map(k => ({ label: namaWallet(k), 
     />
 
     <template v-else>
-      <AppStatGrid>
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="SEMUA_WADAH.length"
+      >
         <AppStat
           v-for="k in SEMUA_WADAH"
           :key="k"

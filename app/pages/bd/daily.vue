@@ -23,7 +23,12 @@ import BdTaskTree from '~/widgets/bd/BdTaskTree.vue'
 definePageMeta({ access: ['bd'] })
 
 const me = useMe()
-const { data: state } = useBdState()
+const { data: state, status } = useBdState()
+
+/** First-load skeleton for the four recap cards below: skeleton cells stand
+ *  in until the first state lands. Refetch keeps old numbers, so filter
+ *  changes never blank the cards. */
+const statMemuat = computed(() => !state.value.tasks.length && (status.value === 'pending' || status.value === 'idle'))
 const f = useState('bd-daily', () => ({ mode: 'list' as 'list' | 'kanban' | 'timeline', arsip: 'aktif' as ModeArsip, zoom: 'week' as GZoom }))
 const fPics = useState<string[]>('bd-daily-pics', () => [])
 
@@ -107,7 +112,10 @@ function subToggle(t: BdTask, ix: number, on: boolean) {
       />
     </template>
 
-    <AppStatGrid>
+    <AppStatGrid
+      :loading="statMemuat"
+      :count="4"
+    >
       <AppStat
         label="Hari ini"
         icon="i-lucide-calendar-check"

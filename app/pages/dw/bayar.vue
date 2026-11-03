@@ -45,6 +45,9 @@ const belumHp = computed(() => baris.value.filter(x => !x.p?.bayarNomor))
 const nol = computed(() => baris.value.filter(x => x.total <= 0))
 const bolehUang = computed(() => bolehLihatUangDw(peran.value))
 
+// Skeleton only for the first load: week tabs reuse the same overview slice, so later loads keep the old cards.
+const statMemuat = computed(() => pending.value && !ajuan.value.length && !pekerja.value.length)
+
 const opsiFilter = computed(() => [
   { value: 'ALL', label: `Semua ${semua.value.length}` },
   ...Object.keys(BAYAR).map(k => ({ value: k, label: `${BAYAR[k]!.n} ${semua.value.filter(x => bayarJenisSah(x.p?.bayarJenis) === k).length}` })),
@@ -174,7 +177,10 @@ function cetak() {
         </div>
       </template>
 
-      <AppStatGrid>
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="4"
+      >
         <AppStat
           label="Daily worker"
           icon="i-lucide-users"

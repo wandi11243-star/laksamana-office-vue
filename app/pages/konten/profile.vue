@@ -14,9 +14,14 @@ import { angka } from '~/utils/format'
 
 definePageMeta({ access: ['konten'] })
 
-const { data: st, error } = useStateKonten()
+const { data: st, error, status } = useStateKonten()
 const { saya } = useAksesKonten()
 const u = computed(() => saya.value?.user ?? null)
+
+/** First-load skeleton for the three recap cards below: skeleton cells stand
+ *  in until the first state lands. Refetch keeps old numbers, so the cards
+ *  never blank. */
+const statMemuat = computed(() => !st.value.content.length && (status.value === 'pending' || status.value === 'idle'))
 const roles = computed(() => (saya.value?.super && !rolesKru(u.value).includes('super_admin') ? ['super_admin', ...rolesKru(u.value)] : rolesKru(u.value)))
 const tugas = computed(() => st.value.content.filter(c => c.pic === u.value?.id))
 const inisial = computed(() => String(u.value?.name ?? '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase())
@@ -79,7 +84,11 @@ const inisial = computed(() => String(u.value?.name ?? '').split(/\s+/).filter(B
       >
         Kamu belum punya baris kru di modul ini; role di atas sementara sampai admin modul menyinkronkan kru.
       </p>
-      <AppStatGrid class="mt-5">
+      <AppStatGrid
+        class="mt-5"
+        :loading="statMemuat"
+        :count="3"
+      >
         <AppStat
           label="Total task"
           :value="angka(tugas.length)"

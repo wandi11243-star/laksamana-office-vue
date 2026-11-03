@@ -40,7 +40,7 @@ watch([tgl, div, urut], () => {
 const dari = computed(() => awalBulan(bulanDari(tgl.value)))
 const sampai = computed(() => akhirBulan(bulanDari(tgl.value)))
 const { data: cells, refresh: refreshSel, status } = useJadwalCells('jadwal-cells-dash', dari, sampai)
-const { data: dwRows, error: dwError } = useJadwalDw('jadwal-dw-dash', dari, sampai)
+const { data: dwRows, status: statusDw, error: dwError } = useJadwalDw('jadwal-dw-dash', dari, sampai)
 
 const peta = computed(() => petaSel(cells.value ?? []))
 const ini = computed(() => tgl.value === hariIni())
@@ -91,6 +91,10 @@ const dwHari = computed(() => (dwRows.value ?? [])
 const kuasa = computed(() => divisiKuasa(peran.value))
 const bolehApaPun = computed(() => DIVISI.some(d => bolehUbah(peran.value, d.k)))
 const panduan = computed(() => !pending.value && status.value === 'success' && !(cells.value ?? []).length && kru.value.length > 0)
+
+// Skeleton only for the first load: the date picker refetches cells in place, so later loads keep the old cards.
+const statMemuat = computed(() => !kru.value.length && !(cells.value ?? []).length && !(dwRows.value ?? []).length
+  && (pending.value || status.value === 'pending' || status.value === 'idle' || statusDw.value === 'pending' || statusDw.value === 'idle'))
 const jabatan = (u: KruJadwal) => set.value.jabatan[u.id] || String(u.keterangan || '').trim() || '—'
 
 const opsiDiv = computed(() => [{ value: 'ALL', label: 'Semua' }, ...DIVISI.map(d => ({ value: d.k, label: d.n, icon: d.icon }))])
@@ -268,7 +272,10 @@ const muatUlang = () => Promise.all([refreshDasar(), refreshSel()])
         </div>
       </div>
 
-      <AppStatGrid>
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="5"
+      >
         <AppStat
           label="Masuk"
           icon="i-lucide-user-check"

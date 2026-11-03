@@ -25,7 +25,12 @@ import BdTaskTree from '~/widgets/bd/BdTaskTree.vue'
 definePageMeta({ access: ['bd'] })
 
 const me = useMe()
-const { data: state } = useBdState()
+const { data: state, status } = useBdState()
+
+/** First-load skeleton for the four recap cards below: skeleton cells stand
+ *  in until the first state lands. Refetch keeps old numbers, so the cards
+ *  never blank. */
+const statMemuat = computed(() => !state.value.tasks.length && (status.value === 'pending' || status.value === 'idle'))
 const f = useState('bd-mytask', () => ({ mode: 'list' as 'list' | 'kanban', arsip: 'aktif' as ModeArsip }))
 
 const people = computed(() => state.value.people)
@@ -145,7 +150,10 @@ function pilihCari(r: HasilPilih) {
       @pilih="pilihCari"
     />
 
-    <AppStatGrid>
+    <AppStatGrid
+      :loading="statMemuat"
+      :count="4"
+    >
       <AppStat
         label="Task terbuka"
         icon="i-lucide-list-todo"

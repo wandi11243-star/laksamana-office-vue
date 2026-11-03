@@ -46,6 +46,9 @@ const tab = ref<'daftar' | 'riwayat'>('daftar')
 const { data, status, error, refresh } = useAsyncData('kas-tagihan', () => getTagihan())
 const belumSiap = computed(() => apiErrorCode(error.value) === 'tagihan_unavailable')
 
+// Skeleton only for the first load: month tabs and the history filter read the same payload, so a refetch keeps the old cards.
+const statMemuat = computed(() => !data.value && (status.value === 'pending' || status.value === 'idle'))
+
 const tagihan = computed<Tagihan[]>(() => data.value?.tagihan ?? [])
 const bayar = computed<BayarTagihan[]>(() => data.value?.bayar ?? [])
 const hari = hariIni()
@@ -316,15 +319,17 @@ const namaTagihan = (b: BayarTagihan) => tagihanDari(b.tagihanId)?.nama ?? `(tag
         : apiErrorMessage(error)"
       :actions="[{ label: 'Coba lagi', color: 'neutral', variant: 'outline', onClick: () => { refresh() } }]"
     />
-    <p
+    <AppStatGrid
       v-else-if="!data"
-      class="text-sm text-muted"
-    >
-      Memuat tagihan rutin…
-    </p>
+      :loading="true"
+      :count="4"
+    />
 
     <template v-else>
-      <AppStatGrid>
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="4"
+      >
         <AppStat
           label="Total sudah dibayar"
           icon="i-lucide-wallet"

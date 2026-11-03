@@ -23,7 +23,7 @@ import { BULAN, hariIni } from '~/utils/format'
 
 definePageMeta({ access: ['jadwal'] })
 
-const { set, kru, peran, kruById, error, refresh: refreshDasar } = useJadwalDasar()
+const { set, kru, peran, kruById, pending, error, refresh: refreshDasar } = useJadwalDasar()
 
 const mk = useState('jadwal-bulan', () => bulanDari(hariIni()))
 const div = useState<string>('jadwal-bulan-div', () => 'ALL')
@@ -31,7 +31,7 @@ const cari = ref('')
 
 const dari = computed(() => awalBulan(mk.value))
 const sampai = computed(() => akhirBulan(mk.value))
-const { data: cells, refresh: refreshSel } = useJadwalCells('jadwal-cells-bulan', dari, sampai)
+const { data: cells, status: statusSel, refresh: refreshSel } = useJadwalCells('jadwal-cells-bulan', dari, sampai)
 const { data: dwRows, error: dwError } = useJadwalDw('jadwal-dw-bulan', dari, sampai)
 
 const peta = computed(() => petaSel(cells.value ?? []))
@@ -57,6 +57,10 @@ const adaDw = computed(() => (dwRows.value ?? []).some(x => divList.value.includ
 const r = computed(() => rekapBulan(set.value, peta.value, emps.value.map(u => u.id), mk.value))
 const bisa = computed(() => !modeAll.value && bolehUbah(peran.value, div.value))
 const judulLembar = computed(() => (modeAll.value ? 'Semua divisi' : namaDivisiJadwal(div.value)))
+
+// Skeleton only for the first load: the month picker refetches cells in place, so later loads keep the old cards.
+const statMemuat = computed(() => !kru.value.length && !(cells.value ?? []).length
+  && (pending.value || statusSel.value === 'pending' || statusSel.value === 'idle'))
 
 const legenda = computed(() => daftarShift(set.value).map(k => ({ k, def: shiftDef(set.value, k) })))
 // segDivisi (:2385): each tab counts the crew its sheet will draw.
@@ -291,7 +295,10 @@ const waTeks = computed(() => teksWA(set.value, peta.value, kruDiv.value, div.va
           />
         </div>
 
-        <AppStatGrid>
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="4"
+        >
           <AppStat
             label="Kru"
             icon="i-lucide-users"

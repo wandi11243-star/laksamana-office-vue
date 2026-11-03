@@ -46,6 +46,9 @@ const { data: kompas, status, error, refresh } = useAsyncData(
   () => getPerformaMkt(rentang.value.dari, rentang.value.sampai),
   { watch: [bulan], default: () => null },
 )
+// First-load skeleton for the stat cards: while the Kompas payload is absent
+// the grid shows placeholders; later refetches keep the old cards on screen.
+const statMemuat = computed(() => !kompas.value && (status.value === 'pending' || status.value === 'idle'))
 
 // pbAgregasi joins breakdown rows by the KOMPAS pic id, so the list is the kompas roster.
 const list = computed<PicBonus[]>(() => (kompas.value?.pic ?? []).map(p => ({
@@ -223,7 +226,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
           description="Nominalnya tidak diakui untuk siapa pun. Yang membetulkannya Finance, di Omset → Breakdown Sumber."
         />
 
-        <AppStatGrid>
+        <AppStatGrid :loading="statMemuat" :count="3">
           <AppStat
             label="Realisasi"
             :value="rupiah(a.real)"

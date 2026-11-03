@@ -21,7 +21,7 @@ import { fTgl, tambahHari } from '~/utils/format'
 definePageMeta({ access: ['bd'] })
 
 const me = useMe()
-const { data: state, error } = useBdState()
+const { data: state, error, status } = useBdState()
 const { data: setelan } = useBdSettings()
 
 const people = computed(() => state.value.people)
@@ -34,6 +34,11 @@ const hari = todayISO()
 // Greeting name: first word of the session user, fallback when not loaded yet.
 const namaDepan = computed(() => (me.value?.name ?? 'Kru').split(' ')[0])
 const vt = computed(() => tasks.value.filter(t => dalamLingkup(t, lingkup.value)))
+
+/** First-load skeleton for the five recap cards below: skeleton cells stand
+ *  in until the first state lands. Refetch keeps old numbers, so the cards
+ *  never blank. */
+const statMemuat = computed(() => !state.value.tasks.length && (status.value === 'pending' || status.value === 'idle'))
 const aktif = computed(() => vt.value.filter(t => !selesai(t)))
 const od = computed(() => vt.value.filter(lewat))
 const jalan = computed(() => projects.value.filter(p => dalamLingkup(p, lingkup.value) && p.stage !== 'Done' && p.stage !== 'To Do'))
@@ -171,7 +176,10 @@ async function hapus() {
     </AppPanel>
 
     <!-- Condition strip (formulas unchanged) -->
-    <AppStatGrid>
+    <AppStatGrid
+      :loading="statMemuat"
+      :count="5"
+    >
       <AppStat
         label="Task aktif"
         icon="i-lucide-list-todo"

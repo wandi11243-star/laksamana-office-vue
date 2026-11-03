@@ -39,6 +39,11 @@ const { data: daftarTiket, status, refresh: refreshTiket } = useDaftarEvent<Tike
 const { data: daftarKursi, refresh: refreshKursi } = useDaftarEvent<Kursi>('seats', qTiket, 'event-checkin-seats')
 const { data: daftarKelas } = useDaftarEvent<KelasTiket>('ticket-classes', qTiket, 'event-checkin-classes')
 
+/** First-load skeleton for the three check-in cards below: skeleton cells
+ *  stand in until the first ticket list lands. Refetch keeps old numbers,
+ *  so scanning never blanks the cards. */
+const statMemuat = computed(() => !daftarTiket.value.rows.length && (status.value === 'pending' || status.value === 'idle'))
+
 // The server ignores `event_id` on GET /tickets (API-side bug, see the Fase-3
 // report): legacy rows carry no `event_id`, only `order_item_id`. Resolve the
 // event through the order exactly like legacy `ciTiket` (`:10379-10382`),
@@ -387,7 +392,11 @@ onBeforeUnmount(matikanKamera)
         />
       </div>
 
-      <AppStatGrid class="mb-4">
+      <AppStatGrid
+        class="mb-4"
+        :loading="statMemuat"
+        :count="3"
+      >
         <AppStat
           label="Total Tiket"
           :value="angka(tiket.length)"

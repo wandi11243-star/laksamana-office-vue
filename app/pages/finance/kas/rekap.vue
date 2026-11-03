@@ -34,12 +34,15 @@ const ubah = ref<Record<string, RekapUbah>>({})
 const terpilih = ref<Record<string, boolean>>({})
 const setorForm = reactive({ tujuan: '', catatan: '' })
 
-const { data, error, refresh } = useAsyncData('kas-rekap', () => getKompasState())
+const { data, status, error, refresh } = useAsyncData('kas-rekap', () => getKompasState())
 
 const reports = computed(() => data.value?.value.reports ?? {})
 const daily = computed(() => data.value?.value.daily ?? [])
 const piutang = computed(() => data.value?.value.piutang ?? [])
 const setoranRows = computed<SetoranRow[]>(() => (data.value?.value.rekap_setoran ?? []) as SetoranRow[])
+
+// Skeleton only for the first load: the month filter recomputes locally, so a refetch must not blank the cards.
+const statMemuat = computed(() => !data.value && (status.value === 'pending' || status.value === 'idle'))
 
 const omsetOf = (t: string): BarisHarian | null => daily.value.find(d => d.date === t) ?? null
 const recOf = (t: string) => reports.value[t] ?? null
@@ -328,7 +331,10 @@ async function jalanHapusSetoran() {
       </div>
 
       <template v-if="tab === 'rekap'">
-        <AppStatGrid>
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="4"
+        >
           <AppStat
             label="Dibayar tamu"
             icon="i-lucide-receipt"
@@ -357,7 +363,10 @@ async function jalanHapusSetoran() {
             :tone="bulan.lewat ? 'error' : 'success'"
           />
         </AppStatGrid>
-        <AppStatGrid>
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="3"
+        >
           <AppStat
             label="Piutang / bon"
             icon="i-lucide-hand-coins"

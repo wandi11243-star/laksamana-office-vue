@@ -21,10 +21,15 @@ import {
 definePageMeta({ access: ['bd'] })
 
 const me = useMe()
-const { data: setelan } = useBdSettings()
+const { data: setelan, status: statusSetelan } = useBdSettings()
 const f = useState('bd-promo-filter', () => ({ status: 'all', tipe: PILIHAN_SEMUA, cari: '' }))
 
 const promos = computed(() => setelan.value?.data.promos || [])
+
+/** First-load skeleton for the four status cards below: skeleton cells stand
+ *  in until the first settings land. Refetch keeps old numbers, so the cards
+ *  never blank. */
+const statMemuat = computed(() => !setelan.value && (statusSetelan.value === 'pending' || statusSetelan.value === 'idle'))
 const versi = computed(() => versiSetelan(setelan.value, 'promos'))
 const namaAku = computed(() => me.value?.name || '')
 
@@ -243,7 +248,10 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
       >
     </template>
 
-    <AppStatGrid>
+    <AppStatGrid
+      :loading="statMemuat"
+      :count="4"
+    >
       <AppStat
         label="Berlangsung"
         icon="i-lucide-circle-play"
