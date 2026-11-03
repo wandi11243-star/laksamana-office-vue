@@ -303,8 +303,7 @@ async function hapus() {
                 </UButton>
                 <UButton
                   v-if="bolehUbah && statusPengajuan({ pengajuan: e.pengajuan }) !== 'Menunggu'"
-                  color="neutral"
-                  variant="outline"
+                  color="warning"
                   size="sm"
                   @click="ajukan(e)"
                 >

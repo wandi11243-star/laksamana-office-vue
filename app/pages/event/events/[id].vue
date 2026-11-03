@@ -150,11 +150,10 @@ function tambahBaris(s: Seksi) {
     else d.tasks = [...(d.tasks ?? []), { title: '', assignee: '', due: '', done: false }]
   }, 'Baris ditambahkan')
 }
-function hapusBaris<R>(s: Seksi, baris: R) {
+function hapusBaris(s: Seksi, i: number) {
   simpanDetail((d) => {
     const l = d[s] as unknown[]
-    const i = l.indexOf(baris)
-    if (i >= 0) l.splice(i, 1)
+    if (i >= 0 && i < l.length) l.splice(i, 1)
   }, 'Baris dihapus')
 }
 
@@ -335,7 +334,7 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
                 variant="ghost"
                 size="sm"
                 icon="i-lucide-trash-2"
-                @click="hapusBaris('rundown', row.original)"
+                @click="hapusBaris('rundown', row.index)"
               />
             </template>
           </UTable>
@@ -423,7 +422,7 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
                 variant="ghost"
                 size="sm"
                 icon="i-lucide-trash-2"
-                @click="hapusBaris('vendors', row.original)"
+                @click="hapusBaris('vendors', row.index)"
               />
             </template>
           </UTable>
@@ -532,7 +531,7 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
                 variant="ghost"
                 size="sm"
                 icon="i-lucide-trash-2"
-                @click="hapusBaris('budget', row.original)"
+                @click="hapusBaris('budget', row.index)"
               />
             </template>
           </UTable>
@@ -619,7 +618,7 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
                 variant="ghost"
                 size="sm"
                 icon="i-lucide-trash-2"
-                @click="hapusBaris('sponsors', row.original)"
+                @click="hapusBaris('sponsors', row.index)"
               />
             </template>
           </UTable>
@@ -675,7 +674,7 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
                 size="sm"
                 icon="i-lucide-trash-2"
                 label="Hapus"
-                @click="hapusBaris('sponsors', sp)"
+                @click="hapusBaris('sponsors', i)"
               />
             </li>
             <li
@@ -748,7 +747,7 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
                 variant="ghost"
                 size="sm"
                 icon="i-lucide-trash-2"
-                @click="hapusBaris('tasks', t)"
+                @click="hapusBaris('tasks', i)"
               />
             </li>
           </ul>

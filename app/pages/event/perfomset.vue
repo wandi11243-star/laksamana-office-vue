@@ -241,6 +241,10 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
           description="Nominalnya tidak diakui untuk siapa pun. Yang membetulkannya Finance, di Omset → Breakdown Sumber."
         />
 
+        <!-- Stat tones name what each number means (AppStat gold|success|
+          warning|error|info|vip): Realisasi is the headline omzet total, so
+          gold; Jumlah event counts capacity/people, so info; Compliment is a
+          cost that needs a look, so warning. -->
         <AppStatGrid
           :loading="statMemuat"
           :count="3"
@@ -249,7 +253,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
             label="Realisasi"
             :value="rupiah(a.real)"
             :sub="a.comp ? `sudah dipotong compliment ${rupiah(a.comp)}` : 'tanpa potongan compliment'"
-            tone="success"
+            tone="gold"
           />
           <AppStat
             label="Jumlah event"

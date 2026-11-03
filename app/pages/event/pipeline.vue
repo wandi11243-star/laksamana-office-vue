@@ -1,12 +1,14 @@
 <!--
-  Event Pipeline — kanban of the five stages plus a table view
-  (`event/index.html:4762-4887`).
+  Event Pipeline — shared AppKanban board over the five stages plus a table
+  view (`event/index.html:4762-4887`).
 
   Rules (F.2): Planning → Upcoming is FORBIDDEN here (only through management
   approval); only manajemen may pull an event back to Planning; Event Done
-  locks the data. Drag works with mouse; on touch each card carries an
-  explicit "Pindah ke" picker instead. Done events auto-complete by date
-  (`autoSelesaikanEvent :4887`) — shown, not written, from here.
+  locks the data. Drag state lives in AppKanban (mouse only by design).
+  Guards (`larangan`) + the confirm sheet stay here. Done events
+  auto-complete by date (`autoSelesaikanEvent :4887`) — shown, not written,
+  from here. Cards are born in the events module, so the board has no
+  add-card footer.
 -->
 <script setup lang="ts">
 import type { Acara } from '~/composables/useEvent'
@@ -21,6 +23,7 @@ import { tanganiKonflik } from '~/utils/versi'
 definePageMeta({ access: ['event'] })
 
 const toast = useToast()
+const router = useRouter()
 const me = useMe()
 const peran = computed(() => peranEvent(me.value))
 const bolehUbah = computed(() => bolehUbahEvent('pipeline', peran.value))
@@ -47,6 +50,12 @@ const perTahap = computed(() => {
   return m
 })
 const tabelUrut = computed(() => daftar.value.rows.slice().sort((a, b) => String(b.start_datetime ?? '').localeCompare(String(a.start_datetime ?? ''))))
+
+/** Board columns for AppKanban (same order as the old manual grid). */
+const kolomKanban = computed(() => EVT_STATUS.map(s => ({ id: s, title: s, items: perTahap.value.get(s) ?? [] })))
+
+/** AppStat has no neutral tone: a plain count is gold (same as dashboard). */
+const toneKartu = (st: string) => STATUS_WARNA_EVENT[st] === 'neutral' ? 'gold' : STATUS_WARNA_EVENT[st]!
 
 /** Move rules (`pindahTahapEms :4847`, F.2). Returns the refusal text, if any. */
 function larangan(e: Acara, tahap: string): string | null {
@@ -83,22 +92,23 @@ async function jalankanPindah() {
   }
 }
 
-// Drag & drop (mouse only; touch uses the picker above)
-function seretMulai(ev: DragEvent, id: string) {
-  ev.dataTransfer?.setData('text/plain', id)
+// ---- board moves (drag state lives in AppKanban; guards + sheet stay here) ----
+function alihKartu(id: string, telan: () => boolean) {
+  // A click fires right after a drop on the same card — swallow it once.
+  if (telan()) return
+  router.push(`/event/events/${id}`)
 }
-async function jatuhkan(ev: DragEvent, tahap: string) {
-  ev.preventDefault()
-  const id = ev.dataTransfer?.getData('text/plain')
-  const e = daftar.value.rows.find(x => x.id === id)
-  if (!e || String(e.status) === tahap) return
-  const tolak = larangan(e, tahap)
+/** Drop on a column: guard first,
+ *  then open the confirm sheet — saving happens in jalankanPindah(). */
+function pindahMinta(p: { id: string, to: string }) {
+  const e = daftar.value.rows.find(x => x.id === p.id)
+  if (!e || String(e.status) === p.to) return
+  const tolak = larangan(e, p.to)
   if (tolak) {
     toast.add({ title: tolak, color: 'error' })
     return
   }
-  pindah.value = { id: e.id, ke: tahap }
-  await jalankanPindah()
+  pindah.value = { id: e.id, ke: p.to }
 }
 </script>
 
@@ -134,59 +144,51 @@ async function jatuhkan(ev: DragEvent, tahap: string) {
           :value="angka((perTahap.get(s) ?? []).length)"
           sub="event"
           :icon="STATUS_IKON_EVENT[s]"
+          :tone="toneKartu(s)"
         />
       </AppStatGrid>
 
-      <div
+      <AppKanban
         v-if="tab === 'kanban'"
-        class="grid gap-3 md:grid-cols-2 xl:grid-cols-5"
+        :columns="kolomKanban"
+        :can-drag="bolehUbah"
+        drag-reason="Kamu tidak punya izin mengubah tahap event."
+        layout="scroll"
+        empty-text="Kosong"
+        @move="pindahMinta"
       >
-        <AppPanel
-          v-for="s in EVT_STATUS"
-          :key="s"
-          :title="`${s} (${(perTahap.get(s) ?? []).length})`"
-          :icon="STATUS_IKON_EVENT[s]"
-          class="rounded-xl"
-          @dragover.prevent
-          @drop="jatuhkan($event, s)"
-        >
-          <!-- Each stage scrolls on its own: a full column never pushes the others down. -->
-          <div class="max-h-[60vh] overflow-y-auto pr-0.5">
-            <ul class="space-y-2">
-              <li
-                v-for="e in (perTahap.get(s) ?? [])"
-                :key="e.id"
-                :draggable="bolehUbah"
-                class="rounded-lg border border-default bg-muted/40 p-2.5"
-                @dragstart="seretMulai($event, e.id)"
-              >
-                <ULink
-                  :to="`/event/events/${e.id}`"
-                  class="block truncate text-sm font-semibold text-highlighted hover:text-primary-700"
-                >
-                  {{ e.title }}
-                </ULink>
-                <span class="mt-0.5 block truncate text-xs text-muted">{{ fmtTglJamEms(e.start_datetime) }}{{ e.venue ? ` · ${e.venue}` : '' }}</span>
-                <USelect
-                  v-if="bolehUbah"
-                  :model-value="undefined"
-                  :items="EVT_STATUS.filter(t => t !== e.status).map(t => ({ value: t as string, label: `Pindah ke ${t}` }))"
-                  placeholder="Pindah ke…"
-                  size="sm"
-                  class="mt-1.5 w-full"
-                  @update:model-value="(v) => { pindah = { id: e.id, ke: String(v) }; jalankanPindah() }"
-                />
-              </li>
-            </ul>
-            <p
-              v-if="!(perTahap.get(s) ?? []).length"
-              class="py-4 text-center text-xs text-dimmed"
-            >
-              Kosong
-            </p>
-          </div>
-        </AppPanel>
-      </div>
+        <template #header="{ column }">
+          <AppStatus
+            :color="STATUS_WARNA_EVENT[column.id] ?? 'neutral'"
+            :icon="STATUS_IKON_EVENT[column.id]"
+            size="sm"
+          >
+            {{ column.title }}
+          </AppStatus>
+          <span class="num ml-auto rounded-full bg-muted px-2 text-xs font-bold">{{ column.items.length }}</span>
+        </template>
+        <template #card="{ item, dragging, canDrag: bolehSeret, dragReason: alasanSeret, dragStart, dragEnd, swallowClick }">
+          <AppKanbanCard
+            :dragging="dragging"
+            :can-drag="bolehSeret"
+            :drag-reason="alasanSeret"
+            @dragstart="dragStart"
+            @dragend="dragEnd"
+            @card-click="alihKartu(item.id, swallowClick)"
+          >
+            <template #title>
+              <p class="truncate text-sm font-semibold text-highlighted">
+                {{ item.title || '(tanpa judul)' }}
+              </p>
+            </template>
+            <template #meta>
+              <p class="mt-0.5 truncate text-xs text-muted">
+                {{ fmtTglJamEms(item.start_datetime) }}{{ item.venue ? ` · ${item.venue}` : '' }}
+              </p>
+            </template>
+          </AppKanbanCard>
+        </template>
+      </AppKanban>
 
       <AppPanel
         v-else
