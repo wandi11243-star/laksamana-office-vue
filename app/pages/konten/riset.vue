@@ -14,18 +14,42 @@ const { data: st, error, refresh } = useStateCampaign()
 const topik = ref('')
 const platform = ref('TikTok, Instagram')
 const catatan = ref('')
+// Evidence window for the AI (tayang date, WIB): 7/30/90 = last N days,
+// rentang = dari/sampai required, semua = no filter (legacy behaviour).
+const periode = ref('semua')
+const dari = ref('')
+const sampai = ref('')
+// Team pilar filter (setting.kategori); off-list values are emptied server-side.
+const FOKUS_SEMUA = '— semua pilar —'
+const fokus = ref(FOKUS_SEMUA)
 const jalan = ref(false)
 const galat = ref('')
 const aktifId = ref('')
 
-const riwayat = computed(() => st.value?.riset ?? [])
-const aktif = computed(() => riwayat.value.find(r => r.id === aktifId.value) ?? riwayat.value[0])
+const opsiPeriode = [
+  { value: '7', label: '7 hari' },
+  { value: '30', label: '30 hari' },
+  { value: '90', label: '90 hari' },
+  { value: 'rentang', label: 'Rentang…' },
+  { value: 'semua', label: 'Semua' },
+]
 
 async function jalankan() {
   jalan.value = true
   galat.value = ''
+  if (periode.value === 'rentang' && (!dari.value || !sampai.value)) {
+    galat.value = 'Riset gagal: rentang tanggal wajib diisi (dari & sampai).'
+    jalan.value = false
+    return
+  }
   try {
-    const r = await jalankanRisetCampaign({ topik: topik.value, platform: platform.value, catatan: catatan.value })
+    const r = await jalankanRisetCampaign({
+      topik: topik.value, platform: platform.value, catatan: catatan.value,
+      periode: periode.value,
+      dari: periode.value === 'rentang' ? dari.value : undefined,
+      sampai: periode.value === 'rentang' ? sampai.value : undefined,
+      fokus: fokus.value === FOKUS_SEMUA ? undefined : fokus.value,
+    })
     aktifId.value = r.data.id
     await refresh()
     toast.add({ title: 'Riset selesai.', color: 'success' })
@@ -33,6 +57,9 @@ async function jalankan() {
   catch (e) { galat.value = `Riset gagal: ${apiErrorMessage(e)}` }
   jalan.value = false
 }
+
+const riwayat = computed(() => st.value?.riset ?? [])
+const aktif = computed(() => riwayat.value.find(r => r.id === aktifId.value) ?? riwayat.value[0])
 
 const bankBuka = ref(false)
 const bankForm = ref({ judul: '', platform: 'TikTok', hook: '', caption: '', alasan: '', sumber: 'riset' as string })
@@ -80,6 +107,38 @@ async function simpanBank() {
           <UTextarea
             v-model="catatan"
             :rows="2"
+          />
+        </UFormField>
+        <UFormField
+          label="Periode data bukti"
+          help="Bukti dibaca dari tanggal tayang postingan (WIB)."
+        >
+          <AppSeg
+            v-model="periode"
+            :options="opsiPeriode"
+          />
+        </UFormField>
+        <div
+          v-if="periode === 'rentang'"
+          class="grid gap-2 md:grid-cols-2"
+        >
+          <UFormField label="Dari tanggal *">
+            <UInput
+              v-model="dari"
+              type="date"
+            />
+          </UFormField>
+          <UFormField label="Sampai tanggal *">
+            <UInput
+              v-model="sampai"
+              type="date"
+            />
+          </UFormField>
+        </div>
+        <UFormField label="Fokus pilar (opsional)">
+          <USelect
+            v-model="fokus"
+            :items="[FOKUS_SEMUA, ...(st?.setting.kategori ?? [])]"
           />
         </UFormField>
         <UButton

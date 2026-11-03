@@ -116,10 +116,33 @@ const KOTAK_RINCI = [
 // ---------------------------------------------------------------- insight AI + daftar
 const usulan = ref<Record<string, unknown>[]>([])
 const usulanJalan = ref(false)
+// Evidence window for the AI (tayang date, WIB) + team pilar filter,
+// same contract as Riset.
+const usulanPeriode = ref('semua')
+const usulanDari = ref('')
+const usulanSampai = ref('')
+const FOKUS_SEMUA = '— semua pilar —'
+const usulanFokus = ref(FOKUS_SEMUA)
+const opsiUsulanPeriode = [
+  { value: '7', label: '7 hari' },
+  { value: '30', label: '30 hari' },
+  { value: '90', label: '90 hari' },
+  { value: 'rentang', label: 'Rentang…' },
+  { value: 'semua', label: 'Semua' },
+]
 async function temukanInsight() {
+  if (usulanPeriode.value === 'rentang' && (!usulanDari.value || !usulanSampai.value)) {
+    toast.add({ title: 'Rentang tanggal wajib diisi (dari & sampai).', color: 'error' })
+    return
+  }
   usulanJalan.value = true
   try {
-    const r = await usulanInsightCampaign()
+    const r = await usulanInsightCampaign({
+      periode: usulanPeriode.value,
+      dari: usulanPeriode.value === 'rentang' ? usulanDari.value : undefined,
+      sampai: usulanPeriode.value === 'rentang' ? usulanSampai.value : undefined,
+      fokus: usulanFokus.value === FOKUS_SEMUA ? undefined : usulanFokus.value,
+    })
     usulan.value = r.data.usulan
     if (!usulan.value.length) toast.add({ title: 'AI tidak menemukan pola baru.', color: 'neutral' })
   }
@@ -406,6 +429,41 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
         title="Insight otomatis (AI)"
         description="AI membaca konten terpopuler di atas lalu mengusulkan pola. Usulan tidak tersimpan sampai kamu menekan Simpan."
       >
+        <div class="grid gap-2 md:grid-cols-2">
+          <UFormField
+            label="Periode data bukti"
+            help="Bukti dibaca dari tanggal tayang postingan (WIB)."
+          >
+            <AppSeg
+              v-model="usulanPeriode"
+              size="sm"
+              :options="opsiUsulanPeriode"
+            />
+          </UFormField>
+          <UFormField label="Fokus pilar (opsional)">
+            <USelect
+              v-model="usulanFokus"
+              :items="[FOKUS_SEMUA, ...(st?.setting.kategori ?? [])]"
+            />
+          </UFormField>
+        </div>
+        <div
+          v-if="usulanPeriode === 'rentang'"
+          class="grid gap-2 md:grid-cols-2"
+        >
+          <UFormField label="Dari tanggal *">
+            <UInput
+              v-model="usulanDari"
+              type="date"
+            />
+          </UFormField>
+          <UFormField label="Sampai tanggal *">
+            <UInput
+              v-model="usulanSampai"
+              type="date"
+            />
+          </UFormField>
+        </div>
         <UButton
           color="primary"
           :loading="usulanJalan"

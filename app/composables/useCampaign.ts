@@ -137,6 +137,11 @@ export interface StateCampaign {
     igSiap: boolean
     igDariConfig: boolean
     igRedirectUri: string
+    // Meta Ads (live Graph): summary without secrets (adsSettingSummary).
+    adsSiap: boolean
+    adsTokenAda: boolean
+    adsDariConfig: boolean
+    adsAkun: string
   }
   boleh: { admin: boolean }
 }
@@ -180,9 +185,11 @@ export const simpanInsightCampaign = (body: InsightInput, versi?: Versi) =>
 export const arsipInsightCampaign = (id: string, arsip: boolean) =>
   useApi()<unknown>(`/konten/analytics/insights/${encodeURIComponent(id)}/arsip`, { method: 'POST', body: { arsip } })
 
-/** POST insights/suggest — AI proposals, never stored. */
-export const usulanInsightCampaign = () =>
-  useApi()<Envelope<{ usulan: Record<string, unknown>[], model: string }>>('/konten/analytics/insights/suggest', { method: 'POST' })
+/** POST insights/suggest — AI proposals, never stored. Optional evidence
+ *  window (`periode` 7/30/90/rentang/semua + `dari`/`sampai`) + `fokus`
+ *  (team pilar, off-list emptied server-side). */
+export const usulanInsightCampaign = (body: { periode?: string, dari?: string, sampai?: string, fokus?: string } = {}) =>
+  useApi()<Envelope<{ usulan: Record<string, unknown>[], model: string }>>('/konten/analytics/insights/suggest', { method: 'POST', body })
 
 /** POST/PATCH schedules — needs the version for edits. */
 export interface JadwalInput {
@@ -205,8 +212,10 @@ export const simpanJadwalCampaign = (body: JadwalInput, versi?: Versi) =>
     : '/konten/analytics/schedules',
   { method: body.id ? 'PATCH' : 'POST', body, headers: versiHdr(versi) })
 
-/** POST research — runs the AI (1–2 min), stores the row. */
-export const jalankanRisetCampaign = (body: { topik: string, platform?: string, catatan?: string }) =>
+/** POST research — runs the AI (1–2 min), stores the row. Optional evidence
+ *  window (`periode` 7/30/90/rentang/semua + `dari`/`sampai` on tayang date,
+ *  WIB) + `fokus` (team pilar, off-list discarded server-side). */
+export const jalankanRisetCampaign = (body: { topik: string, platform?: string, catatan?: string, periode?: string, dari?: string, sampai?: string, fokus?: string }) =>
   useApi()<Envelope<{ id: string, hasil: Record<string, unknown>, model: string }>>('/konten/analytics/research', { method: 'POST', body })
 
 /** POST/PATCH bank — needs the version for edits. Status/jadwal_id untouched. */
@@ -238,10 +247,16 @@ export const arsipBankCampaign = (id: string, arsip: boolean) =>
 export const hapusBankCampaign = (id: string, versi?: Versi) =>
   useApi()<unknown>(`/konten/analytics/bank/${encodeURIComponent(id)}`, { method: 'DELETE', headers: versiHdr(versi) })
 
-/** POST bank/generate — AI content planning stored as IDE ideas. */
-export const generateBankCampaign = (body: { dari: string, sampai: string, platform?: string, jumlah?: number, fokus?: string }) =>
+/**
+ * POST bank/generate — AI content planning stored as IDE ideas (≤20).
+ * `dataDari`/`dataSampai` bound the EVIDENCE window (must be a pair, empty =
+ * no filter — they are not the schedule dates; valid AI dates are kept as
+ * is). `pilar[]` filters ideas by content pilar (off-list entries discarded
+ * server-side). The old contract (`dari`/`sampai` + `fokus`) is removed.
+ */
+export const generateBankCampaign = (body: { platform?: string, jumlah?: number, dataDari?: string, dataSampai?: string, pilar?: string[] }) =>
   useApi()<Envelope<{ batch: string, jumlah: number, ringkasan: string, model: string }>>('/konten/analytics/bank/generate', {
-    method: 'POST', body: { ...body, jumlah: Math.min(body.jumlah ?? 10, 50) },
+    method: 'POST', body: { ...body, jumlah: Math.min(Math.max(body.jumlah ?? 10, 3), 20) },
   })
 
 /** OAuth: start (→ {url}), sync, disconnect per provider. */
@@ -255,6 +270,77 @@ export const oauthPutusCampaign = (provider: 'tiktok' | 'instagram') =>
 /** PUT settings — campaign module admin only. */
 export const simpanPengaturanCampaign = (body: Record<string, unknown>) =>
   useApi()<unknown>('/konten/analytics/settings', { method: 'PUT', body })
+
+// ---------------------------------------------------------------- Meta Ads langsung (kartu Jalan + Kelola)
+
+/**
+ * One account on the "Sedang berjalan" card. Money already in main units
+ * (Meta cents ÷ 100 done server-side — never divide again). `tagihan` is the
+ * raw `balance` (a prepaid balance is deliberately NOT guessed); spend
+ * fields are null when Meta sends none.
+ */
+export interface AkunAdsJalan {
+  id: string
+  nama: string
+  mataUang: string
+  totalBelanja: number
+  tagihan: number | null
+  spendCap: number | null
+  sisaSpendCap: number | null
+}
+
+/**
+ * One ACTIVE or PAUSED campaign. `mulai` = earliest start, `selesai` =
+ * latest end (null when `jalanTerus`). Budgets in main units; exactly one of
+ * them is set, told by `sumberBudget` (`harian`|`total`|`''`).
+ */
+export interface KampanyeAdsJalan {
+  akun: string
+  id: string
+  nama: string
+  status: string
+  budgetHarian: number | null
+  budgetTotal: number | null
+  sumberBudget: string
+  belanjaHariIni: number
+  belanjaBulanIni: number
+  sejakMulai: number
+  mulai: string
+  selesai: string | null
+  jalanTerus: boolean
+  iklanAktif: number
+  adIdPertama: string
+}
+
+/** GET /analytics/ads/jalan — live Meta Graph, no sync table. */
+export const getAdsJalan = (q: { status?: string, urut?: string }) =>
+  useApi()<Envelope<{ akun: AkunAdsJalan[], kampanye: KampanyeAdsJalan[] }>>('/konten/analytics/ads/jalan', { query: q })
+
+/** One ad object for the Kelola form (budgets in main units). */
+export interface InfoAdsObjek {
+  id: string
+  jenis: string
+  nama: string
+  status: string
+  budgetHarian: number | null
+  budgetTotal: number | null
+  sumberBudget: string
+  mulai: string
+  selesai: string
+}
+
+/** GET /analytics/ads/objek — `jenis` is campaign|adset|ad. */
+export const getAdsObjek = (jenis: string, id: string) =>
+  useApi()<Envelope<InfoAdsObjek>>('/konten/analytics/ads/objek', { query: { jenis, id } })
+
+/**
+ * POST /analytics/ads/ubah — campaign admin only. Exactly one of `aksi`
+ * (jeda|lanjutkan) or `budget` (integer Rupiah > 0, as a string). Budget
+ * only on the level owning a daily/lifetime budget; > 5× the current budget
+ * is refused by the server — show its message.
+ */
+export const ubahAdsCampaign = (body: { jenis: string, id: string, aksi?: string, budget?: string }) =>
+  useApi()<Envelope<Record<string, unknown>>>('/konten/analytics/ads/ubah', { method: 'POST', body })
 
 /**
  * Run a versioned campaign write: on 409/428 reload and say so, otherwise

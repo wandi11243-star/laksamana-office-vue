@@ -5,7 +5,7 @@
 -->
 <script setup lang="ts">
 import type { IdeBank } from '~/composables/useCampaign'
-import { hariIni, tambahHari } from '~/utils/format'
+import { hariIni } from '~/utils/format'
 
 definePageMeta({ access: ['konten', 'campaign'] })
 
@@ -19,23 +19,38 @@ const daftar = computed(() => (st.value?.bank ?? []).filter(b =>
 const hitung = (s: string) => (st.value?.bank ?? []).filter(b => b.status === s).length
 
 // ---------------------------------------------------------------- generate
-const genDari = ref(tambahHari(hariIni(), 1))
-const genSampai = ref(tambahHari(hariIni(), 15))
+// dataDari/dataSampai bound the EVIDENCE window (optional pair, empty = no
+// filter — they are not schedule dates). pilar[] filters ideas by content
+// pilar; AI dates are kept when valid, emptied when not (the scheduler picks).
+const genDataDari = ref('')
+const genDataSampai = ref('')
 const genPlat = ref('TikTok, Instagram')
 const genJumlah = ref(10)
-const genFokus = ref('')
+const genPilar = ref<string[]>([])
 const genJalan = ref(false)
 const genGalat = ref('')
 const genHasil = ref('')
+
+function alihkanPilar(p: string) {
+  genPilar.value = genPilar.value.includes(p)
+    ? genPilar.value.filter(x => x !== p)
+    : [...genPilar.value, p]
+}
 
 async function generate() {
   genJalan.value = true
   genGalat.value = ''
   genHasil.value = ''
+  if ((genDataDari.value && !genDataSampai.value) || (!genDataDari.value && genDataSampai.value)) {
+    genGalat.value = 'Gagal membuat planning: rentang data bukti wajib sepasang (dari & sampai) atau dikosongkan.'
+    genJalan.value = false
+    return
+  }
   try {
     const r = await generateBankCampaign({
-      dari: genDari.value, sampai: genSampai.value,
-      platform: genPlat.value, jumlah: genJumlah.value, fokus: genFokus.value,
+      platform: genPlat.value, jumlah: genJumlah.value,
+      dataDari: genDataDari.value || undefined, dataSampai: genDataSampai.value || undefined,
+      pilar: genPilar.value.length ? genPilar.value : undefined,
     })
     genHasil.value = `${r.data.jumlah} ide masuk ke Bank Konten.${r.data.ringkasan ? ` ${r.data.ringkasan}` : ''}`
     await refresh()
@@ -102,18 +117,6 @@ async function hapus(b: IdeBank) {
         description="Dari profil brand + insight aktif + pilar Pengaturan + postingan terbaik. Hasilnya masuk sebagai ide — dijadwalkan nanti lewat tombol Jadwalkan."
       >
         <div class="grid gap-2 md:grid-cols-2">
-          <UFormField label="Dari tanggal *">
-            <UInput
-              v-model="genDari"
-              type="date"
-            />
-          </UFormField>
-          <UFormField label="Sampai tanggal *">
-            <UInput
-              v-model="genSampai"
-              type="date"
-            />
-          </UFormField>
           <UFormField label="Platform">
             <USelect
               v-model="genPlat"
@@ -126,12 +129,43 @@ async function hapus(b: IdeBank) {
               :items="[5, 8, 10, 14, 20]"
             />
           </UFormField>
+          <UFormField
+            label="Dari data bukti (opsional)"
+            help="Tanggal tayang postingan yang dibaca AI."
+          >
+            <UInput
+              v-model="genDataDari"
+              type="date"
+            />
+          </UFormField>
+          <UFormField
+            label="Sampai data bukti (opsional)"
+            help="Wajib sepasang dengan Dari — kosongkan keduanya bila tanpa batas."
+          >
+            <UInput
+              v-model="genDataSampai"
+              type="date"
+            />
+          </UFormField>
         </div>
-        <UFormField label="Fokus / catatan (opsional)">
-          <UTextarea
-            v-model="genFokus"
-            :rows="2"
-          />
+        <UFormField
+          v-if="(st?.setting.kategori ?? []).length"
+          label="Filter pilar (opsional)"
+          help="Hanya ide dengan pilar terpilih yang disimpan."
+        >
+          <div class="flex flex-wrap gap-2">
+            <UButton
+              v-for="p in (st?.setting.kategori ?? [])"
+              :key="p"
+              size="xs"
+              :color="genPilar.includes(p) ? 'primary' : 'neutral'"
+              :variant="genPilar.includes(p) ? 'solid' : 'soft'"
+              :icon="genPilar.includes(p) ? 'i-lucide-check' : undefined"
+              @click="alihkanPilar(p)"
+            >
+              {{ p }}
+            </UButton>
+          </div>
         </UFormField>
         <UButton
           color="primary"
