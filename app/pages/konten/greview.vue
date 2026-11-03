@@ -113,7 +113,7 @@ const segSegera = computed(() => (data.value?.review ?? []).filter(r => r.tingka
           variant="subtle"
           icon="i-lucide-info"
           :title="pitaOauth"
-          class="mb-4"
+          class="mb-5"
         />
 
         <AppPanel

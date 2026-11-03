@@ -203,7 +203,7 @@ const kolomV: TableColumn<VisitPenuh>[] = [
       <AppSeg
         v-model="tab"
         :options="opsiTab"
-        class="mb-4"
+        class="mb-5"
       />
 
       <!-- ===== Database ===== -->

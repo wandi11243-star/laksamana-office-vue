@@ -44,6 +44,18 @@ const c = computed<KontenItem | null>(() => baris.value ?? null)
 const namaUser = (uid?: string) => dict.value?.users.find(u => u.id === uid)?.name ?? (uid || '-')
 const brand = computed(() => dict.value?.brands.find(b => b.id === c.value?.brand))
 const stepIdx = computed(() => PIPELINE_KONTEN.indexOf((c.value?.status ?? '') as typeof PIPELINE_KONTEN[number]))
+// Flow pills reuse the badge palette (same tones as AppStatus) so each stage
+// carries its status colour; the active stage adds a ring + bold as its marker.
+const alurTone: Record<string, string> = {
+  success: 'bg-teal-light text-moss-dark',
+  warning: 'bg-yellow-light text-yellow-dark',
+  error: 'bg-coral-light text-coral-dark',
+  info: 'bg-accented text-blue-pressed',
+  vip: 'bg-lilac-light text-ink-900',
+  gold: 'bg-yellow-light text-yellow-dark',
+  neutral: 'bg-muted text-ink-900',
+}
+const toneAlur = (s: string) => alurTone[warnaStatusKonten(s)] ?? alurTone.neutral
 const checklist = computed(() => c.value?.checklist ?? [])
 const chkDone = computed(() => checklist.value.filter(x => x.done).length)
 const refsLink = computed(() => contentRefs(c.value).filter(r => r.t !== 'img'))
@@ -287,7 +299,7 @@ const setelahSimpan = (nid: string) => router.replace(`/konten/detail/${nid}`)
       />
     </template>
 
-    <div class="flex flex-wrap items-center gap-1.5">
+    <div class="mb-5 flex flex-wrap items-center gap-1.5">
       <AppStatus
         :color="warnaStatusKonten(c.status)"
         :icon="ikonStatusKonten(c.status)"
@@ -340,7 +352,7 @@ const setelahSimpan = (nid: string) => router.replace(`/konten/detail/${nid}`)
           v-for="(s, i) in PIPELINE_KONTEN"
           :key="s"
           class="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs"
-          :class="i === stepIdx ? 'bg-primary font-bold text-inverted' : i < stepIdx ? 'bg-primary-100 text-primary-800' : 'bg-muted text-muted'"
+          :class="i === stepIdx ? [toneAlur(s), 'font-bold ring-1 ring-inset ring-current'] : i < stepIdx ? toneAlur(s) : 'bg-muted text-muted'"
         >
           <UIcon
             v-if="i < stepIdx"
@@ -590,6 +602,7 @@ const setelahSimpan = (nid: string) => router.replace(`/konten/detail/${nid}`)
       label="Tandai sudah tayang"
       icon="i-lucide-circle-check"
       block
+      class="mb-5"
       @click="tayangBuka = true"
     />
 

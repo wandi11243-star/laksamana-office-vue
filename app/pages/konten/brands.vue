@@ -20,6 +20,18 @@ const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ??
 const inisial = (s: string) => s.split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0]).join('').toUpperCase()
 const plats = (b: BrandKonten) => (b.platforms ?? []) as PlatformBrand[]
 
+// Card accents: the brand's own colour when valid (#rrggbb from "Warna
+// (kalender)"), else a pastel rotation using the AppStat Miro tokens.
+const latarPutar = ['bg-sand-light', 'bg-teal-light', 'bg-yellow-light', 'bg-coral-light', 'bg-sky-light', 'bg-lilac-light']
+const tintaPutar = ['text-ink-900', 'text-moss-dark', 'text-yellow-dark', 'text-coral-dark', 'text-blue-pressed', 'text-vip']
+const warnaSah = (c?: string) => typeof c === 'string' && /^#[0-9a-f]{6}$/i.test(c.trim())
+const warnaBrand = (b: BrandKonten) => {
+  const c = (b.color ?? '').trim()
+  return warnaSah(c) ? c : ''
+}
+// Soft Nuxt UI badge colours cycled across pillar badges.
+const pilarPutar = ['primary', 'success', 'info', 'warning', 'secondary'] as const
+
 const buka = ref(false)
 const brandId = ref('')
 const brandItem = computed(() => st.value.brands.find(b => b.id === brandId.value) ?? null)
@@ -70,11 +82,22 @@ function bukaForm(b?: BrandKonten) {
 
       <div class="grid gap-4 lg:grid-cols-2">
         <AppPanel
-          v-for="b in st.brands"
+          v-for="(b, i) in st.brands"
           :key="b.id"
         >
+          <!-- Brand colour strip (solid = data colour, pastel = rotation fallback). -->
+          <span
+            aria-hidden="true"
+            class="mb-3 block h-1.5 rounded-full"
+            :class="warnaBrand(b) ? '' : latarPutar[i % latarPutar.length]"
+            :style="warnaBrand(b) ? { backgroundColor: warnaBrand(b) } : {}"
+          />
           <div class="flex items-start gap-3">
-            <span class="flex size-12 shrink-0 items-center justify-center rounded-xl bg-primary-50 font-display text-lg font-bold text-primary-700">
+            <span
+              class="flex size-12 shrink-0 items-center justify-center rounded-xl border font-display text-lg font-bold"
+              :class="warnaBrand(b) ? 'text-ink-900' : [latarPutar[i % latarPutar.length], tintaPutar[i % tintaPutar.length]]"
+              :style="warnaBrand(b) ? { backgroundColor: `${warnaBrand(b)}1f`, borderColor: `${warnaBrand(b)}66` } : { borderColor: 'transparent' }"
+            >
               {{ inisial(b.name) }}
             </span>
             <div class="min-w-0 flex-1">
@@ -96,7 +119,8 @@ function bukaForm(b?: BrandKonten) {
             />
           </div>
           <div class="mt-4 grid grid-cols-4 gap-2 text-center">
-            <div class="rounded-lg bg-muted p-2">
+            <!-- Fixed pastel per stat so each tile reads as its own measure. -->
+            <div class="rounded-lg bg-sky-light p-2">
               <p class="num font-bold">
                 {{ statBrand(b, st.content).konten }}
               </p>
@@ -104,7 +128,7 @@ function bukaForm(b?: BrandKonten) {
                 Konten
               </p>
             </div>
-            <div class="rounded-lg bg-muted p-2">
+            <div class="rounded-lg bg-teal-light p-2">
               <p class="num font-bold">
                 {{ statBrand(b, st.content).tayang }}
               </p>
@@ -112,7 +136,7 @@ function bukaForm(b?: BrandKonten) {
                 Tayang
               </p>
             </div>
-            <div class="rounded-lg bg-muted p-2">
+            <div class="rounded-lg bg-lilac-light p-2">
               <p class="num font-bold">
                 {{ angka(statBrand(b, st.content).followers) }}
               </p>
@@ -120,7 +144,7 @@ function bukaForm(b?: BrandKonten) {
                 Followers
               </p>
             </div>
-            <div class="rounded-lg bg-muted p-2">
+            <div class="rounded-lg bg-sand-light p-2">
               <p class="num font-bold text-primary-700">
                 {{ statBrand(b, st.content).keTarget }}%
               </p>
@@ -160,11 +184,11 @@ function bukaForm(b?: BrandKonten) {
             class="mt-3 flex flex-wrap gap-1"
           >
             <UBadge
-              v-for="p in b.pillars"
+              v-for="(p, j) in b.pillars"
               :key="p"
               :label="p"
-              color="neutral"
-              variant="outline"
+              :color="pilarPutar[j % pilarPutar.length]"
+              variant="soft"
               size="sm"
             />
           </div>
