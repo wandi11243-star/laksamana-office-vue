@@ -242,6 +242,8 @@ export interface ProdTask {
   status?: string
   doneAt?: number
   updatedAt?: number
+  /** Linked KontenItem id; lives in the free task JSON blob, no server-side filter. */
+  contentId?: string
 }
 
 export interface UserKonten {
@@ -613,6 +615,8 @@ export interface BarisAntrian {
   priority: string
   date?: string
   done: boolean
+  /** Linked KontenItem id, carried from the task; only `task` rows have it. */
+  contentId?: string
 }
 
 /**
@@ -652,8 +656,21 @@ export function barisAntrian(kind: ProdKind, content: KontenItem[], tasks: ProdT
   const mandiri = tasks.filter(x => x.kind === kind).map(x => ({
     src: 'task' as const, id: x.id, title: x.title || '', sub: x.note || 'Tugas mandiri', brand: x.brand, platforms: [],
     pic: x.pic, priority: x.priority || 'medium', date: x.date, done: x.status === 'done',
+    contentId: x.contentId,
   }))
   return [...dariKonten, ...mandiri, ...mkt]
+}
+
+/**
+ * Title of the content a task links to, for the queue badges. Found by id in
+ * the already loaded content list; a deleted link never crashes — it shows a
+ * short-id fallback so the row still reads as linked.
+ */
+export function judulKonten(list: KontenItem[], id?: string): string {
+  if (!id) return ''
+  const c = list.find(x => x.id === id)
+  if (c) return c.title || '(tanpa judul)'
+  return `Konten tidak ditemukan (${id.slice(0, 8)})`
 }
 
 /** Queue filter; default hides the archive (QUEUE_BAWAAN, :2924). Reset returns here (F.3). */

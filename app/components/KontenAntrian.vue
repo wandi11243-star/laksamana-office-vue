@@ -19,7 +19,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { BarisAntrian, FilterAntrian, KontenItem, ProdKind, ProdTask, ReqDesainMkt } from '~/utils/konten'
-import { PRIORITY_KONTEN, PROD_TYPES, barisAntrian, filterAntrianBawaan, reqMktUntuk, saringAntrian } from '~/utils/konten'
+import { PRIORITY_KONTEN, PROD_TYPES, barisAntrian, filterAntrianBawaan, judulKonten, reqMktUntuk, saringAntrian } from '~/utils/konten'
 import { warnaPrioKonten } from '~/utils/status-konten'
 import { fTgl } from '~/utils/format'
 import { UButton } from '#components'
@@ -58,6 +58,9 @@ const hal = useState(`konten-antrian-${props.kind}-hal`, () => 1)
 const per = useState(`konten-antrian-${props.kind}-per`, () => 10)
 const namaBrand = (id?: string) => st.value.brands.find(b => b.id === id)?.name.split(' (')[0] ?? ''
 const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ?? ''
+// Title of the linked content, looked up in the full list (not brand-filtered)
+// so the badge still names it under any brand filter. Deleted link → fallback.
+const judulTautan = (id?: string) => judulKonten(st.value.content, id)
 const semua = computed(() => barisAntrian(props.kind, saringBrand(st.value.content, brand.value), saringBrand(st.value.prodTasks, brand.value), mktRows.value))
 const list = computed(() => saringAntrian(semua.value, f.value, namaBrand, namaUser))
 const arsipN = computed(() => semua.value.filter(r => r.done).length)
@@ -129,6 +132,11 @@ function buka(r: BarisAntrian) {
   if (r.src === 'mkt') {
     reqBuka.value = reqs.value.find(x => x.id === r.id) ?? null
     return
+  }
+  // A task linked to content goes straight to the content detail. A deleted
+  // link falls back to the task form, never to a dead detail page.
+  if (r.contentId && st.value.content.some(c => c.id === r.contentId)) {
+    return router.push(`/konten/detail/${r.contentId}`)
   }
   tugas.value = st.value.prodTasks.find(x => x.id === r.id) ?? null
   tugasBuka.value = true
@@ -280,7 +288,14 @@ watch(reqBuka, async (r) => {
               <span class="flex flex-wrap items-center gap-1.5 font-semibold text-highlighted">
                 {{ row.original.title }}
                 <UBadge
-                  v-if="row.original.src === 'task'"
+                  v-if="row.original.src === 'task' && row.original.contentId"
+                  :label="judulTautan(row.original.contentId)"
+                  icon="i-lucide-link"
+                  variant="soft"
+                  size="sm"
+                />
+                <UBadge
+                  v-else-if="row.original.src === 'task'"
                   label="mandiri"
                   color="neutral"
                   variant="outline"
@@ -362,6 +377,13 @@ watch(reqBuka, async (r) => {
             >
               <span class="flex flex-wrap items-center gap-1.5 font-semibold text-highlighted">
                 {{ r.title }}
+                <UBadge
+                  v-if="r.src === 'task' && r.contentId"
+                  :label="judulTautan(r.contentId)"
+                  icon="i-lucide-link"
+                  variant="soft"
+                  size="sm"
+                />
                 <UBadge
                   v-if="r.src === 'mkt'"
                   label="dari Marketing"
