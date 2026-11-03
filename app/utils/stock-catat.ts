@@ -465,10 +465,208 @@ export function teksTotal(tot: Record<string, number>): string {
   return e.map(([u, v]) => `${fmtQty(v)} ${u}`).join(' · ')
 }
 
-/** Usage quantities are often fractional; drop trailing zeros ("2", "2,25"). */
+/** Quantities are often fractional; drop trailing zeros ("2", "2,25"). */
 export function fmtQty(n: unknown): string {
   const v = Number(n) || 0
   return v.toLocaleString('id-ID', { maximumFractionDigits: 2 })
+}
+
+// ------------------------------------------------------- CK balance display
+
+/** Product facts needed to write a stock quantity the way the crew says it. */
+export interface InfoTampilStok {
+  satuanDasar?: unknown
+  isi?: unknown
+  packIsi?: unknown
+  /** Preferred display unit (CK goods only, `''` = automatic). Used when it
+   * converts, ignored otherwise — the automatic form is the fallback. */
+  satuanTampil?: unknown
+}
+
+export interface TampilStok {
+  /** The big number: packs, the smallest sized unit, or the base unit. */
+  utama: string
+  /** The exact quantity in the base unit, drawn small below — empty when it IS the big number. */
+  kecil: string
+  /** The conversion the big number rests on ("1 Pack = 500 Gram") — drawn under the item name. */
+  ket: string
+}
+
+/**
+ * A CK balance the way the old Ordering screen wrote it: packed goods in
+ * Pack with the base quantity small below, goods with measured units in the
+ * smallest of those (3040 ML where 1 Botol = 760 ML reads "4 Botol"), goods
+ * with no sizes in their stock unit. The balance itself stays in the base
+ * unit — this only writes it.
+ *
+ * `satuanTampil` (the product's "Satuan Tampilan Stok", `''` = automatic)
+ * wins when the quantity converts to it; otherwise the automatic form below
+ * is the fallback, never an error.
+ */
+export function tampilStokCk(saldo: number, info?: InfoTampilStok | null): TampilStok {
+  const n = Number(saldo) || 0
+  const dasar = String(info?.satuanDasar ?? '').trim()
+  const satuan = (t: string) => (dasar ? `${t} ${dasar}` : t)
+  const pack = Number(info?.packIsi) || 0
+  const isi = isiNormal(info?.isi)
+  const tampil = String(info?.satuanTampil ?? '').trim()
+  if (tampil) {
+    const t = tampilDalam(n, tampil, dasar, isi, pack)
+    if (t) return t
+  }
+  if (pack > 0) {
+    return {
+      utama: `${fmtQty(n / pack)} Pack`,
+      kecil: satuan(fmtQty(n)),
+      ket: `1 Pack = ${satuan(fmtQty(pack))}`,
+    }
+  }
+  let unit = ''
+  let per = 0
+  for (const k of Object.keys(isi)) {
+    const v = isi[k]!
+    if (k && v > 0 && (!unit || v < per)) {
+      unit = k
+      per = v
+    }
+  }
+  if (unit && per > 0) {
+    return {
+      utama: `${fmtQty(n / per)} ${unit}`,
+      kecil: satuan(fmtQty(n)),
+      ket: `1 ${unit} = ${satuan(fmtQty(per))}`,
+    }
+  }
+  return { utama: satuan(fmtQty(n)).trim(), kecil: '', ket: '' }
+}
+
+/** `isi` as a plain map of size name → base units each (case preserved). */
+function isiNormal(v: unknown): Record<string, number> {
+  const out: Record<string, number> = {}
+  if (v && typeof v === 'object') {
+    Object.keys(v).forEach((k) => {
+      const s = String(k).trim()
+      const n = Number((v as Record<string, unknown>)[k])
+      if (s && n > 0) out[s] = n
+    })
+  }
+  return out
+}
+
+/**
+ * One quantity written in a requested unit: Pack (by pack size), the base
+ * unit itself, a measured unit (by its size), or a same-family weight/volume
+ * unit. Null when it does not convert — the caller falls back to automatic.
+ */
+function tampilDalam(n: number, tampil: string, dasar: string, isi: Record<string, number>, pack: number): TampilStok | null {
+  const satuan = (t: string) => (dasar ? `${t} ${dasar}` : t)
+  const tl = tampil.toLowerCase()
+  if (tl === 'pack' && pack > 0) {
+    return {
+      utama: `${fmtQty(n / pack)} Pack`,
+      kecil: satuan(fmtQty(n)),
+      ket: `1 Pack = ${satuan(fmtQty(pack))}`,
+    }
+  }
+  if (dasar && tl === dasar.toLowerCase()) return { utama: satuan(fmtQty(n)).trim(), kecil: '', ket: '' }
+  const kunci = Object.keys(isi).find(k => k.toLowerCase() === tl)
+  if (kunci && isi[kunci]! > 0) {
+    return {
+      utama: `${fmtQty(n / isi[kunci]!)} ${tampil}`,
+      kecil: satuan(fmtQty(n)),
+      ket: `1 ${tampil} = ${satuan(fmtQty(isi[kunci]!))}`,
+    }
+  }
+  const a = CK_FAM[tl]
+  const b = dasar ? CK_FAM[dasar.toLowerCase()] : undefined
+  if (a && b && a[0] === b[0]) {
+    return {
+      utama: `${fmtQty(n * b[1] / a[1])} ${tampil}`,
+      kecil: satuan(fmtQty(n)),
+      ket: '',
+    }
+  }
+  return null
+}
+
+// ------------------------------------------------- CK delivery unit options
+
+/** Weight/volume families with a universal ratio (same table as the server's `keDasar`). */
+const CK_FAM: Record<string, [string, number]> = {
+  kg: ['berat', 1000], gram: ['berat', 1], gr: ['berat', 1], g: ['berat', 1],
+  liter: ['volume', 1000], l: ['volume', 1000], ltr: ['volume', 1000], ml: ['volume', 1],
+}
+
+/** Product facts needed to decide which units a CK delivery may use. */
+export interface InfoSatuanKirim {
+  satuan?: unknown
+  satuanDasar?: unknown
+  isi?: unknown
+  packIsi?: unknown
+}
+
+/**
+ * A delivery quantity expressed in the item's base unit — the client-side
+ * mirror of the server's `keDasar` (Pack × pack size, the product's own
+ * sizes, Kg↔Gram / Liter↔ML). Null when the unit cannot be converted, which
+ * is exactly when the server answers 422 instead of storing a wrong number.
+ */
+export function ckKeDasar(qty: number, unit: string | null | undefined, info?: InfoSatuanKirim | null): number | null {
+  const q = Number(qty) || 0
+  const u = String(unit || '').trim().toLowerCase()
+  const pack = Number(info?.packIsi) || 0
+  if (u === 'pack' && pack > 0) return q * pack
+  const dasar = String(info?.satuanDasar ?? '').trim().toLowerCase()
+  if (!dasar) return q
+  if (u === dasar) return q
+  const ukuran: Record<string, number> = {}
+  const v = info?.isi
+  if (v && typeof v === 'object') {
+    Object.keys(v).forEach((k) => {
+      const s = String(k).trim().toLowerCase()
+      const n = Number((v as Record<string, unknown>)[k])
+      if (s && n > 0) ukuran[s] = n
+    })
+  }
+  if ((ukuran[u] ?? 0) > 0) return q * ukuran[u]!
+  const a = CK_FAM[u]
+  const b = CK_FAM[dasar]
+  if (a && b && a[0] === b[0]) return q * a[1] / b[1]
+  return null
+}
+
+/**
+ * Unit options for a CK delivery row (form Kirim and the Ubah modal share
+ * this one builder): the product's own units, Pack, the base unit, measured
+ * sizes ("Dus (50 Botol)") and the warehouse stock unit — and nothing else.
+ * A unit that would be refused by the server (422, not convertible) is not
+ * offered in the first place. Labels name the size where there is one.
+ */
+export function opsiSatuanKirimCk(p?: InfoSatuanKirim | null, packSatuan?: string | null): { value: string, label: string }[] {
+  const dasar = String(p?.satuanDasar ?? '').trim()
+  const isi = isiNormal(p?.isi)
+  const pack = Number(p?.packIsi) || 0
+  const daftar: string[] = []
+  const tambah = (x: unknown) => {
+    const s = String(x ?? '').trim()
+    if (s && !daftar.some(y => y.toLowerCase() === s.toLowerCase())) daftar.push(s)
+  }
+  const satuanList: unknown = p?.satuan
+  if (Array.isArray(satuanList)) satuanList.forEach(tambah)
+  if (pack > 0) tambah('Pack')
+  if (dasar) tambah(dasar)
+  Object.keys(isi).forEach(tambah)
+  const ps = String(packSatuan ?? '').trim()
+  if (ps) tambah(ps)
+  const info = { packIsi: pack, satuanDasar: dasar, isi }
+  let opsi = daftar.filter(u => ckKeDasar(1, u, info) !== null)
+  // A good without a base unit takes anything (the server passes it through),
+  // so this is only a safety net for a master the client cannot read at all.
+  if (!opsi.length) opsi = [ps || 'Pcs']
+  return opsi.map((u) => {
+    const kunci = Object.keys(isi).find(k => k.toLowerCase() === u.toLowerCase())
+    return { value: u, label: kunci ? `${u} (${fmtQty(isi[kunci]!)} ${dasar})` : u }
+  })
 }
 
 // ---------------------------------------------------------------- bar data

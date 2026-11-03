@@ -122,6 +122,7 @@ const fp = ref({
   sumber: 'vendor',
   satuanDasar: '',
   packIsi: 1,
+  satuanTampil: '',
   diOutlet: false,
   utama: '',
   cadangan: [] as string[],
@@ -140,6 +141,7 @@ function bukaProduk(p?: ProdukStock) {
         sumber: (p.sumber as string) || 'vendor',
         satuanDasar: (p.satuanDasar as string) || '',
         packIsi: Number((p as unknown as Record<string, unknown>).packIsi) || 1,
+        satuanTampil: String((p as unknown as Record<string, unknown>).satuanTampil ?? ''),
         diOutlet: !!((p as unknown as Record<string, unknown>).diOutlet),
         utama: (p.utama as string) || '',
         cadangan: [...((p.cadangan as string[]) ?? [])],
@@ -150,14 +152,55 @@ function bukaProduk(p?: ProdukStock) {
         caraBeli: (p.caraBeli as string) || 'antar',
         aktif: p.aktif !== false,
       }
-    : { nama: '', sumber: 'vendor', satuanDasar: '', packIsi: 1, diOutlet: false, utama: '', cadangan: [], satuan: [], isi: {}, kategori: '', area: [], caraBeli: 'antar', aktif: true }
+    : { nama: '', sumber: 'vendor', satuanDasar: '', packIsi: 1, satuanTampil: '', diOutlet: false, utama: '', cadangan: [], satuan: [], isi: {}, kategori: '', area: [], caraBeli: 'antar', aktif: true }
   sheetProduk.value = true
+  // Pack cannot be its own base unit ("1 Pack = N Pack" means nothing). This form
+  // has no separate Bentuk Simpanan field — packed-ness is packIsi > 0 alone —
+  // so zeroing packIsi IS the move to Curah/Eceran. Dropped on load too.
+  if (String(fp.value.satuanDasar).trim().toLowerCase() === 'pack') fp.value.packIsi = 0
 }
 const namaVendorSemua = computed(() => (vendorQ.data.value?.rows ?? []).map(v => v.nama))
+
+/**
+ * Pack as the base unit means the product is NOT packed: "1 Pack = N Pack"
+ * cannot be measured in itself. Picking Pack clears and locks the pack-size
+ * field. There is no separate Bentuk Simpanan control in this form (the old
+ * client had one); packed-ness here is packIsi > 0 alone, so clearing the
+ * field is the whole auto-move to Curah/Eceran.
+ */
+const dasarPack = computed(() => String(fp.value.satuanDasar).trim().toLowerCase() === 'pack')
+watch(dasarPack, (aktif) => {
+  if (aktif) fp.value.packIsi = 0
+})
+/**
+ * "Satuan Tampilan Stok" options (CK goods only): Otomatis (`''`) plus every
+ * unit the crew could mean — the checked units, Pack, the base unit, measured
+ * sizes and the standard list. The display falls back to automatic when the
+ * chosen unit does not convert, so offering broadly here is safe.
+ */
+const opsiTampil = computed(() => {
+  const ada: string[] = []
+  const tambah = (x: unknown) => {
+    const s = String(x ?? '').trim()
+    if (s && !ada.some(y => y.toLowerCase() === s.toLowerCase())) ada.push(s)
+  }
+  fp.value.satuan.forEach(tambah)
+  if (Number(fp.value.packIsi) > 0) tambah('Pack')
+  tambah(fp.value.satuanDasar)
+  Object.keys(fp.value.isi ?? {}).forEach(tambah)
+  tambah(fp.value.satuanTampil)
+  SATUAN_TERSEDIA.forEach(tambah)
+  return [{ value: '', label: 'Otomatis' }, ...ada.map(u => ({ value: u, label: u }))]
+})
 const simpanProduk = ref(false)
 async function simpanP() {
   if (!fp.value.nama.trim()) {
     toast.add({ title: 'Nama bahan wajib diisi', color: 'warning' })
+    return
+  }
+  // Backstop for the auto-clear above: Dipack + Pack can never be saved.
+  if (dasarPack.value && Number(fp.value.packIsi) > 0) {
+    toast.add({ title: 'Isi pack tidak berlaku bila satuan dasarnya Pack', description: 'Kosongkan dulu isi pack, atau ganti satuan dasarnya.', color: 'error' })
     return
   }
   simpanProduk.value = true
@@ -167,6 +210,9 @@ async function simpanP() {
       sumber: fp.value.sumber === 'vendor' ? '' : fp.value.sumber,
       satuanDasar: fp.value.satuanDasar,
       isi: fp.value.isi,
+      // `''` = automatic display (the server's preserve-if-null keeps the old
+      // value when the key is absent; sending `''` resets to automatic).
+      satuanTampil: fp.value.satuanTampil,
       diOutlet: fp.value.diOutlet,
       utama: fp.value.utama,
       cadangan: fp.value.cadangan,
@@ -630,9 +676,28 @@ async function simpanTemplate() {
               v-model.number="fp.packIsi"
               type="number"
               min="1"
+              :disabled="dasarPack"
             />
+            <p
+              v-if="dasarPack"
+              class="mt-1 text-xs text-muted"
+            >
+              Satuan dasar Pack tidak memakai isi pack — otomatis curah.
+            </p>
           </UFormField>
         </div>
+        <UFormField
+          v-if="fp.sumber === 'ck' || fp.sumber === 'both'"
+          label="Satuan Tampilan Stok"
+        >
+          <USelect
+            v-model="fp.satuanTampil"
+            :items="opsiTampil"
+          />
+          <p class="mt-1 text-xs text-muted">
+            Otomatis mengikuti bentuk simpanan; pilih satuan bila saldo harus selalu tampil dalam satuan itu.
+          </p>
+        </UFormField>
         <UFormField
           v-if="fp.sumber === 'ck'"
           label="Disimpan di"

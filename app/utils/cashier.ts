@@ -50,6 +50,8 @@ export const PAYS: readonly Metode[] = [
   { k: 'tiktokgo', n: 'TikTok Go' },
   { k: 'transfer_uob', n: 'Transfer UOB' },
   { k: 'voucher', n: 'Voucher' },
+  // Xendit (online/QRIS gateway): a real payment method, so it closes the day like the rest.
+  { k: 'xendit', n: 'Xendit' },
 ]
 
 export const payName = (k?: string) => PAYS.find(p => p.k === k)?.n || k || '—'

@@ -39,6 +39,11 @@ export const namaWallet = (k?: string) =>
  * Default payment-group → wallet map (user, 27 Aug 2026). QR Order, Gofood,
  * Grabfood and TikTok Go settle to UOB, like transfers. A default, not a
  * lock: `setting.peta` overrides it per group.
+ *
+ * Xendit is DELIBERATELY unmapped: nobody knows yet which settlement account
+ * its money lands in, and guessing a wallet would silently credit the wrong
+ * bank. Until the account is known, Xendit stays in `grupBelumDipetakan`
+ * (the ribbon names it), which is the same behaviour as the old panel.
  */
 export const MAP_BAWAAN: Record<string, string> = {
   cash: 'cash',

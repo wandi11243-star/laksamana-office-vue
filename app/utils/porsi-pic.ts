@@ -49,6 +49,12 @@ export interface BarisPotong {
   eventName?: string
   tax?: unknown
   service?: unknown
+  /**
+   * Manual per-cashier nominals (`{kasirId: rupiah}`), written by the
+   * "Atur nominal" switch of the shift modal. Sums to `total` when honoured;
+   * anything else falls back to the even split, never to a partial manual.
+   */
+  shiftNom?: Record<string, unknown> | null
   [k: string]: unknown
 }
 
@@ -155,13 +161,56 @@ export function potongKasirAktif(r?: BarisPotong | null): boolean {
  * `ditempat` rows and payGroup=false rows give 0 even when a shift was stored
  * on them before the marker existed.
  */
-export function potonganBaris(r: BarisPotong): { per: number, ids: string[], dw: number, pembagi: number, total: number } {
+/**
+ * One row's deduction, split per cashier on shift (the cashier variant: FREE
+ * rows are halved by `porsiPicCashier`, K-04).
+ *
+ * `manual` is true only when `r.shiftNom` names an exact rupiah amount for
+ * EVERY checked cashier AND the amounts add up to `total` — the modal holds
+ * Save until they do. A short, over, gappy or negative map is ignored
+ * completely (the even split applies), so a half-typed manual can never
+ * silently under-charge someone. `nom` carries the per-cashier amounts and
+ * is empty unless `manual`.
+ */
+export interface HasilPotong { per: number, ids: string[], dw: number, pembagi: number, total: number, manual: boolean, nom: Record<string, number> }
+
+/** Read one row's manual map: every checked id with an exact rupiah, or null. */
+function bacaNom(total: number, ids: string[], shiftNom: unknown): Record<string, number> | null {
+  if (!shiftNom || typeof shiftNom !== 'object') return null
+  const m = shiftNom as Record<string, unknown>
+  const nom: Record<string, number> = {}
+  let jumlah = 0
+  for (const id of ids) {
+    const mentah = m[id]
+    if (mentah === null || mentah === undefined || String(mentah).trim() === '') return null
+    const n = ppNum(mentah)
+    if (n < 0) return null
+    nom[id] = n
+    jumlah += n
+  }
+  return jumlah === total ? nom : null
+}
+
+export function potonganBaris(r: BarisPotong): HasilPotong {
   const total = potongKasirAktif(r) ? porsiPicCashier(r) : 0
   const ids = Array.isArray(r.shift) ? r.shift.filter(Boolean).map(String) : []
   const dw = Math.max(0, ppNum(r.dw))
   const pembagi = ids.length
-  if (total <= 0 || pembagi <= 0) return { per: 0, ids: [], dw, pembagi, total: Math.max(total, 0) }
-  return { per: Math.round(total / pembagi), ids, dw, pembagi, total }
+  if (total <= 0 || pembagi <= 0) return { per: 0, ids: [], dw, pembagi, total: Math.max(total, 0), manual: false, nom: {} }
+  const nom = bacaNom(total, ids, r.shiftNom)
+  if (nom) return { per: 0, ids, dw, pembagi, total, manual: true, nom }
+  return { per: Math.round(total / pembagi), ids, dw, pembagi, total, manual: false, nom: {} }
+}
+
+/**
+ * One cashier's share of one split row: the manual nominal when the row is
+ * manual, the even share when the cashier is on shift, else 0. Every
+ * per-cashier total goes through here so manual and even rows never mix
+ * formulas.
+ */
+export function bagianPotong(b: HasilPotong, kasirId: string): number {
+  if (b.manual) return b.nom[kasirId] ?? 0
+  return b.ids.includes(kasirId) ? b.per : 0
 }
 
 /**
@@ -172,8 +221,7 @@ export function potonganBaris(r: BarisPotong): { per: number, ids: string[], dw:
 export function potonganHari(d: HariKompas, kasirId: string): number {
   let s = 0
   for (const r of d.bd?.marketing ?? []) {
-    const b = potonganBaris(r)
-    if (b.ids.includes(kasirId)) s += b.per
+    s += bagianPotong(potonganBaris(r), kasirId)
   }
   return s
 }
@@ -188,22 +236,23 @@ export function potongKasirKompas(r?: BarisPotong | null): number {
   return potongKasirAktif(r) ? ppNum(r?.amount) : 0
 }
 
-/** `potonganBaris` for Finance › Omset / Kas: same split per shift, full amount. */
-export function potonganBarisKompas(r: BarisPotong): { per: number, ids: string[], dw: number, pembagi: number, total: number } {
+/** `potonganBaris` for Finance › Omset / Kas: same split per shift, full amount. Manual nominals work the same way. */
+export function potonganBarisKompas(r: BarisPotong): HasilPotong {
   const total = potongKasirKompas(r)
   const ids = Array.isArray(r.shift) ? r.shift.filter(Boolean).map(String) : []
   const dw = Math.max(0, ppNum(r.dw))
   const pembagi = ids.length
-  if (total <= 0 || pembagi <= 0) return { per: 0, ids: [], dw, pembagi, total: Math.max(total, 0) }
-  return { per: Math.round(total / pembagi), ids, dw, pembagi, total }
+  if (total <= 0 || pembagi <= 0) return { per: 0, ids: [], dw, pembagi, total: Math.max(total, 0), manual: false, nom: {} }
+  const nom = bacaNom(total, ids, r.shiftNom)
+  if (nom) return { per: 0, ids, dw, pembagi, total, manual: true, nom }
+  return { per: Math.round(total / pembagi), ids, dw, pembagi, total, manual: false, nom: {} }
 }
 
 /** Finance › Omset / Kas: total marketing deduction for one cashier on one day. */
 export function potonganHariKompas(d: HariKompas, kasirId: string): number {
   let s = 0
   for (const r of d.bd?.marketing ?? []) {
-    const b = potonganBarisKompas(r)
-    if (b.ids.includes(kasirId)) s += b.per
+    s += bagianPotong(potonganBarisKompas(r), kasirId)
   }
   return s
 }

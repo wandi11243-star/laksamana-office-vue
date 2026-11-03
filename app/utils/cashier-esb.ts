@@ -14,6 +14,7 @@ const PETA_BAYAR: Record<string, string> = {
   GOFOOD: 'gofood', GRABFOOD: 'grabfood', MEMBERDEPOSIT: 'member_dep', DEPOSIT: 'member_dep',
   QRISBCA: 'qris_bca', QRISBRI: 'qris_bri', QRISMANDIRI: 'qris_mandiri', QRISESB: 'qris_esb', QRISPOS: 'qris_esb',
   TIKTOKGO: 'tiktokgo', TRANSFERUOB: 'transfer_uob', TRANSFER: 'transfer_uob', VOUCHER: 'voucher',
+  XENDIT: 'xendit',
 }
 const BUKAN_QRIS = new Set(['cash', 'voucher', 'compliment', 'member_dep', 'edc_bca', 'edc_bri', 'edc_mandiri', 'error_bar', 'error_customer', 'error_floor', 'error_kasir', 'error_kitchen'])
 const keyBayar = (v: unknown) => PETA_BAYAR[String(v ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '')] || ''

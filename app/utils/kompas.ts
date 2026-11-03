@@ -138,6 +138,8 @@ export const RK_GRUP: readonly GrupRekap[] = [
   { k: 'gofood', n: 'Gofood', pos: ['gofood'], akt: ['gofood'], mdr: 'gofood' },
   { k: 'grabfood', n: 'Grabfood', pos: ['grabfood'], akt: ['grabfood'], mdr: 'grabfood' },
   { k: 'tiktokgo', n: 'TikTok Go', pos: ['tiktokgo'], akt: ['tiktokgo'], mdr: 'tiktokgo' },
+  // Xendit settles net of its own fee, like the banks and the ojol apps.
+  { k: 'xendit', n: 'Xendit', pos: ['xendit'], akt: ['xendit'], mdr: 'xendit' },
   { k: 'error', n: 'Error', pos: ['error_customer', 'error_floor', 'error_kasir', 'error_bar'], akt: ['error_customer', 'error_floor', 'error_kasir', 'error_bar'] },
 ]
 

@@ -9,11 +9,12 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { CkMutasi, CkSaldo } from '~/composables/useStock'
-import { catatLog, ckBalance, ckMovements, createBatch, deliverToCk, useProdukStock } from '~/composables/useStock'
+import { catatLog, ckBalance, ckMovements, createBatch, deliverToCk, patchDelivery, useProdukStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { hariIni, tambahHari, tglPendek } from '~/utils/format'
-import { SATUAN_TERSEDIA, unduhCsvStock } from '~/utils/stock-catat'
-import type { Versi } from '~/utils/versi'
+import { SATUAN_TERSEDIA, ckKeDasar, fmtQty, opsiSatuanKirimCk, tampilStokCk, unduhCsvStock } from '~/utils/stock-catat'
+import type { TampilStok } from '~/utils/stock-catat'
+import { tanganiKonflik, type Versi } from '~/utils/versi'
 
 definePageMeta({ access: ['ordering'] })
 
@@ -29,10 +30,67 @@ const produkOutlet = computed(() => produkQ.data.value?.rows.filter(p => (p as u
 const saldoQ = useAsyncData('stock-ck-saldo', ckBalance, { default: () => ({ rows: [] as CkSaldo[] }) })
 const saldo = computed(() => saldoQ.data.value?.rows ?? [])
 
+/**
+ * Display facts for one balance row: the pack snapshot rides on the balance
+ * row itself, the base unit and measured sizes come from the product master.
+ * `satuanTampil` prefers the master's setting, falling back to the balance
+ * row's (both come from the same contract).
+ */
+function infoStok(item: string) {
+  const p = produkQ.data.value?.rows.find(r => r.nama === item) as unknown as Record<string, unknown> | undefined
+  const s = saldo.value.find(r => r.item === item)
+  return {
+    // packSatuan is the item's non-Pack unit (docs/migrasi/stock.md F.15), the
+    // same unit the balance is stored in — sound fallback when the master row is gone.
+    satuanDasar: (p?.satuanDasar as string) || s?.packSatuan || '',
+    isi: (p?.isi as Record<string, number>) || {},
+    packIsi: Number(p?.packIsi ?? s?.packIsi) || 0,
+    satuanTampil: (p?.satuanTampil as string) || (s as unknown as Record<string, unknown> | undefined)?.satuanTampil as string || '',
+  }
+}
+
+/** Every balance row written the way the crew says it: big unit, exact base below. */
+const stokTampil = computed<Record<string, TampilStok>>(() => {
+  const out: Record<string, TampilStok> = {}
+  for (const s of saldo.value) out[s.item] = tampilStokCk(s.saldo, infoStok(s.item))
+  return out
+})
+
+/** Any base-unit quantity of one item written the same way (Masuk/Keluar cells, CSV). */
+function tampilStok(item: string, n: number): TampilStok {
+  return tampilStokCk(n, infoStok(item))
+}
+
 const gerakQ = useAsyncData('stock-ck-gerak', () => ckMovements(), {
   default: () => ({ rows: [] as CkMutasi[], versions: {} as Record<string, Versi> }),
 })
 const kiriman = computed(() => gerakQ.data.value?.rows.filter(m => m.sebab === 'kiriman') ?? [])
+const versiKirim = computed(() => gerakQ.data.value?.versions ?? {})
+
+/**
+ * Unit options for one delivery row, from the product master: the product's
+ * own units + Pack + the base unit + measured sizes + the warehouse stock
+ * unit — never the generic list. A unit the server would refuse (422, not
+ * convertible) is not offered (one shared builder for form Kirim and the
+ * Ubah modal).
+ */
+function produkCk(nama: string) {
+  return produkQ.data.value?.rows.find(r => r.nama === nama) as unknown as Record<string, unknown> | undefined
+}
+function opsiKirim(nama: string) {
+  const p = produkCk(nama)
+  const s = saldo.value.find(r => r.item === nama)
+  return opsiSatuanKirimCk(
+    p ? { satuan: p.satuan, satuanDasar: p.satuanDasar, isi: p.isi, packIsi: p.packIsi } : undefined,
+    String(p?.packSatuan ?? s?.packSatuan ?? ''),
+  )
+}
+/** Keep the row's unit inside its options (typing another item narrows them). */
+function rapikanSatuan(b: BarisCk) {
+  if (!b.item.trim()) return
+  const opsi = opsiKirim(b.item.trim())
+  if (!opsi.some(o => o.value === b.unit)) b.unit = opsi[0]?.value ?? 'Pack'
+}
 
 const kolomStok: TableColumn<CkSaldo>[] = [
   { accessorKey: 'item', header: 'Barang' },
@@ -95,6 +153,9 @@ async function catatKirim() {
     toast.add({ title: 'Belum ada baris', description: 'Isi minimal satu barang.', color: 'warning' })
     return
   }
+  // Typing an item narrows its units; snap rows whose unit fell out so the
+  // server never sees a unit it would refuse (422).
+  for (const b of isi) rapikanSatuan(b)
   mengirim.value = true
   try {
     for (const b of isi) {
@@ -106,6 +167,8 @@ async function catatKirim() {
     toast.add({ title: 'Kiriman tercatat', description: 'Stok CK langsung bertambah begitu dicatat di sini.', color: 'success' })
   }
   catch (e) {
+    // A 422 names the refusing unit ("satuan X tidak bisa dikonversi…") —
+    // show it as-is so the crew knows which row to fix, never silently.
     toast.add({ title: 'Pencatatan gagal', description: apiErrorMessage(e), color: 'error' })
   }
   finally {
@@ -118,13 +181,78 @@ const kolomKirim: TableColumn<CkMutasi>[] = [
   { accessorKey: 'item', header: 'Barang' },
   { accessorKey: 'qtyInput', header: 'Jumlah' },
   { accessorKey: 'pic', header: 'Pencatat' },
+  { id: 'aksi', header: '' },
 ]
+
+// --- Ubah kiriman (pensil per baris riwayat → modal tanggal/jumlah/satuan)
+const sheetUbah = ref(false)
+const ubah = ref({ id: '', item: '', tanggal: '', qty: 1, unit: 'Pack' })
+function bukaUbah(m: CkMutasi) {
+  if (m.sebab !== 'kiriman' || m.ref) {
+    toast.add({ title: 'Baris ini tidak bisa diubah di sini', description: 'Mutasi dari pengajuan hanya berubah lewat check-in; salah barang dicatat lewat penyesuaian.', color: 'warning' })
+    return
+  }
+  ubah.value = {
+    id: m.id,
+    item: m.item,
+    tanggal: m.tanggal || '',
+    qty: Number(m.qtyInput ?? m.qty) || 1,
+    unit: m.unitInput || 'Pack',
+  }
+  sheetUbah.value = true
+}
+/** Same option builder as form Kirim — the item itself is fixed. */
+const opsiUbah = computed(() => opsiKirim(ubah.value.item))
+/**
+ * Stale-master ribbon: the stored qty was computed with the master of that
+ * day; the modal recomputes with today's. When they differ the ribbon says
+ * so ("Tercatat X → akan jadi Y") — and saving stays allowed, identical
+ * numbers included (the server keeps them under the stale-master rule).
+ */
+const basiUbah = computed(() => {
+  const m = kiriman.value.find(x => x.id === ubah.value.id)
+  if (!m) return null
+  const p = produkCk(m.item)
+  const hitung = ckKeDasar(Number(ubah.value.qty) || 0, ubah.value.unit, p
+    ? { satuanDasar: p.satuanDasar, isi: p.isi, packIsi: p.packIsi }
+    : undefined)
+  if (hitung === null) return null
+  if (Math.abs(hitung - m.qty) <= 0.0001) return null
+  const unitStok = String(p?.satuanDasar ?? m.packSatuan ?? '').trim()
+  const t = (n: number) => (unitStok ? `${fmtQty(n)} ${unitStok}` : fmtQty(n))
+  return `Tercatat ${t(m.qty)} → akan jadi ${t(hitung)}`
+})
+const menyimpanUbah = ref(false)
+async function simpanUbah() {
+  if (!(Number(ubah.value.qty) > 0)) {
+    toast.add({ title: 'Jumlah harus lebih dari 0', color: 'warning' })
+    return
+  }
+  menyimpanUbah.value = true
+  try {
+    await patchDelivery(ubah.value.id, {
+      tanggal: ubah.value.tanggal || undefined,
+      qtyInput: Number(ubah.value.qty),
+      unitInput: ubah.value.unit,
+    }, versiKirim.value[ubah.value.id])
+    sheetUbah.value = false
+    await Promise.all([saldoQ.refresh(), gerakQ.refresh()])
+    toast.add({ title: 'Kiriman diubah', color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, () => gerakQ.refresh()))) toast.add({ title: 'Gagal menyimpan', description: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    menyimpanUbah.value = false
+  }
+}
 
 function unduhStok() {
   const sel = (v: string) => /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v
   unduhCsvStock(
     `stok-ck-${hariIni()}.csv`,
-    ['Barang,Saldo,Masuk,Keluar,Terakhir', ...saldo.value.map(s => [s.item, String(s.saldo), String(s.masuk), String(s.keluar), s.terakhir ?? ''].map(sel).join(','))].join('\n'),
+    // Same strings as on screen, so the file matches what the crew just read.
+    ['Barang,Saldo,Masuk,Keluar,Terakhir', ...saldo.value.map(s => [s.item, tampilStok(s.item, s.saldo).utama, tampilStok(s.item, s.masuk).utama, tampilStok(s.item, s.keluar).utama, s.terakhir ?? ''].map(sel).join(','))].join('\n'),
   )
 }
 </script>
@@ -187,13 +315,45 @@ function unduhStok() {
 
       <div v-if="sub === 'stok'">
         <p class="mb-3 text-sm text-muted">
-          Angka besar = jumlah pack, angka kecil = satuan dasarnya.
+          Angka besar = pack (atau satuan beli terkecil), angka kecil = satuan dasarnya.
         </p>
         <div class="hidden lg:block">
           <UTable
             :columns="kolomStok"
             :data="saldo"
-          />
+          >
+            <template #item-cell="{ row }">
+              <div>
+                <b class="text-highlighted">{{ row.original.item }}</b>
+                <p
+                  v-if="stokTampil[row.original.item]?.ket"
+                  class="text-xs text-dimmed"
+                >
+                  {{ stokTampil[row.original.item]?.ket }}
+                </p>
+              </div>
+            </template>
+            <template #saldo-cell="{ row }">
+              <div class="text-right">
+                <b
+                  class="num text-base"
+                  :class="row.original.saldo < 0 ? 'text-error' : 'text-highlighted'"
+                >{{ stokTampil[row.original.item]?.utama }}</b>
+                <p
+                  v-if="stokTampil[row.original.item]?.kecil"
+                  class="text-xs text-dimmed"
+                >
+                  {{ stokTampil[row.original.item]?.kecil }}
+                </p>
+              </div>
+            </template>
+            <template #masuk-cell="{ row }">
+              <span class="num">{{ tampilStok(row.original.item, row.original.masuk).utama }}</span>
+            </template>
+            <template #keluar-cell="{ row }">
+              <span class="num">{{ tampilStok(row.original.item, row.original.keluar).utama }}</span>
+            </template>
+          </UTable>
         </div>
         <div class="flex flex-col gap-2 lg:hidden">
           <div
@@ -203,14 +363,28 @@ function unduhStok() {
           >
             <div>
               <b class="text-highlighted">{{ s.item }}</b>
+              <p
+                v-if="stokTampil[s.item]?.ket"
+                class="text-xs text-dimmed"
+              >
+                {{ stokTampil[s.item]?.ket }}
+              </p>
               <p class="text-sm text-muted">
-                Masuk {{ s.masuk }} · Keluar {{ s.keluar }}
+                Masuk {{ tampilStok(s.item, s.masuk).utama }} · Keluar {{ tampilStok(s.item, s.keluar).utama }}
               </p>
             </div>
-            <b
-              class="num text-lg"
-              :class="s.saldo < 0 ? 'text-error' : 'text-highlighted'"
-            >{{ s.saldo }}</b>
+            <div class="text-right">
+              <b
+                class="num text-lg"
+                :class="s.saldo < 0 ? 'text-error' : 'text-highlighted'"
+              >{{ stokTampil[s.item]?.utama }}</b>
+              <p
+                v-if="stokTampil[s.item]?.kecil"
+                class="text-xs text-dimmed"
+              >
+                {{ stokTampil[s.item]?.kecil }}
+              </p>
+            </div>
           </div>
           <p
             v-if="!saldo.length"
@@ -323,6 +497,7 @@ function unduhStok() {
                 v-model="b.item"
                 list="stock-ck-outlet"
                 placeholder="Ketik nama barang"
+                @change="rapikanSatuan(b)"
               />
             </UFormField>
             <UFormField label="Jumlah">
@@ -335,7 +510,7 @@ function unduhStok() {
             <UFormField label="Satuan">
               <USelect
                 v-model="b.unit"
-                :items="SATUAN_TERSEDIA"
+                :items="opsiKirim(b.item)"
               />
             </UFormField>
             <div class="flex items-end">
@@ -377,7 +552,30 @@ function unduhStok() {
           <UTable
             :columns="kolomKirim"
             :data="kiriman"
-          />
+          >
+            <template #item-cell="{ row }">
+              <div>
+                <b class="text-highlighted">{{ row.original.item }}</b>
+                <p
+                  v-if="(row.original.nUbah ?? 0) > 0"
+                  class="text-xs text-dimmed"
+                >
+                  diubah {{ row.original.diubahOleh || '—' }}
+                </p>
+              </div>
+            </template>
+            <template #aksi-cell="{ row }">
+              <div class="flex justify-end">
+                <UButton
+                  icon="i-lucide-pencil"
+                  variant="ghost"
+                  size="sm"
+                  :aria-label="`Ubah kiriman ${row.original.item}`"
+                  @click="bukaUbah(row.original)"
+                />
+              </div>
+            </template>
+          </UTable>
         </div>
         <div class="flex flex-col gap-2 lg:hidden">
           <div
@@ -385,10 +583,26 @@ function unduhStok() {
             :key="m.id"
             class="rounded-panel border border-default p-3"
           >
-            <b class="text-highlighted">{{ m.item }}</b>
-            <p class="text-sm text-muted">
-              {{ tglPendek(m.tanggal) }} · {{ m.qtyInput }} {{ m.unitInput }} · {{ m.pic }}
-            </p>
+            <div class="flex items-start justify-between gap-2">
+              <div>
+                <b class="text-highlighted">{{ m.item }}</b>
+                <p class="text-sm text-muted">
+                  {{ tglPendek(m.tanggal) }} · {{ m.qtyInput }} {{ m.unitInput }} · {{ m.pic }}
+                </p>
+                <p
+                  v-if="(m.nUbah ?? 0) > 0"
+                  class="text-xs text-dimmed"
+                >
+                  diubah {{ m.diubahOleh || '—' }}
+                </p>
+              </div>
+              <UButton
+                icon="i-lucide-pencil"
+                variant="ghost"
+                :aria-label="`Ubah kiriman ${m.item}`"
+                @click="bukaUbah(m)"
+              />
+            </div>
           </div>
           <p
             v-if="!kiriman.length"
@@ -399,5 +613,59 @@ function unduhStok() {
         </div>
       </div>
     </AppPanel>
+
+    <ResponsiveSheet
+      v-model:open="sheetUbah"
+      title="Ubah kiriman"
+    >
+      <div class="flex flex-col gap-3">
+        <UFormField label="Barang">
+          <UInput
+            :model-value="ubah.item"
+            disabled
+          />
+        </UFormField>
+        <div class="grid grid-cols-2 gap-2">
+          <UFormField label="Tanggal kirim">
+            <UInput
+              v-model="ubah.tanggal"
+              type="date"
+            />
+          </UFormField>
+          <UFormField label="Jumlah">
+            <UInput
+              v-model.number="ubah.qty"
+              type="number"
+              min="0"
+              step="any"
+            />
+          </UFormField>
+        </div>
+        <UFormField label="Satuan">
+          <USelect
+            v-model="ubah.unit"
+            :items="opsiUbah"
+          />
+        </UFormField>
+        <p
+          v-if="basiUbah"
+          class="rounded-field bg-warning/12 p-3 text-sm text-warning"
+        >
+          {{ basiUbah }}. Satuan stok berubah setelah kiriman ini dicatat — menyimpan tetap diizinkan.
+        </p>
+        <div class="flex justify-end gap-2">
+          <UButton
+            label="Batal"
+            variant="outline"
+            @click="sheetUbah = false"
+          />
+          <UButton
+            label="Simpan"
+            :loading="menyimpanUbah"
+            @click="simpanUbah"
+          />
+        </div>
+      </div>
+    </ResponsiveSheet>
   </AppPage>
 </template>

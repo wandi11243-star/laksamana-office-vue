@@ -46,6 +46,8 @@ export interface ProdukStock extends ProdukCatat {
   cadangan?: string[]
   caraBeli?: string
   sumber?: string
+  /** Preferred CK stock display unit (`''` = automatic; CK goods only). */
+  satuanTampil?: string
 }
 
 export interface BarisItemUsage { item: string, qty: number, unit: string, note?: string }
@@ -408,7 +410,7 @@ export async function putStockToday(body: { as_of?: string, stock: Record<string
 
 // ---------------------------------------------------------------- Central Kitchen
 
-export interface CkSaldo { item: string, sumber?: string, packIsi?: number, packSatuan?: string, kategori?: string, masuk: number, keluar: number, saldo: number, terakhir?: string, hilang?: boolean }
+export interface CkSaldo { item: string, sumber?: string, packIsi?: number, packSatuan?: string, kategori?: string, satuanTampil?: string, masuk: number, keluar: number, saldo: number, terakhir?: string, hilang?: boolean }
 
 export interface CkMutasi {
   id: string
@@ -427,6 +429,10 @@ export interface CkMutasi {
   catatan?: string
   packIsi?: number
   packSatuan?: string
+  /** Delivery-edit audit: who last changed it, when, how many times. */
+  diubahOleh?: string
+  diubahAt?: string
+  nUbah?: number
 }
 
 /** `GET /stock/ck/balance` — never stored, always SUM(masuk) − SUM(keluar). */
@@ -467,6 +473,22 @@ export async function deleteMovement(id: string, versi?: Versi) {
 /** `POST /stock/ck/deliveries` — outlet → CK, counted at once. */
 export async function deliverToCk(body: Record<string, unknown>) {
   const r = await useApi()<Envelope<CkMutasi>>('/stock/ck/deliveries', { method: 'POST', body })
+  return r.data
+}
+
+/**
+ * `PATCH /stock/ck/deliveries/{id}` — fix a delivery's `tanggal`, `qtyInput`,
+ * `unitInput` (`tim`, `catatan` too; the item is fixed). Identical numbers
+ * still save: when the master changed after the delivery, the recomputed
+ * stock legitimately differs, so "no change" is never a refusal. Version
+ * required.
+ */
+export async function patchDelivery(id: string, body: Record<string, unknown>, versi?: Versi) {
+  const r = await useApi()<Envelope<CkMutasi>>(`/stock/ck/deliveries/${encodeURIComponent(id)}`, {
+    method: 'PATCH',
+    body,
+    headers: versiHeaders(versi),
+  })
   return r.data
 }
 

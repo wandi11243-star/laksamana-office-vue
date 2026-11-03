@@ -33,7 +33,7 @@
 import type { BarisBd, BarisHarian } from '~/utils/kompas'
 import { kNum, netOf, taxSvcOf, tagihanOf } from '~/utils/kompas'
 import type { PicKompas } from '~/utils/porsi-pic'
-import { obAktif, obTotal, potonganBarisKompas, potongKasirAktif } from '~/utils/porsi-pic'
+import { bagianPotong, obAktif, obTotal, potonganBarisKompas, potongKasirAktif } from '~/utils/porsi-pic'
 import {
   cocokPic, namaSama, nilaiEventMkt, picAkun, sumberDari, sumberKosong, vipPecah,
   type SetelanSumber, type SumberHari,
@@ -178,10 +178,7 @@ const tanpaPic = computed(() => [
   ...ev.value.filter(r => !evList.value.some(e => e.id === r.picId)).map(r => ({ r, divi: 'Event' })),
 ])
 const nilaiTanpaPic = computed(() => tanpaPic.value.reduce((s, x) => s + kNum(x.r.amount), 0))
-const potongUntuk = (id: string) => mk.value.reduce((s, r) => {
-  const b = potonganBarisKompas(r)
-  return s + (b.ids.includes(id) ? b.per : 0)
-}, 0)
+const potongUntuk = (id: string) => mk.value.reduce((s, r) => s + bagianPotong(potonganBarisKompas(r), id), 0)
 const obUntuk = (id: string) => [...mk.value, ...ev.value]
   .filter(r => obAktif(r) && String(r.obKasirId || '') === id)
   .reduce((s, r) => s + obTotal(r), 0)
@@ -206,12 +203,44 @@ const jejak = computed(() => jejakList(rec.value))
 
 const shiftOpen = ref(false)
 const shiftRow = ref<BarisBd | null>(null)
+/** "Bagi rata" splits evenly; "Atur nominal" stores exact rupiah per cashier (`r.shiftNom`). */
+const shiftMode = ref<'rata' | 'nominal'>('rata')
+/** Rupiah drafts per checked cashier, as typed (parsed with `kNum` on save). */
+const shiftNom = ref<Record<string, string>>({})
 const namaKasir = (id: string) => kasirList.value.find(k => k.id === id)?.name ?? id
+function shiftIds(): string[] {
+  const r = shiftRow.value
+  return r && Array.isArray(r.shift) ? (r.shift as string[]).filter(Boolean) : []
+}
+/** Fill drafts missing a value with the even share — manual starts from equal, never from blank. */
+function isiNomDariRata() {
+  const r = shiftRow.value
+  if (!r) return
+  const ids = shiftIds()
+  const total = potonganBarisKompas(r).total
+  const rata = ids.length ? Math.round(total / ids.length) : 0
+  const draf: Record<string, string> = {}
+  for (const id of ids) draf[id] = shiftNom.value[id] ?? String(rata)
+  shiftNom.value = draf
+}
 function bukaShift(r: BarisBd) {
   if (!Array.isArray(r.shift)) r.shift = []
   shiftRow.value = r
+  const b = potonganBarisKompas(r)
+  if (b.manual) {
+    shiftMode.value = 'nominal'
+    shiftNom.value = Object.fromEntries(shiftIds().map(id => [id, String(b.nom[id] ?? 0)]))
+  }
+  else {
+    shiftMode.value = 'rata'
+    shiftNom.value = {}
+    isiNomDariRata()
+  }
   shiftOpen.value = true
 }
+watch(shiftMode, (m) => {
+  if (m === 'nominal') isiNomDariRata()
+})
 function toggleShift(id: string) {
   const r = shiftRow.value
   if (!r) return
@@ -220,6 +249,31 @@ function toggleShift(id: string) {
   if (i >= 0) s.splice(i, 1)
   else s.push(id)
   r.shift = s
+  if (shiftMode.value === 'nominal') isiNomDariRata()
+}
+/** The row's deductible total and the drafts' sum — Save stays held until they match. */
+const shiftTotal = computed(() => (shiftRow.value ? potonganBarisKompas(shiftRow.value).total : 0))
+const shiftNomJumlah = computed(() => shiftIds().reduce((s, id) => s + kNum(shiftNom.value[id]), 0))
+const shiftNomPas = computed(() => shiftIds().length > 0 && shiftTotal.value > 0 && shiftNomJumlah.value === shiftTotal.value)
+const shiftManualTersimpan = (r: BarisBd) => potonganBarisKompas(r).manual
+function simpanShift() {
+  const r = shiftRow.value
+  if (!r) {
+    shiftOpen.value = false
+    return
+  }
+  if (shiftMode.value === 'nominal') {
+    if (!shiftNomPas.value) return
+    const isi: Record<string, number> = {}
+    for (const id of shiftIds()) isi[id] = kNum(shiftNom.value[id])
+    r.shiftNom = isi
+  }
+  else if ('shiftNom' in r) {
+    // Back to even split throws the manual map away — stale nominals must
+    // never linger where the screen reads "bagi rata".
+    delete r.shiftNom
+  }
+  shiftOpen.value = false
 }
 
 const simpanOpen = ref(false)
@@ -889,7 +943,7 @@ async function pulihkanSumber() {
               :color="potongKasirAktif(r) ? 'warning' : 'success'"
               size="sm"
             >
-              {{ potongKasirAktif(r) ? `memotong kasir · ${fmtRp(potonganBarisKompas(r).total)}` : 'tidak memotong kasir' }}
+              {{ potongKasirAktif(r) ? `memotong kasir · ${fmtRp(potonganBarisKompas(r).total)}${shiftManualTersimpan(r) ? ' · nominal per kasir' : ''}` : 'tidak memotong kasir' }}
             </AppStatus>
             <span>Shift: <b class="text-highlighted">{{ labelKasirShift(r) }}</b></span>
             <span>Diakui PIC: <b class="text-highlighted num">{{ fmtRp(kNum(r.amount) + kNum(r.tax) + kNum(r.service) + obTotal(r)) }}</b></span>
@@ -1327,18 +1381,59 @@ async function pulihkanSumber() {
       <p class="mb-3 text-sm text-muted">
         Yang dicentang saja yang ikut menanggung potongan baris ini. Kasir yang masuk tapi tidak kebagian shift event tidak dipotong.
       </p>
-      <div class="space-y-2">
-        <UCheckbox
+      <AppSeg
+        v-model="shiftMode"
+        size="sm"
+        :options="[{ value: 'rata', label: 'Bagi rata' }, { value: 'nominal', label: 'Atur nominal' }]"
+      />
+      <p class="mt-2 text-xs text-muted">
+        <template v-if="shiftMode === 'rata'">
+          Total {{ fmtRp(shiftTotal) }} dibagi rata ke semua yang dicentang.
+        </template>
+        <template v-else>
+          Ketik rupiah tiap kasir yang dicentang — jumlahnya harus pas {{ fmtRp(shiftTotal) }} baru bisa disimpan.
+          Kembali ke Bagi rata membuang nominal yang diketik.
+        </template>
+      </p>
+      <div class="mt-2 space-y-2">
+        <div
           v-for="k in kasirList"
           :key="k.id"
-          :model-value="Array.isArray(shiftRow?.shift) && (shiftRow!.shift as string[]).includes(k.id)"
-          :label="k.name"
-          @update:model-value="() => toggleShift(k.id)"
-        />
+          class="flex items-center gap-2"
+        >
+          <UCheckbox
+            :model-value="shiftIds().includes(k.id)"
+            :label="k.name"
+            @update:model-value="() => toggleShift(k.id)"
+          />
+          <UInput
+            v-if="shiftMode === 'nominal' && shiftIds().includes(k.id)"
+            :model-value="shiftNom[k.id] ?? ''"
+            inputmode="numeric"
+            placeholder="Rp0"
+            class="ms-auto w-36 shrink-0"
+            @update:model-value="(v: string | number) => { shiftNom[k.id] = String(v) }"
+          />
+        </div>
       </div>
+      <p
+        v-if="shiftMode === 'nominal'"
+        class="mt-3 rounded-xl border p-3 text-sm"
+        :class="shiftNomPas ? 'border-success/30 bg-success/10' : 'border-warning/30 bg-warning/10'"
+      >
+        Jumlah <b class="num">{{ fmtRp(shiftNomJumlah) }}</b> dari <b class="num">{{ fmtRp(shiftTotal) }}</b> —
+        {{ shiftNomPas ? 'pas, bisa disimpan.' : 'belum pas, sesuaikan nominalnya.' }}
+      </p>
       <template #footer>
         <UButton
-          label="Selesai"
+          label="Simpan pembagian"
+          :disabled="shiftMode === 'nominal' && !shiftNomPas"
+          @click="simpanShift"
+        />
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="ghost"
           @click="shiftOpen = false"
         />
       </template>
