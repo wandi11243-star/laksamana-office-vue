@@ -23,7 +23,7 @@ import {
 import type { LayoutDenah } from '~/utils/venue-layouts'
 import { dayTypeLayoutLt, getLayout, parseKeyTanggal } from '~/utils/venue-layouts'
 import { buatIzinTumpang, conflictCheck, tablesOf } from '~/utils/kunci-meja'
-import { adaBuktiDp, dpBaru, dpMetodeBawaan, normPhone, pastikanDps, resetDpScan, syncDp, tampilPhone, uid } from '~/utils/dp-reservasi'
+import { adaBuktiDp, dpBaru, dpMetodeBawaan, normPhone, opsiDpMetode, pastikanDps, resetDpScan, syncDp, tampilPhone, uid } from '~/utils/dp-reservasi'
 import { cariTamuLewatNama, cariTamuLewatNomor, direktoriTamu, kelompokBarisTamu, profilTamuGabung } from '~/utils/riwayat'
 import { fmtRupiah, hariIni, normTime, rupiahVal, tambahHari, tglPendek } from '~/utils/format'
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
@@ -1047,7 +1047,7 @@ async function hapus() {
           <UFormField label="Metode / tujuan pembayaran">
             <USelect
               v-model="form.dpMethod"
-              :items="(dpMethods ?? []).filter(c => c)"
+              :items="opsiDpMetode(dpMethods, form.dpMethod)"
               size="xl"
               class="w-full"
             />

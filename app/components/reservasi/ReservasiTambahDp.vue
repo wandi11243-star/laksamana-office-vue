@@ -19,7 +19,7 @@ import { getReservation, patchReservation, postAudit, useSection, versiReservasi
 import { apiErrorMessage } from '~/composables/useApi'
 import { tanganiKonflik } from '~/utils/versi'
 import {
-  cerminDp, dpsTampilan, dpBaru, dpMetodeBawaan, dpTotal, pastikanDps,
+  cerminDp, dpsTampilan, dpBaru, dpMetodeBawaan, dpTotal, opsiDpMetode, pastikanDps,
 } from '~/utils/dp-reservasi'
 import { fmtRupiah, rupiah, rupiahVal, tglPendek } from '~/utils/format'
 
@@ -179,7 +179,7 @@ async function simpan() {
       <UFormField label="Metode / tujuan transfer">
         <USelect
           v-model="metode"
-          :items="(dpMethods ?? []).filter(m => m).map(m => ({ value: m, label: m }))"
+          :items="opsiDpMetode(dpMethods, metode)"
           size="xl"
           class="w-full"
         />

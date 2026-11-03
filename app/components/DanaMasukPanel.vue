@@ -32,7 +32,7 @@ import { apiErrorCode, apiErrorMessage } from '~/composables/useApi'
 import { tanganiKonflik, versiDari, type Versi } from '~/utils/versi'
 import {
   bankDariMetode, buktiAdalahGambar, cerminDp, cerminTfUtama, dpBaru, dpHitungTerverifikasi,
-  dpMetodeBawaan, dpTotal, dpsTampilan, kurangDataTf, normPhone, pastikanDps,
+  dpMetodeBawaan, dpTotal, dpsTampilan, kurangDataTf, normPhone, opsiDpMetode, pastikanDps,
   ringkasDanaMasuk, saringDanaMasuk, tampilPhone, txBank,
   txBuktiGambar, txNama, txNominal, txSelisih, txSudahScan,
   type SaringDanaMasuk, type TxDanaMasuk,
@@ -2283,7 +2283,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
         <UFormField label="Metode / tujuan transfer">
           <USelect
             v-model="tambah.metode"
-            :items="(dpMethods ?? []).filter(m => m).map(m => ({ value: m, label: m }))"
+            :items="opsiDpMetode(dpMethods, tambah.metode)"
             size="xl"
             class="w-full"
           />

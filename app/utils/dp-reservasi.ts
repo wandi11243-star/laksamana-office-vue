@@ -43,10 +43,45 @@ export function adaBuktiDp(r?: Reservasi | null): boolean {
   return dpsOf(r).some(p => !!p?.proofData)
 }
 
-/** The first default method: the first QRIS one, else the first (`:1490-1493`). */
+/** The first default method: the first QRIS one among the MANUAL methods, else the first manual one (`:1490-1493`). Falls back to the full list only when every method is automatic — an empty default reads as a list that failed to load. */
 export function dpMetodeBawaan(dpMethods?: string[]): string {
+  const manual = dpMetodeManual(dpMethods)
+  const bawaan = manual.find(v => /qris/i.test(String(v))) || manual[0] || ''
+  if (bawaan) return bawaan
   const list = dpMethods ?? []
   return list.find(v => /qris/i.test(String(v))) || list[0] || ''
+}
+
+/**
+ * DP methods written by a machine, never picked by a person: instalments paid
+ * through Xendit are recorded by the AI Agent's payment webhook, so offering
+ * them in a manual form lets a host file a transfer "to Xendit" that no
+ * Xendit money will ever match.
+ */
+export const DP_METODE_OTOMATIS = /^\s*xendit\b/i
+
+/** Manual DP method options: the automatic ones are filtered out. */
+export function dpMetodeManual(dpMethods?: string[] | null): string[] {
+  return (dpMethods ?? []).filter(m => !!m && !DP_METODE_OTOMATIS.test(String(m)))
+}
+
+/**
+ * Items for a DP method select: the manual methods, plus the already-saved
+ * value when it is no longer (or never was) pickable — a booking paid through
+ * Xendit keeps showing where its money went, labelled with its origin so
+ * nobody picks it for a new instalment.
+ */
+export function opsiDpMetode(dpMethods?: string[] | null, tersimpan?: string | null): { value: string, label: string }[] {
+  const manual = dpMetodeManual(dpMethods)
+  const items = manual.map(m => ({ value: m, label: m }))
+  const simpan = String(tersimpan ?? '').trim()
+  if (simpan && !manual.some(m => m.toLowerCase() === simpan.toLowerCase())) {
+    items.push({
+      value: simpan,
+      label: DP_METODE_OTOMATIS.test(simpan) ? `${simpan} (otomatis dari AI Agent)` : simpan,
+    })
+  }
+  return items
 }
 
 /** A fresh instalment (`:1555-1561`), with every field the old client wrote. */

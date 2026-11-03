@@ -23,6 +23,7 @@ import {
 } from '~/composables/useCashier'
 import { getFile, getReservation, getSection, listDpsReservasi, patchReservation, postAudit, type ReservasiDp } from '~/composables/useReservasi'
 import { fmtRp } from '~/utils/cashier'
+import { opsiDpMetode } from '~/utils/dp-reservasi'
 import { hariIni } from '~/utils/format'
 import { tanganiKonflik, versiDari } from '~/utils/versi'
 
@@ -1328,7 +1329,7 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
       <UFormField label="Metode pembayaran">
         <USelect
           v-model="metodeBaru"
-          :items="(data?.metode ?? []).map(m => ({ label: m, value: m }))"
+          :items="opsiDpMetode(data?.metode, metodeDp?.metode)"
           class="w-full"
         />
       </UFormField>
