@@ -214,13 +214,13 @@ function perTgl(tgl: string) {
             <AppStat
               label="Hari masuk"
               icon="i-lucide-calendar-check"
-              :value="b.hariMasuk"
+              :value="b?.hariMasuk ?? '—'"
               tone="success"
             />
             <AppStat
               label="Total jam"
               icon="i-lucide-clock"
-              :value="b.jam || '—'"
+              :value="b?.jam || '—'"
             />
             <AppStat
               label="Rata jam/hari"
@@ -230,31 +230,31 @@ function perTgl(tgl: string) {
             <AppStat
               label="Beruntun terpanjang"
               icon="i-lucide-flame"
-              :value="b.maxBeruntun"
-              :tone="b.maxBeruntun >= 6 ? 'warning' : 'gold'"
+              :value="b?.maxBeruntun ?? '—'"
+              :tone="(b?.maxBeruntun ?? 0) >= 6 ? 'warning' : 'gold'"
             />
             <AppStat
               label="Masuk akhir pekan"
               icon="i-lucide-calendar-heart"
-              :value="b.wknd"
+              :value="b?.wknd ?? '—'"
             />
             <AppStat
               label="Ajuan menunggu"
               icon="i-lucide-hourglass"
-              :value="b.menunggu"
-              :tone="b.menunggu ? 'warning' : 'gold'"
+              :value="b?.menunggu ?? '—'"
+              :tone="b?.menunggu ? 'warning' : 'gold'"
             />
             <AppStat
               label="Ajuan ditolak"
               icon="i-lucide-x"
-              :value="b.ditolak"
-              :tone="b.ditolak ? 'error' : 'gold'"
+              :value="b?.ditolak ?? '—'"
+              :tone="b?.ditolak ? 'error' : 'gold'"
             />
             <AppStat
               v-if="bolehLihatUangDw(peran)"
               label="Upah bulan ini"
               icon="i-lucide-banknote"
-              :value="rupiah(b.upah)"
+              :value="rupiah(b?.upah)"
               tone="gold"
             />
           </AppStatGrid>

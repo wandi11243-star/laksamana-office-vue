@@ -198,7 +198,10 @@ useSegarSenyap(refresh, () => buka.value)
       Semua sumber sedang dimatikan, jadi kalendernya kosong bukan karena tidak ada jadwal.
     </p>
 
-    <AppStatGrid :loading="statMemuat" :count="4">
+    <AppStatGrid
+      :loading="statMemuat"
+      :count="4"
+    >
       <AppStat
         :label="`Total pax ${BULAN[cur.m]}`"
         icon="i-lucide-users"

@@ -165,7 +165,10 @@ const pctBanding = (a: number, b: number) => b ? (a - b) / b * 100 : null
       />
 
       <template v-else>
-        <AppStatGrid :loading="statMemuat" :count="4">
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="4"
+        >
           <AppStat
             label="Bulan Terunggah"
             :value="angka(semua.length)"

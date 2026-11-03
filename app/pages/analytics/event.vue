@@ -241,7 +241,10 @@ const kolomHari: TableColumn<BarisHari>[] = [
           :description="`${angka(hitung.belum)} acara Event di ${fmtBln(bulan)} belum berstatus itu, jadi tidak ikut.${hitung.abuAbu.length ? ` ${angka(hitung.abuAbu.length)} hari yang acaranya belum selesai juga dikeluarkan dari pembanding &quot;hari tanpa acara&quot;.` : ''}`"
         />
 
-        <AppStatGrid :loading="statMemuat" :count="4">
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="4"
+        >
           <AppStat
             label="Hari Ada Acara"
             :value="angka(hitung.adaEv.length)"

@@ -139,7 +139,10 @@ const namaDepan = computed(() => String(saya.value?.user.name ?? '').split(' ')[
         </div>
       </div>
 
-      <AppStatGrid :loading="statMemuat" :count="4">
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="4"
+      >
         <AppStat
           label="Event Hari Ini"
           :value="evHariIni.length"

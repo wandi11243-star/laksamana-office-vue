@@ -179,7 +179,10 @@ const kolomDetail: TableColumn<VoidSimpan>[] = [
       />
 
       <template v-else>
-        <AppStatGrid :loading="statMemuat" :count="4">
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="4"
+        >
           <AppStat
             label="Nilai Dibatalkan"
             :value="rupiah(jml(baris))"

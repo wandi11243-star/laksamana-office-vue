@@ -340,7 +340,10 @@ const kolomMalam: TableColumn<BarisMalam>[] = [
       </div>
 
       <template v-else-if="olah">
-        <AppStatGrid :loading="statMemuat" :count="4">
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="4"
+        >
           <AppStat
             label="Malam Ada Penampil"
             :value="angka(olah.malamAda)"

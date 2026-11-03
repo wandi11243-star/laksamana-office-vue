@@ -193,7 +193,10 @@ const menuKat = computed(() => {
       />
 
       <template v-else>
-        <AppStatGrid :loading="statMemuat" :count="3">
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="3"
+        >
           <AppStat
             v-for="a in atas"
             :key="a.k"

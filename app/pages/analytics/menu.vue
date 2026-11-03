@@ -364,7 +364,10 @@ async function pasang(kode: string, menu: string) {
           :description="`Laporan bulan itu Bill Report — satu baris per bill, tanpa satu pun nama menu. Yang memuat nama menu Sales Recapitulation Detail Report; unggah berkas itu untuk ${fmtBln(bandingAktif)}, lalu pembandingnya jalan sendiri.`"
         />
 
-        <AppStatGrid :loading="statMemuat" :count="4">
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="4"
+        >
           <AppStat
             label="Menu Berbeda"
             :value="angka(urut.length)"

@@ -73,7 +73,7 @@ export function notifBd(
     }
   }
   for (const t of tasks) {
-    const to = (t.tugasOleh || {})[akuId]
+    const to: { by: string, at: number } | undefined = (t.tugasOleh || {})[akuId]
     if (to && to.by !== akuId && pics(t).includes(akuId)) {
       out.push({
         k: `tg:${t.id}:${to.at}`,
@@ -83,7 +83,7 @@ export function notifBd(
         buka: `t:${t.id}`,
       })
     }
-    const ro = (t.reviewOleh || {})[akuId]
+    const ro: { by: string, at: number } | undefined = (t.reviewOleh || {})[akuId]
     if (ro && ro.by !== akuId && reviewers(t).includes(akuId)) {
       out.push({
         k: `rt:${t.id}:${ro.at}`,
@@ -147,7 +147,7 @@ export function bacaStateNotif(kunci: string): BacaNotif {
 export function tulisStateNotif(kunci: string, s: BacaNotif): void {
   try {
     const ks = Object.keys(s.k)
-    if (ks.length > 600) ks.slice(0, ks.length - 600).forEach(k => delete s.k[k])
+    if (ks.length > 600) ks.slice(0, ks.length - 600).forEach(k => Reflect.deleteProperty(s.k, k))
     localStorage.setItem(kunci, JSON.stringify(s))
   }
   catch { /* private mode: the list still works, marks just don't stick */ }

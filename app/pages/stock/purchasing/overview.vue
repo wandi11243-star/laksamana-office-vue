@@ -752,7 +752,10 @@ const kolom: TableColumn<BarisRekap>[] = [
         </template>
 
         <div class="hidden lg:block">
-          <UTable :columns="kolom" :data="rekap">
+          <UTable
+            :columns="kolom"
+            :data="rekap"
+          >
             <template #freq-cell="{ row }">
               <span class="font-semibold text-muted">{{ row.original.freq }}x</span>
             </template>

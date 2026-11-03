@@ -190,7 +190,10 @@ const kolom: TableColumn<ErrorBill>[] = [
       />
 
       <template v-else>
-        <AppStatGrid :loading="statMemuat" :count="4">
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="4"
+        >
           <AppStat
             label="Bill Ditandai Error"
             :value="angka(daftar.length)"

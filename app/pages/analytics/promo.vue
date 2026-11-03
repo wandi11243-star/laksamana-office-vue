@@ -170,7 +170,10 @@ const kolomPromo: TableColumn<BarisPromo>[] = [
       />
 
       <template v-else>
-        <AppStatGrid :loading="statMemuat" :count="4">
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="4"
+        >
           <AppStat
             label="Paling Sering Diklaim"
             :value="teratas ? teratas.n : '—'"

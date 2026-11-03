@@ -320,7 +320,10 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
       />
     </template>
     <MarketingGerbang layar="vip">
-      <AppStatGrid :loading="statMemuat" :count="4">
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="4"
+      >
         <AppStat
           label="Total reservasi"
           :value="String(rekap.total)"

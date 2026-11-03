@@ -172,7 +172,10 @@ const kolomPilar = kolomPlat
         />
 
         <template v-else>
-          <AppStatGrid :loading="statMemuat" :count="4">
+          <AppStatGrid
+            :loading="statMemuat"
+            :count="4"
+          >
             <AppStat
               label="Reach"
               :value="angka(total.dasar)"

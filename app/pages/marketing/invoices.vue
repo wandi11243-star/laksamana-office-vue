@@ -314,7 +314,10 @@ const cetak = () => window.print()
     description="Status pembayaran tiap event, real-time untuk Finance & Marketing."
   >
     <MarketingGerbang layar="invoices">
-      <AppStatGrid :loading="statMemuat" :count="4">
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="4"
+      >
         <AppStat
           label="Total piutang"
           :value="rupiah(rekap.piutang)"

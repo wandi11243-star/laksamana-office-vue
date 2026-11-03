@@ -123,7 +123,10 @@ useSegarSenyap(refresh, () => buka.value)
       </div>
     </AppPanel>
 
-    <AppStatGrid :loading="statMemuat" :count="5">
+    <AppStatGrid
+      :loading="statMemuat"
+      :count="5"
+    >
       <AppStat
         label="Acara tampil"
         icon="i-lucide-calendar-days"

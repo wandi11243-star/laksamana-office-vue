@@ -74,11 +74,11 @@ const versiKirim = computed(() => gerakQ.data.value?.versions ?? {})
  * convertible) is not offered (one shared builder for form Kirim and the
  * Ubah modal).
  */
-function produkCk(nama: string) {
+function produkCkRow(nama: string) {
   return produkQ.data.value?.rows.find(r => r.nama === nama) as unknown as Record<string, unknown> | undefined
 }
 function opsiKirim(nama: string) {
-  const p = produkCk(nama)
+  const p = produkCkRow(nama)
   const s = saldo.value.find(r => r.item === nama)
   return opsiSatuanKirimCk(
     p ? { satuan: p.satuan, satuanDasar: p.satuanDasar, isi: p.isi, packIsi: p.packIsi } : undefined,
@@ -212,7 +212,7 @@ const opsiUbah = computed(() => opsiKirim(ubah.value.item))
 const basiUbah = computed(() => {
   const m = kiriman.value.find(x => x.id === ubah.value.id)
   if (!m) return null
-  const p = produkCk(m.item)
+  const p = produkCkRow(m.item)
   const hitung = ckKeDasar(Number(ubah.value.qty) || 0, ubah.value.unit, p
     ? { satuanDasar: p.satuanDasar, isi: p.isi, packIsi: p.packIsi }
     : undefined)

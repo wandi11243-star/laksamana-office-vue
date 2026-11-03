@@ -175,7 +175,10 @@ const rincian = computed(() => {
       />
 
       <template v-else>
-        <AppStatGrid :loading="statMemuat" :count="4">
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="4"
+        >
           <AppStat
             label="Kanal Terbanyak"
             :value="teratas.n"

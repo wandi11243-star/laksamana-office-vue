@@ -218,7 +218,10 @@ const warnaStatus = (r: RequestDesainMkt) => {
       />
     </template>
     <MarketingGerbang layar="designreq">
-      <AppStatGrid :loading="statMemuat" :count="3">
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="3"
+      >
         <AppStat
           label="Menunggu dikerjakan"
           :value="String(hitung.open)"

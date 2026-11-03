@@ -83,7 +83,10 @@ useSegarSenyap(refresh)
       <b>Promo tidak terbaca:</b> {{ apiErrorMessage(error) }}
     </p>
 
-    <AppStatGrid :loading="statMemuat" :count="3">
+    <AppStatGrid
+      :loading="statMemuat"
+      :count="3"
+    >
       <AppStat
         label="Berlangsung"
         icon="i-lucide-circle-play"

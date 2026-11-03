@@ -144,7 +144,10 @@ const kolomKat: TableColumn<BarisKat>[] = [
           title="Virality: Berdesain vs Tanpa Desain"
           description="Perbandingannya harus ada — kalau seluruh konten bulan ini berdesain (atau tidak satu pun), sisi yang kosong mengatakannya, bukan nol."
         >
-          <AppStatGrid :loading="statMemuat" :count="2">
+          <AppStatGrid
+            :loading="statMemuat"
+            :count="2"
+          >
             <AppStat
               label="Berdesain"
               :value="fmtPersen(pkAggViral(banding.pakai))"

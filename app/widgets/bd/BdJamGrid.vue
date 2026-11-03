@@ -453,7 +453,7 @@ const hariIni = todayISO()
     >
       <div />
       <div
-        v-for="(d, ix) in hari"
+        v-for="d in hari"
         :key="d"
         class="flex items-center justify-center gap-1.5 px-2 py-2 text-center"
         :class="d === hariIni ? 'text-ink-900' : 'text-muted'"
@@ -555,7 +555,9 @@ const hariIni = todayISO()
           :title="`${b.sub} — ${b.judul}${b.boleh ? ' (seret untuk pindah, tepi bawah untuk ubah selesai)' : ''}`"
           @pointerdown="tekanBlok($event, b, ix)"
         >
-          <p class="truncate text-[10px] text-muted">{{ b.sub }}</p>
+          <p class="truncate text-[10px] text-muted">
+            {{ b.sub }}
+          </p>
           <p
             class="truncate text-[11px] font-semibold text-highlighted"
             :class="b.tolak ? 'line-through' : ''"

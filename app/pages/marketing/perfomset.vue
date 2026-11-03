@@ -226,7 +226,10 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
           description="Nominalnya tidak diakui untuk siapa pun. Yang membetulkannya Finance, di Omset → Breakdown Sumber."
         />
 
-        <AppStatGrid :loading="statMemuat" :count="3">
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="3"
+        >
           <AppStat
             label="Realisasi"
             :value="rupiah(a.real)"

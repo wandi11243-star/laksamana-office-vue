@@ -125,12 +125,12 @@ function buangPeserta(id: string) {
 function buangSisa(ids: string[]) {
   if (ids.some(id => f.resp[id])) {
     const next = { ...f.resp }
-    for (const id of ids) delete next[id]
+    for (const id of ids) Reflect.deleteProperty(next, id)
     f.resp = next
   }
   if (ids.some(id => id in f.pesertaNama)) {
     const next = { ...f.pesertaNama }
-    for (const id of ids) delete next[id]
+    for (const id of ids) Reflect.deleteProperty(next, id)
     f.pesertaNama = next
   }
 }
@@ -138,7 +138,7 @@ function buangSisa(ids: string[]) {
 function jawab(id: string, v: RsvpNilai) {
   if (!bisaJawab(props.people, id)) return
   const next = { ...f.resp }
-  if (next[id] === v) delete next[id]
+  if (next[id] === v) Reflect.deleteProperty(next, id)
   else next[id] = v
   f.resp = next
 }
@@ -220,25 +220,25 @@ async function simpan() {
     ? await bdSimpan(() => {
       // A moved schedule drops every answer: "hadir" for 10:00 is not
       // "hadir" for 14:00. Invitees are stamped again and asked anew.
-      const geser = jamAgendaBerubah(lama, body as BdAgenda)
-      const undang = { ...(lama.undang || {}) }
-      const resp = { ...f.resp }
-      const now = Date.now()
-      for (const p of peserta) {
-        if (!(p in undang)) undang[p] = { at: now }
-        else if (geser) {
-          undang[p] = { at: now, ubah: 1 }
-          delete resp[p]
+        const geser = jamAgendaBerubah(lama, body as BdAgenda)
+        const undang = { ...(lama.undang || {}) }
+        const resp = { ...f.resp }
+        const now = Date.now()
+        for (const p of peserta) {
+          if (!(p in undang)) undang[p] = { at: now }
+          else if (geser) {
+            undang[p] = { at: now, ubah: 1 }
+            Reflect.deleteProperty(resp, p)
+          }
         }
-      }
-      return ubahBd<BdAgenda>('agenda', lama.id, { ...body, id: lama.id, owner: lama.owner || '', resp, undang }, versiBaris(lama))
-    }, geserPesan(lama, body as BdAgenda))
+        return ubahBd<BdAgenda>('agenda', lama.id, { ...body, id: lama.id, owner: lama.owner || '', resp, undang }, versiBaris(lama))
+      }, geserPesan(lama, body as BdAgenda))
     : await bdSimpan(() => {
-      const now = Date.now()
-      const undang: Record<string, { at: number }> = {}
-      for (const p of peserta) undang[p] = { at: now }
-      return buatBd<BdAgenda>('agenda', { ...body, owner: milik || '', undang, resp: {} })
-    }, peserta.length ? `Agenda ditambahkan · ${peserta.length} peserta diundang` : 'Agenda ditambahkan')
+        const now = Date.now()
+        const undang: Record<string, { at: number }> = {}
+        for (const p of peserta) undang[p] = { at: now }
+        return buatBd<BdAgenda>('agenda', { ...body, owner: milik || '', undang, resp: {} })
+      }, peserta.length ? `Agenda ditambahkan · ${peserta.length} peserta diundang` : 'Agenda ditambahkan')
   if (ok) open.value = false
 }
 
@@ -278,7 +278,7 @@ async function simpanJawabanSendiri() {
   }
   const next = { ...(e.resp || {}) }
   if (jawabanku) next[idku] = jawabanku
-  else delete next[idku]
+  else Reflect.deleteProperty(next, idku)
   const ok = await bdSimpan(() => tambalBd<BdAgenda>('agenda', e.id, { resp: next }, versiBaris(e)), 'Jawaban terkirim')
   if (ok) open.value = false
 }

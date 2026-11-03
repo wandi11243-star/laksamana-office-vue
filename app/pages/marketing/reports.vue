@@ -62,7 +62,10 @@ function ekspor() {
         </p>
       </AppPanel>
 
-      <AppStatGrid :loading="statMemuat" :count="3">
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="3"
+      >
         <AppStat
           :label="`Total omset ${labelBulan}`"
           :value="rupiah(lap.total)"

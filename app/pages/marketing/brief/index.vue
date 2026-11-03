@@ -446,7 +446,9 @@ function cetak() {
                 <b>Grand total: {{ rupiah(uang.grand) }}</b> · DP: {{ rupiah(uang.dp) }} · Sisa: {{ rupiah(uang.remaining) }}
               </p>
               <p class="mt-1 text-sm">
-                Marketing: ______ · Menyetujui: ______<template v-if="picAcara"> · PIC acara: {{ picAcara }}</template>
+                Marketing: ______ · Menyetujui: ______<template v-if="picAcara">
+                  · PIC acara: {{ picAcara }}
+                </template>
               </p>
             </template>
           </article>
@@ -643,4 +645,3 @@ function cetak() {
     </MarketingGerbang>
   </AppPage>
 </template>
-

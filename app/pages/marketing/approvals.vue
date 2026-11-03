@@ -122,7 +122,10 @@ const warnaAntri = (r: BarisApprovalMkt) => {
     description="Meja putusan manajemen."
   >
     <MarketingGerbang layar="approvals">
-      <AppStatGrid :loading="statMemuat" :count="3">
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="3"
+      >
         <AppStat
           label="Surat penawaran"
           :value="String(rekap.pen)"

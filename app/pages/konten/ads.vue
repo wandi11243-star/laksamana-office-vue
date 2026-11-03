@@ -214,8 +214,10 @@ const sisaJalan = (k: KampanyeAdsJalan) => {
 }
 /** Which level owns the budget — the "penjelasan tingkat" of the old card. */
 const penjelasanTingkat = (k: KampanyeAdsJalan) =>
-  k.sumberBudget === 'harian' ? 'Budget harian di tingkat kampanye'
-    : k.sumberBudget === 'total' ? 'Budget total di tingkat kampanye'
+  k.sumberBudget === 'harian'
+    ? 'Budget harian di tingkat kampanye'
+    : k.sumberBudget === 'total'
+      ? 'Budget total di tingkat kampanye'
       : 'Budget diatur di tingkat set iklan atau iklan'
 const budgetUtamaJalan = (k: KampanyeAdsJalan) => (k.sumberBudget === 'total' ? k.budgetTotal : k.budgetHarian)
 /** Projected total vs the total budget, at the current daily pace. */
@@ -515,7 +517,7 @@ function bukaDana(x?: DanaIklan) {
                     Tagihan
                   </dt>
                   <dd class="font-semibold num">
-                    {{ a.tagihan == null || a.tagihan === '' ? '—' : rupiah(a.tagihan) }}
+                    {{ (a.tagihan ?? '') === '' ? '—' : rupiah(a.tagihan) }}
                   </dd>
                 </div>
                 <div>
@@ -523,7 +525,7 @@ function bukaDana(x?: DanaIklan) {
                     Spend cap
                   </dt>
                   <dd class="font-semibold num">
-                    {{ a.spendCap == null || a.spendCap === '' ? 'Tanpa batas' : rupiah(a.spendCap) }}
+                    {{ (a.spendCap ?? '') === '' ? 'Tanpa batas' : rupiah(a.spendCap) }}
                   </dd>
                 </div>
                 <div>
@@ -531,7 +533,7 @@ function bukaDana(x?: DanaIklan) {
                     Sisa spend cap
                   </dt>
                   <dd class="font-semibold num">
-                    {{ a.sisaSpendCap == null || a.sisaSpendCap === '' ? '—' : rupiah(a.sisaSpendCap) }}
+                    {{ (a.sisaSpendCap ?? '') === '' ? '—' : rupiah(a.sisaSpendCap) }}
                   </dd>
                 </div>
               </dl>

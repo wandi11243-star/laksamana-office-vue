@@ -105,21 +105,30 @@ cek('manual pas: manual + nominal per kasir, per dikosongkan', m1.manual === tru
 cek('bagianPotong membaca nominal; kasir luar nol', P.bagianPotong(m1, 'k1') === 60 && P.bagianPotong(m1, 'k2') === 40 && P.bagianPotong(m1, 'k3') === 0)
 const mEven = P.potonganBaris({ amount: 100, shift: ['k1', 'k2'] })
 cek('tanpa shiftNom: tetap bagi rata, manual mati', mEven.manual === false && mEven.per === 50 && P.bagianPotong(mEven, 'k1') === 50)
-cek('jumlah tak pas → fallback bagi rata utuh', (() => { const b = P.potonganBaris({ amount: 100, shift: ['k1', 'k2'], shiftNom: { k1: 60, k2: 30 } }); return !b.manual && b.per === 50 })())
+cek('jumlah tak pas → fallback bagi rata utuh', (() => {
+  const b = P.potonganBaris({ amount: 100, shift: ['k1', 'k2'], shiftNom: { k1: 60, k2: 30 } })
+  return !b.manual && b.per === 50
+})())
 cek('id kurang/negatif/kosong → fallback bagi rata', (() => {
   const a = P.potonganBaris({ amount: 100, shift: ['k1', 'k2'], shiftNom: { k1: 100 } })
   const b = P.potonganBaris({ amount: 100, shift: ['k1', 'k2'], shiftNom: { k1: 120, k2: -20 } })
   const c = P.potonganBaris({ amount: 100, shift: ['k1', 'k2'], shiftNom: { k1: '', k2: 100 } })
   return !a.manual && a.per === 50 && !b.manual && !c.manual
 })())
-cek('baris non-potong + shiftNom tetap nol & bukan manual', (() => { const b = P.potonganBaris({ amount: 100, shift: ['k1'], menuFix: 'ditempat', shiftNom: { k1: 100 } }); return !b.manual && b.per === 0 && b.total === 0 })())
+cek('baris non-potong + shiftNom tetap nol & bukan manual', (() => {
+  const b = P.potonganBaris({ amount: 100, shift: ['k1'], menuFix: 'ditempat', shiftNom: { k1: 100 } })
+  return !b.manual && b.per === 0 && b.total === 0
+})())
 const dayNom = { date: '2026-10-04', bd: { marketing: [{ amount: 100, shift: ['k1', 'k2'], shiftNom: { k1: 70, k2: 30 } }, { amount: 60, shift: ['k1', 'k2'] }] } }
 cek('potonganHari campur manual + rata', P.potonganHari(dayNom, 'k1') === 100 && P.potonganHari(dayNom, 'k2') === 60)
 const mk1 = P.potonganBarisKompas({ amount: 100, shift: ['k1', 'k2'], shiftNom: { k1: 90, k2: 10 } })
 cek('Kompas: manual nominal penuh (tanpa belah tiket)', mk1.manual === true && P.bagianPotong(mk1, 'k1') === 90)
 const dayNomK = { date: '2026-10-04', bd: { marketing: [{ amount: 100, tiket: true, shift: ['k1'], shiftNom: { k1: 50 } }] } }
 cek('manual separuh-tiket berlaku di cashier; di Kompas tak pas → fallback penuh', P.potonganHari(dayNomK, 'k1') === 50 && P.potonganHariKompas(dayNomK, 'k1') === 100)
-cek('Kompas jumlah tak pas → fallback rata penuh', (() => { const b = P.potonganBarisKompas({ amount: 100, shift: ['k1', 'k2'], shiftNom: { k1: 1, k2: 2 } }); return !b.manual && b.per === 50 })())
+cek('Kompas jumlah tak pas → fallback rata penuh', (() => {
+  const b = P.potonganBarisKompas({ amount: 100, shift: ['k1', 'k2'], shiftNom: { k1: 1, k2: 2 } })
+  return !b.manual && b.per === 50
+})())
 
 console.log('\nporsi-pic: kembar dengan Office lama')
 const LAMA = path.resolve(import.meta.dirname, '../../laksamana-office')

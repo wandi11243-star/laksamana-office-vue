@@ -495,7 +495,11 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
         </div>
       </div>
 
-      <AppStatGrid v-if="uang" :loading="statMemuat" :count="4">
+      <AppStatGrid
+        v-if="uang"
+        :loading="statMemuat"
+        :count="4"
+      >
         <AppStat
           label="Grand Total"
           :value="rupiahRingkas(uang.grand)"

@@ -110,7 +110,9 @@ const arsipQ = useAsyncData('stock-purch-arsip', () => listOrders({
 })
 /* Back to page 1 whenever the archive tab is entered or its filters change —
  *  the server page numbering restarts from the new result set. */
-watch([sub, divisi, tglDatang, vendorAktif, cari, tglSubmit], () => { arsipHal.value = 1 })
+watch([sub, divisi, tglDatang, vendorAktif, cari, tglSubmit], () => {
+  arsipHal.value = 1
+})
 /* Tab count, badge and stat read the server total; the local fallback reads
  *  the filtered length instead, so both modes stay honest. */
 const arsipTotal = computed(() => arsipJatuhPenuh.value
@@ -536,7 +538,10 @@ function unduhCsv() {
         <AppFilterGrid>
           <UFormField label="Vendor">
             <template #label>
-              <span class="inline-flex items-center gap-1"><UIcon name="i-lucide-store" class="size-3.5" />Vendor</span>
+              <span class="inline-flex items-center gap-1"><UIcon
+                name="i-lucide-store"
+                class="size-3.5"
+              />Vendor</span>
             </template>
             <USelect
               v-model="vendorAktif"
@@ -545,7 +550,10 @@ function unduhCsv() {
           </UFormField>
           <UFormField label="Divisi pemesan">
             <template #label>
-              <span class="inline-flex items-center gap-1"><UIcon name="i-lucide-users" class="size-3.5" />Divisi pemesan</span>
+              <span class="inline-flex items-center gap-1"><UIcon
+                name="i-lucide-users"
+                class="size-3.5"
+              />Divisi pemesan</span>
             </template>
             <USelect
               v-model="divisi"
@@ -554,7 +562,10 @@ function unduhCsv() {
           </UFormField>
           <UFormField label="Tgl submit">
             <template #label>
-              <span class="inline-flex items-center gap-1"><UIcon name="i-lucide-send-horizontal" class="size-3.5" />Tgl submit</span>
+              <span class="inline-flex items-center gap-1"><UIcon
+                name="i-lucide-send-horizontal"
+                class="size-3.5"
+              />Tgl submit</span>
             </template>
             <UInput
               v-model="tglSubmit"
@@ -563,7 +574,10 @@ function unduhCsv() {
           </UFormField>
           <UFormField label="Tgl kedatangan">
             <template #label>
-              <span class="inline-flex items-center gap-1"><UIcon name="i-lucide-calendar-days" class="size-3.5" />Tgl kedatangan</span>
+              <span class="inline-flex items-center gap-1"><UIcon
+                name="i-lucide-calendar-days"
+                class="size-3.5"
+              />Tgl kedatangan</span>
             </template>
             <UInput
               v-model="tglDatang"

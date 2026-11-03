@@ -12,8 +12,7 @@
 <script setup lang="ts">
 import type { BdPerson } from '~/composables/useBd'
 import { bdSimpan, buatBd, hapusBd, tambalBd, useBdState, versiBaris } from '~/composables/useBd'
-import { LABEL_TIM, cariAku, inisial, punyaPic, selesai, timDariKet, todayISO, uidBd } from '~/utils/bd-rumus'
-import { useRoster } from '~/composables/useRoster'
+import { LABEL_TIM, cariAku, inisial, punyaPic, selesai, todayISO, uidBd } from '~/utils/bd-rumus'
 import { divTone } from '~/utils/status-bd'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdOrangSheet from '~/widgets/bd/BdOrangSheet.vue'
@@ -23,18 +22,10 @@ definePageMeta({ access: ['bd'] })
 const me = useMe()
 const toast = useToast()
 const { data: state } = useBdState()
-const { data: roster } = useRoster()
 const modulMembers = useModulMembers('bd')
 const people = computed(() => state.value.people)
 const aku = computed(() => cariAku(people.value, me.value))
 
-/** Office Tim of one crew (roster `keterangan`, officeUserId first then name). */
-function timOf(p: BdPerson): string[] {
-  const list = roster.value ?? []
-  const m = list.find(x => p.officeUserId && String(x.id) === String(p.officeUserId))
-    || list.find(x => String(x.name || '').trim().toLowerCase() === String(p.name || '').trim().toLowerCase())
-  return timDariKet(m?.keterangan)
-}
 /** A division outside the Office Tim list is kept as-is and marked, never cleared. */
 const divLama = (p: BdPerson) => {
   const d = String(p.div || '')

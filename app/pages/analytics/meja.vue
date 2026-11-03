@@ -296,7 +296,10 @@ const zonaAgregat = computed(() => {
       />
 
       <template v-else>
-        <AppStatGrid :loading="statMemuat" :count="5">
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="5"
+        >
           <AppStat
             label="Omset dari Meja"
             :value="rupiah(hitung.gMeja)"

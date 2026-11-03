@@ -213,7 +213,10 @@ const warnaLevel = (v: number) => (v === 2 ? 'success' : v === 1 ? 'info' : 'neu
         :description="`${sinkron.baru || sinkron.ubah ? `${sinkron.baru} pegawai baru, ${sinkron.ubah} diperbarui.` : 'Tidak ada perubahan.'} ${sinkron.pesan}`"
       />
 
-      <AppStatGrid :loading="statMemuat" :count="4">
+      <AppStatGrid
+        :loading="statMemuat"
+        :count="4"
+      >
         <AppStat
           label="Total pegawai"
           :value="daftar.length"

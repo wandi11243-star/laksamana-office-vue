@@ -388,11 +388,11 @@ function dropHari(iso: string) {
               :key="i"
               class="block rounded border px-2 py-1 text-xs font-semibold"
               :class="[e.tone === 'error' ? 'border-error/40 bg-error/10 text-error'
-                : e.tone === 'vip' ? 'border-lilac-light bg-lilac-light text-ink-900'
-                  : e.tone === 'info' ? 'border-info/40 bg-info/10 text-info'
-                    : e.tone === 'warning' ? 'border-warning/40 bg-warning/10 text-warning'
-                      : 'border-yellow-deep bg-yellow-light text-yellow-dark',
-                !e.geser && e.id ? 'cursor-pointer' : '']"
+                         : e.tone === 'vip' ? 'border-lilac-light bg-lilac-light text-ink-900'
+                           : e.tone === 'info' ? 'border-info/40 bg-info/10 text-info'
+                             : e.tone === 'warning' ? 'border-warning/40 bg-warning/10 text-warning'
+                               : 'border-yellow-deep bg-yellow-light text-yellow-dark',
+                       !e.geser && e.id ? 'cursor-pointer' : '']"
               :title="`${e.jenis} — ${e.title}`"
               @click="!e.geser && e.id && bukaAgendaId(e.id)"
             >{{ e.jenis }} — {{ e.title }}</span>

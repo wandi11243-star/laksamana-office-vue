@@ -164,8 +164,8 @@ function bukaForm(b?: BrandKonten) {
           </p>
           <ul class="space-y-1.5">
             <li
-              v-for="(p, i) in plats(b)"
-              :key="i"
+              v-for="(p, pi) in plats(b)"
+              :key="pi"
               class="flex items-center gap-2 rounded-lg bg-muted px-3 py-2 text-xs"
             >
               <UBadge

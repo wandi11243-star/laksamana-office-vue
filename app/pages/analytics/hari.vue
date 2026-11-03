@@ -314,7 +314,10 @@ const kolomTgl: TableColumn<BarisTgl>[] = [
           title="Dua Shift"
           description="Dikelompokkan menurut jam bill dibuka (Sales In Time). Batas jamnya disetel di Pengaturan."
         >
-          <AppStatGrid :loading="statMemuat" :count="3">
+          <AppStatGrid
+            :loading="statMemuat"
+            :count="3"
+          >
             <AppStat
               :label="`Siang · ${lblShift(shift.s1a, shift.s1b)}`"
               :value="rupiah(shiftHitung.g1)"

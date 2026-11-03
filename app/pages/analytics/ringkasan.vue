@@ -285,7 +285,10 @@ function segarkan() {
       </div>
 
       <template v-else>
-        <AppStatGrid :loading="statMemuat" :count="4">
+        <AppStatGrid
+          :loading="statMemuat"
+          :count="4"
+        >
           <AppStat
             label="Total Penjualan"
             :value="rupiah(grand)"
@@ -394,7 +397,10 @@ function segarkan() {
             title="Dibanding Rekap Penjualan"
             description="Rekap Penjualan diisi manual tiap hari; berkas POS ini keluaran mesin. Keduanya memang bisa berbeda — yang penting bedanya terlihat."
           >
-            <AppStatGrid :loading="statMemuat" :count="3">
+            <AppStatGrid
+              :loading="statMemuat"
+              :count="3"
+            >
               <AppStat
                 label="POS (Grand Total)"
                 :value="rupiah(grand)"

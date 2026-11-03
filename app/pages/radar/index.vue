@@ -101,7 +101,10 @@ useSegarSenyap(refresh, () => buka.value)
       </div>
     </AppPanel>
 
-    <AppStatGrid :loading="statMemuat" :count="4">
+    <AppStatGrid
+      :loading="statMemuat"
+      :count="4"
+    >
       <AppStat
         label="Total reservasi"
         icon="i-lucide-book-open"
