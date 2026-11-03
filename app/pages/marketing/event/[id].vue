@@ -643,12 +643,16 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
             v-for="s in ringkas.secs"
             :key="s.id"
             type="button"
-            class="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition hover:bg-elevated"
-            :class="s.isi >= s.total ? 'border-success/40' : s.isi === 0 ? 'border-error/40' : 'border-warning/40'"
+            class="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition hover:brightness-95"
+            :class="s.isi >= s.total ? 'border-success/40 bg-teal-light' : s.isi === 0 ? 'border-error/40 bg-coral-light' : 'border-warning/40 bg-yellow-light'"
             :title="`${s.title} — ${s.isi} dari ${s.total} isian terisi`"
             @click="tab = s.tab"
           >
-            <span class="font-bold text-primary-700 num">{{ s.n }}</span>
+            <!-- Number and count follow the section status colour; title stays highlighted for readability. -->
+            <span
+              class="font-bold num"
+              :class="s.isi >= s.total ? 'text-success' : s.isi === 0 ? 'text-error' : 'text-warning'"
+            >{{ s.n }}</span>
             <span class="text-highlighted">{{ s.title }}</span>
             <span
               class="num"

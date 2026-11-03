@@ -63,8 +63,15 @@ const data = computed(() => saringClientMkt(st.value.clients, st.value.events, f
 const urut = computed(() => tbl.susun(data.value))
 const hal = computed(() => tbl.potong(urut.value))
 const kolom: TableColumn<ClientMkt>[] = [
-  ...KOL.map(k => ({ id: k.k, header: tbl.kepala(k.k, k.t) })),
-  { id: 'buka', header: '' },
+  // Client + Peluang flex; the rest lock so the table fits without scrolling.
+  { id: 'nama', header: tbl.kepala('nama', 'Client') },
+  { id: 'kontak', header: tbl.kepala('kontak', 'Kontak'), meta: { class: { th: 'w-36', td: 'w-36' } } },
+  { id: 'source', header: tbl.kepala('source', 'Source'), meta: { class: { th: 'w-24', td: 'w-24' } } },
+  { id: 'pic', header: tbl.kepala('pic', 'Marketing PIC'), meta: { class: { th: 'w-28', td: 'w-28' } } },
+  { id: 'peluang', header: tbl.kepala('peluang', 'Peluang'), meta: { class: { th: 'w-48', td: 'w-48' } } },
+  { id: 'spend', header: tbl.kepala('spend', 'Total Spending'), meta: { class: { th: 'w-28', td: 'w-28' } } },
+  { id: 'fu', header: tbl.kepala('fu', 'Next FU'), meta: { class: { th: 'w-24', td: 'w-24' } } },
+  { id: 'buka', header: '', meta: { class: { th: 'w-10', td: 'w-10' } } },
 ]
 
 // ---- sheets ----
@@ -236,30 +243,35 @@ async function terapkan() {
             :data="hal"
             :columns="kolom"
             class="hidden lg:block"
-            :ui="{ tr: 'cursor-pointer' }"
+            :ui="{ base: 'w-full table-fixed', thead: 'bg-table-head', th: 'text-table-head-text', td: 'whitespace-normal', tr: 'cursor-pointer' }"
             @select="(_e: Event, r: { original: ClientMkt }) => lihat(r.original)"
           >
             <template #nama-cell="{ row }">
-              <p class="flex items-center gap-1 font-semibold text-highlighted">
-                {{ row.original.nama }}
-                <UIcon
-                  v-if="belanja(row.original.id) > BATAS_VIP_MKT"
-                  name="i-lucide-star"
-                  class="size-3.5 text-primary-500"
-                  title="Klien VIP — total belanja di atas Rp20 juta"
-                />
-              </p>
-              <p class="text-xs text-muted">
-                {{ row.original.perusahaan || 'Perorangan' }}
-              </p>
+              <!-- Long names wrap down to the next line, never truncated. -->
+              <div class="min-w-0">
+                <p class="flex items-center gap-1 font-semibold break-words text-highlighted [overflow-wrap:anywhere]">
+                  {{ row.original.nama }}
+                  <UIcon
+                    v-if="belanja(row.original.id) > BATAS_VIP_MKT"
+                    name="i-lucide-star"
+                    class="size-3.5 shrink-0 text-primary-500"
+                    title="Klien VIP — total belanja di atas Rp20 juta"
+                  />
+                </p>
+                <p class="text-xs break-words text-muted [overflow-wrap:anywhere]">
+                  {{ row.original.perusahaan || 'Perorangan' }}
+                </p>
+              </div>
             </template>
             <template #kontak-cell="{ row }">
-              <p class="text-xs">
-                {{ row.original.hp }}
-              </p>
-              <p class="text-xs text-muted">
-                {{ row.original.email || row.original.ig || '' }}
-              </p>
+              <div class="min-w-0">
+                <p class="text-xs break-words [overflow-wrap:anywhere]">
+                  {{ row.original.hp }}
+                </p>
+                <p class="text-xs break-words text-muted [overflow-wrap:anywhere]">
+                  {{ row.original.email || row.original.ig || '' }}
+                </p>
+              </div>
             </template>
             <template #source-cell="{ row }">
               <UBadge
@@ -270,10 +282,10 @@ async function terapkan() {
               />
             </template>
             <template #pic-cell="{ row }">
-              {{ namaUser(row.original.mktPIC) }}
+              <span class="block min-w-0 break-words [overflow-wrap:anywhere]">{{ namaUser(row.original.mktPIC) }}</span>
             </template>
             <template #peluang-cell="{ row }">
-              <div class="flex flex-wrap gap-1">
+              <div class="flex min-w-0 flex-wrap gap-1">
                 <AppStatus
                   v-for="e in tags(row.original.id).open.slice(0, 3)"
                   :key="e.id"
@@ -312,10 +324,10 @@ async function terapkan() {
               </div>
             </template>
             <template #spend-cell="{ row }">
-              <span class="num">{{ belanja(row.original.id) ? rupiah(belanja(row.original.id)) : '—' }}</span>
+              <span class="num whitespace-nowrap">{{ belanja(row.original.id) ? rupiah(belanja(row.original.id)) : '—' }}</span>
             </template>
             <template #fu-cell="{ row }">
-              <span class="num">{{ row.original.nextFU ? tglMkt(row.original.nextFU) : '—' }}</span>
+              <span class="num whitespace-nowrap">{{ row.original.nextFU ? tglMkt(row.original.nextFU) : '—' }}</span>
             </template>
             <template #buka-cell>
               <UIcon

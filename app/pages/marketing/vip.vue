@@ -467,26 +467,34 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
           <UTable
             :data="hal"
             :columns="[
-              { accessorKey: 'tanggal', header: tbl.kepala('tanggal', 'Tanggal') },
+              { accessorKey: 'tanggal', header: tbl.kepala('tanggal', 'Tanggal'), meta: { class: { th: 'w-24', td: 'w-24' } } },
               { id: 'nama', header: tbl.kepala('nama', 'Atas Nama') },
-              { id: 'jenis', header: tbl.kepala('jenis', 'Jenis') },
-              { id: 'pax', header: tbl.kepala('pax', 'Orang') },
-              { id: 'meja', header: tbl.kepala('meja', 'Meja') },
-              { id: 'bayar', header: tbl.kepala('bayar', 'Pembayaran') },
-              { id: 'nominal', header: tbl.kepala('nominal', 'Nominal') },
-              { id: 'aksi', header: 'Aksi' },
+              { id: 'jenis', header: tbl.kepala('jenis', 'Jenis'), meta: { class: { th: 'w-28', td: 'w-28' } } },
+              { id: 'pax', header: tbl.kepala('pax', 'Orang'), meta: { class: { th: 'w-16', td: 'w-16' } } },
+              { id: 'meja', header: tbl.kepala('meja', 'Meja'), meta: { class: { th: 'w-32', td: 'w-32' } } },
+              { id: 'bayar', header: tbl.kepala('bayar', 'Pembayaran'), meta: { class: { th: 'w-28', td: 'w-28' } } },
+              { id: 'nominal', header: tbl.kepala('nominal', 'Nominal'), meta: { class: { th: 'w-32', td: 'w-32' } } },
+              { id: 'aksi', header: 'Aksi', meta: { class: { th: 'w-32', td: 'w-32' } } },
             ]"
             class="hidden lg:block"
-            :ui="{ tr: 'cursor-pointer' }"
+            :ui="{ base: 'w-full table-fixed', thead: 'bg-table-head', th: 'text-table-head-text', td: 'whitespace-normal', tr: 'cursor-pointer' }"
             @select="(_e: Event, r: { original: VipMkt }) => { lihatId = r.original.id }"
           >
+            <!-- Old list (deploy/marketing :16586): date on top, jam below it. -->
+            <template #tanggal-cell="{ row }">
+              <span class="num">{{ row.original.tanggal }}</span>
+              <span class="block text-xs text-muted">{{ [row.original.jamMulai, row.original.jamSelesai].filter(Boolean).join(' - ') || '—' }}</span>
+            </template>
             <template #nama-cell="{ row }">
-              <p class="font-semibold text-highlighted">
-                {{ row.original.nama }}
-              </p>
-              <p class="text-xs text-muted">
-                {{ perusahaan(row.original) }}
-              </p>
+              <!-- Long names wrap down to the next line, never truncated. -->
+              <div class="min-w-0">
+                <p class="font-semibold break-words text-highlighted [overflow-wrap:anywhere]">
+                  {{ row.original.nama }}
+                </p>
+                <p class="text-xs break-words text-muted [overflow-wrap:anywhere]">
+                  {{ perusahaan(row.original) }}
+                </p>
+              </div>
             </template>
             <template #jenis-cell="{ row }">
               <AppStatus
@@ -498,10 +506,14 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
               </AppStatus>
             </template>
             <template #pax-cell="{ row }">
-              <span class="num">{{ paxTeks(row.original) }}</span>
+              <span class="num whitespace-nowrap">{{ paxTeks(row.original) }}</span>
             </template>
             <template #meja-cell="{ row }">
-              <span v-if="(row.original.meja ?? []).length">{{ (row.original.meja ?? []).join(', ') }}</span>
+              <!-- Old list (:16590): plain joined text, wrapping down like the rest. -->
+              <span
+                v-if="(row.original.meja ?? []).length"
+                class="block min-w-0 break-words [overflow-wrap:anywhere]"
+              >{{ (row.original.meja ?? []).join(', ') }}</span>
               <span
                 v-else
                 class="text-xs text-muted"
@@ -516,7 +528,7 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
               </AppStatus>
               <p
                 v-if="vipDpTotalMkt(row.original)"
-                class="num mt-1 text-xs text-muted"
+                class="num mt-1 text-xs whitespace-nowrap text-muted"
               >
                 {{ rupiah(vipDpTotalMkt(row.original)) }}
               </p>
@@ -546,12 +558,12 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
               </template>
               <span
                 v-else
-                class="num"
+                class="num whitespace-nowrap"
               >{{ rupiah(vipNominalMkt(row.original)) }}</span>
             </template>
             <template #aksi-cell="{ row }">
               <div
-                class="flex gap-1"
+                class="flex flex-wrap gap-1"
                 @click.stop
               >
                 <UButton

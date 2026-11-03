@@ -191,9 +191,10 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
           v-for="f in s.fields"
           :key="f.k"
         >
+          <!-- Slim tint divider: stacked title + desc with a deep-yellow edge marker. -->
           <div
             v-if="f.t === 'head' && terlihat(f)"
-            class="col-span-full mb-2 mt-5 rounded-lg bg-yellow-light px-3 py-2.5 first:mt-0"
+            class="col-span-full mb-2 mt-5 rounded-md border-l-[3px] border-yellow-deep bg-yellow-light px-2.5 py-1.5 first:mt-0"
           >
             <p class="text-sm font-semibold text-ink-900">
               {{ f.l }}

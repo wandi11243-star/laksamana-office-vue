@@ -16,6 +16,8 @@ import {
 } from '~/utils/marketing-event'
 import { dpLabel, eventFinance, invStatus, rinciSeedRows, ynBool } from '~/utils/marketing-uang'
 import { berkasKeBase64, bukaBerkasMkt, kunciBerkasMkt, unggahBerkasMkt, urlBerkasMkt } from '~/composables/useMarketing'
+// Invoice pill reuses the page's invoice-status colours (Draft/Sent/Pending/Paid/Overdue).
+import { ikonInvoiceMkt, warnaInvoiceMkt } from '~/utils/status-marketing'
 import { berkasKwitansi, statusKwitansi, updateInvoiceText, type BerkasKwitansi, type StatusKwitansi } from '~/composables/useFinance'
 import { adaBuktiSheet, invoiceHtml } from '~/utils/invoice-sheet'
 import { resIdInvMkt } from '~/utils/marketing-keuangan'
@@ -778,6 +780,9 @@ async function simpanInvUbah() {
           title="Hitungan"
           class="order-1 min-w-0"
         >
+          <!-- Money colours carry meaning (same tones as the stat cards above):
+            green = money in or settled, coral = still owed, amber = overpaid,
+            and the invoice pill reuses the page's invoice-status colours. -->
           <dl class="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1.5 text-sm">
             <dt class="text-muted">
               Baris ditagih
@@ -789,7 +794,7 @@ async function simpanInvUbah() {
               <dt class="text-muted">
                 Discount
               </dt>
-              <dd class="num text-right">
+              <dd class="num text-right text-success">
                 − {{ rupiah(uang.disc) }}
               </dd>
             </template>
@@ -820,20 +825,23 @@ async function simpanInvUbah() {
             <dt class="text-muted">
               Terbayar
             </dt>
-            <dd class="num text-right">
+            <dd class="num text-right font-medium text-success">
               {{ rupiah(uang.paid) }}
             </dd>
             <dt class="text-muted">
               Sisa
             </dt>
-            <dd class="num text-right font-semibold">
+            <dd
+              class="num text-right font-semibold"
+              :class="uang.remaining > 0 ? 'text-error' : 'text-success'"
+            >
               {{ rupiah(uang.remaining) }}
             </dd>
             <template v-if="kelebihan">
               <dt class="text-muted">
                 Kelebihan
               </dt>
-              <dd class="num text-right">
+              <dd class="num text-right text-warning">
                 {{ rupiah(kelebihan) }}
               </dd>
             </template>
@@ -841,7 +849,13 @@ async function simpanInvUbah() {
               Status invoice
             </dt>
             <dd class="text-right">
-              {{ inv }}
+              <AppStatus
+                :color="warnaInvoiceMkt(inv)"
+                :icon="ikonInvoiceMkt(inv)"
+                size="sm"
+              >
+                {{ inv }}
+              </AppStatus>
             </dd>
           </dl>
           <UButton

@@ -104,7 +104,7 @@ function pakai() {
           v-for="k in kategori"
           :key="k.kat"
           type="button"
-          class="min-h-11 rounded-field border border-default p-3 text-left hover:bg-elevated"
+          class="min-h-11 rounded-md border border-default p-3 text-left hover:bg-elevated"
           @click="kat = k.kat"
         >
           <span class="flex items-center gap-2 font-semibold text-highlighted">
