@@ -11,10 +11,10 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdProject, BdSubtask, BdTask } from '~/composables/useBd'
-import { buatBd, bdSimpan, bdTulisDiam, hapusTaskDenganUrutan, lahirkanUlangSetelah, pesanHapusTask, putSetelan, ubahBd, useBdSettings, versiBaris, versiSetelan } from '~/composables/useBd'
+import { buatBd, bdSimpan, bdTulisDiam, capPenugasan, hapusTaskDenganUrutan, lahirkanUlangSetelah, pesanHapusTask, putSetelan, ubahBd, useBdSettings, versiBaris, versiSetelan } from '~/composables/useBd'
 import {
-  OWNER_DIVS, PILIHAN_TANPA, PRIORITAS, STATUS_FLOW, TAG_PALET, TASK_TIPE, ULANG, cekBolehDone, deps, gayaTag, kruTersedia, kuadran,
-  kunciTag, labelUlang, menungguTransitif, opsiProject as opsiProjectBd, parseUlang, pesanTunggu, segarkanProgress, selesai, semuaTag, setPics, subs, susunUlang, tagsOf, todayISO, uidBd,
+  PILIHAN_TANPA, PRIORITAS, STATUS_FLOW, TAG_PALET, TASK_TIPE, ULANG, cekBolehDone, deps, divisiBawaan, gayaTag, jamValid, kruTersedia, kuadran,
+  kunciTag, labelUlang, menungguTransitif, opsiDivisi, opsiProject as opsiProjectBd, parseUlang, pesanTunggu, pics, reviewers, segarkanProgress, selesai, semuaTag, setPics, subs, susunUlang, tagsOf, todayISO, uidBd,
   warnaAcakTag, warnaTag,
   type UlangRumus,
 } from '~/utils/bd-rumus'
@@ -35,10 +35,15 @@ const props = defineProps<{
 const open = defineModel<boolean>('open', { default: false })
 const toast = useToast()
 
+/** Division choices: crew-used divisions first, then every Office Tim.
+ * The edited row's own div is unioned in, so a stored legacy division never
+ * drops out of the select even when no crew carries it any more. */
+const opsiDiv = computed(() => opsiDivisi([...props.people, { div: props.task?.div }]))
+
 const f = reactive({
   name: '',
   desc: '',
-  div: OWNER_DIVS[0]!,
+  div: '',
   pics: [] as string[],
   reviewers: [] as string[],
   status: 'To Do',
@@ -46,6 +51,8 @@ const f = reactive({
   type: 'Ad-hoc',
   start: '',
   deadline: todayISO(),
+  /** Optional deadline time ("HH:MM") — info only, never an hour-grid. */
+  jam: '',
   project: null as string | null,
   daily: false,
   ulang: '',
@@ -166,7 +173,7 @@ watch(open, (o) => {
   if (t) {
     f.name = t.name
     f.desc = t.desc || ''
-    f.div = t.div || OWNER_DIVS[0]!
+    f.div = t.div || opsiDiv.value[0]!
     f.pics = [...(t.pics || (t.pic ? [t.pic] : []))]
     f.reviewers = [...(t.reviewers || [])]
     f.status = t.status
@@ -174,6 +181,7 @@ watch(open, (o) => {
     f.type = t.type || 'Ad-hoc'
     f.start = t.start || ''
     f.deadline = t.deadline || ''
+    f.jam = t.jam || ''
     f.project = t.project || null
     f.daily = !!t.daily
     f.ulang = t.ulang || ''
@@ -188,7 +196,7 @@ watch(open, (o) => {
     const aku = props.aku
     f.name = ''
     f.desc = ''
-    f.div = aku && OWNER_DIVS.includes(aku.div) ? aku.div : OWNER_DIVS[0]!
+    f.div = divisiBawaan(aku?.div, opsiDiv.value)
     f.pics = aku ? [aku.id] : []
     f.reviewers = []
     f.status = 'To Do'
@@ -196,6 +204,7 @@ watch(open, (o) => {
     f.type = 'Ad-hoc'
     f.start = ''
     f.deadline = todayISO()
+    f.jam = ''
     f.project = props.presetDaily ? null : (props.presetProject || null)
     f.daily = !!props.presetDaily
     f.ulang = ''
@@ -260,6 +269,17 @@ async function simpan() {
     toast.add({ title: 'Tanggal mulai tidak boleh sesudah deadline.', color: 'error' })
     return
   }
+  // The time box is optional and only rides a deadline — a time without a
+  // date would have nowhere to be drawn. The shape is checked too: a
+  // hand-typed value bypassing `type=time` must not save verbatim.
+  if (f.jam && !jamValid(f.jam)) {
+    toast.add({ title: 'Jam tidak valid — pakai format 24 jam, mis. 14:00.', color: 'error' })
+    return
+  }
+  if (f.jam && !f.deadline) {
+    toast.add({ title: 'Jam butuh tanggal deadline dulu.', color: 'error' })
+    return
+  }
   // Sub-tasks without text are dropped: empty rows keep x/y from ever balancing.
   // `p` rides inside the sub-task, no migration — unassigned stays empty, never guessed.
   const subtasks: BdSubtask[] = subDraf.value
@@ -317,6 +337,7 @@ async function simpan() {
     type: f.type,
     start: f.start || '',
     deadline: f.deadline,
+    jam: f.jam || '',
     project: f.project || null,
     daily,
     ulang: ulang || '',
@@ -343,6 +364,9 @@ async function simpan() {
     const kirim: Partial<BdTask> = { ...lama, ...body }
     delete kirim.updatedAt
     if (kirim.status !== lama.status) delete kirim.pindahKe
+    // Who assigned whom: newly added PICs/reviewers get a stamp, so the added
+    // person finds a notification in Undangan & Notifikasi.
+    capPenugasan(kirim, pics(lama), reviewers(lama), f.pics, f.reviewers, props.aku?.id)
     segarkanProgress(kirim)
     const ok = await bdSimpan(() => ubahBd<BdTask>('tasks', lama.id, kirim, versiBaris(lama)), 'Task diperbarui')
     if (ok) {
@@ -352,6 +376,7 @@ async function simpan() {
   }
   else {
     const kirim: Partial<BdTask> = { id: uidBd('t'), progress: 0, ...body }
+    capPenugasan(kirim, [], [], f.pics, f.reviewers, props.aku?.id)
     segarkanProgress(kirim)
     const ok = await bdSimpan(() => buatBd<BdTask>('tasks', kirim), 'Task ditambahkan')
     if (ok) {
@@ -395,7 +420,7 @@ async function hapus() {
       <UFormField label="Divisi">
         <USelect
           v-model="f.div"
-          :items="OWNER_DIVS"
+          :items="opsiDiv"
           class="w-full"
         />
       </UFormField>
@@ -526,7 +551,7 @@ async function hapus() {
           />
         </UFormField>
       </div>
-      <div class="grid gap-4 *:min-w-0 sm:grid-cols-3">
+      <div class="grid gap-4 *:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
         <UFormField label="Mulai (opsional)">
           <UInput
             v-model="f.start"
@@ -540,6 +565,16 @@ async function hapus() {
             type="date"
             class="w-full"
           />
+        </UFormField>
+        <UFormField label="Jam (opsional)">
+          <UInput
+            v-model="f.jam"
+            type="time"
+            class="w-full"
+          />
+          <template #hint>
+            Tampil sebagai info di samping deadline — mis. 14:00.
+          </template>
         </UFormField>
         <UFormField label="Project (opsional)">
           <USelect

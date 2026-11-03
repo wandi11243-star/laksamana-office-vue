@@ -117,5 +117,9 @@ const DIV_TONE: Record<string, WarnaStatusBd> = {
   'Event': 'success',
   'Floor': 'neutral',
   'HR': 'warning',
+  'Cashier': 'gold',
+  'Konten': 'vip',
+  'BD': 'gold',
+  'Manajemen': 'neutral',
 }
 export const divTone = (d?: string): WarnaStatusBd => DIV_TONE[d || ''] || 'neutral'

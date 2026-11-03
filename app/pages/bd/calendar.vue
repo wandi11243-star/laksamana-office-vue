@@ -1,21 +1,28 @@
 <!--
-  BD OS › Calendar (old `vCalendar`, deploy/bd/index.html:4329-4455).
+  BD OS › Calendar (old `vCalendar`, deploy/bd/index.html). Month keeps the
+  old grid (only a TASK deadline can be dragged to another day). Hari & Minggu
+  are an hour grid (`BdJamGrid`): timed agendas and timed tasks are blocks on
+  a 07:00–22:00 grid, everything timeless sits in the "tanpa jam" strip.
 
-  One list of everything that has a date: task deadlines (red), milestones
-  (violet), unbought POs (blue), unfinished coordination (amber) and team agenda
-  (gold). Only a TASK can be dragged to another day; the others have consequences
-  outside the calendar and are edited in their own form. The filter is the SAME
-  state as Projects. Desktop gets the full grid, a phone gets the day list.
+  Hour-grid gestures (snap 15 minutes): drag an empty slot to draft a timed
+  agenda, drag a block to move its time/day, drag a block's bottom edge to
+  change its end, drag a timeless task chip onto the grid to give it a time.
+  Only the organiser, a module admin, or (for team agendas) anyone may move
+  an agenda — a moved schedule drops every RSVP answer. The grid is
+  horizontally scrollable on a phone; a tap still opens the row.
 -->
 <script setup lang="ts">
 import type { BdAgenda, BdTask } from '~/composables/useBd'
 import { bdTulisDiam, tambalBd, useBdState, versiBaris } from '~/composables/useBd'
+import { listReservations } from '~/composables/useReservasi'
 import {
-  OWNER_DIVS, PILIHAN_SEMUA, cariAku, isoOf, lingkupIds, pics, poBeres, saringLingkup, selesai, todayISO,
+  PILIHAN_SEMUA, awalMinggu, cariAku, divisiTerpakai, isoOf, labelJam, lingkupIds, pics, saringLingkup, selesai, todayISO,
 } from '~/utils/bd-rumus'
 import BdAgendaSheet from '~/widgets/bd/BdAgendaSheet.vue'
+import BdJamGrid from '~/widgets/bd/BdJamGrid.vue'
 import BdPicFilter from '~/widgets/bd/BdPicFilter.vue'
-import { BULAN } from '~/utils/format'
+import BdTaskSheet from '~/widgets/bd/BdTaskSheet.vue'
+import { BULAN, tambahHari } from '~/utils/format'
 
 definePageMeta({ access: ['bd'] })
 
@@ -29,25 +36,62 @@ const aku = computed(() => cariAku(people.value, me.value))
 const lingkup = computed(() => lingkupIds(people.value, aku.value?.id, isAdminOf(me.value, 'bd')))
 const cocokPic = (o: { pics?: string[], pic?: string }) => !fPics.value.length || pics(o).some(id => fPics.value.includes(id))
 
+/** Hour-grid mode (Hari/Minggu) plus the old month grid. Week is the default, like the old panel. */
+const mode = useState<'hari' | 'minggu' | 'bulan'>('bd-cal-mode', () => 'minggu')
+const jangkar = ref(todayISO())
+const hariList = computed(() => {
+  if (mode.value === 'hari') return [jangkar.value]
+  const senin = awalMinggu(jangkar.value)
+  return Array.from({ length: 7 }, (_, i) => tambahHari(senin, i))
+})
+function geser(n: number) {
+  if (mode.value === 'hari') jangkar.value = tambahHari(jangkar.value, n)
+  else if (mode.value === 'minggu') jangkar.value = tambahHari(jangkar.value, n * 7)
+  else geserBulan(n)
+}
+function keHariIni() {
+  jangkar.value = todayISO()
+  bulanIni()
+}
+const labelJangkar = computed(() => {
+  if (mode.value === 'hari') return hariList.value[0]!
+  if (mode.value === 'minggu') return `${hariList.value[0]} – ${hariList.value[6]}`
+  return label.value
+})
+
+/** Tasks drawn on the hour grid: same scope/division/pic filter as the month grid. */
+const tasksKal = computed(() => saringLingkup(state.value.tasks, f.value.scope, lingkup.value, aku.value?.id)
+  .filter(cocokPic)
+  .filter(t => (f.value.div === PILIHAN_SEMUA || t.div === f.value.div) && t.deadline && !selesai(t)))
+
 interface CalItem { date: string, title: string, jenis: string, tone: 'error' | 'vip' | 'info' | 'warning' | 'gold', id?: string, geser?: boolean }
 
 const items = computed<CalItem[]>(() => {
   const out: CalItem[] = []
+  // Deadline — unfinished BD tasks (the only kind that can be dragged).
   saringLingkup(state.value.tasks, f.value.scope, lingkup.value, aku.value?.id).filter(cocokPic)
     .filter(t => (f.value.div === PILIHAN_SEMUA || t.div === f.value.div) && t.deadline && !selesai(t))
-    .forEach(t => out.push({ date: t.deadline, title: t.name, jenis: 'Deadline', tone: 'error', id: t.id, geser: true }))
-  saringLingkup(state.value.projects, f.value.scope, lingkup.value, aku.value?.id).filter(cocokPic)
-    .filter(p => f.value.div === PILIHAN_SEMUA || p.div === f.value.div)
-    .forEach(p => (p.milestones || []).forEach((ms) => {
-      if (ms.date) out.push({ date: ms.date, title: `${ms.t} (${p.name})`, jenis: 'Milestone', tone: 'vip' })
-    }))
-  state.value.po.filter(o => !poBeres(o) && o.needBy && (f.value.div === PILIHAN_SEMUA || o.div === f.value.div) && (!fPics.value.length || fPics.value.includes(o.pic)))
-    .forEach(o => out.push({ date: o.needBy, title: `PO: ${o.item}`, jenis: 'PO', tone: 'info' }))
-  state.value.coord.filter(c => c.status !== 'Selesai' && c.due)
-    .forEach(c => out.push({ date: c.due, title: `Koord: ${c.title}`, jenis: 'Koordinasi', tone: 'warning' }))
+    .forEach(t => out.push({ date: t.deadline, title: `${t.name}${labelJam(t.jam)}`, jenis: 'Deadline', tone: 'error', id: t.id, geser: true }))
+  // Meeting — BD's own agenda.
   state.value.agenda.forEach((e) => {
-    if (e.date) out.push({ date: e.date, title: e.title, jenis: e.type || 'Agenda', tone: 'gold', id: e.id })
+    if (e.date) out.push({ date: e.date, title: e.title, jenis: 'Meeting', tone: 'gold', id: e.id })
   })
+  // Event — the venue's own nights (Event module range, read-only).
+  for (const it of kalEvent.value) {
+    if (it.tanggal) out.push({ date: it.tanggal, title: it.judul, jenis: 'Event', tone: 'vip' })
+  }
+  // Marketing — Deal acara + Assisted VIP (range, no money). Multi-day acara
+  // are drawn on every day they cover.
+  for (const it of kalMkt.value) {
+    if (!it.tanggal) continue
+    const akhir = it.selesai && it.selesai > it.tanggal ? it.selesai : it.tanggal
+    for (let d = it.tanggal; d <= akhir; d = tambahHari(d, 1)) out.push({ date: d, title: it.judul, jenis: 'Marketing', tone: 'info' })
+  }
+  // Reservasi — booked guests in the same span (read-only).
+  for (const r of kalRsv.value) {
+    const tgl = String(r.date || '').slice(0, 10)
+    if (tgl) out.push({ date: tgl, title: String(r.name || 'Reservasi'), jenis: 'Reservasi', tone: 'warning' })
+  }
   return out
 })
 
@@ -81,24 +125,74 @@ const sel = computed(() => {
 /** Phone: one row per day of the month that has something. */
 const hariBerisi = computed(() => sel.value.filter(c => !c.luar && c.items.length))
 
+/** One range row from the Event / Marketing calendar bands (no money fields). */
+interface BandLuar { tanggal: string, judul: string, selesai?: string }
+
+/** The month grid's visible span, leading/trailing days included. */
+const rentangBulan = computed(() => ({
+  dari: sel.value[0]?.iso || '',
+  sampai: sel.value[sel.value.length - 1]?.iso || '',
+}))
+
+// External bands: read-only ranges from the sibling modules, drawn on the
+// month grid only (the hour grid keeps BD's own agenda + tasks). A module
+// that errors — or is not granted to this user — is named in the ribbon.
+const { data: kalEvent, error: kalEventGagal } = useAsyncData('bd-kal-event',
+  () => useApi()<Envelope<{ items: BandLuar[] }>>('/event/events-range', { query: { ...rentangBulan.value } }).then(r => r.data.items),
+  { watch: [rentangBulan], default: () => [] })
+const { data: kalMkt, error: kalMktGagal } = useAsyncData('bd-kal-marketing',
+  () => useApi()<Envelope<{ items: BandLuar[] }>>('/marketing/agenda-range', { query: { ...rentangBulan.value } }).then(r => r.data.items),
+  { watch: [rentangBulan], default: () => [] })
+const { data: kalRsv, error: kalRsvGagal } = useAsyncData('bd-kal-reservasi',
+  () => listReservations(rentangBulan.value.dari, rentangBulan.value.sampai).then(r => r.data),
+  { watch: [rentangBulan], default: () => [] })
+const pitaLuar = computed(() => [
+  kalEventGagal.value ? 'Event' : '',
+  kalMktGagal.value ? 'Marketing' : '',
+  kalRsvGagal.value ? 'Reservasi' : '',
+].filter(Boolean))
+
 const skop = [
   { value: 'tim', label: 'Tim saya' },
   { value: 'saya', label: 'Ditugaskan ke saya' },
   { value: 'semua', label: 'Semua' },
 ]
-const opsiDiv = [{ value: PILIHAN_SEMUA, label: 'Semua divisi' }, ...OWNER_DIVS.map(d => ({ value: d, label: d }))]
+/** Division filter stays on used-only: tasks, projects, POs and agenda share it. */
+const opsiDiv = computed(() => [
+  { value: PILIHAN_SEMUA, label: 'Semua divisi' },
+  ...divisiTerpakai([
+    ...state.value.tasks, ...state.value.projects, ...state.value.po, ...state.value.agenda,
+  ]).map(d => ({ value: d, label: d })),
+])
 const resetAktif = computed(() => fPics.value.length || f.value.div !== PILIHAN_SEMUA || f.value.scope !== 'semua')
 function reset() {
   fPics.value = []
   f.value = { ...f.value, div: PILIHAN_SEMUA, scope: 'semua' }
 }
 
-// ---- agenda sheet & task drag ----
+// ---- agenda & task sheets ----
 const bukaAgenda = ref(false)
 const agendaPilih = ref<BdAgenda | null>(null)
-function bukaAgendaSheet(e?: BdAgenda) {
+const agendaAwal = ref<{ date?: string, start?: string, end?: string } | null>(null)
+function bukaAgendaSheet(e?: BdAgenda, awal?: { date?: string, start?: string, end?: string } | null) {
   agendaPilih.value = e || null
+  agendaAwal.value = awal || null
   bukaAgenda.value = true
+}
+/** Open a drawn agenda for RSVP/peserta editing — deadlines have their own task form. */
+function bukaAgendaId(id?: string) {
+  if (!id) return
+  bukaAgendaSheet(state.value.agenda.find(x => x.id === id) || undefined)
+}
+/** A slot drawn on the hour grid becomes a timed agenda draft. */
+function buatAgendaSlot(awal: { date: string, start?: string, end?: string }) {
+  bukaAgendaSheet(undefined, awal)
+}
+const bukaTask = ref(false)
+const taskPilih = ref<BdTask | null>(null)
+function bukaTaskSheet(t: BdTask) {
+  taskPilih.value = t
+  bukaTask.value = true
 }
 
 let dragId: string | null = null
@@ -117,39 +211,48 @@ function dropHari(iso: string) {
 <template>
   <AppPage
     title="Calendar"
-    description="Deadline, milestone & agenda."
+    description="Deadline, meeting, event, marketing & reservasi."
   >
     <template #actions>
+      <AppSeg
+        v-model="mode"
+        :options="[
+          { value: 'hari', label: 'Hari' },
+          { value: 'minggu', label: 'Minggu' },
+          { value: 'bulan', label: 'Bulan' },
+        ]"
+        size="sm"
+      />
       <div class="inline-flex items-center overflow-hidden rounded-full border border-default">
         <UButton
           icon="i-lucide-chevron-left"
           color="neutral"
           variant="ghost"
           size="sm"
-          aria-label="Bulan sebelumnya"
-          @click="geserBulan(-1)"
+          aria-label="Sebelumnya"
+          @click="geser(-1)"
         />
-        <span class="px-2 text-sm font-semibold text-highlighted">{{ label }}</span>
+        <span class="px-2 text-sm font-semibold text-highlighted">{{ labelJangkar }}</span>
         <UButton
           icon="i-lucide-chevron-right"
           color="neutral"
           variant="ghost"
           size="sm"
-          aria-label="Bulan berikutnya"
-          @click="geserBulan(1)"
+          aria-label="Berikutnya"
+          @click="geser(1)"
         />
       </div>
       <UButton
-        label="Bulan ini"
+        label="Hari ini"
         color="neutral"
         variant="outline"
         size="sm"
-        @click="bulanIni"
+        @click="keHariIni"
       />
       <UButton
         label="Agenda"
         icon="i-lucide-plus"
-        @click="bukaAgendaSheet()"
+        @click="bukaAgendaSheet(undefined, { date: mode === 'bulan' ? todayISO() : jangkar })"
       />
     </template>
 
@@ -188,12 +291,34 @@ function dropHari(iso: string) {
       </div>
     </AppPanel>
 
+    <UAlert
+      v-if="pitaLuar.length"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-triangle-alert"
+      :title="`Kalender ${pitaLuar.join(', ')} tak menjawab — hanya jadwal BD yang digambar.`"
+      class="mb-4"
+    />
+
     <AppPanel
       title="Kalender"
       icon="i-lucide-calendar-days"
-      :description="label"
+      :description="labelJangkar"
     >
-      <div class="hidden lg:block">
+      <BdJamGrid
+        v-if="mode !== 'bulan'"
+        :agenda="state.agenda"
+        :tasks="tasksKal"
+        :aku-id="aku?.id"
+        :hari="hariList"
+        @buka-agenda="bukaAgendaSheet($event)"
+        @buat-agenda="buatAgendaSlot"
+        @buka-task="bukaTaskSheet"
+      />
+      <div
+        v-else
+        class="hidden lg:block"
+      >
         <div class="grid grid-cols-7 gap-1">
           <div
             v-for="d in ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']"
@@ -225,11 +350,12 @@ function dropHari(iso: string) {
                     : e.tone === 'info' ? 'border-info/40 bg-info/10 text-info'
                       : e.tone === 'warning' ? 'border-warning/40 bg-warning/10 text-warning'
                         : 'border-yellow-deep bg-yellow-light text-yellow-dark',
-                  e.geser ? 'cursor-grab' : '',
+                  e.geser ? 'cursor-grab' : (e.id ? 'cursor-pointer' : ''),
                 ]"
                 :title="`${e.jenis} — ${e.title}`"
                 :draggable="e.geser ? 'true' : 'false'"
                 @dragstart="e.geser && e.id && dragMulai($event, e.id)"
+                @click="!e.geser && e.id && bukaAgendaId(e.id)"
               >{{ e.title }}</span>
               <span
                 v-if="c.items.length > 4"
@@ -240,7 +366,10 @@ function dropHari(iso: string) {
         </div>
       </div>
 
-      <div class="grid gap-3 lg:hidden">
+      <div
+        v-if="mode === 'bulan'"
+        class="grid gap-3 lg:hidden"
+      >
         <div
           v-for="c in hariBerisi"
           :key="c.iso"
@@ -258,11 +387,14 @@ function dropHari(iso: string) {
               v-for="(e, i) in c.items"
               :key="i"
               class="block rounded border px-2 py-1 text-xs font-semibold"
-              :class="e.tone === 'error' ? 'border-error/40 bg-error/10 text-error'
+              :class="[e.tone === 'error' ? 'border-error/40 bg-error/10 text-error'
                 : e.tone === 'vip' ? 'border-lilac-light bg-lilac-light text-ink-900'
                   : e.tone === 'info' ? 'border-info/40 bg-info/10 text-info'
                     : e.tone === 'warning' ? 'border-warning/40 bg-warning/10 text-warning'
-                      : 'border-yellow-deep bg-yellow-light text-yellow-dark'"
+                      : 'border-yellow-deep bg-yellow-light text-yellow-dark',
+                !e.geser && e.id ? 'cursor-pointer' : '']"
+              :title="`${e.jenis} — ${e.title}`"
+              @click="!e.geser && e.id && bukaAgendaId(e.id)"
             >{{ e.jenis }} — {{ e.title }}</span>
           </div>
         </div>
@@ -274,12 +406,15 @@ function dropHari(iso: string) {
         </p>
       </div>
 
-      <div class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-default pt-3 text-xs text-muted">
+      <div
+        v-if="mode === 'bulan'"
+        class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-default pt-3 text-xs text-muted"
+      >
         <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-error" /> Deadline task</span>
-        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-lilac-light" /> Milestone</span>
-        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-info" /> PO</span>
-        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-warning" /> Koordinasi</span>
-        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-brand-yellow" /> Agenda tim</span>
+        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-brand-yellow" /> Meeting</span>
+        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-lilac-light" /> Event</span>
+        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-info" /> Marketing</span>
+        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-warning" /> Reservasi</span>
         <span class="text-ink-900">Seret <b>deadline task</b> ke kotak lain untuk memindahkan tanggalnya (di HP: buka task dan ubah deadlinenya).</span>
       </div>
     </AppPanel>
@@ -287,6 +422,15 @@ function dropHari(iso: string) {
     <BdAgendaSheet
       v-model:open="bukaAgenda"
       :agenda="agendaPilih"
+      :people="people"
+      :aku="aku"
+      :awal="agendaAwal"
+    />
+    <BdTaskSheet
+      v-model:open="bukaTask"
+      :task="taskPilih"
+      :tasks="state.tasks"
+      :projects="state.projects"
       :people="people"
       :aku="aku"
     />

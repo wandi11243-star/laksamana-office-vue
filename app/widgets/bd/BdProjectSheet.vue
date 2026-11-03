@@ -6,7 +6,7 @@
 <script setup lang="ts">
 import type { BdCoord, BdPerson, BdPo, BdProject, BdTask } from '~/composables/useBd'
 import { bdSimpan, buatBd, hapusBd, tambalBd, ubahBd, versiBaris } from '~/composables/useBd'
-import { OWNER_DIVS, PROJ_HEALTH, PROJ_STAGES, bacaMilestone, inDays, setPics, tasksPerluDitutup, todayISO, tulisMilestone } from '~/utils/bd-rumus'
+import { PROJ_HEALTH, PROJ_STAGES, bacaMilestone, divisiBawaan, inDays, opsiDivisi, setPics, tasksPerluDitutup, todayISO, tulisMilestone } from '~/utils/bd-rumus'
 import { LABEL_HEALTH } from '~/utils/status-bd'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdPicPicker from '~/widgets/bd/BdPicPicker.vue'
@@ -23,10 +23,15 @@ const props = defineProps<{
 const open = defineModel<boolean>('open', { default: false })
 const toast = useToast()
 
+/** Division choices: crew-used divisions first, then every Office Tim.
+ * The edited row's own div is unioned in, so a stored legacy division never
+ * drops out of the select even when no crew carries it any more. */
+const opsiDiv = computed(() => opsiDivisi([...props.people, { div: props.project?.div }]))
+
 const f = reactive({
   name: '',
   desc: '',
-  div: OWNER_DIVS[0]!,
+  div: '',
   type: 'Internal',
   stage: 'Idea',
   pics: [] as string[],
@@ -46,7 +51,7 @@ watch(open, (o) => {
   if (p) {
     f.name = p.name
     f.desc = p.desc || ''
-    f.div = p.div || OWNER_DIVS[0]!
+    f.div = p.div || opsiDiv.value[0]!
     f.type = p.type || 'Internal'
     f.stage = p.stage
     f.pics = [...(p.pics || (p.pic ? [p.pic] : []))]
@@ -61,7 +66,7 @@ watch(open, (o) => {
     const aku = props.aku
     f.name = ''
     f.desc = ''
-    f.div = 'Business Development'
+    f.div = divisiBawaan(aku?.div, opsiDiv.value)
     f.type = 'Internal'
     f.stage = 'Idea'
     f.pics = aku ? [aku.id] : []
@@ -148,7 +153,7 @@ async function hapus() {
         <UFormField label="Divisi">
           <USelect
             v-model="f.div"
-            :items="OWNER_DIVS"
+            :items="opsiDiv"
             class="w-full"
           />
         </UFormField>

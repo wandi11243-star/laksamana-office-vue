@@ -12,7 +12,7 @@
 import type { BdPerson, BdTask } from '~/composables/useBd'
 import { bdTulisDiam, buatBd, lahirkanUlangSetelah, ubahBd, versiBaris } from '~/composables/useBd'
 import {
-  OWNER_DIVS, STATUS_FLOW, cekBolehDone, kanbanUrut, pesanTunggu, segarkanProgress, setPics,
+  STATUS_FLOW, cekBolehDone, divisiBawaan, kanbanUrut, opsiDivisi, pesanTunggu, segarkanProgress, setPics,
   type ModeArsip,
 } from '~/utils/bd-rumus'
 import BdKanbanCard from '~/widgets/bd/BdKanbanCard.vue'
@@ -88,7 +88,9 @@ async function tambahKartu(st: string) {
   const body: Partial<BdTask> = {
     name: nama,
     desc: '',
-    div: props.divDefault && OWNER_DIVS.includes(props.divDefault) ? props.divDefault : OWNER_DIVS[0]!,
+    // Upstream resolves the default (account div, or the open project's div);
+    // empty falls back to the first division option, never a hardcoded one.
+    div: divisiBawaan(props.divDefault, opsiDivisi(props.people)),
     status: st,
     priority: 'Medium',
     deadline: '',

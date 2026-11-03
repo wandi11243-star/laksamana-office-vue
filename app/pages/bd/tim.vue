@@ -5,12 +5,15 @@
   `GET /account/modules/bd/members` against the `people` rows and creates the
   missing ones — it NEVER deletes: a crew member whose access was revoked is
   flagged `tanpaAkses`, because deleting them would erase who did what. Only
-  role/div/boss belong to BD OS; there is no "add crew" button.
+  role/boss belong to BD OS; divisi follows the Office Tim column (read-only
+  here, managed in Office › Kelola User) and is never cleared — a crew with no
+  matching Tim keeps the old division, marked "divisi lama".
 -->
 <script setup lang="ts">
 import type { BdPerson } from '~/composables/useBd'
 import { bdSimpan, buatBd, hapusBd, tambalBd, useBdState, versiBaris } from '~/composables/useBd'
-import { cariAku, inisial, punyaPic, selesai, todayISO, uidBd } from '~/utils/bd-rumus'
+import { LABEL_TIM, cariAku, inisial, punyaPic, selesai, timDariKet, todayISO, uidBd } from '~/utils/bd-rumus'
+import { useRoster } from '~/composables/useRoster'
 import { divTone } from '~/utils/status-bd'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdOrangSheet from '~/widgets/bd/BdOrangSheet.vue'
@@ -20,9 +23,23 @@ definePageMeta({ access: ['bd'] })
 const me = useMe()
 const toast = useToast()
 const { data: state } = useBdState()
+const { data: roster } = useRoster()
 const modulMembers = useModulMembers('bd')
 const people = computed(() => state.value.people)
 const aku = computed(() => cariAku(people.value, me.value))
+
+/** Office Tim of one crew (roster `keterangan`, officeUserId first then name). */
+function timOf(p: BdPerson): string[] {
+  const list = roster.value ?? []
+  const m = list.find(x => p.officeUserId && String(x.id) === String(p.officeUserId))
+    || list.find(x => String(x.name || '').trim().toLowerCase() === String(p.name || '').trim().toLowerCase())
+  return timDariKet(m?.keterangan)
+}
+/** A division outside the Office Tim list is kept as-is and marked, never cleared. */
+const divLama = (p: BdPerson) => {
+  const d = String(p.div || '')
+  return !!d && !LABEL_TIM.includes(d)
+}
 
 async function segarkan() {
   await modulMembers.refresh()
@@ -152,9 +169,10 @@ async function hapus() {
 
     <p class="mb-5 rounded-xl border border-info/30 bg-info/10 p-3 text-sm">
       Daftar ini datang dari <b>database account</b> — isinya persis pemegang hak akses modul <b>bd</b>.
-      Menambah/menghapus orang dilakukan di <b>Kelola Akses</b> di Office, bukan di sini. Yang diatur di
-      halaman ini hanya <b>jabatan, divisi, dan atasan</b>, karena atasanlah yang menentukan siapa melihat
-      task siapa.
+      Menambah/menghapus orang dilakukan di <b>Kelola Akses</b> di Office, bukan di sini. Divisi kru mengikuti
+      kolom Tim di <b>Office › Kelola User</b> dan hanya bisa dibaca di sini — tidak bisa dikosongkan dari
+      halaman ini. Yang diatur di sini hanya <b>jabatan dan atasan</b>, karena atasanlah yang menentukan
+      siapa melihat task siapa.
     </p>
 
     <AppPanel v-if="!people.length">
@@ -189,6 +207,11 @@ async function hapus() {
               </span>
               <span class="mt-1 block text-xs text-muted">
                 {{ b.p.role || '—' }} · {{ b.p.div || 'belum diatur' }}
+                <span
+                  v-if="divLama(b.p)"
+                  class="font-semibold text-warning"
+                  title="Divisi ini tidak ada di daftar Tim Office — dipertahankan, sesuaikan lewat Kelola User"
+                >· divisi lama</span>
               </span>
             </button>
             <AppStatus
@@ -287,6 +310,15 @@ async function hapus() {
                     v-else
                     class="text-muted"
                   >belum diatur</span>
+                  <AppStatus
+                    v-if="divLama(b.p)"
+                    color="warning"
+                    size="sm"
+                    class="ms-1"
+                    title="Divisi ini tidak ada di daftar Tim Office — dipertahankan, sesuaikan lewat Kelola User"
+                  >
+                    divisi lama
+                  </AppStatus>
                 </td>
                 <td class="px-3 py-2 text-muted">
                   {{ b.p.boss ? namaAtasan(b.p) : (b.yatim ? '(atasan tidak ditemukan)' : '—') }}

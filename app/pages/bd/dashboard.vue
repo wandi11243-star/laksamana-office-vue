@@ -1,17 +1,27 @@
 <!--
-  BD OS › Dashboard (old `vDashboard`, deploy/bd/index.html:1472-1551).
+  BD OS › Dashboard (old `vDashboard` LM Agenda, Okt 2026).
 
-  Morning flow: greeting + focus, three-day columns, action lists, then a
-  condition strip. Scope rules unchanged: Tasks are scoped to the viewer
-  ("what is mine to do today"), while Coord and PO are counted globally —
-  they belong to no single PIC (`:1472-1479`).
+  Morning flow: a greeting, action-demanding strips, three day columns, then
+  the side cards. Every column answers "what is mine to do today": tasks are
+  mine (`tugasSaya`), agendas are the ones that involve me (team agendas plus
+  my invites), milestones are my projects'. The unmatched (no crew row) see
+  everything, said out loud.
+
+  Overdue reads as its own "Tunggakan" list, longest overdue first, with a
+  "Lihat semua" shortcut to My Task. The daily focus box stays removed: its
+  setting document (`DB.focus`) is left stored, untouched — the shape changed,
+  the data did not.
 -->
 <script setup lang="ts">
-import type { BdTask } from '~/composables/useBd'
+import type { BdAgenda, BdTask } from '~/composables/useBd'
 import {
-  bdTulisDiam, hapusTaskDenganUrutan, pesanHapusTask, putSetelan, toggleTask, useBdSettings, useBdState, versiSetelan,
+  hapusTaskDenganUrutan, pesanHapusTask, toggleTask, useBdState,
 } from '~/composables/useBd'
-import { catIniAku, cariAku, dalamLingkup, fRp, lewat, lingkupIds, menungguReviewSaya, selesai, todayISO, urutDeadline } from '~/utils/bd-rumus'
+import {
+  agendaHari, cariAku, lewat, menungguReviewSaya, milestoneHari, pics, selesai,
+  tugasSaya, todayISO, undanganTertunda, urutDeadline,
+} from '~/utils/bd-rumus'
+import BdAgendaSheet from '~/widgets/bd/BdAgendaSheet.vue'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdProjMini from '~/widgets/bd/BdProjMini.vue'
 import BdTaskRow from '~/widgets/bd/BdTaskRow.vue'
@@ -21,67 +31,59 @@ import { fTgl, tambahHari } from '~/utils/format'
 definePageMeta({ access: ['bd'] })
 
 const me = useMe()
-const { data: state, error, status } = useBdState()
-const { data: setelan } = useBdSettings()
+const { data: state, error } = useBdState()
 
 const people = computed(() => state.value.people)
 const tasks = computed(() => state.value.tasks)
 const projects = computed(() => state.value.projects)
 const aku = computed(() => cariAku(people.value, me.value))
-const lingkup = computed(() => lingkupIds(people.value, aku.value?.id, isAdminOf(me.value, 'bd')))
 
 const hari = todayISO()
 // Greeting name: first word of the session user, fallback when not loaded yet.
 const namaDepan = computed(() => (me.value?.name ?? 'Kru').split(' ')[0])
-const vt = computed(() => tasks.value.filter(t => dalamLingkup(t, lingkup.value)))
 
-/** First-load skeleton for the five recap cards below: skeleton cells stand
- *  in until the first state lands. Refetch keeps old numbers, so the cards
- *  never blank. */
-const statMemuat = computed(() => !state.value.tasks.length && (status.value === 'pending' || status.value === 'idle'))
-const aktif = computed(() => vt.value.filter(t => !selesai(t)))
-const od = computed(() => vt.value.filter(lewat))
-const jalan = computed(() => projects.value.filter(p => dalamLingkup(p, lingkup.value) && p.stage !== 'Done' && p.stage !== 'To Do'))
-const coordP = computed(() => state.value.coord.filter(c => c.status !== 'Selesai'))
-const poP = computed(() => state.value.po.filter(p => p.status !== 'Diterima'))
-// ---- three-day columns: today / tomorrow / day after (Task 2) ----
+/** Mine: my PICs, my sub-task assignments, and tasks waiting on my review.
+ *  Everyone sees every task (`tasksTerlihat`); scope only narrows what is
+ *  shown, and the dashboard narrows to me. The unmatched see everything,
+ *  said out loud above. */
+const saya = computed(() => tugasSaya(tasks.value, aku.value?.id))
+const aktif = computed(() => saya.value.filter(t => !selesai(t)))
+const od = computed(() => aktif.value.filter(lewat))
+const undangan = computed(() => undanganTertunda(state.value.agenda, aku.value?.id, hari))
+const review = computed(() => menungguReviewSaya(tasks.value, aku.value?.id))
+const jalan = computed(() => projects.value.filter(p =>
+  p.stage !== 'Done' && p.stage !== 'To Do' && (!aku.value || pics(p).includes(aku.value.id))))
+
+// ---- three-day columns: today / tomorrow / day after ----
 // Invalid dates never equal a computed ISO, so broken rows are ignored.
 const isoBesok = computed(() => tambahHari(hari, 1))
 const isoLusa = computed(() => tambahHari(hari, 2))
 const kolomHari = computed(() => [
-  { label: 'Hari ini', iso: hari, agenda: state.value.agenda.filter(e => e.date === hari), deadline: aktif.value.filter(t => t.deadline === hari) },
-  { label: 'Besok', iso: isoBesok.value, agenda: state.value.agenda.filter(e => e.date === isoBesok.value), deadline: aktif.value.filter(t => t.deadline === isoBesok.value) },
-  { label: 'Lusa', iso: isoLusa.value, agenda: state.value.agenda.filter(e => e.date === isoLusa.value), deadline: aktif.value.filter(t => t.deadline === isoLusa.value) },
-])
+  { label: 'Hari ini', iso: hari },
+  { label: 'Besok', iso: isoBesok.value },
+  { label: 'Lusa', iso: isoLusa.value },
+].map(k => ({
+  ...k,
+  agenda: agendaHari(state.value.agenda, k.iso, aku.value?.id),
+  deadline: aktif.value.filter(t => t.deadline === k.iso).sort(urutDeadline),
+  milestone: milestoneHari(projects.value, k.iso, aku.value?.id),
+})))
 const tanpaDeadline = computed(() => aktif.value.filter(t => !t.deadline).sort(urutDeadline))
-const menunggu = computed(() => menungguReviewSaya(aktif.value, aku.value?.id))
-
+/** Tunggakan, longest overdue first: an empty deadline never sorts above a real one. */
+const odUrut = computed(() => od.value.slice().sort((a, b) => (a.deadline || '9999') < (b.deadline || '9999') ? -1 : 1))
+const odTampil = computed(() => odUrut.value.slice(0, 6))
 const namaProject = (id?: string | null) => projects.value.find(p => p.id === id)?.name
+const namaOrang = (id?: string | null) => people.value.find(p => p.id === id)?.name || '—'
+/** Am I invited to this agenda and still silent? Team agendas invite no one. */
+const belumJawab = (e: BdAgenda) => !!aku.value && !!e.owner && e.owner !== aku.value.id
+  && (e.peserta || []).includes(aku.value.id) && !(e.resp || {})[aku.value.id]
 
-// ---- daily focus: auto-saved WITH its date (`:1542-1551`) ----
-const fokus = ref('')
-const suntingFokus = ref(false)
-function syncFokus() {
-  const f = setelan.value?.data.focus?.[catIniAku(people.value, me.value?.id)]
-  fokus.value = f && f.tgl === hari ? (f.teks || '') : ''
-}
-watch(setelan, () => {
-  if (!suntingFokus.value) syncFokus()
-}, { immediate: true })
-
-let fokusTimer: ReturnType<typeof setTimeout> | null = null
-function fokusUbah() {
-  if (fokusTimer) clearTimeout(fokusTimer)
-  fokusTimer = setTimeout(() => {
-    const key = catIniAku(people.value, me.value?.id)
-    const nilai = { ...(setelan.value?.data.focus || {}), [key]: { teks: fokus.value, tgl: todayISO() } }
-    bdTulisDiam(() => putSetelan('focus', nilai, versiSetelan(setelan.value, 'focus')))
-  }, 800)
-}
-
-// ---- task sheet & quick actions ----
+// ---- sheets & quick actions ----
 const bukaTask = ref(false)
 const taskPilih = ref<BdTask | null>(null)
+const bukaAgenda = ref(false)
+const agendaPilih = ref<BdAgenda | null>(null)
+const agendaAwal = ref<{ date?: string, start?: string, end?: string } | null>(null)
 const taskHapus = ref<BdTask | null>(null)
 const hapusMau = computed({
   get: () => !!taskHapus.value,
@@ -92,9 +94,19 @@ function baru() {
   taskPilih.value = null
   bukaTask.value = true
 }
+function baruAgenda(iso?: string) {
+  agendaPilih.value = null
+  agendaAwal.value = iso ? { date: iso } : null
+  bukaAgenda.value = true
+}
 function buka(t: BdTask) {
   taskPilih.value = t
   bukaTask.value = true
+}
+function bukaAgendaSheet(e: BdAgenda) {
+  agendaPilih.value = e
+  agendaAwal.value = null
+  bukaAgenda.value = true
 }
 function toggle(t: BdTask) {
   toggleTask(t, tasks.value)
@@ -111,7 +123,7 @@ async function hapus() {
 <template>
   <AppPage
     :title="`Halo, ${namaDepan}`"
-    :description="`${fTgl(hari)} · Kondisi hari ini — task, project & purchasing`"
+    :description="`${fTgl(hari)} · Hari ini, besok & lusa — agenda, deadline, dan yang menunggu jawabanmu`"
   >
     <template #actions>
       <UButton
@@ -124,7 +136,7 @@ async function hapus() {
         icon="i-lucide-calendar-days"
         color="neutral"
         variant="outline"
-        to="/bd/calendar"
+        @click="baruAgenda(hari)"
       />
     </template>
 
@@ -150,7 +162,8 @@ async function hapus() {
       v-else-if="aku && !aku.div"
       class="mb-4 rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm"
     >
-      Divisi kamu belum diatur, jadi task barumu jatuh ke divisi bawaan. Atur di
+      Divisi kamu belum diatur, jadi task barumu jatuh ke divisi bawaan. Divisi mengikuti kolom Tim di
+      Office › Kelola User — setelah cocok, tekan Segarkan dari Office di
       <NuxtLink
         to="/bd/tim"
         class="font-semibold text-ink-900 underline"
@@ -158,165 +171,210 @@ async function hapus() {
       — sekalian isi atasanmu, karena itu yang menentukan siapa melihat task siapa.
     </p>
 
-    <AppPanel>
-      <div class="flex flex-wrap items-center gap-3">
-        <span class="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-ink-900"><UIcon
-          name="i-lucide-star"
-          class="size-3.5"
-        /> Fokus utama hari ini</span>
-        <UInput
-          v-model="fokus"
-          placeholder="Apa satu hal terpenting hari ini?"
-          class="min-w-0 flex-1"
-          @focus="suntingFokus = true"
-          @blur="suntingFokus = false"
-          @input="fokusUbah"
+    <!-- Strips that demand an action, each with its way out. -->
+    <div
+      v-if="undangan.length"
+      class="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm"
+    >
+      <UIcon
+        name="i-lucide-bell"
+        class="size-5 shrink-0 text-warning"
+      />
+      <p class="min-w-0 flex-1">
+        <b>{{ undangan.length }}</b> undangan agenda menunggu jawabanmu.
+      </p>
+      <UButton
+        label="Lihat"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        to="/bd/inbox"
+      />
+    </div>
+    <div
+      v-if="review.length"
+      class="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-default bg-default p-3 text-sm"
+    >
+      <UIcon
+        name="i-lucide-eye"
+        class="size-5 shrink-0 text-ink-900"
+      />
+      <p class="min-w-0 flex-1">
+        <b>{{ review.length }}</b> task menunggu review kamu.
+      </p>
+      <UButton
+        label="Review"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        to="/bd/inbox"
+      />
+    </div>
+    <div
+      v-if="od.length"
+      class="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-error/30 bg-error/10 p-3 text-sm"
+    >
+      <UIcon
+        name="i-lucide-clock"
+        class="size-5 shrink-0 text-error"
+      />
+      <p class="min-w-0 flex-1">
+        <b>{{ od.length }}</b> task lewat deadline:
+        {{ od.slice(0, 2).map(t => t.name).join('; ') }}{{ od.length > 2 ? ' …' : '' }}
+      </p>
+      <UButton
+        label="My Task"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        to="/bd/mytask"
+      />
+    </div>
+
+    <!-- Overdue first: longest overdue on top, so late work stays actionable -->
+    <AppPanel
+      v-if="od.length"
+      title="Tunggakan"
+      icon="i-lucide-triangle-alert"
+      :count="od.length"
+      class="mb-5"
+    >
+      <template #actions>
+        <UButton
+          label="Lihat semua"
+          trailing-icon="i-lucide-chevron-right"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          to="/bd/mytask"
+        />
+      </template>
+      <div class="divide-y divide-default rounded-xl border border-default">
+        <BdTaskRow
+          v-for="t in odTampil"
+          :key="t.id"
+          :task="t"
+          :people="people"
+          :project-name="namaProject(t.project)"
+          hide-quad
+          @buka="buka(t)"
+          @toggle="toggle(t)"
+          @hapus="taskHapus = t"
         />
       </div>
+      <p
+        v-if="od.length > odTampil.length"
+        class="mt-2 text-xs text-muted"
+      >
+        Menampilkan {{ odTampil.length }} yang paling lama dari {{ od.length }} tunggakan — sisanya di My Task.
+      </p>
     </AppPanel>
 
-    <!-- Condition strip (formulas unchanged) -->
-    <AppStatGrid
-      :loading="statMemuat"
-      :count="5"
-    >
-      <AppStat
-        label="Task aktif"
-        icon="i-lucide-list-todo"
-        :value="aktif.length"
-        :sub="`${vt.filter(selesai).length} selesai tercatat`"
-      />
-      <AppStat
-        label="Overdue"
-        icon="i-lucide-triangle-alert"
-        :tone="od.length ? 'error' : 'success'"
-        :value="od.length"
-        :sub="od.length ? 'Perlu perhatian' : 'Semua terkendali'"
-      />
-      <AppStat
-        label="Project jalan"
-        icon="i-lucide-folder-kanban"
-        tone="vip"
-        :value="jalan.length"
-        :sub="`${projects.filter(p => p.health === 'at-risk').length} at-risk`"
-      />
-      <AppStat
-        label="Koordinasi pending"
-        icon="i-lucide-handshake"
-        tone="warning"
-        :value="coordP.length"
-        sub="ke divisi lain"
-      />
-      <AppStat
-        label="PO berjalan"
-        icon="i-lucide-shopping-cart"
-        :value="poP.length"
-        :sub="fRp(poP.reduce((s, p) => s + (Number(p.amount) || 0), 0))"
-      />
-    </AppStatGrid>
-
-    <!-- Three-day triage columns (Task 2) -->
+    <!-- Three-day triage columns: agendas that involve me, my deadlines, my milestones -->
     <AppPanel
       title="Tiga hari ke depan"
       icon="i-lucide-calendar-check"
-      :count="kolomHari.reduce((s, k) => s + Math.min(k.agenda.length, 6) + Math.min(k.deadline.length, 6), 0) + od.length"
+      :count="kolomHari.reduce((s, k) => s + k.agenda.length + k.deadline.length + k.milestone.length, 0)"
     >
-      <!-- Overdue tasks sit above the day columns so late work stays actionable -->
-      <div
-        v-if="od.length"
-        class="mb-5"
-      >
-        <p class="mb-2 text-[11px] font-bold uppercase tracking-wide text-ink-900">
-          Terlambat · {{ od.length }}
-        </p>
-        <div class="divide-y divide-default rounded-xl border border-default">
-          <BdTaskRow
-            v-for="t in od"
-            :key="t.id"
-            :task="t"
-            :people="people"
-            :project-name="namaProject(t.project)"
-            hide-quad
-            @buka="buka(t)"
-            @toggle="toggle(t)"
-            @hapus="taskHapus = t"
-          />
-        </div>
-      </div>
       <div class="grid gap-5 md:grid-cols-3">
         <section
           v-for="k in kolomHari"
           :key="k.iso"
           :aria-label="k.label"
         >
-          <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-ink-900">
-            {{ k.label }}
-          </p>
-          <p class="mb-2 text-xs text-muted">
-            {{ fTgl(k.iso) }}
-          </p>
-          <div class="divide-y divide-default rounded-xl border border-default">
-            <NuxtLink
-              v-for="e in k.agenda.slice(0, 6)"
-              :key="e.id"
-              to="/bd/calendar"
-              class="flex items-start gap-2 px-2 py-2"
-            >
-              <UIcon
-                name="i-lucide-calendar"
-                class="mt-0.5 size-4 shrink-0 text-ink-900"
-              />
-              <span>
-                <span class="block font-semibold text-highlighted">{{ e.title }}</span>
-                <span class="text-xs text-muted">{{ e.type }} · {{ e.div }}</span>
-              </span>
-            </NuxtLink>
-            <BdTaskRow
-              v-for="t in k.deadline.slice(0, 6)"
-              :key="t.id"
-              :task="t"
-              :people="people"
-              :project-name="namaProject(t.project)"
-              hide-quad
-              @buka="buka(t)"
-              @toggle="toggle(t)"
-              @hapus="taskHapus = t"
-            />
-            <p
-              v-if="!k.agenda.length && !k.deadline.length"
-              class="py-6 text-center text-sm text-muted"
-            >
-              <b class="block text-highlighted">Tidak ada agenda/deadline</b>
+          <div class="mb-1 flex items-center gap-2">
+            <p class="text-[11px] font-bold uppercase tracking-wide text-ink-900">
+              {{ k.label }}
             </p>
-            <div
-              v-else-if="k.agenda.length > 6 || k.deadline.length > 6"
-              class="flex gap-2 px-2 py-2"
+            <p class="text-xs text-muted">
+              {{ fTgl(k.iso) }}
+            </p>
+            <div class="flex-1" />
+            <UButton
+              icon="i-lucide-plus"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              :aria-label="`Tambah agenda ${k.label}`"
+              @click="baruAgenda(k.iso)"
+            />
+          </div>
+          <div class="divide-y divide-default rounded-xl border border-default">
+            <p class="px-2 pb-0 pt-2 text-[10px] font-bold uppercase tracking-wider text-dimmed">
+              Agenda
+            </p>
+            <button
+              v-for="e in k.agenda"
+              :key="e.id"
+              type="button"
+              class="flex w-full items-start gap-2 px-2 py-2 text-left hover:bg-muted/60"
+              @click="bukaAgendaSheet(e)"
             >
-              <UButton
-                v-if="k.deadline.length > 6"
-                label="My Task"
-                trailing-icon="i-lucide-chevron-right"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                to="/bd/mytask"
+              <span class="min-w-10 pt-0.5 font-mono text-[11px] text-muted">{{ e.start || '—' }}</span>
+              <span class="min-w-0 flex-1">
+                <span class="block truncate font-semibold text-highlighted">{{ e.title }}</span>
+                <span class="text-xs text-muted">
+                  {{ e.type }} · {{ e.div }}{{ e.lokasi ? ` · ${e.lokasi}` : '' }}
+                </span>
+                <span
+                  v-if="belumJawab(e)"
+                  class="mt-0.5 inline-block rounded-full border border-warning/40 bg-warning/10 px-1.5 py-px text-[10px] font-bold text-warning"
+                >Belum dijawab</span>
+              </span>
+            </button>
+            <p
+              v-if="!k.agenda.length"
+              class="px-2 py-2 text-xs text-muted"
+            >
+              Tidak ada agenda.
+            </p>
+            <template v-if="k.deadline.length">
+              <p class="px-2 pb-0 pt-2 text-[10px] font-bold uppercase tracking-wider text-dimmed">
+                Tenggat
+              </p>
+              <BdTaskRow
+                v-for="t in k.deadline"
+                :key="t.id"
+                :task="t"
+                :people="people"
+                :project-name="namaProject(t.project)"
+                hide-quad
+                @buka="buka(t)"
+                @toggle="toggle(t)"
+                @hapus="taskHapus = t"
               />
-              <UButton
-                v-if="k.agenda.length > 6"
-                label="Kalender"
-                trailing-icon="i-lucide-chevron-right"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                to="/bd/calendar"
-              />
-            </div>
+            </template>
+            <template v-if="k.milestone.length">
+              <p class="px-2 pb-0 pt-2 text-[10px] font-bold uppercase tracking-wider text-dimmed">
+                Milestone
+              </p>
+              <button
+                v-for="m in k.milestone"
+                :key="m.p.id + m.ms.t"
+                type="button"
+                class="flex w-full items-start gap-2 px-2 py-2 text-left hover:bg-muted/60"
+                :title="`${m.ms.t} — ${m.p.name}`"
+                @click="navigateTo(`/bd/projects/${m.p.id}`)"
+              >
+                <span class="min-w-10 pt-0.5 font-mono text-[11px] text-muted">◇</span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate font-semibold text-highlighted">{{ m.ms.t }}</span>
+                  <span class="text-xs text-muted">{{ m.p.name }}{{ m.ms.done ? ' · selesai' : '' }}</span>
+                </span>
+              </button>
+            </template>
+            <p
+              v-if="!k.deadline.length && !k.milestone.length"
+              class="px-2 py-2 text-xs text-muted"
+            >
+              Tidak ada deadline.
+            </p>
           </div>
         </section>
       </div>
     </AppPanel>
 
-    <!-- Action lists (Task 3) -->
+    <!-- Action lists -->
     <div class="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
       <AppPanel
         title="Belum ada deadline"
@@ -373,39 +431,57 @@ async function hapus() {
       <AppPanel
         title="Menunggu respons"
         icon="i-lucide-inbox"
-        :count="menunggu.length"
+        :count="undangan.length + review.length"
       >
-        <div class="divide-y divide-default">
-          <BdTaskRow
-            v-for="t in menunggu.slice(0, 6)"
-            :key="t.id"
-            :task="t"
-            :people="people"
-            :project-name="namaProject(t.project)"
-            hide-quad
-            @buka="buka(t)"
-            @toggle="toggle(t)"
-            @hapus="taskHapus = t"
+        <template #actions>
+          <UButton
+            label="Semua"
+            trailing-icon="i-lucide-chevron-right"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            to="/bd/inbox"
           />
+        </template>
+        <div class="divide-y divide-default">
+          <button
+            v-for="e in undangan.slice(0, 3)"
+            :key="e.id"
+            type="button"
+            class="flex w-full items-start gap-2 px-2 py-2 text-left hover:bg-muted/60"
+            @click="bukaAgendaSheet(e)"
+          >
+            <UIcon
+              name="i-lucide-calendar"
+              class="mt-0.5 size-4 shrink-0 text-ink-900"
+            />
+            <span class="min-w-0 flex-1">
+              <span class="block truncate font-semibold text-highlighted">{{ e.title }}</span>
+              <span class="text-xs text-muted">Undangan dari {{ namaOrang(e.owner) }} · {{ fTgl(e.date) }}</span>
+            </span>
+          </button>
+          <button
+            v-for="t in review.slice(0, 3)"
+            :key="t.id"
+            type="button"
+            class="flex w-full items-start gap-2 px-2 py-2 text-left hover:bg-muted/60"
+            @click="navigateTo('/bd/inbox')"
+          >
+            <UIcon
+              name="i-lucide-eye"
+              class="mt-0.5 size-4 shrink-0 text-ink-900"
+            />
+            <span class="min-w-0 flex-1">
+              <span class="block truncate font-semibold text-highlighted">{{ t.name }}</span>
+              <span class="text-xs text-muted">Menunggu review kamu{{ t.deadline ? ` · ${fTgl(t.deadline)}` : '' }}</span>
+            </span>
+          </button>
           <p
-            v-if="!menunggu.length"
+            v-if="!undangan.length && !review.length"
             class="py-6 text-center text-sm text-muted"
           >
             <b class="block text-highlighted">Tidak ada yang menunggu jawabanmu</b>
           </p>
-          <div
-            v-else-if="menunggu.length > 6"
-            class="px-2 py-2"
-          >
-            <UButton
-              label="Lihat semua di My Task"
-              trailing-icon="i-lucide-chevron-right"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              to="/bd/mytask"
-            />
-          </div>
         </div>
       </AppPanel>
 
@@ -463,6 +539,13 @@ async function hapus() {
       :projects="projects"
       :people="people"
       :aku="aku"
+    />
+    <BdAgendaSheet
+      v-model:open="bukaAgenda"
+      :agenda="agendaPilih"
+      :people="people"
+      :aku="aku"
+      :awal="agendaAwal"
     />
     <BdKonfirmasi
       v-model:open="hapusMau"

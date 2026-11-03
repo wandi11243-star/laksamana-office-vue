@@ -8,7 +8,7 @@
 // Dates always go through the local helpers below, never `Date#toISOString()`:
 // that is UTC and in WIB anything before 07:00 is reported as yesterday, which
 // would mark tasks overdue every morning (deploy/bd/index.html:767-772).
-import type { BdApproverSet, BdPo, BdPerson, BdPr, BdProject, BdSubtask, BdTask } from '~/composables/useBd'
+import type { BdAgenda, BdApproverSet, BdMilestone, BdPo, BdPerson, BdPr, BdProject, BdSubtask, BdTask } from '~/composables/useBd'
 import { BLN, fTglP, hariIni, tambahHari } from '~/utils/format'
 
 // ─────────────────────────── organisation (deploy/bd/index.html:708-755) ──
@@ -16,6 +16,76 @@ import { BLN, fTglP, hariIni, tambahHari } from '~/utils/format'
 export const OWNER_DIVS = ['Business Development', 'Project', 'Purchasing']
 /** `COORD_DIVS` — the other divisions, the destinations of a coordination request. */
 export const COORD_DIVS = ['Kitchen', 'Bar', 'Marketing', 'Finance', 'Event', 'Floor', 'HR']
+
+/** One Office team (`Tim` column, laksamana-api `App\Support\Tim::TIM`). */
+export interface TimOffice { key: string, label: string, words: string[] }
+/**
+ * `TIM_OFFICE` — every Office team, mirroring `App\Support\Tim::TIM` (key,
+ * label AND match words). The division dropdowns are built from this plus the
+ * divisions the crew actually uses, so the two lists can never drift apart
+ * silently: when Office adds a team there, add it here too.
+ */
+export const TIM_OFFICE: TimOffice[] = [
+  { key: 'kitchen', label: 'Kitchen', words: ['kitchen', 'dapur', 'cook', 'chef'] },
+  { key: 'bar', label: 'Bar', words: ['bar', 'bartender', 'barista'] },
+  { key: 'floor', label: 'Floor', words: ['floor', 'service', 'waiter', 'waitress', 'host', 'hostess', 'foh'] },
+  { key: 'cashier', label: 'Cashier', words: ['cashier', 'kasir'] },
+  { key: 'marketing', label: 'Marketing', words: ['marketing', 'sales', 'mkt'] },
+  { key: 'konten', label: 'Konten', words: ['konten', 'content', 'creative', 'kreatif', 'desain', 'design', 'sosmed'] },
+  { key: 'event', label: 'Event', words: ['event'] },
+  { key: 'hr', label: 'HR', words: ['hr', 'hrd', 'people'] },
+  { key: 'bd', label: 'BD', words: ['bd', 'bizdev', 'business'] },
+  { key: 'finance', label: 'Finance', words: ['finance', 'keuangan', 'accounting', 'akunting'] },
+  { key: 'manajemen', label: 'Manajemen', words: ['ceo', 'owner', 'manager', 'manajer', 'gm', 'direktur', 'management', 'manajemen', 'nahkoda'] },
+]
+/** Just the labels, for membership checks (`divisi lama` marking). */
+export const LABEL_TIM = TIM_OFFICE.map(t => t.label)
+/**
+ * `timDariKet` — the Office teams named by a Tim/Keterangan text, whole-word
+ * matched like the server (`App\Support\Tim::keys`). Empty when nobody
+ * matches: callers keep the old division and mark it, never clear it.
+ */
+export function timDariKet(ket?: string | null): string[] {
+  const kata = String(ket || '').toLowerCase().split(/[^a-z]+/).filter(Boolean)
+  if (!kata.length) return []
+  return TIM_OFFICE.filter(t => t.words.some(w => kata.includes(w))).map(t => t.label)
+}
+/** `divisiTerpakai` — distinct non-empty divisions in order of appearance. */
+export function divisiTerpakai(rows: { div?: string | null }[]): string[] {
+  const out: string[] = []
+  const lihat = new Set<string>()
+  for (const r of rows) {
+    const d = String(r?.div || '').trim()
+    if (d && !lihat.has(d.toLowerCase())) {
+      lihat.add(d.toLowerCase())
+      out.push(d)
+    }
+  }
+  return out
+}
+/**
+ * `opsiDivisi` — the form dropdown: divisions the crew actually uses FIRST
+ * (legacy rows never drop out), then every Office Tim not already listed.
+ * Filters deliberately do NOT use this — they stay on used-only
+ * (`divisiTerpakai`), so an empty division never clutters them.
+ */
+export function opsiDivisi(rows: { div?: string | null }[]): string[] {
+  const out = divisiTerpakai(rows)
+  const lihat = new Set(out.map(d => d.toLowerCase()))
+  for (const t of TIM_OFFICE) {
+    if (!lihat.has(t.label.toLowerCase())) {
+      lihat.add(t.label.toLowerCase())
+      out.push(t.label)
+    }
+  }
+  return out
+}
+/** `divisiBawaan` — the account's own division when offered, else the first option. */
+export function divisiBawaan(akuDiv: unknown, opsi: string[]): string {
+  const d = String(akuDiv || '')
+  if (d && opsi.includes(d)) return d
+  return opsi[0] || ''
+}
 /** `STATUS_FLOW` — the five Kanban columns (22 Okt 2026: Projects uses the same columns as tasks). */
 export const STATUS_FLOW = ['To Do', 'Doing', 'Pending', 'Review', 'Done']
 /** `STATUS_LAMA` — read mapping for rows written before the fourth round. */
@@ -540,6 +610,213 @@ export function catIniAku(people: BdPerson[], meId?: string): string {
   return aku ? aku.id : `office:${meId || '?'}`
 }
 
+// ─────────────────────────── Agenda peserta & RSVP ──
+
+/** The three RSVP answers an invited crew member can give. */
+export const RSVP_OPSI = [
+  { value: 'hadir', label: 'Hadir' },
+  { value: 'mungkin', label: 'Mungkin' },
+  { value: 'tidak', label: 'Tidak' },
+] as const
+export type RsvpNilai = 'hadir' | 'mungkin' | 'tidak'
+
+/** `normResp` — defensive: an empty RSVP map reads back as `[]` from PHP. Unknown values are dropped, never drawn. */
+export function normResp(resp: unknown): Record<string, RsvpNilai> {
+  if (resp && typeof resp === 'object' && !Array.isArray(resp)) {
+    const out: Record<string, RsvpNilai> = {}
+    for (const [k, v] of Object.entries(resp as Record<string, unknown>)) {
+      if (v === 'hadir' || v === 'mungkin' || v === 'tidak') out[k] = v
+    }
+    return out
+  }
+  return {}
+}
+
+/** An outsider from the whole Tim, stored as `o:<officeUserId>` — never a BD people row, so they cannot answer. */
+export const idOrangLuar = (id?: string | null) => String(id || '').startsWith('o:')
+/** The Office user id behind an outsider peserta. */
+export const officeIdDari = (id: string) => String(id).slice(2)
+
+/** `namaPeserta` — the crew name, else the snapshot stored in `pesertaNama`. */
+export function namaPeserta(people: BdPerson[], pesertaNama: Record<string, string> | undefined, id: string): string {
+  const p = people.find(x => x.id === id)
+  if (p) return p.name
+  return String(pesertaNama?.[id] || '').trim() || '—'
+}
+
+/**
+ * `bisaJawab` — only active crew WITH module access can answer. Outsiders
+ * (`o:`) have no module access by definition, and revoked crew cannot open
+ * the module either — both are invited as guests, never as answerers.
+ */
+export function bisaJawab(people: BdPerson[], id: string): boolean {
+  if (idOrangLuar(id)) return false
+  const p = people.find(x => x.id === id)
+  return !!p && p.active !== false && !p.tanpaAkses
+}
+/** Why this peserta cannot answer. */
+export const alasanTakBisaJawab = (id: string) => idOrangLuar(id)
+  ? 'Tanpa akses modul — diundang sebagai tamu, tidak bisa menjawab.'
+  : 'Aksesnya dicabut — tidak bisa menjawab.'
+
+/** The roster row behind one crew member: officeUserId first, then name. */
+export function rosterKru<T extends { id: string, name: string, keterangan?: string }>(
+  roster: T[],
+  p: Pick<BdPerson, 'officeUserId' | 'name'>,
+): T | undefined {
+  const nama = String(p.name || '').trim().toLowerCase()
+  return roster.find(x => p.officeUserId && String(x.id) === String(p.officeUserId))
+    || roster.find(x => String(x.name || '').trim().toLowerCase() === nama)
+}
+
+/**
+ * `TIM_UNDANG` — the invite buttons: every Office team plus Office staff
+ * (`office`/`kantor` words, laksamana-api `Divisi::OFFICE_WORDS`). Kept
+ * separate from `TIM_OFFICE` so that list keeps mirroring `Tim::TIM` exactly.
+ */
+export const TIM_UNDANG: TimOffice[] = [
+  ...TIM_OFFICE,
+  { key: 'office', label: 'Office', words: ['office', 'kantor'] },
+]
+/** `timUndangDariKet` — like `timDariKet`, but Office staff is its own team. */
+export function timUndangDariKet(ket?: string | null): string[] {
+  const kata = String(ket || '').toLowerCase().split(/[^a-z]+/).filter(Boolean)
+  if (!kata.length) return []
+  return TIM_UNDANG.filter(t => t.words.some(w => kata.includes(w))).map(t => t.label)
+}
+
+export interface CalonPeserta { id: string, nama: string, luar: boolean, ket: string }
+/**
+ * `calonUndang` — everyone in one division: BD crew (by roster Tim match)
+ * plus whole-Tim outsiders as `o:<officeUserId>`. A multi-Tim keterangan
+ * matches every team it names, so "Kasir, Office" is invited with Cashier
+ * AND with Office. Sorted by name.
+ */
+export function calonUndang<T extends { id: string, name: string, keterangan?: string, active?: boolean }>(
+  div: string,
+  people: BdPerson[],
+  roster: T[],
+): CalonPeserta[] {
+  const cocok = (ket?: string | null) => timUndangDariKet(ket).includes(div)
+  const namaRendah = (s: unknown) => String(s || '').trim().toLowerCase()
+  const out: CalonPeserta[] = []
+  const lihat = new Set<string>()
+  for (const p of people) {
+    const m = rosterKru(roster, p)
+    if (!m || !cocok(m.keterangan)) continue
+    if (lihat.has(p.id)) continue
+    lihat.add(p.id)
+    out.push({ id: p.id, nama: p.name, luar: false, ket: m.keterangan || '' })
+  }
+  for (const r of roster) {
+    if (r.active === false || !cocok(r.keterangan)) continue
+    const kru = people.find(p =>
+      (p.officeUserId && String(p.officeUserId) === String(r.id)) || namaRendah(p.name) === namaRendah(r.name))
+    const id = kru ? kru.id : `o:${r.id}`
+    if (lihat.has(id)) continue
+    lihat.add(id)
+    out.push({ id, nama: kru ? kru.name : r.name, luar: !kru, ket: r.keterangan || '' })
+  }
+  return out.sort((a, b) => a.nama.localeCompare(b.nama, 'id'))
+}
+
+/** `ringkasRsvp` — "3 hadir · 1 mungkin" for the agenda display. */
+export function ringkasRsvp(resp: Record<string, RsvpNilai> | undefined): string {
+  const jawab = Object.values(resp || {})
+  if (!jawab.length) return ''
+  const n = (v: RsvpNilai) => jawab.filter(x => x === v).length
+  return [
+    n('hadir') ? `${n('hadir')} hadir` : '',
+    n('mungkin') ? `${n('mungkin')} mungkin` : '',
+    n('tidak') ? `${n('tidak')} tidak` : '',
+  ].filter(Boolean).join(' · ')
+}
+
+// ─────────────────────────── Agenda berjam & inbox (LM Agenda, 30 Okt 2026) ──
+// Shape notes: the Vue RSVP answer is the bare word ('hadir'|'mungkin'|
+// 'tidak'), never the old `{s, at}` object — `normResp` guarantees it.
+// Invite stamps ride in `undang {id: {at, ubah?}}` for notification timing.
+
+/** `agTim` — a team agenda: no owner and no peserta. Visible to all, editable by all. */
+export const agTim = (e: Pick<BdAgenda, 'owner' | 'peserta'> | null | undefined) =>
+  !e?.owner && !(Array.isArray(e?.peserta) ? e.peserta.filter(Boolean).length : 0)
+/** `agUntuk` — who sees this agenda: everyone for a team agenda, else owner + peserta. */
+export function agUntuk(e: Pick<BdAgenda, 'owner' | 'peserta'> | null | undefined, id?: string | null): boolean {
+  if (!e || agTim(e)) return true
+  if (!id) return true
+  return e.owner === id || (Array.isArray(e.peserta) && e.peserta.includes(id))
+}
+/** `agBisaUbah` — only the organiser, a module admin, or (for team agendas) anyone. */
+export const agBisaUbah = (
+  e: Pick<BdAgenda, 'owner' | 'peserta'> | null | undefined,
+  akuId?: string | null,
+  admin = false,
+): boolean => !e || agTim(e) || admin || (!!akuId && e.owner === akuId)
+/** `agendaHari` — my agendas for one date, timeless last, then by start time. */
+export function agendaHari(daftar: BdAgenda[], date: string, akuId?: string | null): BdAgenda[] {
+  return daftar
+    .filter(e => e.date === date && agUntuk(e, akuId))
+    .sort((a, b) => (a.start || '99') < (b.start || '99') ? -1 : 1)
+}
+/** `milestoneHari` — my projects' milestones for one date. */
+export function milestoneHari(daftar: BdProject[], date: string, akuId?: string | null): { p: BdProject, ms: BdMilestone }[] {
+  const out: { p: BdProject, ms: BdMilestone }[] = []
+  for (const p of daftar) {
+    if (akuId && !pics(p).includes(akuId)) continue
+    for (const ms of p.milestones || []) {
+      if (ms.date === date) out.push({ p, ms })
+    }
+  }
+  return out
+}
+/** `tugasSaya` — tasks I hold: my PICs, my sub-task assignments, and tasks
+ *  waiting on my review. The unmatched see everything, said out loud. */
+export function tugasSaya(daftar: BdTask[], akuId?: string | null): BdTask[] {
+  if (!akuId) return daftar
+  return daftar.filter(t =>
+    pelaksana(t).includes(akuId) || (t.status === 'Review' && reviewers(t).includes(akuId)))
+}
+/**
+ * `undanganTertunda` — agendas still asking for MY answer: owned by someone
+ * else, inviting me, dated today or later, unanswered. Past ones are never
+ * nagged — answering "hadir" for yesterday means nothing.
+ */
+export function undanganTertunda(daftar: BdAgenda[], akuId?: string | null, hari?: string): BdAgenda[] {
+  if (!akuId) return []
+  const t0 = hari || todayISO()
+  return daftar
+    .filter(e => e.owner && e.owner !== akuId
+      && Array.isArray(e.peserta) && e.peserta.includes(akuId)
+      && e.date >= t0 && !(e.resp || {})[akuId])
+    .sort((a, b) => (`${a.date}${a.start || ''}` < `${b.date}${b.start || ''}` ? -1 : 1))
+}
+/** `jamAgendaBerubah` — did the schedule move? A moved schedule drops every answer. */
+export const jamAgendaBerubah = (
+  lama: Pick<BdAgenda, 'date' | 'start' | 'end'>,
+  baru: Pick<BdAgenda, 'date' | 'start' | 'end'>,
+) => lama.date !== baru.date || (lama.start || '') !== (baru.start || '') || (lama.end || '') !== (baru.end || '')
+
+// ─────────────────────────── Jam deadline ──
+
+/** `jamValid` — "HH:MM" 24-hour; empty means "no time set", which is always fine. */
+export const jamValid = (jam?: string | null) => !jam || /^([01]\d|2[0-3]):[0-5]\d$/.test(jam)
+/** `labelJam` — the optional time attached to a due text (" · 14:00"), empty when unset. */
+export const labelJam = (jam?: string | null) => jamValid(jam) && jam ? ` · ${jam}` : ''
+/** `menitJam` — "HH:MM" as minutes past midnight; null when unset or invalid. */
+export function menitJam(jam?: string | null): number | null {
+  if (!jamValid(jam) || !jam) return null
+  const [h, m] = String(jam).split(':').map(Number)
+  return h! * 60 + m!
+}
+/** `menitKeJam` — minutes past midnight as "HH:MM", clamped to the day. */
+export function menitKeJam(menit: number): string {
+  const m = Math.max(0, Math.min(24 * 60 - 1, Math.round(menit)))
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`
+}
+/** `rentangJamSah` — a start/end pair for one agenda: an end needs a start, and must be after it. */
+export const rentangJamSah = (start?: string | null, end?: string | null) =>
+  (!start && !end) || (!!start && (!end || (menitJam(end)! > menitJam(start)!)))
+
 // ─────────────────────────── Projects ──
 
 /** `projTasks`. */
@@ -802,8 +1079,15 @@ export const pesanTunggu = (t: { name?: string } | null | undefined, nama: strin
  * deadline stops counting — "waktunya berhenti"); reopening drops `doneAt`.
  * A task with sub-tasks is COUNTED from them, never typed; a sub-task-less
  * task left at 100 by hand falls back to 0.
+ *
+ * Entering Review stamps `reviewAt` (the "waiting for your review"
+ * notification); leaving Review drops it, so re-entering notifies again.
  */
-export function segarkanProgress(t: { status?: string, progress?: number, doneAt?: string, subtasks?: BdSubtask[] | null }): void {
+export function segarkanProgress(t: { status?: string, progress?: number, doneAt?: string, subtasks?: BdSubtask[] | null, reviewAt?: number }): void {
+  if (t.status === 'Review') {
+    if (!t.reviewAt) t.reviewAt = Date.now()
+  }
+  else if (t.reviewAt) delete t.reviewAt
   if (t.status === 'Done') {
     t.progress = 100
     if (!t.doneAt) t.doneAt = todayISO()

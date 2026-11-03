@@ -1,12 +1,15 @@
 <!--
-  Crew form (old `orangModal`, deploy/bd/index.html:4554-4609). Name and access
-  belong to Office, so they cannot be edited here; only role/div/boss are BD OS's.
-  The boss chain is checked for a cycle, which would otherwise freeze the page.
+  Crew form (old `orangModal`, deploy/bd/index.html:4554-4609). Name, access
+  and division belong to Office, so they cannot be edited here; only role/boss
+  are BD OS's. The boss chain is checked for a cycle, which would otherwise
+  freeze the page. A division outside the Office Tim list is kept as-is and
+  marked "divisi lama", never cleared.
 -->
 <script setup lang="ts">
 import type { BdPerson } from '~/composables/useBd'
 import { bdSimpan, tambalBd, versiBaris } from '~/composables/useBd'
-import { OWNER_DIVS, PILIHAN_TANPA } from '~/utils/bd-rumus'
+import { LABEL_TIM, PILIHAN_TANPA, timDariKet } from '~/utils/bd-rumus'
+import { useRoster } from '~/composables/useRoster'
 
 const props = defineProps<{
   orang?: BdPerson | null
@@ -14,17 +17,31 @@ const props = defineProps<{
 }>()
 const open = defineModel<boolean>('open', { default: false })
 const toast = useToast()
+const { data: roster } = useRoster()
 
-const f = reactive({ role: '', div: PILIHAN_TANPA, boss: PILIHAN_TANPA })
+/** The Office Tim of this crew (roster `keterangan`, officeUserId first then name). Read-only here. */
+const timOffice = computed(() => {
+  const o = props.orang
+  if (!o) return []
+  const list = roster.value ?? []
+  const m = list.find(x => o.officeUserId && String(x.id) === String(o.officeUserId))
+    || list.find(x => String(x.name || '').trim().toLowerCase() === String(o.name || '').trim().toLowerCase())
+  return timDariKet(m?.keterangan)
+})
+/** A division outside the Office Tim list is kept as-is and marked, never cleared. */
+const divLama = computed(() => {
+  const d = String(props.orang?.div || '')
+  return !!d && !LABEL_TIM.includes(d)
+})
+
+const f = reactive({ role: '', boss: PILIHAN_TANPA })
 
 watch(open, (o) => {
   if (!o || !props.orang) return
   f.role = props.orang.role || ''
-  f.div = props.orang.div || PILIHAN_TANPA
   f.boss = props.orang.boss || PILIHAN_TANPA
 })
 
-const opsiDiv = [{ value: PILIHAN_TANPA, label: '— belum diatur —' }, ...OWNER_DIVS.map(d => ({ value: d, label: d }))]
 const opsiBoss = computed(() => [
   { value: PILIHAN_TANPA, label: '— tidak ada (puncak) —' },
   ...props.people.filter(p => p.id !== props.orang?.id).map(p => ({ value: p.id, label: p.name })),
@@ -49,7 +66,6 @@ async function simpan() {
   }
   const body: Partial<BdPerson> = {
     role: f.role.trim(),
-    div: f.div === PILIHAN_TANPA ? '' : f.div,
     boss: f.boss === PILIHAN_TANPA ? '' : f.boss,
   }
   const ok = await bdSimpan(() => tambalBd<BdPerson>('people', orang.id, body, versiBaris(orang)), 'Data kru diperbarui')
@@ -65,7 +81,8 @@ async function simpan() {
   >
     <div class="grid gap-4">
       <p class="rounded-xl border border-default bg-muted p-3 text-xs text-muted">
-        Nama dan hak akses tidak bisa diubah dari sini — perubahannya akan ditimpa saat daftar disegarkan.
+        Nama, hak akses, dan divisi tidak bisa diubah dari sini — divisinya mengikuti kolom Tim di
+        Office › Kelola User, perubahannya akan terbaca saat daftar disegarkan.
         Yang di bawah ini milik BD OS.
       </p>
       <div class="grid gap-4 sm:grid-cols-2">
@@ -76,12 +93,27 @@ async function simpan() {
             class="w-full"
           />
         </UFormField>
-        <UFormField label="Divisi">
-          <USelect
-            v-model="f.div"
-            :items="opsiDiv"
-            class="w-full"
-          />
+        <UFormField label="Divisi (dari Office — hanya baca)">
+          <p class="flex flex-wrap items-center gap-1.5 text-sm">
+            <b class="text-highlighted">{{ orang?.div || 'belum diatur' }}</b>
+            <AppStatus
+              v-if="divLama"
+              color="warning"
+              size="sm"
+              title="Divisi ini tidak ada di daftar Tim Office — dipertahankan, sesuaikan lewat Kelola User"
+            >
+              divisi lama
+            </AppStatus>
+          </p>
+          <template #hint>
+            <template v-if="timOffice.length">
+              Tim Office: <b>{{ timOffice.join(', ') }}</b>.
+            </template>
+            <template v-else>
+              Kru ini belum cocok dengan Tim mana pun di Office — divisinya dipertahankan apa adanya.
+            </template>
+            Ubah lewat Office › Kelola User (kolom Tim).
+          </template>
         </UFormField>
       </div>
       <UFormField label="Atasan langsung">

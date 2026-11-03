@@ -18,7 +18,7 @@
 // (T-25 → per-record CRUD).
 import type { Versi } from '~/utils/versi'
 import { ifMatch, isKonflik, isVersiWajib, tanganiKonflik } from '~/utils/versi'
-import { cekBolehDone, deps, gulirPatch, labelUlang, lahirkanUlang, namaPendekTask, normalisasiStatus, parseUlang, penunggu, pesanTunggu, rantaiUlang, segarkanProgress, selesai, seriBerakhir, todayISO } from '~/utils/bd-rumus'
+import { cekBolehDone, deps, gulirPatch, labelUlang, lahirkanUlang, namaPendekTask, normalisasiStatus, normResp, parseUlang, penunggu, pesanTunggu, rantaiUlang, segarkanProgress, selesai, seriBerakhir, todayISO } from '~/utils/bd-rumus'
 import { fTglP } from '~/utils/format'
 import { BATAS_TULIS_PARALEL, hitungBerhasilParalel, petaParalel } from '~/utils/paralel'
 
@@ -87,6 +87,8 @@ export interface BdTask {
   /** Optional start; plotted on the Timeline (VUE-11). Later than the deadline is refused. */
   start?: string
   deadline: string
+  /** Optional deadline time ("HH:MM"), shown as info next to the due text — never an hour-grid (WS2b owns that). */
+  jam?: string
   project: string | null
   important: boolean
   urgent: boolean
@@ -109,6 +111,18 @@ export interface BdTask {
   terlewat?: { d: string, sub: string }[]
   /** Reviewers: crew ids asked to review (`reviewers [id kru]`, never the assignee). */
   reviewers?: string[]
+  /** When the task entered Review — the "waiting for your review" notification
+   *  stamp. Dropped when it leaves Review, so re-entering notifies again
+   *  (LM Agenda 30 Okt 2026). Blob passthrough, never migrated. */
+  reviewAt?: number
+  /** The reviewer's verdict (`{s: 'ok'|'balik', by, at, catatan?}`). Blob passthrough. */
+  reviewHasil?: { s: 'ok' | 'balik', by?: string, at?: number, catatan?: string }
+  /** Who assigned whom (`{crewId: {by, at}}`), stamped when a NEW pic is added
+   *  in the task form — the added person gets a notification. Self-assigns are
+   *  never stamped. Blob passthrough, never migrated. */
+  tugasOleh?: Record<string, { by: string, at: number }>
+  /** Same as `tugasOleh`, for newly added reviewers. */
+  reviewOleh?: Record<string, { by: string, at: number }>
   /** Drag marker: the column the card was dropped into + drag time (`dropBoard`). */
   pindahKe?: { st: string, at: number }
   /** Stamped when the task becomes Done, dropped when reopened: a done deadline stops counting. */
@@ -209,6 +223,29 @@ export interface BdAgenda {
   date: string
   type: string
   div: string
+  /** Optional start/end time ("HH:MM"); empty = all-day (LM Agenda 30 Okt 2026). */
+  start?: string
+  end?: string
+  /** Free-text place or link. */
+  lokasi?: string
+  /** Free-text notes. */
+  ket?: string
+  /** The organising crew member. Empty = team agenda: visible to all, editable by all. */
+  owner?: string
+  /** Invite stamps per peserta id (`{at, ubah?}`): when the schedule shifts,
+   *  the stamp is renewed with `ubah: 1` and the answer is dropped, so the
+   *  invitee is asked again. Blob passthrough, never migrated. */
+  undang?: Record<string, { at: number, ubah?: 1 }>
+  /** Invited people: BD crew ids plus whole-Tim outsiders as `o:<officeUserId>`. Never BD people rows. */
+  peserta?: string[]
+  /** Name snapshot for `o:` peserta, keyed by the same id. */
+  pesertaNama?: Record<string, string>
+  /**
+   * RSVP answers by peserta id (`hadir`|`mungkin`|`tidak`). The API handles
+   * JSON as PHP arrays, so an empty map reads back as `[]` — normalized to
+   * `{}` on read (see `normState`).
+   */
+  resp?: Record<string, 'hadir' | 'mungkin' | 'tidak'>
   createdAt?: number
   updatedAt?: number
 }
@@ -294,6 +331,26 @@ export function normState(raw: unknown): BdState {
   // Read mapping (old `normalize`): Backlog → To Do, Waiting → Doing, unknown
   // → To Do. A status without a column would lose its card without a trace.
   for (const t of tasks) t.status = normalisasiStatus(t.status)
+  const agenda = arr<BdAgenda>('agenda')
+  for (const e of agenda) {
+    // Defensive: the API serves JSON as PHP arrays, so an empty RSVP map
+    // reads back as `[]` — and legacy rows may carry none of these fields or
+    // unknown answer values. One normalizer (`normResp`, shared with the
+    // form) so a bad value never survives a reload only to be cleaned on open.
+    const rp = (e as unknown as Record<string, unknown>).resp
+    e.resp = normResp(rp)
+    if (!Array.isArray(e.peserta)) e.peserta = []
+    const pn = (e as unknown as Record<string, unknown>).pesertaNama
+    e.pesertaNama = (pn && typeof pn === 'object' && !Array.isArray(pn) ? pn : {}) as Record<string, string>
+    // LM Agenda time/owner fields: legacy rows simply lack them.
+    if (typeof e.start !== 'string') e.start = ''
+    if (typeof e.end !== 'string') e.end = ''
+    if (typeof e.lokasi !== 'string') e.lokasi = ''
+    if (typeof e.ket !== 'string') e.ket = ''
+    if (typeof e.owner !== 'string') e.owner = ''
+    const un = (e as unknown as Record<string, unknown>).undang
+    e.undang = (un && typeof un === 'object' && !Array.isArray(un) ? un : {}) as Record<string, { at: number, ubah?: 1 }>
+  }
   return {
     people: arr<BdPerson>('people'),
     projects: arr<BdProject>('projects'),
@@ -302,7 +359,7 @@ export function normState(raw: unknown): BdState {
     coord: arr<BdCoord>('coord', 'coord-requests'),
     po: arr<BdPo>('po', 'purchase-orders'),
     pr: arr<BdPr>('pr', 'purchase-requests'),
-    agenda: arr<BdAgenda>('agenda'),
+    agenda,
     focus: (r.focus as Record<string, BdFocusEntry>) || {},
     approverSets: arr<BdApproverSet>('approverSets'),
     promos: arr<BdPromo>('promos'),
@@ -482,6 +539,74 @@ export async function lahirkanUlangSetelah(t: BdTask, semua: BdTask[]): Promise<
   if (!b) return
   const ok = await bdTulisDiam(() => buatBd<BdTask>('tasks', b))
   if (ok) toastBd()?.add({ title: `Berikutnya: ${namaPendekTask(b)} — ${fTglP(b.deadline)}`, color: 'success' })
+}
+
+/**
+ * Approve a task waiting on my review: Done through the one guard
+ * (`cekBolehDone`), with the verdict stamped so the PIC gets a notification.
+ * Recurrence birth applies like any other Done.
+ */
+export async function setujuiReview(t: BdTask, semua: BdTask[], olehId: string): Promise<boolean> {
+  const cek = cekBolehDone(t, t.dependsOn, semua)
+  if (!cek.boleh) {
+    toastBd()?.add({ title: pesanTunggu(t, cek.nama), color: 'error' })
+    return false
+  }
+  const body: Partial<BdTask> = {
+    ...t,
+    status: 'Done',
+    reviewHasil: { s: 'ok', by: olehId, at: Date.now() },
+  }
+  delete body.updatedAt
+  delete body.pindahKe
+  segarkanProgress(body)
+  const ok = await bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
+  if (ok) await lahirkanUlangSetelah({ ...t, ...body, id: t.id } as BdTask, semua)
+  return ok
+}
+
+/**
+ * Send a task back to Doing with the reviewer's note, stamped so the PIC
+ * gets a notification. Leaving Review drops `reviewAt`, so re-entering
+ * notifies again.
+ */
+export async function kembalikanReview(t: BdTask, semua: BdTask[], olehId: string, catatan: string): Promise<boolean> {
+  const body: Partial<BdTask> = {
+    ...t,
+    status: 'Doing',
+    reviewHasil: { s: 'balik', by: olehId, at: Date.now(), catatan: catatan.slice(0, 300) },
+  }
+  delete body.updatedAt
+  delete body.pindahKe
+  segarkanProgress(body)
+  return bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
+}
+
+/**
+ * Stamp who assigned whom: called with the pics/reviewers BEFORE the save
+ * and the new lists, so only NEWLY added people are stamped. Self-assigns
+ * are never stamped (nothing to tell). Blob passthrough, no migration.
+ */
+export function capPenugasan(
+  body: Partial<BdTask>,
+  picsLama: string[],
+  revLama: string[],
+  picsBaru: string[],
+  revBaru: string[],
+  olehId?: string | null,
+): void {
+  if (!olehId) return
+  const now = Date.now()
+  for (const id of picsBaru) {
+    if (id !== olehId && !picsLama.includes(id)) {
+      body.tugasOleh = { ...(body.tugasOleh || {}), [id]: { by: olehId, at: now } }
+    }
+  }
+  for (const id of revBaru) {
+    if (id !== olehId && !revLama.includes(id)) {
+      body.reviewOleh = { ...(body.reviewOleh || {}), [id]: { by: olehId, at: now } }
+    }
+  }
 }
 
 /**

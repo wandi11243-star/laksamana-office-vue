@@ -13,7 +13,7 @@ import {
   bdSimpan, centangSub, hapusTaskDenganUrutan, pesanHapusTask, tambalBd, toggleTask, useBdState, versiBaris,
 } from '~/composables/useBd'
 import {
-  OWNER_DIVS, PILIHAN_SEMUA, PROJ_STAGES, cariAku, lingkupIds, pelaksana, pics, saringArsip, saringLingkup,
+  PILIHAN_SEMUA, PROJ_STAGES, cariAku, divisiTerpakai, lingkupIds, pelaksana, pics, saringArsip, saringLingkup,
   subs, tasksPerluDitutup, todayISO, urutDeadline, urutProjectPerhatian, type ModeArsip,
 } from '~/utils/bd-rumus'
 import type { GZoom } from '~/utils/bd-gantt'
@@ -86,7 +86,11 @@ const skop = [
   { value: 'saya', label: 'Ditugaskan ke saya' },
   { value: 'semua', label: 'Semua' },
 ]
-const opsiDiv = [{ value: PILIHAN_SEMUA, label: 'Semua divisi' }, ...OWNER_DIVS.map(d => ({ value: d, label: d }))]
+/** Division filter stays on used-only. */
+const opsiDiv = computed(() => [
+  { value: PILIHAN_SEMUA, label: 'Semua divisi' },
+  ...divisiTerpakai(state.value.projects).map(d => ({ value: d, label: d })),
+])
 const resetAktif = computed(() => fPics.value.length || f.value.div !== PILIHAN_SEMUA || f.value.scope !== 'semua' || f.value.st !== 'aktif')
 function reset() {
   fPics.value = []

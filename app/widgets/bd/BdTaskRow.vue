@@ -5,7 +5,7 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
-import { fDue, inisial, kuadran, kunciTag, lewat, pics, selesai, tagsOf } from '~/utils/bd-rumus'
+import { fDue, inisial, kuadran, kunciTag, labelJam, lewat, pics, selesai, tagsOf } from '~/utils/bd-rumus'
 import { WARNA_KUADRAN } from '~/utils/status-bd'
 import BdTagChip from '~/widgets/bd/BdTagChip.vue'
 
@@ -107,8 +107,9 @@ const sisa = computed(() => dipakai.value.length - tampil.value.length)
           :color="od ? 'error' : 'neutral'"
           icon="i-lucide-calendar-clock"
           size="sm"
+          :title="task.jam ? `Jam ${task.jam}` : ''"
         >
-          {{ fDue(task.deadline) }}
+          {{ fDue(task.deadline) }}{{ labelJam(task.jam) }}
         </AppStatus>
       </span>
       <span
