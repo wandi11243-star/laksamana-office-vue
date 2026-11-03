@@ -34,7 +34,6 @@ const geserMinggu = (n: number) => {
       v-model="mode"
       :options="OPSI_MODE"
       size="sm"
-      class="[&_button]:min-h-11"
     />
     <UInput
       v-if="p.mode === 'hari'"

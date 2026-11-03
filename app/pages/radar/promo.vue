@@ -155,14 +155,14 @@ useSegarSenyap(refresh)
     </AppPanel>
     <div
       v-else
-      class="grid gap-4 md:grid-cols-2 xl:grid-cols-3"
+      class="grid gap-5 md:grid-cols-2 xl:grid-cols-3"
     >
       <div
         v-for="(p, i) in list"
         :key="p.id || i"
-        class="rounded-panel border border-default bg-default p-4 shadow-panel"
+        class="rounded-panel border border-default bg-default p-5 shadow-panel"
       >
-        <div class="mb-2 flex items-start justify-between gap-2">
+        <div class="mb-3 flex items-start justify-between gap-2">
           <p class="flex items-start gap-1.5 font-semibold leading-snug text-highlighted">
             <UIcon
               :name="promoTipe(p.tipe).icon"
@@ -188,16 +188,16 @@ useSegarSenyap(refresh)
             :src="p.poster"
             :alt="`Poster ${p.nama || ''}`"
             loading="lazy"
-            class="mb-2 block w-full rounded-field border border-default"
+            class="mb-3 block w-full rounded-field border border-default"
           >
         </a>
         <p
           v-if="p.benefit"
-          class="mb-2 font-semibold"
+          class="mb-3 font-semibold"
         >
           {{ p.benefit }}
         </p>
-        <div class="mb-2 flex flex-wrap gap-1.5">
+        <div class="mb-3 flex flex-wrap gap-1.5">
           <AppStatus size="sm">
             {{ promoTglPendek(p.mulai) }} → {{ promoTglPendek(p.selesai) }}
           </AppStatus>
@@ -222,7 +222,7 @@ useSegarSenyap(refresh)
             kode {{ p.kode }}
           </AppStatus>
         </div>
-        <ul class="space-y-1 text-sm">
+        <ul class="space-y-2 text-sm leading-relaxed">
           <li
             v-for="[ic, v] in baris(p)"
             :key="ic"
@@ -236,19 +236,19 @@ useSegarSenyap(refresh)
         </ul>
         <details
           v-if="p.ketentuan"
-          class="mt-2"
+          class="mt-3"
         >
           <summary class="min-h-11 cursor-pointer content-center text-xs text-muted">
             Ketentuan
           </summary>
-          <p class="mt-1 whitespace-pre-wrap text-xs text-muted">
+          <p class="mt-2 whitespace-pre-wrap text-xs leading-relaxed text-muted">
             {{ p.ketentuan }}
           </p>
         </details>
       </div>
     </div>
 
-    <p class="mt-3 text-xs text-muted">
+    <p class="mt-5 text-xs text-muted">
       Menampilkan promo yang <b>berlangsung</b> dan <b>akan datang</b> saja<template v-if="data?.arsip">
         · {{ data.arsip }} promo lain sudah berakhir atau sedang dijeda
       </template>

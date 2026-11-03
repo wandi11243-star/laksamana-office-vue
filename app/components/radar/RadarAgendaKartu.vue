@@ -25,7 +25,7 @@ const n = computed(() => dDay(props.a.tgl))
     class="flex min-h-11 w-full items-start gap-3 rounded-panel border border-default bg-default p-3.5 text-left shadow-panel transition-colors hover:border-yellow-deep focus-visible:outline-2 focus-visible:outline-primary"
     @click="$emit('buka', a)"
   >
-    <span class="flex w-14 shrink-0 flex-col items-center rounded-field bg-yellow-light py-1.5 text-yellow-dark">
+    <span class="flex w-14 shrink-0 flex-col items-center rounded-md bg-yellow-light py-1.5 text-yellow-dark">
       <span class="font-display text-xl font-bold leading-none num">{{ tgl.getDate() }}</span>
       <span class="text-[11px] font-semibold uppercase">{{ BLN[tgl.getMonth()] }}</span>
       <span class="text-[11px] text-muted">{{ HARI[tgl.getDay()]!.slice(0, 3) }}</span>

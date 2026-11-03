@@ -130,7 +130,8 @@ useSegarSenyap(refresh, () => buka.value)
         :sub="`${mkt.length} event · pax kontrak klien`"
       />
     </AppStatGrid>
-    <p class="-mt-3 mb-5 text-xs text-muted">
+    <!-- Note keeps the full mb-5 section gap below the stats. -->
+    <p class="mb-5 text-xs text-muted">
       Pax Event dan pax Marketing <b>tidak dijumlahkan</b> dengan pax reservasi meja — ketiganya rombongan berbeda.
       Hanya acara yang sudah pasti jalan yang dihitung (Marketing: Deal / Event Done · Event: Approval / Upcoming / Event Done).
       Periode: {{ labelPeriode(p) }}.

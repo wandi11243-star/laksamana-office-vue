@@ -197,14 +197,12 @@ useSegarSenyap(refresh, () => buka.value)
           v-model="f.waktu"
           :options="opsiWaktu"
           size="sm"
-          class="[&_button]:min-h-11"
         />
         <div class="flex-1" />
         <AppSeg
           v-model="f.view"
           :options="OPSI_VIEW"
           size="sm"
-          class="[&_button]:min-h-11"
         />
       </div>
       <p class="mt-3 text-xs text-muted">
