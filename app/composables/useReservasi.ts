@@ -18,10 +18,10 @@ import type { LayoutDenah } from '~/utils/venue-layouts'
 import type { PerformaPeriode, RingkasKeseluruhan } from '~/utils/analitik'
 
 // G-07 (guest summary) and G-08 (server paging + CSV export) are wired now
-// (docs/migrasi/reservasi.md J.4). Still without a v1 endpoint on purpose:
-// `ver` (version-only poll) and the diagnostics `ping` / `stats` (U3 — not a
-// screen feature). Dana Masuk keeps its paging in the browser: its table shows
-// one row per TRANSFER while the API pages reservations.
+// (docs/migrasi/reservasi.md J.4), plus the version-only poll `ver` below.
+// Still without a v1 endpoint on purpose: the diagnostics `ping` / `stats`
+// (U3 — not a screen feature). Dana Masuk keeps its paging in the browser:
+// its table shows one row per TRANSFER while the API pages reservations.
 
 /** Reservation status. "Booking" was the old Marketing value; the client maps it to "Confirmed". */
 export type StatusReservasi = 'Pending' | 'Confirmed' | 'Datang' | 'Cancelled' | 'No-show'
@@ -290,6 +290,21 @@ export const listDpsReservasi = (tfFrom?: string, tfTo?: string) =>
     query: {
       tfFrom: tfFrom || undefined,
       tfTo: tfTo || undefined,
+    },
+  })
+
+/**
+ * GET /reservasi/ver — the global `_ver` counter, a few dozen bytes. The
+ * dashboard map tab polls this every tick and skips its window pull while
+ * the counter is unchanged; ANY failure (network, 4xx, unknown shape) falls
+ * back to the full pull — never a blank screen (twin of the old
+ * `VER_TAK_ADA` fallback, deploy/reservasi:3118-3119).
+ */
+export const getReservasiVer = (from?: string, to?: string) =>
+  useApi()<Envelope<{ ver: number }>>('/reservasi/ver', {
+    query: {
+      from: from || undefined,
+      to: to || undefined,
     },
   })
 

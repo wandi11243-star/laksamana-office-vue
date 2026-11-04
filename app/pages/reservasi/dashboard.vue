@@ -1510,7 +1510,8 @@ async function kirimKoord(t: WaTarget) {
 // --- the poll (`:3089-3156`) ------------------------------------------------------
 // The map is the only tab that pulls on its own, and only while it is on screen:
 // POLL_JEDA is 15 s and the pull is skipped while the browser tab is hidden, with
-// an immediate refresh when it comes back. Auto-closing at 04:00 is deliberately
+// an immediate refresh when it comes back. Each tick first asks GET
+// /reservasi/ver and skips the pull while the counter is unchanged. Auto-closing at 04:00 is deliberately
 // NOT built (F9, AUTO_TUTUP_AKTIF=false since 26 September 2026).
 
 const POLL_JEDA = 15000
@@ -1530,11 +1531,29 @@ function pollDitunda() {
   return false
 }
 
+/** Last `_ver` seen by the map-tab poll. Reset whenever the window moves, so
+ *  the next tick always pulls after a date/filter change. */
+let verTerakhir: number | null = null
+watch([dari, sampai, saring], () => {
+  verTerakhir = null
+})
+
+async function tickJedaAsync() {
+  try {
+    const ver: unknown = (await getReservasiVer(dari.value, sampai.value)).data?.ver
+    if (typeof ver === 'number' && ver === verTerakhir) return
+    if (typeof ver === 'number') verTerakhir = ver
+  }
+  catch {
+    // Any ver failure falls back to the full pull below — never a blank screen.
+  }
+  await muatHari()
+}
+
 function tickJeda() {
   if (document.visibilityState !== 'visible' || sedangRefresh || pollDitunda()) return
   sedangRefresh = true
-  void Promise.resolve()
-    .then(() => muatHari())
+  void tickJedaAsync()
     .catch(() => {})
     .finally(() => { sedangRefresh = false })
 }
