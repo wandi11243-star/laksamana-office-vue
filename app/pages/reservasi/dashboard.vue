@@ -1475,7 +1475,12 @@ function nyalakanJeda() {
 }
 onMounted(nyalakanJeda)
 onBeforeUnmount(() => clearInterval(jeda))
-watch(tab, nyalakanJeda)
+watch(tab, (baru, lama) => {
+  nyalakanJeda()
+  // The map-tab interval only pulls the day slot, so the table slot freezes
+  // while the map is open — refresh it on return, not on every tick.
+  if (baru === 'list' && lama === 'map') refresh()
+})
 function saatKembaliLayar() {
   if (document.visibilityState !== 'visible') return
   nyalakanJeda()
