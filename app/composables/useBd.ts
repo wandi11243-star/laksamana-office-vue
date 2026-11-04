@@ -17,7 +17,7 @@
 // `ping`/`stats` (U3 — no screen uses them) and the legacy whole-state `saveAll`
 // (T-25 → per-record CRUD).
 import type { Versi } from '~/utils/versi'
-import { ifMatch, isKonflik, isVersiWajib, tanganiKonflik } from '~/utils/versi'
+import { ifMatch, isKonflik, isVersiWajib, tanganiKonflik, tulisBerVersi } from '~/utils/versi'
 import { cekBolehDone, deps, gulirPatch, labelUlang, lahirkanUlang, namaPendekTask, normalisasiStatus, normResp, parseUlang, penunggu, pesanTunggu, rantaiUlang, segarkanProgress, selesai, seriBerakhir, todayISO } from '~/utils/bd-rumus'
 import { fTglP } from '~/utils/format'
 import { BATAS_TULIS_PARALEL, hitungBerhasilParalel, petaParalel } from '~/utils/paralel'
@@ -469,18 +469,7 @@ function toastBd() {
  * overwrites another person's work.
  */
 export async function bdSimpan<T>(aksi: () => Promise<T>, sukses: string): Promise<boolean> {
-  const toast = toastBd()
-  const muatUlang = () => refreshNuxtData(['bd-state', 'bd-settings'])
-  try {
-    await aksi()
-    await muatUlang()
-    toast?.add({ title: sukses, color: 'success' })
-    return true
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, muatUlang))) toast?.add({ title: apiErrorMessage(e), color: 'error' })
-    return false
-  }
+  return tulisBerVersi(aksi, { sukses, muatUlang: () => refreshNuxtData(['bd-state', 'bd-settings']) })
 }
 
 /**
@@ -489,17 +478,7 @@ export async function bdSimpan<T>(aksi: () => Promise<T>, sukses: string): Promi
  * the daily focus). A failure still speaks.
  */
 export async function bdTulisDiam<T>(aksi: () => Promise<T>): Promise<boolean> {
-  const toast = toastBd()
-  const muatUlang = () => refreshNuxtData(['bd-state', 'bd-settings'])
-  try {
-    await aksi()
-    await muatUlang()
-    return true
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, muatUlang))) toast?.add({ title: apiErrorMessage(e), color: 'error' })
-    return false
-  }
+  return tulisBerVersi(aksi, { muatUlang: () => refreshNuxtData(['bd-state', 'bd-settings']) })
 }
 
 /**
