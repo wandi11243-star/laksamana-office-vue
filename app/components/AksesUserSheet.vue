@@ -15,10 +15,16 @@ import {
   buatUser, setAkses, setAdmin, setAktif, simpanAkun, ubahUser,
   type AccountModule, type AccountUser, type SimpanUserBody,
 } from '~/composables/useAccount'
+import { TIM_OFFICE } from '~/utils/bd-rumus'
 
 const props = defineProps<{
   user: AccountUser | null
   modules: AccountModule[]
+  /**
+   * Raw history of Tim strings (unique `keterangan` values). Kept only so the
+   * caller (`akses.vue`) keeps compiling: the chips below deliberately ignore
+   * it and read the canonical list instead.
+   */
   timTersedia: string[]
 }>()
 const open = defineModel<boolean>('open', { default: false })
@@ -268,14 +274,56 @@ async function toggleAktif(v: boolean | 'indeterminate') {
   selesaiSibuk(k)
 }
 
-function isiTim(t: string) {
-  f.keterangan = t
+/**
+ * Canonical team labels for the Tim chips: the labels of `App\Support\Tim::TIM`
+ * on the API, mirrored in Vue as `TIM_OFFICE`. Chips come from here — never
+ * from the raw history strings — so merged values ("Floor, Kasir, FOH") cannot
+ * spawn one chip per history row.
+ */
+const DAFTAR_TIM = TIM_OFFICE.map(t => t.label)
+
+/** Raw tokens of the Tim box: split on comma/semicolon, trimmed, never empty. */
+const tokenTim = (v: string): string[] =>
+  v.split(/[,;]/).map(s => s.trim()).filter(s => s !== '')
+
+/** Non-canonical tokens kept verbatim (legacy values like "Office, CEO"):
+ * shown as removable muted chips since there is no text box anymore. */
+const timLain = computed(() =>
+  tokenTim(f.keterangan).filter(t => !DAFTAR_TIM.some(l => l.toLowerCase() === t.toLowerCase())),
+)
+function hapusTimLain(hapus: string) {
+  const kunci = hapus.toLowerCase()
+  f.keterangan = tokenTim(f.keterangan).filter(t => t.toLowerCase() !== kunci).join(', ')
+}
+/** Canonical teams currently named (exact label match, case-insensitive). */
+const timDipilih = computed(() => {
+  const ada = new Set(tokenTim(f.keterangan).map(t => t.toLowerCase()))
+  return DAFTAR_TIM.filter(l => ada.has(l.toLowerCase()))
+})
+
+/**
+ * Toggle one canonical team in the box: clicking ADDS the team when absent
+ * and REMOVES it when present. The old `isiTim` overwrote the whole box, so
+ * picking a second team wiped the first — toggling keeps multi-team values
+ * ("Bar, Kitchen") intact. Text the chips do not know (legacy "Office, CEO")
+ * is kept verbatim at the end; the box, not the chips, owns it. The save
+ * contract is unchanged: one `keterangan` string, joined with ", ".
+ */
+function toggleTim(label: string) {
+  const kunci = label.toLowerCase()
+  const pilih = new Set(timDipilih.value.map(l => l.toLowerCase()))
+  if (pilih.has(kunci)) pilih.delete(kunci)
+  else pilih.add(kunci)
+  const sisa = tokenTim(f.keterangan)
+    .filter(t => !DAFTAR_TIM.some(l => l.toLowerCase() === t.toLowerCase()))
+  f.keterangan = [...DAFTAR_TIM.filter(l => pilih.has(l.toLowerCase())), ...sisa].join(', ')
 }
 </script>
 
 <template>
   <ResponsiveSheet
     v-model:open="open"
+    detail
     :title="user ? `Ubah ${user.name}` : 'Tambah kru'"
     description="Identitas, kepegawaian, modul, dan hak admin kru."
   >
@@ -323,24 +371,44 @@ function isiTim(t: string) {
         </p>
       </UFormField>
       <UFormField label="Tim">
-        <UInput
-          v-model="f.keterangan"
-          placeholder="Contoh: Bar, Kitchen, Kasir"
-          class="w-full"
-        />
-        <div
-          v-if="timTersedia.length"
-          class="mt-1.5 flex flex-wrap gap-1"
-        >
+        <div class="flex flex-wrap gap-1.5">
           <button
-            v-for="t in timTersedia"
+            v-for="t in DAFTAR_TIM"
             :key="t"
             type="button"
-            class="rounded-full border border-default px-2 py-0.5 text-[11px] text-muted hover:bg-elevated/50"
-            @click="isiTim(t)"
+            class="flex min-h-9 items-center gap-1.5 rounded-full border px-3 text-[13px] transition-colors"
+            :class="timDipilih.some(l => l === t)
+              ? 'border-yellow-deep bg-yellow-light font-semibold text-yellow-dark'
+              : 'border-default text-muted hover:bg-elevated/50'"
+            :aria-pressed="timDipilih.some(l => l === t)"
+            @click="toggleTim(t)"
           >
+            <UIcon
+              v-if="timDipilih.some(l => l === t)"
+              name="i-lucide-check"
+              class="size-3.5 shrink-0"
+            />
             {{ t }}
           </button>
+          <span
+            v-for="t in timLain"
+            :key="`lain-${t}`"
+            class="flex min-h-9 items-center gap-1 rounded-full border border-dashed border-default px-3 text-[13px] text-muted"
+            :title="`Nilai lama, klik × untuk menghapus: ${t}`"
+          >
+            {{ t }}
+            <button
+              type="button"
+              :aria-label="`Hapus ${t}`"
+              class="flex size-5 items-center justify-center rounded-full hover:bg-elevated"
+              @click="hapusTimLain(t)"
+            >
+              <UIcon
+                name="i-lucide-x"
+                class="size-3.5"
+              />
+            </button>
+          </span>
         </div>
       </UFormField>
       <div class="grid gap-4 sm:grid-cols-2">
@@ -441,8 +509,8 @@ function isiTim(t: string) {
           />
         </div>
       </div>
-      <div class="grid gap-1 rounded-xl border border-default p-2">
-        <label class="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-elevated/50">
+      <div class="grid gap-1 rounded-xl border border-default p-2 sm:grid-cols-2 xl:grid-cols-3">
+        <label class="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-elevated/50 sm:col-span-2 xl:col-span-3">
           <UCheckbox
             :model-value="aksesDicentang('*')"
             :disabled="lagiSibuk('akses:*') || massalModul"
@@ -508,8 +576,8 @@ function isiTim(t: string) {
             />
           </div>
         </div>
-        <div class="grid gap-1 rounded-xl border border-default p-2">
-          <label class="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-elevated/50">
+        <div class="grid gap-1 rounded-xl border border-default p-2 sm:grid-cols-2 xl:grid-cols-3">
+          <label class="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-elevated/50 sm:col-span-2 xl:col-span-3">
             <UCheckbox
               :model-value="punyaAdmin('*')"
               :disabled="lagiSibuk('admin:*') || massalAdmin"

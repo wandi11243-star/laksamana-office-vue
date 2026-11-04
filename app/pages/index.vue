@@ -52,6 +52,20 @@ const today = new Date().toLocaleDateString('id-ID', { weekday: 'long', day: 'nu
     :title="`${greeting}, ${me?.name.split(' ')[0]}`"
     :description="today"
   >
+    <!-- Small superadmin shortcut mirroring the old top-bar "Kelola User" pill. -->
+    <template
+      v-if="superadmin"
+      #actions
+    >
+      <UButton
+        label="Kelola Akses"
+        icon="i-lucide-key-round"
+        color="neutral"
+        variant="soft"
+        size="sm"
+        to="/akses"
+      />
+    </template>
     <div
       v-if="tim.length || kepala.length || me?.keterangan"
       class="-mt-2 mb-6 flex flex-wrap items-center gap-2"
