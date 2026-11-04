@@ -73,8 +73,8 @@ async function sinkronkan() {
     }
   }
   if (baru + ubah > 0) {
-    await logMkt('user', '-', 'Data pegawai disinkronkan dari Office', `${baru} baru · ${ubah} diperbarui`).catch(() => {})
-    if (r.roleBerubah.length) await logMkt('user', '-', 'Role menyesuaikan Tim di Office', r.roleBerubah.join(' · ')).catch(() => {})
+    await logDenganCobaLagi(() => logMkt('user', '-', 'Data pegawai disinkronkan dari Office', `${baru} baru · ${ubah} diperbarui`))
+    if (r.roleBerubah.length) await logDenganCobaLagi(() => logMkt('user', '-', 'Role menyesuaikan Tim di Office', r.roleBerubah.join(' · ')))
     await refreshNuxtData('marketing-state')
   }
   const pesan: string[] = []

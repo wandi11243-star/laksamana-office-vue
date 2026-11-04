@@ -203,8 +203,8 @@ async function kirimRevisi() {
         link: '/marketing/approvals',
         read: false,
         at: new Date().toISOString(),
-      }).catch(() => {})
-      await logMkt('event', props.ev.id, 'Masuk antrian Negosiasi Lanjutan', `revisi ke-${ke}`).catch(() => {})
+      }).catch(() => {}) // sengaja: inbox notification only, the revision write already toasted
+      await logDenganCobaLagi(() => logMkt('event', props.ev.id, 'Masuk antrian Negosiasi Lanjutan', `revisi ke-${ke}`))
       revisiBuka.value = false
       revisiAlasan.value = ''
       revisiPdf.value = null

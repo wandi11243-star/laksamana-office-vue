@@ -1554,7 +1554,7 @@ function tickJeda() {
   if (document.visibilityState !== 'visible' || sedangRefresh || pollDitunda()) return
   sedangRefresh = true
   void tickJedaAsync()
-    .catch(() => {})
+    .catch(() => {}) // sengaja: background poll, a failed tick retries on the next interval
     .finally(() => { sedangRefresh = false })
 }
 

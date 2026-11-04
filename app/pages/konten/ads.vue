@@ -62,7 +62,7 @@ function ekspor(ym: string) {
   const csv = csvBulanIklan(ym, st.value.adFunds, st.value.ads, namaBrand)
   if (!csv) return toast.add({ title: 'Tidak ada data pada bulan ini', color: 'error' })
   unduhKonten(`COMS_ads_${ym}.csv`, csv, 'text/csv')
-  logKonten('ekspor laporan ads', labelBulanIklan(ym)).catch(() => {})
+  logDenganCobaLagi(() => logKonten('ekspor laporan ads', labelBulanIklan(ym)))
 }
 const R = { th: 'text-right', td: 'text-right' }
 const kolomB: TableColumn<BarisBulan>[] = [

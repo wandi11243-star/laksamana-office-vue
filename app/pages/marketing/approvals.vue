@@ -69,7 +69,7 @@ async function kirimPutus() {
         type: 'approval', title: `Penawaran ${setuju ? 'disetujui' : 'ditolak'}`,
         body: `${r.ev.nama} — ${r.perkara}`, link: `/marketing/event/${r.ev.id}`,
         read: false, at: new Date().toISOString(),
-      }).catch(() => {})
+      }).catch(() => {}) // sengaja: inbox notification only, the approval write already toasted
       putus.value = null
       tolakNote.value = ''
     }
@@ -90,8 +90,8 @@ async function kirimPutus() {
         type: 'approval', title: `Approval ${setuju ? 'Approved' : 'Rejected'}`,
         body: `${r.ev.nama} telah di-${setuju ? 'approve' : 'reject'}.`, link: `/marketing/event/${r.ev.id}`,
         read: false, at: new Date().toISOString(),
-      }).catch(() => {})
-      await logMkt('event', r.ev.id, `Tahap → Lost`, 'otomatis: approval ditolak').catch(() => {})
+      }).catch(() => {}) // sengaja: inbox notification only, the approval write already toasted
+      await logDenganCobaLagi(() => logMkt('event', r.ev.id, `Tahap → Lost`, 'otomatis: approval ditolak'))
       putus.value = null
       tolakNote.value = ''
     }

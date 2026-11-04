@@ -145,7 +145,7 @@ async function kirimMinta() {
       ringkas: ringkasInvMkt(m.e, m.jenis, f, pra, c?.nama ?? '', c?.perusahaan ?? '', c?.pic ?? '', namaUser(m.e.mktPIC)),
     })
     if (r.data) peta.value[resIdInvMkt(m.e.id, m.jenis === 'INV_LUNAS' ? 'lunas' : 'dp')] = r.data
-    await logMkt('event', m.e.id, `Request invoice ${m.jenis === 'INV_LUNAS' ? 'pelunasan' : 'DP'}`, `${c?.nama ?? ''} · ${rupiah(m.jenis === 'INV_LUNAS' ? pra.tagih : f.dp)}`).catch(() => {})
+    await logDenganCobaLagi(() => logMkt('event', m.e.id, `Request invoice ${m.jenis === 'INV_LUNAS' ? 'pelunasan' : 'DP'}`, `${c?.nama ?? ''} · ${rupiah(m.jenis === 'INV_LUNAS' ? pra.tagih : f.dp)}`))
     toast.add({ title: r.data?.status === 'DIBUAT' ? 'Invoice resmi sudah terbit' : 'Permintaan invoice terkirim ke Finance', color: 'success' })
     minta.value = null
   }

@@ -81,7 +81,7 @@ async function dm(k: KolKonten, lewat: 'wa' | 'ig' | 'tt') {
   // IG & TikTok cannot prefill a message: copy the template, then open the profile
   const u = tanpaAt(lewat === 'ig' ? k.instagram : k.tiktok)
   if (!u) return toast.add({ title: `Username ${lewat === 'ig' ? 'Instagram' : 'TikTok'} kosong`, color: 'error' })
-  await navigator.clipboard?.writeText(msg).catch(() => {})
+  await navigator.clipboard?.writeText(msg).catch(() => {}) // sengaja: template copy may fail (browser permission), the user can still copy manually
   toast.add({ title: `Template disalin - tinggal paste di DM ${lewat === 'ig' ? 'Instagram' : 'TikTok'}`, color: 'success' })
   window.open(lewat === 'ig' ? `https://ig.me/m/${u}` : `https://www.tiktok.com/@${u}`, '_blank', 'noopener')
 }

@@ -58,7 +58,7 @@ function ekspor(jenis: 'content' | 'performance' | 'team') {
   if (jenis === 'content') unduhKonten('COMS_konten.csv', csvKonten(st.value.content, namaBrand, namaUser), 'text/csv')
   else if (jenis === 'performance') unduhKonten('COMS_performa.csv', csvPerforma(st.value.content, namaBrand), 'text/csv')
   else unduhKonten('COMS_tim.csv', csvTim(st.value.users), 'text/csv')
-  logKonten('mengekspor laporan', jenis).catch(() => {})
+  logDenganCobaLagi(() => logKonten('mengekspor laporan', jenis))
 }
 const backup = () => unduhKonten(`COMS_backup_${hariIni()}.json`, JSON.stringify(st.value, null, 2), 'application/json')
 

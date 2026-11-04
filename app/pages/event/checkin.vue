@@ -325,7 +325,7 @@ async function toggleKamera() {
   await nextTick()
   if (video.value) {
     video.value.srcObject = stream
-    await video.value.play().catch(() => {})
+    await video.value.play().catch(() => {}) // sengaja: autoplay may be refused by the browser, preview starts when the user presses play
   }
   const BD = (window as unknown as { BarcodeDetector?: new (o?: unknown) => typeof detektor }).BarcodeDetector
   if (BD) {
