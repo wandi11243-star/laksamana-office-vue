@@ -43,12 +43,12 @@ function balikOtomatis() {
 }
 function layarPenuh() {
   if (document.fullscreenElement) void document.exitFullscreen?.()
-  else void kotak.value?.requestFullscreen?.().catch(() => {})
+  else void kotak.value?.requestFullscreen?.().catch(() => {}) // sengaja: fullscreen may be refused, the overlay keeps running
 }
 function tutup() {
   if (otomatis.value) clearInterval(otomatis.value)
   otomatis.value = null
-  if (document.fullscreenElement) void document.exitFullscreen?.().catch(() => {})
+  if (document.fullscreenElement) void document.exitFullscreen?.().catch(() => {}) // sengaja: exiting fullscreen may fail silently
   buka.value = false
 }
 // Controls fade after 3 s without the pointer moving (katSepiMulai).
@@ -97,7 +97,7 @@ watch(buka, async (b) => {
 })
 watch([it, buka], () => {
   const nx = props.slides[indeksSlideMkt(idx.value + 1, props.slides.length)]
-  if (buka.value && nx?.key) void gambarBerkasMkt(nx.key).catch(() => {})
+  if (buka.value && nx?.key) void gambarBerkasMkt(nx.key).catch(() => {}) // sengaja: preload of the next slide, a miss loads on open instead
 })
 onBeforeUnmount(() => {
   document.removeEventListener('keydown', tombol, true)

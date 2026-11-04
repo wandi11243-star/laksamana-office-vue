@@ -278,7 +278,7 @@ export const putDokumenKonten = <T>(doc: 'settings' | 'perms' | 'seeded', value:
 export async function kontenSimpan<T>(aksi: () => Promise<T>, sukses?: string, jejak?: { action: string, target?: string }): Promise<boolean> {
   return tulisBerVersi(async () => {
     const hasil = await aksi()
-    if (jejak) await logKonten(jejak.action, jejak.target).catch(() => {})
+    if (jejak) await logDenganCobaLagi(() => logKonten(jejak.action, jejak.target))
     return hasil
   }, { sukses, muatUlang: () => refreshNuxtData('konten-state') })
 }

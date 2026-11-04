@@ -81,7 +81,8 @@ async function simpan() {
         pax: 0, invoiceSent: false, createdAt: hari, detail: { jenis: f.jenis, tanggal: f.tanggal }, payments: [], tasks: {},
       }
       ev = (await buatMkt<EventMkt>('events', draf)).data
-      await logMkt('event', ev.id, 'Peluang baru dibuat (dari Follow Up)', nama).catch(() => {})
+      const evBaru = ev
+      await logDenganCobaLagi(() => logMkt('event', evBaru.id, 'Peluang baru dibuat (dari Follow Up)', nama))
     }
     else if (f.target !== UMUM) {
       ev = st.value.events.find(e => e.id === f.target) ?? null
@@ -97,17 +98,17 @@ async function simpan() {
         ubah.pipeCol = tahap
         status = tahap
         if (tahap === 'Deal') ubah.tasks = tugasDealMkt(ev, fb)
-        await logMkt('event', ev.id, `Follow up: ${f.action}`, `${f.hasil} · ${ev.status} → ${tahap}${note ? ` · ${note}` : ''}`).catch(() => {})
+        await logDenganCobaLagi(() => logMkt('event', ev.id, `Follow up: ${f.action}`, `${f.hasil} · ${ev.status} → ${tahap}${note ? ` · ${note}` : ''}`))
       }
       else {
-        await logMkt('event', ev.id, `Follow up: ${f.action}`, f.hasil + (note ? ` · ${note}` : '')).catch(() => {})
+        await logDenganCobaLagi(() => logMkt('event', ev.id, `Follow up: ${f.action}`, f.hasil + (note ? ` · ${note}` : '')))
       }
       ubah.nextFU = ['Deal', 'Lost'].includes(status) ? '' : (f.next || fuNext)
       await tambalMkt<EventMkt>('events', ev.id, ubah, ev.updatedAt)
       judulToast = `${ev.nama} → ${f.hasil}`
     }
     else {
-      await logMkt('client', c.id, `Follow up umum: ${f.action}`, f.hasil + (note ? ` · ${note}` : '')).catch(() => {})
+      await logDenganCobaLagi(() => logMkt('client', c.id, `Follow up umum: ${f.action}`, f.hasil + (note ? ` · ${note}` : '')))
       judulToast = `${c.nama} → ${f.hasil}`
     }
   })

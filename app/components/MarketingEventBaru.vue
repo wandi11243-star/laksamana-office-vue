@@ -61,7 +61,8 @@ async function simpan() {
         status: 'Lead', pipeCol: 'Lead', createdAt: hari, lastContact: hari, nama: cn, perusahaan: '', pic: '', hp: f.chp.trim(),
         email: '', ig: '', alamat: '', source: '', mktPIC: me.id, birthday: '', nextFU: '', catatan: '',
       })).data
-      await logMkt('client', cl.id, 'Lead baru masuk (dari Input Event)', cn).catch(() => {})
+      const clBaru = cl
+      await logDenganCobaLagi(() => logMkt('client', clBaru.id, 'Lead baru masuk (dari Input Event)', cn))
     }
     else cl = st.value.clients.find(c => c.id === f.client)
     if (!cl) throw new Error('Client tidak ditemukan. Pilih client yang valid.')
@@ -72,7 +73,7 @@ async function simpan() {
       detail: { jenis: f.jenis, jenisLain, tanggal: f.tanggal, pax }, payments: [], tasks: {},
     })).data
     evId = ev.id
-    await logMkt('event', ev.id, 'Event dibuat', nama).catch(() => {})
+    await logDenganCobaLagi(() => logMkt('event', ev.id, 'Event dibuat', nama))
   })
   sibuk.value = false
   if (!ok) return

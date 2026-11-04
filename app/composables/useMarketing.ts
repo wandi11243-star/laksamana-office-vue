@@ -331,7 +331,7 @@ export async function mktSimpan<T>(aksi: () => Promise<T>, sukses?: string, jeja
     await aksi()
     // The write has landed: say so now, not after the (large) state reload.
     if (sukses) toast?.add({ title: sukses, color: 'success' })
-    await Promise.all((jejak ? [jejak].flat() : []).map(j => logMkt(j.refType, j.refId ?? '-', j.action, j.detail).catch(() => {})))
+    await Promise.all((jejak ? [jejak].flat() : []).map(j => logDenganCobaLagi(() => logMkt(j.refType, j.refId ?? '-', j.action, j.detail))))
     await muatUlang()
     return true
   }
@@ -366,7 +366,7 @@ export function useTutupEventLewat() {
     for (const e of lewat) {
       try {
         await tambalMkt<EventMkt>('events', e.id, { status: 'Event Done', pipeCol: 'Event Done' }, e.updatedAt)
-        await logMkt('event', e.id, 'Status → Event Done', 'otomatis: tanggal event sudah lewat lebih dari sehari').catch(() => {})
+        await logDenganCobaLagi(() => logMkt('event', e.id, 'Status → Event Done', 'otomatis: tanggal event sudah lewat lebih dari sehari'))
         n++
       }
       catch { /* see above */ }

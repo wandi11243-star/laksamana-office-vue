@@ -113,7 +113,7 @@ function ekspor() {
     }))
   }
   unduhCsv(`database_client_${hariIni()}.csv`, csvTeksMkt(baris))
-  logMkt('client', '-', 'Database Client diekspor', `${rows.length} baris · oleh ${saya.value?.user.name ?? ''}`).catch(() => {})
+  logDenganCobaLagi(() => logMkt('client', '-', 'Database Client diekspor', `${rows.length} baris · oleh ${saya.value?.user.name ?? ''}`))
   toast.add({ title: 'Export selesai', description: `${rows.length} client diunduh. Buka langsung di Excel, sunting, lalu Import Excel untuk mengembalikannya.`, color: 'success' })
 }
 

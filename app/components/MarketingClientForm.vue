@@ -58,7 +58,7 @@ async function simpan() {
     : await mktSimpan(async () => {
         const r = await buatMkt<ClientMkt>('clients', { ...isi, mktPIC: isi.mktPIC || saya.value?.user.id, createdAt: hariIni(), email: '', ig: '' })
         id = r.data.id
-        await logMkt('client', id, 'Lead baru masuk', isi.nama + (source ? ` · ${source}` : '')).catch(() => {})
+        await logDenganCobaLagi(() => logMkt('client', id, 'Lead baru masuk', isi.nama + (source ? ` · ${source}` : '')))
       }, `Lead ${isi.nama} masuk pipeline.`)
   sibuk.value = false
   if (!ok) return
