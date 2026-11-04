@@ -109,7 +109,18 @@ const sampai = computed(() => {
   return tambahHari(akhir, 1)
 })
 
-const { data: semua, refresh, status } = useDaftarReservasi(dari, sampai, 'reservasi-dashboard')
+/** Server-side narrowing (G-08): the window fetch already understands `q`
+ *  (name/phone/table) and the normalised `status`, so the two search boxes
+ *  and the chosen status narrow the download. Either search box alone narrows
+ *  fully (server `q` covers name/phone/table); both filled still narrow on the
+ *  first and `saringan` below refines to the intersection. Everything else
+ *  (category/dp/pic/hour/ctype/…) has no server twin and stays client-side. */
+const saring = computed<{ q?: string, status?: string }>(() => ({
+  q: filter.q.trim() || cari.value.trim() || undefined,
+  status: saringAktif(filter.status) ? normStatus(filter.status) : undefined,
+}))
+
+const { data: semua, refresh, status } = useDaftarReservasi(dari, sampai, 'reservasi-dashboard', saring)
 
 /** The six stat cards below read three async sources (booking window, floor
  *  plan, queue): until the first load lands they would all read as 0, so the
