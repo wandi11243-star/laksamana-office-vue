@@ -109,31 +109,31 @@ const sampai = computed(() => {
   return tambahHari(akhir, 1)
 })
 
-/** Server-side narrowing (G-08): the window fetch already understands `q`
- *  (name/phone/table) and the normalised `status`, so the two search boxes
- *  and the chosen status narrow the download. Either search box alone narrows
- *  fully (server `q` covers name/phone/table); both filled still narrow on the
- *  first and `saringan` below refines to the intersection. Everything else
- *  (category/dp/pic/hour/ctype/…) has no server twin and stays client-side. */
+// Table-only narrowing (G-08): both search boxes share one server `q`
+// (first non-empty wins when both are filled; `saringan` still intersects both).
 const saring = computed<{ q?: string, status?: string }>(() => ({
   q: filter.q.trim() || cari.value.trim() || undefined,
   status: saringAktif(filter.status) ? normStatus(filter.status) : undefined,
 }))
 
 const { data: semua, refresh, status } = useDaftarReservasi(dari, sampai, 'reservasi-dashboard', saring)
+// Day-level reads (map, badges, calendar, PIC options) need the whole window.
+const { data: semuaHari, refresh: muatHari, status: statusHari } = useDaftarReservasi(dari, sampai, 'reservasi-dashboard-hari')
+/** Writes and polls refresh both slots: the table and the day views read different queries. */
+const muatUlang = () => Promise.all([refresh(), muatHari()])
 
 /** The six stat cards below read three async sources (booking window, floor
  *  plan, queue): until the first load lands they would all read as 0, so the
  *  grid shows skeleton cells instead. Old rows stay visible on refetch, so a
  *  filter change never blanks the cards. */
-const statMemuat = computed(() => !(semua.value?.length)
-  && [status.value, statusDenah.value, statusAntrean.value].some(s => s === 'pending' || s === 'idle'))
+const statMemuat = computed(() => !((semua.value?.length) || (semuaHari.value?.length))
+  && [status.value, statusHari.value, statusDenah.value, statusAntrean.value].some(s => s === 'pending' || s === 'idle'))
 
 /** Whole-history guest map for the guest-type filter, before the loaded window (`dari`). */
 const { data: ringkasan } = useRingkasanTamu(dari, 'reservasi-tamu-dashboard')
 
 /** Rows grouped by phone once per window (not filtered per row): the guest-type filter reads this. */
-const kelompokTamu = computed(() => kelompokBarisTamu(semua.value ?? []))
+const kelompokTamu = computed(() => kelompokBarisTamu(semuaHari.value ?? []))
 
 /** One row's whole-history profile, for the guest-type filter. */
 const profilBaris = (phone: string) => profilTamuGabung(ringkasan.value ?? new Map(), kelompokTamu.value, phone, dari.value)
@@ -201,7 +201,7 @@ const batal = computed(() => (filter.status !== 'Cancelled' ? saringan.value.fil
 const list = computed(() => (filter.status !== 'Cancelled' ? saringan.value.filter(r => normStatus(r.status) !== 'Cancelled') : saringan.value))
 
 /** The map and the queue only ever describe one day. */
-const dayList = computed(() => (semua.value ?? []).filter(r => r.date === tglDenah.value && normStatus(r.status) !== 'Cancelled'))
+const dayList = computed(() => (semuaHari.value ?? []).filter(r => r.date === tglDenah.value && normStatus(r.status) !== 'Cancelled'))
 const basis = computed(() => (perTanggal.value ? dayList.value : list.value))
 
 // --- the six numbers (`:5336-5355`) ------------------------------------------
@@ -212,17 +212,17 @@ const dpYes = computed(() => basis.value.filter(r => r.dpStatus === 'Sudah').len
 
 /** Only unconfirmed bookings need chasing: once it is "Confirmed" (or the guest
  *  has arrived) the host has already spoken to them (`:3871-3876`). */
-const perluFollowUp = computed(() => (semua.value ?? []).filter(r => r.date === hariIni() && normStatus(r.status) === 'Pending').length)
+const perluFollowUp = computed(() => (semuaHari.value ?? []).filter(r => r.date === hariIni() && normStatus(r.status) === 'Pending').length)
 
 const { data: categories } = useSection<string[]>('categories')
 
 const kap = computed(() => kapasitasTanggal(master.value, tglDenah.value))
-const paxTgl = computed(() => (semua.value ?? [])
+const paxTgl = computed(() => (semuaHari.value ?? [])
   .filter(r => r.date === tglDenah.value && !['Cancelled', 'No-show'].includes(normStatus(r.status)))
   .reduce((a, r) => a + (Number(r.pax) || 0), 0))
 const pctKap = computed(() => (kap.value.pax ? Math.round(paxTgl.value / kap.value.pax * 100) : 0))
 
-const namaPIC = computed(() => [...new Set((semua.value ?? []).map(r => r.picName).filter(Boolean))].sort((a, b) => a.localeCompare(b)))
+const namaPIC = computed(() => [...new Set((semuaHari.value ?? []).map(r => r.picName).filter(Boolean))].sort((a, b) => a.localeCompare(b)))
 
 const labelPeriode = computed(() => {
   if (filter.mode === 'day') return tglPendek(filter.date)
@@ -449,7 +449,7 @@ function lantaiRes(r: Reservasi): number[] {
 const okupasiPerTanggal = computed(() => {
   const m = new Map<string, Map<string, Reservasi[]>>()
   for (const d of new Set(list.value.map(r => r.date))) {
-    m.set(d, occupiedMap(semua.value ?? [], { date: d, dineEst: dineEst.value }))
+    m.set(d, occupiedMap(semuaHari.value ?? [], { date: d, dineEst: dineEst.value }))
   }
   return m
 })
@@ -587,7 +587,7 @@ const labelBulan = computed(() => new Date(`${bulan.value}-01T00:00:00`).toLocal
  *  rows are left out when no status is chosen — the same as the table. */
 const kalenderPerTanggal = computed(() => {
   const map = new Map<string, Reservasi[]>()
-  for (const r of semua.value ?? []) {
+  for (const r of semuaHari.value ?? []) {
     if (!r.date) continue
     if (kalenderStatus.value !== SEMUA) {
       if (normStatus(r.status) !== kalenderStatus.value) continue
@@ -601,7 +601,7 @@ const kalenderPerTanggal = computed(() => {
   return map
 })
 
-const kalenderDibatalkan = computed(() => (kalenderStatus.value !== SEMUA ? 0 : (semua.value ?? []).filter(r => normStatus(r.status) === 'Cancelled').length))
+const kalenderDibatalkan = computed(() => (kalenderStatus.value !== SEMUA ? 0 : (semuaHari.value ?? []).filter(r => normStatus(r.status) === 'Cancelled').length))
 
 /** The month's cells, Monday first, with the leading and trailing days of the
  *  neighbouring months greyed out (`:5578-5581`, `:5624-5628`). */
@@ -666,7 +666,7 @@ const denahTerpilih = computed(() => getLayout(master.value, layerMap.value === 
 const namaDenah = computed(() => layoutName(master.value, layerMap.value === 2 ? kunciL2.value : kunciL1.value))
 
 /** What is really taken now, and what is merely booked later (`:2129-2183`). */
-const petaHari = computed(() => harihOccupancy(semua.value ?? [], { date: tglDenah.value, hariIni: hariIniMap.value, dineEst: dineEst.value }))
+const petaHari = computed(() => harihOccupancy(semuaHari.value ?? [], { date: tglDenah.value, hariIni: hariIniMap.value, dineEst: dineEst.value }))
 const antreanHari = computed(() => (waitlist.value?.data ?? [])
   .filter(w => w.status === 'waiting' && w.date === tglDenah.value)
   .sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0)))
@@ -795,7 +795,7 @@ async function simpanDudukkan() {
 
     const baru: Waitlist = { ...w, status: 'seated', seatedAt: now, table: dudukkanMeja.value, resId: recId, calledAt: w.calledAt }
     await putSectionItem('waitlist', w.id, baru, versiWaitlist.value)
-    await Promise.all([refreshWaitlist(), refresh()])
+    await Promise.all([refreshWaitlist(), refresh(), muatHari()])
     sheetDudukkan.value = false
     toast.add({ title: `${w.name} duduk di ${dudukkanMeja.value}`, color: 'success' })
   }
@@ -835,18 +835,18 @@ async function panggil(w: Waitlist) {
 
 /** A row's own version is its `updatedAt` (the list sends no meta.version). */
 const versiBaris = (r: Reservasi) => r.updatedAt
-const baris = (id: string) => (semua.value ?? []).find(r => r.id === id) ?? null
+const baris = (id: string) => (semuaHari.value ?? []).find(r => r.id === id) ?? null
 
 /** Every write from the map is a shallow merge of one row, with that row's version. */
 async function patch(r: Reservasi, fields: Partial<Reservasi>, pesan: string) {
   try {
     await patchReservation(r.id, { ...fields, updatedAt: Date.now() }, versiBaris(r))
-    await refresh()
+    await muatUlang()
     toast.add({ title: pesan, color: 'success' })
     return true
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, muatUlang))) toast.add({ title: apiErrorMessage(e), color: 'error' })
     return false
   }
 }
@@ -1153,11 +1153,11 @@ async function simpanWalkin() {
       followups: [],
       _audit: { action: 'Walk-in', detail: `${nama} (${n} pax) di meja ${walkin.meja}` },
     } as Partial<Reservasi> & { _audit: { action: string, detail: string } })
-    await refresh()
+    await muatUlang()
     toast.add({ title: `${nama} duduk di ${walkin.meja}`, color: 'success' })
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, muatUlang))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
 }
 
@@ -1378,7 +1378,7 @@ const menitDari = (jam?: string) => {
 const daftarKoord = computed(() => {
   const lo = saringAktif(coordDari.value) ? menitDari(coordDari.value) : null
   const hi = saringAktif(coordSampai.value) ? menitDari(coordSampai.value) : null
-  return (semua.value ?? [])
+  return (semuaHari.value ?? [])
     .filter(r => r.date === tglDenah.value && !['Cancelled', 'No-show'].includes(normStatus(r.status)))
     .filter((r) => {
       const t = menitDari(r.time)
@@ -1469,7 +1469,7 @@ function nyalakanJeda() {
   clearInterval(jeda)
   if (tab.value === 'map' && document.visibilityState === 'visible') {
     jeda = setInterval(() => {
-      if (document.visibilityState === 'visible') refresh()
+      if (document.visibilityState === 'visible') muatHari()
     }, POLL_JEDA)
   }
 }
@@ -1479,7 +1479,7 @@ watch(tab, nyalakanJeda)
 function saatKembaliLayar() {
   if (document.visibilityState !== 'visible') return
   nyalakanJeda()
-  if (tab.value === 'map') refresh()
+  if (tab.value === 'map') muatHari()
 }
 onMounted(() => document.addEventListener('visibilitychange', saatKembaliLayar))
 onBeforeUnmount(() => document.removeEventListener('visibilitychange', saatKembaliLayar))
@@ -2322,7 +2322,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
       <DenahPeta
         v-if="denahTerpilih"
         :layout="denahTerpilih"
-        :reservasi="semua ?? []"
+        :reservasi="semuaHari ?? []"
         :tanggal="tglDenah"
         :hari-ini="hariIniMap"
         :timer="true"
@@ -2501,7 +2501,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         <DenahPeta
           v-else-if="denahTerpilih"
           :layout="denahTerpilih"
-          :reservasi="semua ?? []"
+          :reservasi="semuaHari ?? []"
           :tanggal="tglDenah"
           mode="pilih"
           :terpilih="dudukkanMeja ? [dudukkanMeja] : []"
@@ -3091,7 +3091,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         <DenahPeta
           v-else-if="denahTerpilih"
           :layout="denahTerpilih"
-          :reservasi="semua ?? []"
+          :reservasi="semuaHari ?? []"
           :tanggal="aksi?.date ?? tglDenah"
           :jam="normTime(aksi?.time ?? '')"
           mode="pilih"
