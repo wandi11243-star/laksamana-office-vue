@@ -160,8 +160,14 @@ const ambilPays = (f) => {
 for (const rel of ['cashier/index.html', 'finance/omset/index.html']) {
   const f = path.join(LAMA, rel)
   if (!fs.existsSync(f)) {
-    lewat++
-    console.log('  LEWAT ' + rel + ' tidak ada')
+    if (process.env.STRICT === '1') {
+      gagal++
+      console.log('  STRICT ' + rel + ' tidak ada')
+    }
+    else {
+      lewat++
+      console.log('  LEWAT ' + rel + ' tidak ada')
+    }
     continue
   }
   const p = ambilPays(f)
@@ -171,8 +177,14 @@ for (const rel of ['cashier/index.html', 'finance/omset/index.html']) {
 console.log('\ncashier: daftar rokok kembar dengan Office lama')
 const fRk = path.join(LAMA, 'cashier/index.html')
 if (!fs.existsSync(fRk)) {
-  lewat++
-  console.log('  LEWAT cashier/index.html tidak ada')
+  if (process.env.STRICT === '1') {
+    gagal++
+    console.log('  STRICT cashier/index.html tidak ada')
+  }
+  else {
+    lewat++
+    console.log('  LEWAT cashier/index.html tidak ada')
+  }
 }
 else {
   const src = fs.readFileSync(fRk, 'utf8')

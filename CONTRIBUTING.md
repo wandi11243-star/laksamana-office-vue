@@ -20,7 +20,7 @@ npm run dev                 # http://localhost:3000
     `php artisan core:import account` (tanpa ini tabel `user`/`modul` kosong dan login selalu gagal).
     Tambah modul lain secukupnya, misalnya `php artisan core:import absensi`.
 
-Sebelum push: `npm run lint && npm run typecheck`. CI menjalankan keduanya ditambah `npm run build`.
+Sebelum push: `npm run lint && npm run typecheck && for f in tools/uji-*.mjs; do node "$f" || exit 1; done`. CI menjalankan semuanya ditambah `npm run build` dan job `guards` (skrip `uji:*` dengan `STRICT=1`).
 
 ## Struktur
 

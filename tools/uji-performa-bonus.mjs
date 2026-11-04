@@ -122,8 +122,14 @@ cek('selRealisasi: kurang berapa', k.jenis === 'kurang' && k.nilai === 2)
 console.log('\nperforma-bonus: paritas dengan berkas lama')
 const LAMA = path.resolve(import.meta.dirname, '../../laksamana-office/deploy/assets/performa-bonus.js')
 if (!fs.existsSync(LAMA)) {
-  lewat++
-  console.log('  LEWAT berkas lama tidak ada di ' + LAMA)
+  if (process.env.STRICT === '1') {
+    gagal++
+    console.log('  STRICT berkas lama tidak ada di ' + LAMA)
+  }
+  else {
+    lewat++
+    console.log('  LEWAT berkas lama tidak ada di ' + LAMA)
+  }
 }
 else {
   const W = {}

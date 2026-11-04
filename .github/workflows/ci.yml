@@ -21,3 +21,15 @@ jobs:
       - run: npm run lint
       - run: npm run typecheck
       - run: npm run build
+  guards:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: for s in $(node -e "console.log(Object.keys(require('./package.json').scripts).filter(k => k.startsWith('uji:')).join(' '))"); do npm run "$s" || exit 1; done
+        env:
+          STRICT: 1
