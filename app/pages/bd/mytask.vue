@@ -25,7 +25,7 @@ import BdTaskTree from '~/widgets/bd/BdTaskTree.vue'
 definePageMeta({ access: ['bd'] })
 
 const me = useMe()
-const { data: state, status } = useBdState()
+const { data: state, status, refresh: muatBd } = useBdState()
 
 /** First-load skeleton for the four recap cards below: skeleton cells stand
  *  in until the first state lands. Refetch keeps old numbers, so the cards
@@ -112,6 +112,54 @@ function pilihCari(r: HasilPilih) {
   else if (r.jenis === 'project') navigateTo(`/bd/projects/${r.id}`)
   else navigateTo('/bd/purchasing')
 }
+
+// ---- auto-refresh: fresh state about every 20 s, yielding to the crew ----
+// The old client polled `getAll` on the same cadence
+// (`deploy/bd/index.html:1364`), cancelling or deferring its tick while the
+// crew typed or saved, so keystrokes were never lost and saves never queued
+// behind a poll (`:1330-1362`, `:3119-3120`). Same rule here, like the
+// reservasi dashboard poll (`app/pages/reservasi/dashboard.vue:1448-1470`):
+// an open sheet or confirm, a focused field, an in-flight drag, or a fresh
+// scroll skips this tick and the next tick tries again — never a forced redraw.
+const POLL_JEDA = 20000
+let pollTimer: ReturnType<typeof setInterval> | undefined
+let sedangSeret = false
+let akhirGulir = 0
+function tandaiSeret(v: boolean) {
+  sedangSeret = v
+}
+function tandaiGulir() {
+  akhirGulir = Date.now()
+}
+/** True while the crew owns the screen — a refresh now would redraw under them. */
+function pollDitunda() {
+  // An open sheet or delete confirm owns the data (its save refreshes by itself).
+  if (bukaTask.value || taskHapus.value) return true
+  if (sedangSeret || Date.now() - akhirGulir < 2000) return true
+  // Focus inside a field: the crew is typing (search, quick-add boxes, sheet inputs).
+  const el = document.activeElement as HTMLElement | null
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return true
+  return document.visibilityState !== 'visible'
+}
+function tickPoll() {
+  if (!pollDitunda()) void muatBd()
+}
+const seretMulai = () => tandaiSeret(true)
+const seretSelesai = () => tandaiSeret(false)
+onMounted(() => {
+  window.addEventListener('dragstart', seretMulai)
+  window.addEventListener('dragend', seretSelesai)
+  window.addEventListener('drop', seretSelesai)
+  window.addEventListener('scroll', tandaiGulir, { passive: true })
+  pollTimer = setInterval(tickPoll, POLL_JEDA)
+})
+onUnmounted(() => {
+  clearInterval(pollTimer)
+  window.removeEventListener('dragstart', seretMulai)
+  window.removeEventListener('dragend', seretSelesai)
+  window.removeEventListener('drop', seretSelesai)
+  window.removeEventListener('scroll', tandaiGulir)
+})
 </script>
 
 <template>

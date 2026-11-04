@@ -27,7 +27,7 @@ import { BULAN, tambahHari } from '~/utils/format'
 definePageMeta({ access: ['bd'] })
 
 const me = useMe()
-const { data: state } = useBdState()
+const { data: state, refresh: muatBd } = useBdState()
 const fPics = useState<string[]>('bd-fPics', () => [])
 const f = useState('bd-proj-filter', () => ({ scope: 'semua', div: PILIHAN_SEMUA }))
 
@@ -137,13 +137,13 @@ const rentangBulan = computed(() => ({
 // External bands: read-only ranges from the sibling modules, drawn on the
 // month grid only (the hour grid keeps BD's own agenda + tasks). A module
 // that errors — or is not granted to this user — is named in the ribbon.
-const { data: kalEvent, error: kalEventGagal } = useAsyncData('bd-kal-event',
+const { data: kalEvent, error: kalEventGagal, refresh: muatKalEvent } = useAsyncData('bd-kal-event',
   () => useApi()<Envelope<{ items: BandLuar[] }>>('/event/events-range', { query: { ...rentangBulan.value } }).then(r => r.data.items),
   { watch: [rentangBulan], default: () => [] })
-const { data: kalMkt, error: kalMktGagal } = useAsyncData('bd-kal-marketing',
+const { data: kalMkt, error: kalMktGagal, refresh: muatKalMkt } = useAsyncData('bd-kal-marketing',
   () => useApi()<Envelope<{ items: BandLuar[] }>>('/marketing/agenda-range', { query: { ...rentangBulan.value } }).then(r => r.data.items),
   { watch: [rentangBulan], default: () => [] })
-const { data: kalRsv, error: kalRsvGagal } = useAsyncData('bd-kal-reservasi',
+const { data: kalRsv, error: kalRsvGagal, refresh: muatKalRsv } = useAsyncData('bd-kal-reservasi',
   () => listReservations(rentangBulan.value.dari, rentangBulan.value.sampai).then(r => r.data),
   { watch: [rentangBulan], default: () => [] })
 const pitaLuar = computed(() => [
@@ -206,6 +206,59 @@ function dropHari(iso: string) {
   if (!t || t.deadline === iso) return
   bdTulisDiam(() => tambalBd<BdTask>('tasks', t.id, { deadline: iso }, versiBaris(t)))
 }
+
+// ---- auto-refresh: fresh state about every 20 s, yielding to the crew ----
+// The old client polled `getAll` on the same cadence
+// (`deploy/bd/index.html:1364`), cancelling or deferring its tick while the
+// crew typed or saved, so keystrokes were never lost and saves never queued
+// behind a poll (`:1330-1362`, `:3119-3120`). Same rule here, like the
+// reservasi dashboard poll (`app/pages/reservasi/dashboard.vue:1448-1470`):
+// an open sheet, a focused field, an in-flight drag, or a fresh scroll skips
+// this tick and the next tick tries again — never a forced redraw.
+const POLL_JEDA = 20000
+let pollTimer: ReturnType<typeof setInterval> | undefined
+let sedangSeret = false
+let akhirGulir = 0
+function tandaiSeret(v: boolean) {
+  sedangSeret = v
+}
+function tandaiGulir() {
+  akhirGulir = Date.now()
+}
+/** True while the crew owns the screen — a refresh now would redraw under them. */
+function pollDitunda() {
+  // An open sheet owns the data (the save it fires refreshes by itself).
+  if (bukaAgenda.value || bukaTask.value) return true
+  // A month-grid deadline drag still in the crew's hands.
+  if (dragId || sedangSeret || Date.now() - akhirGulir < 2000) return true
+  // Focus inside a field: the crew is typing (sheet inputs, quick-add boxes).
+  const el = document.activeElement as HTMLElement | null
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return true
+  return document.visibilityState !== 'visible'
+}
+function tickPoll() {
+  if (pollDitunda()) return
+  void muatBd()
+  void muatKalEvent()
+  void muatKalMkt()
+  void muatKalRsv()
+}
+const seretMulai = () => tandaiSeret(true)
+const seretSelesai = () => tandaiSeret(false)
+onMounted(() => {
+  window.addEventListener('dragstart', seretMulai)
+  window.addEventListener('dragend', seretSelesai)
+  window.addEventListener('drop', seretSelesai)
+  window.addEventListener('scroll', tandaiGulir, { passive: true })
+  pollTimer = setInterval(tickPoll, POLL_JEDA)
+})
+onUnmounted(() => {
+  clearInterval(pollTimer)
+  window.removeEventListener('dragstart', seretMulai)
+  window.removeEventListener('dragend', seretSelesai)
+  window.removeEventListener('drop', seretSelesai)
+  window.removeEventListener('scroll', tandaiGulir)
+})
 </script>
 
 <template>
