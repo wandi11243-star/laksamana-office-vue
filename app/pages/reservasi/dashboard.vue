@@ -827,7 +827,9 @@ const versiBaris = (r: Reservasi) => r.updatedAt
 const baris = (id: string) => (semua.value ?? []).find(r => r.id === id) ?? null
 
 /** Every write from the map is a shallow merge of one row, with that row's version. */
+const sedangSimpan = ref(false)
 async function patch(r: Reservasi, fields: Partial<Reservasi>, pesan: string) {
+  sedangSimpan.value = true
   try {
     await patchReservation(r.id, { ...fields, updatedAt: Date.now() }, versiBaris(r))
     await refresh()
@@ -837,6 +839,9 @@ async function patch(r: Reservasi, fields: Partial<Reservasi>, pesan: string) {
   catch (e) {
     if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
     return false
+  }
+  finally {
+    sedangSimpan.value = false
   }
 }
 
@@ -1453,13 +1458,34 @@ async function kirimKoord(t: WaTarget) {
 
 const POLL_JEDA = 15000
 let jeda: ReturnType<typeof setInterval> | undefined
+let sedangRefresh = false
+
+/** Skip a poll tick while the user is mid-edit: an open sheet/confirm owns the
+ *  data, a save is in flight, or focus sits in an editable field. */
+function pollDitunda() {
+  if (sheetFU.value || sheetNoShow.value || sheetAntrean.value || sheetDudukkan.value
+    || sheetAksi.value || sheetTambahDp.value || sheetEditCepat.value || sheetKirimWa.value
+    || sheetDatang.value || sheetBatal.value || sheetPindah.value || sheetWalkin.value
+    || sheetLayout.value || sheetEditor.value || sheetWA.value || tanyaPindah.value) return true
+  if (sedangSimpan.value) return true
+  const el = document.activeElement as HTMLElement | null
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return true
+  return false
+}
+
+function tickJeda() {
+  if (document.visibilityState !== 'visible' || sedangRefresh || pollDitunda()) return
+  sedangRefresh = true
+  void Promise.resolve()
+    .then(() => refresh())
+    .catch(() => {})
+    .finally(() => { sedangRefresh = false })
+}
 
 function nyalakanJeda() {
   clearInterval(jeda)
   if (tab.value === 'map' && document.visibilityState === 'visible') {
-    jeda = setInterval(() => {
-      if (document.visibilityState === 'visible') refresh()
-    }, POLL_JEDA)
+    jeda = setInterval(tickJeda, POLL_JEDA)
   }
 }
 onMounted(nyalakanJeda)
