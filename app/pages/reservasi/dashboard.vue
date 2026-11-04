@@ -700,6 +700,7 @@ async function simpanAntrean() {
     calledAt: 0,
   }
   sheetAntrean.value = false
+  sedangSimpan.value = true
   try {
     await putSectionItem('waitlist', w.id, w, versiWaitlist.value)
     await refreshWaitlist()
@@ -708,6 +709,9 @@ async function simpanAntrean() {
   }
   catch (e) {
     if (!(await tanganiKonflik(e, refreshWaitlist))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    sedangSimpan.value = false
   }
 }
 
@@ -742,6 +746,7 @@ async function simpanDudukkan() {
   const now = Date.now()
   const jam = normTime(`${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`)
   const recId = uid()
+  sedangSimpan.value = true
   try {
     await createReservation({
       id: recId,
@@ -791,11 +796,15 @@ async function simpanDudukkan() {
   catch (e) {
     if (!(await tanganiKonflik(e, refreshWaitlist))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
+  finally {
+    sedangSimpan.value = false
+  }
 }
 
 /** Leaving the queue keeps the row with status 'cancelled': the old client did the
  *  same, and a queue has no trace of its own to lose. */
 async function batalkanAntrean(w: Waitlist) {
+  sedangSimpan.value = true
   try {
     await putSectionItem('waitlist', w.id, { ...w, status: 'cancelled', cancelledAt: Date.now() }, versiWaitlist.value)
     await refreshWaitlist()
@@ -805,6 +814,9 @@ async function batalkanAntrean(w: Waitlist) {
   catch (e) {
     if (!(await tanganiKonflik(e, refreshWaitlist))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
+  finally {
+    sedangSimpan.value = false
+  }
 }
 
 async function panggil(w: Waitlist) {
@@ -812,12 +824,16 @@ async function panggil(w: Waitlist) {
     toast.add({ title: 'Nomor WhatsApp kosong — panggil manual', color: 'error' })
     return
   }
+  sedangSimpan.value = true
   try {
     await putSectionItem('waitlist', w.id, { ...w, calledAt: Date.now() }, versiWaitlist.value)
     await refreshWaitlist()
   }
   catch (e) {
     if (!(await tanganiKonflik(e, refreshWaitlist))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    sedangSimpan.value = false
   }
   await waKirim(w.phone, teksPanggilAntrean(w.name, w.pax))
 }
@@ -1109,6 +1125,7 @@ async function simpanWalkin() {
   const jam = normTime(`${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`)
   const nama = walkin.nama.trim() || 'Walkin' // a nameless quick entry is all called "Walkin"
   sheetWalkin.value = false
+  sedangSimpan.value = true
   try {
     await createReservation({
       id: uid(),
@@ -1152,6 +1169,9 @@ async function simpanWalkin() {
   }
   catch (e) {
     if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    sedangSimpan.value = false
   }
 }
 
@@ -1202,6 +1222,7 @@ async function simpanLayoutTgl() {
   // A date with no template of its own goes back to the built-in of the day:
   // the key is removed rather than left pointing at nothing.
   const bersih = Object.fromEntries(Object.entries(ov).filter(([d]) => d !== tglDenah.value || !!ov[d]))
+  sedangSimpan.value = true
   try {
     await putDenah(key, bersih, versiDenah.value[key])
     await muatUlangDenah()
@@ -1211,6 +1232,9 @@ async function simpanLayoutTgl() {
   }
   catch (e) {
     if (!(await tanganiKonflik(e, muatUlangDenah))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    sedangSimpan.value = false
   }
 }
 
@@ -1228,6 +1252,7 @@ async function tambahTanggalLayout() {
   const lt = layerMap.value
   const key = lt === 2 ? 'layoutOverrides2' : 'layoutOverrides'
   const ov = { ...(lt === 2 ? ovLt2.value : ovLt1.value), [d]: pilihTemplate.value }
+  sedangSimpan.value = true
   try {
     await putDenah(key, ov, versiDenah.value[key])
     await muatUlangDenah()
@@ -1237,6 +1262,9 @@ async function tambahTanggalLayout() {
   catch (e) {
     if (!(await tanganiKonflik(e, muatUlangDenah))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
+  finally {
+    sedangSimpan.value = false
+  }
 }
 
 /** "Kembalikan ke bawaan" clears BOTH forms of deviation — a scheduled template
@@ -1245,6 +1273,7 @@ async function tambahTanggalLayout() {
  *  remove (`:6093-6101`). */
 async function bersihkanTanggal(d: string) {
   const lt = layerMap.value
+  sedangSimpan.value = true
   try {
     if (adaDenahTanggal(master.value, d, lt)) {
       const perTanggal = { ...layoutTanggal(master.value) }
@@ -1264,6 +1293,9 @@ async function bersihkanTanggal(d: string) {
   }
   catch (e) {
     if (!(await tanganiKonflik(e, muatUlangDenah))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    sedangSimpan.value = false
   }
 }
 
@@ -1315,6 +1347,7 @@ async function simpanKeTemplat(data: LayoutDenah) {
   const key = editorTemplat.value
   if (!key || parseKeyTanggal(key)) return
   const cap = capDenah(data, namaSaya.value)
+  sedangSimpan.value = true
   try {
     await putDenah('layouts', { ...(secLayouts.data.value?.data ?? {}), [key]: cap }, versiDenah.value.layouts)
     await muatUlangDenah()
@@ -1325,6 +1358,9 @@ async function simpanKeTemplat(data: LayoutDenah) {
   }
   catch (e) {
     if (!(await tanganiKonflik(e, muatUlangDenah))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    sedangSimpan.value = false
   }
 }
 
@@ -1338,6 +1374,7 @@ async function simpanUntukTanggal(data: LayoutDenah) {
     return
   }
   const cap = capDenah(denahTanggalBaru(data, p.date, p.lt), namaSaya.value)
+  sedangSimpan.value = true
   try {
     await putDenah('layoutTanggal', { ...(secTgl.data.value?.data ?? {}), [key]: cap }, versiDenah.value.layoutTanggal)
     await muatUlangDenah()
@@ -1348,6 +1385,9 @@ async function simpanUntukTanggal(data: LayoutDenah) {
   }
   catch (e) {
     if (!(await tanganiKonflik(e, muatUlangDenah))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    sedangSimpan.value = false
   }
 }
 
@@ -1443,7 +1483,13 @@ const teksUntuk = (t: WaTarget) => (t.includeDP ? teksKasir.value : teksKoordina
 const tujuanKoord = computed(() => (waTargets.value ?? []).filter(t => t.type === 'group'))
 
 async function kirimKoord(t: WaTarget) {
-  await catat(`${t.name}${labelRentang.value ? `, ${labelRentang.value}` : ''}`, undefined, 'Kirim Koordinasi')
+  sedangSimpan.value = true
+  try {
+    await catat(`${t.name}${labelRentang.value ? `, ${labelRentang.value}` : ''}`, undefined, 'Kirim Koordinasi')
+  }
+  finally {
+    sedangSimpan.value = false
+  }
   // A group has no number: the text goes to the clipboard and wa.me opens so the
   // coordinator picks the group and pastes — the same limitation the old client
   // worked around with saved invite links (:7762-7770).
