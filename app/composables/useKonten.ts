@@ -33,7 +33,7 @@ import { hariIni } from '~/utils/format'
 import { BATAS_TULIS_PARALEL, hitungBerhasilParalel, petaParalel } from '~/utils/paralel'
 import { pkBulanIni } from '~/utils/performa-konten'
 import type { Versi } from '~/utils/versi'
-import { ifMatch, tanganiKonflik, versiDari } from '~/utils/versi'
+import { ifMatch, tulisBerVersi, versiDari } from '~/utils/versi'
 
 /** v1 resource names (`docs/api/konten.md` Records). */
 export type KontenResource = 'users' | 'brands' | 'campaigns' | 'content' | 'prod-tasks' | 'shootings' | 'assets' | 'bank' | 'kols' | 'visits' | 'ads' | 'ad-funds' | 'notifications'
@@ -276,19 +276,11 @@ export const putDokumenKonten = <T>(doc: 'settings' | 'perms' | 'seeded', value:
  * fails the write.
  */
 export async function kontenSimpan<T>(aksi: () => Promise<T>, sukses?: string, jejak?: { action: string, target?: string }): Promise<boolean> {
-  const toast = tryUseNuxtApp()?.vueApp.runWithContext(() => useToast()) ?? null
-  const muatUlang = () => refreshNuxtData('konten-state')
-  try {
-    await aksi()
+  return tulisBerVersi(async () => {
+    const hasil = await aksi()
     if (jejak) await logKonten(jejak.action, jejak.target).catch(() => {})
-    await muatUlang()
-    if (sukses) toast?.add({ title: sukses, color: 'success' })
-    return true
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, muatUlang))) toast?.add({ title: apiErrorMessage(e), color: 'error' })
-    return false
-  }
+    return hasil
+  }, { sukses, muatUlang: () => refreshNuxtData('konten-state') })
 }
 
 /**

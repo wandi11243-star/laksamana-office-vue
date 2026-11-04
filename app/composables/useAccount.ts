@@ -10,7 +10,7 @@
 // Pages come later (task U2+); this file holds types, reads and writes only.
 import type { Me } from '~/composables/useMe'
 import { isAdminOf } from '~/composables/useMe'
-import { tanganiKonflik } from '~/utils/versi'
+import { tulisBerVersi } from '~/utils/versi'
 
 /** One Office account as GET /account/users sends it. Never carries a PIN. */
 export interface AccountUser {
@@ -202,28 +202,13 @@ export const ubahModul = (key: string, body: { label?: string | null, active?: b
 
 // ---------------------------------------------------------------- write helper + guard
 
-function toastAkun() {
-  return tryUseNuxtApp()?.vueApp.runWithContext(() => useToast()) ?? null
-}
-
 /**
  * Run an account write, reload the account reads, and toast the outcome —
  * the bdSimpan pattern without versions (account writes carry none, so
  * tanganiKonflik only ever passes through to the error toast).
  */
 export async function simpanAkun<T>(aksi: () => Promise<T>, pesanSukses: string): Promise<boolean> {
-  const toast = toastAkun()
-  const muatUlang = () => refreshNuxtData(['account-users', 'account-modules'])
-  try {
-    await aksi()
-    await muatUlang()
-    toast?.add({ title: pesanSukses, color: 'success' })
-    return true
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, muatUlang))) toast?.add({ title: apiErrorMessage(e), color: 'error' })
-    return false
-  }
+  return tulisBerVersi(aksi, { sukses: pesanSukses, muatUlang: () => refreshNuxtData(['account-users', 'account-modules']) })
 }
 
 /** True when the user is a superadmin (holds the '*' admin). */

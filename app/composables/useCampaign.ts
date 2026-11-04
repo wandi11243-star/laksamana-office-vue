@@ -9,7 +9,7 @@
 // Write: per row with the row's version as If-Match (diubah_at, fallback
 // dibuat_at); 409 carries the live row, identical payload is a no-op.
 import type { Versi } from '~/utils/versi'
-import { ifMatch, tanganiKonflik } from '~/utils/versi'
+import { ifMatch, tulisBerVersi } from '~/utils/versi'
 
 export interface AkunCampaign {
   platform: string
@@ -347,16 +347,5 @@ export const ubahAdsCampaign = (body: { jenis: string, id: string, aksi?: string
  * toast the error. Reloads the shared campaign state on success.
  */
 export async function campaignSimpan(aksi: () => Promise<unknown>, sukses?: string): Promise<boolean> {
-  const toast = tryUseNuxtApp()?.vueApp.runWithContext(() => useToast()) ?? null
-  const muatUlang = () => refreshNuxtData('campaign-state')
-  try {
-    await aksi()
-    await muatUlang()
-    if (sukses) toast?.add({ title: sukses, color: 'success' })
-    return true
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, muatUlang))) toast?.add({ title: apiErrorMessage(e), color: 'error' })
-    return false
-  }
+  return tulisBerVersi(aksi, { sukses, muatUlang: () => refreshNuxtData('campaign-state') })
 }

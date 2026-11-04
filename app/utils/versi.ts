@@ -93,6 +93,28 @@ export async function tanganiKonflik(e: unknown, muatUlang: () => Promise<unknow
 }
 
 /**
+ * One shared versioned-write wrapper: run `aksi`, reload, toast the outcome.
+ * The success toast fires only when `sukses` is given — silent writes (the old
+ * bdTulisDiam lane: checkbox flips, drags, auto-saves) omit it. A 409/428
+ * goes through `tanganiKonflik` (which reloads and toasts); any other error
+ * toasts `apiErrorMessage`. Callers pass their own state's refresh as
+ * `muatUlang` so every module reloads its own keys.
+ */
+export async function tulisBerVersi<T>(aksi: () => Promise<T>, opt: { sukses?: string, muatUlang: () => Promise<unknown> }): Promise<boolean> {
+  const toast = toastDiLuarKonteks()
+  try {
+    await aksi()
+    await opt.muatUlang()
+    if (opt.sukses) toast?.add({ title: opt.sukses, color: 'success' })
+    return true
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, opt.muatUlang))) toast?.add({ title: apiErrorMessage(e), color: 'error' })
+    return false
+  }
+}
+
+/**
  * `useToast()` reached from an event handler: the Vue context is gone by then,
  * and `inject()` outside setup() warns in dev. Step back into it. (The Nuxt
  * context stays reachable on its own: the app instance is set once at start.)
