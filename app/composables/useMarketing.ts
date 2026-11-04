@@ -290,6 +290,36 @@ export const logMkt = (refType: string, refId: string, action: string, detail = 
 export type JejakMkt = { refType: string, refId?: string, action: string, detail?: string }
 
 /**
+ * Audit-trail write with retry: run `tulis` (a logMkt/logKonten POST), retry
+ * in the background on failure (3 attempts, ~1s then ~3s backoff), toast ONCE
+ * when it finally gives up. Never throws: true = stored, false = dropped
+ * after retries (console.warned). Primary writes stay untouched — only the
+ * compliance trail (who changed what, when) uses this, so an outage leaves
+ * one visible warning instead of silent gaps.
+ */
+export async function logDenganCobaLagi(tulis: () => Promise<unknown>): Promise<boolean> {
+  const TUNDA = [1000, 3000]
+  for (let i = 0; i <= TUNDA.length; i++) {
+    try {
+      await tulis()
+      return true
+    }
+    catch (e) {
+      if (i === TUNDA.length) {
+        tryUseNuxtApp()?.vueApp.runWithContext(() => useToast())?.add({
+          title: 'Catatan aktivitas gagal tersimpan, akan dicoba lagi',
+          color: 'warning',
+        })
+        console.warn('[audit] catatan aktivitas gagal tersimpan setelah 3x percobaan', e)
+        return false
+      }
+      await new Promise(r => setTimeout(r, TUNDA[i]))
+    }
+  }
+  return false
+}
+
+/**
  * Run a versioned write (or several, in order): on 409/428 reload and say so,
  * otherwise toast the error. Reloads the shared state on success. The activity
  * line(s) follow like the old logAct — their failure never fails the write.
