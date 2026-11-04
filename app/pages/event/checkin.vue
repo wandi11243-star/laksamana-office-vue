@@ -70,16 +70,25 @@ async function muatCheckin() {
 }
 watch(eventId, muatCheckin, { immediate: true })
 
-// Partial refresh every 20s so an open camera/scroll position survives (`:1623`)
+// Partial refresh every 20s so an open camera/scroll position survives (`:1623`).
+// The tick yields while the scanner/sheet owns the screen, while the guard is
+// typing, and while the previous tick is still in flight.
 let timer: ReturnType<typeof setInterval> | null = null
+let sedangMuat = false
+function pollDitunda() {
+  if (kameraNyala.value || batalTarget.value) return true
+  const el = document.activeElement as HTMLElement | null
+  if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)) return true
+  return false
+}
+function tickCheckin() {
+  if (document.visibilityState !== 'visible' || sedangMuat || pollDitunda()) return
+  sedangMuat = true
+  void Promise.allSettled([muatCheckin(), refreshTiket(), refreshKursi()])
+    .finally(() => { sedangMuat = false })
+}
 onMounted(() => {
-  timer = setInterval(() => {
-    if (document.visibilityState === 'visible') {
-      muatCheckin()
-      refreshTiket()
-      refreshKursi()
-    }
-  }, 20000)
+  timer = setInterval(tickCheckin, 20000)
 })
 onBeforeUnmount(() => {
   if (timer) clearInterval(timer)

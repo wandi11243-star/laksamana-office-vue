@@ -157,8 +157,9 @@ async function tarikServer(): Promise<boolean> {
 
 let timerPos: ReturnType<typeof setInterval> | null = null
 
-/** Upload the queue, then download. Throws nothing: failure parks in sync.gagal. */
-export async function sinkronPos(): Promise<boolean> {
+/** Upload the queue, then download. Throws nothing: failure parks in sync.gagal.
+ *  With `hanyaKirim`, the download half is skipped (the tick yields to typing). */
+export async function sinkronPos(hanyaKirim = false): Promise<boolean> {
   const sync = usePosSync()
   if (sync.value.sedang) return false
   sync.value = { ...sync.value, sedang: true }
@@ -166,7 +167,7 @@ export async function sinkronPos(): Promise<boolean> {
   try {
     const antre = usePosDb().value.filter(o => o._naik === false)
     if (antre.length) await kirimAntre()
-    berubah = await tarikServer()
+    if (!hanyaKirim) berubah = await tarikServer()
     if (usePosDb().value.some(o => o._naik === false)) await kirimAntre()
     sync.value = { sedang: false, gagal: '', terakhir: Date.now(), ver: sync.value.ver }
   }
@@ -185,6 +186,14 @@ export async function sinkronPos(): Promise<boolean> {
     }
   }
   return berubah
+}
+
+/** The 15s tick yields while the cashier is typing or the tab is hidden: the
+ *  upload queue still goes out, only the download half is skipped. */
+function pollMengalahPos(): boolean {
+  if (document.visibilityState !== 'visible') return true
+  const el = document.activeElement as HTMLElement | null
+  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT' || el.isContentEditable)
 }
 
 /** Load local copies, pull once, and start the 15s poll. Call once per session. */
@@ -208,7 +217,8 @@ export function mulaiPos(): void {
   if (user && user.id) usePosUser().value = user
   void sinkronPos()
   timerPos = setInterval(() => {
-    void sinkronPos()
+    if (pollMengalahPos()) void sinkronPos(true)
+    else void sinkronPos()
   }, POLL_MS_POS)
 }
 
