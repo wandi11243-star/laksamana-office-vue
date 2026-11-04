@@ -135,8 +135,14 @@ const LAMA = path.resolve(import.meta.dirname, '../../laksamana-office')
 const fK = path.join(LAMA, 'deploy/cashier/index.html')
 const fO = path.join(LAMA, 'deploy/finance/omset/index.html')
 if (!fs.existsSync(fK) || !fs.existsSync(fO)) {
-  lewat++
-  console.log('  LEWAT ../laksamana-office tidak ada')
+  if (process.env.STRICT === '1') {
+    gagal++
+    console.log('  STRICT ../laksamana-office tidak ada')
+  }
+  else {
+    lewat++
+    console.log('  LEWAT ../laksamana-office tidak ada')
+  }
 }
 else {
   const srcK = fs.readFileSync(fK, 'utf8')

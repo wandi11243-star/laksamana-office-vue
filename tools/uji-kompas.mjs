@@ -44,8 +44,14 @@ cek('galat kembar digabung', K.validasiHarian({ ...hari, food: -1, bev: -1 }).fi
 console.log('\nkompas: kembar dengan Office lama')
 const fLama = path.resolve(import.meta.dirname, '../../laksamana-office/deploy/finance/omset/index.html')
 if (!fs.existsSync(fLama)) {
-  lewat++
-  console.log('  LEWAT ../laksamana-office tidak ada')
+  if (process.env.STRICT === '1') {
+    gagal++
+    console.log('  STRICT ../laksamana-office tidak ada')
+  }
+  else {
+    lewat++
+    console.log('  LEWAT ../laksamana-office tidak ada')
+  }
 }
 else {
   const src = fs.readFileSync(fLama, 'utf8')

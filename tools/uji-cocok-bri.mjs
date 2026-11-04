@@ -110,8 +110,14 @@ console.log('\ncocok-bri: kembar dengan mesin Office lama')
 const LAMA = path.resolve(import.meta.dirname, '../../laksamana-office')
 const fMesin = path.join(LAMA, 'deploy/assets/cocok-bri.js')
 if (!fs.existsSync(fMesin)) {
-  lewat++
-  console.log('  LEWAT ../laksamana-office tidak ada')
+  if (process.env.STRICT === '1') {
+    gagal++
+    console.log('  STRICT ../laksamana-office tidak ada')
+  }
+  else {
+    lewat++
+    console.log('  LEWAT ../laksamana-office tidak ada')
+  }
 }
 else {
   const G = {}
