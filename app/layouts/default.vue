@@ -1,9 +1,10 @@
 <!--
   App shell, laid out like the old Office (DESIGN.md › Shell):
   a 248px sidebar on the left and a top bar over the content; the hamburger
-  collapses the sidebar to an icon rail. Below lg the sidebar gives way to a
-  bottom bar (AppNavBawah). Inside a module with its own chrome
-  (utils/modul-shell.ts) the top bar carries the module's search, gold "+"
+  collapses the sidebar to an icon rail. Beranda (`/`) has no sidebar on
+  desktop — its launcher grid already lists every module. Below lg the sidebar
+  gives way to a bottom bar (AppNavBawah). Inside a module with its own chrome
+  (utils/modul-shell.ts) the top bar carries the module's search, "+" pill
   and bell.
 -->
 <script setup lang="ts">
@@ -15,6 +16,11 @@ const { key, shell } = useModulShell()
 
 const desktop = useMediaQuery('(min-width: 1024px)')
 const sembunyi = ref(false)
+
+// Beranda (the launcher) drops the sidebar on desktop: the page already lists
+// every module the viewer holds, so the extra column only repeats it. Module
+// screens keep the sidebar exactly as before.
+const beranda = computed(() => route.path === '/')
 
 const q = ref('')
 watch(() => route.query.q, (v) => {
@@ -47,10 +53,10 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="min-h-dvh transition-[grid-template-columns] duration-200 lg:grid print:block"
-    :class="sembunyi ? 'lg:grid-cols-[76px_1fr]' : 'lg:grid-cols-[248px_1fr]'"
+    :class="beranda ? 'lg:grid-cols-[1fr]' : sembunyi ? 'lg:grid-cols-[76px_1fr]' : 'lg:grid-cols-[248px_1fr]'"
   >
     <aside
-      v-if="desktop"
+      v-if="desktop && !beranda"
       class="sticky top-0 h-dvh overflow-hidden border-e border-default print:hidden"
     >
       <AppSidebar
@@ -62,6 +68,7 @@ onBeforeUnmount(() => {
     <div class="min-w-0">
       <header class="sticky top-0 z-10 flex print:hidden items-center gap-2.5 border-b border-default bg-default/95 px-3 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur-sm lg:gap-3 lg:px-5">
         <UButton
+          v-if="!beranda"
           icon="i-lucide-menu"
           color="neutral"
           variant="outline"
@@ -88,7 +95,8 @@ onBeforeUnmount(() => {
         <NuxtLink
           v-else
           to="/"
-          class="flex items-center gap-2 lg:hidden"
+          class="flex items-center gap-2"
+          :class="!beranda && 'lg:hidden'"
           aria-label="Beranda"
         >
           <img

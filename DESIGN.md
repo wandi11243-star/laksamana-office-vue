@@ -44,7 +44,7 @@ Palet dari DESIGN.md laksamana-hris (analisis Miro).
 
 | Peran | Kelas | Terang | Gelap |
 |---|---|---|---|
-| Latar halaman ("paper") | `bg-muted` | `#f7f8fa` | — |
+| Latar halaman ("paper") | `bg-muted` | `#F7F6F4` | — |
 | Permukaan (panel, kartu, form) | `bg-default` | `#ffffff` | — |
 | Garis | `border-default` | `#e0e2e8` | — |
 | Teks utama / judul | `text-highlighted` | `#1c1c1e` | — |
@@ -55,7 +55,7 @@ Palet dari DESIGN.md laksamana-hris (analisis Miro).
 | Hitam sebagai teks | `text-ink-900` | `#1c1c1e` | — |
 | Kuning lembut (menu aktif, pil) | `bg-yellow-light` / `text-yellow-dark` | `#fff4c4` / `#746019` | — |
 | Kuning aksen (wordmark, promo, tag) | `text-brand-yellow` | `#ffd02f`, bukan untuk CTA | — |
-| Kepala tabel | `bg-muted` + `text-muted` | `#f7f8fa` + `#555a6a` | — |
+| Kepala tabel | `bg-muted` + `text-muted` | `#F7F6F4` + `#555a6a` | — |
 | Status | `text-/bg-success·warning·error·info` | sukses `#c3faf5`/`#187574`, tunggu `#fff4c4`/`#746019`, tolak `#ffc6c6`/`#600000`, info `#d8ebff`/`#2a41b6` | — |
 | Kartu stat | `AppStat` `tone` → tint penuh | netral `bg-sand-light`, sukses `bg-teal-light`, tunggu `bg-yellow-light`, tolak `bg-coral-light`, info `bg-sky-light`, VIP `bg-lilac-light`/`text-vip`; angka `text-highlighted`, label `text-muted`, ikon pasangan gelap tiap tone | — |
 | VIP / sharing | `text-vip` / `bg-vip/12` | `#6B4FB0` | — |
@@ -88,7 +88,8 @@ Seperti Office lama (`deploy/reservasi/index.html:851-872`):
   lembut, garis kuning `#fcb900` 3px di kiri; **badge merah** untuk jumlah yang menunggu; di kaki: avatar
   hitam bersudut, nama, peran di modul ini, tombol keluar.
 - **Di dalam modul**, sidebar berisi layar modul itu (dari `utils/layar/<modul>.ts`) plus "Beranda Office".
-  Di Beranda, sidebar berisi daftar modul.
+  **Di Beranda (`/`) sidebar tidak ditampilkan di desktop**: kisi peluncurnya sudah memuat semua modul,
+  jadi konten memakai lebar penuh (tombol menu di top bar ikut disembunyikan). Di HP tetap bottom bar.
 - **Top bar**: tombol menu (desktop saja: sembunyikan sidebar), kotak cari bulat, lalu di kanan
   tombol **`+` pil hitam** (aksi paling sering modul) dan **lonceng** dengan titik merah.
 - Isi per modul ditulis di `app/utils/modul-shell.ts`: `subjudul`, `layar`, `cari`, `tambah`, `lonceng`,

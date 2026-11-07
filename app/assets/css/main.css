@@ -145,9 +145,12 @@
   --ui-error: #600000;
   --ui-info: #2a41b6;
 
-  /* Page = white, muted surfaces = Miro surface, lines = hairline. */
+  /* Page = the old Office's warm paper #F7F6F4 (owner request, Nov 2026), not
+     the Miro cool surface: the backmost layer of every screen is warm. `bg-muted`
+     is that page token, exactly as the old Office used its --paper for both the
+     page and its quiet surfaces. Lines stay the Miro hairline. */
   --ui-bg: #ffffff;
-  --ui-bg-muted: #f7f8fa;
+  --ui-bg-muted: #F7F6F4;
   --ui-bg-elevated: #ffffff;
   --ui-bg-accented: #f5f3ff;
   --ui-border: #e0e2e8;
