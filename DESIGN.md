@@ -55,6 +55,7 @@ Palet dari DESIGN.md laksamana-hris (analisis Miro).
 | Hitam sebagai teks | `text-ink-900` | `#1c1c1e` | — |
 | Kuning lembut (menu aktif, pil) | `bg-yellow-light` / `text-yellow-dark` | `#fff4c4` / `#746019` | — |
 | Kuning aksen (wordmark, promo, tag) | `text-brand-yellow` | `#ffd02f`, bukan untuk CTA | — |
+| Aksen emas Laksamana (hover kartu modul, tick judul bagian) | `text-/border-/bg-gold` | `#A9791F` (wash `#F2E9D3`) | — |
 | Kepala tabel | `bg-muted` + `text-muted` | `#F7F6F4` + `#555a6a` | — |
 | Status | `text-/bg-success·warning·error·info` | sukses `#c3faf5`/`#187574`, tunggu `#fff4c4`/`#746019`, tolak `#ffc6c6`/`#600000`, info `#d8ebff`/`#2a41b6` | — |
 | Kartu stat | `AppStat` `tone` → tint penuh | netral `bg-sand-light`, sukses `bg-teal-light`, tunggu `bg-yellow-light`, tolak `bg-coral-light`, info `bg-sky-light`, VIP `bg-lilac-light`/`text-vip`; angka `text-highlighted`, label `text-muted`, ikon pasangan gelap tiap tone | — |
@@ -67,6 +68,11 @@ Palet dari DESIGN.md laksamana-hris (analisis Miro).
 Ramp emas lama (`--color-laksamana-*`) tidak dipakai lagi — bloknya dipertahankan di `main.css`
 hanya sebagai arsip revert. Kontras kini datang dari pasangan gelap-di-atas-tint Miro (kata
 `#187574`/`#746019`/`#600000`/`#2a41b6` di atas tint pastelnya).
+
+Aksen emas `#A9791F` (`gold`) adalah ciri khas Laksamana dan **hanya aksen** — tidak mengganti
+pastel Miro. Muncul saat kursor di atas kartu modul Beranda (garis kartu, ring tile ikon, panah,
+dan pil layar) dengan kartu terangkat halus, plus tick kecil sebelum judul bagian
+(`AppSectionTitle`).
 
 **Tipografi.** Font self-hosted di `public/fonts/` (tanpa Google Fonts): **Noto Sans** untuk judul
 halaman, judul panel, dan angka kartu (`font-display`, otomatis di `h1–h3`) maupun semua teks lain,
