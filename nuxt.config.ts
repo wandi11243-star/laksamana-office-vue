@@ -14,7 +14,7 @@ export default defineNuxtConfig({
     head: {
       htmlAttrs: { lang: 'id' },
       title: 'Laksamana Office',
-      meta: [{ name: 'theme-color', content: '#F3F3F1' }],
+      meta: [{ name: 'theme-color', content: '#F7F6F4' }],
       link: [{ rel: 'icon', type: 'image/png', href: '/mark.png' }],
     },
   },
@@ -54,8 +54,8 @@ export default defineNuxtConfig({
       lang: 'id',
       start_url: '/',
       display: 'standalone',
-      background_color: '#F3F3F1',
-      theme_color: '#F3F3F1',
+      background_color: '#F7F6F4',
+      theme_color: '#F7F6F4',
       icons: [
         { src: '/icon-192.png', sizes: '192x192', type: 'image/png' },
         { src: '/icon-512.png', sizes: '512x512', type: 'image/png' },
