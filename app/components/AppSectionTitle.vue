@@ -5,6 +5,10 @@ defineProps<{ title: string, icon?: string }>()
 
 <template>
   <h3 class="col-span-full mb-3 mt-6 flex items-center gap-2 border-b border-default pb-1.5 font-sans text-xs font-bold uppercase tracking-wider text-ink-900 first:mt-0">
+    <span
+      class="h-3.5 w-1 shrink-0 rounded-full bg-gold"
+      aria-hidden="true"
+    />
     <UIcon
       v-if="icon"
       :name="icon"

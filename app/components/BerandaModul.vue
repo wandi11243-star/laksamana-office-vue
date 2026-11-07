@@ -2,7 +2,9 @@
   One module card on Beranda: the old launcher's card in Miro skin. A ready
   card links to the module and lists its screens (LAYAR_*) as pills, so the
   crew jumps straight to a screen without opening the module first. A module
-  without its page yet shows "Segera" and has no links.
+  without its page yet shows "Segera" and has no links. Under the cursor a ready
+  card lifts slightly and its border, icon ring, arrow and pills take the
+  Laksamana gold accent; the pastel icon tints stay.
 -->
 <script setup lang="ts">
 import type { Layar } from '~/utils/layar'
@@ -96,8 +98,10 @@ const sisa = computed(() => layar.value.length - 6)
 
 <template>
   <div
-    class="group flex min-h-11 flex-col gap-2 rounded-panel border border-default bg-default p-2 shadow-panel lg:gap-3 lg:p-4"
-    :class="m.ready ? 'cursor-pointer' : 'opacity-60'"
+    class="group flex min-h-11 flex-col gap-2 rounded-panel border border-default bg-default p-2 shadow-panel transition duration-200 ease-laks lg:gap-3 lg:p-4"
+    :class="m.ready
+      ? 'cursor-pointer hover:-translate-y-0.5 hover:border-gold hover:shadow-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40'
+      : 'opacity-60'"
     :role="m.ready ? 'link' : undefined"
     :tabindex="m.ready ? 0 : undefined"
     :aria-disabled="!m.ready || undefined"
@@ -106,7 +110,7 @@ const sisa = computed(() => layar.value.length - 6)
   >
     <div class="flex flex-col items-center gap-2 text-center lg:flex-row lg:gap-3 lg:text-left">
       <span
-        class="grid size-10 shrink-0 place-items-center rounded-xl"
+        class="grid size-10 shrink-0 place-items-center rounded-xl transition-shadow duration-200 group-hover:ring-2 group-hover:ring-gold/30"
         :class="TONE_ICON_MODUL[m.key] ?? 'bg-yellow-light text-yellow-dark'"
       >
         <UIcon
@@ -125,7 +129,7 @@ const sisa = computed(() => layar.value.length - 6)
       <UIcon
         v-if="m.ready"
         name="i-lucide-arrow-right"
-        class="hidden size-4 shrink-0 text-dimmed transition-transform group-hover:translate-x-0.5 lg:block"
+        class="hidden size-4 shrink-0 text-dimmed transition group-hover:translate-x-0.5 group-hover:text-gold lg:block"
       />
     </div>
     <div
@@ -136,8 +140,10 @@ const sisa = computed(() => layar.value.length - 6)
         v-for="l in layarTampil"
         :key="l.key"
         :to="l.to"
-        class="rounded-full border px-2.5 py-1 text-xs"
-        :class="nyala(l.to) ? 'border-yellow-deep bg-yellow-light text-yellow-dark' : 'border-default text-muted'"
+        class="rounded-full border px-2.5 py-1 text-xs transition-colors"
+        :class="nyala(l.to)
+          ? 'border-yellow-deep bg-yellow-light text-yellow-dark'
+          : 'border-default text-muted hover:border-gold hover:text-gold'"
         @click.stop
       >
         {{ l.label }}
@@ -145,7 +151,7 @@ const sisa = computed(() => layar.value.length - 6)
       <button
         v-if="layar.length > 6"
         type="button"
-        class="rounded-full border border-default px-2.5 py-1 text-xs text-muted"
+        class="rounded-full border border-default px-2.5 py-1 text-xs text-muted transition-colors hover:border-gold hover:text-gold"
         @click.stop="bukaSemua = !bukaSemua"
       >
         {{ bukaSemua ? 'Sembunyikan' : `+${sisa} lainnya` }}

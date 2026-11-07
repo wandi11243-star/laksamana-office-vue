@@ -98,6 +98,13 @@
   --color-steel-light: #e2e7ee;
   --color-success-accent: #00b473;
 
+  /* Laksamana gold accent (owner request, Nov 2026): the old Office brand gold,
+     used only as an accent — hover on launcher cards (border, arrow, pills) and
+     the tick before a section title — so the Miro pastels keep their meaning and
+     the app still reads as Laksamana. `gold-soft` is its quiet wash on light. */
+  --color-gold: #A9791F;
+  --color-gold-soft: #F2E9D3;
+
   /* The fifth tone of the old Office (VIP, sharing, "Pelanggan unik"). The other
      four are Nuxt UI's success / warning / error / info, set in :root below. */
   --color-vip: #6B4FB0;
@@ -114,8 +121,10 @@
      state change (100–300 ms). Pages reference it as `ease-laks`. */
   --ease-laks: cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* One soft shadow for panels (Miro mockup). */
+  /* One soft shadow for panels (Miro mockup); `-hover` lifts a launcher card
+     under the cursor. Both stay colourless so the gold accent does the talking. */
   --shadow-panel: 0 12px 32px -4px rgb(5 0 56 / 0.08);
+  --shadow-panel-hover: 0 18px 34px -10px rgb(5 0 56 / 0.16);
 
   /*
     Denah (the table plan). A table's FILL is its ZONE, not its status: the zone
