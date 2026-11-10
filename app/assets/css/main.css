@@ -99,11 +99,14 @@
   --color-success-accent: #00b473;
 
   /* Laksamana gold accent (owner request, Nov 2026): the old Office brand gold,
-     used only as an accent — hover on launcher cards (border, arrow, pills) and
+     used only as an accent — hover on launcher cards (border, soft wash, icon ring, arrow) and
      the tick before a section title — so the Miro pastels keep their meaning and
      the app still reads as Laksamana. `gold-soft` is its quiet wash on light. */
   --color-gold: #A9791F;
   --color-gold-soft: #F2E9D3;
+  /* Darker gold for small text (descriptions, counts) so it keeps AA contrast
+     on white and on gold-soft, where `gold` itself falls short. */
+  --color-gold-deep: #85600F;
 
   /* The fifth tone of the old Office (VIP, sharing, "Pelanggan unik"). The other
      four are Nuxt UI's success / warning / error / info, set in :root below. */

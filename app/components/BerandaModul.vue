@@ -1,38 +1,19 @@
 <!--
-  One module card on Beranda: the old launcher's card in Miro skin. A ready
-  card links to the module and lists its screens (LAYAR_*) as pills, so the
-  crew jumps straight to a screen without opening the module first. A module
-  without its page yet shows "Segera" and has no links. Under the cursor a ready
-  card lifts slightly and its border, icon ring, arrow and pills take the
-  Laksamana gold accent; the pastel icon tints stay.
+  One module card on Beranda: the old launcher's card in Miro skin, kept
+  minimal — icon tile, then name over a short description, arrow on the right,
+  as in the old Office launcher; the module's screens live in its own sidebar,
+  not on the card. Desktop shows five near-square tiles per row. A module
+  without its page yet shows "Segera" and has no link.
+
+  Beranda carries the Laksamana gold (owner request, Nov 2026) in a deep-gold
+  description; the icon tiles keep their pastel tint per module. Under the
+  cursor a ready card lifts slightly, takes a faint gold wash, a gold border,
+  icon ring and arrow.
 -->
 <script setup lang="ts">
-import type { Layar } from '~/utils/layar'
 import type { Modul } from '~/utils/modul'
-import { LAYAR_ABSENSI } from '~/utils/layar/absensi'
-import { LAYAR_AKADEMI } from '~/utils/layar/akademi'
-import { LAYAR_ANALYTICS } from '~/utils/layar/analytics'
-import { LAYAR_BD } from '~/utils/layar/bd'
-import { LAYAR_CASHIER } from '~/utils/layar/cashier'
-import { LAYAR_DW } from '~/utils/layar/dw'
-import { LAYAR_EVENT } from '~/utils/layar/event'
-import { LAYAR_FINANCE } from '~/utils/layar/finance'
-import { LAYAR_HELP } from '~/utils/layar/help'
-import { LAYAR_HLIFE } from '~/utils/layar/hlife'
-import { LAYAR_HOMEPAGE } from '~/utils/layar/homepage'
-import { LAYAR_HR } from '~/utils/layar/hr'
-import { LAYAR_INVESTOR } from '~/utils/layar/investor'
-import { LAYAR_JADWAL } from '~/utils/layar/jadwal'
-import { LAYAR_KONTEN } from '~/utils/layar/konten'
-import { LAYAR_MARKETING } from '~/utils/layar/marketing'
-import { LAYAR_RADAR } from '~/utils/layar/radar'
-import { LAYAR_RESERVASI } from '~/utils/layar/reservasi'
-import { LAYAR_SERVICE_EXCELLENT } from '~/utils/layar/service_excellent'
-import { LAYAR_STOCK } from '~/utils/layar/stock'
 
 const props = defineProps<{ m: Modul & { to: string, ready: boolean } }>()
-
-const route = useRoute()
 
 // Distinct Miro tints give each launcher module a recognizable icon tile.
 const TONE_ICON_MODUL: Record<string, string> = {
@@ -61,46 +42,13 @@ const TONE_ICON_MODUL: Record<string, string> = {
 const buka = () => {
   if (props.m.ready) navigateTo(props.m.to)
 }
-
-// Roster holds two access keys (jadwal + dw, modul.ts) but one launcher card,
-// so its pills carry both menus. Every other key maps to its own LAYAR array.
-const LAYAR_MODUL: Record<string, Layar[]> = {
-  absensi: LAYAR_ABSENSI,
-  jadwal: [...LAYAR_JADWAL, ...LAYAR_DW],
-  akademi: LAYAR_AKADEMI,
-  hr: LAYAR_HR,
-  stock: LAYAR_STOCK,
-  reservasi: LAYAR_RESERVASI,
-  service_excellent: LAYAR_SERVICE_EXCELLENT,
-  radar: LAYAR_RADAR,
-  cashier: LAYAR_CASHIER,
-  konten: LAYAR_KONTEN,
-  event: LAYAR_EVENT,
-  homepage: LAYAR_HOMEPAGE,
-  marketing: LAYAR_MARKETING,
-  finance: LAYAR_FINANCE,
-  bd: LAYAR_BD,
-  hlife: LAYAR_HLIFE,
-  help: LAYAR_HELP,
-  investor: LAYAR_INVESTOR,
-  analytics: LAYAR_ANALYTICS,
-}
-
-const layar = computed(() => LAYAR_MODUL[props.m.key] ?? [])
-const nyala = (to: string) => cocokRute(route.path, to)
-
-// Per-card local toggle so long pill lists stay short: first 6 visible,
-// the rest behind a "+N lainnya" / "Sembunyikan" pill.
-const bukaSemua = ref(false)
-const layarTampil = computed(() => (bukaSemua.value ? layar.value : layar.value.slice(0, 6)))
-const sisa = computed(() => layar.value.length - 6)
 </script>
 
 <template>
   <div
-    class="group flex min-h-11 flex-col gap-2 rounded-panel border border-default bg-default p-2 shadow-panel transition duration-200 ease-laks lg:gap-3 lg:p-4"
+    class="group flex min-h-11 flex-col items-center gap-2 rounded-panel border border-default bg-default p-2 text-center shadow-panel transition duration-200 ease-laks lg:min-h-36 lg:flex-row lg:items-start lg:gap-2.5 lg:p-3.5 lg:text-left"
     :class="m.ready
-      ? 'cursor-pointer hover:-translate-y-0.5 hover:border-gold hover:shadow-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40'
+      ? 'cursor-pointer hover:-translate-y-0.5 hover:border-gold hover:bg-gold-soft/20 hover:shadow-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40'
       : 'opacity-60'"
     :role="m.ready ? 'link' : undefined"
     :tabindex="m.ready ? 0 : undefined"
@@ -108,60 +56,32 @@ const sisa = computed(() => layar.value.length - 6)
     @click="buka"
     @keydown.enter="buka"
   >
-    <div class="flex flex-col items-center gap-2 text-center lg:flex-row lg:gap-3 lg:text-left">
-      <span
-        class="grid size-10 shrink-0 place-items-center rounded-xl transition-shadow duration-200 group-hover:ring-2 group-hover:ring-gold/30"
-        :class="TONE_ICON_MODUL[m.key] ?? 'bg-yellow-light text-yellow-dark'"
-      >
-        <UIcon
-          :name="m.icon"
-          class="size-5"
-        />
-      </span>
-      <div class="w-full lg:min-w-0 lg:flex-1">
-        <h3 class="line-clamp-2 break-words text-sm font-semibold leading-tight text-highlighted lg:truncate lg:text-base">
-          {{ m.label }}
-        </h3>
-        <p class="hidden truncate text-xs uppercase text-muted lg:block">
-          {{ m.desc }}
-        </p>
-      </div>
+    <span
+      class="grid size-10 shrink-0 place-items-center rounded-xl transition-shadow duration-200 group-hover:ring-2 group-hover:ring-gold/30 lg:size-11"
+      :class="TONE_ICON_MODUL[m.key] ?? 'bg-yellow-light text-yellow-dark'"
+    >
       <UIcon
-        v-if="m.ready"
-        name="i-lucide-arrow-right"
-        class="hidden size-4 shrink-0 text-dimmed transition group-hover:translate-x-0.5 group-hover:text-gold lg:block"
+        :name="m.icon"
+        class="size-5 lg:size-6"
       />
+    </span>
+    <div class="w-full lg:min-w-0 lg:flex-1">
+      <!-- Never clipped: a long name ("Task Management") wraps whole instead of "…". -->
+      <h3 class="text-balance break-words text-sm font-semibold leading-tight text-highlighted lg:text-base">
+        {{ m.label }}
+      </h3>
+      <p class="mt-1 hidden text-[11px] font-semibold uppercase leading-snug tracking-wide text-gold-deep lg:line-clamp-3">
+        {{ m.desc }}
+      </p>
     </div>
-    <div
+    <UIcon
       v-if="m.ready"
-      class="hidden flex-wrap gap-1.5 lg:flex"
-    >
-      <NuxtLink
-        v-for="l in layarTampil"
-        :key="l.key"
-        :to="l.to"
-        class="rounded-full border px-2.5 py-1 text-xs transition-colors"
-        :class="nyala(l.to)
-          ? 'border-yellow-deep bg-yellow-light text-yellow-dark'
-          : 'border-default text-muted hover:border-gold hover:text-gold'"
-        @click.stop
-      >
-        {{ l.label }}
-      </NuxtLink>
-      <button
-        v-if="layar.length > 6"
-        type="button"
-        class="rounded-full border border-default px-2.5 py-1 text-xs text-muted transition-colors hover:border-gold hover:text-gold"
-        @click.stop="bukaSemua = !bukaSemua"
-      >
-        {{ bukaSemua ? 'Sembunyikan' : `+${sisa} lainnya` }}
-      </button>
-    </div>
-    <div
+      name="i-lucide-arrow-right"
+      class="mt-3 hidden size-4 shrink-0 text-dimmed transition group-hover:translate-x-0.5 group-hover:text-gold lg:block"
+    />
+    <span
       v-else
-      class="flex flex-wrap gap-1.5"
-    >
-      <span class="rounded-full border border-default px-2.5 py-1 text-xs text-dimmed">Segera</span>
-    </div>
+      class="shrink-0 rounded-full border border-default px-2 py-0.5 text-xs text-dimmed lg:px-2.5 lg:py-1"
+    >Segera</span>
   </div>
 </template>
