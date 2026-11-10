@@ -106,7 +106,7 @@ async function muatDaily() {
   if (!bulan.value) return
   try {
     const res = await useApi()<Envelope<BarisDaily[]>>('/kompas/daily', {
-      query: { from: `${bulan.value}-01`, to: `${bulan.value}-31` },
+      query: { from: `${bulan.value}-01`, to: `${bulan.value}-${String(new Date(Number(bulan.value.slice(0, 4)), Number(bulan.value.slice(5, 7)), 0).getDate()).padStart(2, '0')}` },
     })
     if (n !== seqDaily) return
     daily.value = Array.isArray(res.data) ? res.data : []

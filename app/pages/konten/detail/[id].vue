@@ -59,7 +59,7 @@ const toneAlur = (s: string) => alurTone[warnaStatusKonten(s)] ?? alurTone.neutr
 const checklist = computed(() => c.value?.checklist ?? [])
 const chkDone = computed(() => checklist.value.filter(x => x.done).length)
 const refsLink = computed(() => contentRefs(c.value).filter(r => r.t !== 'img'))
-const refsImg = computed(() => contentRefs(c.value).filter(r => r.t === 'img'))
+const refsImg = computed(() => contentRefs(c.value).filter(r => r.t === 'img' && !!r.v))
 /** In-app zoom of a reference photo (old viewImage). */
 const zoomImg = ref<{ v: string, n?: string } | null>(null)
 const zoomBuka = computed({ get: () => !!zoomImg.value, set: (v: boolean) => {
@@ -432,7 +432,7 @@ const setelahSimpan = (nid: string) => router.replace(`/konten/detail/${nid}`)
           :key="i"
           type="button"
           :title="`Perbesar ${r.n || 'referensi'}`"
-          @click="zoomImg = { v: r.v, n: r.n }"
+          @click="zoomImg = { v: r.v ?? '', n: r.n }"
         >
           <img
             :src="r.v"

@@ -188,7 +188,7 @@ export const VISIT_STATUS: Record<string, { label: string }> = {
 // ---------------------------------------------------------------- record shapes
 
 export interface ProdNeed { date?: string, status?: string, doneAt?: number }
-export interface RefKonten { t: 'link' | 'img', v: string, n?: string }
+export interface RefKonten { t: 'link' | 'img', v?: string, n?: string, dipangkas?: boolean }
 export interface Approval { stage?: string, by?: string, ok?: boolean, at?: number }
 export interface Komentar { by?: string, at?: number, text?: string, mentions?: string[] }
 

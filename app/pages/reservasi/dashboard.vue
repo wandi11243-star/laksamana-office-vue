@@ -100,7 +100,7 @@ const dari = computed(() => {
 const sampai = computed(() => {
   if (tab.value === 'calendar') return bulan.value ? jumlahHariBulan(bulan.value) : hariIni()
   const akhir = filter.mode === 'month'
-    ? `${filter.month}-31`
+    ? jumlahHariBulan(filter.month)
     : filter.mode === 'year'
       ? `${filter.year}-12-31`
       : filter.mode === 'range' && filter.to
