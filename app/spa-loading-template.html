@@ -1,0 +1,75 @@
+<div id="lm-boot">
+  <img src="/mark.png" alt="" width="56" height="56">
+  <div class="lm-bar" aria-hidden="true"></div>
+  <p class="lm-text">Memuat Office…</p>
+  <style>
+    #lm-boot {
+      position: fixed;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: #F7F6F4;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      gap: 14px;
+      z-index: 99999;
+    }
+    .lm-bar {
+      width: 64px;
+      height: 3px;
+      background-color: #e0e2e8;
+      border-radius: 9999px;
+      overflow: hidden;
+      position: relative;
+    }
+    .lm-bar::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: -50%;
+      width: 50%;
+      background-color: #8e91a0;
+      border-radius: 9999px;
+      animation: lm-pulse 1.2s ease-in-out infinite;
+    }
+    .lm-text {
+      margin: 0;
+      font-size: 13px;
+      color: #8e91a0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    @keyframes lm-pulse {
+      0% { left: -50%; }
+      100% { left: 100%; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .lm-bar::after {
+        animation: none;
+        left: 25%;
+      }
+    }
+  </style>
+  <script>
+    (function () {
+      var KEY = 'lm-boot-reset'
+      function pulihkan() {
+        try { if (sessionStorage.getItem(KEY)) return; sessionStorage.setItem(KEY, '1') } catch (e) { return }
+        if (!navigator.onLine) return
+        var tugas = []
+        if ('serviceWorker' in navigator) tugas.push(navigator.serviceWorker.getRegistrations().then(function (rs) { return Promise.all(rs.map(function (r) { return r.unregister() })) }))
+        if ('caches' in window) tugas.push(caches.keys().then(function (ks) { return Promise.all(ks.map(function (k) { return caches.delete(k) })) }))
+        Promise.all(tugas).catch(function () {}).then(function () { location.reload() })
+      }
+      // A /_nuxt/ script or stylesheet failed to load (old shell pointing at a removed build): recover now (only before the app mounts).
+      window.addEventListener('error', function (e) {
+        var t = e.target
+        var src = t && (t.src || t.href)
+        if (src && src.indexOf('/_nuxt/') !== -1 && (t.tagName === 'SCRIPT' || t.tagName === 'LINK') && document.getElementById('lm-boot')) pulihkan()
+      }, true)
+      // Fallback: still not mounted after 15 s.
+      setTimeout(function () { if (document.getElementById('lm-boot')) pulihkan() }, 15000)
+    })()
+  </script>
+</div>

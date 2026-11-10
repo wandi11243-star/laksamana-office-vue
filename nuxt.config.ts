@@ -38,6 +38,11 @@ export default defineNuxtConfig({
     },
   },
   devServer: { port: 3000 },
+
+  // Poll /_nuxt/builds/latest.json every 5 min (default is 1h) to detect a new deploy.
+  experimental: {
+    checkOutdatedBuildInterval: 5 * 60_000,
+  },
   compatibilityDate: '2026-09-01',
 
   eslint: { config: { stylistic: true } },
@@ -47,6 +52,10 @@ export default defineNuxtConfig({
 
   pwa: {
     registerType: 'autoUpdate',
+    client: {
+      // Periodic update check every 10 min (registration.update()).
+      periodicSyncForUpdates: 600,
+    },
     manifest: {
       name: 'Laksamana Office',
       short_name: 'Office',
@@ -86,7 +95,8 @@ export default defineNuxtConfig({
           },
         },
         {
-          urlPattern: /^.*\/_nuxt\/.*/,
+          // Never cache /_nuxt/builds/ so Nuxt's outdated-build check always hits the network.
+          urlPattern: ({ url }) => url.pathname.startsWith('/_nuxt/') && !url.pathname.startsWith('/_nuxt/builds/'),
           handler: 'StaleWhileRevalidate' as const,
           options: {
             cacheName: 'nuxt-assets',
