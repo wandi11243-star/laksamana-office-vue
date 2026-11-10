@@ -314,17 +314,24 @@ export const getReservasiVer = (from?: string, to?: string) =>
  * sharing one `useAsyncData` slot with different dates. `saring` is
  * server-side narrowing only (G-08 `q`/`status`, no paging): the screen still
  * owns filtering and slicing, exactly as before when it is unset.
+ * When `aktif` is provided and false, the fetcher returns [] without calling
+ * the API and watches `aktif` to run when enabled.
  */
 export const useDaftarReservasi = (
   from: Ref<string>,
   to: Ref<string>,
   key = 'reservasi-daftar',
   saring?: Ref<{ q?: string, status?: string }>,
+  aktif?: Ref<boolean>,
 ) =>
   useAsyncData(
     key,
-    () => listReservations(from.value, to.value, saring?.value?.q, saring?.value?.status).then(r => r.data),
-    { watch: [from, to, ...(saring ? [saring] : [])], default: () => [] },
+    () => {
+      // Skip API request when inactive, returning an empty list
+      if (aktif && !aktif.value) return Promise.resolve([] as Reservasi[])
+      return listReservations(from.value, to.value, saring?.value?.q, saring?.value?.status).then(r => r.data)
+    },
+    { watch: [from, to, ...(saring ? [saring] : []), ...(aktif ? [aktif] : [])], default: () => [] },
   )
 
 /**
@@ -333,8 +340,8 @@ export const useDaftarReservasi = (
  * the same rule as the dashboard's "Perlu follow up").
  */
 export function useLencanaReservasi() {
-  const hari = computed(() => hariIni())
-  const { data } = useDaftarReservasi(hari, hari, 'reservasi-lencana')
+  // Read from the shared canonical today query to avoid fetching today's list twice
+  const { data } = useReservasiHariIni()
   return computed<Record<string, number>>(() => {
     const followUp = (data.value ?? []).filter(r => r.status === 'Pending').length
     return { dashboard: followUp, lonceng: followUp }
@@ -507,8 +514,120 @@ export const listAuditHalaman = (q?: string, page = 1, perPage = 10) =>
 /** GET /master — the whole blob. Bootstrap and migrations only; screens read their own section. */
 export const getMaster = () => useApi()<Envelope<Master>>('/reservasi/master')
 
-/** GET /master/{section} — one independently versioned section, with `meta.version` + `ETag`. */
-export const getSection = <T = unknown>(section: string) => useApi()<Envelope<T>>(`/reservasi/master/${section}`)
+// --- Master section batching state ---
+interface SectionWaiter {
+  resolve: (value: Envelope<unknown>) => void
+  reject: (reason?: unknown) => void
+}
+
+const pendingSections = new Map<string, SectionWaiter[]>()
+let sectionFlushTimer: ReturnType<typeof setTimeout> | null = null
+let batchMasterSectionsSupported = true
+const MAX_SECTIONS_PER_BATCH = 30
+
+async function flushPendingSections() {
+  sectionFlushTimer = null
+  const currentBatch = new Map(pendingSections)
+  pendingSections.clear()
+
+  const allNames = Array.from(currentBatch.keys())
+  if (!allNames.length) return
+
+  // Split into chunks of at most 30 section names
+  const chunks: string[][] = []
+  for (let i = 0; i < allNames.length; i += MAX_SECTIONS_PER_BATCH) {
+    chunks.push(allNames.slice(i, i + MAX_SECTIONS_PER_BATCH))
+  }
+
+  // Fallback helper to query an individual section endpoint
+  const fetchSingle = (name: string, waiters: SectionWaiter[]) => {
+    useApi()<Envelope<unknown>>(`/reservasi/master/${name}`)
+      .then((res) => {
+        for (const w of waiters) w.resolve(res)
+      })
+      .catch((err) => {
+        for (const w of waiters) w.reject(err)
+      })
+  }
+
+  await Promise.all(
+    chunks.map(async (chunk) => {
+      // If batching is disabled or only 1 section requested, use the single endpoint directly
+      if (!batchMasterSectionsSupported || chunk.length === 1) {
+        for (const name of chunk) {
+          const waiters = currentBatch.get(name) || []
+          fetchSingle(name, waiters)
+        }
+        return
+      }
+
+      try {
+        const res = await useApi()<{
+          data: Record<string, { value: unknown, version: string }>
+          meta?: { ver?: number }
+        }>('/reservasi/master-sections', {
+          query: { names: chunk.join(',') },
+        })
+
+        for (const name of chunk) {
+          const waiters = currentBatch.get(name) || []
+          const entry = res?.data?.[name]
+          if (entry !== undefined) {
+            const envelope: Envelope<unknown> = {
+              data: entry.value,
+              meta: {
+                version: entry.version,
+                ver: res.meta?.ver,
+              },
+            }
+            for (const w of waiters) w.resolve(envelope)
+          }
+          else {
+            // Missing from batch response; fall back to individual fetch
+            fetchSingle(name, waiters)
+          }
+        }
+      }
+      catch (err) {
+        // A 404 indicates the batch endpoint is not deployed; disable batching for this session
+        const e = err as { status?: number, statusCode?: number, response?: { status?: number } }
+        const status = e?.status ?? e?.statusCode ?? e?.response?.status
+        if (status === 404) {
+          batchMasterSectionsSupported = false
+        }
+
+        // Fall back to single endpoint per section so each waiter gets its own result/error
+        for (const name of chunk) {
+          const waiters = currentBatch.get(name) || []
+          fetchSingle(name, waiters)
+        }
+      }
+    }),
+  )
+}
+
+/**
+ * GET /master/{section} — one independently versioned section, with `meta.version` + `ETag`.
+ * Coalesces calls made in the same tick into a single `GET /reservasi/master-sections?names=...`
+ * request (up to 30 names per batch). If only one name is requested or if the batch request fails
+ * for any reason (404 before deployment, 403, network), it falls back to the single endpoint per name.
+ * A 404 permanently disables batching for the session.
+ */
+export const getSection = <T = unknown>(section: string): Promise<Envelope<T>> => {
+  return new Promise<Envelope<T>>((resolve, reject) => {
+    let list = pendingSections.get(section)
+    if (!list) {
+      list = []
+      pendingSections.set(section, list)
+    }
+    list.push({ resolve: v => resolve(v as Envelope<T>), reject })
+
+    // setTimeout 0 ensures calls from multiple useAsyncData setups in the same tick coalesce
+    if (!sectionFlushTimer) {
+      sectionFlushTimer = setTimeout(flushPendingSections, 0)
+    }
+  })
+}
 
 /** A WhatsApp target from the master section `waTargets`. `includeDP` is the same
  *  flag the old coordination screen encoded in its two hard-coded cards. */

@@ -116,11 +116,25 @@ const saring = computed<{ q?: string, status?: string }>(() => ({
   status: saringAktif(filter.status) ? normStatus(filter.status) : undefined,
 }))
 
-const { data: semua, refresh, status } = useDaftarReservasi(dari, sampai, 'reservasi-dashboard', saring)
+// Only query the filtered slot when server-side filter is active
+const adaSaring = computed(() => !!(saring.value.q || saring.value.status))
+
+const { data: dataTersaring, refresh: refreshTersaring, status: statusTersaring } = useDaftarReservasi(
+  dari,
+  sampai,
+  'reservasi-dashboard',
+  saring,
+  adaSaring,
+)
 // Day-level reads (map, badges, calendar, PIC options) need the whole window.
 const { data: semuaHari, refresh: muatHari, status: statusHari } = useDaftarReservasi(dari, sampai, 'reservasi-dashboard-hari')
-/** Writes and polls refresh both slots: the table and the day views read different queries. */
-const muatUlang = () => Promise.all([refresh(), muatHari()])
+
+// Read semuaHari when no filter is active to eliminate duplicate dashboard fetch
+const semua = computed(() => (adaSaring.value ? dataTersaring.value : semuaHari.value))
+const status = computed(() => (adaSaring.value ? statusTersaring.value : statusHari.value))
+const refresh = () => (adaSaring.value ? refreshTersaring() : muatHari())
+/** Writes and polls refresh both slots: when filtering, both the filtered table and day views update. */
+const muatUlang = () => (adaSaring.value ? Promise.all([refreshTersaring(), muatHari()]) : muatHari())
 
 /** The six stat cards below read three async sources (booking window, floor
  *  plan, queue): until the first load lands they would all read as 0, so the
@@ -800,7 +814,7 @@ async function simpanDudukkan() {
 
     const baru: Waitlist = { ...w, status: 'seated', seatedAt: now, table: dudukkanMeja.value, resId: recId, calledAt: w.calledAt }
     await putSectionItem('waitlist', w.id, baru, versiWaitlist.value)
-    await Promise.all([refreshWaitlist(), refresh(), muatHari()])
+    await Promise.all([refreshWaitlist(), muatUlang()])
     sheetDudukkan.value = false
     toast.add({ title: `${w.name} duduk di ${dudukkanMeja.value}`, color: 'success' })
   }
