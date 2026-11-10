@@ -82,8 +82,10 @@ terangkat halus. Plus tick kecil sebelum judul bagian
 halaman, judul panel, dan angka kartu (`font-display`, otomatis di `h1–h3`) maupun semua teks lain,
 dengan **Inter** sebagai cadangan. Tumpukan persisnya: bodi `--font-sans: 'Noto Sans', 'Inter',
 ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif`; judul `--font-display:
-'Noto Sans', 'Inter', ui-sans-serif, system-ui, sans-serif`. Judul halaman 28px bold; judul panel
-18px semibold; label kartu, label filter, kepala tabel, dan judul bagian form = 11–12px **huruf kapital**
+'Noto Sans', 'Inter', ui-sans-serif, system-ui, sans-serif`. Skala huruf dibuat ~1px lebih kecil dari
+bawaan Tailwind (token `--text-*` di `main.css`, permintaan owner Nov 2026: Noto Sans lebih lebar
+dari Inter Office lama): `text-sm` 13px, `text-base` 15px (teks dasar `body`), `text-lg` 17px; jarak
+dan area sentuh tidak berubah. Judul halaman 26px bold; judul panel 17px semibold; menu sidebar 14px; label kartu, label filter, kepala tabel, dan judul bagian form = 11–12px **huruf kapital**
 bold, tracking lebar. Angka yang harus sejajar memakai `num` (tabular).
 
 Aplikasi hanya terang (**light-only**): tidak ada tema gelap, blok `.dark` dihapus, dan tidak ada

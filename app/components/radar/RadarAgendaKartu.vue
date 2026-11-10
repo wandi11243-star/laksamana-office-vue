@@ -22,17 +22,18 @@ const n = computed(() => dDay(props.a.tgl))
 <template>
   <button
     type="button"
-    class="flex min-h-11 w-full items-start gap-3 rounded-panel border border-default bg-default p-3.5 text-left shadow-panel transition-colors hover:border-yellow-deep focus-visible:outline-2 focus-visible:outline-primary"
+    class="flex min-h-11 w-full items-stretch overflow-hidden rounded-2xl border border-default bg-default text-left shadow-panel transition-colors hover:border-gold focus-visible:outline-2 focus-visible:outline-primary"
     @click="$emit('buka', a)"
   >
-    <span class="flex w-14 shrink-0 flex-col items-center rounded-md bg-yellow-light py-1.5 text-yellow-dark">
-      <span class="font-display text-xl font-bold leading-none num">{{ tgl.getDate() }}</span>
-      <span class="text-[11px] font-semibold uppercase">{{ BLN[tgl.getMonth()] }}</span>
-      <span class="text-[11px] text-muted">{{ HARI[tgl.getDay()]!.slice(0, 3) }}</span>
+    <!-- Old Office agenda row: the date is a full-height block flush on the left. -->
+    <span class="flex w-16 shrink-0 flex-col items-center justify-center bg-gold-soft py-2 text-gold-deep">
+      <span class="font-display text-2xl font-bold leading-none num">{{ tgl.getDate() }}</span>
+      <span class="mt-1 text-[10px] font-bold uppercase tracking-wider">{{ BLN[tgl.getMonth()] }}</span>
+      <span class="text-[10px] uppercase tracking-wider text-muted">{{ HARI[tgl.getDay()]!.slice(0, 3) }}</span>
     </span>
-    <span class="min-w-0 flex-1">
+    <span class="min-w-0 flex-1 px-3.5 py-2.5">
       <span class="block font-semibold text-highlighted">{{ a.judul }}</span>
-      <span class="mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-[13px] text-muted">
+      <span class="mt-0.5 flex flex-wrap gap-x-3 gap-y-0.5 text-[13px] text-muted">
         <span
           v-if="a.jam"
           class="inline-flex items-center gap-1 num"
@@ -56,7 +57,7 @@ const n = computed(() => dDay(props.a.tgl))
         />{{ a.pax }} pax{{ a.sumber === 'mkt' ? ' (kontrak)' : a.sumber === 'vip' ? ' (perkiraan atas)' : '' }}</span>
         <span v-if="a.jenis">{{ a.jenis }}</span>
       </span>
-      <span class="mt-2 flex flex-wrap gap-1.5">
+      <span class="mt-1.5 flex flex-wrap gap-1.5">
         <AppStatus
           :color="WARNA_SUMBER[a.sumber]"
           :icon="IKON_SUMBER[a.sumber]"

@@ -66,7 +66,7 @@ const ink = {
     >
       {{ value }}<span
         v-if="satuan"
-        class="ms-1 font-sans text-[15px] font-medium text-muted"
+        class="ms-1 font-sans text-[14px] font-medium text-muted"
       >{{ satuan }}</span>
     </p>
     <p

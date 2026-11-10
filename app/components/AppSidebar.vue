@@ -261,7 +261,7 @@ const inisial = computed(() => (me.value?.name ?? '?').split(/\s+/).map(s => s[0
           :ui="{
             list: 'flex flex-col gap-1',
             label: 'px-4 pb-2 pt-5 text-[11px] font-bold uppercase tracking-wider text-dimmed',
-            link: 'gap-2.5 px-4 py-2.5 text-[15px]',
+            link: 'gap-2.5 px-4 py-2.5 text-[14px]',
             linkLeadingIcon: 'size-5',
           }"
         />
@@ -287,7 +287,7 @@ const inisial = computed(() => (me.value?.name ?? '?').split(/\s+/).map(s => s[0
               :ui="{
                 list: 'flex flex-col gap-1',
                 label: 'px-4 pb-2 pt-5 text-[11px] font-bold uppercase tracking-wider text-dimmed',
-                link: 'gap-2.5 px-4 py-2.5 text-[15px]',
+                link: 'gap-2.5 px-4 py-2.5 text-[14px]',
                 linkLeadingIcon: 'size-5',
               }"
             />

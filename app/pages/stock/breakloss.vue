@@ -1115,7 +1115,7 @@ async function segarkan() {
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
                   <b
-                    class="font-display text-[15px] font-bold text-highlighted"
+                    class="font-display text-[14px] font-bold text-highlighted"
                     :class="m.batalAt && 'line-through'"
                   >{{ item(m.itemId)?.nama || '(barang tidak dikenal)' }}</b>
                   <AppStatus
@@ -1526,7 +1526,7 @@ async function segarkan() {
           </span>
           <div class="min-w-0 flex-1">
             <div class="flex flex-wrap items-center gap-2">
-              <b class="font-display text-[15px] font-bold text-highlighted">{{ i.nama }}</b>
+              <b class="font-display text-[14px] font-bold text-highlighted">{{ i.nama }}</b>
               <AppStatus
                 v-if="i.kategori"
                 color="neutral"
