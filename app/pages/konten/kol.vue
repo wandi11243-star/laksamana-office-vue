@@ -72,6 +72,35 @@ function bukaKol(k?: KolKonten) {
   kolBuka.value = true
 }
 const gambar = ref<{ src: string, judul: string } | null>(null)
+const memuatRate = ref<string | null>(null)
+// Module-level rate card cache for this page
+const rateCardCache = new Map<string, string>()
+
+/** Fetch full rate card on demand when truncated in state. */
+async function lihatRateCard(k: KolKonten) {
+  const cached = rateCardCache.get(k.id)
+  if (cached) {
+    gambar.value = { src: cached, judul: `Rate card - ${k.name}` }
+    return
+  }
+  memuatRate.value = k.id
+  try {
+    const res = await getKonten<KolKonten>('kols', k.id)
+    const src = res?.data?.rateImage
+    if (!src) {
+      toast.add({ title: 'Rate card gagal dimuat', color: 'error' })
+      return
+    }
+    rateCardCache.set(k.id, src)
+    gambar.value = { src, judul: `Rate card - ${k.name}` }
+  }
+  catch {
+    toast.add({ title: 'Rate card gagal dimuat', color: 'error' })
+  }
+  finally {
+    memuatRate.value = null
+  }
+}
 const riwayat = ref<KolKonten | null>(null)
 const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ?? (id || '')
 const waktu = (v?: number) => (v ? new Date(v).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '-')
@@ -333,8 +362,18 @@ const kolomV: TableColumn<VisitPenuh>[] = [
                 >-</span>
               </template>
               <template #rate-cell="{ row }">
+                <UButton
+                  v-if="row.original.rateImageDipangkas"
+                  size="xs"
+                  variant="soft"
+                  icon="i-lucide-image"
+                  label="Lihat"
+                  title="Lihat rate card"
+                  :loading="memuatRate === row.original.id"
+                  @click="lihatRateCard(row.original)"
+                />
                 <button
-                  v-if="row.original.rateImage"
+                  v-else-if="row.original.rateImage"
                   type="button"
                   title="Lihat rate card"
                   @click="gambar = { src: row.original.rateImage!, judul: `Rate card - ${row.original.name}` }"

@@ -30,6 +30,7 @@ export interface KolKonten {
   /** old single niche */
   category?: string
   rateImage?: string
+  rateImageDipangkas?: boolean
   /** old: rate card as a Drive link / tier text — read, never written */
   rateDrive?: string
   rateTier?: string

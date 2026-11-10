@@ -226,6 +226,10 @@ export const listKonten = (f: FilterListKonten) =>
     },
   })
 
+/** GET one complete content row, including reference images. */
+export const getKonten = <T = KontenItem>(resource: KontenResource, id: string) =>
+  useApi()<Envelope<T>>(`/konten/${resource}/${encodeURIComponent(id)}`)
+
 // ---------------------------------------------------------------- writes
 
 const versiHdr = (v?: Versi) => (v === undefined ? undefined : ifMatch(v))

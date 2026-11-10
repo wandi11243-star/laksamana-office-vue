@@ -24,14 +24,72 @@ const sibuk = ref(false)
 const gambarSibuk = ref(false)
 const hapusBuka = ref(false)
 const salah = ref(false)
+const memuatPenuh = ref(false)
+const kolPenuh = ref<KolKonten | null>(null)
 
-watch(open, (o) => {
-  if (!o) return
+watch(open, async (o) => {
+  if (!o) {
+    kolPenuh.value = null
+    memuatPenuh.value = false
+    return
+  }
   const k = props.kol
   salah.value = false
+  kolPenuh.value = null
+
+  if (k?.rateImageDipangkas) {
+    // Populate form fields while loading full record
+    Object.assign(f, {
+      name: k.name ?? '',
+      type: kolType(k),
+      whatsapp: k.whatsapp ?? '',
+      instagram: k.instagram ?? '',
+      tiktok: k.tiktok ?? '',
+      categories: [...kolCats(k)],
+      rateImage: '',
+      rateValue: k.rateValue ? String(k.rateValue) : '',
+      note: k.note ?? '',
+    })
+    memuatPenuh.value = true
+    try {
+      const res = await getKonten<KolKonten>('kols', k.id)
+      if (!open.value) return
+      if (!res?.data) throw new Error('Data KOL kosong')
+      kolPenuh.value = res.data
+      const full = res.data
+      Object.assign(f, {
+        name: full.name ?? '',
+        type: kolType(full),
+        whatsapp: full.whatsapp ?? '',
+        instagram: full.instagram ?? '',
+        tiktok: full.tiktok ?? '',
+        categories: [...kolCats(full)],
+        rateImage: full.rateImage ?? '',
+        rateValue: full.rateValue ? String(full.rateValue) : '',
+        note: full.note ?? '',
+      })
+    }
+    catch {
+      if (!open.value) return
+      toast.add({ title: 'Data KOL gagal dimuat, coba lagi', color: 'error' })
+      open.value = false
+    }
+    finally {
+      memuatPenuh.value = false
+    }
+    return
+  }
+
   Object.assign(f, {
-    name: k?.name ?? '', type: kolType(k), whatsapp: k?.whatsapp ?? '', instagram: k?.instagram ?? '', tiktok: k?.tiktok ?? '',
-    categories: [...kolCats(k)], rateImage: k?.rateImage ?? '', rateValue: k?.rateValue ? String(k.rateValue) : '', note: k?.note ?? '',
+    name: k?.name ?? '',
+    type: kolType(k),
+    whatsapp: k?.whatsapp ?? '',
+    instagram: k?.instagram ?? '',
+    tiktok: k?.tiktok ?? '',
+    categories: [...kolCats(k)],
+    rateImage: k?.rateImage ?? '',
+    rateValue: k?.rateValue ? String(k.rateValue) : '',
+    note: k?.note ?? '',
   })
 }, { immediate: true })
 
@@ -66,6 +124,10 @@ async function pilihGambar(e: Event) {
 }
 
 async function simpan() {
+  if (memuatPenuh.value) return
+  const k = props.kol
+  if (k?.rateImageDipangkas && !kolPenuh.value) return
+
   const name = f.name.trim()
   if (!name) {
     salah.value = true
@@ -73,15 +135,45 @@ async function simpan() {
   }
   const rateValue = Number(f.rateValue) || 0
   const data = {
-    name, type: f.type, whatsapp: f.whatsapp.trim(), instagram: tanpaAt(f.instagram.trim()), tiktok: tanpaAt(f.tiktok.trim()),
-    rateImage: f.rateImage, rateValue, categories: f.categories, note: f.note.trim(),
+    name,
+    type: f.type,
+    whatsapp: f.whatsapp.trim(),
+    instagram: tanpaAt(f.instagram.trim()),
+    tiktok: tanpaAt(f.tiktok.trim()),
+    rateImage: f.rateImage,
+    rateValue,
+    categories: f.categories,
+    note: f.note.trim(),
   }
   const by = saya.value?.user.id ?? ''
-  const k = props.kol
+  const basis = kolPenuh.value ?? k
   sibuk.value = true
-  const ok = k
-    ? await kontenSimpan(() => ubahKonten<KolKonten>('kols', k.id, { ...k, ...data, rateHistory: riwayatRate(k, rateValue, by) }, k.updatedAt), 'Data diperbarui', { action: `mengubah data ${data.type}`, target: name })
-    : await kontenSimpan(() => buatKonten<KolKonten>('kols', { createdAt: Date.now(), ...data, rateHistory: rateValue ? [{ value: rateValue, prev: 0, at: Date.now(), by }] : [] }), `${data.type} ditambahkan`, { action: `menambah ${data.type}`, target: name })
+  let ok = false
+  if (basis) {
+    const { rateImageDipangkas: _, ...bersih } = basis
+    const payload: Partial<KolKonten> = {
+      ...bersih,
+      ...data,
+      rateHistory: riwayatRate(basis, rateValue, by),
+    }
+    delete payload.rateImageDipangkas
+    ok = await kontenSimpan(
+      () => ubahKonten<KolKonten>('kols', basis.id, payload, basis.updatedAt),
+      'Data diperbarui',
+      { action: `mengubah data ${data.type}`, target: name },
+    )
+  }
+  else {
+    ok = await kontenSimpan(
+      () => buatKonten<KolKonten>('kols', {
+        createdAt: Date.now(),
+        ...data,
+        rateHistory: rateValue ? [{ value: rateValue, prev: 0, at: Date.now(), by }] : [],
+      }),
+      `${data.type} ditambahkan`,
+      { action: `menambah ${data.type}`, target: name },
+    )
+  }
   sibuk.value = false
   if (ok) open.value = false
 }
@@ -90,7 +182,8 @@ async function hapus() {
   const k = props.kol
   if (!k) return
   sibuk.value = true
-  const ok = await kontenSimpan(() => hapusKonten('kols', k.id, k.updatedAt), 'Data dihapus', { action: `menghapus ${kolType(k)}`, target: k.name })
+  const basis = kolPenuh.value ?? k
+  const ok = await kontenSimpan(() => hapusKonten('kols', basis.id, basis.updatedAt), 'Data dihapus', { action: `menghapus ${kolType(k)}`, target: k.name })
   sibuk.value = false
   if (!ok) return
   hapusBuka.value = false
@@ -172,11 +265,17 @@ async function hapus() {
           type="file"
           accept="image/*"
           class="block w-full text-sm"
-          :disabled="gambarSibuk"
+          :disabled="gambarSibuk || memuatPenuh"
           @change="pilihGambar"
         >
+        <p
+          v-if="memuatPenuh"
+          class="mt-2 text-xs text-muted"
+        >
+          Memuat rate card…
+        </p>
         <img
-          v-if="f.rateImage"
+          v-else-if="f.rateImage"
           :src="f.rateImage"
           alt="Rate card"
           class="mt-2 max-h-64 rounded-lg border border-default"
@@ -200,13 +299,13 @@ async function hapus() {
       >
         <div class="max-h-40 overflow-auto rounded-lg border border-default px-3 text-sm">
           <p
-            v-if="!kol.rateHistory?.length"
+            v-if="!(kolPenuh?.rateHistory ?? kol.rateHistory)?.length"
             class="py-2 text-xs text-muted"
           >
             Belum ada perubahan harga tercatat.
           </p>
           <div
-            v-for="(e, i) in kol.rateHistory"
+            v-for="(e, i) in (kolPenuh?.rateHistory ?? kol.rateHistory)"
             :key="i"
             class="border-b border-default py-2 last:border-0"
           >
@@ -239,6 +338,7 @@ async function hapus() {
         v-if="can('kol')"
         :label="kol ? 'Simpan perubahan' : 'Simpan'"
         :loading="sibuk || gambarSibuk"
+        :disabled="memuatPenuh"
         @click="simpan"
       />
       <UButton

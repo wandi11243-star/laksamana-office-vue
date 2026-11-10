@@ -101,7 +101,7 @@ async function tambahFoto(e: Event) {
   const input = e.target as HTMLInputElement
   const files = [...(input.files ?? [])]
   input.value = ''
-  const terpakai = () => refs.value.filter(r => r.t === 'img').reduce((s, r) => s + r.v.length, 0)
+  const terpakai = () => refs.value.filter(r => r.t === 'img').reduce((s, r) => s + (r.v?.length ?? 0), 0)
   let ditolak = 0
   for (const file of files) {
     if (!file.type.startsWith('image/')) {
