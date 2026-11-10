@@ -7,11 +7,17 @@ defineProps<{
   title: string
   description?: string
   back?: { label: string, to: string }
+  // A narrower column for launcher-style pages (Beranda) that read better
+  // with breathing room left and right on wide screens.
+  narrow?: boolean
 }>()
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-[1400px]">
+  <div
+    class="mx-auto w-full"
+    :class="narrow ? 'max-w-6xl' : 'max-w-[1400px]'"
+  >
     <ULink
       v-if="back"
       :to="back.to"

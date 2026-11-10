@@ -69,9 +69,13 @@ Ramp emas lama (`--color-laksamana-*`) tidak dipakai lagi — bloknya dipertahan
 hanya sebagai arsip revert. Kontras kini datang dari pasangan gelap-di-atas-tint Miro (kata
 `#187574`/`#746019`/`#600000`/`#2a41b6` di atas tint pastelnya).
 
-Aksen emas `#A9791F` (`gold`) adalah ciri khas Laksamana dan **hanya aksen** — tidak mengganti
-pastel Miro. Muncul saat kursor di atas kartu modul Beranda (garis kartu, ring tile ikon, panah,
-dan pil layar) dengan kartu terangkat halus, plus tick kecil sebelum judul bagian
+Aksen emas `#A9791F` (`gold`) adalah ciri khas Laksamana dan **hanya aksen** — di modul tidak mengganti
+pastel Miro. Pengecualian: **Beranda** memakai emas sebagai identitas (permintaan owner, Nov 2026) —
+kop merek `BerandaKop` (logo, "Internal office" `gold-deep`, jam, Kelola User, menu akun) menggantikan
+top bar, deskripsi modul `gold-deep` `#85600F` (emas tua untuk teks kecil agar kontras AA), pil
+jumlah grup `bg-gold-soft text-gold-deep` dengan garis emas tipis; tile ikon tetap pastel. Saat kursor di
+atas kartu modul: garis emas, latar emas tipis `gold-soft/20`, ring tile ikon, panah emas, kartu
+terangkat halus. Plus tick kecil sebelum judul bagian
 (`AppSectionTitle`).
 
 **Tipografi.** Font self-hosted di `public/fonts/` (tanpa Google Fonts): **Noto Sans** untuk judul

@@ -66,7 +66,11 @@ onBeforeUnmount(() => {
     </aside>
 
     <div class="min-w-0">
-      <header class="sticky top-0 z-10 flex print:hidden items-center gap-2.5 border-b border-default bg-default/95 px-3 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur-sm lg:gap-3 lg:px-5">
+      <!-- Beranda draws its own brand header (BerandaKop), so the bar is skipped there. -->
+      <header
+        v-if="!beranda"
+        class="sticky top-0 z-10 flex print:hidden items-center gap-2.5 border-b border-default bg-default/95 px-3 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur-sm lg:gap-3 lg:px-5"
+      >
         <UButton
           v-if="!beranda"
           icon="i-lucide-menu"
