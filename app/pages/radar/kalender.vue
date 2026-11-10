@@ -135,7 +135,7 @@ useSegarSenyap(refresh, () => buka.value)
             icon="i-lucide-chevron-left"
             color="neutral"
             variant="outline"
-            class="min-h-11 min-w-11 justify-center"
+            class="min-h-11 min-w-11 justify-center lg:min-h-9 lg:min-w-9"
             aria-label="Bulan sebelumnya"
             @click="nav(-1)"
           />
@@ -144,7 +144,7 @@ useSegarSenyap(refresh, () => buka.value)
             icon="i-lucide-chevron-right"
             color="neutral"
             variant="outline"
-            class="min-h-11 min-w-11 justify-center"
+            class="min-h-11 min-w-11 justify-center lg:min-h-9 lg:min-w-9"
             aria-label="Bulan berikutnya"
             @click="nav(1)"
           />
@@ -152,7 +152,7 @@ useSegarSenyap(refresh, () => buka.value)
             label="Hari ini"
             color="neutral"
             variant="outline"
-            class="min-h-11"
+            class="min-h-11 lg:min-h-9"
             @click="sekarang"
           />
         </div>
@@ -163,7 +163,7 @@ useSegarSenyap(refresh, () => buka.value)
             v-for="c in CHIP"
             :key="c.k"
             type="button"
-            class="inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors"
+            class="inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors hover:border-gold lg:min-h-8"
             :class="fCal[c.k] ? 'border-default bg-default text-highlighted' : 'border-dashed border-default text-muted line-through'"
             :aria-pressed="fCal[c.k]"
             @click="fCal = { ...fCal, [c.k]: !fCal[c.k] }"
@@ -243,8 +243,8 @@ useSegarSenyap(refresh, () => buka.value)
         <div
           v-for="c in sel"
           :key="c.iso"
-          class="min-h-28 border-b border-r border-default p-1.5 [&:nth-child(7n)]:border-r-0"
-          :class="[c.luar ? 'bg-muted/40 text-muted' : '', c.iso === hari ? 'ring-2 ring-inset ring-yellow-deep' : '']"
+          class="flex min-h-28 flex-col border-b border-r border-default p-1.5 transition-colors hover:bg-gold-soft/40 [&:nth-child(7n)]:border-r-0"
+          :class="[c.luar ? 'bg-muted/40 text-muted' : '', c.iso === hari ? 'bg-gold-soft/60 ring-2 ring-inset ring-gold' : '']"
         >
           <div
             class="mb-1 text-xs font-bold num"
@@ -256,13 +256,13 @@ useSegarSenyap(refresh, () => buka.value)
             v-for="a in agSel(c.iso).slice(0, 3)"
             :key="`${a.sumber}-${a.id}`"
             type="button"
-            class="relative mb-1 block min-h-11 w-full overflow-hidden rounded-lg py-2 pl-3.5 pr-1.5 text-left text-[11px] font-semibold"
+            class="relative mb-1 block w-full overflow-hidden rounded-md py-1 pl-2.5 pr-1.5 text-left text-[11px] font-semibold leading-tight transition hover:brightness-95 hover:ring-1 hover:ring-gold/50"
             :class="[KELAS_EV[a.sumber], c.luar ? 'opacity-60' : '']"
             :title="`${a.judul} — ${SUMBER_PENDEK[a.sumber]}${a.pax ? ` · ${a.pax} pax` : ''}`"
             @click="bukaAgenda(a)"
           >
             <i
-              class="absolute inset-y-0 left-0 w-1.5"
+              class="absolute inset-y-0 left-0 w-1"
               :class="GARIS_EV[a.sumber]"
               aria-hidden="true"
             />
@@ -284,7 +284,7 @@ useSegarSenyap(refresh, () => buka.value)
           </NuxtLink>
           <p
             v-if="paxSel(c.iso).total || paxSel(c.iso).vip"
-            class="mt-1 border-t border-default px-1 pt-1 text-[11px] font-semibold text-highlighted num"
+            class="mt-auto border-t border-default px-1 pt-1 text-[11px] font-semibold text-highlighted num"
             :class="c.luar ? 'opacity-60' : ''"
             :title="`Pax event dan pax reservasi meja adalah rombongan berbeda. ${paxSel(c.iso).rinci.join(' + ')}`"
           >

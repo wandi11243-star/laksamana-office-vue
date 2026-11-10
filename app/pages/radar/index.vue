@@ -171,7 +171,7 @@ useSegarSenyap(refresh, () => buka.value)
           </p>
           <div
             v-else
-            class="grid gap-3"
+            class="grid gap-2"
           >
             <RadarAgendaKartu
               v-for="a in iris(dua, hal14)"

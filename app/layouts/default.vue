@@ -12,7 +12,9 @@ import { useMediaQuery } from '@vueuse/core'
 
 const route = useRoute()
 const router = useRouter()
-const { key, shell } = useModulShell()
+const { key, modul, shell } = useModulShell()
+const judul = useJudulHalaman()
+const eyebrow = computed(() => shell.value?.subjudul ?? modul.value?.label ?? '')
 
 const desktop = useMediaQuery('(min-width: 1024px)')
 const sembunyi = ref(false)
@@ -81,6 +83,22 @@ onBeforeUnmount(() => {
           aria-label="Tampilkan atau sembunyikan menu"
           @click="sembunyi = !sembunyi"
         />
+        <!-- Old Office top bar: module name in small gold caps over the page
+             title (set by AppPage). Desktop only; phones keep it in the page. -->
+        <div
+          v-if="judul"
+          class="me-2 hidden min-w-0 shrink-0 leading-tight lg:block"
+        >
+          <p
+            v-if="eyebrow"
+            class="truncate text-[10px] font-bold uppercase tracking-[0.2em] text-gold-deep"
+          >
+            {{ eyebrow }}
+          </p>
+          <h1 class="truncate text-xl font-bold text-highlighted">
+            {{ judul }}
+          </h1>
+        </div>
         <form
           v-if="shell?.cari"
           class="min-w-0 max-w-[520px] flex-1"
