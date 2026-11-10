@@ -52,7 +52,7 @@ const gambarPath = computed(() => `public/help/gambar/${props.blok.berkas ?? ''}
     <!-- Paragraph -->
     <p
       v-if="blok.t === 'teks'"
-      class="text-[15px] leading-relaxed text-default"
+      class="text-[14px] leading-relaxed text-default"
     >
       <PanduanTeks
         :text="isiTeks"
@@ -64,7 +64,7 @@ const gambarPath = computed(() => `public/help/gambar/${props.blok.berkas ?? ''}
     <div v-else-if="blok.t === 'langkah'">
       <p
         v-if="blok.judul"
-        class="mb-2 text-[15px] font-semibold text-highlighted"
+        class="mb-2 text-[14px] font-semibold text-highlighted"
       >
         {{ blok.judul }}
       </p>
@@ -77,7 +77,7 @@ const gambarPath = computed(() => `public/help/gambar/${props.blok.berkas ?? ''}
           <span class="mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full bg-primary-100 text-xs font-bold text-primary-700 dark:bg-primary-950 dark:text-primary-300 num">
             {{ i + 1 }}
           </span>
-          <span class="min-w-0 text-[15px] leading-relaxed text-default">
+          <span class="min-w-0 text-[14px] leading-relaxed text-default">
             <PanduanTeks
               :text="x"
               tebal
@@ -90,7 +90,7 @@ const gambarPath = computed(() => `public/help/gambar/${props.blok.berkas ?? ''}
     <!-- Bullet list -->
     <ul
       v-else-if="blok.t === 'daftar'"
-      class="ms-5 list-disc space-y-1.5 text-[15px] leading-relaxed text-default"
+      class="ms-5 list-disc space-y-1.5 text-[14px] leading-relaxed text-default"
     >
       <li
         v-for="(x, i) in isiBaris"

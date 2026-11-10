@@ -651,7 +651,7 @@ async function segarkan() {
           >
             <div class="min-w-0 flex-1">
               <div class="flex flex-wrap items-center gap-2">
-                <b class="font-display text-[15px] font-bold text-highlighted">{{ r.item }}</b>
+                <b class="font-display text-[14px] font-bold text-highlighted">{{ r.item }}</b>
                 <AppStatus
                   color="error"
                   size="sm"

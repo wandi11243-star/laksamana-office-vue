@@ -104,7 +104,7 @@ const sheet = computed({
           orientation="vertical"
           :ui="{
             label: 'px-3 pb-1.5 pt-4 text-[11px] font-bold uppercase tracking-wider text-dimmed',
-            link: 'py-2.5 text-[15px]',
+            link: 'py-2.5 text-[14px]',
             linkLeadingIcon: 'size-[18px]',
           }"
         />
@@ -112,7 +112,7 @@ const sheet = computed({
           <NuxtLink
             v-if="modul && shell"
             to="/"
-            class="mt-2 flex items-center gap-2 rounded-field px-3 py-2.5 text-[15px] font-semibold text-muted hover:bg-muted"
+            class="mt-2 flex items-center gap-2 rounded-field px-3 py-2.5 text-[14px] font-semibold text-muted hover:bg-muted"
           >
             <UIcon
               name="i-lucide-arrow-left"

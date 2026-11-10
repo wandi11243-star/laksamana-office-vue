@@ -686,7 +686,7 @@ async function segarkan() {
             <div class="flex flex-wrap items-start gap-3 border-b border-default p-4">
               <div class="min-w-0 flex-1">
                 <div class="flex flex-wrap items-center gap-2">
-                  <b class="font-display text-[15px] font-bold text-highlighted">{{ r.namaEvent || '(tanpa nama)' }}</b>
+                  <b class="font-display text-[14px] font-bold text-highlighted">{{ r.namaEvent || '(tanpa nama)' }}</b>
                   <AppStatus
                     :color="r.status === 'Selesai' ? 'success' : 'warning'"
                     size="sm"
