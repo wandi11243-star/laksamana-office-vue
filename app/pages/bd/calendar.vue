@@ -128,24 +128,35 @@ const hariBerisi = computed(() => sel.value.filter(c => !c.luar && c.items.lengt
 /** One range row from the Event / Marketing calendar bands (no money fields). */
 interface BandLuar { tanggal: string, judul: string, selesai?: string }
 
-/** The month grid's visible span, leading/trailing days included. */
-const rentangBulan = computed(() => ({
-  dari: sel.value[0]?.iso || '',
-  sampai: sel.value[sel.value.length - 1]?.iso || '',
-}))
+/**
+ * The month grid's visible span, leading/trailing days included. Derived
+ * from `awal` alone — not from `sel`, which depends on the fetched bands, or
+ * every band response would change the key and refetch the bands again.
+ */
+const rentangBulan = computed(() => {
+  const y = awal.value.getFullYear()
+  const mo = awal.value.getMonth()
+  const mulaiDow = (new Date(y, mo, 1).getDay() + 6) % 7
+  const total = mulaiDow + new Date(y, mo + 1, 0).getDate()
+  return {
+    dari: isoOf(new Date(y, mo, 1 - mulaiDow)),
+    sampai: isoOf(new Date(y, mo, 1 - mulaiDow + Math.ceil(total / 7) * 7 - 1)),
+  }
+})
+const kunciRentang = computed(() => `${rentangBulan.value.dari}_${rentangBulan.value.sampai}`)
 
 // External bands: read-only ranges from the sibling modules, drawn on the
 // month grid only (the hour grid keeps BD's own agenda + tasks). A module
 // that errors — or is not granted to this user — is named in the ribbon.
 const { data: kalEvent, error: kalEventGagal, refresh: muatKalEvent } = useAsyncData('bd-kal-event',
   () => useApi()<Envelope<{ items: BandLuar[] }>>('/event/events-range', { query: { ...rentangBulan.value } }).then(r => r.data.items),
-  { watch: [rentangBulan], default: () => [] })
+  { watch: [kunciRentang], default: () => [] })
 const { data: kalMkt, error: kalMktGagal, refresh: muatKalMkt } = useAsyncData('bd-kal-marketing',
   () => useApi()<Envelope<{ items: BandLuar[] }>>('/marketing/agenda-range', { query: { ...rentangBulan.value } }).then(r => r.data.items),
-  { watch: [rentangBulan], default: () => [] })
+  { watch: [kunciRentang], default: () => [] })
 const { data: kalRsv, error: kalRsvGagal, refresh: muatKalRsv } = useAsyncData('bd-kal-reservasi',
   () => listReservations(rentangBulan.value.dari, rentangBulan.value.sampai).then(r => r.data),
-  { watch: [rentangBulan], default: () => [] })
+  { watch: [kunciRentang], default: () => [] })
 const pitaLuar = computed(() => [
   kalEventGagal.value ? 'Event' : '',
   kalMktGagal.value ? 'Marketing' : '',
