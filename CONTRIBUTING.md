@@ -136,7 +136,7 @@ sebelum menulis kode: itu inventaris layar, field, rumus, dan endpoint-nya.
   3. Environment: `OFFICE_TAG=latest` (default). Isi `dev` untuk gladi, atau `sha-<7 char>` untuk mengunci/rollback versi.
   4. Opsional: salin webhook deploy compose itu ke secret repo `DOKPLOY_WEBHOOK_PRODUCTION` (atau `DOKPLOY_WEBHOOK_DEV`),
      supaya Dokploy redeploy otomatis setelah run selesai. Tanpa secret itu, tekan **Deploy** di Dokploy.
-- `nginx.conf` sudah mengatur fallback SPA dan cache (aset `/_nuxt/` immutable; `sw.js` dan manifest `no-cache`, supaya PWA cepat menerima update).
+- `nginx.conf` sudah mengatur fallback SPA dan cache (aset `/_nuxt/` immutable; `/_nuxt/builds/`, `sw.js`, dan manifest `no-cache`, supaya PWA cepat menerima update).
 - Domain production masih placeholder: `office.laksamanamuda.id`. Domain yang dipakai harus masuk ke `CORS_ALLOWED_ORIGINS` di API production.
 
 ## Belum ada (sengaja)
