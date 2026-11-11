@@ -343,7 +343,7 @@ export const getStateEvent = () => useApi()<Envelope<StateEvent>>('/event/state'
 
 /** The reactive full state every Event screen aggregates from client-side. */
 export const useStateEvent = () =>
-  useAsyncData('event-state', () => getStateEvent(), { dedupe: 'defer', default: () => null })
+  useAsyncData('event-state', () => getStateEvent(), { dedupe: 'defer', default: () => null, getCachedData: cacheSegar() })
 
 /** GET /event/stats — row counts, blob size, `versi`. Diagnostics only (U3). */
 export const getStatsEvent = () => useApi()<Envelope<Record<string, unknown>>>('/event/stats')

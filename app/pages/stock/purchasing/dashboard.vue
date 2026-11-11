@@ -71,10 +71,12 @@ const labelSubmit = (ts?: string) => {
   return hari ? `${tglPendek(hari)} ${jam(ts)}` : '—'
 }
 
-const ordersQ = useAsyncData('stock-purch-orders', () => listOrders(), {
+/* Monitor Order reads only the active rows (±300) instead of every order
+ *  ever (±4.300 in production); the archive tab pages on the server, and
+ *  only its local-filter fallback (`arsipPenuhQ`) loads the whole archive. */
+const ordersQ = useAsyncData('stock-purch-orders', () => listOrders({ status: 'Aktif' }), {
   default: () => ({ rows: [] as OrderStock[], versions: {} as Record<string, Versi> }),
 })
-const versi = computed(() => ordersQ.data.value?.versions ?? {})
 const produkQ = useProdukStock()
 const vendorQ = useVendorStock()
 
@@ -85,7 +87,8 @@ const waOf = (nama: string) => vendorQ.data.value?.rows.find(v => v.nama === nam
 /** CK lines never appear in Monitor Order (old `pesananCK`). */
 const bukanCk = (o: OrderStock) => (o.batchName || '') !== 'Central Kitchen' && sumberOf(o.item) !== 'ck'
 const aktif = computed(() => (ordersQ.data.value?.rows ?? []).filter(o => bukanCk(o) && (o.status || 'Aktif') === 'Aktif' && !o.terarsip))
-const arsip = computed(() => (ordersQ.data.value?.rows ?? []).filter(o => bukanCk(o) && ((o.status || '') === 'Arsip' || o.terarsip)))
+const arsip = computed(() => [...(ordersQ.data.value?.rows ?? []), ...(arsipPenuhQ.data.value?.rows ?? [])]
+  .filter(o => bukanCk(o) && ((o.status || '') === 'Arsip' || o.terarsip)))
 
 /* Archive tab reads its own server page (`GET /stock/orders` with paging):
  *  only server-supported filters travel (status/tim/tglDatang). The free-text
@@ -95,6 +98,12 @@ const arsip = computed(() => (ordersQ.data.value?.rows ?? []).filter(o => bukanC
 const arsipHal = ref(1)
 const arsipPer = ref(50)
 const arsipJatuhPenuh = computed(() => cari.value.trim() !== '' || tglSubmit.value !== '' || vendorAktif.value !== 'SEMUA')
+const arsipPenuhQ = useAsyncData('stock-purch-arsip-penuh', () => (arsipJatuhPenuh.value
+  ? listOrders({ status: 'Arsip' })
+  : Promise.resolve({ rows: [] as OrderStock[], versions: {} as Record<string, Versi> })), {
+  watch: [arsipJatuhPenuh],
+  default: () => ({ rows: [] as OrderStock[], versions: {} as Record<string, Versi> }),
+})
 const arsipServerParams = computed(() => ({
   status: 'Arsip',
   tim: divisi.value !== 'SEMUA' ? divisi.value : undefined,
@@ -108,6 +117,12 @@ const arsipQ = useAsyncData('stock-purch-arsip', () => listOrders({
   watch: [arsipServerParams, arsipHal, arsipPer],
   default: () => ({ rows: [] as OrderStock[], versions: {} as Record<string, Versi>, total: undefined as number | undefined, page: undefined as number | undefined, perPage: undefined as number | undefined }),
 })
+/** Row versions from every list on screen (active, archive page, archive fallback). */
+const versi = computed<Record<string, Versi>>(() => ({
+  ...(arsipPenuhQ.data.value?.versions ?? {}),
+  ...(arsipQ.data.value?.versions ?? {}),
+  ...(ordersQ.data.value?.versions ?? {}),
+}))
 /* Back to page 1 whenever the archive tab is entered or its filters change —
  *  the server page numbering restarts from the new result set. */
 watch([sub, divisi, tglDatang, vendorAktif, cari, tglSubmit], () => {
@@ -269,7 +284,7 @@ const poVendor = computed<GrupVendor[]>(() => {
 // --- actions --------------------------------------------------------------------
 const sibuk = ref(false)
 async function segarkan(pesan?: string) {
-  await Promise.all([ordersQ.refresh(), arsipQ.refresh()])
+  await Promise.all([ordersQ.refresh(), arsipQ.refresh(), ...(arsipJatuhPenuh.value ? [arsipPenuhQ.refresh()] : [])])
   if (pesan) toast.add({ title: pesan, color: 'success' })
 }
 
