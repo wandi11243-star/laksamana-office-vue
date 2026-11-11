@@ -24,6 +24,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { KruStock, OrderStock } from '~/composables/useStock'
 import { listKruStock, listOrders, useProdukStock } from '~/composables/useStock'
 import { angka, BULAN, hariIni } from '~/utils/format'
+import { isAdminOf } from '~/composables/useMe'
 
 definePageMeta({ access: ['purchasing'] })
 
@@ -46,7 +47,11 @@ const ordersQ = useAsyncData('stock-overview', () => listOrders(), {
   default: () => ({ rows: [] as OrderStock[], versions: {} }),
 })
 const produkQ = useProdukStock()
-const kruQ = useAsyncData('stock-overview-kru', () => listKruStock('users'), {
+// The crew list is admin-only on the server (`module:purchasing,admin`); skip it for the rest.
+const me = useMe()
+const admin = computed(() => isAdminOf(me.value, 'purchasing'))
+const kruQ = useAsyncData('stock-overview-kru', () => (admin.value ? listKruStock('users') : Promise.resolve({ rows: [] as KruStock[], versions: {} })), {
+  watch: [admin],
   default: () => ({ rows: [] as KruStock[], versions: {} }),
 })
 const memuat = computed(() => ordersQ.pending.value || produkQ.pending.value || kruQ.pending.value)

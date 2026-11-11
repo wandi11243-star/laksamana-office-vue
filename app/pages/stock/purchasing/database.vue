@@ -7,6 +7,7 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
+import { isAdminOf } from '~/composables/useMe'
 import type { ProdukStock, VendorStock } from '~/composables/useStock'
 import {
   createProduk,
@@ -299,7 +300,11 @@ async function impor(e: Event, jenis: 'vendor' | 'produk') {
 }
 
 // ---------------------------------------------------------------- chat templates (server settings)
-const setQ = useAsyncData('stock-db-set', () => getStockSettings('purchasing'), {
+// `GET /stock/settings/purchasing` is admin-only; others keep the built-in templates.
+const me = useMe()
+const admin = computed(() => isAdminOf(me.value, 'purchasing'))
+const setQ = useAsyncData('stock-db-set', () => (admin.value ? getStockSettings('purchasing') : Promise.resolve({ data: {}, versi: undefined, tersedia: true })), {
+  watch: [admin],
   default: () => ({ data: {} as { perms?: unknown, templates?: { item?: string, gabungan?: string } }, versi: undefined, tersedia: true }),
 })
 const tplItem = ref('')

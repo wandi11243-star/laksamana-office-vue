@@ -391,12 +391,16 @@ export interface InvoiceSetting {
   prefix?: string
   prefixInvoice?: string
   cap?: string
+  /** Set by `?ringan=1`, which blanks `cap`/`ttd` (the images are not needed on the settings screen). */
+  capAda?: boolean
+  ttdAda?: boolean
   penandaDefault?: string
   penandaDefaultInvoice?: string
   [k: string]: unknown
 }
+/** Light read: `cap`/`ttd` come back blank with `capAda`/`ttdAda`; the version is still the full row's. */
 export async function getInvoiceSettings() {
-  const r = await useApi()<Envelope<InvoiceSetting>>('/finance/invoices/settings')
+  const r = await useApi()<Envelope<InvoiceSetting>>('/finance/invoices/settings', { query: { ringan: 1 } })
   return { setting: r.data, version: versiDari(r) }
 }
 export function putInvoiceSettings(body: Partial<InvoiceSetting>, versi: Versi) {
@@ -408,12 +412,14 @@ export interface Penanda {
   nama: string
   jabatan?: string
   ttd?: string
+  ttdAda?: boolean
   urut?: number
   aktif?: boolean
   [k: string]: unknown
 }
+/** Light read: each `ttd` comes back blank with `ttdAda`; versions are still the full rows'. */
 export async function getPenanda() {
-  const r = await useApi()<Envelope<Penanda[]> & { meta?: Record<string, unknown> }>('/finance/invoices/signatories')
+  const r = await useApi()<Envelope<Penanda[]> & { meta?: Record<string, unknown> }>('/finance/invoices/signatories', { query: { ringan: 1 } })
   return { rows: r.data, versions: VERSIONS(r.meta) }
 }
 export function createPenanda(body: { nama: string, jabatan?: string, urut?: number, aktif?: boolean }) {

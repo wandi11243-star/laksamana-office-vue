@@ -472,7 +472,7 @@ const jalanHapusP = () => {
             >
               <div class="min-w-0 flex-1">
                 <b class="text-highlighted">{{ p.nama }}</b>
-                <span class="block text-xs text-muted">{{ p.jabatan || '—' }} · id {{ p.id }}{{ p.ttd ? ' · ada tanda tangan' : '' }}</span>
+                <span class="block text-xs text-muted">{{ p.jabatan || '—' }} · id {{ p.id }}{{ (p.ttdAda ?? p.ttd) ? ' · ada tanda tangan' : '' }}</span>
               </div>
               <div class="flex gap-1.5">
                 <UButton

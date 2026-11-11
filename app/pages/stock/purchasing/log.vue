@@ -21,14 +21,17 @@ const modul = ref('semua')
 const q = ref('')
 const limit = ref(300)
 
-const daftarQ = useAsyncData('stock-log', () => listLogs({
-  dari: dari.value || undefined,
-  ke: ke.value || undefined,
-  modul: modul.value === 'semua' ? undefined : modul.value,
-  q: q.value.trim() || undefined,
-  limit: limit.value,
-}), {
-  watch: [dari, ke, modul, limit],
+// `GET /stock/logs` is admin-only on the server; non-admins see the notice instead.
+const daftarQ = useAsyncData('stock-log', () => !admin.value
+  ? Promise.resolve({ rows: [] as LogStock[] })
+  : listLogs({
+      dari: dari.value || undefined,
+      ke: ke.value || undefined,
+      modul: modul.value === 'semua' ? undefined : modul.value,
+      q: q.value.trim() || undefined,
+      limit: limit.value,
+    }), {
+  watch: [dari, ke, modul, limit, admin],
   default: () => ({ rows: [] as LogStock[] }),
 })
 const semua = computed(() => {
