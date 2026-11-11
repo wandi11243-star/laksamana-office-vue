@@ -17,7 +17,7 @@ import type { ComplimentKasir } from '~/utils/cashier'
 import {
   PIC_TAMU, angkaRD, compStatusPemberi, divPemberi, fmtRp, fmtSel, gantiPemberi, idBaru, num, rosterComp,
 } from '~/utils/cashier'
-import { getCompliments, getKompasState, getReport, putCompliments } from '~/composables/useCashier'
+import { getCompliments, getReport, putCompliments, useKompasState } from '~/composables/useCashier'
 import { tanganiKonflik } from '~/utils/versi'
 import { hariIni, tglPanjang } from '~/utils/format'
 import RupiahInput from '~/widgets/cashier/RupiahInput.vue'
@@ -32,6 +32,7 @@ const esbAllowed = computed(() => props.esbEnabled === true || (!!props.kunci?.s
 const toast = useToast()
 const tanggal = ref(hariIni())
 
+const kp = useKompasState()
 const { data, error, refresh } = useAsyncData(
   props.kunci ?? 'cashier-compliment',
   async () => {
@@ -84,9 +85,10 @@ async function tarikComplimentEsb() {
     let employees: { id: string, name: string, officeUserId?: string | null }[] = []
     let mapping: Record<string, string> = {}
     try {
-      const state = await getKompasState()
-      employees = state.value.employees?.kasir ?? []
-      const map = (state.value as Record<string, unknown>).esbAkunKasir
+      if (kp.status.value !== 'success' || kp.error.value) await kp.refresh()
+      const state = kp.data.value.value
+      employees = state.employees?.kasir ?? []
+      const map = (state as Record<string, unknown>).esbAkunKasir
       if (map && typeof map === 'object') mapping = map as Record<string, string>
     }
     catch {

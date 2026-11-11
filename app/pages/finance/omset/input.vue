@@ -21,7 +21,7 @@
 import type { BarisHarian } from '~/utils/kompas'
 import { avgSpendOf, grossOf, kNum, monthKeyOf, netOf, tagihanOf, taxSvcOf, validasiHarian } from '~/utils/kompas'
 import { PAYS, SELISIH_TOLERANSI, bonRingkasHari, fmtRp, fmtSel, jejakList, repPay, tambahJejak } from '~/utils/cashier'
-import { getDay, getKompasState, getPiutang, getReport, putDay } from '~/composables/useCashier'
+import { getDay, getPiutang, getReport, putDay, useKompasState } from '~/composables/useCashier'
 import { tanganiKonflik } from '~/utils/versi'
 import { hariIni, tglPanjang } from '~/utils/format'
 import RupiahInput from '~/widgets/cashier/RupiahInput.vue'
@@ -33,19 +33,24 @@ const toast = useToast()
 const route = useRoute()
 const tanggal = ref(typeof route.query.tgl === 'string' && route.query.tgl ? route.query.tgl : hariIni())
 
-const { data, status, error, refresh } = useAsyncData(
+const kp = useKompasState()
+const { data, status: dayStatus, error: dayError, refresh } = useAsyncData(
   'omset-input',
   async () => {
-    const [day, rep, bon, state] = await Promise.all([
+    const [day, rep, bon] = await Promise.all([
       getDay(tanggal.value),
       getReport(tanggal.value),
       getPiutang(),
-      getKompasState(),
     ])
-    return { day, rep, bon, state }
+    return { day, rep, bon }
   },
   { watch: [tanggal] },
 )
+const status = computed(() => dayStatus.value === 'pending' || kp.status.value === 'pending' ? 'pending' : dayStatus.value)
+const error = computed(() => dayError.value ?? kp.error.value)
+const refreshSemua = async () => {
+  await Promise.all([refresh(), kp.refresh()])
+}
 
 const rows = computed(() => data.value?.day.value.rows ?? [])
 const rec = computed<BarisHarian | null>(() => rows.value.find(r => r.date === tanggal.value) ?? null)
@@ -88,7 +93,7 @@ const koreksi = computed(() => bhIn.value.totLunas - bhIn.value.totBaru)
 const selisih = computed(() => tagihan.value - (setoran.value ?? 0) + koreksi.value)
 const lewat = computed(() => setoran.value !== null && Math.abs(selisih.value) > SELISIH_TOLERANSI)
 
-const lainHari = computed(() => (data.value?.state.value.daily ?? [])
+const lainHari = computed(() => (kp.data.value?.value.daily ?? [])
   .filter(d => monthKeyOf(d.date) === monthKeyOf(tanggal.value) && d.date !== tanggal.value))
 const bReal = computed(() => lainHari.value.reduce((s, d) => s + tagihanOf(d), 0) + tagihan.value)
 const bHari = computed(() => lainHari.value.length + 1)
@@ -125,7 +130,7 @@ async function simpan() {
     data.value.day = await putDay(tanggal.value, rowsBaru, data.value.day.version)
     // B2: real API 200 but the screen only updates after reload — re-read
     // (same finding as fix/api-cashier for the Kompas panels).
-    await refresh()
+    await refreshSemua()
     kotor.value = false
     ditolak.value = false
     toast.add({
@@ -135,7 +140,7 @@ async function simpan() {
   }
   catch (e) {
     ditolak.value = true
-    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, refreshSemua))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
   finally {
     menyimpan.value = false
@@ -150,10 +155,10 @@ async function jalanHapus() {
     data.value.day = await putDay(tanggal.value, rows.value.filter(r => r.date !== tanggal.value), data.value.day.version)
     hapusOpen.value = false
     toast.add({ title: `Data omset ${tglPanjang(tanggal.value)} dihapus (breakdown ikut terhapus).`, color: 'success' })
-    await refresh()
+    await refreshSemua()
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, refreshSemua))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
   finally {
     menyimpan.value = false

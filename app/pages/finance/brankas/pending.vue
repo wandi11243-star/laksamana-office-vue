@@ -7,7 +7,7 @@
   two different numbers one day.
 -->
 <script setup lang="ts">
-import { getKompasState } from '~/composables/useCashier'
+import { useKompasState } from '~/composables/useCashier'
 import { bonTipeNama, fmtRp, num } from '~/utils/cashier'
 import { useBrankasIzin } from '~/utils/layar/finance'
 import { fTgl } from '~/utils/format'
@@ -17,14 +17,15 @@ definePageMeta({ access: ['brankas'] })
 
 const izin = useBrankasIzin()
 
-const { data: kompasData, status, error, refresh } = useAsyncData('brankas-kompas', async () => {
-  try {
-    return { state: (await getKompasState()).value, gagal: false as boolean }
-  }
-  catch (e) {
-    return { state: null, gagal: true as boolean, sebab: e }
-  }
+const kp = useKompasState()
+const kompasData = computed(() => {
+  if (kp.error.value) return { state: null, gagal: true as boolean, sebab: kp.error.value }
+  if (kp.status.value !== 'success') return undefined
+  return { state: kp.data.value.value, gagal: false as boolean }
 })
+const status = computed(() => (kp.error.value ? 'success' : kp.status.value))
+const error = computed(() => null)
+const refresh = () => kp.refresh()
 
 const semuaBon = computed(() => ((kompasData.value?.state?.piutang ?? []) as { status?: string, nominal?: unknown }[]))
 const belum = computed(() => semuaBon.value.filter(b => b.status !== 'lunas'))

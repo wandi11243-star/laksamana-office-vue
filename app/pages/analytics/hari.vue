@@ -9,6 +9,7 @@
 import { useAnalyticsHarian } from '~/composables/useAnalyticsEsb'
 import type { TableColumn } from '@nuxt/ui'
 import { useAnalyticsState } from '~/composables/useAnalytics'
+import { useKompasState } from '~/composables/useCashier'
 import { ROLE_LABEL_ANALYTICS, useAnalyticsIzin } from '~/utils/layar/analytics'
 import { batasShift, diRentang } from '~/utils/analytics-agregat'
 import { barisBdJam, hariBelumBd, hitungAsalShift, petaJamAcara, type KunciShift } from '~/utils/analytics-dampak'
@@ -110,10 +111,9 @@ const pct = (x: number, t: number) => t ? Math.round(x / t * 100) : 0
 // --- Walk In / Event / Marketing per shift (tabelAsalShift, :1202) ---
 // Three read-only sources, each allowed to fail on its own: the Kompas
 // Breakdown Sumber, and the Event / Marketing states for the start times.
-const { data: kpState, status: kpStatus } = useAsyncData(
-  'analytics-kompas-bd',
-  () => useApi()<Envelope<{ daily?: { date?: unknown, bd?: Record<string, unknown> }[] }>>('/kompas/state').then(r => r.data).catch(() => null),
-)
+const kp = useKompasState()
+const kpState = computed(() => kp.status.value === 'success' && !kp.error.value ? kp.data.value.value : null)
+const kpStatus = computed(() => kp.error.value ? 'error' : kp.status.value)
 const { data: evState } = useAsyncData('analytics-event-agenda', () => getStateEvent().then(r => r.data).catch(() => null))
 const { data: mkState } = useAsyncData('analytics-mkt-jam', () => getStateMkt().then(r => r.data).catch(() => null))
 const kpAda = computed(() => kpStatus.value === 'success' && !!kpState.value)

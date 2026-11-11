@@ -10,6 +10,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { useAnalyticsState } from '~/composables/useAnalytics'
+import { useKompasState } from '~/composables/useCashier'
 import { ROLE_LABEL_ANALYTICS, useAnalyticsIzin } from '~/utils/layar/analytics'
 import { getStateEvent } from '~/composables/useEvent'
 import {
@@ -57,10 +58,9 @@ const { data: eventState, status: eventStatus } = useAsyncData(
   'analytics-event-agenda',
   () => getStateEvent().then(r => r.data).catch(() => null),
 )
-const { data: kpState, status: kpStatus } = useAsyncData(
-  'analytics-kompas-bd',
-  () => useApi()<Envelope<{ daily?: { date?: unknown, bd?: Record<string, unknown> }[] }>>('/kompas/state').then(r => r.data).catch(() => null),
-)
+const kp = useKompasState()
+const kpState = computed(() => kp.status.value === 'success' && !kp.error.value ? kp.data.value.value : null)
+const kpStatus = computed(() => kp.error.value ? 'error' : kp.status.value)
 const evGagal = computed(() => eventStatus.value === 'error' || (eventStatus.value === 'success' && !eventState.value))
 const kpGagal = computed(() => kpStatus.value === 'error' || (kpStatus.value === 'success' && !kpState.value))
 

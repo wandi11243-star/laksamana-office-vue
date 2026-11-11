@@ -42,7 +42,7 @@ import { getEventsOn } from '~/composables/useMarketing'
 import { eventsOn } from '~/composables/useEvent'
 import { sidikBd, snapKasir, syncKasirBerlaku, type BdSync } from '~/utils/sync-kasir'
 import { fmtRp, jejakList, tambahJejak } from '~/utils/cashier'
-import { getDay, getKompasState, putDay } from '~/composables/useCashier'
+import { getDay, putDay, useKompasState } from '~/composables/useCashier'
 import { tanganiKonflik } from '~/utils/versi'
 import { hariIni, tglLabel, tglPanjang } from '~/utils/format'
 
@@ -53,14 +53,20 @@ const toast = useToast()
 const route = useRoute()
 const tanggal = ref(typeof route.query.tgl === 'string' && route.query.tgl ? route.query.tgl : hariIni())
 
-const { data, status, error, refresh } = useAsyncData(
+const kp = useKompasState()
+const { data, status: dayStatus, error: dayError, refresh } = useAsyncData(
   'omset-breakdown',
   async () => {
-    const [day, state] = await Promise.all([getDay(tanggal.value), getKompasState()])
-    return { day, state }
+    const day = await getDay(tanggal.value)
+    return { day }
   },
   { watch: [tanggal] },
 )
+const status = computed(() => dayStatus.value === 'pending' || kp.status.value === 'pending' ? 'pending' : dayStatus.value)
+const error = computed(() => dayError.value ?? kp.error.value)
+const refreshSemua = async () => {
+  await Promise.all([refresh(), kp.refresh()])
+}
 
 // Without ?tgl the old screen opens the LAST day already entered this month
 // (`bdDate = days[days.length-1].date`, deploy/finance/omset/index.html:3299),
@@ -71,7 +77,7 @@ if (!tglAwalDipilih) {
     if (!d || tglAwalDipilih) return
     tglAwalDipilih = true
     const bulan = hariIni().slice(0, 7)
-    const hari = (d.state.value.daily ?? []).map(r => r.date).filter(t => t?.startsWith(bulan)).sort()
+    const hari = (kp.data.value?.value.daily ?? []).map(r => r.date).filter(t => t?.startsWith(bulan)).sort()
     const akhir = hari[hari.length - 1]
     if (akhir && akhir !== tanggal.value) tanggal.value = akhir
   }, { immediate: true })
@@ -80,7 +86,7 @@ if (!tglAwalDipilih) {
 const rows = computed(() => data.value?.day.value.rows ?? [])
 const rec = computed<BarisHarian | null>(() => rows.value.find(r => r.date === tanggal.value) ?? null)
 const net = computed(() => (rec.value ? netOf(rec.value) : 0))
-const employees = computed(() => data.value?.state.value.employees ?? {})
+const employees = computed(() => kp.data.value?.value.employees ?? {})
 const kasirList = computed<PicKompas[]>(() => employees.value.kasir ?? [])
 const mkList = computed<PicKompas[]>(() => employees.value.marketing ?? [])
 const evList = computed<PicKompas[]>(() => employees.value.event ?? [])
@@ -196,7 +202,7 @@ const efekTotal = computed(() => {
   return efek.value.reduce((t, e) => ({ bruto: t.bruto + e.bruto, disc: t.disc + e.disc, potong: t.potong + e.potong, real: t.real + e.real, ob: t.ob + e.ob }),
     { bruto: sb, disc: sd, potong: 0, real: sb - sd, ob: 0 })
 })
-const compHari = computed(() => (data.value?.state.value.compliments ?? [])
+const compHari = computed(() => (kp.data.value?.value.compliments ?? [])
   .filter(c => c.date === tanggal.value && c.picDiv !== 'tamu'))
 
 const jejak = computed(() => jejakList(rec.value))
@@ -296,12 +302,12 @@ async function jalanSimpan() {
     data.value.day = await putDay(tanggal.value, rowsBaru, data.value.day.version)
     // B2: real API 200 but the screen only updates after reload — re-read
     // (same finding as fix/api-cashier for the Kompas panels).
-    await refresh()
+    await refreshSemua()
     simpanOpen.value = false
     toast.add({ title: `Breakdown ${tglPanjang(tanggal.value)} tersimpan.`, color: 'success' })
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, refreshSemua))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
   finally {
     menyimpan.value = false
@@ -391,11 +397,11 @@ async function jalanSync() {
     const baru: BarisHarian = { ...d, bdSync: sync }
     const rowsBaru = [...rows.value.filter(r => r.date !== tanggal.value), baru]
     data.value.day = await putDay(tanggal.value, rowsBaru, data.value.day.version)
-    await refresh()
+    await refreshSemua()
     toast.add({ title: `Performa kasir ${tglPanjang(tanggal.value)} di-sync.`, color: 'success' })
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, refreshSemua))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
   finally {
     syncing.value = false
@@ -587,12 +593,12 @@ async function pulihkanSumber() {
     const baru: BarisHarian = { ...d, bd }
     const rowsBaru = [...rows.value.filter(r => r.date !== tanggal.value), baru]
     data.value.day = await putDay(tanggal.value, rowsBaru, data.value.day.version)
-    await refresh()
+    await refreshSemua()
     serapOtomatis()
     toast.add({ title: 'Baris yang pernah dibuang dimunculkan lagi.', color: 'success' })
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, refreshSemua))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
   finally {
     memulihkan.value = false

@@ -15,7 +15,7 @@ import {
   RK_GRUP, hitungRekapHari, kNum, type BarisHarian, type RekapUbah,
 } from '~/utils/kompas'
 import { SELISIH_TOLERANSI, fmtRp, fmtSel, num } from '~/utils/cashier'
-import { getKompasState, putRekap } from '~/composables/useCashier'
+import { putRekap, useKompasState } from '~/composables/useCashier'
 import { useKasIzin } from '~/utils/layar/finance'
 import { tanganiKonflik } from '~/utils/versi'
 import { BULAN, HARI, hariIni } from '~/utils/format'
@@ -34,7 +34,11 @@ const ubah = ref<Record<string, RekapUbah>>({})
 const terpilih = ref<Record<string, boolean>>({})
 const setorForm = reactive({ tujuan: '', catatan: '' })
 
-const { data, status, error, refresh } = useAsyncData('kas-rekap', () => getKompasState())
+const kp = useKompasState()
+const data = kp.data
+const status = kp.status
+const error = kp.error
+const refresh = () => kp.refresh()
 
 const reports = computed(() => data.value?.value.reports ?? {})
 const daily = computed(() => data.value?.value.daily ?? [])
