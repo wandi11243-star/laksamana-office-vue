@@ -240,10 +240,14 @@ useSegarSenyap(refresh, () => buka.value)
         >
           {{ d }}
         </div>
+      </div>
+      <!-- auto-rows-fr: every week row takes the height of the fullest one, so
+           all date cells are the same size whether they hold agenda or not. -->
+      <div class="grid auto-rows-fr grid-cols-7">
         <div
           v-for="c in sel"
           :key="c.iso"
-          class="flex min-h-28 flex-col border-b border-r border-default p-1.5 transition-colors hover:bg-gold-soft/40 [&:nth-child(7n)]:border-r-0"
+          class="flex min-h-36 flex-col border-b border-r border-default p-1.5 transition-colors hover:bg-gold-soft/40 [&:nth-child(7n)]:border-r-0"
           :class="[c.luar ? 'bg-muted/40 text-muted' : '', c.iso === hari ? 'bg-gold-soft/60 ring-2 ring-inset ring-gold' : '']"
         >
           <div
@@ -256,7 +260,7 @@ useSegarSenyap(refresh, () => buka.value)
             v-for="a in agSel(c.iso).slice(0, 3)"
             :key="`${a.sumber}-${a.id}`"
             type="button"
-            class="relative mb-1 block w-full overflow-hidden rounded-md py-1 pl-2.5 pr-1.5 text-left text-[11px] font-semibold leading-tight transition hover:brightness-95 hover:ring-1 hover:ring-gold/50"
+            class="relative mb-1 block w-full overflow-hidden rounded-[4px] py-1 pl-2.5 pr-1.5 text-left text-[11px] font-semibold leading-tight transition hover:brightness-95 hover:ring-1 hover:ring-gold/50"
             :class="[KELAS_EV[a.sumber], c.luar ? 'opacity-60' : '']"
             :title="`${a.judul} — ${SUMBER_PENDEK[a.sumber]}${a.pax ? ` · ${a.pax} pax` : ''}`"
             @click="bukaAgenda(a)"
@@ -282,23 +286,15 @@ useSegarSenyap(refresh, () => buka.value)
           >
             {{ resTgl(res, c.iso).length }} rsv
           </NuxtLink>
+          <!-- Only the total sits in the cell; the breakdown (and VIP pax kept
+               out of it) lives in the tooltip so cells stay one size. -->
           <p
-            v-if="paxSel(c.iso).total || paxSel(c.iso).vip"
+            v-if="paxSel(c.iso).total"
             class="mt-auto border-t border-default px-1 pt-1 text-[11px] font-semibold text-highlighted num"
             :class="c.luar ? 'opacity-60' : ''"
-            :title="`Pax event dan pax reservasi meja adalah rombongan berbeda. ${paxSel(c.iso).rinci.join(' + ')}`"
+            :title="`Pax event dan pax reservasi meja adalah rombongan berbeda. ${paxSel(c.iso).rinci.join(' + ')}${paxSel(c.iso).vip ? ` · ${paxSel(c.iso).vip} pax VIP di luar total` : ''}`"
           >
-            <template v-if="paxSel(c.iso).total">
-              Total {{ paxSel(c.iso).total }} pax
-            </template>
-            <span
-              v-if="paxSel(c.iso).vip"
-              class="block font-normal text-muted"
-            >{{ paxSel(c.iso).vip }} pax VIP di luar total</span>
-            <span
-              v-if="paxSel(c.iso).rinci.length > 1"
-              class="block font-normal text-muted"
-            >{{ paxSel(c.iso).rinci.join(' · ') }}</span>
+            Total {{ paxSel(c.iso).total }} pax
           </p>
         </div>
       </div>
@@ -332,7 +328,7 @@ useSegarSenyap(refresh, () => buka.value)
             v-for="a in c.agenda"
             :key="`${a.sumber}-${a.id}`"
             type="button"
-            class="relative flex min-h-11 min-w-0 items-center gap-2 overflow-hidden rounded-field py-2 pl-4 pr-2.5 text-left text-sm"
+            class="relative flex min-h-11 min-w-0 items-center gap-2 overflow-hidden rounded-md py-2 pl-4 pr-2.5 text-left text-sm"
             :class="KELAS_EV[a.sumber]"
             @click="bukaAgenda(a)"
           >

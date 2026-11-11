@@ -104,7 +104,7 @@ const sheet = computed({
           orientation="vertical"
           :ui="{
             label: 'px-3 pb-1.5 pt-4 text-[11px] font-bold uppercase tracking-wider text-dimmed',
-            link: 'py-2.5 text-[14px]',
+            link: 'py-2.5 text-[14px] capitalize',
             linkLeadingIcon: 'size-[18px]',
           }"
         />
