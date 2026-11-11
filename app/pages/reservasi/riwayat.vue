@@ -23,6 +23,7 @@ import { tampilPhone } from '~/utils/dp-reservasi'
 import {
   barisArsip, csvRiwayat, durasiDuduk, kelompokBarisTamu, normStatus, profilTamu, profilTamuGabung, paxRiwayat, unduhCsv, urutArsip,
 } from '~/utils/riwayat'
+import { usePollReservasi } from '~/composables/usePollReservasi'
 
 definePageMeta({ access: ['reservasi'] })
 
@@ -69,6 +70,11 @@ const saringServer = computed(() => ({
 }))
 
 const { data: semua, status, refresh } = useDaftarReservasi(dari, sampai, 'reservasi-riwayat', saringServer)
+const { setel } = usePollReservasi(refresh, {
+  jeda: 60000,
+  tunda: () => sheetDetail.value || sheetTambahDp.value || sheetEditCepat.value || sheetKirimWa.value,
+})
+watch([dari, sampai, () => saringServer.value.q, () => saringServer.value.status], setel)
 
 /** Whole-history guest map, before the period start. Empty in "Semua" mode: the window IS the whole table there. */
 const { data: ringkasan } = useRingkasanTamu(dari, 'reservasi-tamu-riwayat')

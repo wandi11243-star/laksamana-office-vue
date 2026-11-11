@@ -24,6 +24,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import { useMediaQuery } from '@vueuse/core'
 import type { Reservasi, Waitlist, WaTarget } from '~/composables/useReservasi'
+import { usePollReservasi } from '~/composables/usePollReservasi'
 import { createReservation, exportReservationsCsv, listReservationsHalaman, patchReservation, postAudit, putDenah, putSectionItem, useDaftarReservasi, useDenah, useRingkasanTamu, useSection, useSectionVersi } from '~/composables/useReservasi'
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
 import { profilTamuGabung, kelompokBarisTamu, normStatus, unduhBlob } from '~/utils/riwayat'
@@ -1522,15 +1523,8 @@ async function kirimKoord(t: WaTarget) {
 }
 
 // --- the poll (`:3089-3156`) ------------------------------------------------------
-// The map is the only tab that pulls on its own, and only while it is on screen:
-// POLL_JEDA is 15 s and the pull is skipped while the browser tab is hidden, with
-// an immediate refresh when it comes back. Each tick first asks GET
-// /reservasi/ver and skips the pull while the counter is unchanged. Auto-closing at 04:00 is deliberately
+// Denah polls every 5 s and Daftar every 10 s via usePollReservasi. Auto-closing at 04:00 is deliberately
 // NOT built (F9, AUTO_TUTUP_AKTIF=false since 26 September 2026).
-
-const POLL_JEDA = 15000
-let jeda: ReturnType<typeof setInterval> | undefined
-let sedangRefresh = false
 
 /** Skip a poll tick while the user is mid-edit: an open sheet/confirm owns the
  *  data, a save is in flight, or focus sits in an editable field. */
@@ -1545,54 +1539,27 @@ function pollDitunda() {
   return false
 }
 
-/** Last `_ver` seen by the map-tab poll. Reset whenever the window moves, so
- *  the next tick always pulls after a date/filter change. */
-let verTerakhir: number | null = null
-watch([dari, sampai, saring], () => {
-  verTerakhir = null
+const pollDenah = usePollReservasi(muatHari, {
+  jeda: 5000,
+  aktif: () => tab.value === 'map',
+  tunda: pollDitunda,
+})
+const pollDaftar = usePollReservasi(refresh, {
+  jeda: 10000,
+  aktif: () => tab.value === 'list',
+  tunda: pollDitunda,
 })
 
-async function tickJedaAsync() {
-  try {
-    const ver: unknown = (await getReservasiVer(dari.value, sampai.value)).data?.ver
-    if (typeof ver === 'number' && ver === verTerakhir) return
-    if (typeof ver === 'number') verTerakhir = ver
-  }
-  catch {
-    // Any ver failure falls back to the full pull below — never a blank screen.
-  }
-  await muatHari()
-}
+watch([dari, sampai, saring], () => {
+  pollDenah.setel()
+  pollDaftar.setel()
+})
 
-function tickJeda() {
-  if (document.visibilityState !== 'visible' || sedangRefresh || pollDitunda()) return
-  sedangRefresh = true
-  void tickJedaAsync()
-    .catch(() => {}) // sengaja: background poll, a failed tick retries on the next interval
-    .finally(() => { sedangRefresh = false })
-}
-
-function nyalakanJeda() {
-  clearInterval(jeda)
-  if (tab.value === 'map' && document.visibilityState === 'visible') {
-    jeda = setInterval(tickJeda, POLL_JEDA)
-  }
-}
-onMounted(nyalakanJeda)
-onBeforeUnmount(() => clearInterval(jeda))
 watch(tab, (baru, lama) => {
-  nyalakanJeda()
   // The map-tab interval only pulls the day slot, so the table slot freezes
   // while the map is open — refresh it on return, not on every tick.
   if (baru === 'list' && lama === 'map') refresh()
 })
-function saatKembaliLayar() {
-  if (document.visibilityState !== 'visible') return
-  nyalakanJeda()
-  if (tab.value === 'map') muatHari()
-}
-onMounted(() => document.addEventListener('visibilitychange', saatKembaliLayar))
-onBeforeUnmount(() => document.removeEventListener('visibilitychange', saatKembaliLayar))
 
 /** A filter that hides part of the rows must not be used to add guests or move tables. */
 const saringBerlaku = computed(() => !!(filter.fromHour || filter.toHour || saringAktif(filter.status) || saringAktif(filter.category)
