@@ -10,7 +10,7 @@
 import type { BarisHarian } from '~/utils/kompas'
 import { kNum, monthKeyOf, netOf } from '~/utils/kompas'
 import { omsetKasir, porsiPicKompas, potonganHariKompas } from '~/utils/porsi-pic'
-import { getKompasState } from '~/composables/useCashier'
+import { useKompasState } from '~/composables/useCashier'
 import { fmtRp } from '~/utils/cashier'
 import { hariIni } from '~/utils/format'
 
@@ -18,7 +18,7 @@ definePageMeta({ access: ['finance'] })
 
 const izin = useKasIzin()
 const periode = ref(hariIni().slice(0, 7))
-const { data, error } = useAsyncData('kas-analytics', () => getKompasState())
+const { data, error } = useKompasState()
 
 const hari = computed<BarisHarian[]>(() => (data.value?.value.daily ?? []).filter(d => monthKeyOf(d.date) === periode.value))
 const kasirList = computed(() => data.value?.value.employees?.kasir ?? [])

@@ -27,7 +27,7 @@ import {
   openBillList,
 } from '~/utils/porsi-pic'
 import { barisKasirPerforma, syncKasirBerlaku } from '~/utils/sync-kasir'
-import { getKompasState, getRoster, putEmployees } from '~/composables/useCashier'
+import { getRoster, putEmployees, useKompasState } from '~/composables/useCashier'
 import { fmtRp } from '~/utils/cashier'
 import { hariIni, tglPanjang } from '~/utils/format'
 import { isAdminOf } from '~/composables/useMe'
@@ -42,8 +42,11 @@ const pilihan = ref('__all__')
 const hal = ref(1)
 const PER_HAL = 12
 
-const { data, status, error, refresh } = useAsyncData(props.kunci ?? 'cashier-kasir', async () => {
-  const [st, roster] = await Promise.all([getKompasState(), getRoster()])
+const kp = useKompasState()
+const { data, status, error: errorRoster, refresh } = useAsyncData(props.kunci ?? 'cashier-kasir', async () => {
+  const roster = await getRoster()
+  if (kp.status.value !== 'success') await kp.refresh()
+  const st = kp.data.value
   // T-01 U2: the Office roster sync stays client-side and NON-DESTRUCTIVE —
   // only adds PIC rows that are not there yet (officeUserId first, then name).
   // A refused write never blocks the screen: PIC already stored stay visible.
@@ -69,8 +72,12 @@ const { data, status, error, refresh } = useAsyncData(props.kunci ?? 'cashier-ka
   if (ubah) {
     try {
       st.value.employees = (await putEmployees(calon, st.version)).value
+      await kp.refresh()
     }
-    catch { /* write refused — keep the stored list, never a row that is not there */ }
+    catch {
+      await kp.refresh()
+      /* write refused — keep the stored list, never a row that is not there */
+    }
   }
   // Raw Tim/Keterangan map (Kompass style): id first, then lower-cased name.
   const ket: KetMap = {}
@@ -80,10 +87,16 @@ const { data, status, error, refresh } = useAsyncData(props.kunci ?? 'cashier-ka
     const nm = String(u.name || '').trim().toLowerCase()
     if (nm) ket['@' + nm] = teks
   }
-  return { st, ket }
+  return { ket }
 })
 
-const state = computed(() => data.value?.st.value)
+const error = computed(() => errorRoster.value || kp.error.value)
+/** The reload button: fresh Kompas blob first, then the roster + PIC sync on top of it. */
+const muatUlang = async () => {
+  await kp.refresh()
+  await refresh()
+}
+const state = computed(() => kp.data.value.value)
 const ket = computed<KetMap | null>(() => data.value?.ket ?? null)
 const semuaPic = computed<PicKompas[]>(() => state.value?.employees?.kasir ?? [])
 const list = computed(() => semuaPic.value.filter(k => kasirMurni(k, ket.value)))
@@ -720,7 +733,7 @@ const hariBelum = computed(() => days.value.filter(d => !syncKasirBerlaku(d.date
       color="neutral"
       variant="outline"
       class="mt-4"
-      @click="refresh()"
+      @click="muatUlang()"
     />
   </AppPage>
 </template>

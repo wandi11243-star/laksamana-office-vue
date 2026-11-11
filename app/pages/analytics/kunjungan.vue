@@ -8,6 +8,7 @@
 <script setup lang="ts">
 import { useAnalyticsHarian } from '~/composables/useAnalyticsEsb'
 import { useAnalyticsState } from '~/composables/useAnalytics'
+import { useKompasState } from '~/composables/useCashier'
 import { ROLE_LABEL_ANALYTICS, useAnalyticsIzin } from '~/utils/layar/analytics'
 import { dineInKah, rekapKanal, type KanalBaris } from '~/utils/analytics-agregat'
 import { BLN, angka, rupiah } from '~/utils/format'
@@ -60,10 +61,9 @@ const punBar = computed(() => rk.value.baris.reduce((a, x) => Math.max(a, x.bill
 // DINE IN split into Walk In / Event / Marketing (rincianDineIn, :4069):
 // drawn as detail rows UNDER the DINE IN row, never as sibling rows — the
 // split comes from the Breakdown Sumber, not from POS.
-const { data: kpState, status: kpStatus } = useAsyncData(
-  'analytics-kompas-bd',
-  () => useApi()<Envelope<{ daily?: { date?: unknown, bd?: Record<string, unknown> }[] }>>('/kompas/state').then(r => r.data).catch(() => null),
-)
+const kp = useKompasState()
+const kpState = computed(() => kp.status.value === 'success' && !kp.error.value ? kp.data.value.value : null)
+const kpStatus = computed(() => kp.error.value ? 'error' : kp.status.value)
 const { data: evState } = useAsyncData('analytics-event-agenda', () => getStateEvent().then(r => r.data).catch(() => null))
 const { data: mkState } = useAsyncData('analytics-mkt-jam', () => getStateMkt().then(r => r.data).catch(() => null))
 const kpAda = computed(() => kpStatus.value === 'success' && !!kpState.value)

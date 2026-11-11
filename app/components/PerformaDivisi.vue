@@ -12,7 +12,7 @@
 <script setup lang="ts">
 import type { AggPic, BarisYatim, HariBreakdown, PicBonus, Compliment } from '~/utils/performa-bonus'
 import { bonusEvent, bonusMarketing, pbAgregasi, pbCompIsPemberi, pbCompPotong, pbCompStatusPemberi } from '~/utils/performa-bonus'
-import { getKompasState, getRoster } from '~/composables/useCashier'
+import { getRoster, useKompasState } from '~/composables/useCashier'
 import { fmtRp } from '~/utils/cashier'
 import { hariIni } from '~/utils/format'
 
@@ -24,10 +24,10 @@ const pilihan = ref('__all__')
 const hal = ref(1)
 const PER_HAL = 5
 
-const { data, error } = useAsyncData(props.kunci, async () => {
-  const [state, roster] = await Promise.all([getKompasState(), getRoster()])
-  return { state, roster }
-})
+const kp = useKompasState()
+const { data: roster, error: errorRoster } = useAsyncData(props.kunci, () => getRoster())
+const error = computed(() => errorRoster.value || kp.error.value)
+const data = computed(() => ({ state: kp.data.value, roster: roster.value }))
 
 const judul = computed(() => (props.divisi === 'marketing' ? 'Performa marketing' : 'Performa event'))
 const hari = computed<HariBreakdown[]>(() => (data.value?.state.value.daily ?? [])

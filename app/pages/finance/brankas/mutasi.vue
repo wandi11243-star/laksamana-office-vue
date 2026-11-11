@@ -10,7 +10,7 @@
 -->
 <script setup lang="ts">
 import { createVaultRec, deleteVaultRec, getVault, updateVaultRec } from '~/composables/useFinance'
-import { getKompasState } from '~/composables/useCashier'
+import { useKompasState } from '~/composables/useCashier'
 import { useBrankasIzin } from '~/utils/layar/finance'
 import { fmtRp, num } from '~/utils/cashier'
 import { fTgl, hariIni } from '~/utils/format'
@@ -31,14 +31,11 @@ const MUT_JENIS = [
 const jenisNama = (k?: string) => MUT_JENIS.find(j => j.k === k)?.n ?? String(k ?? '—')
 
 const { data: vaultData, status: statusVault, error: vaultError, refresh } = useAsyncData('brankas-vault', () => getVault())
-const { data: kompasData, status: statusKompas } = useAsyncData('brankas-kompas', async () => {
-  try {
-    return { state: (await getKompasState()).value, gagal: false as boolean }
-  }
-  catch {
-    return { state: null, gagal: true as boolean }
-  }
-})
+const kp = useKompasState()
+const kompasData = computed(() => kp.error.value
+  ? { state: null, gagal: true as boolean }
+  : kp.status.value === 'success' ? { state: kp.data.value.value, gagal: false as boolean } : undefined)
+const statusKompas = computed(() => (kp.error.value ? 'success' : kp.status.value))
 
 const vault = computed(() => vaultData.value?.vault ?? {})
 const kompas = computed(() => kompasData.value?.state ?? null)

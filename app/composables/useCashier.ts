@@ -10,6 +10,7 @@ import type { BarisHarian } from '~/utils/kompas'
 import type { AbaiBri, BarisBri } from '~/utils/cocok-bri'
 import type { RosterUser } from '~/composables/useRoster'
 import { ifMatch, versiDari, type Versi } from '~/utils/versi'
+import { cacheSegar } from '~/utils/cache'
 
 export interface Part<T> {
   value: T
@@ -98,6 +99,25 @@ export interface KompasState {
 }
 
 export const getKompasState = () => baca<KompasState>('/kompas/state', {})
+/**
+ * Shared whole-blob read; retain the ETag version for conditional writes.
+ * Every Finance/Cashier/Analytics screen reads this one copy. Each screen that
+ * mounts also revalidates it once in the background (usually an empty 304,
+ * api#399), so money figures stay as fresh as when each screen fetched its own.
+ */
+export function useKompasState() {
+  const q = useAsyncData('kompas-state', getKompasState, {
+    dedupe: 'defer',
+    default: () => ({ value: {}, version: '' } as Part<KompasState>),
+    getCachedData: cacheSegar(),
+  })
+  if (getCurrentInstance()) {
+    onMounted(() => {
+      if (q.status.value === 'success') void q.refresh()
+    })
+  }
+  return q
+}
 export const putEmployees = (v: EmployeesKompas, version: Versi) =>
   putBagianKompas<EmployeesKompas>('employees', v, version)
 

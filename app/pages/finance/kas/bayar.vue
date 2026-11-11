@@ -23,7 +23,7 @@
 <script setup lang="ts">
 import type { RencanaBayar } from '~/composables/useFinance'
 import { getBayar, getWalletBalances, putBayar } from '~/composables/useFinance'
-import { getKompasState } from '~/composables/useCashier'
+import { useKompasState } from '~/composables/useCashier'
 import { listVendors, type VendorStock } from '~/composables/useStock'
 import { useKasIzin } from '~/utils/layar/finance'
 import { fmtRp, num } from '~/utils/cashier'
@@ -53,14 +53,10 @@ const { data: saldoData } = useAsyncData('kas-bayar-saldo', async () => {
     return { saldo: null, gagal: apiErrorMessage(e) }
   }
 })
-const { data: kompasData } = useAsyncData('kas-bayar-kompas', async () => {
-  try {
-    return { state: (await getKompasState()).value, gagal: false as boolean }
-  }
-  catch {
-    return { state: null, gagal: true as boolean }
-  }
-})
+const kp = useKompasState()
+const kompasData = computed(() => kp.error.value
+  ? { state: null, gagal: true as boolean }
+  : kp.status.value === 'success' ? { state: kp.data.value.value, gagal: false as boolean } : undefined)
 const { data: vendorData } = useAsyncData('kas-bayar-vendor', async () => {
   try {
     const r = await listVendors()

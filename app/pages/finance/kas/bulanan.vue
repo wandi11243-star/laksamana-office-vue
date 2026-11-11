@@ -19,7 +19,7 @@
 <script setup lang="ts">
 import type { BarisHarian } from '~/utils/kompas'
 import { itemsOf, kNum, monthKeyOf, netOf, tagihanOf, taxSvcOf } from '~/utils/kompas'
-import { getKompasState } from '~/composables/useCashier'
+import { useKompasState } from '~/composables/useCashier'
 import { fmtRp } from '~/utils/cashier'
 import { hariIni, tglLabel } from '~/utils/format'
 
@@ -29,7 +29,7 @@ const izin = useKasIzin()
 const mode = ref<'hari' | 'bulan'>('bulan')
 const periode = ref(hariIni().slice(0, 7))
 const tanggal = ref(hariIni())
-const { data, status, error } = useAsyncData('kas-bulanan', () => getKompasState())
+const { data, status, error } = useKompasState()
 
 const semuaHari = computed<BarisHarian[]>(() => (data.value?.value.daily ?? []).slice().sort((a, b) => (a.date < b.date ? -1 : 1)))
 const harian = computed(() => mode.value === 'hari')
