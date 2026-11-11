@@ -19,7 +19,8 @@ const me = useMe()
 const toast = useToast()
 const admin = computed(() => isAdminOf(me.value, 'ordering'))
 
-const daftarQ = useAsyncData('stock-ordering-users', () => listKruStock('ordering-users'), {
+const daftarQ = useAsyncData('stock-ordering-users', () => (admin.value ? listKruStock('ordering-users') : Promise.resolve({ rows: [] as KruStock[], versions: {} as Record<string, Versi> })), {
+  watch: [admin],
   default: () => ({ rows: [] as KruStock[], versions: {} as Record<string, Versi> }),
 })
 const versi = computed(() => daftarQ.data.value?.versions ?? {})

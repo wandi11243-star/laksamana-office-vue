@@ -16,7 +16,9 @@ const admin = computed(() => canHr('manageOps', cu.value, officeAdmin.value))
 
 /** The old client's bound (800 rows), now enforced server-side. */
 const BATAS = 800
-const { data: audit } = useAsyncData('hr-audit', () => listHrAudit(BATAS), {
+// The server refuses the audit trail to non-admins; don't ask.
+const { data: audit } = useAsyncData('hr-audit', () => (admin.value ? listHrAudit(BATAS) : Promise.resolve({ rows: [] as HrAudit[], total: 0 })), {
+  watch: [admin],
   default: () => ({ rows: [] as HrAudit[], total: 0 }),
 })
 const daftar = computed(() => audit.value.rows)

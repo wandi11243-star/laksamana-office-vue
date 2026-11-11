@@ -50,7 +50,9 @@ const BAKU: Record<string, Record<string, number>> = {
   users: { full: 0, view: 0 },
 }
 
-const setQ = useAsyncData('stock-pengaturan', () => getStockSettings('purchasing'), {
+// Both reads are admin-only on the server; non-admins see the "Khusus admin" notice instead.
+const setQ = useAsyncData('stock-pengaturan', () => (admin.value ? getStockSettings('purchasing') : Promise.resolve({ data: {}, versi: undefined, tersedia: true })), {
+  watch: [admin],
   default: () => ({ data: {} as { perms?: Record<string, Record<string, number>> }, versi: undefined, tersedia: true }),
 })
 const draf = ref<Record<string, Record<string, number>>>({})
@@ -85,7 +87,8 @@ async function simpanPerms() {
 }
 
 // --- crew -----------------------------------------------------------------------
-const daftarQ = useAsyncData('stock-purch-users', () => listKruStock('users'), {
+const daftarQ = useAsyncData('stock-purch-users', () => (admin.value ? listKruStock('users') : Promise.resolve({ rows: [] as KruStock[], versions: {} as Record<string, Versi> })), {
+  watch: [admin],
   default: () => ({ rows: [] as KruStock[], versions: {} as Record<string, Versi> }),
 })
 const versi = computed(() => daftarQ.data.value?.versions ?? {})

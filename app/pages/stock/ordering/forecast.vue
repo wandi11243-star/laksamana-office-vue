@@ -59,12 +59,14 @@ const kolom: TableColumn<BarisHealth>[] = [
 ]
 
 // --- training archive -----------------------------------------------------------
-const arsipQ = useAsyncData('stock-training', trainingStatus, {
+// The training archive is admin-only on the server (`module:ordering,admin`).
+const arsipQ = useAsyncData('stock-training', () => (admin.value ? trainingStatus() : Promise.resolve({ usage: { files: 0 }, sales_detail: { files: 0 } })), {
+  watch: [admin],
   default: () => ({ usage: { files: 0 }, sales_detail: { files: 0 } }),
 })
 const target = ref<'usage' | 'sales_detail'>('usage')
-const daftarQ = useAsyncData('stock-training-daftar', () => listTraining(target.value), {
-  watch: [target],
+const daftarQ = useAsyncData('stock-training-daftar', () => (admin.value ? listTraining(target.value) : Promise.resolve({ rows: [], total: 0 })), {
+  watch: [target, admin],
   default: () => ({ rows: [] as { name: string, size: number, mtime: string }[], total: 0 }),
 })
 const mengunggah = ref(false)
