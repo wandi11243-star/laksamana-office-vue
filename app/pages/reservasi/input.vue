@@ -28,6 +28,7 @@ import { cariTamuLewatNama, cariTamuLewatNomor, direktoriTamu, kelompokBarisTamu
 import { fmtRupiah, hariIni, normTime, rupiahVal, tambahHari, tglPendek } from '~/utils/format'
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
 import { parseDate, type DateValue } from '@internationalized/date'
+import { usePollReservasi } from '~/composables/usePollReservasi'
 
 definePageMeta({ access: ['reservasi'] })
 
@@ -241,6 +242,8 @@ async function pilihDenah(v?: string) {
 const dari = computed(() => tambahHari(form.date, -1))
 const sampai = computed(() => tambahHari(form.date, 1))
 const { data: sekitar, refresh } = useDaftarReservasi(dari, sampai, 'reservasi-input')
+const { setel } = usePollReservasi(refresh, { jeda: 10000, tundaSaatMengetik: false, tunda: () => sibuk.value })
+watch([dari, sampai], setel)
 
 const { data: ini, refresh: refreshIni } = useAsyncData(`reservasi-satu-${id.value}`, () => (id.value ? getReservation(id.value) : Promise.resolve(null)))
 

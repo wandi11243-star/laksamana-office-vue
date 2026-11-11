@@ -39,6 +39,7 @@ import {
 } from '~/utils/dp-reservasi'
 import { OCR_BANK, jam24, jamRagu, jamSeharusnya, tglSeharusnya } from '~/utils/ocr-transfer'
 import { angka, fmtRupiah, hariIni, rupiahVal, tglPendek } from '~/utils/format'
+import { usePollReservasi } from '~/composables/usePollReservasi'
 
 const props = withDefaults(defineProps<{
   bolehVerifikasi?: boolean
@@ -139,6 +140,15 @@ const { data: semua, refresh, error: galatMuat, status } = useAsyncData(
   () => listReservations(saring.dari || undefined, saring.sampai || undefined).then(r => r.data),
   { watch: [() => saring.dari, () => saring.sampai], default: () => [] },
 )
+
+const aksiAktif = ref(0)
+const { setel } = usePollReservasi(refresh, {
+  jeda: 10000,
+  tunda: () => aksiAktif.value > 0 || pindai.sibuk || sheetBukti.value || sheetTf.value
+    || sheetVer.value || sheetTolak.value || sheetTambah.value || konfirmasi.buka,
+})
+
+watch([() => saring.dari, () => saring.sampai], () => setel())
 
 const { data: dpMethods } = useSection<string[]>('dpMethods')
 
@@ -411,6 +421,7 @@ async function simpanTf(verifikasi: boolean) {
     bukaVerifikasiDariForm()
     return
   }
+  aksiAktif.value++
   try {
     const d = tfDasar.value
     if (!d || d.r.id !== tfForm.resId) {
@@ -435,6 +446,9 @@ async function simpanTf(verifikasi: boolean) {
   }
   catch (e) {
     if (!(await tanganiKonflik(e, muatUlangTf))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    aksiAktif.value--
   }
 }
 
@@ -484,6 +498,7 @@ function bukaVerifikasiDariForm() {
 async function verifikasiGo() {
   if (!bolehVerifikasi) return
   sheetVer.value = false
+  aksiAktif.value++
   try {
     const dasarR = ver.dasarR
     if (!dasarR || dasarR.id !== ver.resId) {
@@ -525,6 +540,9 @@ async function verifikasiGo() {
   catch (e) {
     if (!(await tanganiKonflik(e, muatUlangDaftar))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
+  finally {
+    aksiAktif.value--
+  }
 }
 
 // --- Tolak ---------------------------------------------------------------------
@@ -550,6 +568,7 @@ function bukaTolak(x: TxDanaMasuk, dariForm = false) {
 async function tolakGo() {
   if (!bolehVerifikasi) return
   sheetTolak.value = false
+  aksiAktif.value++
   try {
     const dasarR = tolak.dasarR
     if (!dasarR || dasarR.id !== tolak.resId) {
@@ -579,6 +598,9 @@ async function tolakGo() {
   catch (e) {
     if (!(await tanganiKonflik(e, tolak.dariForm ? muatUlangTf : muatUlangDaftar))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
+  finally {
+    aksiAktif.value--
+  }
 }
 
 // --- Betulkan tanggal / jam ------------------------------------------------------
@@ -595,11 +617,15 @@ function mintaKonfirmasi(judul: string, pesan: string, label: string, aksi: () =
 
 async function jalankanKonfirmasi() {
   konfirmasi.buka = false
+  aksiAktif.value++
   try {
     await konfirmasi.aksi?.()
   }
   catch (e) {
     if (!(await tanganiKonflik(e, muatUlangDaftar))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    aksiAktif.value--
   }
 }
 
@@ -723,6 +749,7 @@ async function simpanTambah() {
     toast.add({ title: 'Bukti transfer wajib diunggah untuk tiap DP', color: 'error' })
     return
   }
+  aksiAktif.value++
   try {
     const dataUri = await bacaBerkas(tambah.berkas)
     const dasarR = tambah.dasarR
@@ -752,6 +779,9 @@ async function simpanTambah() {
   }
   catch (e) {
     if (!(await tanganiKonflik(e, muatUlangTambah))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    aksiAktif.value--
   }
 }
 

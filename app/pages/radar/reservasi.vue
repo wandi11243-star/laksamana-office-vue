@@ -19,6 +19,7 @@ import {
   resHidup, saringAktif, urutJam, waResHarian, warnaStatusRes,
 } from '~/utils/radar'
 import { fTgl, fTglP } from '~/utils/format'
+import { usePollReservasi } from '~/composables/usePollReservasi'
 
 definePageMeta({ access: ['radar'] })
 
@@ -33,6 +34,10 @@ if (qTgl) p.value = { ...p.value, mode: 'hari', tgl: qTgl }
 const dari = computed(() => rentangPeriode(p.value).dari)
 const sampai = computed(() => rentangPeriode(p.value).sampai)
 const { data: board, status, error, refresh } = useRadarBoard('radar-rs-board', dari, sampai)
+// Reservations: ver-gated poll every 60 s. The board also carries the Event/Marketing
+// agenda, which `_ver` does not track, so the 5-minute silent refresh below stays too.
+const { setel } = usePollReservasi(refresh, { jeda: 60000, tunda: () => buka.value })
+watch([dari, sampai], setel)
 const semua = computed(() => (board.value?.reservations ?? []).filter(r => r.date))
 const agenda = computed(() => board.value?.agenda ?? [])
 // First-load skeleton for the stat cards: while the board is absent the
