@@ -219,7 +219,7 @@ export const getStateMkt = () => useApi()<Envelope<unknown>>('/marketing/state')
 
 /** The shared state every Marketing screen reads. One request per page load, refreshed after writes. */
 export const useStateMkt = () =>
-  useAsyncData('marketing-state', () => getStateMkt().then(r => normStateMkt(r.data)), { dedupe: 'defer', default: stateMktKosong })
+  useAsyncData('marketing-state', () => getStateMkt().then(r => normStateMkt(r.data)), { dedupe: 'defer', default: stateMktKosong, getCachedData: cacheSegar() })
 
 // ---------------------------------------------------------------- who I am
 

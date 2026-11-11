@@ -20,7 +20,7 @@ export function useHrState() {
     const r = await useApi()<Envelope<unknown>>('/hr/state')
     versi.value = versiDari(r)
     return normalHr(r.data)
-  }, { dedupe: 'defer', default: () => normalHr(null) })
+  }, { dedupe: 'defer', default: () => normalHr(null), getCachedData: cacheSegar() })
 }
 
 /** Akademi completion per Office user id (`GET /hr/training-stats`). */

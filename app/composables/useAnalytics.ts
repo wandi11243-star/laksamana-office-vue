@@ -141,7 +141,7 @@ export const getEsbSales = (dari: string, sampai: string, page: number) =>
 
 /** The shared analytics read: one request for every screen of the module. */
 export const useAnalyticsState = () =>
-  useAsyncData('analytics-state', () => getAnalytics(), { dedupe: 'defer' })
+  useAsyncData('analytics-state', () => getAnalytics(), { dedupe: 'defer', getCachedData: cacheSegar() })
 
 /**
  * PUT /api/v1/kompas/analytics — replaces the WHOLE state. version is

@@ -43,7 +43,15 @@ const pilihanBulan = computed(() => {
   return out
 })
 
-const ordersQ = useAsyncData('stock-overview', () => listOrders(), {
+/** Submit-time window the recap reads: the selected month and the five before
+ *  it (trend + MoM + sparklines), instead of the whole order history. */
+const jendela = computed(() => {
+  const [y, m] = bulan.value.split('-').map(Number) as [number, number]
+  const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return { waktuDari: iso(new Date(y, m - 6, 1)), waktuSampai: iso(new Date(y, m, 0)) }
+})
+const ordersQ = useAsyncData('stock-overview', () => listOrders(jendela.value), {
+  watch: [jendela],
   default: () => ({ rows: [] as OrderStock[], versions: {} }),
 })
 const produkQ = useProdukStock()

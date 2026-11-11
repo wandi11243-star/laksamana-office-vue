@@ -154,6 +154,7 @@ export const useAkademiState = () =>
   useAsyncData('akademi-state', () => useApi()<Envelope<AkademiState>>('/akademi/state').then(r => r.data), {
     dedupe: 'defer',
     default: akademiStateKosong,
+    getCachedData: cacheSegar(),
   })
 
 /** GET /akademi/training-stats — the server's read model of the same numbers. */

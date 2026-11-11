@@ -96,7 +96,7 @@ export const getStateKonten = () => useApi()<Envelope<unknown>>('/konten/state')
 
 /** The shared state every Konten screen reads. One request per page load, refreshed after writes. */
 export const useStateKonten = () =>
-  useAsyncData('konten-state', () => getStateKonten().then(r => normStateKonten(r.data)), { dedupe: 'defer', default: stateKontenKosong })
+  useAsyncData('konten-state', () => getStateKonten().then(r => normStateKonten(r.data)), { dedupe: 'defer', default: stateKontenKosong, getCachedData: cacheSegar() })
 
 // ---------------------------------------------------------------- who I am
 

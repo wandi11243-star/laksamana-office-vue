@@ -28,6 +28,9 @@ export async function login(login: string, pin: string): Promise<void> {
     method: 'POST',
     body: { login, pin, device: 'office-vue' },
   })
+  // Module states are kept between screens (cacheSegar); never show the
+  // previous account's copy to the one signing in now.
+  clearNuxtData()
   useToken().value = data.token
   await fetchMe()
 }
@@ -39,6 +42,7 @@ export async function logout(): Promise<void> {
   finally {
     useToken().value = null
     useMe().value = null
+    clearNuxtData()
     await navigateTo('/login')
   }
 }
