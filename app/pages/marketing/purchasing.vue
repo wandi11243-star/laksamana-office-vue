@@ -137,7 +137,7 @@ const terkirim = computed(() => poMarketingMkt(daftar.value ?? []))
           <div
             v-for="(b, i) in baris"
             :key="i"
-            class="grid grid-cols-[1fr_auto] gap-2 rounded-lg border border-default p-2 lg:grid-cols-[minmax(10rem,1fr)_5rem_6.5rem_minmax(10rem,1fr)_10rem_2.5rem] lg:border-0 lg:p-0"
+            class="grid grid-cols-[1fr_auto] gap-2 rounded-lg border bg-muted border-default p-2 lg:grid-cols-[minmax(10rem,1fr)_5rem_6.5rem_minmax(10rem,1fr)_10rem_2.5rem] lg:border-0 lg:p-0"
           >
             <UInput
               v-model="b.item"

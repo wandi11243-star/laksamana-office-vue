@@ -2616,7 +2616,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
       :description="`${tglPanjangLama(tglDenah)} · ${daftarKoord.length} reservasi · ${angka(daftarKoord.reduce((a, r) => a + (Number(r.pax) || 0), 0))} pax`"
     >
       <div class="space-y-3">
-        <div class="flex flex-wrap items-end gap-2 rounded-lg border border-default p-3">
+        <div class="flex flex-wrap items-end gap-2 rounded-lg border bg-muted border-default p-3">
           <UFormField
             label="Dari"
             class="max-w-28"

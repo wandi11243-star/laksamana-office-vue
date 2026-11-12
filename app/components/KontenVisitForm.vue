@@ -192,7 +192,7 @@ async function hapus() {
             class="w-full sm:w-64"
           />
         </div>
-        <div class="max-h-64 space-y-1 overflow-auto rounded-lg border border-default p-2">
+        <div class="max-h-64 space-y-1 overflow-auto rounded-lg border bg-muted border-default p-2">
           <p
             v-if="!daftar.length"
             class="p-1 text-xs text-muted"
