@@ -9,8 +9,8 @@
 
   Old gold/blue/grey fills → token bridge (no hex is allowed in components,
   so every SVG shape uses fill/stroke="currentColor" with a token text
-  class): old dark gold → yellow-deep, old pale gold → sand-light, old
-  weekend gold → brand-yellow, old blue → info, old grey → dimmed/ink-300,
+  class): old dark gold → gold, old pale gold → gold-soft, old
+  weekend gold → gold-bright, old blue → info, old grey → dimmed/ink-300,
   old sparkline red → error, old sparkline green → success.
 
   Still client-side over `listOrders()` + `useProdukStock`, filtered by the
@@ -242,11 +242,11 @@ const dow = computed(() => {
 })
 
 /**
- * Old vendor palette → token: dark gold → yellow-deep, gold → brand-yellow,
- * deep gold → yellow-dark, tan → sand-light, blue → info,
+ * Old vendor palette → token (DESIGN.md gold scale): deep gold → gold-deep,
+ * gold → gold, light gold → gold-bright, tan → gold-soft, blue → info,
  * purple → vip, grey → ink-300. 'Tak Terdaftar' stays muted like the old page.
  */
-const PALET_VENDOR = ['bg-yellow-deep', 'bg-brand-yellow', 'bg-yellow-dark', 'bg-sand-light', 'bg-info', 'bg-vip', 'bg-ink-300']
+const PALET_VENDOR = ['bg-gold-deep', 'bg-gold', 'bg-gold-bright', 'bg-gold-soft', 'bg-info', 'bg-vip', 'bg-ink-300']
 const vendor = computed(() => {
   const agg = new Map<string, number>()
   for (const o of bulanIni.value) {
@@ -281,18 +281,18 @@ const ketOf = (pic?: string) => {
   const kru = (kruQ.data.value?.rows ?? []).find(k => k.name.toLowerCase() === pic.toLowerCase())
   return kru?.keterangan || 'Lainnya'
 }
-/** Old team colours → token: Kitchen gold → yellow-deep, Bar gold → brand-yellow, Floor blue → info, Lainnya grey → dimmed/ink-300. */
+/** Old team colours → token: Kitchen gold → gold, Bar gold → gold-bright, Floor blue → info, Lainnya grey → dimmed/ink-300. */
 const WARNA_TIM: Record<string, { teks: string, latar: string }> = {
-  Kitchen: { teks: 'text-yellow-deep', latar: 'bg-yellow-deep' },
-  Bar: { teks: 'text-brand-yellow', latar: 'bg-brand-yellow' },
+  Kitchen: { teks: 'text-gold-deep', latar: 'bg-gold' },
+  Bar: { teks: 'text-gold', latar: 'bg-gold-bright' },
   Floor: { teks: 'text-info', latar: 'bg-info' },
   Lainnya: { teks: 'text-dimmed', latar: 'bg-ink-300' },
 }
 const CADANGAN_TIM = [
   { teks: 'text-vip', latar: 'bg-vip' },
-  { teks: 'text-moss-dark', latar: 'bg-teal-light' },
-  { teks: 'text-coral-dark', latar: 'bg-coral-light' },
-  { teks: 'text-blue-pressed', latar: 'bg-sky-light' },
+  { teks: 'text-success', latar: 'bg-success' },
+  { teks: 'text-error', latar: 'bg-error' },
+  { teks: 'text-info', latar: 'bg-info' },
 ]
 const warnaTim = (nama: string, i: number) =>
   WARNA_TIM[nama] ?? CADANGAN_TIM[i % CADANGAN_TIM.length] ?? { teks: 'text-dimmed', latar: 'bg-ink-300' }
@@ -513,7 +513,7 @@ const kolom: TableColumn<BarisRekap>[] = [
             <g
               v-for="b in trenGrafik.batang"
               :key="b.bulan"
-              :class="b.aktif ? 'text-yellow-deep' : 'text-sand-light'"
+              :class="b.aktif ? 'text-gold' : 'text-gold-soft'"
             >
               <rect
                 :x="b.x"
@@ -530,13 +530,13 @@ const kolom: TableColumn<BarisRekap>[] = [
               :points="trenGrafik.titik"
               fill="none"
               stroke="currentColor"
-              class="text-yellow-deep"
+              class="text-gold"
               stroke-width="2.5"
               stroke-linejoin="round"
               stroke-linecap="round"
               opacity="0.85"
             />
-            <g class="text-yellow-deep">
+            <g class="text-gold">
               <circle
                 v-for="b in trenGrafik.batang"
                 :key="b.bulan"
@@ -555,7 +555,7 @@ const kolom: TableColumn<BarisRekap>[] = [
               font-size="9"
               font-weight="800"
               fill="currentColor"
-              :class="b.aktif ? 'text-yellow-dark' : 'text-dimmed'"
+              :class="b.aktif ? 'text-gold-deep' : 'text-dimmed'"
             >
               {{ b.nilai }}
             </text>
@@ -592,7 +592,7 @@ const kolom: TableColumn<BarisRekap>[] = [
             <g
               v-for="b in dow.batang"
               :key="b.nama"
-              :class="b.akhirPekan ? 'text-brand-yellow' : 'text-yellow-deep'"
+              :class="b.akhirPekan ? 'text-gold-bright' : 'text-gold'"
             >
               <rect
                 :x="b.x"
@@ -627,7 +627,7 @@ const kolom: TableColumn<BarisRekap>[] = [
               font-size="10"
               font-weight="700"
               fill="currentColor"
-              :class="b.akhirPekan ? 'text-yellow-deep' : 'text-dimmed'"
+              :class="b.akhirPekan ? 'text-gold' : 'text-dimmed'"
             >
               {{ b.nama }}
             </text>
@@ -637,10 +637,10 @@ const kolom: TableColumn<BarisRekap>[] = [
             class="mt-1 flex justify-end gap-3 text-[10px] font-bold"
           >
             <span class="inline-flex items-center gap-1.5">
-              <span class="size-2.5 rounded-sm bg-yellow-deep" />Hari kerja
+              <span class="size-2.5 rounded-sm bg-gold" />Hari kerja
             </span>
             <span class="inline-flex items-center gap-1.5">
-              <span class="size-2.5 rounded-sm bg-brand-yellow" />Akhir pekan
+              <span class="size-2.5 rounded-sm bg-gold-bright" />Akhir pekan
             </span>
           </div>
           <p
@@ -833,7 +833,7 @@ const kolom: TableColumn<BarisRekap>[] = [
           <div
             v-for="r in rekap.slice(0, 60)"
             :key="r.item"
-            class="flex items-center justify-between gap-2 rounded-panel border border-default p-3"
+            class="flex items-center justify-between gap-2 rounded-xl border border-default p-3"
           >
             <div class="min-w-0">
               <b class="text-highlighted">{{ r.item }}</b>

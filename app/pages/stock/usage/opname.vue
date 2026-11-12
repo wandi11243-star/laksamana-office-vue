@@ -419,8 +419,8 @@ async function segarkan() {
           <span class="text-[11.5px] font-semibold text-dimmed">{{ g.items.length }} item</span>
           <div class="flex-1 border-t border-default" />
         </div>
-        <div class="overflow-hidden rounded-panel border border-default bg-default">
-          <div class="hidden items-center gap-2.5 bg-table-head px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-table-head-text sm:flex">
+        <div class="overflow-hidden rounded-xl border border-default bg-default">
+          <div class="hidden items-center gap-2.5 bg-muted px-3 py-2 text-[11px] font-semibold uppercase tracking-wider text-muted sm:flex">
             <div class="flex-1">
               Item
             </div>

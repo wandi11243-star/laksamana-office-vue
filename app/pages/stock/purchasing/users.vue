@@ -192,14 +192,14 @@ const kolom: TableColumn<KruStock>[] = [
     >
       <p
         v-if="!setQ.data.value?.tersedia"
-        class="mb-3 rounded-field bg-warning/12 p-3 text-sm text-warning"
+        class="mb-3 rounded-xl border-l-4 border-warning bg-warning/10 p-3 text-sm text-warning"
       >
         Tabel pengaturan belum ada — yang tampil matriks bawaan dan belum bisa disimpan.
       </p>
       <div class="hidden lg:block">
         <table class="w-full text-sm">
           <thead>
-            <tr class="bg-table-head text-table-head-text">
+            <tr class="bg-muted text-muted">
               <th class="p-2 text-left font-semibold">
                 Halaman
               </th>
@@ -244,7 +244,7 @@ const kolom: TableColumn<KruStock>[] = [
         <div
           v-for="h in HALAMAN"
           :key="h.id"
-          class="rounded-panel border border-default p-3"
+          class="rounded-xl border bg-muted border-default p-3"
         >
           <b class="text-highlighted">{{ h.label }}</b>
           <div class="mt-2 grid grid-cols-2 gap-2">
@@ -312,7 +312,7 @@ const kolom: TableColumn<KruStock>[] = [
         <div
           v-for="k in semua"
           :key="k.id"
-          class="flex items-center justify-between gap-2 rounded-panel border border-default p-3"
+          class="flex items-center justify-between gap-2 rounded-xl border border-default p-3"
         >
           <div>
             <b class="text-highlighted">{{ k.name }}</b>

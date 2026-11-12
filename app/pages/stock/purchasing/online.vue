@@ -135,7 +135,7 @@ async function tandai() {
         <div
           v-for="o in (sub === 'tunggu' ? menunggu : riwayat)"
           :key="o.nomorOrder"
-          class="flex flex-wrap items-center gap-2 rounded-panel border border-default p-3"
+          class="flex flex-wrap items-center gap-2 rounded-xl border border-default p-3"
         >
           <div class="min-w-0 flex-1">
             <b class="text-highlighted">{{ o.item }}</b>

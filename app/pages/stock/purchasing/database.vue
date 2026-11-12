@@ -423,7 +423,7 @@ async function simpanTemplate() {
           <div
             v-for="v in vendorTampil.slice(0, 60)"
             :key="v.nama"
-            class="flex items-center justify-between gap-2 rounded-panel border border-default p-3"
+            class="flex items-center justify-between gap-2 rounded-xl border border-default p-3"
           >
             <div>
               <b class="text-highlighted">{{ v.nama }}</b>
@@ -526,7 +526,7 @@ async function simpanTemplate() {
           <div
             v-for="p in produkTampil.slice(0, 60)"
             :key="p.nama"
-            class="flex items-center justify-between gap-2 rounded-panel border border-default p-3"
+            class="flex items-center justify-between gap-2 rounded-xl border border-default p-3"
           >
             <div>
               <b class="text-highlighted">{{ p.nama }}</b>
@@ -556,7 +556,7 @@ async function simpanTemplate() {
       <div v-if="sub === 'chat'">
         <p
           v-if="!setQ.data.value?.tersedia"
-          class="mb-3 rounded-field bg-warning/12 p-3 text-sm text-warning"
+          class="mb-3 rounded-xl border-l-4 border-warning bg-warning/10 p-3 text-sm text-warning"
         >
           Tabel pengaturan belum ada — format yang disimpan belum bisa dimuat server. Isian di bawah hanya draf lokal.
         </p>

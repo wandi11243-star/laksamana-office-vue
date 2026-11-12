@@ -662,8 +662,8 @@ LANJUTKAN DARI: — (26/26 layar ada; tinggal review + merge berurutan ordering 
 | ordering/order | `app/pages/stock/ordering/order.vue` | ✅ | `GET /stock/products`; `GET /stock/orders/batches`; `POST /stock/orders/batches`; `POST /stock/logs` | — |
 | ordering/ck | `app/pages/stock/ordering/ck.vue` | ✅ | `GET /stock/ck/balance`; `GET /stock/ck/movements`; `POST /stock/orders/batches` (batchName Central Kitchen); `POST /stock/ck/deliveries` | — |
 | ordering/checkin | `app/pages/stock/ordering/checkin.vue` | ✅ | `GET /stock/orders?from=&to=&status=Aktif`; `PATCH /stock/orders/{nomor}` (`kedatangan`,`catatanAktual`) | — |
-| ordering/restock | `app/pages/stock/ordering/restock.vue` | ✅ | Google Apps Script (K-06) + `GET/PUT /stock/stock-today` | — |
-| ordering/forecast | `app/pages/stock/ordering/forecast.vue` | ✅ | idem (health) + `GET /stock/training`, `POST /stock/training`, `GET /stock/training/{target}` | — |
+| ordering/restock | — (dihapus Nov 2026: fitur belum dipakai) | ⛔ | Google Apps Script (K-06) + `GET/PUT /stock/stock-today` | — |
+| ordering/forecast | — (dihapus Nov 2026: fitur belum dipakai) | ⛔ | idem (health) + `GET /stock/training`, `POST /stock/training`, `GET /stock/training/{target}` | — |
 | ordering/users | `app/pages/stock/ordering/users.vue` | ✅ | `GET/POST/PATCH/DELETE /stock/ordering-users`, `POST /stock/ordering-users-import` | — |
 | purchasing/dashboard | `app/pages/stock/purchasing/dashboard.vue` | ✅ | `GET /stock/orders`, `/stock/products`, `/stock/vendors`; `POST /stock/orders/archive|unarchive`; `PATCH /stock/orders/{nomor}` (`tglJemput`,`kedatangan`) | — |
 | purchasing/jemput | `app/pages/stock/purchasing/jemput.vue` | ✅ | `GET /stock/orders?status=Aktif`; `PATCH /stock/orders/{nomor}` (`tglJemput`) | — |

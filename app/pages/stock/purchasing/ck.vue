@@ -210,7 +210,7 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
           <div
             v-for="s in saldo"
             :key="s.item"
-            class="flex items-center justify-between rounded-panel border border-default p-3"
+            class="flex items-center justify-between rounded-xl border border-default p-3"
           >
             <div>
               <b class="text-highlighted">{{ s.item }}</b>
@@ -274,7 +274,7 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
           <div
             v-for="m in gerak.slice(0, 60)"
             :key="m.id"
-            class="rounded-panel border border-default p-3"
+            class="rounded-xl border border-default p-3"
           >
             <div class="flex items-center justify-between gap-2">
               <b class="text-highlighted">{{ m.item }}</b>
@@ -302,7 +302,10 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
         v-if="sub === 'dash'"
         class="grid gap-4 lg:grid-cols-2"
       >
-        <AppPanel title="Sering diambil">
+        <AppPanel
+          bersarang
+          title="Sering diambil"
+        >
           <div class="flex flex-col gap-2">
             <AppBar
               v-for="b in rekap.sering"
@@ -319,7 +322,10 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
             </p>
           </div>
         </AppPanel>
-        <AppPanel title="Sering masuk">
+        <AppPanel
+          bersarang
+          title="Sering masuk"
+        >
           <div class="flex flex-col gap-2">
             <AppBar
               v-for="b in rekap.masukTeratas"
@@ -337,6 +343,7 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
           </div>
         </AppPanel>
         <AppPanel
+          bersarang
           title="Tren harian"
           class="lg:col-span-2"
         >

@@ -12,6 +12,7 @@ import type { OrderStock, VendorStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { jam, tglLabel, tglPendek, ymdLokal } from '~/utils/format'
 import { unduhCsvStock } from '~/utils/stock-catat'
+import { warnaKategori } from '~/utils/kategori-warna'
 import { tanganiKonflik, type Versi } from '~/utils/versi'
 
 definePageMeta({ access: ['purchasing'] })
@@ -82,6 +83,8 @@ const vendorQ = useVendorStock()
 
 const sumberOf = (item: string) => produkQ.data.value?.rows.find(p => p.nama === item)?.sumber
 const utamaOf = (item: string) => produkQ.data.value?.rows.find(p => p.nama === item)?.utama || ''
+/** Product category for the coloured tag (empty → Lainnya). */
+const katOf = (item: string) => (produkQ.data.value?.rows.find(p => p.nama === item)?.kategori || '').trim() || 'Lainnya'
 const waOf = (nama: string) => vendorQ.data.value?.rows.find(v => v.nama === nama)?.whatsapp || ''
 
 /** CK lines never appear in Monitor Order (old `pesananCK`). */
@@ -109,11 +112,19 @@ const arsipServerParams = computed(() => ({
   tim: divisi.value !== 'SEMUA' ? divisi.value : undefined,
   tglDatang: tglDatang.value || undefined,
 }))
-const arsipQ = useAsyncData('stock-purch-arsip', () => listOrders({
-  ...arsipServerParams.value,
-  page: arsipHal.value,
-  per_page: arsipPer.value,
-}), {
+/* Newest first (owner request, Nov 2026). The API orders by rowIndex, oldest
+ *  first, and keeps no archive time — so page 1 here is the server's LAST page,
+ *  reversed: the most recent orders lead. A 1-row probe reads the total. */
+const arsipQ = useAsyncData('stock-purch-arsip', async () => {
+  const intip = await listOrders({ ...arsipServerParams.value, page: 1, per_page: 1 })
+  const halTerakhir = Math.max(1, Math.ceil((intip.total ?? 0) / arsipPer.value))
+  const r = await listOrders({
+    ...arsipServerParams.value,
+    page: Math.max(1, halTerakhir - arsipHal.value + 1),
+    per_page: arsipPer.value,
+  })
+  return { ...r, rows: [...r.rows].reverse() }
+}, {
   watch: [arsipServerParams, arsipHal, arsipPer],
   default: () => ({ rows: [] as OrderStock[], versions: {} as Record<string, Versi>, total: undefined as number | undefined, page: undefined as number | undefined, perPage: undefined as number | undefined }),
 })
@@ -133,8 +144,10 @@ watch([sub, divisi, tglDatang, vendorAktif, cari, tglSubmit], () => {
 const arsipTotal = computed(() => arsipJatuhPenuh.value
   ? saring(arsip.value, true).length
   : (arsipQ.data.value?.total ?? arsip.value.length))
+/** Newer order first: higher rowIndex, then the later submit. */
+const lebihBaru = (a: OrderStock, b: OrderStock) => ((b.rowIndex ?? -1) - (a.rowIndex ?? -1)) || (waktuSubmit(b) - waktuSubmit(a))
 const arsipPotongLokal = computed(() => {
-  const semua = saring(arsip.value, true)
+  const semua = saring(arsip.value, true).sort(lebihBaru)
   return semua.slice((arsipHal.value - 1) * arsipPer.value, arsipHal.value * arsipPer.value)
 })
 
@@ -225,7 +238,7 @@ function kelompokArsip(rows: OrderStock[]): HariArsip[] {
   }
   const keluar: HariArsip[] = []
   for (const [hari, barisAsli] of perHari) {
-    const baris = [...barisAsli].sort((a, b) => waktuSubmit(b) - waktuSubmit(a))
+    const baris = [...barisAsli].sort(lebihBaru)
     const hit: Record<string, number> = {}
     for (const o of baris) {
       const d = o.tim || '(Lainnya)'
@@ -251,7 +264,8 @@ function kelompokArsip(rows: OrderStock[]): HariArsip[] {
       batch: [...perBatch.values()],
     })
   }
-  const terbaru = (h: HariArsip) => h.baris.reduce((m, o) => Math.max(m, waktuSubmit(o)), 0)
+  // A day sits where its newest order sits, so the latest archive leads.
+  const terbaru = (h: HariArsip) => h.baris.reduce((m, o) => Math.max(m, o.rowIndex ?? waktuSubmit(o)), -1)
   return keluar.sort((a, b) => (terbaru(b) - terbaru(a)) || (a.hari < b.hari ? 1 : -1))
 }
 const arsipHari = computed<HariArsip[]>(() => kelompokArsip(
@@ -617,13 +631,14 @@ function unduhCsv() {
       >
         <p
           v-if="sub === 'vendor' && divisi !== 'SEMUA'"
-          class="rounded-panel border border-yellow-deep bg-yellow-light px-4 py-2.5 text-xs font-semibold text-yellow-dark"
+          class="rounded-xl border-l-4 border-warning bg-warning/10 px-4 py-2.5 text-xs font-semibold text-warning"
         >
           Filter divisi {{ divisi }} sengaja diabaikan di tampilan ini — pesanan dikirim satu pesan per vendor, mencakup semua divisi. Pakai tab Per item untuk melihat per divisi.
         </p>
         <AppPanel
           v-for="po in (sub === 'item' ? poItem : [])"
           :key="po.kunci"
+          bersarang
           :title="po.nama"
           :description="`Rencana datang ${po.tgl ? tglPendek(po.tgl) : '—'} · ${po.baris.length} baris`"
         >
@@ -641,164 +656,160 @@ function unduhCsv() {
           </template>
           <p
             v-if="kunciArsip(po.baris).length"
-            class="mb-2 rounded-panel border border-yellow-deep bg-yellow-light px-3 py-2 text-xs font-semibold text-yellow-dark"
+            class="mb-2 rounded-xl border-l-4 border-warning bg-warning/10 px-3 py-2 text-xs font-semibold text-warning"
           >
             Arsip terkunci — isi tanggal jemput dulu untuk: {{ kunciArsip(po.baris).map(o => o.item).join(', ') }}. Vendornya tidak bisa dijemput di hari yang sama.
           </p>
-          <div class="flex flex-col gap-2">
+          <div class="flex flex-col gap-3">
+            <!-- One order line, laid out sideways like the old Monitor Order:
+                 what was asked on the left, what purchasing does on the right
+                 (vendor + big buttons, easy to hit). -->
             <div
               v-for="o in po.baris"
               :key="o.nomorOrder"
-              class="rounded-panel border border-default p-3"
+              class="grid gap-4 rounded-xl border border-default border-l-4 bg-default p-4 shadow-panel lg:grid-cols-[minmax(0,1fr)_280px]"
+              :class="tanpaVendor(o) && !dariCk(o) && !onlineTanpaVendor(o) ? 'border-l-error' : 'border-l-gold'"
             >
-              <div class="flex flex-wrap items-center gap-1.5">
-                <span class="rounded bg-muted px-1.5 py-0.5 font-mono text-[10px] font-bold text-muted">{{ o.nomorOrder }}</span>
-                <span
-                  v-if="!tanpaVendor(o)"
-                  class="text-[11px] font-extrabold uppercase tracking-wider text-highlighted"
-                >{{ utamaVend(o) }}</span>
-                <span
-                  v-else
-                  class="text-[11px] font-extrabold uppercase tracking-wider text-dimmed"
-                >Tanpa vendor utama</span>
-                <span
-                  v-if="cadanganOf(o.item).length"
-                  class="rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted"
-                >{{ cadanganOf(o.item).length }} vendor alternatif</span>
-                <span class="ml-auto">
-                  <AppStatus
-                    v-if="(o.kedatangan || '') === 'Datang'"
-                    color="success"
-                    size="sm"
-                  >
-                    Datang
-                  </AppStatus>
-                  <AppStatus
-                    v-else
-                    color="warning"
-                    size="sm"
-                  >
-                    Menunggu
-                  </AppStatus>
-                </span>
-              </div>
-              <p class="mt-1 text-base font-bold text-highlighted">
-                {{ o.item }}
-              </p>
-              <div class="mt-1 flex flex-wrap items-start gap-x-6 gap-y-2">
-                <div>
-                  <span class="block text-[10px] font-bold uppercase tracking-wider text-muted">Diminta kitchen</span>
-                  <p class="text-xl font-extrabold leading-none text-highlighted num">
-                    {{ o.qty }} <span class="text-xs font-normal text-muted">{{ o.unit }}</span>
-                  </p>
+              <div class="min-w-0">
+                <div class="flex flex-wrap items-center gap-1.5">
+                  <span class="rounded-md bg-muted px-1.5 py-0.5 font-mono text-[10px] font-bold text-muted">{{ o.nomorOrder }}</span>
+                  <span
+                    class="text-[11px] font-extrabold uppercase tracking-wider"
+                    :class="tanpaVendor(o) ? 'text-dimmed' : 'text-gold-deep'"
+                  >{{ tanpaVendor(o) ? 'Tidak terdaftar' : utamaVend(o) }}</span>
+                  <span
+                    v-if="cadanganOf(o.item).length"
+                    class="rounded-full bg-default px-2 py-0.5 text-[10px] font-bold text-muted"
+                  >{{ cadanganOf(o.item).length }} vendor alternatif</span>
+                  <span class="ml-auto">
+                    <AppStatus
+                      :color="(o.kedatangan || '') === 'Datang' ? 'success' : 'warning'"
+                      size="sm"
+                    >
+                      {{ (o.kedatangan || '') === 'Datang' ? 'Datang' : 'Menunggu' }}
+                    </AppStatus>
+                  </span>
                 </div>
-                <div class="min-w-44 flex-1 rounded-md border border-dashed border-default bg-muted px-3 py-2">
-                  <p class="flex items-center gap-1.5 text-xs font-bold text-muted">
+                <div class="mt-1.5 flex flex-wrap items-center gap-2">
+                  <p class="text-lg font-bold text-highlighted">
+                    {{ o.item }}
+                  </p>
+                  <span
+                    class="rounded-md px-2 py-0.5 text-[11px] font-bold"
+                    :class="warnaKategori(katOf(o.item))"
+                  >{{ katOf(o.item) }}</span>
+                </div>
+                <p class="mt-2 text-[10px] font-bold uppercase tracking-wider text-muted">
+                  Diminta kitchen
+                </p>
+                <p class="font-display text-3xl font-extrabold leading-none text-gold-deep num">
+                  {{ o.qty }} <span class="font-sans text-sm font-medium text-muted">{{ o.unit }}</span>
+                </p>
+                <div class="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1.5 border-t border-default pt-3 text-xs text-muted">
+                  <span class="inline-flex items-center gap-1">
                     <UIcon
-                      name="i-lucide-hourglass"
+                      name="i-lucide-truck"
                       class="size-3.5"
-                    />
-                    Prakiraan menunggu data
-                  </p>
-                  <p class="mt-0.5 text-[11px] leading-relaxed text-muted">
-                    Stok kini · cukup untuk · saran pesan · akurasi tampil di sini begitu data prakiraannya tersedia.
-                  </p>
+                    />Kedatangan: <b class="text-highlighted">{{ o.tglDatang ? tglPendek(o.tglDatang) : '—' }}</b>
+                  </span>
+                  <span v-if="o.tglJemput">Dijemput: <b class="text-highlighted">{{ tglPendek(o.tglJemput) }}</b></span>
+                  <span v-if="o.pic">PIC: <b class="text-highlighted">{{ o.pic }}</b></span>
+                  <AppStatus
+                    v-if="o.tim && o.tim !== '(Lainnya)'"
+                    color="gold"
+                    size="sm"
+                    :icon="ikonTim(o.tim)"
+                  >
+                    Tim {{ o.tim }}
+                  </AppStatus>
                 </div>
-              </div>
-              <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-default pt-2 text-[11px] text-muted">
-                <span>Kedatangan: <b class="text-highlighted">{{ o.tglDatang ? tglPendek(o.tglDatang) : '—' }}</b></span>
-                <span v-if="o.tglJemput">Dijemput: <b class="text-highlighted">{{ tglPendek(o.tglJemput) }}</b></span>
-                <span v-if="o.pic">PIC: <b class="text-highlighted">{{ o.pic }}</b></span>
-                <AppStatus
-                  v-if="o.tim && o.tim !== '(Lainnya)'"
-                  color="neutral"
-                  size="sm"
-                  :icon="ikonTim(o.tim)"
+                <p class="mt-2 inline-flex items-center gap-1.5 rounded-md bg-warning/10 px-2.5 py-1 text-[11px] font-bold text-warning">
+                  <UIcon
+                    name="i-lucide-calendar-clock"
+                    class="size-3.5"
+                  />
+                  Submit: {{ labelSubmit(o.timestamp) }}
+                </p>
+                <p
+                  v-if="o.note && o.note !== '-'"
+                  class="mt-2 rounded-lg bg-muted px-2.5 py-2 text-xs italic text-muted"
                 >
-                  Tim {{ o.tim }}
-                </AppStatus>
+                  <b class="not-italic">Catatan kitchen:</b> "{{ o.note }}"
+                </p>
               </div>
-              <p class="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-yellow-deep bg-yellow-light px-2.5 py-1 text-[11px] font-bold text-yellow-dark">
-                <span class="size-1.5 animate-pulse rounded-full bg-current" />
-                Submit: {{ labelSubmit(o.timestamp) }}
-              </p>
-              <p
-                v-if="o.note && o.note !== '-'"
-                class="mt-1.5 rounded-panel border border-default bg-muted px-2.5 py-2 text-xs italic text-muted"
-              >
-                <b class="not-italic">Catatan kitchen:</b> "{{ o.note }}"
-              </p>
-              <div class="mt-2 flex flex-col gap-2 border-t border-default pt-2">
+
+              <div class="flex flex-col gap-2 lg:border-l lg:border-default lg:pl-4">
                 <div
                   v-if="dariCk(o)"
-                  class="rounded-panel bg-teal-light px-2.5 py-2 text-center text-[11px] font-semibold leading-relaxed text-moss-dark"
+                  class="rounded-xl border-l-4 border-success bg-success/10 px-3 py-2 text-xs font-semibold leading-relaxed text-success"
                 >
                   Barang Central Kitchen — diproduksi dapur sendiri, tidak dipesan ke vendor.
                 </div>
                 <template v-else-if="!tanpaVendor(o)">
                   <p
                     v-if="pilihanHari(o).tutup && pilihanHari(o).adaGanti"
-                    class="rounded-panel border border-yellow-deep bg-yellow-light px-2.5 py-2 text-[11px] font-semibold leading-relaxed text-yellow-dark"
+                    class="rounded-xl border-l-4 border-warning bg-warning/10 px-3 py-2 text-xs font-semibold leading-relaxed text-warning"
                   >
-                    {{ utamaVend(o) }} tutup hari {{ hariNama(o.tglDatang) }} — dialihkan ke {{ pilihanHari(o).pakai }} yang buka. Masih bisa diganti lewat pilihan di bawah.
+                    {{ utamaVend(o) }} tutup hari {{ hariNama(o.tglDatang) }} — dialihkan ke {{ pilihanHari(o).pakai }} yang buka.
                   </p>
                   <p
                     v-else-if="pilihanHari(o).tutup"
-                    class="rounded-panel border border-default bg-coral-light px-2.5 py-2 text-[11px] font-semibold leading-relaxed text-coral-dark"
+                    class="rounded-xl border-l-4 border-error bg-error/10 px-3 py-2 text-xs font-semibold leading-relaxed text-error"
                   >
-                    {{ utamaVend(o) }} tutup hari {{ hariNama(o.tglDatang) }}, dan tidak ada vendor alternatif yang buka. Tambahkan vendor alternatif di Database &amp; Vendor, atau geser tanggal kedatangannya.
+                    {{ utamaVend(o) }} tutup hari {{ hariNama(o.tglDatang) }}, tanpa vendor alternatif yang buka. Tambahkan alternatif di Database &amp; Vendor, atau geser tanggalnya.
                   </p>
-                  <label class="block text-[10px] font-bold uppercase tracking-wider text-muted">Kirim via vendor:</label>
+                  <label class="text-[10px] font-bold uppercase tracking-wider text-muted">Kirim via vendor</label>
                   <USelect
                     :model-value="vendorPilih[o.nomorOrder] ?? pilihanHari(o).pakai"
                     :items="opsiVendor(o)"
                     class="w-full"
-                    size="sm"
                     @update:model-value="vendorPilih[o.nomorOrder] = String($event)"
+                  />
+                  <UButton
+                    label="Kirim draf WhatsApp"
+                    icon="i-lucide-message-circle"
+                    color="success"
+                    size="lg"
+                    block
+                    @click="drafItem(o, vendorEfektif(o))"
                   />
                 </template>
                 <div
                   v-else-if="onlineTanpaVendor(o)"
-                  class="rounded-panel bg-accented px-2.5 py-2 text-center text-[11px] font-semibold leading-relaxed text-blue-pressed"
+                  class="rounded-xl border-l-4 border-info bg-info/10 px-3 py-2 text-xs font-semibold leading-relaxed text-info"
                 >
                   Dibeli online — tidak perlu vendor tetap. Centang di tab Barang online begitu barangnya sampai.
                 </div>
                 <div
                   v-else
-                  class="rounded-panel bg-coral-light px-2.5 py-2 text-center text-[11px] font-semibold leading-relaxed text-coral-dark"
+                  class="rounded-xl border-l-4 border-error bg-error/10 px-3 py-2 text-xs font-semibold leading-relaxed text-error"
                 >
-                  Bahan baku ini belum dipetakan ke vendor manapun. Atur terlebih dahulu di tab Database.
+                  Bahan baku ini belum dipetakan ke vendor mana pun. Atur dulu di tab Database.
                 </div>
                 <div
                   v-if="perluJadwal(o)"
-                  class="rounded-panel border border-yellow-deep bg-yellow-light px-2.5 py-2 text-[11px] font-semibold leading-relaxed text-yellow-dark"
+                  class="rounded-xl border-l-4 border-warning bg-warning/10 px-3 py-2 text-xs font-semibold leading-relaxed text-warning"
                 >
-                  <p class="text-[10px] font-bold uppercase tracking-wider">
-                    Tanggal penjemputan
-                  </p>
-                  <p>Vendor {{ utamaVend(o) }} tidak bisa dijemput di hari yang sama. Status: <b>{{ o.tglJemput ? tglPendek(o.tglJemput) : 'belum diisi — arsip terkunci' }}</b>. Atur lewat tombol Tgl jemput.</p>
+                  Tidak bisa dijemput di hari yang sama. Jemput: <b>{{ o.tglJemput ? tglPendek(o.tglJemput) : 'belum diisi — arsip terkunci' }}</b>.
                 </div>
-                <div class="flex flex-wrap gap-1">
-                  <UButton
-                    v-if="!dariCk(o) && !tanpaVendor(o)"
-                    label="WA"
-                    icon="i-lucide-message-circle"
-                    size="sm"
-                    color="success"
-                    variant="soft"
-                    @click="drafItem(o, vendorEfektif(o))"
-                  />
+                <div class="grid grid-cols-2 gap-2">
                   <UButton
                     label="Tgl jemput"
-                    size="sm"
-                    variant="outline"
+                    icon="i-lucide-car"
+                    color="neutral"
+                    variant="soft"
+                    size="lg"
+                    block
                     @click="bukaJemput(o)"
                   />
                   <UButton
                     v-if="(o.kedatangan || '') !== 'Datang'"
                     label="Tandai datang"
-                    size="sm"
-                    variant="outline"
+                    icon="i-lucide-package-check"
+                    color="neutral"
+                    variant="soft"
+                    size="lg"
+                    block
                     @click="tandaiDatang(o)"
                   />
                 </div>
@@ -810,29 +821,36 @@ function unduhCsv() {
         <AppPanel
           v-for="g in (sub === 'vendor' ? poVendor : [])"
           :key="`${g.vendor}|${g.tgl}`"
+          bersarang
           :title="g.vendor"
           :description="`${g.tgl ? `Datang ${tglPendek(g.tgl)} · ` : ''}${g.baris.length} baris`"
         >
-          <template #head>
-            <UButton
-              label="WA gabungan"
-              icon="i-lucide-message-circle"
-              size="sm"
-              color="success"
-              variant="soft"
-              @click="drafGabung(g)"
-            />
-          </template>
-          <ul class="flex flex-col gap-1 text-sm">
+          <ul class="flex flex-col divide-y divide-default rounded-xl bg-default px-4 shadow-panel">
             <li
               v-for="o in g.baris"
               :key="o.nomorOrder"
-              class="flex justify-between gap-2"
+              class="flex flex-wrap items-center gap-2 py-2.5"
             >
-              <span class="text-default">{{ o.item }} <span class="text-muted">({{ o.pic }})</span></span>
-              <b class="num text-highlighted">{{ o.qty }} {{ o.unit }}</b>
+              <span class="min-w-0 flex-1">
+                <b class="text-sm text-highlighted">{{ o.item }}</b>
+                <span class="text-xs text-muted"> · {{ o.pic || '—' }}</span>
+              </span>
+              <span
+                class="rounded-md px-2 py-0.5 text-[11px] font-bold"
+                :class="warnaKategori(katOf(o.item))"
+              >{{ katOf(o.item) }}</span>
+              <b class="w-20 text-right text-base text-gold-deep num">{{ o.qty }} {{ o.unit }}</b>
             </li>
           </ul>
+          <UButton
+            :label="`Kirim chat borongan (${g.baris.length} item)`"
+            icon="i-lucide-message-circle"
+            color="success"
+            size="lg"
+            block
+            class="mt-3"
+            @click="drafGabung(g)"
+          />
         </AppPanel>
         <p
           v-if="sub === 'item' && !poItem.length"
@@ -857,7 +875,7 @@ function unduhCsv() {
           :key="h.hari"
           class="flex flex-col gap-2"
         >
-          <div class="flex flex-wrap items-center justify-between gap-2 rounded-md border border-default bg-muted px-4 py-2.5">
+          <div class="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-shell px-4 py-2.5">
             <p class="text-sm font-bold text-highlighted">
               {{ h.hari === '-' ? 'Tanpa tanggal' : tglLabel(h.hari) }}
               <span class="font-semibold text-muted">· {{ h.baris.length }} order</span>
@@ -874,17 +892,22 @@ function unduhCsv() {
           <div
             v-for="b in h.batch"
             :key="b.kunci"
-            class="overflow-hidden rounded-md border border-default"
+            class="overflow-hidden rounded-xl border border-default bg-muted"
           >
+            <!-- The whole head is the toggle: a tall, easy target. -->
             <button
               type="button"
-              class="flex w-full items-center gap-3 px-4 py-3 text-left"
+              class="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gold-soft/30"
+              :aria-expanded="!!arsipBuka[b.kunci]"
               @click="tukarArsipBatch(b.kunci)"
             >
-              <span
-                class="shrink-0 text-xs text-muted transition-transform"
-                :style="arsipBuka[b.kunci] ? 'transform: rotate(90deg)' : ''"
-              >▶</span>
+              <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-gold-soft text-gold-deep">
+                <UIcon
+                  name="i-lucide-chevron-right"
+                  class="size-4 transition-transform duration-200"
+                  :class="arsipBuka[b.kunci] && 'rotate-90'"
+                />
+              </span>
               <span class="min-w-0 flex-1">
                 <span class="block truncate text-sm font-bold text-highlighted">{{ b.nama || `Order ${b.pic || '-'}` }}</span>
                 <span class="block truncate text-[11px] font-semibold text-muted">{{ labelSubmit(b.ts) }}{{ b.asli ? '' : ' · dikelompokkan dari waktu submit' }}</span>
@@ -897,17 +920,25 @@ function unduhCsv() {
             </button>
             <div
               v-show="arsipBuka[b.kunci]"
-              class="flex flex-col gap-2 border-t border-default bg-muted/50 p-3"
+              class="flex flex-col gap-2 border-t border-default p-3"
             >
+              <!-- Archived line: category tag in its colour, the quantity big,
+                   and a wide restore button. -->
               <div
                 v-for="o in b.baris"
                 :key="o.nomorOrder"
-                class="flex items-center justify-between gap-2 rounded-md border border-default bg-elevated p-3"
+                class="grid items-center gap-3 rounded-lg bg-default p-3 shadow-panel sm:grid-cols-[minmax(0,1fr)_auto_auto]"
               >
                 <div class="min-w-0">
-                  <b class="text-highlighted">{{ o.item }}</b>
-                  <p class="truncate text-sm text-muted">
-                    {{ o.nomorOrder }} · {{ o.qty }} {{ o.unit }}
+                  <div class="flex flex-wrap items-center gap-2">
+                    <b class="text-highlighted">{{ o.item }}</b>
+                    <span
+                      class="rounded-md px-2 py-0.5 text-[11px] font-bold"
+                      :class="warnaKategori(katOf(o.item))"
+                    >{{ katOf(o.item) }}</span>
+                  </div>
+                  <p class="mt-0.5 truncate font-mono text-[11px] text-muted">
+                    {{ o.nomorOrder }}
                   </p>
                   <p
                     v-if="o.tglDatang || o.pic || o.tim"
@@ -916,12 +947,16 @@ function unduhCsv() {
                     {{ [o.tglDatang ? `datang ${tglPendek(o.tglDatang)}` : '', o.pic, o.tim].filter(Boolean).join(' · ') }}
                   </p>
                 </div>
+                <p class="font-display text-2xl font-extrabold leading-none text-gold-deep num sm:text-right">
+                  {{ o.qty }} <span class="font-sans text-sm font-medium text-muted">{{ o.unit }}</span>
+                </p>
                 <UButton
                   label="Pulihkan arsip"
                   icon="i-lucide-history"
-                  size="sm"
-                  variant="outline"
-                  class="shrink-0"
+                  color="neutral"
+                  variant="soft"
+                  size="lg"
+                  class="w-full justify-center sm:w-auto"
                   @click="arsipkanBatch([o.nomorOrder], true)"
                 />
               </div>
@@ -930,7 +965,7 @@ function unduhCsv() {
         </div>
         <p
           v-if="arsipJatuhPenuh"
-          class="rounded-panel border border-default bg-muted px-4 py-2.5 text-xs leading-relaxed text-muted"
+          class="rounded-xl border border-default bg-muted px-4 py-2.5 text-xs leading-relaxed text-muted"
         >
           Pencarian teks, filter vendor, atau tgl submit aktif — arsip dibaca penuh lalu disaring di sini supaya hasilnya tetap lengkap.
         </p>
@@ -954,11 +989,8 @@ function unduhCsv() {
       title="Tanggal jemput"
     >
       <div class="flex flex-col gap-3">
-        <UFormField label="Tanggal jemput (YYYY-MM-DD)">
-          <UInput
-            v-model="jemputTgl"
-            type="date"
-          />
+        <UFormField label="Tanggal jemput">
+          <AppTanggal v-model="jemputTgl" />
         </UFormField>
         <div class="flex justify-end gap-2">
           <UButton

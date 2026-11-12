@@ -48,8 +48,6 @@ export const LAYAR_STOCK: Layar[] = [
   { key: 'ordering_order', label: 'Form Order Belanja', desc: 'Pengajuan order barang baru', icon: 'i-lucide-shopping-cart', to: '/stock/ordering/order', grup: 'Ordering', boleh: bolehOrdering(false) },
   { key: 'ordering_ck', label: 'Central Kitchen', desc: 'Pengajuan ke Central Kitchen', icon: 'i-lucide-chef-hat', to: '/stock/ordering/ck', grup: 'Ordering', boleh: bolehOrdering(false) },
   { key: 'ordering_checkin', label: 'Check-in Penerimaan', desc: 'Tandai barang yang datang per nomor PO', icon: 'i-lucide-package-check', to: '/stock/ordering/checkin', grup: 'Ordering', boleh: bolehOrdering(false) },
-  { key: 'ordering_restock', label: 'Daftar Restock', desc: 'Bahan yang perlu dipesan dari prakiraan', icon: 'i-lucide-trending-up', to: '/stock/ordering/restock', grup: 'Ordering', boleh: bolehOrdering(true) },
-  { key: 'ordering_forecast', label: 'Data Forecast', desc: 'Keandalan prakiraan & arsip data latih', icon: 'i-lucide-line-chart', to: '/stock/ordering/forecast', grup: 'Ordering', boleh: bolehOrdering(true) },
   { key: 'ordering_users', label: 'Kelola Akses Ordering', desc: 'Kru dapur & perannya', icon: 'i-lucide-users', to: '/stock/ordering/users', grup: 'Ordering', boleh: bolehOrdering(true) },
 
   // ── Purchasing (kunci purchasing, matriks PERM_DEFAULT lama) ──

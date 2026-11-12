@@ -2,7 +2,7 @@
   Stock › HPP › Dashboard HPP (old `deploy/stock/hpp/index.html:212`, JUDUL dash `:832`).
 
   COGS summary, the most wasteful menus, the ingredients moving the modal most
-  (`kontribusiBahan`), and a per-line breakdown (`uraiBahan`) of one menu.
+  (`kontribusiBahan`). The one-menu breakdown was removed (owner request, Nov 2026).
   Costs cascade client-side (stock.md F.1–F.4); the buffer applies once, on
   finished menus only.
 -->
@@ -12,14 +12,10 @@ import { getHppIngredients, getHppRecipes, hppSettings } from '~/composables/use
 import { angka, persen, rupiah } from '~/utils/format'
 import {
   ambangOf,
-  biayaBaris,
   buatKonteks,
   cogsOf,
   kontribusiBahan,
-  modalMenu,
-  modalPorsi,
   SET_DEFAULT,
-  tanpaBahan,
   type KonteksHpp,
 } from '~/utils/stock-hpp'
 
@@ -82,18 +78,6 @@ const gerak = computed(() => kontribusiBahan(
 ).slice(0, 10))
 const maksGerak = computed(() => Math.max(1, ...gerak.value.map(g => g.total)))
 
-// --- uraian satu menu ------------------------------------------------------------
-const pilihMenu = ref('')
-const menuPilih = computed(() => {
-  const r = ctx.value.PR.get(pilihMenu.value.toLowerCase())
-  return r ?? null
-})
-const uraian = computed(() => {
-  const r = menuPilih.value
-  if (!r) return []
-  return (r.bahan ?? []).filter(b => b?.nama).map(b => ({ baris: b, ...biayaBaris(ctx.value, b, r.jenis) }))
-})
-const modalPilih = computed(() => (menuPilih.value ? modalMenu(ctx.value, menuPilih.value, set.value.buffer) : null))
 const warnaCogs = (c: number | null, jenis: string) => {
   if (c == null) return 'neutral' as const
   const t = jenis === 'drink' ? Number(set.value.targetDrink) : Number(set.value.targetFood)
@@ -187,60 +171,8 @@ const warnaCogs = (c: number | null, jenis: string) => {
       </AppPanel>
     </div>
 
-    <AppPanel title="Uraian bahan satu menu">
-      <AppFilterGrid>
-        <UFormField label="Menu">
-          <USelect
-            v-model="pilihMenu"
-            :items="dish.map(r => ({ value: String(r.nama ?? ''), label: String(r.nama ?? '') }))"
-            placeholder="Pilih menu jadi"
-          />
-        </UFormField>
-      </AppFilterGrid>
-      <div v-if="menuPilih && modalPilih">
-        <p class="mb-2 text-sm text-muted">
-          Modal {{ rupiah(Math.round(modalPilih.total)) }} (bahan {{ rupiah(Math.round(modalPilih.bahan)) }}{{
-            modalPilih.spare > 0 ? ` + spare ${rupiah(Math.round(modalPilih.spare))}` : ''
-          }}) · per porsi {{ rupiah(Math.round(modalPorsi(ctx, menuPilih, set.buffer))) }}{{
-            tanpaBahan(menuPilih) && modalPilih.manual ? ' · modal ketikan tangan' : ''
-          }}
-        </p>
-        <ul class="flex flex-col gap-1 text-sm">
-          <li
-            v-for="u in uraian"
-            :key="u.baris.nama"
-            class="flex justify-between gap-2"
-          >
-            <span class="text-default">
-              {{ u.baris.nama }} <span class="text-muted">({{ u.baris.qty }} {{ u.baris.satuan }})</span>
-              <span
-                v-if="u.hilang"
-                class="text-error"
-              > · hilang</span>
-              <span
-                v-if="u.campur"
-                class="text-warning"
-              > · ⚠ satuan campur</span>
-            </span>
-            <b class="num text-highlighted">{{ rupiah(Math.round(u.biaya)) }}</b>
-          </li>
-        </ul>
-        <p
-          v-if="modalPilih.hilang.length"
-          class="mt-2 text-sm text-error"
-        >
-          Bahan hilang: {{ modalPilih.hilang.join(', ') }} — dilaporkan, bukan dihitung nol.
-        </p>
-      </div>
-      <p
-        v-else
-        class="text-sm text-dimmed"
-      >
-        Pilih menu untuk melihat rincian barisnya.
-      </p>
-      <p class="mt-2 text-sm text-muted">
-        Angka: {{ angka(dishCogs.length) }} menu ber-COGS dari {{ angka(dish.length) }} menu jadi.
-      </p>
-    </AppPanel>
+    <p class="text-sm text-muted">
+      Angka: {{ angka(dishCogs.length) }} menu ber-COGS dari {{ angka(dish.length) }} menu jadi.
+    </p>
   </AppPage>
 </template>

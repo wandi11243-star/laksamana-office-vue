@@ -327,7 +327,7 @@ async function impor(e: Event) {
         <div
           v-for="b in semua.slice(0, 80)"
           :key="String(b.nama)"
-          class="flex items-center justify-between gap-2 rounded-panel border border-default p-3"
+          class="flex items-center justify-between gap-2 rounded-xl border border-default p-3"
         >
           <div>
             <b class="text-highlighted">{{ b.nama }}</b>

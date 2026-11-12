@@ -263,7 +263,7 @@ const daftarBulan = computed(() => dataQ.data.value?.data.daftarBulan ?? [])
         <div
           v-for="b in saring.slice(0, 80)"
           :key="b.bahan"
-          class="flex items-center justify-between gap-2 rounded-panel border border-default p-3"
+          class="flex items-center justify-between gap-2 rounded-xl border border-default p-3"
         >
           <div>
             <b class="text-highlighted">{{ b.bahan }}</b>

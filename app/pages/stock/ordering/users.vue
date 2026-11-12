@@ -229,7 +229,7 @@ const kolom: TableColumn<KruStock>[] = [
         <div
           v-for="k in semua"
           :key="k.id"
-          class="flex items-center justify-between gap-2 rounded-panel border border-default p-3"
+          class="flex items-center justify-between gap-2 rounded-xl border border-default p-3"
         >
           <div>
             <b class="text-highlighted">{{ k.name }}</b>
