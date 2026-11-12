@@ -21,7 +21,7 @@ const model = defineModel<T>()
       :key="String(o.value)"
       class="flex min-h-11 cursor-pointer items-center justify-center gap-1.5 rounded-field border-[1.5px] px-3 py-2.5 text-sm font-semibold transition-colors has-focus-visible:outline-2 has-focus-visible:outline-primary"
       :class="model === o.value
-        ? 'border-yellow-deep bg-yellow-light text-highlighted'
+        ? 'border-gold bg-gold-soft text-highlighted'
         : 'border-default bg-default text-muted hover:border-accented'"
     >
       <input

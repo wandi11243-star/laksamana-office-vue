@@ -207,7 +207,7 @@ async function hapus() {
           class="w-full"
         />
       </UFormField>
-      <div class="rounded-lg border border-default p-3 sm:col-span-2">
+      <div class="rounded-lg border bg-muted border-default p-3 sm:col-span-2">
         <p class="text-sm font-semibold">
           Dana keluar (penggunaan ads)
         </p>

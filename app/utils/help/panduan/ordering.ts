@@ -26,8 +26,6 @@ export default {
             ['Form Order Belanja', 'Mengajukan barang yang perlu dibeli.'],
             ['Central Kitchen', 'Meminta barang dari CK, atau mengirim barang ke CK.'],
             ['Check-in Penerimaan', 'Mencatat barang yang datang.'],
-            ['Daftar Restock', 'Barang yang perlu diorder lagi.'],
-            ['Data Forecast', 'Perkiraan kebutuhan.'],
             ['Kelola Akses', 'Siapa yang boleh mengajukan order.'],
           ] },
         { t: 'gambar', berkas: 'ordering/form-order.png',

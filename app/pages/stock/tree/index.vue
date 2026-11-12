@@ -226,7 +226,7 @@ function dariLaciKeMenu(menu: string) {
             />
             <div
               v-if="cariBahan.trim()"
-              class="absolute inset-x-3 top-full z-20 max-h-64 overflow-y-auto rounded-panel border border-default bg-default p-1 shadow-panel"
+              class="absolute inset-x-3 top-full z-20 max-h-64 overflow-y-auto rounded-panel bg-default p-1 shadow-panel"
             >
               <button
                 v-for="n in cocokBahan"

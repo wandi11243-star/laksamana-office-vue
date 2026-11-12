@@ -488,7 +488,7 @@ async function segarkan() {
           <div
             v-for="b in baris"
             :key="b.k"
-            class="rounded-panel border border-default p-3"
+            class="rounded-xl border bg-muted border-default p-3"
           >
             <div class="flex flex-col gap-2 lg:flex-row lg:items-center">
               <div class="min-w-0 flex-1">
@@ -621,6 +621,7 @@ async function segarkan() {
 
         <div class="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
           <AppPanel
+            bersarang
             title="Arah perpindahan"
             :description="barsArah.sub"
           >
@@ -639,6 +640,7 @@ async function segarkan() {
             />
           </AppPanel>
           <AppPanel
+            bersarang
             title="Barang terbanyak diserahkan"
             :description="subBarQty(ringkas.rekap)"
           >
@@ -661,6 +663,7 @@ async function segarkan() {
 
         <AppPanel
           v-if="ringkas.rekap.length"
+          bersarang
           class="mt-5"
           title="Total barang yang diserahkan"
           :description="`${ringkas.rekap.length} barang · ${teksTotal(ringkas.totQty)}`"
@@ -727,7 +730,7 @@ async function segarkan() {
             <div
               v-for="s in blk.list"
               :key="s.id"
-              class="mb-3 flex flex-wrap items-start gap-3 rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel"
+              class="mb-3 flex flex-wrap items-start gap-3 rounded-panel bg-default px-4 py-3.5 shadow-panel"
             >
               <AppStatus
                 :color="s.tujuan === 'Bar' ? 'vip' : 'warning'"

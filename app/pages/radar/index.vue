@@ -184,7 +184,7 @@ useSegarSenyap(refresh, () => buka.value)
             v-model="hal14"
             :total="dua.length"
             satuan="acara"
-            class="-mx-4 -mb-4 mt-3 lg:-mx-5 lg:-mb-5"
+            class="-mx-5 -mb-5 mt-3 lg:-mx-7 lg:-mb-7"
           />
         </AppPanel>
 

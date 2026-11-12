@@ -357,6 +357,7 @@ function bersihkan(): void {
           />
         </div>
         <AppPanel
+          bersarang
           title="Memakai printer kasir LAN"
           icon="i-lucide-info"
           class="mt-4"

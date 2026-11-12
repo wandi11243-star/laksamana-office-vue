@@ -13,8 +13,11 @@ Hard rules:
   cards and button positions as `../laksamana-office/deploy/<module>`. Blocks: `AppPage` (+`#actions`), `AppStatGrid`/`AppStat`,
   `AppPanel`, `AppFilterGrid`, `AppChips`, `AppSeg`, `AppStatus` (colour + icon + word), `AppSectionTitle`, `AppPilihan`, `AppBar`,
   `UTable` (`lg+`, cards below), `ResponsiveSheet` for forms. Module chrome (sidebar screens, `+`, bell, badges) in `app/utils/modul-shell.ts`.
-  Lucide icons instead of the old emoji (emoji only inside WhatsApp message text). Hitam = `text-ink-900` (CTA `bg-ink-900` teks putih; kuning `#ffd02f` hanya aksen). No hex colours
-  in components; no gradients. Restyle Nuxt UI in `app/app.config.ts`, don't wrap it.
+  Lucide icons instead of the old emoji (emoji only inside WhatsApp message text). Accent = Laksamana gold (CTA `color="primary"` = white on `#85600F`; active = `gold-soft`/`gold-deep`);
+  WattVision dashboard look: borderless white cards with a soft shadow, sidebar on `bg-shell`, display face Plus Jakarta Sans
+  for titles and KPI numbers, no pastel card/tile backgrounds; 16px cards, 10px fields. No hex colours
+  in components; no gradients (one exception: the `ubin-emas` module icon tile copied from the old launcher). Module card
+  icons are the old launcher's own SVGs (`i-laks-*`, `app/assets/icons`). Restyle Nuxt UI in `app/app.config.ts`, don't wrap it.
 - One page serves phone and desktop. Check 390px and 1366px **in a browser** (lint/typecheck do not catch runtime errors). The
   app is light-only: color mode is pinned to light in `nuxt.config.ts` and there is no theme picker — do not add `dark:` styles
   or a toggle. Pointing the dev server at the dev API (`dev-api.laksamanamuda.id`) is fine, writes included;

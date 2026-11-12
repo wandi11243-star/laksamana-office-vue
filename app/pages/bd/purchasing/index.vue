@@ -779,7 +779,7 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
         <div
           v-for="st in setsEfektif"
           :key="st.id"
-          class="mb-3 rounded-field border border-default p-3"
+          class="mb-3 rounded-field border bg-muted border-default p-3"
         >
           <div class="mb-3 flex flex-wrap items-center gap-2">
             <UInput

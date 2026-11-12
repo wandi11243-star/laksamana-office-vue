@@ -145,7 +145,7 @@ const kolom: TableColumn<LogStock>[] = [
         <div
           v-for="(l, i) in semua.slice(0, 100)"
           :key="`${l.waktu}-${i}`"
-          class="rounded-panel border border-default p-3"
+          class="rounded-xl border border-default p-3"
         >
           <b class="text-highlighted">{{ l.aksi }}</b>
           <p class="text-sm text-default">

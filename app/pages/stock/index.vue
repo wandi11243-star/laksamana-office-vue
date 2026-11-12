@@ -14,17 +14,17 @@ definePageMeta({ access: ['ordering', 'purchasing', 'tree', 'usage', 'hpp', 'bre
 
 const me = useMe()
 
-interface Panel { key: string, label: string, sub: string, icon: string, to?: string, kunci: string[], ubin: string }
+interface Panel { key: string, label: string, sub: string, icon: string, to?: string, kunci: string[] }
 
-// Ubin tiap panel memakai satu tint pastel Miro (sistem sticky-note miro.com):
-// pembeda identitas panel, bukan dekorasi — alasan per R-31 DESIGN.md.
+// Every panel tile is the old launcher gold tile (`ubin-emas`, DESIGN.md):
+// panels are told apart by icon and name, not by pastel tints.
 const semua: Panel[] = [
-  { key: 'ordering', label: 'Ordering', sub: 'Order & check-in penerimaan', icon: 'i-lucide-chef-hat', to: '/stock/ordering', kunci: ['ordering'], ubin: 'bg-yellow-light text-yellow-dark' },
-  { key: 'purchasing', label: 'Purchasing', sub: 'Antrean order, vendor & dispatch', icon: 'i-lucide-clipboard-list', to: '/stock/purchasing', kunci: ['purchasing'], ubin: 'bg-surface-pricing text-blue-pressed' },
-  { key: 'tree', label: 'Pohon Resep', sub: 'Rincian menu sampai bahan mentah', icon: 'i-lucide-tree-deciduous', to: '/stock/tree', kunci: ['tree'], ubin: 'bg-teal-light text-moss-dark' },
-  { key: 'usage', label: 'Pemakaian Bahan Baku', sub: 'Bahan untuk prasmanan, training & RND', icon: 'i-lucide-utensils', to: '/stock/usage', kunci: ['usage'], ubin: 'bg-brand-orange-light text-ink-900' },
-  { key: 'hpp', label: 'HPP & Resep', sub: 'Resep, harga bahan, modal per menu & COGS', icon: 'i-lucide-calculator', to: '/stock/hpp', kunci: ['hpp'], ubin: 'bg-rose-light text-coral-dark' },
-  { key: 'breakloss', label: 'Break & Loss', sub: 'Barang pecah & hilang + stok terkini', icon: 'i-lucide-package-x', to: '/stock/breakloss', kunci: ['breakloss'], ubin: 'bg-coral-light text-coral-dark' },
+  { key: 'ordering', label: 'Ordering', sub: 'Order & check-in penerimaan', icon: 'i-lucide-chef-hat', to: '/stock/ordering', kunci: ['ordering'] },
+  { key: 'purchasing', label: 'Purchasing', sub: 'Antrean order, vendor & dispatch', icon: 'i-lucide-clipboard-list', to: '/stock/purchasing', kunci: ['purchasing'] },
+  { key: 'tree', label: 'Pohon Resep', sub: 'Rincian menu sampai bahan mentah', icon: 'i-lucide-tree-deciduous', to: '/stock/tree', kunci: ['tree'] },
+  { key: 'usage', label: 'Pemakaian Bahan Baku', sub: 'Bahan untuk prasmanan, training & RND', icon: 'i-lucide-utensils', to: '/stock/usage', kunci: ['usage'] },
+  { key: 'hpp', label: 'HPP & Resep', sub: 'Resep, harga bahan, modal per menu & COGS', icon: 'i-lucide-calculator', to: '/stock/hpp', kunci: ['hpp'] },
+  { key: 'breakloss', label: 'Break & Loss', sub: 'Barang pecah & hilang + stok terkini', icon: 'i-lucide-package-x', to: '/stock/breakloss', kunci: ['breakloss'] },
 ]
 
 const panels = computed(() => semua.filter(p => hasAccess(me.value, p.kunci)))
@@ -48,13 +48,10 @@ onMounted(() => {
         <div
           v-for="p in panels"
           :key="p.key"
-          class="flex flex-col rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel lg:px-5"
+          class="group flex flex-col rounded-xl border border-default bg-default px-4 py-4 transition duration-200 ease-laks hover:border-gold hover:shadow-panel-hover lg:px-5"
         >
           <div class="mb-2 flex items-center gap-3">
-            <span
-              class="grid size-10 shrink-0 place-items-center rounded-xl"
-              :class="p.ubin"
-            >
+            <span class="ubin-emas size-[38px] rounded-[11px]">
               <UIcon
                 :name="p.icon"
                 class="size-5"
@@ -88,7 +85,7 @@ onMounted(() => {
         </div>
         <div
           v-if="!panels.length"
-          class="rounded-panel border border-default bg-default p-4 text-sm text-muted"
+          class="rounded-xl border border-default bg-muted p-4 text-sm text-muted"
         >
           Akunmu belum memegang satu pun panel Stock.
         </div>
@@ -97,7 +94,7 @@ onMounted(() => {
       <p class="mt-4 text-sm text-muted">
         Kembali ke <ULink
           to="/"
-          class="font-semibold text-ink-900"
+          class="font-semibold text-gold-deep"
         >Beranda Office</ULink>.
       </p>
     </AppPanel>

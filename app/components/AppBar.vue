@@ -13,22 +13,22 @@ const props = withDefaults(defineProps<{
 }>(), { tone: 'gold' })
 
 const fill = {
-  gold: 'bg-brand-yellow',
+  gold: 'bg-gold',
   success: 'bg-success',
   error: 'bg-error',
   info: 'bg-info',
-  vip: 'bg-lilac-light',
+  vip: 'bg-vip',
 }
 const lebar = computed(() => `${Math.max(0, Math.min(100, props.persen))}%`)
 </script>
 
 <template>
-  <div class="mb-3">
-    <div class="mb-1 flex items-baseline justify-between gap-3 text-sm">
+  <div class="mb-4">
+    <div class="mb-2 flex items-baseline justify-between gap-3 text-sm">
       <span class="min-w-0 truncate text-default">{{ label }}</span>
-      <b class="shrink-0 text-highlighted num">{{ value }}</b>
+      <b class="shrink-0 font-semibold text-gold-deep num">{{ value }}</b>
     </div>
-    <div class="h-3 overflow-hidden rounded-full bg-muted">
+    <div class="h-2.5 overflow-hidden rounded-full bg-muted">
       <div
         class="h-full rounded-full transition-[width] duration-500 ease-out"
         :class="fill[tone]"

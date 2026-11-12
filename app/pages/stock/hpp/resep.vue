@@ -406,7 +406,7 @@ async function impor(e: Event) {
         <div
           v-for="r in tampil"
           :key="String(r.id)"
-          class="rounded-panel border border-default p-3"
+          class="rounded-xl border border-default p-3"
         >
           <div class="flex items-center justify-between gap-2">
             <b class="text-highlighted">{{ r.nama }}</b>
@@ -545,7 +545,7 @@ async function impor(e: Event) {
         <div
           v-for="(b, i) in f.bahan"
           :key="i"
-          class="grid grid-cols-2 gap-2 rounded-panel border border-default p-2"
+          class="grid grid-cols-2 gap-2 rounded-xl border bg-muted border-default p-2"
         >
           <UFormField label="Nama">
             <UInput v-model="b.nama" />

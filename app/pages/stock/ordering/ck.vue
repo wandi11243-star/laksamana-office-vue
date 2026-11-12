@@ -24,7 +24,6 @@ const sub = ref<'stok' | 'minta' | 'kirim' | 'riwayat'>('stok')
 
 const produkQ = useProdukStock()
 const produkCk = computed(() => produkQ.data.value?.rows.filter(p => p.sumber === 'ck' || p.sumber === 'both') ?? [])
-const namaCk = computed(() => produkCk.value.map(p => p.nama))
 const produkOutlet = computed(() => produkQ.data.value?.rows.filter(p => (p as unknown as Record<string, unknown>).diOutlet) ?? [])
 
 const saldoQ = useAsyncData('stock-ck-saldo', ckBalance, { default: () => ({ rows: [] as CkSaldo[] }) })
@@ -122,6 +121,59 @@ function hapusBaris(ke: 'minta' | 'kirim', k: number) {
 }
 
 const sisaOf = (nama: string) => saldo.value.find(s => s.item === nama)?.saldo
+
+// --- picking goods (like Form Order: search grouped by category, or tiles) ---
+const daftarDari = (ke: 'minta' | 'kirim') => (ke === 'minta' ? produkCk.value : produkOutlet.value)
+function opsiGrup(ke: 'minta' | 'kirim') {
+  const grup = new Map<string, string[]>()
+  for (const p of daftarDari(ke)) {
+    if (p.aktif === false) continue
+    const k = (p.kategori || '').trim() || 'Lainnya'
+    grup.set(k, [...(grup.get(k) ?? []), p.nama])
+  }
+  return [...grup.entries()]
+    .sort(([a], [b]) => (a === 'Lainnya' ? 1 : b === 'Lainnya' ? -1 : a.localeCompare(b, 'id')))
+    .map(([k, nama]) => [{ type: 'label' as const, label: k, value: `kategori:${k}` }, ...nama.sort((a, b) => a.localeCompare(b, 'id')).map(n => ({ label: n, value: n }))])
+}
+const opsiMinta = computed(() => opsiGrup('minta'))
+const opsiKirimBarang = computed(() => opsiGrup('kirim'))
+
+function isiBarang(ke: 'minta' | 'kirim', b: BarisCk, nama: string) {
+  b.item = nama
+  if (ke === 'kirim') rapikanSatuan(b)
+}
+
+const pemilih = ref<{ open: boolean, ke: 'minta' | 'kirim', k: number | null }>({ open: false, ke: 'minta', k: null })
+const barisPemilih = computed(() => (pemilih.value.ke === 'minta' ? barisMinta : barisKirim))
+const namaDiPemilih = computed(() => barisPemilih.value.value.map(b => b.item).filter(Boolean))
+function bukaPemilih(ke: 'minta' | 'kirim', k: number | null = null) {
+  pemilih.value = { open: true, ke, k }
+}
+function pakaiPilihan(nama: string[]) {
+  const { ke, k } = pemilih.value
+  const daftar = barisPemilih.value
+  if (k !== null) {
+    const b = daftar.value.find(x => x.k === k)
+    if (b && nama[0]) isiBarang(ke, b, nama[0])
+    return
+  }
+  // Multi pick: unticked goods leave the form, new ones fill empty rows first.
+  const pilih = new Set(nama)
+  let sisa = daftar.value.filter(b => !b.item || pilih.has(b.item))
+  const ada = new Set(sisa.map(b => b.item).filter(Boolean))
+  for (const n of nama) {
+    if (ada.has(n)) continue
+    const kosong = sisa.find(b => !b.item)
+    if (kosong) {
+      isiBarang(ke, kosong, n)
+      continue
+    }
+    const baru: BarisCk = { k: ++nomor, item: '', qty: 1, unit: 'Pack' }
+    isiBarang(ke, baru, n)
+    sisa = [...sisa, baru]
+  }
+  daftar.value = sisa.length ? sisa : [{ k: ++nomor, item: '', qty: 1, unit: 'Pack' }]
+}
 
 async function kirimMinta() {
   const isi = barisMinta.value.filter(b => b.item.trim() && (Number(b.qty) || 0) > 0)
@@ -359,7 +411,7 @@ function unduhStok() {
           <div
             v-for="s in saldo"
             :key="s.item"
-            class="flex items-center justify-between rounded-panel border border-default p-3"
+            class="flex items-center justify-between rounded-xl border border-default p-3"
           >
             <div>
               <b class="text-highlighted">{{ s.item }}</b>
@@ -404,9 +456,8 @@ function unduhStok() {
             />
           </UFormField>
           <UFormField label="Tanggal dibutuhkan">
-            <UInput
+            <AppTanggal
               v-model="tglButuh"
-              type="date"
             />
           </UFormField>
         </AppFilterGrid>
@@ -414,14 +465,30 @@ function unduhStok() {
           <div
             v-for="b in barisMinta"
             :key="b.k"
-            class="grid gap-2 rounded-panel border border-default p-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_auto]"
+            class="grid gap-2 rounded-xl border border-default bg-muted p-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_auto]"
           >
             <UFormField label="Barang">
-              <UInput
-                v-model="b.item"
-                list="stock-ck-barang"
-                placeholder="Ketik nama barang CK"
-              />
+              <div class="flex items-center gap-2">
+                <USelectMenu
+                  :model-value="b.item || undefined"
+                  :items="opsiMinta"
+                  value-key="value"
+                  placeholder="Cari barang CK…"
+                  :search-input="{ placeholder: 'Ketik nama barang…' }"
+                  class="min-w-0 flex-1"
+                  @update:model-value="isiBarang('minta', b, String($event ?? ''))"
+                />
+                <UButton
+                  icon="i-lucide-layout-grid"
+                  color="neutral"
+                  variant="soft"
+                  square
+                  class="size-10 shrink-0 justify-center lg:size-8"
+                  title="Pilih dari kategori"
+                  aria-label="Pilih barang dari kategori"
+                  @click="bukaPemilih('minta', b.k)"
+                />
+              </div>
             </UFormField>
             <UFormField label="Jumlah">
               <UInput
@@ -445,26 +512,39 @@ function unduhStok() {
                 icon="i-lucide-trash-2"
                 variant="ghost"
                 color="error"
+                square
+                class="size-10 justify-center lg:size-8"
                 aria-label="Hapus baris"
                 @click="hapusBaris('minta', b.k)"
               />
             </div>
           </div>
         </div>
-        <datalist id="stock-ck-barang">
-          <option
-            v-for="n in namaCk"
-            :key="n"
-            :value="n"
-          />
-        </datalist>
-        <div class="mt-4 flex flex-wrap gap-2">
-          <UButton
-            label="Tambah baris"
-            icon="i-lucide-plus"
-            variant="outline"
+        <div class="mt-3 grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gold/40 text-sm font-semibold text-gold-deep transition-colors hover:border-gold hover:bg-gold-soft/40 lg:min-h-10"
             @click="tambahBaris('minta')"
-          />
+          >
+            <UIcon
+              name="i-lucide-plus"
+              class="size-4"
+            />
+            Tambah barang
+          </button>
+          <button
+            type="button"
+            class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gold/40 text-sm font-semibold text-gold-deep transition-colors hover:border-gold hover:bg-gold-soft/40 lg:min-h-10"
+            @click="bukaPemilih('minta')"
+          >
+            <UIcon
+              name="i-lucide-layout-grid"
+              class="size-4"
+            />
+            Pilih barang dari kategori
+          </button>
+        </div>
+        <div class="mt-4 flex flex-wrap justify-end gap-2">
           <UButton
             label="Kirim pengajuan"
             icon="i-lucide-send"
@@ -480,9 +560,8 @@ function unduhStok() {
         </p>
         <AppFilterGrid>
           <UFormField label="Tanggal kirim">
-            <UInput
+            <AppTanggal
               v-model="tglKirim"
-              type="date"
             />
           </UFormField>
         </AppFilterGrid>
@@ -490,15 +569,30 @@ function unduhStok() {
           <div
             v-for="b in barisKirim"
             :key="b.k"
-            class="grid gap-2 rounded-panel border border-default p-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_auto]"
+            class="grid gap-2 rounded-xl border border-default bg-muted p-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_auto]"
           >
             <UFormField label="Barang">
-              <UInput
-                v-model="b.item"
-                list="stock-ck-outlet"
-                placeholder="Ketik nama barang"
-                @change="rapikanSatuan(b)"
-              />
+              <div class="flex items-center gap-2">
+                <USelectMenu
+                  :model-value="b.item || undefined"
+                  :items="opsiKirimBarang"
+                  value-key="value"
+                  placeholder="Cari barang…"
+                  :search-input="{ placeholder: 'Ketik nama barang…' }"
+                  class="min-w-0 flex-1"
+                  @update:model-value="isiBarang('kirim', b, String($event ?? ''))"
+                />
+                <UButton
+                  icon="i-lucide-layout-grid"
+                  color="neutral"
+                  variant="soft"
+                  square
+                  class="size-10 shrink-0 justify-center lg:size-8"
+                  title="Pilih dari kategori"
+                  aria-label="Pilih barang dari kategori"
+                  @click="bukaPemilih('kirim', b.k)"
+                />
+              </div>
             </UFormField>
             <UFormField label="Jumlah">
               <UInput
@@ -518,26 +612,39 @@ function unduhStok() {
                 icon="i-lucide-trash-2"
                 variant="ghost"
                 color="error"
+                square
+                class="size-10 justify-center lg:size-8"
                 aria-label="Hapus baris"
                 @click="hapusBaris('kirim', b.k)"
               />
             </div>
           </div>
         </div>
-        <datalist id="stock-ck-outlet">
-          <option
-            v-for="p in produkOutlet"
-            :key="p.nama"
-            :value="p.nama"
-          />
-        </datalist>
-        <div class="mt-4 flex flex-wrap gap-2">
-          <UButton
-            label="Tambah item"
-            icon="i-lucide-plus"
-            variant="outline"
+        <div class="mt-3 grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gold/40 text-sm font-semibold text-gold-deep transition-colors hover:border-gold hover:bg-gold-soft/40 lg:min-h-10"
             @click="tambahBaris('kirim')"
-          />
+          >
+            <UIcon
+              name="i-lucide-plus"
+              class="size-4"
+            />
+            Tambah item
+          </button>
+          <button
+            type="button"
+            class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gold/40 text-sm font-semibold text-gold-deep transition-colors hover:border-gold hover:bg-gold-soft/40 lg:min-h-10"
+            @click="bukaPemilih('kirim')"
+          >
+            <UIcon
+              name="i-lucide-layout-grid"
+              class="size-4"
+            />
+            Pilih item dari kategori
+          </button>
+        </div>
+        <div class="mt-4 flex flex-wrap justify-end gap-2">
           <UButton
             label="Catat kiriman"
             icon="i-lucide-check"
@@ -581,7 +688,7 @@ function unduhStok() {
           <div
             v-for="m in kiriman"
             :key="m.id"
-            class="rounded-panel border border-default p-3"
+            class="rounded-xl border border-default p-3"
           >
             <div class="flex items-start justify-between gap-2">
               <div>
@@ -627,10 +734,7 @@ function unduhStok() {
         </UFormField>
         <div class="grid grid-cols-2 gap-2">
           <UFormField label="Tanggal kirim">
-            <UInput
-              v-model="ubah.tanggal"
-              type="date"
-            />
+            <AppTanggal v-model="ubah.tanggal" />
           </UFormField>
           <UFormField label="Jumlah">
             <UInput
@@ -649,7 +753,7 @@ function unduhStok() {
         </UFormField>
         <p
           v-if="basiUbah"
-          class="rounded-field bg-warning/12 p-3 text-sm text-warning"
+          class="rounded-xl border-l-4 border-warning bg-warning/10 p-3 text-sm text-warning"
         >
           {{ basiUbah }}. Satuan stok berubah setelah kiriman ini dicatat — menyimpan tetap diizinkan.
         </p>
@@ -667,5 +771,13 @@ function unduhStok() {
         </div>
       </div>
     </ResponsiveSheet>
+
+    <StockPilihBahan
+      v-model:open="pemilih.open"
+      :produk="daftarDari(pemilih.ke)"
+      :awal="namaDiPemilih"
+      :tunggal="pemilih.k !== null"
+      @pakai="pakaiPilihan"
+    />
   </AppPage>
 </template>

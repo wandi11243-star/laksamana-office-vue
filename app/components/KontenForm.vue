@@ -392,7 +392,7 @@ async function simpan() {
           <div
             v-for="k in PROD_KINDS"
             :key="k"
-            class="rounded-xl border border-default p-3"
+            class="rounded-xl border bg-muted border-default p-3"
             :class="prod[k] !== undefined ? 'bg-primary-50' : ''"
           >
             <UCheckbox

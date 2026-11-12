@@ -100,7 +100,7 @@ const warnaCogs = computed(() => {
           <div
             v-for="b in baris"
             :key="b.k"
-            class="grid gap-2 rounded-panel border border-default p-2 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_auto]"
+            class="grid gap-2 rounded-xl border bg-muted border-default p-2 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_auto]"
           >
             <UFormField label="Bahan">
               <UInput

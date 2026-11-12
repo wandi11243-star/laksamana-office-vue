@@ -38,10 +38,12 @@
   src: url('/fonts/noto-sans-latin.woff2') format('woff2');
 }
 
+
 @theme static {
   --font-sans: 'Noto Sans', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  /* Page titles, panel titles and the big numbers of a stat card. */
-  --font-display: 'Noto Sans', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  /* Page titles, panel titles and the big numbers of a KPI card (DESIGN.md:
+     the WattVision dashboard look) — a tight geometric display face. */
+  --font-display: 'Plus Jakarta Sans', 'Noto Sans', ui-sans-serif, system-ui, sans-serif;
 
   /* Type scale one step tighter than Tailwind's default (owner request,
      Nov 2026): Noto Sans sets wider than the old Office's Inter, so every
@@ -112,15 +114,26 @@
   --color-steel-light: #e2e7ee;
   --color-success-accent: #00b473;
 
-  /* Laksamana gold accent (owner request, Nov 2026): the old Office brand gold,
-     used only as an accent — hover on launcher cards (border, soft wash, icon ring, arrow) and
-     the tick before a section title — so the Miro pastels keep their meaning and
-     the app still reads as Laksamana. `gold-soft` is its quiet wash on light. */
+  /* Laksamana gold, the old Office brand (DESIGN.md › Palet): the primary
+     accent for data, KPIs, action buttons and active states — in place of
+     WattVision's cyan. `gold-soft` is its quiet wash on light, `gold-bright`
+     the old --gold-2 for highlights. */
   --color-gold: #A9791F;
   --color-gold-soft: #F2E9D3;
+  --color-gold-bright: #C8961F;
   /* Darker gold for small text (descriptions, counts) so it keeps AA contrast
      on white and on gold-soft, where `gold` itself falls short. */
   --color-gold-deep: #85600F;
+
+  /* Category labels (DESIGN.md › Label kategori): six hues kept apart from
+     the status colours, so a category tag is never read as "pending" or
+     "rejected". Text on a 12% tint of itself; all AA on white. */
+  --color-kat-1: #0F6E6A;
+  --color-kat-2: #3B4BA8;
+  --color-kat-3: #A3365F;
+  --color-kat-4: #5F6B12;
+  --color-kat-5: #1E6A9C;
+  --color-kat-6: #7A3E9A;
 
   /* The fifth tone of the old Office (VIP, sharing, "Pelanggan unik"). The other
      four are Nuxt UI's success / warning / error / info, set in :root below. */
@@ -130,18 +143,23 @@
   --color-table-head: #2A2620;
   --color-table-head-text: #FFFFFF;
 
-  /* Radii, Miro mockup: 28px panels, pill fields. */
-  --radius-panel: 28px;
-  --radius-field: 9999px;
+  /* Radii (DESIGN.md): 16px cards and panels, 10px fields and buttons —
+     technical, not bubbly. */
+  --radius-panel: 16px;
+  --radius-field: 10px;
 
   /* Operate motion: one confident arrival curve for every routine
      state change (100–300 ms). Pages reference it as `ease-laks`. */
   --ease-laks: cubic-bezier(0.16, 1, 0.3, 1);
 
-  /* One soft shadow for panels (Miro mockup); `-hover` lifts a launcher card
-     under the cursor. Both stay colourless so the gold accent does the talking. */
-  --shadow-panel: 0 12px 32px -4px rgb(5 0 56 / 0.08);
-  --shadow-panel-hover: 0 18px 34px -10px rgb(5 0 56 / 0.16);
+  /* Cards float on the page with one soft shadow and no outline (DESIGN.md);
+     `-hover` lifts a launcher card under the cursor. */
+  --shadow-panel: 0 4px 24px -6px rgb(28 28 30 / 0.07);
+  --shadow-panel-hover: 0 12px 28px -10px rgb(28 28 30 / 0.18);
+
+  /* The shell (sidebar) sits one shade deeper than the page, with no line
+     between them; the active menu item is a white card on it. */
+  --color-shell: #EFEDE8;
 
   /*
     Denah (the table plan). A table's FILL is its ZONE, not its status: the zone
@@ -163,7 +181,9 @@
 
 :root {
   --ui-radius: 0.5rem;
-  --ui-primary: #1c1c1e;
+  /* Primary = deep Laksamana gold (DESIGN.md): action buttons, focus rings,
+     links, checked controls. Deep so white on it and it on white stay AA. */
+  --ui-primary: #85600F;
 
   /* Status hues: Miro dark-on-tint pairs (HRIS badge), AA as words on white. */
   --ui-success: #187574;
@@ -179,7 +199,7 @@
   --ui-bg-muted: #F7F6F4;
   --ui-bg-elevated: #ffffff;
   --ui-bg-accented: #f5f3ff;
-  --ui-border: #e0e2e8;
+  --ui-border: #e7e5e1;
   --ui-border-accented: #c7cad5;
   --ui-text: #1c1c1e;
   --ui-text-highlighted: #1c1c1e;
@@ -201,12 +221,33 @@ h1, h2, h3, .font-display {
 
 /* Browser surfaces carry the palette too. */
 ::selection {
-  background: #fff4c4;
+  background: #F2E9D3;
   color: #1c1c1e;
 }
 * {
   scrollbar-color: var(--ui-border-accented) transparent;
   scrollbar-width: thin;
+}
+
+/* The old Office launcher's module icon tile, copied exactly (deploy/index.html
+   .tile .ico): a 135deg gold-2 → gold-dim gradient, white glyph, warm gold
+   shadow; under a hovered card (`group`) it grows 7% and the shadow deepens.
+   The ONE gradient in the app (owner request, Nov 2026; AGENTS.md). */
+.ubin-emas {
+  display: grid;
+  place-items: center;
+  flex: none;
+  color: #fff;
+  background: linear-gradient(135deg, #C8961F, #7A560F);
+  box-shadow: 0 6px 16px rgb(122 86 15 / 0.22);
+  transition: transform 0.3s var(--ease-laks), box-shadow 0.3s var(--ease-laks);
+}
+.group:hover .ubin-emas {
+  transform: scale(1.07);
+  box-shadow: 0 10px 22px rgb(122 86 15 / 0.3);
+}
+@media (prefers-reduced-motion: reduce) {
+  .group:hover .ubin-emas { transform: none; }
 }
 
 /* Digits that line up (money, times, counts). */

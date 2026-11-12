@@ -6,7 +6,8 @@
   without its page yet shows "Segera" and has no link.
 
   Beranda carries the Laksamana gold (owner request, Nov 2026) in a deep-gold
-  description; the icon tiles keep their pastel tint per module. Under the
+  description and the old launcher's icon tile for every module (`ubin-emas`
+  in main.css: the exact gold gradient, white glyph, gold shadow). Under the
   cursor a ready card lifts slightly, takes a faint gold wash, a gold border,
   icon ring and arrow.
 -->
@@ -15,30 +16,6 @@ import type { Modul } from '~/utils/modul'
 
 const props = defineProps<{ m: Modul & { to: string, ready: boolean } }>()
 
-// Distinct Miro tints give each launcher module a recognizable icon tile.
-const TONE_ICON_MODUL: Record<string, string> = {
-  absensi: 'bg-yellow-light text-yellow-dark',
-  jadwal: 'bg-sky-light text-blue-pressed',
-  akademi: 'bg-rose-light text-vip',
-  hr: 'bg-teal-light text-moss-dark',
-  stock: 'bg-brand-orange-light text-ink-900',
-  reservasi: 'bg-teal-light text-moss-dark',
-  service_excellent: 'bg-coral-light text-coral-dark',
-  radar: 'bg-sky-light text-blue-pressed',
-  cashier: 'bg-yellow-light text-yellow-dark',
-  konten: 'bg-rose-light text-vip',
-  event: 'bg-brand-orange-light text-ink-900',
-  homepage: 'bg-sky-light text-blue-pressed',
-  marketing: 'bg-coral-light text-coral-dark',
-  finance: 'bg-yellow-light text-yellow-dark',
-  bd: 'bg-brand-orange-light text-ink-900',
-  hlife: 'bg-teal-light text-moss-dark',
-  help: 'bg-rose-light text-vip',
-  investor: 'bg-sky-light text-blue-pressed',
-  analytics: 'bg-coral-light text-coral-dark',
-  akses: 'bg-yellow-light text-yellow-dark',
-}
-
 const buka = () => {
   if (props.m.ready) navigateTo(props.m.to)
 }
@@ -46,7 +23,7 @@ const buka = () => {
 
 <template>
   <div
-    class="group flex min-h-11 flex-col items-center gap-2 rounded-panel border border-default bg-default p-2 text-center shadow-panel transition duration-200 ease-laks lg:min-h-36 lg:flex-row lg:items-start lg:gap-2.5 lg:p-3.5 lg:text-left"
+    class="group flex min-h-11 flex-col items-center gap-2 rounded-panel border border-transparent bg-default p-2 text-center shadow-panel transition duration-200 ease-laks lg:min-h-36 lg:flex-row lg:items-start lg:gap-2.5 lg:p-3.5 lg:text-left"
     :class="m.ready
       ? 'cursor-pointer hover:-translate-y-0.5 hover:border-gold hover:bg-gold-soft/20 hover:shadow-panel-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gold/40'
       : 'opacity-60'"
@@ -57,12 +34,11 @@ const buka = () => {
     @keydown.enter="buka"
   >
     <span
-      class="grid size-10 shrink-0 place-items-center rounded-xl transition-shadow duration-200 group-hover:ring-2 group-hover:ring-gold/30 lg:size-11"
-      :class="TONE_ICON_MODUL[m.key] ?? 'bg-yellow-light text-yellow-dark'"
+      class="ubin-emas size-[38px] rounded-[11px]"
     >
       <UIcon
         :name="m.icon"
-        class="size-5 lg:size-6"
+        class="size-5"
       />
     </span>
     <div class="w-full lg:min-w-0 lg:flex-1">

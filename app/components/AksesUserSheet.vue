@@ -509,7 +509,7 @@ function toggleTim(label: string) {
           />
         </div>
       </div>
-      <div class="grid gap-1 rounded-xl border border-default p-2 sm:grid-cols-2 xl:grid-cols-3">
+      <div class="grid gap-1 rounded-xl border bg-muted border-default p-2 sm:grid-cols-2 xl:grid-cols-3">
         <label class="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-elevated/50 sm:col-span-2 xl:col-span-3">
           <UCheckbox
             :model-value="aksesDicentang('*')"
@@ -576,7 +576,7 @@ function toggleTim(label: string) {
             />
           </div>
         </div>
-        <div class="grid gap-1 rounded-xl border border-default p-2 sm:grid-cols-2 xl:grid-cols-3">
+        <div class="grid gap-1 rounded-xl border bg-muted border-default p-2 sm:grid-cols-2 xl:grid-cols-3">
           <label class="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-sm hover:bg-elevated/50 sm:col-span-2 xl:col-span-3">
             <UCheckbox
               :model-value="punyaAdmin('*')"

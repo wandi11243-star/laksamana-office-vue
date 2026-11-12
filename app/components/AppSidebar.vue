@@ -122,7 +122,7 @@ const inisial = computed(() => (me.value?.name ?? '?').split(/\s+/).map(s => s[0
     name appears as a tooltip on hover/focus. All targets stay 44px. -->
   <div
     v-if="mini"
-    class="flex h-full flex-col items-center bg-default px-2.5 py-5"
+    class="flex h-full flex-col items-center bg-shell px-2.5 py-5"
   >
     <UTooltip
       text="Beranda Office"
@@ -176,7 +176,7 @@ const inisial = computed(() => (me.value?.name ?? '?').split(/\s+/).map(s => s[0
               :aria-label="item.label ?? ''"
               :aria-current="isAktif(item) ? 'page' : undefined"
               class="flex size-11 items-center justify-center rounded-field transition-colors"
-              :class="isAktif(item) ? 'bg-yellow-light font-semibold text-yellow-dark' : 'text-default hover:bg-muted'"
+              :class="isAktif(item) ? 'bg-default font-semibold text-gold-deep shadow-panel' : 'text-muted hover:bg-default/60 hover:text-highlighted'"
             >
               <UIcon
                 :name="item.icon ?? 'i-lucide-circle'"
@@ -203,7 +203,7 @@ const inisial = computed(() => (me.value?.name ?? '?').split(/\s+/).map(s => s[0
         <NuxtLink
           to="/"
           aria-label="Beranda Office"
-          class="flex size-11 items-center justify-center rounded-field text-muted transition-colors hover:bg-muted"
+          class="flex size-11 items-center justify-center rounded-field text-muted transition-colors hover:bg-default/60"
         >
           <UIcon
             name="i-lucide-arrow-left"
@@ -220,7 +220,7 @@ const inisial = computed(() => (me.value?.name ?? '?').split(/\s+/).map(s => s[0
           aria-label="Profil"
           :aria-current="route.path === '/profil' ? 'page' : undefined"
           class="flex size-11 items-center justify-center rounded-field text-[13px] font-bold transition-colors hover:bg-muted"
-          :class="route.path === '/profil' ? 'bg-yellow-light text-yellow-dark' : 'bg-ink-900 text-white'"
+          :class="route.path === '/profil' ? 'bg-default text-gold-deep shadow-panel' : 'bg-ink-900 text-white'"
         >
           {{ inisial }}
         </NuxtLink>
@@ -230,20 +230,24 @@ const inisial = computed(() => (me.value?.name ?? '?').split(/\s+/).map(s => s[0
 
   <div
     v-else
-    class="flex h-full flex-col bg-default"
+    class="flex h-full flex-col bg-shell"
   >
     <NuxtLink
       to="/"
-      class="flex items-center gap-3.5 px-6 pb-5 pt-6"
+      class="flex items-center gap-3 px-5 pb-6 pt-6"
     >
-      <img
-        src="/mark.png"
-        alt=""
-        class="size-9 shrink-0 object-contain"
-      >
-      <span class="leading-tight">
-        <span class="block font-display text-base font-bold text-highlighted">Laksamana Muda</span>
-        <span class="mt-0.5 block text-[10px] font-semibold uppercase tracking-[0.2em] text-ink-900">
+      <!-- WattVision brand block: a tinted icon tile, the name in the accent
+           colour, the module in small spaced caps. -->
+      <span class="grid size-10 shrink-0 place-items-center rounded-xl bg-default shadow-panel">
+        <img
+          src="/mark.png"
+          alt=""
+          class="size-7 object-contain"
+        >
+      </span>
+      <span class="min-w-0 leading-tight">
+        <span class="block truncate font-display text-lg font-extrabold text-gold-deep">Laksamana Muda</span>
+        <span class="mt-0.5 block truncate text-[10px] font-semibold uppercase tracking-[0.18em] text-muted">
           {{ shell?.subjudul ?? 'Office' }}
         </span>
       </span>
@@ -261,7 +265,7 @@ const inisial = computed(() => (me.value?.name ?? '?').split(/\s+/).map(s => s[0
           :ui="{
             list: 'flex flex-col gap-1',
             label: 'px-4 pb-2 pt-5 text-[11px] font-bold uppercase tracking-wider text-dimmed',
-            link: 'gap-2.5 px-4 py-2.5 text-[14px] capitalize',
+            link: 'gap-3 px-4 py-2.5 text-[14px] capitalize text-muted',
             linkLeadingIcon: 'size-5',
           }"
         />
@@ -287,7 +291,7 @@ const inisial = computed(() => (me.value?.name ?? '?').split(/\s+/).map(s => s[0
               :ui="{
                 list: 'flex flex-col gap-1',
                 label: 'px-4 pb-2 pt-5 text-[11px] font-bold uppercase tracking-wider text-dimmed',
-                link: 'gap-2.5 px-4 py-2.5 text-[14px] capitalize',
+                link: 'gap-3 px-4 py-2.5 text-[14px] capitalize text-muted',
                 linkLeadingIcon: 'size-5',
               }"
             />
@@ -299,7 +303,7 @@ const inisial = computed(() => (me.value?.name ?? '?').split(/\s+/).map(s => s[0
     <NuxtLink
       v-if="modul && shell"
       to="/"
-      class="mx-4 mb-3 flex items-center gap-2.5 rounded-field px-4 py-2.5 text-sm font-semibold text-muted hover:bg-muted"
+      class="mx-4 mb-3 flex items-center gap-2.5 rounded-field px-4 py-2.5 text-sm font-semibold text-muted hover:bg-default/60 hover:text-highlighted"
     >
       <UIcon
         name="i-lucide-arrow-left"
@@ -308,6 +312,6 @@ const inisial = computed(() => (me.value?.name ?? '?').split(/\s+/).map(s => s[0
       Beranda Office
     </NuxtLink>
 
-    <AppAkun class="border-t border-default p-4" />
+    <AppAkun class="border-t border-ink-900/5 p-4" />
   </div>
 </template>

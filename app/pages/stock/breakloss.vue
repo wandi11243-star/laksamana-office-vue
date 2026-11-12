@@ -1008,7 +1008,10 @@ async function segarkan() {
           </AppStatGrid>
 
           <div class="mt-5 grid grid-cols-1 gap-4 lg:grid-cols-2">
-            <AppPanel title="Sebab terbanyak">
+            <AppPanel
+              bersarang
+              title="Sebab terbanyak"
+            >
               <div
                 v-if="!barsSebab.length"
                 class="text-[13px] text-dimmed"
@@ -1024,7 +1027,10 @@ async function segarkan() {
                 tone="error"
               />
             </AppPanel>
-            <AppPanel title="Barang terbanyak pecah / hilang">
+            <AppPanel
+              bersarang
+              title="Barang terbanyak pecah / hilang"
+            >
               <div
                 v-if="!barsItem.length"
                 class="text-[13px] text-dimmed"
@@ -1044,6 +1050,7 @@ async function segarkan() {
 
           <AppPanel
             v-if="ringkas.rekap.length"
+            bersarang
             class="mt-5"
             title="Total break & loss per barang"
             :description="`${ringkas.rekap.length} barang`"
@@ -1093,7 +1100,7 @@ async function segarkan() {
             <div
               v-for="m in daftarTampil"
               :key="m.id"
-              class="mb-3 flex flex-wrap items-start gap-3 rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel"
+              class="mb-3 flex flex-wrap items-start gap-3 rounded-panel bg-default px-4 py-3.5 shadow-panel"
               :class="m.batalAt && 'opacity-60'"
             >
               <img
@@ -1151,7 +1158,7 @@ async function segarkan() {
                 </div>
                 <div
                   v-if="m.catatan"
-                  class="mt-2 rounded-panel border border-default bg-muted px-3 py-2 text-[13px] leading-relaxed"
+                  class="mt-2 rounded-xl border border-default bg-muted px-3 py-2 text-[13px] leading-relaxed"
                 >
                   {{ m.catatan }}
                 </div>
@@ -1505,7 +1512,7 @@ async function segarkan() {
         <div
           v-for="i in stokTampil"
           :key="i.id"
-          class="mb-3 flex flex-wrap items-center gap-3 rounded-panel border border-default bg-default px-4 py-3.5 shadow-panel"
+          class="mb-3 flex flex-wrap items-center gap-3 rounded-panel bg-default px-4 py-3.5 shadow-panel"
           :class="!i.aktif && 'opacity-60'"
         >
           <img
@@ -1640,7 +1647,7 @@ async function segarkan() {
       description="Stok terkini menurut catatan"
     >
       <div class="grid gap-4">
-        <p class="rounded-panel border border-default bg-muted px-3.5 py-2.5 text-sm">
+        <p class="rounded-xl border border-default bg-muted px-3.5 py-2.5 text-sm">
           Stok terkini menurut catatan: <b class="num">{{ fmtBil(moItem?.stok) }} {{ moItem?.satuan }}</b>
         </p>
         <div class="grid grid-cols-2 gap-3">
