@@ -24,7 +24,7 @@ const menyala = computed(() => (lencana?.value.lonceng ?? 0) > 0)
       :to="shell.lonceng.to"
       icon="i-lucide-bell"
       color="neutral"
-      variant="outline"
+      variant="ghost"
       size="lg"
       class="relative"
       :aria-label="shell.lonceng.label + (menyala ? ' — ada tamu belum konfirmasi' : '')"

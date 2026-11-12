@@ -12,9 +12,7 @@ import { useMediaQuery } from '@vueuse/core'
 
 const route = useRoute()
 const router = useRouter()
-const { key, modul, shell } = useModulShell()
-const judul = useJudulHalaman()
-const eyebrow = computed(() => shell.value?.subjudul ?? modul.value?.label ?? '')
+const { key, shell } = useModulShell()
 
 const desktop = useMediaQuery('(min-width: 1024px)')
 const sembunyi = ref(false)
@@ -59,7 +57,7 @@ onBeforeUnmount(() => {
   >
     <aside
       v-if="desktop && !beranda"
-      class="sticky top-0 h-dvh overflow-hidden border-e border-default print:hidden"
+      class="sticky top-0 h-dvh overflow-hidden bg-shell print:hidden"
     >
       <AppSidebar
         :key="key"
@@ -71,34 +69,19 @@ onBeforeUnmount(() => {
       <!-- Beranda draws its own brand header (BerandaKop), so the bar is skipped there. -->
       <header
         v-if="!beranda"
-        class="sticky top-0 z-10 flex print:hidden items-center gap-2.5 border-b border-default bg-default/95 px-3 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur-sm lg:gap-3 lg:px-5"
+        class="sticky top-0 z-10 flex print:hidden items-center gap-2.5 bg-muted/90 px-3 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur-sm lg:gap-3 lg:px-8 lg:pb-3 lg:pt-4"
       >
         <UButton
           v-if="!beranda"
           icon="i-lucide-menu"
           color="neutral"
-          variant="outline"
+          variant="ghost"
           size="lg"
           class="hidden lg:inline-flex"
           aria-label="Tampilkan atau sembunyikan menu"
           @click="sembunyi = !sembunyi"
         />
-        <!-- Old Office top bar: module name in small gold caps over the page
-             title (set by AppPage). Desktop only; phones keep it in the page. -->
-        <div
-          v-if="judul"
-          class="me-2 hidden min-w-0 shrink-0 leading-tight lg:block"
-        >
-          <p
-            v-if="eyebrow"
-            class="truncate text-[10px] font-bold uppercase tracking-[0.2em] text-gold-deep"
-          >
-            {{ eyebrow }}
-          </p>
-          <h1 class="truncate text-xl font-bold text-highlighted">
-            {{ judul }}
-          </h1>
-        </div>
+
         <form
           v-if="shell?.cari"
           class="min-w-0 max-w-[520px] flex-1"
@@ -111,7 +94,7 @@ onBeforeUnmount(() => {
             :placeholder="shell.cari.placeholder"
             size="lg"
             class="w-full"
-            :ui="{ base: 'rounded-full bg-muted focus:bg-default' }"
+            :ui="{ base: 'rounded-field bg-shell ring-0 focus:bg-default focus:ring-1' }"
           />
         </form>
         <NuxtLink
@@ -131,7 +114,7 @@ onBeforeUnmount(() => {
         <AppTopAksi :key="key" />
       </header>
 
-      <main class="px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 lg:px-6 lg:pb-12 lg:pt-7 2xl:px-10">
+      <main class="px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 lg:px-8 lg:pb-12 lg:pt-4 2xl:px-10">
         <AppHrisBanner
           v-if="key === 'hr' || (key === 'jadwal' && route.path !== '/jadwal/pengaturan')"
           :modul="key === 'hr' ? 'hr' : 'jadwal'"

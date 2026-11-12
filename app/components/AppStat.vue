@@ -1,77 +1,94 @@
 <!--
-  One stat card of the old recap row (deploy/reservasi/index.html .recap):
-  the whole card sits on a soft pastel tint, the label in small capitals
-  with its icon, the number, an optional "/ total", and one line of
-  context. Sit several in <AppStatGrid>. The tone names what the number
-  means, not decoration: gold = neutral count, success = good,
-  warning = needs a look, error = act now, info = capacity / people,
-  vip = special guests. Every tint pairs with its dark text so the number
-  (text-highlighted) and the label (text-muted) stay AA-readable.
+  One KPI card (DESIGN.md, the WattVision overview cards): a white card with
+  no outline and a soft shadow. Top row: a tinted icon tile on the left and an
+  optional trend badge on the right (`badge`, coloured by `badgeTone`); then
+  the label, the number in the display face with its unit (`satuan`), and one
+  line of context. Sit several in <AppStatGrid>. The tone names what the
+  number means: gold = neutral count, success = good, warning = needs a look,
+  error = act now, info = capacity / people, vip = special guests. It colours
+  only the icon tile; the number stays text-highlighted.
 -->
 <script setup lang="ts">
 const props = withDefaults(defineProps<{
   label: string
   value: string | number
   icon?: string
-  /** Small text after the number, e.g. "/ 32". */
+  /** Small text after the number, e.g. "/ 32" or "pax". */
   satuan?: string
   sub?: string
   tone?: 'gold' | 'success' | 'warning' | 'error' | 'info' | 'vip'
+  /** Short tag at the top right, e.g. "4,2%" or "Stabil". */
+  badge?: string
+  badgeTone?: 'success' | 'error' | 'neutral'
+  badgeIcon?: string
   /** Let a long multi-unit value (stock totals) wrap instead of being clipped. */
   wrap?: boolean
-}>(), { tone: 'gold' })
+}>(), { tone: 'gold', badgeTone: 'neutral' })
 
 /** Long values (money) step down a size so they stay on one line. */
 const ukuran = computed(() => {
   const n = String(props.value).length
-  return n > 11 ? 'text-xl' : n > 7 ? 'text-2xl' : 'text-3xl'
+  return n > 11 ? 'text-xl' : n > 7 ? 'text-2xl' : 'text-[2rem]'
 })
 
-/** Full-card pastel tint per tone (Miro brand pastels from main.css). */
-const latar = {
-  gold: 'bg-sand-light',
-  success: 'bg-teal-light',
-  warning: 'bg-yellow-light',
-  error: 'bg-coral-light',
-  info: 'bg-sky-light',
-  vip: 'bg-lilac-light',
+const ubin = {
+  gold: 'bg-gold-soft text-gold-deep',
+  success: 'bg-success/10 text-success',
+  warning: 'bg-warning/10 text-warning',
+  error: 'bg-error/10 text-error',
+  info: 'bg-info/10 text-info',
+  vip: 'bg-vip/10 text-vip',
 }
-const ink = {
-  gold: 'text-ink-900',
-  success: 'text-moss-dark',
-  warning: 'text-yellow-dark',
-  error: 'text-coral-dark',
-  info: 'text-blue-pressed',
-  vip: 'text-vip',
+const tag = {
+  success: 'bg-success/10 text-success',
+  error: 'bg-error/10 text-error',
+  neutral: 'bg-muted text-muted',
 }
 </script>
 
 <template>
-  <div
-    class="rounded-panel border border-default px-5 py-4 shadow-panel"
-    :class="latar[tone]"
-  >
-    <p class="flex items-start gap-1.5 text-xs font-semibold uppercase leading-snug tracking-wide text-muted">
-      <UIcon
+  <div class="rounded-panel bg-default p-5 shadow-panel">
+    <div
+      v-if="icon || badge"
+      class="mb-4 flex items-start justify-between gap-2"
+    >
+      <span
         v-if="icon"
-        :name="icon"
-        class="size-4 shrink-0"
-        :class="ink[tone]"
-      />
-      <span>{{ label }}</span>
+        class="grid size-10 shrink-0 place-items-center rounded-lg"
+        :class="ubin[tone]"
+      >
+        <UIcon
+          :name="icon"
+          class="size-5"
+        />
+      </span>
+      <span
+        v-if="badge"
+        class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold"
+        :class="tag[badgeTone]"
+      >
+        <UIcon
+          v-if="badgeIcon"
+          :name="badgeIcon"
+          class="size-3.5"
+        />{{ badge }}
+      </span>
+    </div>
+    <p class="text-sm font-medium leading-snug text-muted">
+      {{ label }}
     </p>
     <p
-      class="mt-2 font-display font-bold leading-none text-highlighted num"
+      class="mt-1 font-display font-extrabold leading-tight tracking-tight text-highlighted num"
       :class="[ukuran, wrap ? 'whitespace-normal' : 'whitespace-nowrap']"
     >
       {{ value }}<span
         v-if="satuan"
-        class="ms-1 font-sans text-[14px] font-medium text-muted"
+        class="ms-1.5 font-sans text-sm font-medium tracking-normal text-muted"
       >{{ satuan }}</span>
     </p>
     <p
       v-if="sub || $slots.default"
-      class="mt-1.5 text-[13px] text-muted"
+      class="mt-1 text-[13px] text-muted"
     >
       <slot>{{ sub }}</slot>
     </p>

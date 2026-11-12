@@ -48,7 +48,13 @@ export default defineNuxtConfig({
   eslint: { config: { stylistic: true } },
 
   // Icons are bundled from @iconify-json/lucide; nothing is fetched at runtime.
-  icon: { serverBundle: false, clientBundle: { scan: true } },
+  // `laks` = the old Office launcher's own module icons (deploy/index.html ICONS),
+  // copied path for path into app/assets/icons/*.svg so the cards match exactly.
+  icon: {
+    serverBundle: false,
+    clientBundle: { scan: true },
+    customCollections: [{ prefix: 'laks', dir: './app/assets/icons' }],
+  },
 
   pwa: {
     registerType: 'autoUpdate',

@@ -69,7 +69,7 @@ const sheet = computed({
         >
           <span
             class="relative flex h-7 w-12 items-center justify-center rounded-full transition-colors"
-            :class="nyala(s, i) ? 'bg-yellow-light text-yellow-dark' : 'text-muted'"
+            :class="nyala(s, i) ? 'bg-gold-soft text-gold-deep' : 'text-muted'"
           >
             <UIcon
               :name="s.icon"
@@ -84,7 +84,7 @@ const sheet = computed({
           </span>
           <span
             class="max-w-full truncate text-[11px] font-semibold"
-            :class="nyala(s, i) ? 'text-yellow-dark' : 'text-muted'"
+            :class="nyala(s, i) ? 'text-gold-deep' : 'text-muted'"
           >
             {{ s.label }}
           </span>

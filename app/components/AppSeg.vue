@@ -1,7 +1,7 @@
 <!--
   Segmented tabs in a rounded track (the old Tabel / Kalender / Denah meja /
   Waiting list, Harian / Bulanan, Weekday / Weekend / Lantai 2). The chosen
-  segment is a black pill with white words (DESIGN.md rule 3).
+  segment is a white tile with deep-gold words (DESIGN.md › Komponen).
 -->
 <script setup lang="ts" generic="T extends string | number | boolean">
 defineProps<{
@@ -14,7 +14,7 @@ const model = defineModel<T>()
 
 <template>
   <div
-    class="inline-flex max-w-full flex-wrap items-center gap-0.5 rounded-full border border-default bg-muted p-1"
+    class="inline-flex max-w-full flex-wrap items-center gap-0.5 rounded-field border border-default bg-muted p-1"
     role="tablist"
   >
     <button
@@ -24,11 +24,11 @@ const model = defineModel<T>()
       role="tab"
       :aria-selected="model === o.value"
       :title="o.title"
-      class="seg-btn inline-flex items-center gap-1.5 rounded-full font-semibold transition-[color,background-color,transform] duration-150 ease-laks active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-primary"
+      class="seg-btn inline-flex items-center gap-1.5 rounded-[8px] font-semibold transition-[color,background-color,transform] duration-150 ease-laks active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-primary"
       :class="[
         size === 'sm' ? 'px-3 py-1 text-[13px]' : 'px-3.5 py-1.5 text-sm',
         model === o.value
-          ? 'bg-ink-900 text-white shadow-sm'
+          ? 'bg-default text-gold-deep shadow-sm ring-1 ring-default'
           : 'text-muted hover:text-highlighted',
       ]"
       @click="model = o.value"
@@ -42,7 +42,7 @@ const model = defineModel<T>()
       <span
         v-if="o.jumlah"
         class="font-semibold num"
-        :class="model === o.value ? 'text-white/75' : 'opacity-60'"
+        :class="model === o.value ? 'text-gold-deep/75' : 'opacity-60'"
       >{{ o.jumlah }}</span>
       <span
         v-if="o.badge"

@@ -1,6 +1,6 @@
 <!--
   The ONE loud block of a screen (DESIGN.md): what this person should do now.
-  A small label, a big value, a line of context, and at most one yellow button.
+  A small label, a big value, a line of context, and at most one gold button. The value is set in the display face.
 -->
 <script setup lang="ts">
 defineProps<{
@@ -11,11 +11,11 @@ defineProps<{
 </script>
 
 <template>
-  <div class="rounded-panel border border-default bg-default p-4 shadow-panel lg:p-6">
+  <div class="rounded-panel bg-default p-5 shadow-panel lg:p-6">
     <p class="text-sm font-semibold text-muted">
       {{ label }}
     </p>
-    <p class="mt-1.5 font-display text-3xl font-bold text-highlighted num lg:text-4xl">
+    <p class="mt-1.5 font-display text-3xl font-extrabold tracking-tight text-highlighted num lg:text-4xl">
       {{ value }}
     </p>
     <p
