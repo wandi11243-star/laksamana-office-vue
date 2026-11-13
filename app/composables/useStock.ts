@@ -361,7 +361,16 @@ export async function createBatch(body: {
   tim?: string
 }) {
   const r = await useApi()<Envelope<unknown>>('/stock/orders/batches', { method: 'POST', body })
-  return r.data as { created: number, merged: number, batchId: string, batchName: string, orders: OrderStock[], mergedItems: string[] }
+  return r.data as {
+    created: number
+    merged: number
+    batchId: string
+    batchName: string
+    orders: OrderStock[]
+    mergedItems: string[]
+    /** A "Gudang Bar" batch skips Check-in: rows taken at once, stock already lowered. */
+    langsung?: { diterima: number, ck?: { disinkron?: number, error?: string } }
+  }
 }
 
 /** `PATCH /stock/orders/{nomor}` — qty, kedatangan, tglJemput, status… Version required. */
@@ -408,7 +417,24 @@ export async function putStockToday(body: { as_of?: string, stock: Record<string
   return r.data
 }
 
-// ---------------------------------------------------------------- Central Kitchen
+// ---------------------------------------------------------------- Central Kitchen & Gudang Bar
+
+/**
+ * Two warehouses on one ledger (stock.md "Central Kitchen & Gudang Bar"):
+ * `ck` = Central Kitchen (products `sumber` ck/both, batch "Central Kitchen"),
+ * `bar` = Gudang Bar (products `sumber` bar, batch "Gudang Bar").
+ */
+export type Gudang = 'ck' | 'bar'
+export const GUDANG_INFO: Record<Gudang, { nama: string, singkat: string, batch: string, sumber: string[] }> = {
+  ck: { nama: 'Central Kitchen', singkat: 'CK', batch: 'Central Kitchen', sumber: ['ck', 'both'] },
+  bar: { nama: 'Gudang Bar', singkat: 'Gudang Bar', batch: 'Gudang Bar', sumber: ['bar'] },
+}
+
+/** Warehouse of a request batch by its name; '' for a shopping batch. */
+export function gudangDariBatch(batchName?: string): Gudang | '' {
+  const n = String(batchName ?? '').trim().toLowerCase()
+  return n === 'central kitchen' ? 'ck' : n === 'gudang bar' ? 'bar' : ''
+}
 
 export interface CkSaldo { item: string, sumber?: string, packIsi?: number, packSatuan?: string, kategori?: string, satuanTampil?: string, masuk: number, keluar: number, saldo: number, terakhir?: string, hilang?: boolean }
 
@@ -433,18 +459,23 @@ export interface CkMutasi {
   diubahOleh?: string
   diubahAt?: string
   nUbah?: number
+  gudang?: Gudang
+  /** Order batch of a check-in row, or the delivery batch of a "Catat kiriman". */
+  batchId?: string
 }
 
-/** `GET /stock/ck/balance` — never stored, always SUM(masuk) − SUM(keluar). */
-export async function ckBalance() {
-  const r = await useApi()<Envelope<CkSaldo[]>>('/stock/ck/balance')
+/** `GET /stock/ck/balance?gudang=` — never stored, always SUM(masuk) − SUM(keluar). */
+export async function ckBalance(gudang: Gudang = 'ck') {
+  const r = await useApi()<Envelope<CkSaldo[]>>('/stock/ck/balance', {
+    params: { gudang: gudang === 'bar' ? 'bar' : undefined },
+  })
   return { rows: r.data ?? [] }
 }
 
-/** `GET /stock/ck/movements?from=&to=` — newest first. */
-export async function ckMovements(dari?: string, ke?: string) {
+/** `GET /stock/ck/movements?from=&to=&gudang=` — newest first. */
+export async function ckMovements(dari?: string, ke?: string, gudang: Gudang = 'ck') {
   const r = await useApi()<Envelope<CkMutasi[]>>('/stock/ck/movements', {
-    params: { from: dari || undefined, to: ke || undefined },
+    params: { from: dari || undefined, to: ke || undefined, gudang: gudang === 'bar' ? 'bar' : undefined },
   })
   return { rows: r.data ?? [], versions: (r.meta?.versions ?? {}) as Record<string, Versi> }
 }
@@ -470,7 +501,7 @@ export async function deleteMovement(id: string, versi?: Versi) {
   await useApi()(`/stock/ck/movements/${encodeURIComponent(id)}`, { method: 'DELETE', headers: versiHeaders(versi) })
 }
 
-/** `POST /stock/ck/deliveries` — outlet → CK, counted at once. */
+/** `POST /stock/ck/deliveries` — outlet → warehouse (body `gudang`, `batchId`), counted at once. */
 export async function deliverToCk(body: Record<string, unknown>) {
   const r = await useApi()<Envelope<CkMutasi>>('/stock/ck/deliveries', { method: 'POST', body })
   return r.data

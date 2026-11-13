@@ -5,11 +5,16 @@
   movement list like the old `hitungRekapCK`. Manual movements (produksi /
   penyesuaian / rusak) are purchasing writes; check-in rows can only change
   through check-in (422).
+
+  Two warehouses, one page (old `:485-490`, 10 Oct 2026): the switch at the
+  top picks Central Kitchen or Gudang Bar; stock, movements and the manual
+  form all follow it (`gudang` on every call).
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { CkMutasi, CkSaldo } from '~/composables/useStock'
+import type { CkMutasi, CkSaldo, Gudang } from '~/composables/useStock'
 import {
+  GUDANG_INFO,
   ckBalance,
   ckMovements,
   createMovement,
@@ -26,15 +31,21 @@ definePageMeta({ access: ['purchasing'] })
 const toast = useToast()
 
 const sub = ref<'stok' | 'mutasi' | 'dash'>('stok')
+const gudang = ref<Gudang>('ck')
+const info = computed(() => GUDANG_INFO[gudang.value])
 
 const produkQ = useProdukStock()
-const namaCk = computed(() => produkQ.data.value?.rows.filter(p => p.sumber === 'ck' || p.sumber === 'both').map(p => p.nama) ?? [])
+const namaCk = computed(() => produkQ.data.value?.rows.filter(p => info.value.sumber.includes(p.sumber ?? '')).map(p => p.nama) ?? [])
 
-const saldoQ = useAsyncData('stock-pck-saldo', ckBalance, { default: () => ({ rows: [] as CkSaldo[] }) })
+const saldoQ = useAsyncData(() => `stock-pck-saldo-${gudang.value}`, () => ckBalance(gudang.value), {
+  default: () => ({ rows: [] as CkSaldo[] }),
+  watch: [gudang],
+})
 const saldo = computed(() => saldoQ.data.value?.rows ?? [])
 
-const gerakQ = useAsyncData('stock-pck-gerak', () => ckMovements(), {
+const gerakQ = useAsyncData(() => `stock-pck-gerak-${gudang.value}`, () => ckMovements(undefined, undefined, gudang.value), {
   default: () => ({ rows: [] as CkMutasi[], versions: {} as Record<string, Versi> }),
+  watch: [gudang],
 })
 const versi = computed(() => gerakQ.data.value?.versions ?? {})
 const gerak = computed(() => gerakQ.data.value?.rows ?? [])
@@ -63,15 +74,19 @@ const rekap = computed(() => {
 })
 
 // --- manual movement form --------------------------------------------------------
+// 'terima' = received from a purchase: Gudang Bar produces nothing, so that is
+// its usual "in"; both reasons are valid in both warehouses (as the old one).
 const SEBAB = [
   { value: 'produksi', label: 'Produksi' },
+  { value: 'terima', label: 'Terima (pembelian)' },
   { value: 'penyesuaian', label: 'Penyesuaian' },
   { value: 'rusak', label: 'Rusak' },
 ]
+const sebabMasuk = () => (gudang.value === 'bar' ? 'terima' : 'produksi')
 const form = ref({ id: '', item: '', arah: 'masuk', qtyInput: 1, unitInput: 'Pack', sebab: 'produksi', tanggal: '', catatan: '' })
 const sheet = ref(false)
 function bukaTambah() {
-  form.value = { id: '', item: '', arah: 'masuk', qtyInput: 1, unitInput: 'Pack', sebab: 'produksi', tanggal: '', catatan: '' }
+  form.value = { id: '', item: '', arah: 'masuk', qtyInput: 1, unitInput: 'Pack', sebab: sebabMasuk(), tanggal: '', catatan: '' }
   sheet.value = true
 }
 function bukaUbah(m: CkMutasi) {
@@ -107,6 +122,7 @@ async function simpan() {
       sebab: form.value.sebab,
       tanggal: form.value.tanggal || undefined,
       catatan: form.value.catatan.trim() || undefined,
+      gudang: gudang.value,
     }
     if (form.value.id) await patchMovement(form.value.id, body, versi.value[form.value.id])
     else await createMovement(body)
@@ -152,10 +168,17 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
 
 <template>
   <AppPage
-    title="Central Kitchen"
-    description="Stok, mutasi & dashboard Central Kitchen"
+    :title="info.nama"
+    :description="`Stok, mutasi & dashboard ${info.nama}`"
   >
     <template #actions>
+      <AppSeg
+        v-model="gudang"
+        :options="[
+          { value: 'ck', label: 'Central Kitchen', icon: 'i-lucide-chef-hat' },
+          { value: 'bar', label: 'Gudang Bar', icon: 'i-lucide-wine' },
+        ]"
+      />
       <UButton
         label="Catat mutasi"
         icon="i-lucide-plus"
@@ -165,7 +188,7 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
 
     <AppStatGrid>
       <AppStat
-        label="Barang CK"
+        :label="`Barang ${info.singkat}`"
         :value="String(saldo.length)"
         satuan="barang"
         icon="i-lucide-warehouse"
@@ -187,7 +210,7 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
       />
     </AppStatGrid>
 
-    <AppPanel title="Central Kitchen">
+    <AppPanel :title="info.nama">
       <template #head>
         <AppSeg
           v-model="sub"
@@ -227,7 +250,7 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
             v-if="!saldo.length"
             class="text-sm text-dimmed"
           >
-            Belum ada stok CK.
+            Belum ada stok {{ info.singkat }}.
           </p>
         </div>
       </div>
@@ -365,7 +388,7 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
       :title="form.id ? 'Ubah mutasi' : 'Catat mutasi manual'"
     >
       <div class="flex flex-col gap-3">
-        <UFormField label="Barang CK">
+        <UFormField :label="`Barang ${info.singkat}`">
           <UInput
             v-model="form.item"
             list="stock-pck-barang"
