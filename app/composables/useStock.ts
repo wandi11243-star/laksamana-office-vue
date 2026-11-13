@@ -564,6 +564,30 @@ export const GUDANG_INFO: Record<Gudang, { nama: string, singkat: string, batch:
   bar: { nama: 'Gudang Bar', singkat: 'Gudang Bar', batch: 'Gudang Bar', sumber: ['bar'] },
 }
 
+/**
+ * Keep only the balance rows that belong to this warehouse by the product
+ * master's `sumber` (CK: ck/both · Gudang Bar: bar). The server's balance also
+ * lists any item with old movements in the ledger (`hilang`, e.g. a product
+ * moved from CK to Gudang Bar keeps its old CK rows), so a moved product would
+ * otherwise show in both warehouses. Rows with no product in the master stay
+ * on the CK screen only, as before.
+ */
+export function saringSaldoGudang(rows: CkSaldo[], produk: ProdukStock[], gudang: Gudang): CkSaldo[] {
+  // Master not loaded yet: show the server's rows rather than an empty screen.
+  if (!produk.length) return rows
+  const sumber = new Map(produk.map(p => [p.nama, p.sumber ?? '']))
+  const boleh = GUDANG_INFO[gudang].sumber
+  return rows.filter((r) => {
+    const s = sumber.get(r.item)
+    return s === undefined ? gudang === 'ck' : boleh.includes(s)
+  })
+}
+
+/** Movements of this warehouse only: by the row's own `gudang` (old rows without it = CK). */
+export function saringMutasiGudang<T extends { gudang?: string }>(rows: T[], gudang: Gudang): T[] {
+  return rows.filter(m => (m.gudang === 'bar' ? 'bar' : 'ck') === gudang)
+}
+
 /** Warehouse of a request batch by its name; '' for a shopping batch. */
 export function gudangDariBatch(batchName?: string): Gudang | '' {
   const n = String(batchName ?? '').trim().toLowerCase()

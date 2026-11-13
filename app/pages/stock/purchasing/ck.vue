@@ -21,6 +21,8 @@ import {
   createMovement,
   deleteMovement,
   patchMovement,
+  saringMutasiGudang,
+  saringSaldoGudang,
   useProdukStock,
 } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
@@ -44,14 +46,15 @@ const saldoQ = useAsyncData(() => `stock-pck-saldo-${gudang.value}`, () => ckBal
   default: () => ({ rows: [] as CkSaldo[] }),
   watch: [gudang],
 })
-const saldo = computed(() => saldoQ.data.value?.rows ?? [])
+// Only this warehouse's goods, even when the ledger still holds a moved product's old rows.
+const saldo = computed(() => saringSaldoGudang(saldoQ.data.value?.rows ?? [], produkQ.data.value?.rows ?? [], gudang.value))
 
 const gerakQ = useAsyncData(() => `stock-pck-gerak-${gudang.value}`, () => ckMovements(undefined, undefined, gudang.value), {
   default: () => ({ rows: [] as CkMutasi[], versions: {} as Record<string, Versi> }),
   watch: [gudang],
 })
 const versi = computed(() => gerakQ.data.value?.versions ?? {})
-const gerak = computed(() => gerakQ.data.value?.rows ?? [])
+const gerak = computed(() => saringMutasiGudang(gerakQ.data.value?.rows ?? [], gudang.value))
 
 // --- dashboard: most-taken items + daily in/out, from the movement list --------
 const rekap = computed(() => {
