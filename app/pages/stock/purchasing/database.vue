@@ -114,10 +114,30 @@ const kolomVendor: TableColumn<VendorStock>[] = [
 const produkQ = useProdukStock()
 const versiProduk = computed(() => produkQ.data.value?.versions ?? {})
 const cariProduk = ref('')
-const produkTampil = computed(() => {
+/* Where a product lives decides who handles it (owner request, Nov 2026): the
+ *  list is split by `sumber`, each warehouse's goods under their own heading,
+ *  with a chip filter per source. '' / unknown = bought from a vendor. */
+type SumberKey = 'vendor' | 'ck' | 'both' | 'bar'
+const KELOMPOK_SUMBER: { key: SumberKey, label: string, icon: string, ket: string }[] = [
+  { key: 'vendor', label: 'Beli dari vendor', icon: 'i-lucide-truck', ket: 'Dipesan ke vendor, langsung dipakai outlet.' },
+  { key: 'ck', label: 'Central Kitchen', icon: 'i-lucide-chef-hat', ket: 'Diproduksi dapur sendiri, disimpan di Central Kitchen.' },
+  { key: 'both', label: 'Vendor & CK', icon: 'i-lucide-warehouse', ket: 'Dibeli ke vendor, disimpan di Central Kitchen.' },
+  { key: 'bar', label: 'Vendor & Gudang Bar', icon: 'i-lucide-wine', ket: 'Dibeli ke vendor, disimpan di Gudang Bar dan diminta tim bar.' },
+]
+const sumberKey = (p: ProdukStock): SumberKey => (['ck', 'both', 'bar'].includes(p.sumber ?? '') ? p.sumber as SumberKey : 'vendor')
+const filterSumber = ref<'semua' | SumberKey>('semua')
+const produkCari = computed(() => {
   const q = cariProduk.value.trim().toLowerCase()
   return (produkQ.data.value?.rows ?? []).filter(p => !q || p.nama.toLowerCase().includes(q))
 })
+const produkTampil = computed(() => produkCari.value.filter(p => filterSumber.value === 'semua' || sumberKey(p) === filterSumber.value))
+const opsiFilterSumber = computed(() => [
+  { value: 'semua' as const, label: `Semua (${produkCari.value.length})` },
+  ...KELOMPOK_SUMBER.map(k => ({ value: k.key, label: `${k.label} (${produkCari.value.filter(p => sumberKey(p) === k.key).length})` })),
+])
+const kelompokProduk = computed(() => KELOMPOK_SUMBER
+  .map(k => ({ ...k, rows: produkTampil.value.filter(p => sumberKey(p) === k.key) }))
+  .filter(k => k.rows.length))
 
 const sheetProduk = ref(false)
 const produkEdit = ref<ProdukStock | null>(null)
@@ -254,7 +274,6 @@ const labelSumber = (s: string) => (s === 'ck' ? 'Central Kitchen' : s === 'both
 const labelCara = (s: string) => (s === 'online' ? 'Online' : s === 'jemput' ? 'Jemput' : 'Diantar vendor')
 const kolomProduk: TableColumn<ProdukStock>[] = [
   { accessorKey: 'nama', header: 'Nama bahan baku' },
-  { accessorKey: 'sumber', header: 'Sumber' },
   { accessorKey: 'utama', header: 'Vendor utama' },
   { accessorKey: 'caraBeli', header: 'Cara beli' },
   { id: 'aksi', header: '' },
@@ -504,74 +523,105 @@ async function simpanTemplate() {
             >
           </div>
         </AppFilterGrid>
-        <div class="mt-4 hidden lg:block">
-          <UTable
-            :columns="kolomProduk"
-            :data="produkTampil"
-          >
-            <template #sumber-cell="{ row }">
-              {{ labelSumber(String(row.original.sumber || '')) }}
-            </template>
-            <template #utama-cell="{ row }">
-              {{ row.original.utama || '—' }}
-            </template>
-            <template #caraBeli-cell="{ row }">
-              {{ labelCara(String(row.original.caraBeli || '')) }}
-            </template>
-            <template #aksi-cell="{ row }">
-              <div class="flex justify-end gap-1">
+        <AppChips
+          v-model="filterSumber"
+          :options="opsiFilterSumber"
+          class="mt-3"
+        />
+
+        <!-- One section per source (where the goods live), each its own layer-3 box. -->
+        <section
+          v-for="k in kelompokProduk"
+          :key="k.key"
+          class="mt-4 overflow-hidden rounded-xl border border-default bg-muted"
+        >
+          <header class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
+            <span class="grid size-8 shrink-0 place-items-center rounded-lg bg-gold-soft text-gold-deep">
+              <UIcon
+                :name="k.icon"
+                class="size-4"
+              />
+            </span>
+            <h3 class="text-sm font-bold text-highlighted">
+              {{ k.label }}
+            </h3>
+            <span class="rounded-full bg-gold-soft px-2 py-0.5 text-xs font-bold text-gold-deep num">{{ k.rows.length }}</span>
+            <p class="w-full text-xs text-muted sm:w-auto sm:flex-1">
+              {{ k.ket }}
+            </p>
+          </header>
+          <div class="hidden bg-default lg:block">
+            <UTable
+              :columns="kolomProduk"
+              :data="k.rows"
+            >
+              <template #utama-cell="{ row }">
+                {{ row.original.utama || '—' }}
+              </template>
+              <template #caraBeli-cell="{ row }">
+                {{ labelCara(String(row.original.caraBeli || '')) }}
+              </template>
+              <template #aksi-cell="{ row }">
+                <div class="flex justify-end gap-1">
+                  <UButton
+                    v-if="bisaUbah"
+                    icon="i-lucide-pencil"
+                    variant="ghost"
+                    size="sm"
+                    :aria-label="`Ubah ${row.original.nama}`"
+                    @click="bukaProduk(row.original)"
+                  />
+                  <UButton
+                    v-if="bisaUbah"
+                    icon="i-lucide-trash-2"
+                    variant="ghost"
+                    size="sm"
+                    color="error"
+                    :aria-label="`Hapus ${row.original.nama}`"
+                    @click="hapusP(row.original)"
+                  />
+                </div>
+              </template>
+            </UTable>
+          </div>
+          <div class="flex flex-col gap-2 p-3 pt-0 lg:hidden">
+            <div
+              v-for="p in k.rows.slice(0, 60)"
+              :key="p.nama"
+              class="flex items-center justify-between gap-2 rounded-lg bg-default p-3 shadow-panel"
+            >
+              <div>
+                <b class="text-highlighted">{{ p.nama }}</b>
+                <p class="text-sm text-muted">
+                  {{ p.utama || 'tanpa vendor' }} · {{ labelCara(String(p.caraBeli || '')) }}
+                </p>
+              </div>
+              <div class="flex gap-1">
                 <UButton
                   v-if="bisaUbah"
                   icon="i-lucide-pencil"
                   variant="ghost"
-                  size="sm"
-                  :aria-label="`Ubah ${row.original.nama}`"
-                  @click="bukaProduk(row.original)"
+                  :aria-label="`Ubah ${p.nama}`"
+                  @click="bukaProduk(p)"
                 />
                 <UButton
                   v-if="bisaUbah"
                   icon="i-lucide-trash-2"
                   variant="ghost"
-                  size="sm"
                   color="error"
-                  :aria-label="`Hapus ${row.original.nama}`"
-                  @click="hapusP(row.original)"
+                  :aria-label="`Hapus ${p.nama}`"
+                  @click="hapusP(p)"
                 />
               </div>
-            </template>
-          </UTable>
-        </div>
-        <div class="flex flex-col gap-2 lg:hidden">
-          <div
-            v-for="p in produkTampil.slice(0, 60)"
-            :key="p.nama"
-            class="flex items-center justify-between gap-2 rounded-xl border border-default p-3"
-          >
-            <div>
-              <b class="text-highlighted">{{ p.nama }}</b>
-              <p class="text-sm text-muted">
-                {{ labelSumber(String(p.sumber || '')) }} · {{ p.utama || 'tanpa vendor' }} · {{ labelCara(String(p.caraBeli || '')) }}
-              </p>
-            </div>
-            <div class="flex gap-1">
-              <UButton
-                v-if="bisaUbah"
-                icon="i-lucide-pencil"
-                variant="ghost"
-                :aria-label="`Ubah ${p.nama}`"
-                @click="bukaProduk(p)"
-              />
-              <UButton
-                v-if="bisaUbah"
-                icon="i-lucide-trash-2"
-                variant="ghost"
-                color="error"
-                :aria-label="`Hapus ${p.nama}`"
-                @click="hapusP(p)"
-              />
             </div>
           </div>
-        </div>
+        </section>
+        <p
+          v-if="!kelompokProduk.length"
+          class="mt-4 text-sm text-dimmed"
+        >
+          Tidak ada bahan yang cocok.
+        </p>
       </div>
 
       <div v-if="sub === 'chat'">
