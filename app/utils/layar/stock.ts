@@ -5,16 +5,18 @@
 // as their branches do; unbuilt panels stay out (their launcher card reads
 // "Segera" instead of linking nowhere).
 import { hasAccess, isAdminOf, type Me } from '~/composables/useMe'
+import { LABEL_PERAN_ORDERING, izinHalaman, usePeranStock, type IzinHalaman } from '~/composables/useStock'
 
 const panel = (kunci: string) => (me: Me) => hasAccess(me, [kunci])
 
-// Ordering: admin tabs (restock, forecast, users) are module-admin only.
-// Non-admin holders see the three daily tabs (old `full`; the old
-// `checkin`-only distinction needs the crew list, which only admins can read,
-// so it is not enforced in the menu — the server still guards the writes).
-const bolehOrdering = (adminSaja: boolean) => (me: Me) => {
+// Ordering: admin tabs (users) are module-admin only. The daily screens follow
+// the caller's own role from `GET /stock/me` (old ORD_PERM_DEFAULT: "Check-in
+// saja" sees no Form Order / Central Kitchen, only views Gudang Bar). Until the
+// role is known the old `full` menu shows; the server guards the writes.
+const bolehOrdering = (adminSaja: boolean, halaman?: string) => (me: Me) => {
   if (!hasAccess(me, ['ordering'])) return false
-  return adminSaja ? isAdminOf(me, 'ordering') : true
+  if (adminSaja) return isAdminOf(me, 'ordering')
+  return !halaman || isAdminOf(me, 'ordering') || izinHalaman('ordering', halaman, 2) >= 1
 }
 
 // Purchasing permission matrix, ported from PERM_DEFAULT
@@ -37,19 +39,22 @@ const PERM_DEFAULT_PURCHASING: Record<string, IzinLayar> = {
 const bolehPurchasing = (layar: string, butuh: 'lihat' | 'ubah') => (me: Me) => {
   if (isAdminOf(me, 'purchasing')) return true
   if (!hasAccess(me, ['purchasing'])) return false
-  const izin = PERM_DEFAULT_PURCHASING[layar] ?? 'tak'
-  return butuh === 'lihat' ? izin !== 'tak' : izin === 'edit'
+  // The caller's own role (`full` / `view`) once /stock/me answered; the old
+  // `full` row until then. `online` stays admin-only (no PERM_DEFAULT entry).
+  const awal = { edit: 2, lihat: 1, tak: 0 }[PERM_DEFAULT_PURCHASING[layar] ?? 'tak'] as IzinHalaman
+  const izin = layar === 'online' ? 0 : izinHalaman('purchasing', layar, awal)
+  return butuh === 'lihat' ? izin >= 1 : izin >= 2
 }
 
 const adminPurchasing = (me: Me) => isAdminOf(me, 'purchasing')
 
 export const LAYAR_STOCK: Layar[] = [
   // ── Ordering (kunci ordering) ──
-  { key: 'ordering_order', label: 'Form Order Belanja', desc: 'Pengajuan order barang baru', icon: 'i-lucide-shopping-cart', to: '/stock/ordering/order', grup: 'Ordering', boleh: bolehOrdering(false) },
+  { key: 'ordering_order', label: 'Form Order Belanja', desc: 'Pengajuan order barang baru', icon: 'i-lucide-shopping-cart', to: '/stock/ordering/order', grup: 'Ordering', boleh: bolehOrdering(false, 'order') },
   { key: 'ordering_acc', label: 'Approval Order', desc: 'Order belanja anggota disetujui head divisinya', icon: 'i-lucide-user-check', to: '/stock/ordering/acc', grup: 'Ordering', boleh: bolehOrdering(false) },
-  { key: 'ordering_ck', label: 'Central Kitchen', desc: 'Pengajuan ke Central Kitchen', icon: 'i-lucide-chef-hat', to: '/stock/ordering/ck', grup: 'Ordering', boleh: bolehOrdering(false) },
-  { key: 'ordering_gb', label: 'Gudang Bar', desc: 'Stok Gudang Bar — diminta tim bar', icon: 'i-lucide-wine', to: '/stock/ordering/gb', grup: 'Ordering', boleh: bolehOrdering(false) },
-  { key: 'ordering_checkin', label: 'Check-in Penerimaan', desc: 'Tandai barang yang datang per nomor PO', icon: 'i-lucide-package-check', to: '/stock/ordering/checkin', grup: 'Ordering', boleh: bolehOrdering(false) },
+  { key: 'ordering_ck', label: 'Central Kitchen', desc: 'Pengajuan ke Central Kitchen', icon: 'i-lucide-chef-hat', to: '/stock/ordering/ck', grup: 'Ordering', boleh: bolehOrdering(false, 'ck') },
+  { key: 'ordering_gb', label: 'Gudang Bar', desc: 'Stok Gudang Bar — diminta tim bar', icon: 'i-lucide-wine', to: '/stock/ordering/gb', grup: 'Ordering', boleh: bolehOrdering(false, 'gb') },
+  { key: 'ordering_checkin', label: 'Check-in Penerimaan', desc: 'Tandai barang yang datang per nomor PO', icon: 'i-lucide-package-check', to: '/stock/ordering/checkin', grup: 'Ordering', boleh: bolehOrdering(false, 'checkin') },
   { key: 'ordering_users', label: 'Kelola Akses Ordering', desc: 'Kru dapur & perannya', icon: 'i-lucide-users', to: '/stock/ordering/users', grup: 'Ordering', boleh: bolehOrdering(true) },
 
   // ── Purchasing (kunci purchasing, matriks PERM_DEFAULT lama) ──
@@ -88,7 +93,10 @@ export const LAYAR_STOCK: Layar[] = [
 export function peranStock(me: Me | null): string {
   if (!me) return ''
   const p: string[] = []
-  if (hasAccess(me, ['ordering'])) p.push('Ordering')
+  if (hasAccess(me, ['ordering'])) {
+    const r = usePeranStock().value?.ordering?.role
+    p.push(r && r !== 'full' ? `Ordering (${LABEL_PERAN_ORDERING[r] ?? r})` : 'Ordering')
+  }
   if (hasAccess(me, ['purchasing'])) p.push('Purchasing')
   if (hasAccess(me, ['tree'])) p.push('Pohon Resep')
   if (hasAccess(me, ['usage'])) p.push('Pemakaian')

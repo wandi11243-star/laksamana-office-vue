@@ -9,7 +9,7 @@
   in the confirmation sheet, as on the old screen's "Konfirmasi Pesanan".
 -->
 <script setup lang="ts">
-import { NAMA_DIVISI_ACC, catatLog, createBatch, joinableBatches, useProdukStock } from '~/composables/useStock'
+import { NAMA_DIVISI_ACC, bolehUbahOrdering, catatLog, createBatch, gudangDariBatch, joinableBatches, useProdukStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { hariIni, tambahHari, tglPendek } from '~/utils/format'
 import { SATUAN_TERSEDIA } from '~/utils/stock-catat'
@@ -18,6 +18,8 @@ definePageMeta({ access: ['ordering'] })
 
 const me = useMe()
 const toast = useToast()
+/** Old ORD_PERM_DEFAULT: "Check-in saja" may not submit shopping orders (the server refuses too). */
+const bolehUbah = computed(() => bolehUbahOrdering('order'))
 
 // The PIC's division, as the old form showed it under the name ("Keterangan Bar").
 const divisi = computed(() => (me.value?.tim ?? []).map(t => t.label).join(', ') || me.value?.keterangan || '')
@@ -117,7 +119,13 @@ const batchQ = useAsyncData('stock-order-batch', () => joinableBatches(), {
   default: () => ({ rows: [] }),
 })
 const batchPilih = ref('')
-const batchTerpilih = computed(() => batchQ.data.value?.rows.find(b => b.batchId === batchPilih.value))
+/**
+ * Shopping batches only (old `daftarBatch = arr.filter(b => !dariFormCK(b))`):
+ * joining a "Central Kitchen" / "Gudang Bar" batch would turn purchases into
+ * warehouse requests and lower that warehouse's stock.
+ */
+const batchGabung = computed(() => (batchQ.data.value?.rows ?? []).filter(b => !gudangDariBatch(b.batchName)))
+const batchTerpilih = computed(() => batchGabung.value.find(b => b.batchId === batchPilih.value))
 
 // --- draft --------------------------------------------------------------------
 const KUNCI_DRAF = 'stock-order-draf'
@@ -175,6 +183,16 @@ function cekSubmit() {
 }
 
 async function kirim() {
+  if (!bolehUbah.value) {
+    toast.add({ title: 'Hanya bisa dilihat', description: 'Peran Ordering kamu (Check-in saja) tidak boleh mengajukan order belanja.', color: 'warning' })
+    return
+  }
+  // A warehouse batch name would make the server treat a purchase as a CK /
+  // Gudang Bar request (Gudang Bar even lowers its stock at once).
+  if (mode.value === 'baru' && gudangDariBatch(namaBatch.value)) {
+    toast.add({ title: 'Nama batch tidak boleh dipakai', description: `"${namaBatch.value.trim()}" khusus untuk menu gudangnya. Pakai nama lain.`, color: 'warning' })
+    return
+  }
   if (mode.value === 'gabung' && !batchPilih.value) {
     toast.add({ title: 'Batch belum dipilih', description: 'Pilih batch tujuan, atau kirim sebagai batch baru.', color: 'warning' })
     return
@@ -225,6 +243,12 @@ async function kirim() {
     title="Form Order Belanja"
     description="Pengajuan Order Barang Baru — Tahap 1"
   >
+    <p
+      v-if="!bolehUbah"
+      class="mb-4 rounded-xl border-l-4 border-warning bg-warning/10 p-3 text-sm text-warning"
+    >
+      Peran Ordering kamu <b>Check-in saja</b> — form ini hanya bisa dilihat. Minta admin Ordering mengubah peranmu bila perlu mengajukan order.
+    </p>
     <!-- TAHAP 1 head card: the old dark-gold step panel, rebuilt as a DESIGN.md
       card (white, soft shadow, deep-gold step label). PIC + arrival date live
       inside, like old. -->
@@ -526,7 +550,7 @@ async function kirim() {
           <template v-else>
             <USelect
               v-model="batchPilih"
-              :items="(batchQ.data.value?.rows ?? []).map(b => ({ value: b.batchId, label: `${b.batchName || b.batchId}${b.terarsip ? ' (arsip)' : ''}` }))"
+              :items="batchGabung.map(b => ({ value: b.batchId, label: `${b.batchName || b.batchId}${b.terarsip ? ' (arsip)' : ''}` }))"
               placeholder="Pilih batch yang masih terbuka"
               class="mt-2 w-full"
             />
