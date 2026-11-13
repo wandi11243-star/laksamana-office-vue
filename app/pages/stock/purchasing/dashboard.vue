@@ -7,7 +7,7 @@
   the old templates (`DEFAULT_TEMPLATE*`, old `:1572-1574`).
 -->
 <script setup lang="ts">
-import { archiveOrders, catatLog, gudangDariBatch, listOrders, useVendorStock, patchOrder, useProdukStock } from '~/composables/useStock'
+import { bolehUbahPurchasing, archiveOrders, catatLog, gudangDariBatch, listOrders, useVendorStock, patchOrder, useProdukStock } from '~/composables/useStock'
 import type { OrderStock, VendorStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { jam, tglLabel, tglPendek, ymdLokal } from '~/utils/format'
@@ -18,6 +18,8 @@ import { tanganiKonflik, type Versi } from '~/utils/versi'
 definePageMeta({ access: ['purchasing'] })
 
 const toast = useToast()
+// Purchasing `view` role (old PERM_DEFAULT): look, never change — the server refuses too.
+const bisaUbah = computed(() => bolehUbahPurchasing('dashboard'))
 
 const KAFE = 'Laksamana Muda'
 const TEMPLATE_ITEM = 'Halo {vendor},\nBerikut orderan resmi dari {cafe}:\n\nINFO PESANAN\n- No. Order: {no_order}\n- Tgl Kedatangan: {tgl_datang}\n- PIC Kitchen: {pic}\n\nRINCIAN BARANG\n- {item} : {qty} {unit}\n- Catatan: {note}\n\nMohon dikonfirmasi ya. Terima kasih!'
@@ -481,6 +483,12 @@ function unduhCsv() {
     title="Monitor Order"
     description="Antrean pesanan bahan baku"
   >
+    <p
+      v-if="!bisaUbah"
+      class="mb-4 rounded-xl border-l-4 border-warning bg-warning/10 p-3 text-sm text-warning"
+    >
+      Peran Purchasing kamu hanya boleh <b>melihat</b> halaman ini.
+    </p>
     <template #actions>
       <UButton
         label="Segarkan"
@@ -644,6 +652,7 @@ function unduhCsv() {
         >
           <template #head>
             <UButton
+              v-if="bisaUbah"
               label="Arsipkan"
               icon="i-lucide-archive"
               size="sm"
@@ -794,6 +803,7 @@ function unduhCsv() {
                 </div>
                 <div class="grid grid-cols-2 gap-2">
                   <UButton
+                    v-if="bisaUbah"
                     label="Tgl jemput"
                     icon="i-lucide-car"
                     color="neutral"
@@ -803,7 +813,7 @@ function unduhCsv() {
                     @click="bukaJemput(o)"
                   />
                   <UButton
-                    v-if="(o.kedatangan || '') !== 'Datang'"
+                    v-if="bisaUbah && ((o.kedatangan || '') !== 'Datang')"
                     label="Tandai datang"
                     icon="i-lucide-package-check"
                     color="neutral"
@@ -896,6 +906,7 @@ function unduhCsv() {
           >
             <!-- The whole head is the toggle: a tall, easy target. -->
             <button
+              v-if="bisaUbah"
               type="button"
               class="flex min-h-14 w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-gold-soft/30"
               :aria-expanded="!!arsipBuka[b.kunci]"
@@ -951,6 +962,7 @@ function unduhCsv() {
                   {{ o.qty }} <span class="font-sans text-sm font-medium text-muted">{{ o.unit }}</span>
                 </p>
                 <UButton
+                  v-if="bisaUbah"
                   label="Pulihkan arsip"
                   icon="i-lucide-history"
                   color="neutral"
@@ -999,6 +1011,7 @@ function unduhCsv() {
             @click="sheetJemput = false"
           />
           <UButton
+            v-if="bisaUbah"
             label="Simpan"
             @click="simpanJemput"
           />
