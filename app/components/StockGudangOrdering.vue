@@ -15,7 +15,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { CkMutasi, CkSaldo, Gudang } from '~/composables/useStock'
-import { GUDANG_INFO, bolehUbahOrdering, catatLog, ckBalance, ckMovements, createBatch, deliverToCk, patchDelivery, useProdukStock } from '~/composables/useStock'
+import { GUDANG_INFO, bolehUbahOrdering, catatLog, ckBalance, ckMovements, createBatch, deliverToCk, patchDelivery, saringMutasiGudang, saringSaldoGudang, useProdukStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { hariIni, tambahHari, tglPendek } from '~/utils/format'
 import { SATUAN_TERSEDIA, ckKeDasar, fmtQty, opsiSatuanKirimCk, tampilStokCk, unduhCsvStock } from '~/utils/stock-catat'
@@ -43,7 +43,8 @@ const produkGudang = computed(() => produkQ.data.value?.rows.filter(p => info.va
 const produkOutlet = computed(() => produkGudang.value.filter(p => (p as unknown as Record<string, unknown>).diOutlet || p.sumber === 'both' || p.sumber === 'bar'))
 
 const saldoQ = useAsyncData(`stock-gudang-saldo-${props.gudang}`, () => ckBalance(props.gudang), { default: () => ({ rows: [] as CkSaldo[] }) })
-const saldo = computed(() => saldoQ.data.value?.rows ?? [])
+// Only this warehouse's goods, even when the ledger still holds a moved product's old rows.
+const saldo = computed(() => saringSaldoGudang(saldoQ.data.value?.rows ?? [], produkQ.data.value?.rows ?? [], props.gudang))
 
 /**
  * Display facts for one balance row: the pack snapshot rides on the balance
@@ -79,7 +80,8 @@ function tampilStok(item: string, n: number): TampilStok {
 const gerakQ = useAsyncData(`stock-gudang-gerak-${props.gudang}`, () => ckMovements(undefined, undefined, props.gudang), {
   default: () => ({ rows: [] as CkMutasi[], versions: {} as Record<string, Versi> }),
 })
-const kiriman = computed(() => gerakQ.data.value?.rows.filter(m => m.sebab === 'kiriman') ?? [])
+const gerakGudang = computed(() => saringMutasiGudang(gerakQ.data.value?.rows ?? [], props.gudang))
+const kiriman = computed(() => gerakGudang.value.filter(m => m.sebab === 'kiriman'))
 const versiKirim = computed(() => gerakQ.data.value?.versions ?? {})
 
 /**
@@ -90,7 +92,7 @@ const versiKirim = computed(() => gerakQ.data.value?.versions ?? {})
 interface BatchRiwayat { kunci: string, jenis: 'ambil' | 'kirim', tanggal: string, waktu: string, pic: string, tim: string, baris: CkMutasi[] }
 const riwayatBatch = computed<BatchRiwayat[]>(() => {
   const grup = new Map<string, BatchRiwayat>()
-  for (const m of gerakQ.data.value?.rows ?? []) {
+  for (const m of gerakGudang.value) {
     const jenis = m.sebab === 'kiriman' ? 'kirim' : (m.sebab === 'pengajuan' && m.arah === 'keluar' ? 'ambil' : null)
     if (!jenis) continue
     const kunci = `${jenis}:${m.batchId || m.id}`
