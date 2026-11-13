@@ -8,6 +8,11 @@
   all their lines, up to CHECKIN_TERTUNDA_MAKS_HARI = 14 days, only when the
   range touches today or later (stock.md F.16). Checking a CK line cuts CK
   stock server-side.
+
+  Central Kitchen requests are checked in HERE too (old `:5710,6103-6110`):
+  marking them Datang is what lowers the CK stock, and no other screen can.
+  The source filter (Semua / Belanja vendor / Central Kitchen & Gudang Bar)
+  judges how a line was requested (its batch), never the kind of goods.
 -->
 <script setup lang="ts">
 import type { OrderStock } from '~/composables/useStock'
@@ -29,6 +34,7 @@ const dari = ref(tambahHari(hariIni(), -6))
 const ke = ref(hariIni())
 const poFilter = ref<'all' | 'progress' | 'partial' | 'complete'>('all')
 const timFilter = ref('semua')
+const sumberFilter = ref<'all' | 'belanja' | 'ck'>('all')
 
 const mulai = computed(() => (mode.value === 'hari' ? tanggal.value : dari.value))
 const sampai = computed(() => (mode.value === 'hari' ? tanggal.value : ke.value))
@@ -45,9 +51,7 @@ interface Po { kunci: string, nama: string, tgl: string, tim: string, baris: Ord
 const semuaPo = computed<Po[]>(() => {
   const grup = new Map<string, Po>()
   for (const o of daftarQ.data.value?.rows ?? []) {
-    // Central Kitchen requests are checked in from the CK tab, not here.
     const gd = gudangDariBatch(o.batchName)
-    if (gd === 'ck') continue
     // Gudang Bar requests are taken at once (no check-in); only an old batch
     // still waiting stays here, or nothing could ever finish it (old `:5837-5842`).
     if (gd === 'bar' && o.kedatangan === 'Datang') continue
@@ -74,6 +78,10 @@ const poTampil = computed(() => {
       && po.baris.some(b => (b.kedatangan || '') !== 'Datang')
     if (!dalamRentang && !tertunda) return false
     if (timFilter.value !== 'semua' && po.tim !== timFilter.value) return false
+    if (sumberFilter.value !== 'all') {
+      const gudang = po.baris.some(b => !!gudangDariBatch(b.batchName))
+      if ((sumberFilter.value === 'ck') !== gudang) return false
+    }
     const datang = po.baris.filter(b => (b.kedatangan || '') === 'Datang').length
     const status = datang === 0 ? 'progress' : (datang === po.baris.length ? 'complete' : 'partial')
     return poFilter.value === 'all' || poFilter.value === status
@@ -86,6 +94,9 @@ const statusPo = (po: Po) => {
   if (datang === po.baris.length) return { label: 'Lengkap', color: 'success' as const }
   return { label: `Sebagian ${datang}/${po.baris.length}`, color: 'info' as const }
 }
+
+/** Warehouse of a batch card ('' = a shopping batch). */
+const gudangPo = (po: Po) => gudangDariBatch(po.baris[0]?.batchName)
 
 const tims = computed(() => [...new Set(semuaPo.value.map(p => p.tim).filter(Boolean))].sort())
 
@@ -239,6 +250,16 @@ async function simpan(po?: Po | null) {
             :items="[{ value: 'semua', label: 'Semua tim' }, ...tims.map(t => ({ value: t, label: t }))]"
           />
         </UFormField>
+        <UFormField label="Sumber">
+          <USelect
+            v-model="sumberFilter"
+            :items="[
+              { value: 'all', label: 'Semua sumber' },
+              { value: 'belanja', label: 'Belanja vendor' },
+              { value: 'ck', label: 'Central Kitchen / Gudang Bar' },
+            ]"
+          />
+        </UFormField>
       </AppFilterGrid>
     </AppPanel>
 
@@ -292,6 +313,22 @@ async function simpan(po?: Po | null) {
                   size="sm"
                 >
                   Tertunda {{ tertunda(po) }} hari
+                </AppStatus>
+                <AppStatus
+                  v-if="gudangPo(po) === 'ck'"
+                  color="success"
+                  icon="i-lucide-chef-hat"
+                  size="sm"
+                >
+                  Central Kitchen
+                </AppStatus>
+                <AppStatus
+                  v-if="gudangPo(po) === 'bar'"
+                  color="vip"
+                  icon="i-lucide-wine"
+                  size="sm"
+                >
+                  Gudang Bar
                 </AppStatus>
               </div>
             </div>
@@ -352,6 +389,12 @@ async function simpan(po?: Po | null) {
       :description="poBuka ? `Rencana datang ${poBuka.tgl ? tglPendek(poBuka.tgl) : '—'} · ${jumlahDatang(poBuka)}/${poBuka.baris.length} datang` : undefined"
     >
       <template v-if="poBuka">
+        <p
+          v-if="gudangPo(poBuka)"
+          class="mb-3 rounded-xl border-l-4 border-success bg-success/10 p-3 text-sm text-success"
+        >
+          Menandai datang di sini langsung memotong stok {{ gudangPo(poBuka) === 'bar' ? 'Gudang Bar' : 'Central Kitchen' }}.
+        </p>
         <div class="mb-3 flex flex-wrap gap-2">
           <UButton
             label="Tandai semua datang"

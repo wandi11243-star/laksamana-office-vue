@@ -6,11 +6,13 @@
   already picked up (newest first) stays visible, with "Batal" to clear a
   mistaken mark (`tglJemput: ''`). Requests to Gudang Bar (batch "Gudang Bar",
   old `ordering/index.html:2366`) come from our own store, so they never land
-  here (owner request, Nov 2026).
+  here (owner request, Nov 2026). Central Kitchen requests have their own
+  panel ("Ambil dari Central Kitchen"): ticking one marks it Datang, which
+  lowers the CK stock, like the old CK group.
 -->
 <script setup lang="ts">
 import type { OrderStock } from '~/composables/useStock'
-import { listOrders, patchOrder, useProdukStock } from '~/composables/useStock'
+import { gudangDariBatch, listOrders, patchOrder, useProdukStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { hariIni, tglPendek } from '~/utils/format'
 import { warnaKategori } from '~/utils/kategori-warna'
@@ -39,6 +41,40 @@ const sudah = computed(() => (ordersQ.data.value?.rows ?? [])
   .filter(o => jemputSendiri(o) && !!(o.tglJemput || ''))
   .sort((a, b) => ((b.tglJemput || '').localeCompare(a.tglJemput || '')) || ((b.rowIndex ?? 0) - (a.rowIndex ?? 0))))
 const sudahHariIni = computed(() => sudah.value.filter(o => o.tglJemput === hariIni()).length)
+
+/**
+ * Central Kitchen pick-ups (old JEMPUT_GRUP_CK, `:4919,5131-5135`): requests
+ * from the CK form not yet taken. Ticking one marks it Datang — the same
+ * door as Check-in — and that is what lowers the CK stock on the server.
+ * Judged by the batch (how it was requested), never by the kind of goods.
+ */
+const ambilCk = computed(() => (ordersQ.data.value?.rows ?? [])
+  .filter(o => gudangDariBatch(o.batchName) === 'ck' && (o.kedatangan || '') !== 'Datang' && (o.status || 'Aktif') === 'Aktif' && !o.terarsip)
+  .sort((a, b) => (a.tglDatang || '').localeCompare(b.tglDatang || '') || ((a.rowIndex ?? 0) - (b.rowIndex ?? 0))))
+
+async function ambilDariCk(semua: OrderStock[]) {
+  if (!semua.length) return
+  menandai.value = true
+  let ok = 0
+  try {
+    for (const o of semua) {
+      try {
+        await patchOrder(o.nomorOrder, { kedatangan: 'Datang', catatanAktual: String(o.qty ?? ''), tglTerima: hariIni() }, versi.value[o.nomorOrder])
+        ok++
+      }
+      catch (e) {
+        if (!(await tanganiKonflik(e, () => ordersQ.refresh()))) {
+          toast.add({ title: `Gagal menandai ${o.item}`, description: apiErrorMessage(e), color: 'error' })
+        }
+      }
+    }
+    await ordersQ.refresh()
+    toast.add({ title: `${ok} barang diambil dari Central Kitchen`, description: 'Stok CK langsung berkurang. Check-in Penerimaan ikut tercentang.', color: 'success' })
+  }
+  finally {
+    menandai.value = false
+  }
+}
 
 const menandai = ref(false)
 async function tetapkan(semua: OrderStock[], tgl: string) {
@@ -138,6 +174,64 @@ async function tetapkan(semua: OrderStock[], tgl: string) {
           class="py-2 text-sm text-dimmed"
         >
           Tidak ada yang menunggu dijemput.
+        </p>
+      </div>
+    </AppPanel>
+
+    <AppPanel
+      title="Ambil dari Central Kitchen"
+      icon="i-lucide-chef-hat"
+      :count="ambilCk.length"
+      description="Permintaan dari menu Central Kitchen. Menandai diambil langsung memotong stok CK."
+    >
+      <template
+        v-if="ambilCk.length"
+        #actions
+      >
+        <UButton
+          label="Tandai semua diambil"
+          icon="i-lucide-check-check"
+          size="sm"
+          variant="soft"
+          :loading="menandai"
+          @click="ambilDariCk(ambilCk)"
+        />
+      </template>
+      <div class="flex flex-col gap-2">
+        <div
+          v-for="o in ambilCk"
+          :key="o.nomorOrder"
+          class="grid items-center gap-3 rounded-xl border border-default bg-muted p-3 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+        >
+          <div class="min-w-0">
+            <div class="flex flex-wrap items-center gap-2">
+              <b class="text-highlighted">{{ o.item }}</b>
+              <span
+                class="rounded-md px-2 py-0.5 text-[11px] font-bold"
+                :class="warnaKategori(katOf(o.item))"
+              >{{ katOf(o.item) }}</span>
+            </div>
+            <p class="mt-0.5 text-xs text-muted">
+              Dibutuhkan {{ o.tglDatang ? tglPendek(o.tglDatang) : '—' }}{{ o.tim ? ` · ${o.tim}` : '' }}{{ o.pic ? ` · ${o.pic}` : '' }}
+            </p>
+          </div>
+          <p class="font-display text-2xl font-extrabold leading-none text-gold-deep num sm:text-right">
+            {{ o.qty }} <span class="font-sans text-sm font-medium text-muted">{{ o.unit }}</span>
+          </p>
+          <UButton
+            label="Tandai diambil"
+            icon="i-lucide-check"
+            size="lg"
+            class="w-full justify-center sm:w-auto"
+            :loading="menandai"
+            @click="ambilDariCk([o])"
+          />
+        </div>
+        <p
+          v-if="!ambilCk.length"
+          class="py-2 text-sm text-dimmed"
+        >
+          Tidak ada permintaan Central Kitchen yang menunggu diambil.
         </p>
       </div>
     </AppPanel>
