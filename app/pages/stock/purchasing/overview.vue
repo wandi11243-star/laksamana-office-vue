@@ -22,7 +22,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { KruStock, OrderStock } from '~/composables/useStock'
-import { listKruStock, listOrders, useProdukStock } from '~/composables/useStock'
+import { gudangDariBatch, listKruStock, listOrders, useProdukStock } from '~/composables/useStock'
 import { angka, BULAN, hariIni } from '~/utils/format'
 import { isAdminOf } from '~/composables/useMe'
 
@@ -77,7 +77,8 @@ const blnOf = (o: OrderStock) => (o.timestamp || '').slice(0, 7)
 const utamaOf = (item: string) => produkQ.data.value?.rows.find(p => p.nama === item)?.utama || ''
 const vendorOf = (item: string) => utamaOf(item) || 'Tak Terdaftar'
 
-const bukanCk = (o: OrderStock) => (o.batchName || '') !== 'Central Kitchen'
+/** Warehouse requests (Central Kitchen / Gudang Bar) are not purchases. */
+const bukanCk = (o: OrderStock) => !gudangDariBatch(o.batchName)
 const semua = computed(() => (ordersQ.data.value?.rows ?? []).filter(bukanCk))
 const dalamBulan = (rows: OrderStock[], b: string) => rows.filter(o => blnOf(o) === b)
 const bulanIni = computed(() => dalamBulan(semua.value, bulan.value))

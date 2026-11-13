@@ -25,6 +25,7 @@ export default {
           baris: [
             ['Form Order Belanja', 'Mengajukan barang yang perlu dibeli.'],
             ['Central Kitchen', 'Meminta barang dari CK, atau mengirim barang ke CK.'],
+            ['Gudang Bar', 'Sama seperti Central Kitchen untuk gudang bar. Pengambilan langsung memotong stok, tanpa Check-in.'],
             ['Check-in Penerimaan', 'Mencatat barang yang datang.'],
             ['Kelola Akses', 'Siapa yang boleh mengajukan order.'],
           ] },

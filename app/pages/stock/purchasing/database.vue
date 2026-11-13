@@ -247,7 +247,7 @@ async function hapusP(p: ProdukStock) {
   }
 }
 
-const labelSumber = (s: string) => (s === 'ck' ? 'Central Kitchen' : s === 'both' ? 'Vendor & CK' : 'Beli dari vendor')
+const labelSumber = (s: string) => (s === 'ck' ? 'Central Kitchen' : s === 'both' ? 'Vendor & CK' : s === 'bar' ? 'Vendor & Gudang Bar' : 'Beli dari vendor')
 const labelCara = (s: string) => (s === 'online' ? 'Online' : s === 'jemput' ? 'Jemput' : 'Diantar vendor')
 const kolomProduk: TableColumn<ProdukStock>[] = [
   { accessorKey: 'nama', header: 'Nama bahan baku' },
@@ -666,8 +666,14 @@ async function simpanTemplate() {
               { value: 'vendor', label: 'Beli dari vendor' },
               { value: 'ck', label: 'Central Kitchen' },
               { value: 'both', label: 'Vendor & CK' },
+              { value: 'bar', label: 'Vendor & Gudang Bar' },
             ]"
           />
+          <!-- Old `:1276-1286`: 'bar' is the 'both' of the second warehouse. -->
+          <p class="mt-1 text-xs text-muted">
+            <b>Vendor &amp; CK</b> = dibeli ke vendor, disimpan di Central Kitchen.
+            <b>Vendor &amp; Gudang Bar</b> = sama, tapi disimpan di Gudang Bar dan diminta tim bar.
+          </p>
         </UFormField>
         <div class="grid grid-cols-2 gap-2">
           <UFormField label="Satuan dasar">
@@ -692,7 +698,7 @@ async function simpanTemplate() {
           </UFormField>
         </div>
         <UFormField
-          v-if="fp.sumber === 'ck' || fp.sumber === 'both'"
+          v-if="fp.sumber === 'ck' || fp.sumber === 'both' || fp.sumber === 'bar'"
           label="Satuan Tampilan Stok"
         >
           <USelect

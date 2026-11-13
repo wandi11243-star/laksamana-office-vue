@@ -11,7 +11,7 @@
 -->
 <script setup lang="ts">
 import type { OrderStock } from '~/composables/useStock'
-import { catatLog, listOrders, patchOrder } from '~/composables/useStock'
+import { catatLog, gudangDariBatch, listOrders, patchOrder } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { hariIni, tambahHari, tglPanjang, tglPendek } from '~/utils/format'
 import { tanganiKonflik, type Versi } from '~/utils/versi'
@@ -46,7 +46,11 @@ const semuaPo = computed<Po[]>(() => {
   const grup = new Map<string, Po>()
   for (const o of daftarQ.data.value?.rows ?? []) {
     // Central Kitchen requests are checked in from the CK tab, not here.
-    if ((o.batchName || '') === 'Central Kitchen') continue
+    const gd = gudangDariBatch(o.batchName)
+    if (gd === 'ck') continue
+    // Gudang Bar requests are taken at once (no check-in); only an old batch
+    // still waiting stays here, or nothing could ever finish it (old `:5837-5842`).
+    if (gd === 'bar' && o.kedatangan === 'Datang') continue
     const kunci = o.batchId || o.nomorOrder
     let po = grup.get(kunci)
     if (!po) {

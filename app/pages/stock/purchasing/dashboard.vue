@@ -7,7 +7,7 @@
   the old templates (`DEFAULT_TEMPLATE*`, old `:1572-1574`).
 -->
 <script setup lang="ts">
-import { archiveOrders, catatLog, listOrders, useVendorStock, patchOrder, useProdukStock } from '~/composables/useStock'
+import { archiveOrders, catatLog, gudangDariBatch, listOrders, useVendorStock, patchOrder, useProdukStock } from '~/composables/useStock'
 import type { OrderStock, VendorStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { jam, tglLabel, tglPendek, ymdLokal } from '~/utils/format'
@@ -87,8 +87,8 @@ const utamaOf = (item: string) => produkQ.data.value?.rows.find(p => p.nama === 
 const katOf = (item: string) => (produkQ.data.value?.rows.find(p => p.nama === item)?.kategori || '').trim() || 'Lainnya'
 const waOf = (nama: string) => vendorQ.data.value?.rows.find(v => v.nama === nama)?.whatsapp || ''
 
-/** CK lines never appear in Monitor Order (old `pesananCK`). */
-const bukanCk = (o: OrderStock) => (o.batchName || '') !== 'Central Kitchen' && sumberOf(o.item) !== 'ck'
+/** Warehouse requests (Central Kitchen / Gudang Bar) never appear in Monitor Order (old `pesananCK`). */
+const bukanCk = (o: OrderStock) => !gudangDariBatch(o.batchName) && sumberOf(o.item) !== 'ck'
 const aktif = computed(() => (ordersQ.data.value?.rows ?? []).filter(o => bukanCk(o) && (o.status || 'Aktif') === 'Aktif' && !o.terarsip))
 const arsip = computed(() => [...(ordersQ.data.value?.rows ?? []), ...(arsipPenuhQ.data.value?.rows ?? [])]
   .filter(o => bukanCk(o) && ((o.status || '') === 'Arsip' || o.terarsip)))
@@ -442,7 +442,7 @@ const hariNama = (tgl?: string) => {
 const produkOf = (item: string) => produkQ.data.value?.rows.find(p => p.nama === item)
 const cadanganOf = (item: string) => produkOf(item)?.cadangan ?? []
 const utamaVend = (o: OrderStock) => utamaOf(o.item)
-const dariCk = (o: OrderStock) => (o.batchName || '') === 'Central Kitchen' || sumberOf(o.item) === 'ck'
+const dariCk = (o: OrderStock) => !!gudangDariBatch(o.batchName) || sumberOf(o.item) === 'ck'
 const tanpaVendor = (o: OrderStock) => !utamaVend(o)
 const onlineTanpaVendor = (o: OrderStock) => tanpaVendor(o) && (produkOf(o.item)?.caraBeli || '') === 'online'
 const pilihanHari = (o: OrderStock) => pilihVendorHari(utamaVend(o), cadanganOf(o.item), o.tglDatang)

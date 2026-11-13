@@ -94,7 +94,9 @@ export function barisKeProduk(r: BarisBerkolom): Record<string, unknown> {
   o.nama = nama
   if ('Sumber' in r) {
     const s = ambil('Sumber').toLowerCase()
-    o.sumber = s.includes('central') || s === 'ck' ? 'ck' : (s.includes('vendor & ck') || s === 'both' ? 'both' : '')
+    o.sumber = s.includes('gudang bar') || s === 'bar'
+      ? 'bar'
+      : s.includes('central') || s === 'ck' ? 'ck' : (s.includes('vendor & ck') || s === 'both' ? 'both' : '')
   }
   if ('Vendor utama' in r) o.utama = ambil('Vendor utama')
   if ('Cara beli' in r) {
