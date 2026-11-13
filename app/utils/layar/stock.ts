@@ -46,6 +46,7 @@ const adminPurchasing = (me: Me) => isAdminOf(me, 'purchasing')
 export const LAYAR_STOCK: Layar[] = [
   // ── Ordering (kunci ordering) ──
   { key: 'ordering_order', label: 'Form Order Belanja', desc: 'Pengajuan order barang baru', icon: 'i-lucide-shopping-cart', to: '/stock/ordering/order', grup: 'Ordering', boleh: bolehOrdering(false) },
+  { key: 'ordering_acc', label: 'Approval Order', desc: 'Order belanja anggota disetujui head divisinya', icon: 'i-lucide-user-check', to: '/stock/ordering/acc', grup: 'Ordering', boleh: bolehOrdering(false) },
   { key: 'ordering_ck', label: 'Central Kitchen', desc: 'Pengajuan ke Central Kitchen', icon: 'i-lucide-chef-hat', to: '/stock/ordering/ck', grup: 'Ordering', boleh: bolehOrdering(false) },
   { key: 'ordering_gb', label: 'Gudang Bar', desc: 'Stok Gudang Bar — diminta tim bar', icon: 'i-lucide-wine', to: '/stock/ordering/gb', grup: 'Ordering', boleh: bolehOrdering(false) },
   { key: 'ordering_checkin', label: 'Check-in Penerimaan', desc: 'Tandai barang yang datang per nomor PO', icon: 'i-lucide-package-check', to: '/stock/ordering/checkin', grup: 'Ordering', boleh: bolehOrdering(false) },

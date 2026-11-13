@@ -218,6 +218,7 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     subjudul: 'Stock',
     layar: LAYAR_STOCK,
     peran: me => peranStock(me),
+    lencana: () => useLencanaStock(),
   },
 
   // ── event ──
