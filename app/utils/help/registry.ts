@@ -61,8 +61,6 @@ export const HELP_BAB: HelpBab[] = [
     ringkas: 'Input order bahan baku dan check-in penerimaan barang.' },
   { izin: 'purchasing', key: 'purchasing', grup: 'operasional', label: 'Stock, Purchasing',
     ringkas: 'Antrian order, daftar vendor, dan dispatch pembelian.' },
-  { izin: 'tree', key: 'tree', grup: 'operasional', label: 'Stock, Pohon Resep',
-    ringkas: 'Peta resep bertingkat dari bahan mentah sampai menu jadi.' },
   { izin: 'usage', key: 'usage', grup: 'operasional', label: 'Stock, Pemakaian Bahan Baku',
     ringkas: 'Catatan pemakaian, waste, dan serah terima bahan.' },
   { izin: 'hpp', key: 'hpp', grup: 'operasional', label: 'Stock, HPP & Resep',

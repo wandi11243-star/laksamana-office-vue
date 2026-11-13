@@ -38,6 +38,9 @@ export default defineAppConfig({
     navigationMenu: {
       slots: { list: 'flex flex-col gap-1', link: 'rounded-field px-4 py-2.5 hover:before:bg-default/60' },
       compoundVariants: [
+        // Long labels ("Check-in Penerimaan", "Kelola Akses Ordering") wrap to a
+        // second line instead of being cut with an ellipsis.
+        { orientation: 'vertical', class: { linkLabel: 'whitespace-normal text-left leading-snug' } },
         { orientation: 'vertical', active: true, class: {
           link: 'text-gold-deep font-semibold before:bg-default before:shadow-panel',
           linkLeadingIcon: 'text-gold-deep',

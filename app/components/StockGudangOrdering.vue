@@ -80,7 +80,7 @@ function tampilStok(item: string, n: number): TampilStok {
 const gerakQ = useAsyncData(`stock-gudang-gerak-${props.gudang}`, () => ckMovements(undefined, undefined, props.gudang), {
   default: () => ({ rows: [] as CkMutasi[], versions: {} as Record<string, Versi> }),
 })
-const gerakGudang = computed(() => saringMutasiGudang(gerakQ.data.value?.rows ?? [], props.gudang))
+const gerakGudang = computed(() => saringMutasiGudang(gerakQ.data.value?.rows ?? [], props.gudang, produkQ.data.value?.rows ?? []))
 const kiriman = computed(() => gerakGudang.value.filter(m => m.sebab === 'kiriman'))
 const versiKirim = computed(() => gerakQ.data.value?.versions ?? {})
 
@@ -517,7 +517,19 @@ const opsiSub = computed(() => [
         </div>
       </div>
 
-      <div v-if="sub === 'minta'">
+      <!-- Minta and Kirim each get their own tint (owner request, Nov 2026) so a
+           glance tells which form is open; rows inside sit on white. -->
+      <div
+        v-if="sub === 'minta'"
+        class="rounded-xl border border-info/25 bg-info/5 p-3 sm:p-4"
+      >
+        <p class="mb-3 flex items-center gap-2 text-sm font-bold text-info">
+          <UIcon
+            name="i-lucide-download"
+            class="size-4"
+          />
+          Minta dari {{ info.singkat }}
+        </p>
         <p
           v-if="bar"
           class="mb-3 rounded-xl border-l-4 border-warning bg-warning/10 p-3 text-sm text-warning"
@@ -541,7 +553,7 @@ const opsiSub = computed(() => [
           <div
             v-for="b in barisMinta"
             :key="b.k"
-            class="grid gap-2 rounded-xl border border-default bg-muted p-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_auto]"
+            class="grid gap-2 rounded-xl border border-default bg-default p-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_auto]"
           >
             <UFormField label="Barang">
               <div class="flex items-center gap-2">
@@ -630,7 +642,17 @@ const opsiSub = computed(() => [
         </div>
       </div>
 
-      <div v-if="sub === 'kirim'">
+      <div
+        v-if="sub === 'kirim'"
+        class="rounded-xl border border-success/25 bg-success/5 p-3 sm:p-4"
+      >
+        <p class="mb-3 flex items-center gap-2 text-sm font-bold text-success">
+          <UIcon
+            name="i-lucide-upload"
+            class="size-4"
+          />
+          Kirim ke {{ info.singkat }}
+        </p>
         <p class="mb-3 text-sm text-muted">
           Stok {{ info.singkat }} langsung bertambah begitu dicatat di sini. Hanya barang yang juga disimpan di outlet.
         </p>
@@ -645,7 +667,7 @@ const opsiSub = computed(() => [
           <div
             v-for="b in barisKirim"
             :key="b.k"
-            class="grid gap-2 rounded-xl border border-default bg-muted p-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_auto]"
+            class="grid gap-2 rounded-xl border border-default bg-default p-3 sm:grid-cols-2 lg:grid-cols-[2fr_1fr_1fr_auto]"
           >
             <UFormField label="Barang">
               <div class="flex items-center gap-2">
@@ -738,12 +760,13 @@ const opsiSub = computed(() => [
         <div
           v-for="g in riwayatBatch"
           :key="g.kunci"
-          class="rounded-xl border border-default p-3"
+          class="rounded-xl border p-3"
+          :class="g.jenis === 'ambil' ? 'border-info/25 bg-info/5' : 'border-success/25 bg-success/5'"
         >
           <div class="flex flex-wrap items-center justify-between gap-2">
             <div class="flex items-center gap-2">
               <AppStatus
-                :color="g.jenis === 'ambil' ? 'vip' : 'success'"
+                :color="g.jenis === 'ambil' ? 'info' : 'success'"
                 size="sm"
               >
                 {{ g.jenis === 'ambil' ? 'Pengambilan' : 'Kiriman' }}

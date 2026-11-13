@@ -21,7 +21,6 @@ export const PEMUAT: Record<string, PemuatanBab> = {
   radar: () => import('./panduan/radar'),
   ordering: () => import('./panduan/ordering'),
   purchasing: () => import('./panduan/purchasing'),
-  tree: () => import('./panduan/tree'),
   usage: () => import('./panduan/usage'),
   hpp: () => import('./panduan/hpp'),
   breakloss: () => import('./panduan/breakloss'),

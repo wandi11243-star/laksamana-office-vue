@@ -20,13 +20,15 @@ import {
   ckMovements,
   createMovement,
   deleteMovement,
+  infoStokGudang,
   patchMovement,
   saringMutasiGudang,
   saringSaldoGudang,
   useProdukStock,
 } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
-import { angka, tglPendek } from '~/utils/format'
+import { tglPendek } from '~/utils/format'
+import { tampilStokCk, type TampilStok } from '~/utils/stock-catat'
 import { tanganiKonflik, type Versi } from '~/utils/versi'
 
 definePageMeta({ access: ['purchasing'] })
@@ -54,28 +56,57 @@ const gerakQ = useAsyncData(() => `stock-pck-gerak-${gudang.value}`, () => ckMov
   watch: [gudang],
 })
 const versi = computed(() => gerakQ.data.value?.versions ?? {})
-const gerak = computed(() => saringMutasiGudang(gerakQ.data.value?.rows ?? [], gudang.value))
+// Only this warehouse's movements: never the other warehouse's, nor old rows of goods moved away.
+const gerak = computed(() => saringMutasiGudang(gerakQ.data.value?.rows ?? [], gudang.value, produkQ.data.value?.rows ?? []))
 
-// --- dashboard: most-taken items + daily in/out, from the movement list --------
+/**
+ * Quantities written like Ordering › Central Kitchen: big = pack (or the
+ * chosen display unit), small = the base unit — never a bare base number.
+ */
+function tampil(item: string, n: number): TampilStok {
+  return tampilStokCk(n, infoStokGudang(item, produkQ.data.value?.rows ?? [], saldo.value))
+}
+
+// --- dashboard: most-taken items + daily activity, from the movement list --------
+// Items differ in unit, so bars compare one item's own total and print it in
+// that item's units; the daily trend counts movements (units cannot be summed).
 const rekap = computed(() => {
   const keluar = new Map<string, number>()
   const masuk = new Map<string, number>()
+  const nKeluar = new Map<string, number>()
+  const nMasuk = new Map<string, number>()
   const harian = new Map<string, { masuk: number, keluar: number }>()
   for (const m of gerak.value) {
-    const k = m.arah === 'keluar' ? keluar : masuk
-    k.set(m.item, (k.get(m.item) ?? 0) + (Number(m.qty) || 0))
+    const qty = Number(m.qty) || 0
+    const ke = m.arah === 'keluar'
+    const k = ke ? keluar : masuk
+    const n = ke ? nKeluar : nMasuk
+    k.set(m.item, (k.get(m.item) ?? 0) + qty)
+    n.set(m.item, (n.get(m.item) ?? 0) + 1)
     const h = harian.get(m.tanggal) ?? { masuk: 0, keluar: 0 }
-    if (m.arah === 'keluar') h.keluar += Number(m.qty) || 0
-    else h.masuk += Number(m.qty) || 0
+    if (ke) h.keluar++
+    else h.masuk++
     harian.set(m.tanggal, h)
   }
-  const atas = (p: Map<string, number>) => [...p.entries()].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value).slice(0, 8)
-  const maks = Math.max(1, ...[...keluar.values(), ...masuk.values()])
+  // Ranked by how often the item moved; the bar shows that count's share.
+  const atas = (p: Map<string, number>, n: Map<string, number>) => {
+    const rows = [...n.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8)
+    const maks = Math.max(1, ...rows.map(r => r[1]))
+    return rows.map(([item, kali]) => {
+      const t = tampil(item, p.get(item) ?? 0)
+      return { label: item, value: `${t.utama} · ${kali}×`, persen: Math.round(kali / maks * 100) }
+    })
+  }
+  const hari = [...harian.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)).slice(0, 14)
+  const maksHari = Math.max(1, ...hari.map(([, v]) => v.masuk + v.keluar))
   return {
-    sering: atas(keluar),
-    masukTeratas: atas(masuk),
-    harian: [...harian.entries()].sort((a, b) => (a[0] < b[0] ? 1 : -1)).slice(0, 14).map(([label, v]) => ({ label: tglPendek(label), value: v.keluar + v.masuk })),
-    maks,
+    sering: atas(keluar, nKeluar),
+    masukTeratas: atas(masuk, nMasuk),
+    harian: hari.map(([label, v]) => ({
+      label: tglPendek(label),
+      value: `${v.masuk} masuk · ${v.keluar} keluar`,
+      persen: Math.round((v.masuk + v.keluar) / maksHari * 100),
+    })),
   }
 })
 
@@ -165,7 +196,7 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
   { accessorKey: 'tanggal', header: 'Tanggal' },
   { accessorKey: 'item', header: 'Barang' },
   { accessorKey: 'arah', header: 'Arah' },
-  { accessorKey: 'qty', header: 'Qty (satuan dasar)' },
+  { accessorKey: 'qty', header: 'Jumlah' },
   { accessorKey: 'sebab', header: 'Sebab' },
   { accessorKey: 'pic', header: 'PIC' },
   { id: 'aksi', header: '' },
@@ -236,28 +267,71 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
       </template>
 
       <div v-if="sub === 'stok'">
+        <p class="mb-3 text-sm text-muted">
+          Angka besar = pack (atau satuan beli terkecil), angka kecil = satuan dasarnya.
+        </p>
         <div class="hidden lg:block">
           <UTable
             :columns="kolomStok"
             :data="saldo"
-          />
+          >
+            <template #item-cell="{ row }">
+              <div>
+                <b class="text-highlighted">{{ row.original.item }}</b>
+                <p
+                  v-if="tampil(row.original.item, row.original.saldo).ket"
+                  class="text-xs text-dimmed"
+                >
+                  {{ tampil(row.original.item, row.original.saldo).ket }}
+                </p>
+              </div>
+            </template>
+            <template #saldo-cell="{ row }">
+              <div>
+                <b
+                  class="num text-base"
+                  :class="row.original.saldo < 0 ? 'text-error' : 'text-highlighted'"
+                >{{ tampil(row.original.item, row.original.saldo).utama }}</b>
+                <p
+                  v-if="tampil(row.original.item, row.original.saldo).kecil"
+                  class="text-xs text-dimmed"
+                >
+                  {{ tampil(row.original.item, row.original.saldo).kecil }}
+                </p>
+              </div>
+            </template>
+            <template #masuk-cell="{ row }">
+              <span class="num">{{ tampil(row.original.item, row.original.masuk).utama }}</span>
+            </template>
+            <template #keluar-cell="{ row }">
+              <span class="num">{{ tampil(row.original.item, row.original.keluar).utama }}</span>
+            </template>
+          </UTable>
         </div>
         <div class="flex flex-col gap-2 lg:hidden">
           <div
             v-for="s in saldo"
             :key="s.item"
-            class="flex items-center justify-between rounded-xl border border-default p-3"
+            class="flex items-center justify-between gap-3 rounded-xl border border-default p-3"
           >
-            <div>
+            <div class="min-w-0">
               <b class="text-highlighted">{{ s.item }}</b>
               <p class="text-sm text-muted">
-                Masuk {{ s.masuk }} · Keluar {{ s.keluar }}
+                Masuk {{ tampil(s.item, s.masuk).utama }} · Keluar {{ tampil(s.item, s.keluar).utama }}
               </p>
             </div>
-            <b
-              class="num text-lg"
-              :class="s.saldo < 0 ? 'text-error' : 'text-highlighted'"
-            >{{ s.saldo }}</b>
+            <div class="shrink-0 text-right">
+              <b
+                class="num text-lg"
+                :class="s.saldo < 0 ? 'text-error' : 'text-highlighted'"
+              >{{ tampil(s.item, s.saldo).utama }}</b>
+              <p
+                v-if="tampil(s.item, s.saldo).kecil"
+                class="text-xs text-dimmed"
+              >
+                {{ tampil(s.item, s.saldo).kecil }}
+              </p>
+            </div>
           </div>
           <p
             v-if="!saldo.length"
@@ -276,6 +350,9 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
           >
             <template #tanggal-cell="{ row }">
               {{ tglPendek(row.original.tanggal) }}
+            </template>
+            <template #qty-cell="{ row }">
+              <span class="num">{{ tampil(row.original.item, Number(row.original.qty) || 0).utama }}</span>
             </template>
             <template #arah-cell="{ row }">
               <AppStatus
@@ -324,7 +401,7 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
               </AppStatus>
             </div>
             <p class="mt-1 text-sm text-muted">
-              {{ tglPendek(m.tanggal) }} · {{ m.qtyInput ?? m.qty }} {{ m.unitInput ?? '' }} · {{ m.sebab || '—' }} · {{ m.pic }}
+              {{ tglPendek(m.tanggal) }} · {{ tampil(m.item, Number(m.qty) || 0).utama }} · {{ m.sebab || '—' }} · {{ m.pic }}
             </p>
           </div>
           <p
@@ -349,8 +426,8 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
               v-for="b in rekap.sering"
               :key="b.label"
               :label="b.label"
-              :value="angka(b.value)"
-              :persen="Math.round(b.value / rekap.maks * 100)"
+              :value="b.value"
+              :persen="b.persen"
             />
             <p
               v-if="!rekap.sering.length"
@@ -369,8 +446,8 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
               v-for="b in rekap.masukTeratas"
               :key="b.label"
               :label="b.label"
-              :value="angka(b.value)"
-              :persen="Math.round(b.value / rekap.maks * 100)"
+              :value="b.value"
+              :persen="b.persen"
             />
             <p
               v-if="!rekap.masukTeratas.length"
@@ -382,7 +459,8 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
         </AppPanel>
         <AppPanel
           bersarang
-          title="Tren harian"
+          title="Aktivitas harian"
+          description="Jumlah mutasi per hari"
           class="lg:col-span-2"
         >
           <div class="flex flex-col gap-2">
@@ -390,8 +468,8 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
               v-for="b in rekap.harian"
               :key="b.label"
               :label="b.label"
-              :value="angka(b.value)"
-              :persen="Math.round(b.value / Math.max(1, ...rekap.harian.map(h => h.value)) * 100)"
+              :value="b.value"
+              :persen="b.persen"
             />
           </div>
         </AppPanel>

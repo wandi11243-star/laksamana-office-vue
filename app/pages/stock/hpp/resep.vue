@@ -69,20 +69,30 @@ const ctx = computed<KonteksHpp>(() => buatKonteks(
 ))
 
 const tab = ref<'dish' | 'base' | 'pras'>('dish')
+const jenisTab = ref<'semua' | 'food' | 'drink'>('semua')
 const cari = ref('')
 const hal = ref(1)
 const per = 25
-watch([tab, cari], () => {
+watch([tab, jenisTab, cari], () => {
   hal.value = 1
 })
 
-const saring = computed(() => {
+/** Recipes of the active tab matching the search, before the Makanan/Minuman filter (feeds its counts). */
+const saringTab = computed(() => {
   const q = cari.value.trim().toLowerCase()
   return (resepQ.data.value?.rows ?? []).filter((r) => {
     if (kategoriResep({ nama: String(r.nama), tipe: String(r.tipe), seksi: String(r.seksi) }) !== tab.value) return false
-    return !q || String(r.nama ?? '').toLowerCase().includes(q)
-  })
+    return !q || [r.nama, r.seksi].some(v => String(v ?? '').toLowerCase().includes(q))
+  }).sort((a, b) => String(a.nama ?? '').localeCompare(String(b.nama ?? ''), 'id'))
 })
+const saring = computed(() => saringTab.value.filter(r => jenisTab.value === 'semua' || String(r.jenis ?? 'food') === jenisTab.value))
+const opsiJenis = computed(() => [
+  { value: 'semua' as const, label: `Semua (${saringTab.value.length})` },
+  { value: 'food' as const, label: `Makanan (${saringTab.value.filter(r => String(r.jenis ?? 'food') === 'food').length})`, icon: 'i-lucide-utensils' },
+  { value: 'drink' as const, label: `Minuman (${saringTab.value.filter(r => String(r.jenis) === 'drink').length})`, icon: 'i-lucide-cup-soda' },
+])
+const aktifOf = (r: ResepHppTulis) => r.aktif !== 0 && r.aktif !== false
+const nBahan = (r: ResepHppTulis) => (r.bahan ?? []).filter(b => (b.nama || '').trim()).length
 const totalHal = computed(() => Math.max(1, Math.ceil(saring.value.length / per)))
 const tampil = computed(() => saring.value.slice((hal.value - 1) * per, hal.value * per))
 
@@ -97,16 +107,37 @@ const cogs = (r: ResepHppTulis) => {
   return h ? cogsOf(ctx.value, h, set.value.buffer) : null
 }
 
+// Columns of the old Daftar Resep (owner request, Nov 2026), without Kode POS.
 const kolom: TableColumn<ResepHppTulis>[] = [
-  { accessorKey: 'kode', header: 'Kode POS' },
   { accessorKey: 'nama', header: 'Nama' },
+  { accessorKey: 'jenis', header: 'Jenis' },
+  { accessorKey: 'seksi', header: 'Seksi' },
   { accessorKey: 'yield_qty', header: 'Yield' },
-  { accessorKey: 'harga_baru', header: 'Harga jual' },
-  { accessorKey: 'modal', header: 'Modal' },
-  { accessorKey: 'perunit', header: 'Per unit' },
-  { accessorKey: 'cogs', header: 'COGS' },
+  { id: 'bahan', header: 'Bahan', meta: { class: { th: 'text-right', td: 'text-right' } } },
+  { id: 'modal', header: 'Modal', meta: { class: { th: 'text-right', td: 'text-right' } } },
+  { id: 'perunit', header: 'Per unit', meta: { class: { th: 'text-right', td: 'text-right' } } },
+  { accessorKey: 'harga_baru', header: 'Harga jual', meta: { class: { th: 'text-right', td: 'text-right' } } },
+  { id: 'cogs', header: 'COGS%' },
+  { accessorKey: 'aktif', header: 'Aktif' },
   { id: 'aksi', header: '' },
 ]
+
+/** Flip Aktif straight from the list (partial PATCH, only `aktif` changes). */
+const mengubahAktif = ref<string | null>(null)
+async function ubahAktif(r: ResepHppTulis, aktif: boolean) {
+  const id = String(r.id)
+  mengubahAktif.value = id
+  try {
+    await patchRecipe(id, { aktif: aktif ? 1 : 0 }, versiResep.value[id])
+    await resepQ.refresh()
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, () => resepQ.refresh()))) toast.add({ title: 'Gagal mengubah status', description: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    mengubahAktif.value = null
+  }
+}
 
 // --- editor -----------------------------------------------------------------------
 const sheet = ref(false)
@@ -343,30 +374,58 @@ async function impor(e: Event) {
           />
           <UInput
             v-model="cari"
-            placeholder="Cari resep…"
+            placeholder="Cari nama resep atau seksi…"
             icon="i-lucide-search"
           />
         </div>
       </template>
+      <AppChips
+        v-model="jenisTab"
+        :options="opsiJenis"
+        class="mb-3"
+      />
       <div class="hidden lg:block">
         <UTable
           :columns="kolom"
           :data="tampil"
         >
-          <template #kode-cell="{ row }">
-            {{ row.original.kode || '—' }}
+          <template #nama-cell="{ row }">
+            <b class="text-highlighted">{{ row.original.nama }}</b>
+          </template>
+          <template #jenis-cell="{ row }">
+            <AppStatus
+              :color="String(row.original.jenis) === 'drink' ? 'info' : 'vip'"
+              size="sm"
+            >
+              {{ String(row.original.jenis) === 'drink' ? 'Minuman' : 'Makanan' }}
+            </AppStatus>
+          </template>
+          <template #seksi-cell="{ row }">
+            <span class="text-muted">{{ row.original.seksi ? seksiTanpaPras(String(row.original.seksi)) : '—' }}</span>
           </template>
           <template #yield_qty-cell="{ row }">
-            {{ angka(Number(row.original.yield_qty ?? 0)) }} {{ row.original.yield_unit || '' }}
+            <span class="whitespace-nowrap">{{ angka(Number(row.original.yield_qty ?? 0)) }} {{ row.original.yield_unit || '' }}</span>
+          </template>
+          <template #bahan-cell="{ row }">
+            <span class="num">{{ nBahan(row.original) }}</span>
           </template>
           <template #harga_baru-cell="{ row }">
-            {{ Number(row.original.harga_baru ?? 0) > 0 ? rupiah(Number(row.original.harga_baru)) : '—' }}
+            <span class="num whitespace-nowrap">{{ Number(row.original.harga_baru ?? 0) > 0 ? rupiah(Number(row.original.harga_baru)) : '—' }}</span>
           </template>
           <template #modal-cell="{ row }">
-            {{ rupiah(Math.round(modalOf(row.original))) }}
+            <span class="num whitespace-nowrap">{{ rupiah(Math.round(modalOf(row.original))) }}</span>
           </template>
           <template #perunit-cell="{ row }">
-            {{ rupiah(Math.round(modalOf(row.original) / porsiYield({ nama: '', yield_qty: Number(row.original.yield_qty ?? 1) }))) }}
+            <span class="num whitespace-nowrap">{{ rupiah(Math.round(modalOf(row.original) / porsiYield({ nama: '', yield_qty: Number(row.original.yield_qty ?? 1) }))) }}</span>
+          </template>
+          <template #aktif-cell="{ row }">
+            <USwitch
+              :model-value="aktifOf(row.original)"
+              :label="aktifOf(row.original) ? 'Aktif' : 'Nonaktif'"
+              :loading="mengubahAktif === String(row.original.id)"
+              size="sm"
+              @update:model-value="ubahAktif(row.original, !!$event)"
+            />
           </template>
           <template #cogs-cell="{ row }">
             <span
@@ -423,9 +482,20 @@ async function impor(e: Event) {
             </AppStatus>
           </div>
           <p class="mt-1 text-sm text-muted">
-            Modal {{ rupiah(Math.round(modalOf(r))) }} · {{ r.seksi ? `${seksiTanpaPras(String(r.seksi))} · ` : '' }}{{ r.aktif === 0 || r.aktif === false ? 'non-aktif' : 'aktif' }}
+            {{ String(r.jenis) === 'drink' ? 'Minuman' : 'Makanan' }}{{ r.seksi ? ` · ${seksiTanpaPras(String(r.seksi))}` : '' }} · {{ nBahan(r) }} bahan
           </p>
-          <div class="mt-2 flex gap-1">
+          <p class="text-sm text-muted">
+            Modal {{ rupiah(Math.round(modalOf(r))) }} · Harga jual {{ Number(r.harga_baru ?? 0) > 0 ? rupiah(Number(r.harga_baru)) : '—' }}
+          </p>
+          <div class="mt-2 flex items-center gap-1">
+            <USwitch
+              :model-value="aktifOf(r)"
+              :label="aktifOf(r) ? 'Aktif' : 'Nonaktif'"
+              :loading="mengubahAktif === String(r.id)"
+              size="sm"
+              class="mr-auto"
+              @update:model-value="ubahAktif(r, !!$event)"
+            />
             <UButton
               icon="i-lucide-pencil"
               variant="ghost"
@@ -498,17 +568,13 @@ async function impor(e: Event) {
             />
           </UFormField>
         </div>
-        <div class="grid grid-cols-2 gap-2">
-          <UFormField label="Seksi (PRASMANAN… = prasmanan)">
-            <UInput
-              v-model="f.seksi"
-              placeholder="Mis. Dapur / PRASMANAN Pagi"
-            />
-          </UFormField>
-          <UFormField label="Kode POS">
-            <UInput v-model="f.kode" />
-          </UFormField>
-        </div>
+        <!-- Kode POS is no longer shown (owner request, Nov 2026); the stored value rides along unchanged. -->
+        <UFormField label="Seksi (PRASMANAN… = prasmanan)">
+          <UInput
+            v-model="f.seksi"
+            placeholder="Mis. Dapur / PRASMANAN Pagi"
+          />
+        </UFormField>
         <div class="grid grid-cols-2 gap-2">
           <UFormField label="Yield">
             <UInput

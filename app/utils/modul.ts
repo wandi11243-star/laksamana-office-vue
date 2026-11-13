@@ -50,7 +50,7 @@ export const MODUL: Modul[] = [
   { key: 'jadwal', label: 'Roster', desc: 'Jadwal shift & daily worker', icon: 'i-laks-shift', group: 'Tim & Kru', access: ['jadwal', 'dw'] },
   { key: 'akademi', label: 'Akademi', desc: 'Training kru', icon: 'i-laks-academy', group: 'Tim & Kru', access: ['akademi'] },
   { key: 'hr', label: 'Staff Performance', desc: 'Human resource', icon: 'i-laks-users', group: 'Tim & Kru', access: ['hr'] },
-  { key: 'stock', label: 'Stock', desc: 'Ordering, purchasing & HPP', icon: 'i-laks-box', group: 'Operasional', access: ['ordering', 'purchasing', 'tree', 'usage', 'hpp', 'breakloss'] },
+  { key: 'stock', label: 'Stock', desc: 'Ordering, purchasing & HPP', icon: 'i-laks-box', group: 'Operasional', access: ['ordering', 'purchasing', 'usage', 'hpp', 'breakloss'] },
   { key: 'reservasi', label: 'Reservasi', desc: 'Booking dan tamu', icon: 'i-laks-calendar', group: 'Operasional', access: ['reservasi'],
     kartu: defineAsyncComponent(() => import('~/widgets/reservasi/KartuReservasi.vue')),
     widgets: [

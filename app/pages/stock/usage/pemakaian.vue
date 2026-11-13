@@ -30,7 +30,19 @@ const admin = computed(() => isAdminOf(me.value, 'usage'))
 const belumAdaTim = computed(() => timBelumDiisi(me.value?.keterangan, admin.value))
 
 const produkQ = useProdukStock()
-const daftarNama = computed(() => produkQ.data.value?.rows.map(p => p.nama) ?? [])
+const produk = computed(() => produkQ.data.value?.rows ?? [])
+// Row search: one list grouped under category labels, like Form Order Belanja.
+const opsiBahan = computed(() => {
+  const grup = new Map<string, string[]>()
+  for (const p of produk.value) {
+    if (p.aktif === false) continue
+    const k = (p.kategori || '').trim() || 'Lainnya'
+    grup.set(k, [...(grup.get(k) ?? []), p.nama])
+  }
+  return [...grup.entries()]
+    .sort(([a], [b]) => (a === 'Lainnya' ? 1 : b === 'Lainnya' ? -1 : a.localeCompare(b, 'id')))
+    .map(([k, nama]) => [{ type: 'label' as const, label: k, value: `kategori:${k}` }, ...nama.sort((a, b) => a.localeCompare(b, 'id')).map(n => ({ label: n, value: n }))])
+})
 const info = computed<InfoBahan>(() => Object.fromEntries((produkQ.data.value?.rows ?? []).map(p => [p.nama, p])))
 
 // --- sub-tab + form -----------------------------------------------------------
@@ -74,6 +86,41 @@ function tambahBaris(isi?: Partial<BarisItemUsage>) {
     note: isi?.note || '',
   })
 }
+function pilihBahan(b: BarisForm, nama: string) {
+  b.item = nama
+  perbaruiSatuan(b)
+}
+// Stepper like the order form; usage may be fractional, so it never goes below 0.
+function ubahQty(b: BarisForm, d: number) {
+  b.qty = Math.max(0, Math.round(((Number(b.qty) || 0) + d) * 100) / 100)
+}
+
+// --- category picker (StockPilihBahan, same as Form Order Belanja) ---------------
+const pemilih = ref<{ open: boolean, k: number | null }>({ open: false, k: null })
+const namaDiForm = computed(() => baris.value.map(b => b.item).filter(Boolean))
+function bukaPemilih(k: number | null = null) {
+  pemilih.value = { open: true, k }
+}
+function pakaiPilihan(nama: string[]) {
+  const k = pemilih.value.k
+  if (k !== null) {
+    const b = baris.value.find(x => x.k === k)
+    if (b && nama[0]) pilihBahan(b, nama[0])
+    return
+  }
+  // Multi pick: unticked names leave the form, new names fill empty rows first.
+  const pilih = new Set(nama)
+  baris.value = baris.value.filter(b => !b.item || pilih.has(b.item))
+  const ada = new Set(baris.value.map(b => b.item).filter(Boolean))
+  for (const n of nama) {
+    if (ada.has(n)) continue
+    const kosong = baris.value.find(b => !b.item)
+    if (kosong) pilihBahan(kosong, n)
+    else tambahBaris({ item: n })
+  }
+  if (!baris.value.length) tambahBaris()
+}
+
 function hapusBaris(k: number) {
   if (baris.value.length <= 1) {
     toast.add({ title: 'Minimal satu baris', description: 'Kosongkan isinya kalau tidak dipakai.', color: 'warning' })
@@ -331,11 +378,7 @@ async function segarkan() {
 
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <UFormField label="Tanggal pakai">
-            <UInput
-              v-model="form.tanggal"
-              type="date"
-              class="w-full"
-            />
+            <AppTanggal v-model="form.tanggal" />
           </UFormField>
           <UFormField label="Jenis kegiatan">
             <USelect
@@ -378,61 +421,127 @@ async function segarkan() {
           />
         </UFormField>
 
-        <div class="mb-2 mt-5 flex items-center justify-between gap-2">
-          <span class="text-[11px] font-bold uppercase tracking-wider text-muted">Bahan yang dipakai</span>
-          <UButton
-            label="Tambah bahan"
-            icon="i-lucide-plus"
-            color="neutral"
-            variant="ghost"
-            size="xs"
-            @click="() => tambahBaris()"
-          />
-        </div>
-        <div class="space-y-2">
+        <p class="mb-2 mt-5 text-[11px] font-bold uppercase tracking-wider text-muted">
+          Bahan yang dipakai
+        </p>
+        <!-- Same rows as Form Order Belanja: grouped search + category picker,
+             stepper, add buttons under the last row. -->
+        <div class="flex flex-col gap-3">
           <div
             v-for="b in baris"
             :key="b.k"
-            class="rounded-xl border bg-muted border-default p-3"
+            class="rounded-xl border border-default bg-muted p-3"
           >
-            <div class="flex flex-col gap-2 lg:flex-row lg:items-center">
-              <div class="min-w-0 flex-1">
-                <StockBahanInput
-                  v-model="b.item"
-                  :daftar="daftarNama"
-                  @pilih="perbaruiSatuan(b)"
+            <UFormField label="Bahan">
+              <div class="flex items-center gap-2">
+                <USelectMenu
+                  :model-value="b.item || undefined"
+                  :items="opsiBahan"
+                  value-key="value"
+                  placeholder="Cari bahan…"
+                  :search-input="{ placeholder: 'Ketik nama bahan…' }"
+                  class="min-w-0 flex-1"
+                  @update:model-value="pilihBahan(b, String($event ?? ''))"
+                />
+                <UButton
+                  icon="i-lucide-layout-grid"
+                  color="neutral"
+                  variant="soft"
+                  square
+                  class="size-10 shrink-0 justify-center lg:size-8"
+                  title="Pilih dari kategori"
+                  aria-label="Pilih bahan dari kategori"
+                  @click="bukaPemilih(b.k)"
                 />
               </div>
-              <div class="flex items-center gap-2">
+            </UFormField>
+            <div class="mt-2 flex flex-wrap items-end gap-2">
+              <div
+                class="flex items-center gap-1.5"
+                role="group"
+                aria-label="Jumlah"
+              >
+                <UButton
+                  icon="i-lucide-minus"
+                  variant="outline"
+                  square
+                  class="size-10 justify-center lg:size-8"
+                  aria-label="Kurangi jumlah"
+                  @click="ubahQty(b, -1)"
+                />
                 <UInput
                   v-model.number="b.qty"
                   type="number"
                   min="0"
                   step="0.01"
-                  class="w-24"
+                  class="w-20"
+                  :ui="{ base: 'text-center font-bold' }"
+                  aria-label="Jumlah"
                 />
+                <UButton
+                  icon="i-lucide-plus"
+                  variant="outline"
+                  square
+                  class="size-10 justify-center lg:size-8"
+                  aria-label="Tambah jumlah"
+                  @click="ubahQty(b, 1)"
+                />
+              </div>
+              <UFormField
+                label="Satuan"
+                class="min-w-28 flex-1"
+              >
                 <USelect
                   v-model="b.unit"
                   :items="opsiUnit(b.item)"
-                  class="w-36"
+                  class="w-full"
                 />
-              </div>
-              <UInput
-                v-model="b.note"
-                placeholder="Catatan baris (opsional)"
-                class="flex-1"
-              />
+              </UFormField>
+              <UFormField
+                label="Catatan (opsional)"
+                class="min-w-40 flex-[2]"
+              >
+                <UInput
+                  v-model="b.note"
+                  placeholder="Kosongkan bila tidak ada"
+                  class="w-full"
+                />
+              </UFormField>
               <UButton
                 icon="i-lucide-trash-2"
-                color="error"
                 variant="ghost"
-                size="sm"
-                title="Hapus baris"
+                color="error"
+                square
+                class="size-10 justify-center lg:size-8"
                 aria-label="Hapus baris"
                 @click="hapusBaris(b.k)"
               />
             </div>
           </div>
+        </div>
+        <div class="mt-3 grid gap-2 sm:grid-cols-2">
+          <button
+            type="button"
+            class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gold/40 text-sm font-semibold text-gold-deep transition-colors hover:border-gold hover:bg-gold-soft/40 lg:min-h-10"
+            @click="() => tambahBaris()"
+          >
+            <UIcon
+              name="i-lucide-plus"
+              class="size-4"
+            />
+            Tambah baris bahan
+          </button>
+          <button
+            type="button"
+            class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gold/40 text-sm font-semibold text-gold-deep transition-colors hover:border-gold hover:bg-gold-soft/40 lg:min-h-10"
+            @click="bukaPemilih()"
+          >
+            <UIcon
+              name="i-lucide-layout-grid"
+              class="size-4"
+            />
+            Pilih bahan dari kategori
+          </button>
         </div>
 
         <div class="mt-5 flex flex-col gap-2 border-t border-default pt-4 sm:flex-row">
@@ -797,6 +906,14 @@ async function segarkan() {
         </div>
       </AppPanel>
     </template>
+
+    <StockPilihBahan
+      v-model:open="pemilih.open"
+      :produk="produk"
+      :awal="namaDiForm"
+      :tunggal="pemilih.k !== null"
+      @pakai="pakaiPilihan"
+    />
 
     <ResponsiveSheet
       v-model:open="sheetHapus"

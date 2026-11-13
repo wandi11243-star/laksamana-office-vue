@@ -29,6 +29,7 @@ import { bacaBerkasTabel } from '~/utils/xlsx-baca'
 import { barisBerkolom, barisKeProduk, barisKeVendor } from '~/utils/stock-impor'
 import { SATUAN_TERSEDIA, unduhCsvStock } from '~/utils/stock-catat'
 import { tanganiKonflik } from '~/utils/versi'
+import { warnaKategori } from '~/utils/kategori-warna'
 
 definePageMeta({ access: ['purchasing'] })
 
@@ -107,8 +108,21 @@ const kolomVendor: TableColumn<VendorStock>[] = [
   { accessorKey: 'whatsapp', header: 'WhatsApp' },
   { accessorKey: 'penerima', header: 'Penerima' },
   { accessorKey: 'bank', header: 'Bank' },
+  { accessorKey: 'perluJadwalJemput', header: 'Jemput' },
+  { accessorKey: 'tutupHari', header: 'Hari tutup' },
+  { id: 'jumlahBahan', header: 'Bahan' },
   { id: 'aksi', header: '' },
 ]
+/** How many products name this vendor as main or backup. */
+const bahanVendor = computed(() => {
+  const m = new Map<string, number>()
+  for (const p of produkQ.data.value?.rows ?? []) {
+    for (const v of new Set([p.utama, ...(((p as unknown as Record<string, unknown>).cadangan as string[] | undefined) ?? [])].filter(Boolean) as string[])) {
+      m.set(v, (m.get(v) ?? 0) + 1)
+    }
+  }
+  return m
+})
 
 // ---------------------------------------------------------------- products
 const produkQ = useProdukStock()
@@ -272,12 +286,36 @@ async function hapusP(p: ProdukStock) {
 
 const labelSumber = (s: string) => (s === 'ck' ? 'Central Kitchen' : s === 'both' ? 'Vendor & CK' : s === 'bar' ? 'Vendor & Gudang Bar' : 'Beli dari vendor')
 const labelCara = (s: string) => (s === 'online' ? 'Online' : s === 'jemput' ? 'Jemput' : 'Diantar vendor')
+// The old Database columns (owner request, Nov 2026).
 const kolomProduk: TableColumn<ProdukStock>[] = [
   { accessorKey: 'nama', header: 'Nama bahan baku' },
+  { accessorKey: 'kategori', header: 'Kategori' },
+  { accessorKey: 'area', header: 'Area' },
   { accessorKey: 'utama', header: 'Vendor utama' },
+  { accessorKey: 'cadangan', header: 'Vendor alternatif' },
+  { accessorKey: 'satuan', header: 'Satuan' },
   { accessorKey: 'caraBeli', header: 'Cara beli' },
+  { id: 'pack', header: 'Pack' },
+  { accessorKey: 'aktif', header: 'Aktif' },
   { id: 'aksi', header: '' },
 ]
+const rec = (p: ProdukStock) => p as unknown as Record<string, unknown>
+const daftarOf = (p: ProdukStock, k: string) => ((rec(p)[k] as string[] | undefined) ?? []).filter(Boolean)
+/** One unit chip per checked unit, with its size in the base unit when measured ("Liter · 1000"). */
+function satuanChip(p: ProdukStock) {
+  const isi = (rec(p).isi as Record<string, number> | undefined) ?? {}
+  const dasar = String(rec(p).satuanDasar ?? '').trim()
+  return daftarOf(p, 'satuan').map(s => ({
+    nama: s,
+    ket: s.toLowerCase() === dasar.toLowerCase() ? 'terkecil' : (Number(isi[s]) > 0 ? String(isi[s]) : ''),
+  }))
+}
+function packOf(p: ProdukStock) {
+  const n = Number(rec(p).packIsi) || 0
+  const dasar = String(rec(p).satuanDasar ?? '').trim()
+  return n > 0 ? `1 Pack = ${n}${dasar ? ` ${dasar}` : ''}` : ''
+}
+const iconCara = (s: string) => (s === 'online' ? 'i-lucide-globe' : s === 'jemput' ? 'i-lucide-car' : 'i-lucide-truck')
 
 // ---------------------------------------------------------------- import / export
 const sel = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
@@ -425,8 +463,20 @@ async function simpanTemplate() {
             <template #penerima-cell="{ row }">
               {{ row.original.penerima || '—' }}
             </template>
+            <template #nama-cell="{ row }">
+              <b class="text-highlighted">{{ row.original.nama }}</b>
+            </template>
             <template #bank-cell="{ row }">
               {{ row.original.bank ? `${row.original.bank} · ${row.original.norek || '—'}` : '—' }}
+            </template>
+            <template #perluJadwalJemput-cell="{ row }">
+              <span class="text-sm">{{ row.original.perluJadwalJemput ? 'Tidak bisa hari yang sama' : 'Hari yang sama' }}</span>
+            </template>
+            <template #tutupHari-cell="{ row }">
+              <span class="text-sm">{{ (row.original.tutupHari ?? []).map(i => HARI[i]).filter(Boolean).join(', ') || '—' }}</span>
+            </template>
+            <template #jumlahBahan-cell="{ row }">
+              <span class="num">{{ bahanVendor.get(row.original.nama) ?? 0 }}</span>
             </template>
             <template #aksi-cell="{ row }">
               <div class="flex justify-end gap-1">
@@ -555,11 +605,100 @@ async function simpanTemplate() {
               :columns="kolomProduk"
               :data="k.rows"
             >
+              <template #nama-cell="{ row }">
+                <b class="text-highlighted">{{ row.original.nama }}</b>
+              </template>
+              <template #kategori-cell="{ row }">
+                <span
+                  v-if="row.original.kategori"
+                  class="whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-bold"
+                  :class="warnaKategori(String(row.original.kategori))"
+                >{{ row.original.kategori }}</span>
+                <span
+                  v-else
+                  class="text-dimmed"
+                >—</span>
+              </template>
+              <template #area-cell="{ row }">
+                <div
+                  v-if="daftarOf(row.original, 'area').length"
+                  class="flex flex-col items-start gap-1"
+                >
+                  <span
+                    v-for="a in daftarOf(row.original, 'area')"
+                    :key="a"
+                    class="rounded-md border border-info/30 px-2 py-0.5 text-[11px] font-semibold text-info"
+                  >{{ a }}</span>
+                </div>
+                <span
+                  v-else
+                  class="text-xs text-dimmed"
+                >Umum</span>
+              </template>
               <template #utama-cell="{ row }">
-                {{ row.original.utama || '—' }}
+                <span
+                  v-if="row.original.utama"
+                  class="whitespace-nowrap rounded-md border border-success/30 px-2 py-0.5 text-xs font-semibold text-success"
+                >{{ row.original.utama }}</span>
+                <span
+                  v-else
+                  class="text-dimmed"
+                >—</span>
+              </template>
+              <template #cadangan-cell="{ row }">
+                <div
+                  v-if="daftarOf(row.original, 'cadangan').length"
+                  class="flex flex-col items-start gap-1"
+                >
+                  <span
+                    v-for="v in daftarOf(row.original, 'cadangan')"
+                    :key="v"
+                    class="whitespace-nowrap rounded-md border border-warning/30 px-2 py-0.5 text-[11px] font-semibold text-warning"
+                  >{{ v }}</span>
+                </div>
+                <span
+                  v-else
+                  class="text-dimmed"
+                >—</span>
+              </template>
+              <template #satuan-cell="{ row }">
+                <div
+                  v-if="satuanChip(row.original).length"
+                  class="flex flex-col items-start gap-1"
+                >
+                  <span
+                    v-for="s in satuanChip(row.original)"
+                    :key="s.nama"
+                    class="whitespace-nowrap rounded-md border border-default px-2 py-0.5 text-[11px] font-semibold text-highlighted"
+                  >{{ s.nama }}<span
+                    v-if="s.ket"
+                    class="font-normal text-muted"
+                  > · {{ s.ket }}</span></span>
+                </div>
+                <span
+                  v-else
+                  class="text-dimmed"
+                >—</span>
               </template>
               <template #caraBeli-cell="{ row }">
-                {{ labelCara(String(row.original.caraBeli || '')) }}
+                <span class="inline-flex items-center gap-1 whitespace-nowrap text-sm">
+                  <UIcon
+                    :name="iconCara(String(row.original.caraBeli || ''))"
+                    class="size-3.5 text-muted"
+                  />
+                  {{ labelCara(String(row.original.caraBeli || '')) }}
+                </span>
+              </template>
+              <template #pack-cell="{ row }">
+                <span class="num whitespace-nowrap text-sm">{{ packOf(row.original) || '—' }}</span>
+              </template>
+              <template #aktif-cell="{ row }">
+                <AppStatus
+                  :color="row.original.aktif === false ? 'neutral' : 'success'"
+                  size="sm"
+                >
+                  {{ row.original.aktif === false ? 'Nonaktif' : 'Aktif' }}
+                </AppStatus>
               </template>
               <template #aksi-cell="{ row }">
                 <div class="flex justify-end gap-1">
@@ -594,6 +733,9 @@ async function simpanTemplate() {
                 <b class="text-highlighted">{{ p.nama }}</b>
                 <p class="text-sm text-muted">
                   {{ p.utama || 'tanpa vendor' }} · {{ labelCara(String(p.caraBeli || '')) }}
+                </p>
+                <p class="text-xs text-dimmed">
+                  {{ [p.kategori, daftarOf(p, 'area').join('/') || 'Umum', daftarOf(p, 'satuan').join(', '), packOf(p), p.aktif === false ? 'Nonaktif' : ''].filter(Boolean).join(' · ') }}
                 </p>
               </div>
               <div class="flex gap-1">
