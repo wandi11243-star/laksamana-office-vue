@@ -10,6 +10,7 @@ import type { TableColumn } from '@nuxt/ui'
 import { isAdminOf } from '~/composables/useMe'
 import type { ProdukStock, VendorStock } from '~/composables/useStock'
 import {
+  bolehUbahPurchasing,
   createProduk,
   createVendor,
   deleteProduk,
@@ -32,6 +33,8 @@ import { tanganiKonflik } from '~/utils/versi'
 definePageMeta({ access: ['purchasing'] })
 
 const toast = useToast()
+// Purchasing `view` role (old PERM_DEFAULT): look, never change — the server refuses too.
+const bisaUbah = computed(() => bolehUbahPurchasing('database'))
 const sub = ref<'vendor' | 'bahan' | 'chat'>('vendor')
 
 const KATEGORI = ['DRY ITEM', 'CHILLER ITEM', 'FRESH', 'OPERATIONAL', 'STORE ITEM', 'Liquid/Syrup', 'Tea Section', 'Fresh Fruits', 'Cake', 'Kelapa', 'Buah Prep', 'Packaging', 'Powder', 'Powder Herbs']
@@ -338,6 +341,12 @@ async function simpanTemplate() {
     title="Database & Vendor"
     description="Kontak vendor & aturan distribusi bahan baku"
   >
+    <p
+      v-if="!bisaUbah"
+      class="mb-4 rounded-xl border-l-4 border-warning bg-warning/10 p-3 text-sm text-warning"
+    >
+      Peran Purchasing kamu hanya boleh <b>melihat</b> halaman ini.
+    </p>
     <AppPanel title="Database">
       <template #head>
         <AppSeg
@@ -361,6 +370,7 @@ async function simpanTemplate() {
           </UFormField>
           <div class="flex items-end gap-2">
             <UButton
+              v-if="bisaUbah"
               label="Tambah vendor"
               icon="i-lucide-plus"
               @click="bukaVendor()"
@@ -372,6 +382,7 @@ async function simpanTemplate() {
               @click="unduhVendor"
             />
             <UButton
+              v-if="bisaUbah"
               label="Impor"
               icon="i-lucide-upload"
               variant="outline"
@@ -401,6 +412,7 @@ async function simpanTemplate() {
             <template #aksi-cell="{ row }">
               <div class="flex justify-end gap-1">
                 <UButton
+                  v-if="bisaUbah"
                   icon="i-lucide-pencil"
                   variant="ghost"
                   size="sm"
@@ -408,6 +420,7 @@ async function simpanTemplate() {
                   @click="bukaVendor(row.original)"
                 />
                 <UButton
+                  v-if="bisaUbah"
                   icon="i-lucide-trash-2"
                   variant="ghost"
                   size="sm"
@@ -433,12 +446,14 @@ async function simpanTemplate() {
             </div>
             <div class="flex gap-1">
               <UButton
+                v-if="bisaUbah"
                 icon="i-lucide-pencil"
                 variant="ghost"
                 :aria-label="`Ubah ${v.nama}`"
                 @click="bukaVendor(v)"
               />
               <UButton
+                v-if="bisaUbah"
                 icon="i-lucide-trash-2"
                 variant="ghost"
                 color="error"
@@ -461,6 +476,7 @@ async function simpanTemplate() {
           </UFormField>
           <div class="flex items-end gap-2">
             <UButton
+              v-if="bisaUbah"
               label="Tambah aturan baru"
               icon="i-lucide-plus"
               @click="bukaProduk()"
@@ -472,6 +488,7 @@ async function simpanTemplate() {
               @click="unduhProduk"
             />
             <UButton
+              v-if="bisaUbah"
               label="Impor"
               icon="i-lucide-upload"
               variant="outline"
@@ -504,6 +521,7 @@ async function simpanTemplate() {
             <template #aksi-cell="{ row }">
               <div class="flex justify-end gap-1">
                 <UButton
+                  v-if="bisaUbah"
                   icon="i-lucide-pencil"
                   variant="ghost"
                   size="sm"
@@ -511,6 +529,7 @@ async function simpanTemplate() {
                   @click="bukaProduk(row.original)"
                 />
                 <UButton
+                  v-if="bisaUbah"
                   icon="i-lucide-trash-2"
                   variant="ghost"
                   size="sm"
@@ -536,12 +555,14 @@ async function simpanTemplate() {
             </div>
             <div class="flex gap-1">
               <UButton
+                v-if="bisaUbah"
                 icon="i-lucide-pencil"
                 variant="ghost"
                 :aria-label="`Ubah ${p.nama}`"
                 @click="bukaProduk(p)"
               />
               <UButton
+                v-if="bisaUbah"
                 icon="i-lucide-trash-2"
                 variant="ghost"
                 color="error"
@@ -578,6 +599,7 @@ async function simpanTemplate() {
           />
         </UFormField>
         <UButton
+          v-if="bisaUbah"
           label="Simpan format"
           class="mt-3"
           :loading="simpanTpl"
@@ -639,6 +661,7 @@ async function simpanTemplate() {
             @click="sheetVendor = false"
           />
           <UButton
+            v-if="bisaUbah"
             label="Simpan"
             :loading="simpanVendor"
             @click="simpanV"
@@ -793,6 +816,7 @@ async function simpanTemplate() {
             @click="sheetProduk = false"
           />
           <UButton
+            v-if="bisaUbah"
             label="Simpan"
             :loading="simpanProduk"
             @click="simpanP"

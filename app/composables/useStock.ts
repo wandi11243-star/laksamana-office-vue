@@ -486,6 +486,18 @@ export function bolehUbahOrdering(halaman: 'order' | 'ck' | 'gb' | 'checkin'): b
   return izinHalaman('ordering', halaman, 2) >= 2
 }
 
+/**
+ * May the signed-in user write on this Purchasing screen? Same rule as the
+ * server guard (PeranPurchasing): Purchasing admins always may; a `view`
+ * role only looks. `lolos` = another Panel doing the same write (HPP saves
+ * products) — holders of it may.
+ */
+export function bolehUbahPurchasing(halaman: 'dashboard' | 'jemput' | 'ck' | 'database', lolos: string[] = []): boolean {
+  const me = useMe().value
+  if (!me || isAdminOf(me, 'purchasing') || lolos.some(m => hasAccess(me, [m]))) return true
+  return izinHalaman('purchasing', halaman, 2) >= 2
+}
+
 /** Label of an Ordering role (old roleLabel). */
 export const LABEL_PERAN_ORDERING: Record<string, string> = { admin: 'Admin modul', full: 'Order + Check-in', checkin: 'Check-in saja' }
 

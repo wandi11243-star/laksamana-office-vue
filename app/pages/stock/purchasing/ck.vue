@@ -14,6 +14,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { CkMutasi, CkSaldo, Gudang } from '~/composables/useStock'
 import {
+  bolehUbahPurchasing,
   GUDANG_INFO,
   ckBalance,
   ckMovements,
@@ -29,6 +30,8 @@ import { tanganiKonflik, type Versi } from '~/utils/versi'
 definePageMeta({ access: ['purchasing'] })
 
 const toast = useToast()
+// Purchasing `view` role (old PERM_DEFAULT): look, never change — the server refuses too.
+const bisaUbah = computed(() => bolehUbahPurchasing('ck'))
 
 const sub = ref<'stok' | 'mutasi' | 'dash'>('stok')
 const gudang = ref<Gudang>('ck')
@@ -171,6 +174,12 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
     :title="info.nama"
     :description="`Stok, mutasi & dashboard ${info.nama}`"
   >
+    <p
+      v-if="!bisaUbah"
+      class="mb-4 rounded-xl border-l-4 border-warning bg-warning/10 p-3 text-sm text-warning"
+    >
+      Peran Purchasing kamu hanya boleh <b>melihat</b> halaman ini.
+    </p>
     <template #actions>
       <AppSeg
         v-model="gudang"
@@ -180,6 +189,7 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
         ]"
       />
       <UButton
+        v-if="bisaUbah"
         label="Catat mutasi"
         icon="i-lucide-plus"
         @click="bukaTambah"
@@ -275,6 +285,7 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
             <template #aksi-cell="{ row }">
               <div class="flex justify-end gap-1">
                 <UButton
+                  v-if="bisaUbah"
                   icon="i-lucide-pencil"
                   variant="ghost"
                   size="sm"
@@ -282,6 +293,7 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
                   @click="bukaUbah(row.original)"
                 />
                 <UButton
+                  v-if="bisaUbah"
                   icon="i-lucide-trash-2"
                   variant="ghost"
                   size="sm"
@@ -450,6 +462,7 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
             @click="sheet = false"
           />
           <UButton
+            v-if="bisaUbah"
             label="Simpan"
             :loading="menyimpan"
             @click="simpan"

@@ -12,7 +12,7 @@
 -->
 <script setup lang="ts">
 import type { OrderStock } from '~/composables/useStock'
-import { gudangDariBatch, listOrders, patchOrder, useProdukStock } from '~/composables/useStock'
+import { bolehUbahPurchasing, gudangDariBatch, listOrders, patchOrder, useProdukStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { hariIni, tglPendek } from '~/utils/format'
 import { warnaKategori } from '~/utils/kategori-warna'
@@ -21,6 +21,8 @@ import { tanganiKonflik, type Versi } from '~/utils/versi'
 definePageMeta({ access: ['purchasing'] })
 
 const toast = useToast()
+// Purchasing `view` role (old PERM_DEFAULT): look, never change — the server refuses too.
+const bisaUbah = computed(() => bolehUbahPurchasing('jemput'))
 
 const ordersQ = useAsyncData('stock-jemput', () => listOrders({ status: 'Aktif' }), {
   default: () => ({ rows: [] as OrderStock[], versions: {} as Record<string, Versi> }),
@@ -107,8 +109,15 @@ async function tetapkan(semua: OrderStock[], tgl: string) {
     title="Jemput Hari Ini"
     description="Barang yang dijemput sendiri dari vendor"
   >
+    <p
+      v-if="!bisaUbah"
+      class="mb-4 rounded-xl border-l-4 border-warning bg-warning/10 p-3 text-sm text-warning"
+    >
+      Peran Purchasing kamu hanya boleh <b>melihat</b> halaman ini.
+    </p>
     <template #actions>
       <UButton
+        v-if="bisaUbah"
         label="Tandai semua dijemput"
         icon="i-lucide-check-check"
         :loading="menandai"
@@ -161,6 +170,7 @@ async function tetapkan(semua: OrderStock[], tgl: string) {
             {{ o.qty }} <span class="font-sans text-sm font-medium text-muted">{{ o.unit }}</span>
           </p>
           <UButton
+            v-if="bisaUbah"
             label="Tandai dijemput"
             icon="i-lucide-check"
             size="lg"
@@ -189,6 +199,7 @@ async function tetapkan(semua: OrderStock[], tgl: string) {
         #actions
       >
         <UButton
+          v-if="bisaUbah"
           label="Tandai semua diambil"
           icon="i-lucide-check-check"
           size="sm"
@@ -219,6 +230,7 @@ async function tetapkan(semua: OrderStock[], tgl: string) {
             {{ o.qty }} <span class="font-sans text-sm font-medium text-muted">{{ o.unit }}</span>
           </p>
           <UButton
+            v-if="bisaUbah"
             label="Tandai diambil"
             icon="i-lucide-check"
             size="lg"
@@ -268,6 +280,7 @@ async function tetapkan(semua: OrderStock[], tgl: string) {
             {{ o.qty }} <span class="font-sans text-sm font-medium text-muted">{{ o.unit }}</span>
           </p>
           <UButton
+            v-if="bisaUbah"
             label="Batal"
             icon="i-lucide-undo-2"
             color="neutral"
