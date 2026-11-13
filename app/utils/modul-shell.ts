@@ -219,6 +219,10 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     layar: LAYAR_STOCK,
     peran: me => peranStock(me),
     lencana: () => useLencanaStock(),
+    // The caller's own Ordering / Purchasing role drives the menu (GET /stock/me).
+    siapkan: () => {
+      void muatPeranStock()
+    },
   },
 
   // ── event ──

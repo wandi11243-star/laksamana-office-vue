@@ -8,7 +8,7 @@
 import type { BahanHpp, ResepHpp } from '~/utils/pohon-resep'
 import type { OpnameRingkas, ProdukCatat } from '~/utils/stock-catat'
 import { ifMatch, versiDari, type Versi } from '~/utils/versi'
-import { hasAccess } from '~/composables/useMe'
+import { hasAccess, isAdminOf } from '~/composables/useMe'
 
 // ---------------------------------------------------------------- Pohon Resep (read-only panel, module `tree`)
 
@@ -443,6 +443,51 @@ export function useApprovals() {
     default: () => null as DaftarAcc | null,
   })
 }
+
+// ---------------------------------------------------------------- My Ordering / Purchasing role
+
+/** 0 = Tak terlihat, 1 = Lihat, 2 = Boleh ubah (old PERM_NONE / VIEW / EDIT). */
+export type IzinHalaman = 0 | 1 | 2
+export interface PeranPanel { role: string, perms: Record<string, IzinHalaman> }
+export interface PeranStock { ordering?: PeranPanel, purchasing?: PeranPanel }
+
+/** The signed-in user's own roles (`GET /stock/me`); null until loaded or when it failed. */
+export const usePeranStock = () => useState<PeranStock | null>('stock-peran', () => null)
+
+/** Loads the roles once per session for the module menu (ModulShell.siapkan). Failure keeps the old menu. */
+export async function muatPeranStock(): Promise<void> {
+  const state = usePeranStock()
+  if (state.value) return
+  try {
+    const r = await useApi()<Envelope<PeranStock>>('/stock/me')
+    state.value = r.data ?? {}
+  }
+  catch { /* fall back to the role-less menu; the server still guards the writes */ }
+}
+
+/**
+ * Permission of one Ordering / Purchasing screen for the signed-in user;
+ * `cadangan` while the role is not known yet (the menu before /stock/me answers).
+ */
+export function izinHalaman(panel: 'ordering' | 'purchasing', halaman: string, cadangan: IzinHalaman): IzinHalaman {
+  const p = usePeranStock().value?.[panel]
+  if (!p) return cadangan
+  return p.role === 'admin' ? 2 : (p.perms[halaman] ?? 0)
+}
+
+/**
+ * May the signed-in user write on this Ordering screen? Same rule as the
+ * server guard (StockPeran::bolehUbahOrdering): Purchasing holders and
+ * Ordering admins always may; otherwise the role must "Boleh ubah" it.
+ */
+export function bolehUbahOrdering(halaman: 'order' | 'ck' | 'gb' | 'checkin'): boolean {
+  const me = useMe().value
+  if (!me || hasAccess(me, ['purchasing']) || isAdminOf(me, 'ordering')) return true
+  return izinHalaman('ordering', halaman, 2) >= 2
+}
+
+/** Label of an Ordering role (old roleLabel). */
+export const LABEL_PERAN_ORDERING: Record<string, string> = { admin: 'Admin modul', full: 'Order + Check-in', checkin: 'Check-in saja' }
 
 /** Red badge on "Approval Order": requests waiting for the signed-in head. */
 export function useLencanaStock() {

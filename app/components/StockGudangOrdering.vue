@@ -15,7 +15,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { CkMutasi, CkSaldo, Gudang } from '~/composables/useStock'
-import { GUDANG_INFO, catatLog, ckBalance, ckMovements, createBatch, deliverToCk, patchDelivery, useProdukStock } from '~/composables/useStock'
+import { GUDANG_INFO, bolehUbahOrdering, catatLog, ckBalance, ckMovements, createBatch, deliverToCk, patchDelivery, useProdukStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { hariIni, tambahHari, tglPendek } from '~/utils/format'
 import { SATUAN_TERSEDIA, ckKeDasar, fmtQty, opsiSatuanKirimCk, tampilStokCk, unduhCsvStock } from '~/utils/stock-catat'
@@ -30,6 +30,11 @@ const sub = ref<'stok' | 'minta' | 'kirim' | 'riwayat'>('stok')
 
 const info = computed(() => GUDANG_INFO[props.gudang])
 const bar = computed(() => props.gudang === 'bar')
+/** "Lihat saja" for a role that may only view this warehouse (old ORD_PERM_DEFAULT, e.g. Check-in saja on Gudang Bar). */
+const bisaUbah = computed(() => bolehUbahOrdering(bar.value ? 'gb' : 'ck'))
+watch(bisaUbah, (v) => {
+  if (!v && (sub.value === 'minta' || sub.value === 'kirim')) sub.value = 'stok'
+})
 
 const produkQ = useProdukStock()
 /** Goods of this warehouse (CK: sumber ck/both · Gudang Bar: sumber bar). */
@@ -292,6 +297,10 @@ const kolomKirim: TableColumn<CkMutasi>[] = [
 const sheetUbah = ref(false)
 const ubah = ref({ id: '', item: '', tanggal: '', qty: 1, unit: 'Pack' })
 function bukaUbah(m: CkMutasi) {
+  if (!bisaUbah.value) {
+    toast.add({ title: 'Hanya bisa dilihat', description: 'Peran Ordering kamu tidak boleh mengubah kiriman gudang ini.', color: 'warning' })
+    return
+  }
   if (m.sebab !== 'kiriman' || m.ref) {
     toast.add({ title: 'Baris ini tidak bisa diubah di sini', description: 'Mutasi dari pengajuan hanya berubah lewat check-in; salah barang dicatat lewat penyesuaian.', color: 'warning' })
     return
@@ -363,8 +372,12 @@ function unduhStok() {
 
 const opsiSub = computed(() => [
   { value: 'stok' as const, label: `Stok ${info.value.singkat} sekarang`, icon: 'i-lucide-box' },
-  { value: 'minta' as const, label: `Minta dari ${info.value.singkat}`, icon: 'i-lucide-download' },
-  { value: 'kirim' as const, label: `Kirim ke ${info.value.singkat}`, icon: 'i-lucide-upload' },
+  ...(bisaUbah.value
+    ? [
+        { value: 'minta' as const, label: `Minta dari ${info.value.singkat}`, icon: 'i-lucide-download' },
+        { value: 'kirim' as const, label: `Kirim ke ${info.value.singkat}`, icon: 'i-lucide-upload' },
+      ]
+    : []),
   { value: 'riwayat' as const, label: bar.value ? 'Riwayat batch' : 'Riwayat kiriman', icon: 'i-lucide-receipt' },
 ])
 </script>
@@ -755,7 +768,7 @@ const opsiSub = computed(() => [
               <div class="flex items-center gap-1">
                 <span class="num text-sm">{{ fmtQty(Number(m.qtyInput ?? m.qty) || 0) }} {{ m.unitInput }}</span>
                 <UButton
-                  v-if="g.jenis === 'kirim'"
+                  v-if="g.jenis === 'kirim' && bisaUbah"
                   icon="i-lucide-pencil"
                   variant="ghost"
                   size="sm"
