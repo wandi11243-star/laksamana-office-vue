@@ -583,9 +583,38 @@ export function saringSaldoGudang(rows: CkSaldo[], produk: ProdukStock[], gudang
   })
 }
 
-/** Movements of this warehouse only: by the row's own `gudang` (old rows without it = CK). */
-export function saringMutasiGudang<T extends { gudang?: string }>(rows: T[], gudang: Gudang): T[] {
-  return rows.filter(m => (m.gudang === 'bar' ? 'bar' : 'ck') === gudang)
+/**
+ * Movements of this warehouse only: by the row's own `gudang` (old rows
+ * without it = CK). With the product master, a movement of goods that now
+ * belong to the other warehouse (e.g. old CK rows of a Gudang Bar product)
+ * is dropped too, the same rule as `saringSaldoGudang`.
+ */
+export function saringMutasiGudang<T extends { gudang?: string, item?: string }>(rows: T[], gudang: Gudang, produk: ProdukStock[] = []): T[] {
+  const sumber = new Map(produk.map(p => [p.nama, p.sumber ?? '']))
+  const boleh = GUDANG_INFO[gudang].sumber
+  return rows.filter((m) => {
+    if ((m.gudang === 'bar' ? 'bar' : 'ck') !== gudang) return false
+    if (!produk.length) return true
+    const s = sumber.get(m.item ?? '')
+    return s === undefined ? gudang === 'ck' : boleh.includes(s)
+  })
+}
+
+/**
+ * Display facts for one warehouse item: base unit and measured sizes from the
+ * product master, the pack snapshot from the balance row when the master has
+ * none. Feeds `tampilStokCk`, so every stock screen writes quantities the same
+ * way (big = pack or display unit, small = base unit).
+ */
+export function infoStokGudang(item: string, produk: ProdukStock[], saldo: CkSaldo[]) {
+  const p = produk.find(r => r.nama === item) as unknown as Record<string, unknown> | undefined
+  const s = saldo.find(r => r.item === item) as unknown as Record<string, unknown> | undefined
+  return {
+    satuanDasar: (p?.satuanDasar as string) || (s?.packSatuan as string) || '',
+    isi: (p?.isi as Record<string, number>) || {},
+    packIsi: Number(p?.packIsi ?? s?.packIsi) || 0,
+    satuanTampil: (p?.satuanTampil as string) || (s?.satuanTampil as string) || '',
+  }
 }
 
 /** Warehouse of a request batch by its name; '' for a shopping batch. */

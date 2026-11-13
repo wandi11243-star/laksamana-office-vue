@@ -67,9 +67,6 @@ export const LAYAR_STOCK: Layar[] = [
   { key: 'purchasing_users', label: 'Kelola Akses Purchasing', desc: 'Matriks izin & kru purchasing', icon: 'i-lucide-users', to: '/stock/purchasing/users', grup: 'Purchasing', boleh: adminPurchasing },
   { key: 'purchasing_log', label: 'Log Aktivitas', desc: 'Siapa mengubah apa di stock', icon: 'i-lucide-scroll-text', to: '/stock/purchasing/log', grup: 'Purchasing', boleh: adminPurchasing },
 
-  // ── Pohon Resep (kunci tree; read-only, tanpa role internal) ──
-  { key: 'tree_pohon', label: 'Pohon Resep', desc: 'Rincian tiap menu sampai bahan mentah', icon: 'i-lucide-tree-deciduous', to: '/stock/tree', grup: 'Pohon Resep', boleh: panel('tree') },
-
   // ── Pemakaian Bahan Baku (kunci usage; K-07: usage-only boleh masuk) ──
   { key: 'opname', label: 'Daily SO', desc: 'Buku stok harian: awal + masuk − keluar, lalu stok fisik', icon: 'i-lucide-clipboard-check', to: '/stock/usage/opname', grup: 'Pemakaian Bahan Baku', boleh: panel('usage') },
   { key: 'pemakaian', label: 'Pemakaian Bahan', desc: 'Bahan untuk prasmanan, training & RND', icon: 'i-lucide-utensils', to: '/stock/usage/pemakaian', grup: 'Pemakaian Bahan Baku', boleh: panel('usage') },
@@ -98,7 +95,6 @@ export function peranStock(me: Me | null): string {
     p.push(r && r !== 'full' ? `Ordering (${LABEL_PERAN_ORDERING[r] ?? r})` : 'Ordering')
   }
   if (hasAccess(me, ['purchasing'])) p.push('Purchasing')
-  if (hasAccess(me, ['tree'])) p.push('Pohon Resep')
   if (hasAccess(me, ['usage'])) p.push('Pemakaian')
   if (hasAccess(me, ['hpp'])) p.push('HPP')
   if (hasAccess(me, ['breakloss'])) p.push('Break & Loss')
