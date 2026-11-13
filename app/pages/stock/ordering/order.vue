@@ -9,7 +9,7 @@
   in the confirmation sheet, as on the old screen's "Konfirmasi Pesanan".
 -->
 <script setup lang="ts">
-import { catatLog, createBatch, joinableBatches, useProdukStock } from '~/composables/useStock'
+import { NAMA_DIVISI_ACC, catatLog, createBatch, joinableBatches, useProdukStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { hariIni, tambahHari, tglPendek } from '~/utils/format'
 import { SATUAN_TERSEDIA } from '~/utils/stock-catat'
@@ -144,7 +144,7 @@ onMounted(() => {
 // --- pre-submit & kirim ----------------------------------------------------------
 const sheet = ref(false)
 const mengirim = ref(false)
-const hasil = ref<{ created: number, merged: number, batchId: string, batchName: string, mergedItems: string[] } | null>(null)
+const hasil = ref<{ created: number, merged: number, batchId: string, batchName: string, mergedItems: string[], menungguAcc?: boolean, divisi?: string[], jumlah?: number } | null>(null)
 
 function cekSubmit() {
   if (siap.value.length === 0) {
@@ -191,9 +191,13 @@ async function kirim() {
       })),
       batchId: mode.value === 'gabung' ? batchPilih.value : undefined,
       batchName: mode.value === 'baru' ? (namaBatch.value.trim() || undefined) : undefined,
+      // Approval Order (old 3 Nov 2026): the server holds a member's order for the head.
+      accHead: true,
     })
     hasil.value = r
-    await catatLog([{ modul: 'ordering', aksi: 'order_baru', ringkas: `${r.created} baris baru, ${r.merged} gabung (${r.batchName})` }])
+    await catatLog([r.menungguAcc
+      ? { modul: 'ordering', aksi: 'order_acc_ajukan', ringkas: `Order belanja ${tgl.value} menunggu approval head (${(r.divisi ?? []).join('/')}): ${r.jumlah ?? 0} barang` }
+      : { modul: 'ordering', aksi: 'order_baru', ringkas: `${r.created} baris baru, ${r.merged} gabung (${r.batchName})` }])
     try {
       localStorage.removeItem(KUNCI_DRAF)
     }
@@ -426,11 +430,29 @@ async function kirim() {
          it goes (new batch or join one), the list to double-check, then send. -->
     <ResponsiveSheet
       v-model:open="sheet"
-      :title="hasil ? 'Pesanan terkirim' : 'Konfirmasi pesanan'"
+      :title="hasil ? (hasil.menungguAcc ? 'Menunggu approval head' : 'Pesanan terkirim') : 'Konfirmasi pesanan'"
       :description="hasil ? undefined : 'Periksa sekali lagi sebelum dikirim ke purchasing.'"
     >
       <div
-        v-if="hasil"
+        v-if="hasil?.menungguAcc"
+        class="flex flex-col items-center gap-3 py-2 text-center"
+      >
+        <span class="grid size-14 place-items-center rounded-full bg-warning/10 text-warning">
+          <UIcon
+            name="i-lucide-user-check"
+            class="size-7"
+          />
+        </span>
+        <p class="text-sm text-default">
+          <b class="text-highlighted">{{ hasil.jumlah ?? 0 }} barang</b> dikirim ke head
+          <b class="text-highlighted">{{ (hasil.divisi ?? []).map(d => NAMA_DIVISI_ACC[d] ?? d).join('/') }}</b> untuk disetujui.
+        </p>
+        <p class="text-sm text-muted">
+          Belum diteruskan ke Purchasing. Pantau statusnya di menu Approval Order › Pengajuan saya.
+        </p>
+      </div>
+      <div
+        v-else-if="hasil"
         class="flex flex-col items-center gap-3 py-2 text-center"
       >
         <span class="grid size-14 place-items-center rounded-full bg-success/10 text-success">

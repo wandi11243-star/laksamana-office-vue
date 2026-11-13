@@ -8,6 +8,7 @@
 import type { BahanHpp, ResepHpp } from '~/utils/pohon-resep'
 import type { OpnameRingkas, ProdukCatat } from '~/utils/stock-catat'
 import { ifMatch, versiDari, type Versi } from '~/utils/versi'
+import { hasAccess } from '~/composables/useMe'
 
 // ---------------------------------------------------------------- Pohon Resep (read-only panel, module `tree`)
 
@@ -359,6 +360,8 @@ export async function createBatch(body: {
   batchId?: string
   batchName?: string
   tim?: string
+  /** Shopping form only: a member's order may wait for the division head (Approval Order). */
+  accHead?: boolean
 }) {
   const r = await useApi()<Envelope<unknown>>('/stock/orders/batches', { method: 'POST', body })
   return r.data as {
@@ -370,7 +373,81 @@ export async function createBatch(body: {
     mergedItems: string[]
     /** A "Gudang Bar" batch skips Check-in: rows taken at once, stock already lowered. */
     langsung?: { diterima: number, ck?: { disinkron?: number, error?: string } }
+    /** Held for the head's approval: no order exists yet (batchId/batchName absent). */
+    menungguAcc?: boolean
+    accId?: string
+    divisi?: string[]
+    jumlah?: number
   }
+}
+
+// ---------------------------------------------------------------- Approval Order (ACC Head)
+
+export type StatusAcc = 'menunggu' | 'diproses' | 'disetujui' | 'ditolak' | 'dibatalkan'
+export interface BarisAcc { item: string, qty: number, unit: string, note?: string, tglDatang?: string, pic?: string }
+export interface PengajuanAcc {
+  id: string
+  waktu: string
+  pemohonId: string
+  pemohon: string
+  divisi: string[]
+  tim: string
+  tglDatang: string
+  status: StatusAcc
+  putusOleh: string
+  putusAt: string | null
+  alasan: string
+  orders: BarisAcc[]
+  batchId: string
+  batchName: string
+  hasil: { batchId: string, created: number, merged: number } | null
+  /** What was actually approved (the head may change quantities). */
+  ordersAcc: BarisAcc[] | null
+}
+export interface DaftarAcc {
+  head: string[]
+  admin: boolean
+  tersedia: boolean
+  menunggu: PengajuanAcc[]
+  riwayat: PengajuanAcc[]
+  milik: PengajuanAcc[]
+}
+
+/** `GET /stock/approvals` — waiting (head/admin), decided history of the caller's divisions, own requests. */
+export async function listApprovals() {
+  const r = await useApi()<Envelope<DaftarAcc>>('/stock/approvals')
+  return r.data
+}
+
+/** `POST /stock/approvals/{id}/decision` — approve (quantities may change by row) or reject with a reason. */
+export async function decideApproval(id: string, body: { keputusan: 'setuju' | 'tolak', alasan?: string, orders?: { qty: number }[] }) {
+  const r = await useApi()<Envelope<{ keputusan: string, created?: number, merged?: number, batchId?: string }>>(
+    `/stock/approvals/${encodeURIComponent(id)}/decision`, { method: 'POST', body })
+  return r.data
+}
+
+/** `POST /stock/approvals/{id}/cancel` — the requester withdraws a waiting request. */
+export async function cancelApproval(id: string) {
+  await useApi()(`/stock/approvals/${encodeURIComponent(id)}/cancel`, { method: 'POST' })
+}
+
+export const NAMA_DIVISI_ACC: Record<string, string> = { kitchen: 'Kitchen', bar: 'Bar', floor: 'Floor' }
+
+/**
+ * The approval list, shared by the Approval Order screen and the sidebar
+ * badge (one key). Only Ordering crew ask — anyone else would get a 403.
+ */
+export function useApprovals() {
+  const me = useMe()
+  return useAsyncData('stock-approvals', () => (hasAccess(me.value, ['ordering']) ? listApprovals() : Promise.resolve(null)), {
+    default: () => null as DaftarAcc | null,
+  })
+}
+
+/** Red badge on "Approval Order": requests waiting for the signed-in head. */
+export function useLencanaStock() {
+  const q = useApprovals()
+  return computed<Record<string, number>>(() => ({ ordering_acc: q.data.value?.menunggu.length ?? 0 }))
 }
 
 /** `PATCH /stock/orders/{nomor}` — qty, kedatangan, tglJemput, status… Version required. */
@@ -619,7 +696,7 @@ export async function listLogs(params?: { dari?: string, ke?: string, modul?: st
 }
 
 /** `POST /stock/logs` — fire-and-forget; never fails the caller (stock.md F.19). */
-export async function catatLog(entries: { modul: string, aksi: string, tim?: string, ringkas?: string }[]) {
+export async function catatLog(entries: { modul: string, aksi: string, tim?: string, ringkas?: string, data?: Record<string, unknown> }[]) {
   try {
     await useApi()('/stock/logs', { method: 'POST', body: { entries } })
   }

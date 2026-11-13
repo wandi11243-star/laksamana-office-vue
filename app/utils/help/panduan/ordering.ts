@@ -24,6 +24,7 @@ export default {
           kepala: ['Tab', 'Isinya'],
           baris: [
             ['Form Order Belanja', 'Mengajukan barang yang perlu dibeli.'],
+            ['Approval Order', 'Order belanja anggota Kitchen/Bar/Floor menunggu persetujuan head divisinya di sini sebelum sampai ke Purchasing.'],
             ['Central Kitchen', 'Meminta barang dari CK, atau mengirim barang ke CK.'],
             ['Gudang Bar', 'Sama seperti Central Kitchen untuk gudang bar. Pengambilan langsung memotong stok, tanpa Check-in.'],
             ['Check-in Penerimaan', 'Mencatat barang yang datang.'],
