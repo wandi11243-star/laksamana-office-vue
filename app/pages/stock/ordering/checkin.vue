@@ -41,8 +41,14 @@ const sampai = computed(() => (mode.value === 'hari' ? tanggal.value : ke.value)
 // Carry-over window: pending lines up to 14 days before the range start.
 const ambilDari = computed(() => tambahHari(mulai.value, -TERTUNDA_MAKS_HARI))
 
-const daftarQ = useAsyncData('stock-checkin', () => listOrders({ from: ambilDari.value, to: sampai.value, status: 'Aktif' }), {
-  watch: [ambilDari, sampai],
+// Also read up to 14 days ahead, only to point at batches on other days when
+// the chosen day is empty (the list itself still shows the chosen range).
+const ambilSampai = computed(() => {
+  const depan = tambahHari(hariIni(), TERTUNDA_MAKS_HARI)
+  return sampai.value > depan ? sampai.value : depan
+})
+const daftarQ = useAsyncData('stock-checkin', () => listOrders({ from: ambilDari.value, to: ambilSampai.value, status: 'Aktif' }), {
+  watch: [ambilDari, ambilSampai],
   default: () => ({ rows: [] as OrderStock[], versions: {} as Record<string, Versi> }),
 })
 const versi = computed(() => daftarQ.data.value?.versions ?? {})
@@ -97,6 +103,25 @@ const statusPo = (po: Po) => {
 
 /** Warehouse of a batch card ('' = a shopping batch). */
 const gudangPo = (po: Po) => gudangDariBatch(po.baris[0]?.batchName)
+
+/** Arrival days outside the range that still hold batches, nearest first (empty-state shortcut). */
+const tanggalLain = computed(() => {
+  const m = new Map<string, number>()
+  for (const po of semuaPo.value) {
+    if (!po.tgl || (po.tgl >= mulai.value && po.tgl <= sampai.value)) continue
+    // Past days only when something there still waits; upcoming days always.
+    if (po.tgl < hariIni() && po.baris.every(b => (b.kedatangan || '') === 'Datang')) continue
+    m.set(po.tgl, (m.get(po.tgl) ?? 0) + 1)
+  }
+  return [...m.entries()]
+    .map(([tgl, n]) => ({ tgl, n }))
+    .sort((a, b) => Math.abs(+new Date(a.tgl) - +new Date(hariIni())) - Math.abs(+new Date(b.tgl) - +new Date(hariIni())))
+    .slice(0, 6)
+})
+function lompatKe(tgl: string) {
+  mode.value = 'hari'
+  tanggal.value = tgl
+}
 
 const tims = computed(() => [...new Set(semuaPo.value.map(p => p.tim).filter(Boolean))].sort())
 
@@ -376,12 +401,34 @@ async function simpan(po?: Po | null) {
         </article>
       </div>
     </section>
-    <p
+    <div
       v-if="!poTampil.length"
       class="rounded-panel bg-default p-5 text-sm text-muted shadow-panel"
     >
-      Tidak ada batch pada tanggal ini.
-    </p>
+      <p>Tidak ada batch pada tanggal ini.</p>
+      <!-- New orders default to tomorrow's arrival, so an empty "today" often
+           just means the batches sit on another day: offer those days. -->
+      <div
+        v-if="tanggalLain.length"
+        class="mt-3"
+      >
+        <p class="mb-2 font-semibold text-highlighted">
+          Ada batch di tanggal kedatangan lain:
+        </p>
+        <div class="flex flex-wrap gap-2">
+          <UButton
+            v-for="t in tanggalLain"
+            :key="t.tgl"
+            :label="`${tglPendek(t.tgl)} · ${t.n} batch`"
+            icon="i-lucide-calendar"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            @click="lompatKe(t.tgl)"
+          />
+        </div>
+      </div>
+    </div>
 
     <ResponsiveSheet
       v-model:open="sheetBuka"
