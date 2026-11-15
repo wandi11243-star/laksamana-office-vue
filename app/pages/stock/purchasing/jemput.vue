@@ -1,10 +1,13 @@
 <!--
   Stock › Purchasing › Jemput Hari Ini (old `deploy/stock/purchasing/index.html:168-169,380-424`).
 
-  Goods with `caraBeli === 'jemput'` still to pick up; closing one fills
-  `tglJemput`, "Tandai semua" closes the visible list. Below it, what was
-  already picked up (newest first) stays visible, with "Batal" to clear a
-  mistaken mark (`tglJemput: ''`). Requests to Gudang Bar (batch "Gudang Bar",
+  The pick-up list of one day (old `daftarJemput`, purchasing `:4933-5045`):
+  goods bought `caraBeli === 'jemput'`, plus any order given a pickup date
+  (`tglJemput`) in Monitor Order because its vendor cannot be picked up the
+  same day. A line sits on its pickup date (`tglJemput`, else the arrival
+  date) and rides along up to 14 days late until it is marked Datang — the
+  same mark as Check-in, so archiving an order never drops it. "Tandai
+  dijemput" sets Datang; "Batal" clears it. Requests to Gudang Bar (batch "Gudang Bar",
   old `ordering/index.html:2366`) come from our own store, so they never land
   here (owner request, Nov 2026). Central Kitchen requests have their own
   panel ("Ambil dari Central Kitchen"): ticking one marks it Datang, which
@@ -12,9 +15,9 @@
 -->
 <script setup lang="ts">
 import type { OrderStock } from '~/composables/useStock'
-import { bolehUbahPurchasing, gudangDariBatch, listOrders, patchOrder, useProdukStock } from '~/composables/useStock'
+import { bolehUbahPurchasing, catatLog, gudangDariBatch, listOrders, patchOrder, useProdukStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
-import { hariIni, tglPendek } from '~/utils/format'
+import { hariIni, tambahHari, tglPendek } from '~/utils/format'
 import { warnaKategori } from '~/utils/kategori-warna'
 import { tanganiKonflik, type Versi } from '~/utils/versi'
 
@@ -27,22 +30,46 @@ const bisaUbah = computed(() => bolehUbahPurchasing('jemput'))
 const ordersQ = useAsyncData('stock-jemput', () => listOrders({ status: 'Aktif' }), {
   default: () => ({ rows: [] as OrderStock[], versions: {} as Record<string, Versi> }),
 })
-const versi = computed(() => ordersQ.data.value?.versions ?? {})
 const produkQ = useProdukStock()
 const produkOf = (item: string) => produkQ.data.value?.rows.find(p => p.nama === item)
 const katOf = (item: string) => (produkOf(item)?.kategori || '').trim() || 'Lainnya'
 
-/** Picked up by us from a vendor: `jemput` goods, never a Gudang Bar request. */
-const jemputSendiri = (o: OrderStock) =>
-  (produkOf(o.item)?.caraBeli || '') === 'jemput'
-  && (o.batchName || '') !== 'Gudang Bar'
-  && (o.status || 'Aktif') === 'Aktif' && !o.terarsip
+/** Late pick-ups ride along at most this many days (old `JEMPUT_TELAT_MAKS_HARI`). */
+const TELAT_MAKS_HARI = 14
+const tgl = ref(hariIni())
+// Every status (archived included) by arrival date up to a month back: a
+// scheduled pickup lies on or after its arrival, and archiving means
+// "forwarded to the vendor", never "picked up" (old `:4988-5030`).
+const jemputQ = useAsyncData('stock-jemput-hari', () => listOrders({ from: tambahHari(tgl.value, -30), to: tgl.value }), {
+  watch: [tgl],
+  default: () => ({ rows: [] as OrderStock[], versions: {} as Record<string, Versi> }),
+})
+const versi = computed<Record<string, Versi>>(() => ({ ...(ordersQ.data.value?.versions ?? {}), ...(jemputQ.data.value?.versions ?? {}) }))
 
-const antre = computed(() => (ordersQ.data.value?.rows ?? []).filter(o => jemputSendiri(o) && !(o.tglJemput || '')))
-const sudah = computed(() => (ordersQ.data.value?.rows ?? [])
-  .filter(o => jemputSendiri(o) && !!(o.tglJemput || ''))
-  .sort((a, b) => ((b.tglJemput || '').localeCompare(a.tglJemput || '')) || ((b.rowIndex ?? 0) - (a.rowIndex ?? 0))))
-const sudahHariIni = computed(() => sudah.value.filter(o => o.tglJemput === hariIni()).length)
+/** The day a line is to be picked up: the scheduled date, else the arrival date (old `tglJemputEfektif`). */
+const tglEfektif = (o: OrderStock) => (o.tglJemput || o.tglDatang || '').slice(0, 10)
+function hariTelat(o: OrderStock): number {
+  const d = tglEfektif(o)
+  if (!d || d >= tgl.value) return 0
+  return Math.round((Date.parse(`${tgl.value}T00:00:00`) - Date.parse(`${d}T00:00:00`)) / 86_400_000)
+}
+/** Picked up by us: `jemput` goods or a scheduled pickup — never a warehouse request (own panel below). */
+const diJemput = (o: OrderStock) =>
+  ((produkOf(o.item)?.caraBeli || '') === 'jemput' || !!o.tglJemput)
+  && !gudangDariBatch(o.batchName)
+/** On this day's list: due that day, or up to 14 days late. */
+const dalamHari = (o: OrderStock) => {
+  const d = tglEfektif(o)
+  return !!d && d <= tgl.value && hariTelat(o) <= TELAT_MAKS_HARI
+}
+
+const antre = computed(() => (jemputQ.data.value?.rows ?? [])
+  .filter(o => diJemput(o) && dalamHari(o) && (o.kedatangan || '') !== 'Datang')
+  .sort((a, b) => tglEfektif(a).localeCompare(tglEfektif(b)) || ((a.rowIndex ?? 0) - (b.rowIndex ?? 0))))
+const sudah = computed(() => (jemputQ.data.value?.rows ?? [])
+  .filter(o => diJemput(o) && dalamHari(o) && (o.kedatangan || '') === 'Datang')
+  .sort((a, b) => ((b.tglTerima || '').localeCompare(a.tglTerima || '')) || ((b.rowIndex ?? 0) - (a.rowIndex ?? 0))))
+const sudahHariIni = computed(() => sudah.value.filter(o => (o.tglTerima || '').slice(0, 10) === hariIni()).length)
 
 /**
  * Central Kitchen pick-ups (old JEMPUT_GRUP_CK, `:4919,5131-5135`): requests
@@ -79,24 +106,31 @@ async function ambilDariCk(semua: OrderStock[]) {
 }
 
 const menandai = ref(false)
-async function tetapkan(semua: OrderStock[], tgl: string) {
+/**
+ * Picked up = Datang (old `jemput_simpan`), the same mark Check-in uses; the
+ * scheduled `tglJemput` stays as it was. `batal` clears the mark.
+ */
+async function tetapkan(semua: OrderStock[], batal = false) {
   if (!semua.length) return
   menandai.value = true
   let ok = 0
   try {
     for (const o of semua) {
       try {
-        await patchOrder(o.nomorOrder, { tglJemput: tgl }, versi.value[o.nomorOrder])
+        await patchOrder(o.nomorOrder, batal
+          ? { kedatangan: '' }
+          : { kedatangan: 'Datang', catatanAktual: String(o.qty ?? ''), tglTerima: hariIni() }, versi.value[o.nomorOrder])
         ok++
       }
       catch (e) {
-        if (!(await tanganiKonflik(e, () => ordersQ.refresh()))) {
+        if (!(await tanganiKonflik(e, () => jemputQ.refresh()))) {
           toast.add({ title: `Gagal mengubah ${o.item}`, description: apiErrorMessage(e), color: 'error' })
         }
       }
     }
-    await ordersQ.refresh()
-    toast.add({ title: tgl ? `${ok} barang ditandai dijemput` : `${ok} tanda jemput dibatalkan`, color: 'success' })
+    await catatLog([{ modul: 'purchasing', aksi: batal ? 'jemput_batal' : 'jemput_simpan', ringkas: `${ok} barang ${batal ? 'batal dijemput' : 'selesai dijemput'}` }])
+    await jemputQ.refresh()
+    toast.add({ title: batal ? `${ok} tanda jemput dibatalkan` : `${ok} barang ditandai dijemput`, description: batal ? undefined : 'Check-in Penerimaan ikut tercentang.', color: 'success' })
   }
   finally {
     menandai.value = false
@@ -122,9 +156,15 @@ async function tetapkan(semua: OrderStock[], tgl: string) {
         icon="i-lucide-check-check"
         :loading="menandai"
         :disabled="!antre.length"
-        @click="tetapkan(antre, hariIni())"
+        @click="tetapkan(antre)"
       />
     </template>
+
+    <AppFilterGrid class="mb-4">
+      <UFormField label="Tanggal jemput">
+        <AppTanggal v-model="tgl" />
+      </UFormField>
+    </AppFilterGrid>
 
     <AppStatGrid>
       <AppStat
@@ -163,7 +203,13 @@ async function tetapkan(semua: OrderStock[], tgl: string) {
               >{{ katOf(o.item) }}</span>
             </div>
             <p class="mt-0.5 text-xs text-muted">
-              {{ produkOf(o.item)?.utama || 'Tanpa vendor' }} · datang {{ o.tglDatang ? tglPendek(o.tglDatang) : '—' }}{{ o.pic ? ` · ${o.pic}` : '' }}
+              {{ produkOf(o.item)?.utama || 'Tanpa vendor' }} · {{ o.tglJemput ? 'jadwal jemput' : 'datang' }} {{ tglEfektif(o) ? tglPendek(tglEfektif(o)) : '—' }}{{ o.pic ? ` · ${o.pic}` : '' }}
+            </p>
+            <p
+              v-if="hariTelat(o) > 0"
+              class="mt-1 inline-flex rounded-md bg-error/10 px-2 py-0.5 text-[11px] font-bold text-error"
+            >
+              Tertunda {{ hariTelat(o) }} hari
             </p>
           </div>
           <p class="font-display text-2xl font-extrabold leading-none text-gold-deep num sm:text-right">
@@ -176,14 +222,14 @@ async function tetapkan(semua: OrderStock[], tgl: string) {
             size="lg"
             class="w-full justify-center sm:w-auto"
             :loading="menandai"
-            @click="tetapkan([o], hariIni())"
+            @click="tetapkan([o])"
           />
         </div>
         <p
           v-if="!antre.length"
           class="py-2 text-sm text-dimmed"
         >
-          Tidak ada yang menunggu dijemput.
+          Tidak ada yang menunggu dijemput pada tanggal ini.
         </p>
       </div>
     </AppPanel>
@@ -252,7 +298,7 @@ async function tetapkan(semua: OrderStock[], tgl: string) {
       title="Sudah dijemput"
       icon="i-lucide-package-check"
       :count="sudah.length"
-      description="Yang sudah ditandai dan belum diarsipkan, terbaru di atas."
+      description="Jemputan tanggal ini dan 14 hari sebelumnya yang sudah ditandai, terbaru di atas."
     >
       <div class="flex flex-col gap-2">
         <div
@@ -273,7 +319,7 @@ async function tetapkan(semua: OrderStock[], tgl: string) {
               >{{ katOf(o.item) }}</span>
             </div>
             <p class="mt-0.5 text-xs text-muted">
-              Dijemput <b class="text-success">{{ tglPendek(o.tglJemput!) }}</b> · {{ produkOf(o.item)?.utama || 'Tanpa vendor' }}{{ o.pic ? ` · ${o.pic}` : '' }}
+              Dijemput <b class="text-success">{{ o.tglTerima ? tglPendek(o.tglTerima.slice(0, 10)) : '—' }}</b> · {{ produkOf(o.item)?.utama || 'Tanpa vendor' }}{{ o.pic ? ` · ${o.pic}` : '' }}
             </p>
           </div>
           <p class="font-display text-xl font-extrabold leading-none text-highlighted num sm:text-right">
@@ -287,7 +333,7 @@ async function tetapkan(semua: OrderStock[], tgl: string) {
             variant="soft"
             class="w-full justify-center sm:w-auto"
             :loading="menandai"
-            @click="tetapkan([o], '')"
+            @click="tetapkan([o], true)"
           />
         </div>
         <p

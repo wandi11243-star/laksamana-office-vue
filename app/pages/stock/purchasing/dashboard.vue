@@ -130,12 +130,6 @@ const arsipQ = useAsyncData('stock-purch-arsip', async () => {
   watch: [arsipServerParams, arsipHal, arsipPer],
   default: () => ({ rows: [] as OrderStock[], versions: {} as Record<string, Versi>, total: undefined as number | undefined, page: undefined as number | undefined, perPage: undefined as number | undefined }),
 })
-/** Row versions from every list on screen (active, archive page, archive fallback). */
-const versi = computed<Record<string, Versi>>(() => ({
-  ...(arsipPenuhQ.data.value?.versions ?? {}),
-  ...(arsipQ.data.value?.versions ?? {}),
-  ...(ordersQ.data.value?.versions ?? {}),
-}))
 /* Back to page 1 whenever the archive tab is entered or its filters change —
  *  the server page numbering restarts from the new result set. */
 watch([sub, divisi, tglDatang, vendorAktif, cari, tglSubmit], () => {
@@ -298,6 +292,12 @@ const poVendor = computed<GrupVendor[]>(() => {
 })
 
 // --- actions --------------------------------------------------------------------
+/** Row versions from every list on screen (active, archive page, archive fallback). */
+const versi = computed<Record<string, Versi>>(() => ({
+  ...(arsipPenuhQ.data.value?.versions ?? {}),
+  ...(arsipQ.data.value?.versions ?? {}),
+  ...(ordersQ.data.value?.versions ?? {}),
+}))
 const sibuk = ref(false)
 async function segarkan(pesan?: string) {
   await Promise.all([ordersQ.refresh(), arsipQ.refresh(), ...(arsipJatuhPenuh.value ? [arsipPenuhQ.refresh()] : [])])
@@ -309,46 +309,13 @@ async function arsipkanBatch(ids: string[], buka: boolean) {
   try {
     const r = await archiveOrders(ids, buka)
     await catatLog([{ modul: 'purchasing', aksi: buka ? 'buka_arsip' : 'arsip', ringkas: `${r.updated} baris` }])
-    await segarkan(buka ? 'Arsip dibuka' : 'Batch diarsipkan')
+    await segarkan(buka ? 'Arsip dibuka' : `${r.updated} baris diarsipkan`)
   }
   catch (e) {
     toast.add({ title: 'Gagal mengarsipkan', description: apiErrorMessage(e), color: 'error' })
   }
   finally {
     sibuk.value = false
-  }
-}
-
-const sheetJemput = ref(false)
-const jemputNomor = ref('')
-const jemputTgl = ref('')
-function bukaJemput(o: OrderStock) {
-  jemputNomor.value = o.nomorOrder
-  jemputTgl.value = o.tglJemput || ''
-  sheetJemput.value = true
-}
-async function simpanJemput() {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(jemputTgl.value)) {
-    toast.add({ title: 'Format tanggal jemput harus YYYY-MM-DD', color: 'error' })
-    return
-  }
-  try {
-    await patchOrder(jemputNomor.value, { tglJemput: jemputTgl.value }, versi.value[jemputNomor.value])
-    sheetJemput.value = false
-    await segarkan('Tanggal jemput tersimpan')
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, () => ordersQ.refresh()))) toast.add({ title: 'Gagal menyimpan', description: apiErrorMessage(e), color: 'error' })
-  }
-}
-
-async function tandaiDatang(o: OrderStock) {
-  try {
-    await patchOrder(o.nomorOrder, { kedatangan: 'Datang' }, versi.value[o.nomorOrder])
-    await segarkan('Ditandai datang')
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, () => ordersQ.refresh()))) toast.add({ title: 'Gagal menandai', description: apiErrorMessage(e), color: 'error' })
   }
 }
 
@@ -463,8 +430,53 @@ const opsiVendor = (o: OrderStock) => {
 const vendorEfektif = (o: OrderStock) => vendorPilih.value[o.nomorOrder] || pilihanHari(o).pakai || utamaVend(o)
 /** The pickup date is judged on the MAIN vendor, never the dropdown pick (old `:3236-3249`). */
 const perluJadwal = (o: OrderStock) => !dariCk(o) && !tanpaVendor(o) && !!vendorMap.value[utamaVend(o)]?.perluJadwalJemput
-/** Rows blocking a batch archive: pickup-mandatory vendor, date still empty (old `:3470-3477`). */
+
+/* Pickup schedule (old `kotakJadwalJemput`, `:3366-3500,3618-3660`): a vendor
+ * ticked "Barang tidak bisa dijemput di hari yang sama" in Database & Vendor
+ * gets a pickup-date box. One box covers every line of that vendor on one
+ * card, so the date is filled once. Archiving stays locked until the date is
+ * set, and Jemput Hari Ini lists the goods on that date (`tglJemput`), not on
+ * the arrival date. */
+interface Jadwal { vendor: string, baris: OrderStock[], tgl: string }
+/** Pickup-date boxes needed on one card: one per such vendor among its lines. */
+function jadwalKartu(rows: OrderStock[]): Jadwal[] {
+  const m = new Map<string, OrderStock[]>()
+  for (const o of rows) {
+    if (!perluJadwal(o)) continue
+    const v = utamaVend(o)
+    m.set(v, [...(m.get(v) ?? []), o])
+  }
+  return [...m.entries()].map(([vendor, baris]) => ({ vendor, baris, tgl: baris.find(o => o.tglJemput)?.tglJemput || '' }))
+}
+/** Lines that still block an archive: pickup needed, date not set (old `:3495`). */
 const kunciArsip = (rows: OrderStock[]) => rows.filter(o => perluJadwal(o) && !o.tglJemput)
+const menyimpanJadwal = ref<string | null>(null)
+async function simpanJadwal(j: Jadwal, tgl: string, kunci: string) {
+  if (!/^d{4}-d{2}-d{2}$/.test(tgl)) return
+  menyimpanJadwal.value = kunci
+  let ok = 0
+  try {
+    for (const o of j.baris) {
+      if (o.tglJemput === tgl) {
+        ok++
+        continue
+      }
+      try {
+        await patchOrder(o.nomorOrder, { tglJemput: tgl }, versi.value[o.nomorOrder])
+        ok++
+      }
+      catch (e) {
+        if (!(await tanganiKonflik(e, () => ordersQ.refresh()))) toast.add({ title: `Gagal menyimpan jadwal ${o.item}`, description: apiErrorMessage(e), color: 'error' })
+      }
+    }
+    await catatLog([{ modul: 'purchasing', aksi: 'jadwal_jemput', ringkas: `Jemput ${j.vendor} ${tgl}: ${ok} barang` }])
+    await ordersQ.refresh()
+    toast.add({ title: 'Tanggal jemput tersimpan', description: `${ok} barang ${j.vendor} muncul di Jemput Hari Ini pada ${tglPendek(tgl)}.`, color: 'success' })
+  }
+  finally {
+    menyimpanJadwal.value = null
+  }
+}
 const ikonTim = (tim?: string) => tim === 'Kitchen' ? 'i-lucide-cooking-pot' : tim === 'Bar' ? 'i-lucide-martini' : tim === 'Floor' ? 'i-lucide-armchair' : 'i-lucide-tag'
 
 function unduhCsv() {
@@ -535,7 +547,7 @@ function unduhCsv() {
           :options="[
             { value: 'item', label: 'Per item', icon: 'i-lucide-list', jumlah: hitungItem },
             { value: 'vendor', label: 'Gabung per vendor', icon: 'i-lucide-store', jumlah: hitungVendor },
-            { value: 'arsip', label: 'Arsip selesai', icon: 'i-lucide-archive', badge: arsipTotal },
+            { value: 'arsip', label: 'Arsip selesai', icon: 'i-lucide-archive' },
           ]"
         />
       </template>
@@ -653,7 +665,7 @@ function unduhCsv() {
           <template #head>
             <UButton
               v-if="bisaUbah"
-              label="Arsipkan"
+              :label="`Arsipkan batch (${po.baris.length})`"
               icon="i-lucide-archive"
               size="sm"
               variant="outline"
@@ -663,12 +675,22 @@ function unduhCsv() {
               @click="arsipkanBatch(po.baris.map(b => b.nomorOrder), false)"
             />
           </template>
-          <p
-            v-if="kunciArsip(po.baris).length"
-            class="mb-2 rounded-xl border-l-4 border-warning bg-warning/10 px-3 py-2 text-xs font-semibold text-warning"
+          <div
+            v-if="jadwalKartu(po.baris).length"
+            class="mb-3 flex flex-col gap-2"
           >
-            Arsip terkunci — isi tanggal jemput dulu untuk: {{ kunciArsip(po.baris).map(o => o.item).join(', ') }}. Vendornya tidak bisa dijemput di hari yang sama.
-          </p>
+            <StockJadwalJemput
+              v-for="j in jadwalKartu(po.baris)"
+              :key="j.vendor"
+              :vendor="j.vendor"
+              :jumlah="j.baris.length"
+              :tgl="j.tgl"
+              :min="po.tgl || undefined"
+              :bisa-ubah="bisaUbah"
+              :menyimpan="menyimpanJadwal === `${po.kunci}|${j.vendor}`"
+              @simpan="simpanJadwal(j, $event, `${po.kunci}|${j.vendor}`)"
+            />
+          </div>
           <div class="flex flex-col gap-3">
             <!-- One order line, laid out sideways like the old Monitor Order:
                  what was asked on the left, what purchasing does on the right
@@ -721,7 +743,7 @@ function unduhCsv() {
                       class="size-3.5"
                     />Kedatangan: <b class="text-highlighted">{{ o.tglDatang ? tglPendek(o.tglDatang) : '—' }}</b>
                   </span>
-                  <span v-if="o.tglJemput">Dijemput: <b class="text-highlighted">{{ tglPendek(o.tglJemput) }}</b></span>
+                  <span v-if="o.tglJemput">Jadwal jemput: <b class="text-highlighted">{{ tglPendek(o.tglJemput) }}</b></span>
                   <span v-if="o.pic">PIC: <b class="text-highlighted">{{ o.pic }}</b></span>
                   <AppStatus
                     v-if="o.tim && o.tim !== '(Lainnya)'"
@@ -799,30 +821,24 @@ function unduhCsv() {
                   v-if="perluJadwal(o)"
                   class="rounded-xl border-l-4 border-warning bg-warning/10 px-3 py-2 text-xs font-semibold leading-relaxed text-warning"
                 >
-                  Tidak bisa dijemput di hari yang sama. Jemput: <b>{{ o.tglJemput ? tglPendek(o.tglJemput) : 'belum diisi — arsip terkunci' }}</b>.
+                  Jemput: <b>{{ o.tglJemput ? tglPendek(o.tglJemput) : 'belum diisi — arsip terkunci' }}</b>
                 </div>
-                <div class="grid grid-cols-2 gap-2">
-                  <UButton
-                    v-if="bisaUbah"
-                    label="Tgl jemput"
-                    icon="i-lucide-car"
-                    color="neutral"
-                    variant="soft"
-                    size="lg"
-                    block
-                    @click="bukaJemput(o)"
-                  />
-                  <UButton
-                    v-if="bisaUbah && ((o.kedatangan || '') !== 'Datang')"
-                    label="Tandai datang"
-                    icon="i-lucide-package-check"
-                    color="neutral"
-                    variant="soft"
-                    size="lg"
-                    block
-                    @click="tandaiDatang(o)"
-                  />
-                </div>
+                <!-- Monitor Order forwards, schedules pickups (box on the card)
+                     and archives; arrival is ticked in Check-in Penerimaan and
+                     Jemput Hari Ini (owner request, Nov 2026). -->
+                <UButton
+                  v-if="bisaUbah"
+                  label="Arsipkan item ini"
+                  icon="i-lucide-archive"
+                  color="neutral"
+                  variant="soft"
+                  size="lg"
+                  block
+                  :loading="sibuk"
+                  :disabled="sibuk || kunciArsip([o]).length > 0"
+                  :title="kunciArsip([o]).length ? 'Isi tanggal jemput dulu' : ''"
+                  @click="arsipkanBatch([o.nomorOrder], false)"
+                />
               </div>
             </div>
           </div>
@@ -835,6 +851,18 @@ function unduhCsv() {
           :title="g.vendor"
           :description="`${g.tgl ? `Datang ${tglPendek(g.tgl)} · ` : ''}${g.baris.length} baris`"
         >
+          <StockJadwalJemput
+            v-for="j in jadwalKartu(g.baris)"
+            :key="j.vendor"
+            class="mb-3"
+            :vendor="j.vendor"
+            :jumlah="j.baris.length"
+            :tgl="j.tgl"
+            :min="g.tgl || undefined"
+            :bisa-ubah="bisaUbah"
+            :menyimpan="menyimpanJadwal === `v|${g.vendor}|${g.tgl}`"
+            @simpan="simpanJadwal(j, $event, `v|${g.vendor}|${g.tgl}`)"
+          />
           <ul class="flex flex-col divide-y divide-default rounded-xl bg-default px-4 shadow-panel">
             <li
               v-for="o in g.baris"
@@ -850,17 +878,46 @@ function unduhCsv() {
                 :class="warnaKategori(katOf(o.item))"
               >{{ katOf(o.item) }}</span>
               <b class="w-20 text-right text-base text-gold-deep num">{{ o.qty }} {{ o.unit }}</b>
+              <UButton
+                v-if="bisaUbah"
+                icon="i-lucide-archive"
+                color="neutral"
+                variant="ghost"
+                square
+                class="size-10 justify-center lg:size-8"
+                :title="kunciArsip([o]).length ? 'Isi tanggal jemput dulu' : 'Arsipkan item ini'"
+                :aria-label="`Arsipkan ${o.item}`"
+                :disabled="sibuk || kunciArsip([o]).length > 0"
+                @click="arsipkanBatch([o.nomorOrder], false)"
+              />
             </li>
           </ul>
-          <UButton
-            :label="`Kirim chat borongan (${g.baris.length} item)`"
-            icon="i-lucide-message-circle"
-            color="success"
-            size="lg"
-            block
-            class="mt-3"
-            @click="drafGabung(g)"
-          />
+          <div
+            class="mt-3 grid gap-2"
+            :class="bisaUbah && 'sm:grid-cols-2'"
+          >
+            <UButton
+              :label="`Kirim chat borongan (${g.baris.length} item)`"
+              icon="i-lucide-message-circle"
+              color="success"
+              size="lg"
+              block
+              @click="drafGabung(g)"
+            />
+            <UButton
+              v-if="bisaUbah"
+              :label="`Arsipkan semua ${g.vendor} (${g.baris.length})`"
+              icon="i-lucide-archive"
+              color="neutral"
+              variant="soft"
+              size="lg"
+              block
+              :loading="sibuk"
+              :disabled="sibuk || kunciArsip(g.baris).length > 0"
+              :title="kunciArsip(g.baris).length ? 'Isi tanggal jemput dulu' : ''"
+              @click="arsipkanBatch(g.baris.map(o => o.nomorOrder), false)"
+            />
+          </div>
         </AppPanel>
         <p
           v-if="sub === 'item' && !poItem.length"
@@ -995,29 +1052,6 @@ function unduhCsv() {
         />
       </div>
     </AppPanel>
-
-    <ResponsiveSheet
-      v-model:open="sheetJemput"
-      title="Tanggal jemput"
-    >
-      <div class="flex flex-col gap-3">
-        <UFormField label="Tanggal jemput">
-          <AppTanggal v-model="jemputTgl" />
-        </UFormField>
-        <div class="flex justify-end gap-2">
-          <UButton
-            label="Batal"
-            variant="outline"
-            @click="sheetJemput = false"
-          />
-          <UButton
-            v-if="bisaUbah"
-            label="Simpan"
-            @click="simpanJemput"
-          />
-        </div>
-      </div>
-    </ResponsiveSheet>
 
     <ResponsiveSheet
       v-model:open="sheetWa"
