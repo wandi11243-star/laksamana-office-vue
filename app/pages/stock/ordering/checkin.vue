@@ -16,7 +16,7 @@
 -->
 <script setup lang="ts">
 import type { OrderStock } from '~/composables/useStock'
-import { catatLog, gudangDariBatch, listOrders, patchOrder } from '~/composables/useStock'
+import { bolehUbahOrdering, catatLog, deleteOrder, gudangDariBatch, listOrders, patchOrder } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { hariIni, tambahHari, tglPanjang, tglPendek } from '~/utils/format'
 import { tanganiKonflik, type Versi } from '~/utils/versi'
@@ -164,6 +164,62 @@ function cekDatang(o: OrderStock): boolean {
 }
 function catatan(o: OrderStock): string {
   return aktual.value[o.nomorOrder] ?? o.catatanAktual ?? ''
+}
+
+// --- edit qty / delete a line that was not (fully) ordered (old promptEditQty /
+// promptDeleteOrder, `ordering/index.html:6494-6550`). Inline in the row, so
+// no second modal opens over the batch sheet.
+const bisaUbah = computed(() => bolehUbahOrdering('checkin'))
+const ubahQty = ref<{ nomor: string, qty: number } | null>(null)
+const hapusNomor = ref<string | null>(null)
+const sibukBaris = ref<string | null>(null)
+watch(bukaKunci, () => {
+  ubahQty.value = null
+  hapusNomor.value = null
+})
+function mulaiUbahQty(o: OrderStock) {
+  hapusNomor.value = null
+  ubahQty.value = { nomor: o.nomorOrder, qty: Number(o.qty) || 1 }
+}
+async function simpanQty(o: OrderStock) {
+  const qty = Number(ubahQty.value?.qty)
+  if (!(qty > 0)) {
+    toast.add({ title: 'Jumlah tidak boleh nol atau kosong', description: 'Kalau barangnya tidak jadi dipesan, hapus barisnya.', color: 'warning' })
+    return
+  }
+  sibukBaris.value = o.nomorOrder
+  try {
+    await patchOrder(o.nomorOrder, { qty }, versi.value[o.nomorOrder])
+    await catatLog([{ modul: 'ordering', aksi: 'order_ubah_qty', ringkas: `Ubah jumlah ${o.item} jadi ${qty}` }])
+    ubahQty.value = null
+    await daftarQ.refresh()
+    toast.add({ title: `Jumlah ${o.item} diubah jadi ${qty}`, color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, () => daftarQ.refresh()))) toast.add({ title: 'Gagal mengubah jumlah', description: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    sibukBaris.value = null
+  }
+}
+async function hapusBaris(o: OrderStock) {
+  sibukBaris.value = o.nomorOrder
+  try {
+    await deleteOrder(o.nomorOrder, versi.value[o.nomorOrder])
+    await catatLog([{ modul: 'ordering', aksi: 'order_hapus', ringkas: `Hapus baris pesanan ${o.item}` }])
+    hapusNomor.value = null
+    const sisa = poBuka.value?.baris.length ?? 0
+    await daftarQ.refresh()
+    // The last line of a batch gone = the batch is gone: close its sheet.
+    if (sisa <= 1) bukaKunci.value = null
+    toast.add({ title: `Pesanan ${o.item} dihapus`, color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, () => daftarQ.refresh()))) toast.add({ title: 'Gagal menghapus', description: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    sibukBaris.value = null
+  }
 }
 
 const menyimpan = ref(false)
@@ -480,7 +536,55 @@ async function simpan(po?: Po | null) {
               >{{ o.item }}</b>
               <span class="text-xs text-muted">{{ o.pic || '—' }}</span>
             </span>
-            <span class="shrink-0 rounded-md bg-gold-soft px-2 py-0.5 text-xs font-bold text-gold-deep num">{{ o.qty }} {{ o.unit }}</span>
+            <!-- Quantity: a chip, or an inline field while it is being changed. -->
+            <div
+              v-if="ubahQty?.nomor === o.nomorOrder"
+              class="flex shrink-0 items-center gap-1"
+            >
+              <UInput
+                v-model.number="ubahQty.qty"
+                type="number"
+                min="0"
+                step="any"
+                size="sm"
+                class="w-20"
+                :ui="{ base: 'text-center font-bold' }"
+                :aria-label="`Jumlah baru ${o.item}`"
+                @keydown.enter="simpanQty(o)"
+              />
+              <span class="text-xs text-muted">{{ o.unit }}</span>
+              <UButton
+                icon="i-lucide-check"
+                size="sm"
+                :loading="sibukBaris === o.nomorOrder"
+                :aria-label="`Simpan jumlah ${o.item}`"
+                @click="simpanQty(o)"
+              />
+              <UButton
+                icon="i-lucide-x"
+                size="sm"
+                color="neutral"
+                variant="ghost"
+                aria-label="Batal ubah jumlah"
+                @click="ubahQty = null"
+              />
+            </div>
+            <span
+              v-else
+              class="flex shrink-0 items-center gap-0.5"
+            >
+              <span class="rounded-md bg-gold-soft px-2 py-0.5 text-xs font-bold text-gold-deep num">{{ o.qty }} {{ o.unit }}</span>
+              <UButton
+                v-if="bisaUbah"
+                icon="i-lucide-pencil"
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                title="Ubah jumlah order"
+                :aria-label="`Ubah jumlah ${o.item}`"
+                @click="mulaiUbahQty(o)"
+              />
+            </span>
             <UInput
               :model-value="catatan(o)"
               placeholder="Kosongkan jika pas"
@@ -489,6 +593,38 @@ async function simpan(po?: Po | null) {
               :aria-label="`Catatan aktual ${o.item}`"
               @update:model-value="aktual[o.nomorOrder] = String($event)"
             />
+            <UButton
+              v-if="bisaUbah && hapusNomor !== o.nomorOrder"
+              icon="i-lucide-trash-2"
+              size="sm"
+              color="error"
+              variant="ghost"
+              title="Batalkan/hapus order"
+              :aria-label="`Hapus order ${o.item}`"
+              @click="hapusNomor = o.nomorOrder; ubahQty = null"
+            />
+            <!-- Delete asks once, in the row itself. -->
+            <div
+              v-if="hapusNomor === o.nomorOrder"
+              class="flex w-full flex-wrap items-center justify-end gap-2 rounded-lg border border-error/30 bg-error/5 p-2"
+            >
+              <span class="mr-auto text-sm text-error">Hapus order <b>{{ o.item }}</b>? Tidak bisa dibatalkan.</span>
+              <UButton
+                label="Batal"
+                size="sm"
+                color="neutral"
+                variant="soft"
+                @click="hapusNomor = null"
+              />
+              <UButton
+                label="Ya, hapus"
+                icon="i-lucide-trash-2"
+                size="sm"
+                color="error"
+                :loading="sibukBaris === o.nomorOrder"
+                @click="hapusBaris(o)"
+              />
+            </div>
           </li>
         </ul>
       </template>

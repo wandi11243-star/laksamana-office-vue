@@ -55,7 +55,6 @@ export const LAYAR_STOCK: Layar[] = [
   { key: 'ordering_ck', label: 'Central Kitchen', desc: 'Pengajuan ke Central Kitchen', icon: 'i-lucide-chef-hat', to: '/stock/ordering/ck', grup: 'Ordering', boleh: bolehOrdering(false, 'ck') },
   { key: 'ordering_gb', label: 'Gudang Bar', desc: 'Stok Gudang Bar — diminta tim bar', icon: 'i-lucide-wine', to: '/stock/ordering/gb', grup: 'Ordering', boleh: bolehOrdering(false, 'gb') },
   { key: 'ordering_checkin', label: 'Check-in Penerimaan', desc: 'Tandai barang yang datang per nomor PO', icon: 'i-lucide-package-check', to: '/stock/ordering/checkin', grup: 'Ordering', boleh: bolehOrdering(false, 'checkin') },
-  { key: 'ordering_users', label: 'Kelola Akses Ordering', desc: 'Kru dapur & perannya', icon: 'i-lucide-users', to: '/stock/ordering/users', grup: 'Ordering', boleh: bolehOrdering(true) },
 
   // ── Purchasing (kunci purchasing, matriks PERM_DEFAULT lama) ──
   { key: 'purchasing_dashboard', label: 'Monitor Order', desc: 'Antrean pesanan bahan baku', icon: 'i-lucide-clipboard-list', to: '/stock/purchasing/dashboard', grup: 'Purchasing', boleh: bolehPurchasing('dashboard', 'lihat') },
@@ -64,7 +63,6 @@ export const LAYAR_STOCK: Layar[] = [
   { key: 'purchasing_ck', label: 'CK Purchasing', desc: 'Stok, mutasi & dashboard Central Kitchen', icon: 'i-lucide-warehouse', to: '/stock/purchasing/ck', grup: 'Purchasing', boleh: bolehPurchasing('ck', 'lihat') },
   { key: 'purchasing_overview', label: 'Rekap Per Bulan', desc: 'Rekap & analitik order bulanan', icon: 'i-lucide-bar-chart-3', to: '/stock/purchasing/overview', grup: 'Purchasing', boleh: bolehPurchasing('overview', 'lihat') },
   { key: 'purchasing_database', label: 'Database & Vendor', desc: 'Kontak vendor & aturan distribusi bahan', icon: 'i-lucide-database', to: '/stock/purchasing/database', grup: 'Purchasing', boleh: bolehPurchasing('database', 'lihat') },
-  { key: 'purchasing_users', label: 'Kelola Akses Purchasing', desc: 'Matriks izin & kru purchasing', icon: 'i-lucide-users', to: '/stock/purchasing/users', grup: 'Purchasing', boleh: adminPurchasing },
   { key: 'purchasing_log', label: 'Log Aktivitas', desc: 'Siapa mengubah apa di stock', icon: 'i-lucide-scroll-text', to: '/stock/purchasing/log', grup: 'Purchasing', boleh: adminPurchasing },
 
   // ── Pemakaian Bahan Baku (kunci usage; K-07: usage-only boleh masuk) ──
@@ -84,6 +82,9 @@ export const LAYAR_STOCK: Layar[] = [
 
   // ── Break & Loss (kunci breakloss) ──
   { key: 'breakloss', label: 'Break & Loss', desc: 'Barang pecah & hilang + stok terkini', icon: 'i-lucide-package-x', to: '/stock/breakloss', grup: 'Break & Loss', boleh: panel('breakloss') },
+
+  // ── Sistem: one Kelola Akses for Ordering + Purchasing (owner request, Nov 2026) ──
+  { key: 'stock_akses', label: 'Kelola Akses', desc: 'Kru Ordering & Purchasing beserta perannya', icon: 'i-lucide-key-round', to: '/stock/akses', grup: 'Sistem', boleh: me => isAdminOf(me, 'ordering') || isAdminOf(me, 'purchasing') },
 ]
 
 /** The line under the user's name in the module chrome. */
