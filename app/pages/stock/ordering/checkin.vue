@@ -47,7 +47,10 @@ const ambilSampai = computed(() => {
   const depan = tambahHari(hariIni(), TERTUNDA_MAKS_HARI)
   return sampai.value > depan ? sampai.value : depan
 })
-const daftarQ = useAsyncData('stock-checkin', () => listOrders({ from: ambilDari.value, to: ambilSampai.value, status: 'Aktif' }), {
+// Every status, archived included: Purchasing archiving a line ("Arsip") must
+// not take it off Check-in — goods still arrive and are ticked here, as in the
+// old screen, which read the whole order history regardless of status.
+const daftarQ = useAsyncData('stock-checkin', () => listOrders({ from: ambilDari.value, to: ambilSampai.value }), {
   watch: [ambilDari, ambilSampai],
   default: () => ({ rows: [] as OrderStock[], versions: {} as Record<string, Versi> }),
 })
