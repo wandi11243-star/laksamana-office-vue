@@ -2,10 +2,10 @@
   Radar › Reservasi (deploy/radar vResList).
 
   Opens WEEKLY: the question people bring is "how many bookings are in for
-  Friday and Saturday, which nights are still empty". Harian turns the page
-  into the daily sheet (the old Briefing): who is coming, their special
-  requests, ready for WhatsApp or print. `?tgl=` (from the Pusat Koordinasi
-  "Buka reservasi hari ini" button and the calendar) opens that day directly.
+  Friday and Saturday, which nights are still empty". Harian narrows it to one
+  day (the daily sheet header with WhatsApp / print was removed, owner request
+  Nov 2026). `?tgl=` (from the Pusat Koordinasi "Buka reservasi hari ini"
+  button and the calendar) opens that day directly.
 
   Only LIVE bookings by default: Cancelled and No-show will not come, and
   counting them makes the floor lay tables for guests who already cancelled.
@@ -15,16 +15,15 @@
 <script setup lang="ts">
 import type { RadarPilihan, RadarReservasi } from '~/composables/useRadar'
 import {
-  SEMUA, agendaTgl, dalamPeriode, dpTeks, iris, labelPeriode, paxRes, periodeBaru, rentangPeriode,
-  resHidup, saringAktif, urutJam, waResHarian, warnaStatusRes,
+  SEMUA, dalamPeriode, dpTeks, iris, labelPeriode, paxRes, periodeBaru, rentangPeriode,
+  resHidup, saringAktif, urutJam, warnaStatusRes,
 } from '~/utils/radar'
-import { fTgl, fTglP } from '~/utils/format'
+import { fTglP } from '~/utils/format'
 import { usePollReservasi } from '~/composables/usePollReservasi'
 
 definePageMeta({ access: ['radar'] })
 
 const route = useRoute()
-const me = useMe()
 const p = useState('radar-fRs', () => periodeBaru('minggu'))
 const f = useState('radar-fRs-f', () => ({ q: '', status: SEMUA, kategori: SEMUA, view: 'tabel' as 'grid' | 'tabel' }))
 
@@ -39,7 +38,6 @@ const { data: board, status, error, refresh } = useRadarBoard('radar-rs-board', 
 const { setel } = usePollReservasi(refresh, { jeda: 60000, tunda: () => buka.value })
 watch([dari, sampai], setel)
 const semua = computed(() => (board.value?.reservations ?? []).filter(r => r.date))
-const agenda = computed(() => board.value?.agenda ?? [])
 // First-load skeleton for the stat cards: while the board is absent the
 // grid shows placeholders; later refetches keep the old cards on screen.
 const statMemuat = computed(() => !board.value && (status.value === 'pending' || status.value === 'idle'))
@@ -71,13 +69,6 @@ watch([list], () => {
   hal.value = 1
 })
 
-const dicetak = new Date().toLocaleString('id-ID', { dateStyle: 'medium', timeStyle: 'short' })
-function kirimWa() {
-  const t = waResHarian(hari.value, agenda.value, board.value?.reservations ?? [])
-  window.open(`https://wa.me/?text=${encodeURIComponent(t)}`, '_blank', 'noopener')
-}
-const cetak = () => window.print()
-
 const pilih = ref<RadarPilihan>(null)
 const buka = ref(false)
 const bukaRes = (r: RadarReservasi) => {
@@ -106,57 +97,6 @@ useSegarSenyap(refresh, () => buka.value)
         <RadarPeriode v-model="p" />
       </div>
     </AppPanel>
-
-    <template v-if="hari">
-      <AppPanel class="print:hidden">
-        <div class="flex flex-wrap items-center gap-2">
-          <b class="text-highlighted">Lembar harian</b>
-          <span class="text-sm text-muted">{{ fTgl(hari) }}</span>
-          <div class="flex-1" />
-          <UButton
-            label="Kirim ke WhatsApp"
-            icon="i-lucide-message-circle"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            class="min-h-11"
-            @click="kirimWa"
-          />
-          <UButton
-            label="Cetak"
-            icon="i-lucide-printer"
-            size="sm"
-            class="min-h-11"
-            @click="cetak"
-          />
-        </div>
-      </AppPanel>
-      <AppPanel>
-        <div class="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p class="text-[11px] font-bold uppercase tracking-wide text-muted">
-              Laksamana Muda Coffee &amp; Live Space
-            </p>
-            <h2 class="mt-1 font-display text-xl font-bold text-highlighted">
-              Reservasi Harian
-            </h2>
-            <p class="text-sm text-muted">
-              {{ fTgl(hari) }}
-            </p>
-          </div>
-          <p class="text-right text-xs text-muted">
-            Dicetak {{ dicetak }}<br>oleh {{ me?.name || '—' }}
-          </p>
-        </div>
-        <!-- Today's agenda is one line of CONTEXT (the floor needs to know), never part of the guest count. -->
-        <p
-          v-if="agendaTgl(agenda, hari).length"
-          class="mt-3 border-t border-default pt-3 text-sm text-muted"
-        >
-          Agenda hari ini: {{ agendaTgl(agenda, hari).map(a => a.judul + (a.jam ? ` (${a.jam})` : '')).join(' · ') }}
-        </p>
-      </AppPanel>
-    </template>
 
     <AppStatGrid
       :loading="statMemuat"

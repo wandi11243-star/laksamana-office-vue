@@ -8,9 +8,11 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { KruStock } from '~/composables/useStock'
-import { createKruStock, deleteKruStock, importOrderingUsers, listKruStock, patchKruStock } from '~/composables/useStock'
+import {
+  createKruStock, deleteKruStock, getStockSettings, importOrderingUsers, listKruStock, muatPeranStock, patchKruStock, putStockSettings,
+} from '~/composables/useStock'
 import { isAdminOf } from '~/composables/useMe'
-import { apiErrorMessage } from '~/composables/useApi'
+import { apiErrorCode, apiErrorMessage } from '~/composables/useApi'
 import { tanganiKonflik, type Versi } from '~/utils/versi'
 
 const me = useMe()
@@ -23,6 +25,70 @@ const daftarQ = useAsyncData('stock-ordering-users', () => (admin.value ? listKr
 })
 const versi = computed(() => daftarQ.data.value?.versions ?? {})
 const semua = computed(() => daftarQ.data.value?.rows ?? [])
+
+// --- page matrix (which Ordering screens each role sees) ---------------------------
+// Saved to `PUT /stock/settings/ordering` as {perms: {page: {full, checkin}}};
+// `GET /stock/me` hands each crew member their row, which hides the sidebar
+// screens and guards the writes (StockPeran). Admin always edits everything.
+const HALAMAN = [
+  { id: 'order', label: 'Form Order Belanja', icon: 'i-lucide-shopping-cart' },
+  { id: 'ck', label: 'Central Kitchen', icon: 'i-lucide-chef-hat' },
+  { id: 'gb', label: 'Gudang Bar', icon: 'i-lucide-wine' },
+  { id: 'checkin', label: 'Check-in Penerimaan', icon: 'i-lucide-package-check' },
+]
+const PERAN_MATRIKS = [
+  { id: 'full', label: 'Order + Check-in' },
+  { id: 'checkin', label: 'Check-in Saja' },
+] as const
+const NILAI = [
+  { value: 2, label: 'Boleh ubah' },
+  { value: 1, label: 'Lihat saja' },
+  { value: 0, label: 'Tak terlihat' },
+]
+// The server's ORDERING_DEFAULT (old ORD_PERM_DEFAULT).
+const BAKU: Record<string, Record<string, number>> = {
+  order: { full: 2, checkin: 0 },
+  ck: { full: 2, checkin: 0 },
+  gb: { full: 2, checkin: 1 },
+  checkin: { full: 2, checkin: 2 },
+}
+
+const setQ = useAsyncData('stock-pengaturan-ordering', () => (admin.value ? getStockSettings('ordering') : Promise.resolve({ data: {}, versi: undefined, tersedia: true })), {
+  watch: [admin],
+  default: () => ({ data: {} as { perms?: Record<string, Record<string, number>> }, versi: undefined, tersedia: true }),
+})
+const draf = ref<Record<string, Record<string, number>>>({})
+function isiDraf() {
+  const d = setQ.data.value?.data
+  const isi: Record<string, Record<string, number>> = {}
+  for (const h of HALAMAN) {
+    isi[h.id] = Object.fromEntries(PERAN_MATRIKS.map(p => [p.id, d?.perms?.[h.id]?.[p.id] ?? BAKU[h.id]?.[p.id] ?? 0]))
+  }
+  draf.value = isi
+}
+watch(() => setQ.data.value?.data, isiDraf, { immediate: true })
+const drafBerubah = computed(() => HALAMAN.some(h => PERAN_MATRIKS.some(p =>
+  draf.value[h.id]?.[p.id] !== (setQ.data.value?.data?.perms?.[h.id]?.[p.id] ?? BAKU[h.id]?.[p.id] ?? 0))))
+
+const simpanIzin = ref(false)
+async function simpanPerms() {
+  simpanIzin.value = true
+  try {
+    // Keep pages this screen does not edit (restock, forecast) as they were.
+    await putStockSettings('ordering', { perms: { ...(setQ.data.value?.data?.perms ?? {}), ...draf.value } }, setQ.data.value?.versi)
+    await Promise.all([setQ.refresh(), muatPeranStock()])
+    toast.add({ title: 'Izin halaman tersimpan', description: 'Berlaku saat kru membuka ulang modul Stock.', color: 'success' })
+  }
+  catch (e) {
+    if (apiErrorCode(e) === 'settings_unavailable') {
+      toast.add({ title: 'Pengaturan belum tersedia', description: 'Tabel pengaturan belum ada — matriks di bawah hanya bawaan.', color: 'warning' })
+    }
+    else if (!(await tanganiKonflik(e, () => setQ.refresh()))) toast.add({ title: 'Gagal menyimpan', description: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    simpanIzin.value = false
+  }
+}
 
 const PERAN = [
   { value: 'admin', label: 'Admin' },
@@ -158,6 +224,117 @@ const kolom: TableColumn<KruStock>[] = [
         tone="success"
       />
     </AppStatGrid>
+
+    <AppPanel
+      v-if="admin"
+      title="Halaman yang tampil"
+      description="Atur halaman Ordering yang terlihat dan boleh diubah tiap peran. Admin selalu bisa semuanya."
+    >
+      <template #actions>
+        <UButton
+          v-if="drafBerubah"
+          label="Batalkan"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          @click="isiDraf"
+        />
+      </template>
+      <p
+        v-if="!setQ.data.value?.tersedia"
+        class="mb-3 rounded-xl border-l-4 border-warning bg-warning/10 p-3 text-sm text-warning"
+      >
+        Tabel pengaturan belum ada — yang tampil matriks bawaan dan belum bisa disimpan.
+      </p>
+      <div class="hidden lg:block">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-muted text-muted">
+              <th class="p-2 text-left font-semibold">
+                Halaman
+              </th>
+              <th
+                v-for="p in PERAN_MATRIKS"
+                :key="p.id"
+                class="p-2 text-left font-semibold"
+              >
+                {{ p.label }}
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="h in HALAMAN"
+              :key="h.id"
+              class="border-t border-default"
+            >
+              <td class="p-2 text-default">
+                <span class="inline-flex items-center gap-2">
+                  <UIcon
+                    :name="h.icon"
+                    class="size-4 text-gold-deep"
+                  />
+                  {{ h.label }}
+                </span>
+              </td>
+              <td
+                v-for="p in PERAN_MATRIKS"
+                :key="p.id"
+                class="p-2"
+              >
+                <USelect
+                  v-model="draf[h.id]![p.id]"
+                  :items="NILAI"
+                  :disabled="!setQ.data.value?.tersedia"
+                  size="sm"
+                  class="w-40"
+                />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="flex flex-col gap-3 lg:hidden">
+        <div
+          v-for="h in HALAMAN"
+          :key="h.id"
+          class="rounded-xl border border-default bg-muted p-3"
+        >
+          <b class="inline-flex items-center gap-2 text-highlighted">
+            <UIcon
+              :name="h.icon"
+              class="size-4 text-gold-deep"
+            />
+            {{ h.label }}
+          </b>
+          <div class="mt-2 grid grid-cols-2 gap-2">
+            <UFormField
+              v-for="p in PERAN_MATRIKS"
+              :key="p.id"
+              :label="p.label"
+            >
+              <USelect
+                v-model="draf[h.id]![p.id]"
+                :items="NILAI"
+                :disabled="!setQ.data.value?.tersedia"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+        </div>
+      </div>
+      <p class="mt-3 text-xs text-dimmed">
+        "Tak terlihat" menyembunyikan halaman dari menu kru dengan peran itu; "Lihat saja" menampilkan tanpa tombol simpan. Approval Order tidak diatur di sini.
+      </p>
+      <UButton
+        label="Simpan izin halaman"
+        icon="i-lucide-save"
+        class="mt-3"
+        :loading="simpanIzin"
+        :disabled="!setQ.data.value?.tersedia || !drafBerubah"
+        @click="simpanPerms"
+      />
+    </AppPanel>
 
     <AppPanel
       v-if="admin && !semua.length"
