@@ -49,7 +49,11 @@ const ctx = computed<KonteksHpp>(() => buatKonteks(
   })),
 ))
 
-const dish = computed(() => (resepQ.data.value?.rows ?? []).filter(r => r.tipe === 'dish'))
+/** Inactive recipes stay in `ctx` (an active menu may still use an inactive base) but are never counted. */
+// The API sends 0/1; older rows may carry a boolean.
+const aktif = (r: ResepHpp) => Number(r.aktif ?? 1) !== 0
+const dish = computed(() => (resepQ.data.value?.rows ?? []).filter(r => r.tipe === 'dish' && aktif(r)))
+const kunciAktif = computed(() => new Set(dish.value.map(r => `${String(r.jenis ?? '').toLowerCase()}|${String(r.nama ?? '').toLowerCase()}`)))
 const cogs = (nama: string, jenis: string) => {
   const r = ctx.value.PR.get(`${jenis}|${nama.toLowerCase()}`) ?? ctx.value.PR.get(nama.toLowerCase())
   return r ? cogsOf(ctx.value, r, set.value.buffer) : null
@@ -73,7 +77,7 @@ const diAtas = computed(() => dishCogs.value.filter((x) => {
 }).length)
 const gerak = computed(() => kontribusiBahan(
   ctx.value,
-  [...ctx.value.PR.values()].filter((r, i, a) => a.indexOf(r) === i),
+  [...ctx.value.PR.values()].filter((r, i, a) => a.indexOf(r) === i && kunciAktif.value.has(`${String(r.jenis ?? '').toLowerCase()}|${String(r.nama ?? '').toLowerCase()}`)),
   set.value.buffer,
 ).slice(0, 10))
 const maksGerak = computed(() => Math.max(1, ...gerak.value.map(g => g.total)))
@@ -88,7 +92,7 @@ const warnaCogs = (c: number | null, jenis: string) => {
 <template>
   <AppPage
     title="Dashboard HPP"
-    description="COGS, menu paling boros, dan bahan yang paling menggerakkan modal"
+    description="COGS, menu paling boros, dan bahan yang paling menggerakkan modal — hanya resep aktif"
   >
     <template #actions>
       <UButton
@@ -120,7 +124,7 @@ const warnaCogs = (c: number | null, jenis: string) => {
         tone="error"
       />
       <AppStat
-        label="Menu jadi"
+        label="Menu aktif"
         :value="String(dish.length)"
         satuan="menu"
         icon="i-lucide-book-open"
@@ -172,7 +176,7 @@ const warnaCogs = (c: number | null, jenis: string) => {
     </div>
 
     <p class="text-sm text-muted">
-      Angka: {{ angka(dishCogs.length) }} menu ber-COGS dari {{ angka(dish.length) }} menu jadi.
+      Angka: {{ angka(dishCogs.length) }} menu ber-COGS dari {{ angka(dish.length) }} menu jadi yang aktif. Resep nonaktif tidak dihitung.
     </p>
   </AppPage>
 </template>

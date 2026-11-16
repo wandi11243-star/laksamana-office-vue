@@ -12,6 +12,7 @@ import {
   createIngredient,
   deleteIngredient,
   useBahanHpp,
+  hppIngredientsHalaman,
   hppRapikanBahan,
   importIngredients,
   mergeIngredients,
@@ -33,14 +34,40 @@ const bahanQ = useBahanHpp()
 const resepQ = useAsyncData('hpp-bahan-resep', () => import('~/composables/useStock').then(m => m.getHppRecipes()), {
   default: () => ({ rows: [], versions: {} as Record<string, Versi> }),
 })
-const versi = computed(() => bahanQ.data.value?.versions ?? {})
-
 const cari = ref('')
-const semua = computed(() => {
+/** Every ingredient (stats + CSV export); the shared, cached master read. */
+const semua = computed(() => bahanQ.data.value?.rows ?? [])
+const semuaCocok = computed(() => {
   const q = cari.value.trim().toLowerCase()
-  const rows = bahanQ.data.value?.rows ?? []
-  return q ? rows.filter(b => String(b.nama ?? '').toLowerCase().includes(q)) : rows
+  return q ? semua.value.filter(b => [b.nama, b.vendor, b.kategori].some(v => String(v ?? '').toLowerCase().includes(q))) : semua.value
 })
+
+// --- table: paged on the server (`GET /stock/hpp/ingredients?page=&per_page=`) ---
+const cariTunda = ref('')
+let tundaCari: ReturnType<typeof setTimeout> | undefined
+watch(cari, (v) => {
+  clearTimeout(tundaCari)
+  tundaCari = setTimeout(() => {
+    cariTunda.value = v.trim()
+  }, 300)
+})
+const hal = ref(1)
+const perHal = ref(25)
+const halQ = useAsyncData('hpp-bahan-hal', () => hppIngredientsHalaman({ q: cariTunda.value || undefined, page: hal.value, perPage: perHal.value }), {
+  watch: [cariTunda, hal, perHal],
+  default: () => ({ rows: [] as BahanHpp[], total: 0, page: 1, versions: {} as Record<string, Versi> }),
+})
+const halRows = computed(() => halQ.data.value?.rows ?? [])
+const halTotal = computed(() => halQ.data.value?.total ?? 0)
+watch([cariTunda, perHal], () => {
+  hal.value = 1
+})
+watch(() => halQ.data.value?.page, (p) => {
+  if (p && p !== hal.value) hal.value = p
+})
+// The page's versions win: it is the fresher read of the rows being edited.
+const versi = computed(() => ({ ...(bahanQ.data.value?.versions ?? {}), ...(halQ.data.value?.versions ?? {}) }))
+const muatUlang = () => Promise.all([bahanQ.refresh(), halQ.refresh()])
 
 const ctx = computed(() => buatKonteks(
   semua.value.map(b => ({ nama: String(b.nama ?? ''), sisi_harga: String(b.sisi_harga ?? '') })),
@@ -110,11 +137,11 @@ async function simpan() {
     if (editing.value?.nama) await patchIngredient(String(editing.value.nama), body, versi.value[String(editing.value.nama)])
     else await createIngredient(body)
     sheet.value = false
-    await bahanQ.refresh()
+    await muatUlang()
     toast.add({ title: 'Bahan tersimpan', color: 'success' })
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, () => bahanQ.refresh()))) toast.add({ title: 'Gagal menyimpan', description: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, () => muatUlang()))) toast.add({ title: 'Gagal menyimpan', description: apiErrorMessage(e), color: 'error' })
   }
   finally {
     menyimpan.value = false
@@ -128,11 +155,11 @@ async function hapus(b: BahanHpp) {
   }
   try {
     await deleteIngredient(String(b.nama), versi.value[String(b.nama ?? '')])
-    await bahanQ.refresh()
+    await muatUlang()
     toast.add({ title: 'Bahan dihapus', color: 'success' })
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, () => bahanQ.refresh()))) toast.add({ title: 'Gagal menghapus', description: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, () => muatUlang()))) toast.add({ title: 'Gagal menghapus', description: apiErrorMessage(e), color: 'error' })
   }
 }
 
@@ -142,7 +169,7 @@ async function rapikan(aksi: 'pull-products' | 'remove-shadows' | 'align-names',
   rapiSibuk.value = aksi
   try {
     const r = await hppRapikanBahan(aksi)
-    await bahanQ.refresh()
+    await muatUlang()
     toast.add({ title: label, description: JSON.stringify(r), color: 'success' })
   }
   catch (e) {
@@ -164,11 +191,11 @@ async function gabungkan() {
   try {
     await mergeIngredients(gabung.value.dari.trim(), gabung.value.ke.trim(), versi.value[gabung.value.dari.trim()])
     sheetGabung.value = false
-    await bahanQ.refresh()
+    await muatUlang()
     toast.add({ title: 'Bahan digabungkan', color: 'success' })
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, () => bahanQ.refresh()))) toast.add({ title: 'Gagal menggabungkan', description: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, () => muatUlang()))) toast.add({ title: 'Gagal menggabungkan', description: apiErrorMessage(e), color: 'error' })
   }
   finally {
     menggabung.value = false
@@ -181,7 +208,7 @@ function unduhCsv() {
   unduhCsvStock(
     'bahan.csv',
     ['Nama,Satuan,Qty beli,Harga beli,Vendor,Produk,Kategori,Sisi harga,Catatan',
-      ...semua.value.map(b => [String(b.nama ?? ''), String(b.satuan ?? ''), String(b.qty_beli ?? ''), String(b.harga_beli ?? ''), String(b.vendor ?? ''), String(b.produk ?? ''), String(b.kategori ?? ''), String(b.sisi_harga ?? ''), String(b.catatan ?? '')].map(sel).join(','))].join('\n'),
+      ...semuaCocok.value.map(b => [String(b.nama ?? ''), String(b.satuan ?? ''), String(b.qty_beli ?? ''), String(b.harga_beli ?? ''), String(b.vendor ?? ''), String(b.produk ?? ''), String(b.kategori ?? ''), String(b.sisi_harga ?? ''), String(b.catatan ?? '')].map(sel).join(','))].join('\n'),
   )
 }
 const imporSibuk = ref(false)
@@ -204,7 +231,7 @@ async function impor(e: Event) {
       catatan: String(r.Catatan || r.catatan || ''),
     })).filter(r => r.nama)
     const hasil = await importIngredients(rows)
-    await bahanQ.refresh()
+    await muatUlang()
     toast.add({ title: 'Impor selesai', description: `${hasil.baru} baru, ${hasil.diubah} diubah, ${hasil.dilewati} dilewati.`, color: 'success' })
   }
   catch (err) {
@@ -278,14 +305,16 @@ async function impor(e: Event) {
       <template #head>
         <UInput
           v-model="cari"
-          placeholder="Cari bahan…"
+          placeholder="Cari bahan, vendor, kategori…"
           icon="i-lucide-search"
         />
       </template>
       <div class="hidden lg:block">
         <UTable
           :columns="kolom"
-          :data="semua"
+          :data="halRows"
+          :loading="halQ.status.value === 'pending'"
+          :empty="cari ? `Tidak ada bahan yang cocok dengan “${cari}”.` : 'Belum ada bahan.'"
         >
           <template #harga_beli-cell="{ row }">
             {{ Number(row.original.harga_beli ?? 0) > 0 ? rupiah(Number(row.original.harga_beli)) : '—' }}
@@ -325,7 +354,7 @@ async function impor(e: Event) {
       </div>
       <div class="flex flex-col gap-2 lg:hidden">
         <div
-          v-for="b in semua.slice(0, 80)"
+          v-for="b in halRows"
           :key="String(b.nama)"
           class="flex items-center justify-between gap-2 rounded-xl border border-default p-3"
         >
@@ -351,7 +380,19 @@ async function impor(e: Event) {
             />
           </div>
         </div>
+        <p
+          v-if="!halRows.length"
+          class="text-sm text-dimmed"
+        >
+          {{ cari ? `Tidak ada bahan yang cocok dengan “${cari}”.` : 'Belum ada bahan.' }}
+        </p>
       </div>
+      <AppPager
+        v-model:page="hal"
+        v-model:per="perHal"
+        :total="halTotal"
+        satuan="bahan"
+      />
     </AppPanel>
 
     <AppPanel title="Rapikan">

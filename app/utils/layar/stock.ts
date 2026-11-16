@@ -63,7 +63,6 @@ export const LAYAR_STOCK: Layar[] = [
   { key: 'purchasing_ck', label: 'CK Purchasing', desc: 'Stok, mutasi & dashboard Central Kitchen', icon: 'i-lucide-warehouse', to: '/stock/purchasing/ck', grup: 'Purchasing', boleh: bolehPurchasing('ck', 'lihat') },
   { key: 'purchasing_overview', label: 'Rekap Per Bulan', desc: 'Rekap & analitik order bulanan', icon: 'i-lucide-bar-chart-3', to: '/stock/purchasing/overview', grup: 'Purchasing', boleh: bolehPurchasing('overview', 'lihat') },
   { key: 'purchasing_database', label: 'Database & Vendor', desc: 'Kontak vendor & aturan distribusi bahan', icon: 'i-lucide-database', to: '/stock/purchasing/database', grup: 'Purchasing', boleh: bolehPurchasing('database', 'lihat') },
-  { key: 'purchasing_log', label: 'Log Aktivitas', desc: 'Siapa mengubah apa di stock', icon: 'i-lucide-scroll-text', to: '/stock/purchasing/log', grup: 'Purchasing', boleh: adminPurchasing },
 
   // ── Pemakaian Bahan Baku (kunci usage; K-07: usage-only boleh masuk) ──
   { key: 'opname', label: 'Daily SO', desc: 'Buku stok harian: awal + masuk − keluar, lalu stok fisik', icon: 'i-lucide-clipboard-check', to: '/stock/usage/opname', grup: 'Pemakaian Bahan Baku', boleh: panel('usage') },
@@ -83,8 +82,9 @@ export const LAYAR_STOCK: Layar[] = [
   // ── Break & Loss (kunci breakloss) ──
   { key: 'breakloss', label: 'Break & Loss', desc: 'Barang pecah & hilang + stok terkini', icon: 'i-lucide-package-x', to: '/stock/breakloss', grup: 'Break & Loss', boleh: panel('breakloss') },
 
-  // ── Sistem: one Kelola Akses for Ordering + Purchasing (owner request, Nov 2026) ──
+  // ── Sistem: one Kelola Akses for Ordering + Purchasing, one Log for all of Stock (owner request, Nov 2026) ──
   { key: 'stock_akses', label: 'Kelola Akses', desc: 'Kru Ordering & Purchasing beserta perannya', icon: 'i-lucide-key-round', to: '/stock/akses', grup: 'Sistem', boleh: me => isAdminOf(me, 'ordering') || isAdminOf(me, 'purchasing') },
+  { key: 'purchasing_log', label: 'Log Aktivitas', desc: 'Siapa mengubah apa di modul Stock', icon: 'i-lucide-scroll-text', to: '/stock/purchasing/log', grup: 'Sistem', boleh: adminPurchasing },
 ]
 
 /** The line under the user's name in the module chrome. */

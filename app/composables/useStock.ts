@@ -140,6 +140,22 @@ export const listWaste = (dari?: string, ke?: string) => listKind<WasteCatatan>(
 export const listHandovers = (dari?: string, ke?: string) => listKind<HandoverCatatan>('handovers', dari, ke)
 export const listOpname = (dari?: string, ke?: string) => listKind<OpnameCatatan>('opname', dari, ke)
 
+/** `GET /stock/handovers?page=&per_page=` — one page; `keluar`/`masuk` = sent by / sent to a team. */
+export async function listHandoversHalaman(f: { dari?: string, ke?: string, q?: string, keluar?: string, masuk?: string, page: number, perPage: number }) {
+  const r = await useApi()<Envelope<HandoverCatatan[]>>('/stock/handovers', {
+    params: {
+      from: f.dari || undefined,
+      to: f.ke || undefined,
+      q: f.q || undefined,
+      keluar: f.keluar || undefined,
+      masuk: f.masuk || undefined,
+      page: f.page,
+      per_page: Math.min(f.perPage, 100),
+    },
+  })
+  return { ...halamanDari(r, f.page), versions: (r.meta?.versions ?? {}) as Record<string, Versi> }
+}
+
 /** Writes send the version they edited as If-Match; without one the API answers 428. */
 const versiHeaders = (v?: Versi) => (v === undefined || v === null || v === '' ? undefined : ifMatch(v))
 
@@ -789,7 +805,30 @@ export async function importProducts(rows: Record<string, unknown>[]) {
 
 // ---------------------------------------------------------------- Activity log
 
-export interface LogStock { waktu?: string, aktor?: string, modul?: string, aksi?: string, tim?: string, ringkas?: string }
+export interface LogStock { id?: string, waktu?: string, aktor?: string, modul?: string, aksi?: string, tim?: string, ringkas?: string }
+
+/** Opt-in server paging shared by Stock lists (`page`/`per_page` → `meta.total`/`page`). */
+export interface HalamanStock<T> { rows: T[], total: number, page: number }
+const halamanDari = <T>(r: { data?: T[], meta?: Record<string, unknown> }, page: number): HalamanStock<T> => ({
+  rows: r.data ?? [],
+  total: Number(r.meta?.total ?? r.data?.length ?? 0),
+  page: Number(r.meta?.page ?? page),
+})
+
+/** `GET /stock/logs?page=&per_page=` — one page, newest first; `modul` lists every module in the log. */
+export async function listLogsHalaman(f: { dari?: string, ke?: string, modul?: string, q?: string, page: number, perPage: number }) {
+  const r = await useApi()<Envelope<LogStock[]>>('/stock/logs', {
+    params: {
+      from: f.dari || undefined,
+      to: f.ke || undefined,
+      modul: f.modul || undefined,
+      q: f.q || undefined,
+      page: f.page,
+      per_page: Math.min(f.perPage, 100),
+    },
+  })
+  return { ...halamanDari(r, f.page), modul: (r.meta?.modul ?? []) as string[] }
+}
 
 /** `GET /stock/logs` — purchasing admins. */
 export async function listLogs(params?: { dari?: string, ke?: string, modul?: string, q?: string, limit?: number }) {
@@ -936,6 +975,14 @@ export interface ResepHppTulis {
   di_purchasing?: boolean
   updated_at?: string
   updated_by?: string
+}
+
+/** `GET /stock/hpp/ingredients?page=&per_page=` — one page; `q` = nama/vendor/kategori, `area: 'floor'` = Barang Floor. */
+export async function hppIngredientsHalaman(f: { q?: string, area?: 'floor', page: number, perPage: number }) {
+  const r = await useApi()<Envelope<BahanHpp[]>>('/stock/hpp/ingredients', {
+    params: { q: f.q || undefined, area: f.area, page: f.page, per_page: Math.min(f.perPage, 100) },
+  })
+  return { ...halamanDari(r, f.page), versions: (r.meta?.versions ?? {}) as Record<string, Versi> }
 }
 
 /** `GET /stock/hpp/ingredients` — with versions keyed by name. */

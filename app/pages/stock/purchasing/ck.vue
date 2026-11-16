@@ -50,6 +50,13 @@ const saldoQ = useAsyncData(() => `stock-pck-saldo-${gudang.value}`, () => ckBal
 })
 // Only this warehouse's goods, even when the ledger still holds a moved product's old rows.
 const saldo = computed(() => saringSaldoGudang(saldoQ.data.value?.rows ?? [], produkQ.data.value?.rows ?? [], gudang.value))
+/** Stock tab search: item name or its category, case-insensitive. */
+const cariStok = ref('')
+const kategoriOf = (item: string) => String(produkQ.data.value?.rows.find(p => p.nama === item)?.kategori ?? '')
+const saldoTampil = computed(() => {
+  const q = cariStok.value.trim().toLowerCase()
+  return q ? saldo.value.filter(s => `${s.item} ${kategoriOf(s.item)}`.toLowerCase().includes(q)) : saldo.value
+})
 
 const gerakQ = useAsyncData(() => `stock-pck-gerak-${gudang.value}`, () => ckMovements(undefined, undefined, gudang.value), {
   default: () => ({ rows: [] as CkMutasi[], versions: {} as Record<string, Versi> }),
@@ -267,13 +274,36 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
       </template>
 
       <div v-if="sub === 'stok'">
-        <p class="mb-3 text-sm text-muted">
-          Angka besar = pack (atau satuan beli terkecil), angka kecil = satuan dasarnya.
-        </p>
+        <div class="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <UInput
+            v-model="cariStok"
+            icon="i-lucide-search"
+            placeholder="Cari barang atau kategori…"
+            class="w-full sm:max-w-xs"
+          >
+            <template
+              v-if="cariStok"
+              #trailing
+            >
+              <UButton
+                icon="i-lucide-x"
+                color="neutral"
+                variant="link"
+                size="xs"
+                aria-label="Hapus pencarian"
+                @click="cariStok = ''"
+              />
+            </template>
+          </UInput>
+          <p class="text-sm text-muted">
+            Angka besar = pack (atau satuan beli terkecil), angka kecil = satuan dasarnya.
+          </p>
+        </div>
         <div class="hidden lg:block">
           <UTable
             :columns="kolomStok"
-            :data="saldo"
+            :data="saldoTampil"
+            :empty="cariStok ? `Tidak ada barang yang cocok dengan “${cariStok}”.` : `Belum ada stok ${info.singkat}.`"
           >
             <template #item-cell="{ row }">
               <div>
@@ -310,7 +340,7 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
         </div>
         <div class="flex flex-col gap-2 lg:hidden">
           <div
-            v-for="s in saldo"
+            v-for="s in saldoTampil"
             :key="s.item"
             class="flex items-center justify-between gap-3 rounded-xl border border-default p-3"
           >
@@ -334,10 +364,10 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
             </div>
           </div>
           <p
-            v-if="!saldo.length"
+            v-if="!saldoTampil.length"
             class="text-sm text-dimmed"
           >
-            Belum ada stok {{ info.singkat }}.
+            {{ cariStok ? `Tidak ada barang yang cocok dengan “${cariStok}”.` : `Belum ada stok ${info.singkat}.` }}
           </p>
         </div>
       </div>
