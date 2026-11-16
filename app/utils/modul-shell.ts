@@ -110,6 +110,8 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
   bd: {
     subjudul: 'Task Management',
     layar: LAYAR_BD,
+    // Old renderNav: My Task = my overdue tasks, Undangan & Notifikasi = what waits for me.
+    lencana: () => useLencanaBd(),
   },
 
   // Slots for modules built in parallel (docs/migrasi/TIM-A.md §4): each module

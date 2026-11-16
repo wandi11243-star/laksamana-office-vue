@@ -262,7 +262,7 @@ onUnmounted(() => {
     <template v-else>
       <template v-if="proyekKu.length">
         <AppSectionTitle title="Project yang kamu pegang" />
-        <div class="mb-5 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <div class="mb-5 grid grid-cols-[repeat(auto-fill,minmax(290px,1fr))] gap-4">
           <BdProjCard
             v-for="p in proyekKu"
             :key="p.id"

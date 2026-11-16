@@ -7,7 +7,7 @@
   my invites), milestones are my projects'. The unmatched (no crew row) see
   everything, said out loud.
 
-  Overdue reads as its own "Tunggakan" list, longest overdue first, with a
+  Overdue reads as its own "Lewat deadline" card grid (old `.od-card`), longest overdue first, with a
   "Lihat semua" shortcut to My Task. The daily focus box stays removed: its
   setting document (`DB.focus`) is left stored, untouched — the shape changed,
   the data did not.
@@ -19,14 +19,15 @@ import {
 } from '~/composables/useBd'
 import {
   agendaHari, cariAku, lewat, menungguReviewSaya, milestoneHari, pics, selesai,
-  tugasSaya, todayISO, undanganTertunda, urutDeadline,
+  sisaHari, tugasSaya, todayISO, undanganTertunda, urutDeadline,
 } from '~/utils/bd-rumus'
 import BdAgendaSheet from '~/widgets/bd/BdAgendaSheet.vue'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdProjMini from '~/widgets/bd/BdProjMini.vue'
 import BdTaskRow from '~/widgets/bd/BdTaskRow.vue'
 import BdTaskSheet from '~/widgets/bd/BdTaskSheet.vue'
-import { fTgl, tambahHari } from '~/utils/format'
+import { fTgl, tambahHari, tglPanjang, tglPendek } from '~/utils/format'
+import { IKON_TASK, WARNA_TASK } from '~/utils/status-bd'
 
 definePageMeta({ access: ['bd'] })
 
@@ -69,9 +70,10 @@ const kolomHari = computed(() => [
   milestone: milestoneHari(projects.value, k.iso, aku.value?.id),
 })))
 const tanpaDeadline = computed(() => aktif.value.filter(t => !t.deadline).sort(urutDeadline))
-/** Tunggakan, longest overdue first: an empty deadline never sorts above a real one. */
+/** Lewat deadline, longest overdue first: an empty deadline never sorts above a real one. */
 const odUrut = computed(() => od.value.slice().sort((a, b) => (a.deadline || '9999') < (b.deadline || '9999') ? -1 : 1))
-const odTampil = computed(() => odUrut.value.slice(0, 6))
+/** Old OD_MAKS = 8: the rest is counted, with a link to My Task. */
+const odTampil = computed(() => odUrut.value.slice(0, 8))
 const namaProject = (id?: string | null) => projects.value.find(p => p.id === id)?.name
 const namaOrang = (id?: string | null) => people.value.find(p => p.id === id)?.name || '—'
 /** Am I invited to this agenda and still silent? Team agendas invite no one. */
@@ -123,19 +125,20 @@ async function hapus() {
 <template>
   <AppPage
     :title="`Halo, ${namaDepan}`"
-    :description="`${fTgl(hari)} · Hari ini, besok & lusa — agenda, deadline, dan yang menunggu jawabanmu`"
+    :kicker="tglPanjang(hari)"
   >
+    <!-- Old `.hello`: Task (secondary) then Agenda (the gold action, rightmost). -->
     <template #actions>
       <UButton
-        label="Tugas Baru"
-        icon="i-lucide-plus"
+        label="Task"
+        icon="i-lucide-check"
+        color="neutral"
+        variant="outline"
         @click="baru"
       />
       <UButton
         label="Agenda"
-        icon="i-lucide-calendar-days"
-        color="neutral"
-        variant="outline"
+        icon="i-lucide-plus"
         @click="baruAgenda(hari)"
       />
     </template>
@@ -210,38 +213,18 @@ async function hapus() {
         to="/bd/inbox"
       />
     </div>
-    <div
-      v-if="od.length"
-      class="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-error/30 bg-error/10 p-3 text-sm"
-    >
-      <UIcon
-        name="i-lucide-clock"
-        class="size-5 shrink-0 text-error"
-      />
-      <p class="min-w-0 flex-1">
-        <b>{{ od.length }}</b> task lewat deadline:
-        {{ od.slice(0, 2).map(t => t.name).join('; ') }}{{ od.length > 2 ? ' …' : '' }}
-      </p>
-      <UButton
-        label="My Task"
-        color="neutral"
-        variant="outline"
-        size="sm"
-        to="/bd/mytask"
-      />
-    </div>
-
-    <!-- Overdue first: longest overdue on top, so late work stays actionable -->
+    <!-- Overdue laid out on the board itself (old `.od-card`, 30 Okt 2026): a grid of
+         cards, longest overdue first, cut at OD_MAKS with the rest counted. -->
     <AppPanel
       v-if="od.length"
-      title="Tunggakan"
-      icon="i-lucide-triangle-alert"
+      title="Lewat deadline"
+      icon="i-lucide-clock"
       :count="od.length"
       class="mb-5"
     >
       <template #actions>
         <UButton
-          label="Lihat semua"
+          label="Lihat semua di My Task"
           trailing-icon="i-lucide-chevron-right"
           color="neutral"
           variant="outline"
@@ -249,57 +232,67 @@ async function hapus() {
           to="/bd/mytask"
         />
       </template>
-      <div class="divide-y divide-default rounded-xl border border-default">
-        <BdTaskRow
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <button
           v-for="t in odTampil"
           :key="t.id"
-          :task="t"
-          :people="people"
-          :project-name="namaProject(t.project)"
-          hide-quad
-          @buka="buka(t)"
-          @toggle="toggle(t)"
-          @hapus="taskHapus = t"
-        />
+          type="button"
+          class="flex min-w-0 items-start gap-3 rounded-xl border border-l-4 border-default border-l-error bg-muted p-3 text-left transition-colors hover:bg-error/5"
+          @click="buka(t)"
+        >
+          <span class="num shrink-0 pt-0.5 text-xs text-muted">{{ t.deadline ? tglPendek(t.deadline) : '—' }}</span>
+          <span class="min-w-0 flex-1">
+            <span class="block font-semibold text-highlighted">{{ t.name }}</span>
+            <span class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
+              <AppStatus
+                color="error"
+                size="sm"
+              >telat {{ -sisaHari(t.deadline) }} hari</AppStatus>
+              <AppStatus
+                :color="WARNA_TASK[t.status] ?? 'neutral'"
+                :icon="IKON_TASK[t.status]"
+                size="sm"
+              >{{ t.status }}</AppStatus>
+              <span v-if="namaProject(t.project) || t.daily">· {{ namaProject(t.project) || 'Daily' }}</span>
+            </span>
+          </span>
+        </button>
       </div>
       <p
         v-if="od.length > odTampil.length"
-        class="mt-2 text-xs text-muted"
+        class="mt-3 text-sm text-muted"
       >
-        Menampilkan {{ odTampil.length }} yang paling lama dari {{ od.length }} tunggakan — sisanya di My Task.
+        +{{ od.length - odTampil.length }} task lain lewat deadline —
+        <NuxtLink
+          to="/bd/mytask"
+          class="font-semibold text-gold-deep hover:underline"
+        >lihat semua di My Task</NuxtLink>
       </p>
     </AppPanel>
 
-    <!-- Three-day triage columns: agendas that involve me, my deadlines, my milestones -->
-    <AppPanel
-      title="Tiga hari ke depan"
-      icon="i-lucide-calendar-check"
-      :count="kolomHari.reduce((s, k) => s + k.agenda.length + k.deadline.length + k.milestone.length, 0)"
-    >
-      <div class="grid gap-5 md:grid-cols-3">
-        <section
-          v-for="k in kolomHari"
-          :key="k.iso"
-          :aria-label="k.label"
-        >
-          <div class="mb-1 flex items-center gap-2">
-            <p class="text-[11px] font-bold uppercase tracking-wide text-ink-900">
-              {{ k.label }}
-            </p>
-            <p class="text-xs text-muted">
-              {{ fTgl(k.iso) }}
-            </p>
-            <div class="flex-1" />
-            <UButton
-              icon="i-lucide-plus"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              :aria-label="`Tambah agenda ${k.label}`"
-              @click="baruAgenda(k.iso)"
-            />
-          </div>
-          <div class="divide-y divide-default rounded-xl border border-default">
+    <!-- Three day cards (old `.days3`): today ringed in gold. Each lists the agendas
+         that involve me, my deadlines and my project milestones. -->
+    <div class="grid gap-5 lg:grid-cols-3">
+      <AppPanel
+        v-for="(k, i) in kolomHari"
+        :key="k.iso"
+        :title="k.label"
+        :description="fTgl(k.iso)"
+        :class="i === 0 ? 'ring-2 ring-gold' : ''"
+      >
+        <template #actions>
+          <UButton
+            icon="i-lucide-plus"
+            color="neutral"
+            variant="ghost"
+            size="sm"
+            :aria-label="`Tambah agenda ${k.label}`"
+            title="Tambah agenda tanggal ini"
+            @click="baruAgenda(k.iso)"
+          />
+        </template>
+        <section :aria-label="k.label">
+          <div class="divide-y divide-default">
             <p class="px-2 pb-0 pt-2 text-[10px] font-bold uppercase tracking-wider text-dimmed">
               Agenda
             </p>
@@ -371,11 +364,11 @@ async function hapus() {
             </p>
           </div>
         </section>
-      </div>
-    </AppPanel>
+      </AppPanel>
+    </div>
 
     <!-- Action lists -->
-    <div class="mt-5 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+    <div class="mt-5 grid gap-5 lg:grid-cols-3">
       <AppPanel
         title="Belum ada deadline"
         icon="i-lucide-calendar-x"
@@ -502,7 +495,7 @@ async function hapus() {
         </template>
         <div class="divide-y divide-default">
           <BdProjMini
-            v-for="p in jalan.slice(0, 6)"
+            v-for="p in jalan.slice(0, 4)"
             :key="p.id"
             :project="p"
             :tasks="tasks"
@@ -516,7 +509,7 @@ async function hapus() {
             <b class="block text-highlighted">Belum ada project berjalan</b>
           </p>
           <div
-            v-else-if="jalan.length > 6"
+            v-else-if="jalan.length > 4"
             class="px-2 py-2"
           >
             <UButton
