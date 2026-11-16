@@ -1,5 +1,7 @@
 # laksamana-office-vue — notes for coding agents
 
+For frontend fixes, features, module integration, or API-consumer changes in this repo, read and apply the [shared change skill](.agents/skills/laksamana-office-vue-change/SKILL.md) before editing.
+
 Nuxt 4 + Nuxt UI v4 SPA (`ssr: false`, PWA) for Laksamana Muda's office. Backend: laksamana-api
 (`/api/v1`, Bearer tokens, envelope `{data, meta}` / `{error:{code,message}}`); per-module contracts in
 `../laksamana-api/docs/api/<module>.md`. Read **CONTRIBUTING.md** (how) and **DESIGN.md** (look) first.
