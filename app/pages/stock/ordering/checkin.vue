@@ -16,7 +16,8 @@
 -->
 <script setup lang="ts">
 import type { OrderStock } from '~/composables/useStock'
-import { bolehUbahOrdering, catatLog, deleteOrder, gudangDariBatch, listOrders, patchOrder } from '~/composables/useStock'
+import { bolehUbahOrdering, catatLog, deleteOrder, gudangDariBatch, listOrders, patchOrder, useProdukStock } from '~/composables/useStock'
+import { SATUAN_TERSEDIA } from '~/utils/stock-catat'
 import { apiErrorMessage } from '~/composables/useApi'
 import { hariIni, tambahHari, tglPanjang, tglPendek } from '~/utils/format'
 import { tanganiKonflik, type Versi } from '~/utils/versi'
@@ -162,15 +163,48 @@ const aktual = ref<Record<string, string>>({})
 function cekDatang(o: OrderStock): boolean {
   return datang.value[o.nomorOrder] ?? (o.kedatangan || '') === 'Datang'
 }
-function catatan(o: OrderStock): string {
-  return aktual.value[o.nomorOrder] ?? o.catatanAktual ?? ''
+/** Units offered for one line: the product's own units, the line's unit, else the standard list. */
+const produkQ = useProdukStock()
+function opsiSatuan(o: OrderStock): string[] {
+  const p = produkQ.data.value?.rows.find(r => r.nama === o.item)
+  const punya = ((p?.satuan as string[] | undefined) ?? []).filter(Boolean)
+  const daftar = punya.length ? [...punya] : [...SATUAN_TERSEDIA]
+  if (o.unit && !daftar.includes(o.unit)) daftar.unshift(o.unit)
+  return daftar
 }
 
-// --- edit qty / delete a line that was not (fully) ordered (old promptEditQty /
-// promptDeleteOrder, `ordering/index.html:6494-6550`). Inline in the row, so
-// no second modal opens over the batch sheet.
+/*
+ * What actually arrived is written into `catatanAktual` (free text, never
+ * used for stock) as "3 Dus". Empty = arrived as ordered. A number alone
+ * means the ordered unit; an old free-text note is kept until replaced.
+ */
+function bacaAktual(teks: string, o: OrderStock): { qty: string, unit: string, lain: string } {
+  const t = teks.trim()
+  const m = t.match(/^(\d+(?:[.,]\d+)?)\s*(.*)$/)
+  if (!t) return { qty: '', unit: o.unit || '', lain: '' }
+  if (m) return { qty: m[1]!.replace(',', '.'), unit: m[2]!.trim() || o.unit || '', lain: '' }
+  return { qty: '', unit: o.unit || '', lain: t }
+}
+function aktualOf(o: OrderStock) {
+  return bacaAktual(aktual.value[o.nomorOrder] ?? o.catatanAktual ?? '', o)
+}
+function aturAktual(o: OrderStock, ubah: { qty?: string, unit?: string }) {
+  const kini = aktualOf(o)
+  const qty = (ubah.qty ?? kini.qty).trim()
+  const unit = ubah.unit ?? kini.unit
+  aktual.value[o.nomorOrder] = qty ? `${qty} ${unit}`.trim() : (kini.lain && ubah.qty === undefined ? kini.lain : '')
+}
+/** Arrived differently from the order (another number or unit): flagged in the row. */
+function beda(o: OrderStock): boolean {
+  const a = aktualOf(o)
+  return !!a.qty && (Number(a.qty) !== Number(o.qty) || a.unit !== (o.unit || ''))
+}
+
+// --- edit qty + unit / delete a line that was not (fully) ordered (old
+// promptEditQty / promptDeleteOrder, `ordering/index.html:6494-6550`). Inline
+// in the row, so no second modal opens over the batch sheet.
 const bisaUbah = computed(() => bolehUbahOrdering('checkin'))
-const ubahQty = ref<{ nomor: string, qty: number } | null>(null)
+const ubahQty = ref<{ nomor: string, qty: number, unit: string } | null>(null)
 const hapusNomor = ref<string | null>(null)
 const sibukBaris = ref<string | null>(null)
 watch(bukaKunci, () => {
@@ -179,21 +213,25 @@ watch(bukaKunci, () => {
 })
 function mulaiUbahQty(o: OrderStock) {
   hapusNomor.value = null
-  ubahQty.value = { nomor: o.nomorOrder, qty: Number(o.qty) || 1 }
+  ubahQty.value = { nomor: o.nomorOrder, qty: Number(o.qty) || 1, unit: o.unit || '' }
 }
 async function simpanQty(o: OrderStock) {
   const qty = Number(ubahQty.value?.qty)
+  const unit = (ubahQty.value?.unit || '').trim()
   if (!(qty > 0)) {
     toast.add({ title: 'Jumlah tidak boleh nol atau kosong', description: 'Kalau barangnya tidak jadi dipesan, hapus barisnya.', color: 'warning' })
     return
   }
   sibukBaris.value = o.nomorOrder
   try {
-    await patchOrder(o.nomorOrder, { qty }, versi.value[o.nomorOrder])
-    await catatLog([{ modul: 'ordering', aksi: 'order_ubah_qty', ringkas: `Ubah jumlah ${o.item} jadi ${qty}` }])
+    const body: Record<string, unknown> = { qty }
+    if (unit && unit !== (o.unit || '')) body.unit = unit
+    await patchOrder(o.nomorOrder, body, versi.value[o.nomorOrder])
+    const teks = `${qty} ${unit || o.unit || ''}`.trim()
+    await catatLog([{ modul: 'ordering', aksi: 'order_ubah_qty', ringkas: `Ubah order ${o.item} jadi ${teks}` }])
     ubahQty.value = null
     await daftarQ.refresh()
-    toast.add({ title: `Jumlah ${o.item} diubah jadi ${qty}`, color: 'success' })
+    toast.add({ title: `Order ${o.item} diubah jadi ${teks}`, color: 'success' })
   }
   catch (e) {
     if (!(await tanganiKonflik(e, () => daftarQ.refresh()))) toast.add({ title: 'Gagal mengubah jumlah', description: apiErrorMessage(e), color: 'error' })
@@ -519,94 +557,147 @@ async function simpan(po?: Po | null) {
           />
         </div>
         <ul class="flex flex-col gap-2 rounded-xl border border-default bg-muted p-2">
+          <!-- One line: name + actions on top, then two labelled fields side
+               by side (Pesanan / Datang), each a number with its unit. -->
           <li
             v-for="o in poBuka.baris"
             :key="o.nomorOrder"
-            class="flex flex-wrap items-center gap-3 rounded-lg bg-default p-3 shadow-panel"
+            class="rounded-lg bg-default p-3 shadow-panel"
           >
-            <UCheckbox
-              :model-value="cekDatang(o)"
-              :aria-label="`${o.item} datang`"
-              @update:model-value="datang[o.nomorOrder] = Boolean($event)"
-            />
-            <span class="min-w-0 flex-1">
-              <b
-                class="block truncate text-sm"
-                :class="cekDatang(o) ? 'text-success' : 'text-highlighted'"
-              >{{ o.item }}</b>
-              <span class="text-xs text-muted">{{ o.pic || '—' }}</span>
-            </span>
-            <!-- Quantity: a chip, or an inline field while it is being changed. -->
-            <div
-              v-if="ubahQty?.nomor === o.nomorOrder"
-              class="flex shrink-0 items-center gap-1"
-            >
-              <UInput
-                v-model.number="ubahQty.qty"
-                type="number"
-                min="0"
-                step="any"
-                size="sm"
-                class="w-20"
-                :ui="{ base: 'text-center font-bold' }"
-                :aria-label="`Jumlah baru ${o.item}`"
-                @keydown.enter="simpanQty(o)"
+            <div class="flex items-start gap-3">
+              <UCheckbox
+                class="mt-0.5"
+                :model-value="cekDatang(o)"
+                :aria-label="`${o.item} datang`"
+                @update:model-value="datang[o.nomorOrder] = Boolean($event)"
               />
-              <span class="text-xs text-muted">{{ o.unit }}</span>
+              <div class="min-w-0 flex-1">
+                <b
+                  class="block text-sm leading-snug"
+                  :class="cekDatang(o) ? 'text-success' : 'text-highlighted'"
+                >{{ o.item }}</b>
+                <span class="text-xs text-muted">{{ o.pic || '—' }}</span>
+              </div>
               <UButton
-                icon="i-lucide-check"
+                v-if="bisaUbah && hapusNomor !== o.nomorOrder"
+                icon="i-lucide-trash-2"
                 size="sm"
-                :loading="sibukBaris === o.nomorOrder"
-                :aria-label="`Simpan jumlah ${o.item}`"
-                @click="simpanQty(o)"
-              />
-              <UButton
-                icon="i-lucide-x"
-                size="sm"
-                color="neutral"
+                color="error"
                 variant="ghost"
-                aria-label="Batal ubah jumlah"
-                @click="ubahQty = null"
+                square
+                title="Batalkan/hapus order"
+                :aria-label="`Hapus order ${o.item}`"
+                @click="hapusNomor = o.nomorOrder; ubahQty = null"
               />
             </div>
-            <span
-              v-else
-              class="flex shrink-0 items-center gap-0.5"
-            >
-              <span class="rounded-md bg-gold-soft px-2 py-0.5 text-xs font-bold text-gold-deep num">{{ o.qty }} {{ o.unit }}</span>
-              <UButton
-                v-if="bisaUbah"
-                icon="i-lucide-pencil"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                title="Ubah jumlah order"
-                :aria-label="`Ubah jumlah ${o.item}`"
-                @click="mulaiUbahQty(o)"
-              />
-            </span>
-            <UInput
-              :model-value="catatan(o)"
-              placeholder="Kosongkan jika pas"
-              size="sm"
-              class="w-full sm:w-44"
-              :aria-label="`Catatan aktual ${o.item}`"
-              @update:model-value="aktual[o.nomorOrder] = String($event)"
-            />
-            <UButton
-              v-if="bisaUbah && hapusNomor !== o.nomorOrder"
-              icon="i-lucide-trash-2"
-              size="sm"
-              color="error"
-              variant="ghost"
-              title="Batalkan/hapus order"
-              :aria-label="`Hapus order ${o.item}`"
-              @click="hapusNomor = o.nomorOrder; ubahQty = null"
-            />
+
+            <div class="mt-3 grid gap-3 sm:grid-cols-2">
+              <!-- What was ordered: a chip, or qty + unit while it is changed. -->
+              <div>
+                <p class="mb-1 text-[11px] font-bold uppercase tracking-wider text-muted">
+                  Pesanan
+                </p>
+                <div
+                  v-if="ubahQty?.nomor === o.nomorOrder"
+                  class="flex flex-wrap items-center gap-1.5"
+                >
+                  <UInput
+                    v-model.number="ubahQty.qty"
+                    type="number"
+                    min="0"
+                    step="any"
+                    size="sm"
+                    class="w-20"
+                    :ui="{ base: 'text-center font-bold' }"
+                    :aria-label="`Jumlah baru ${o.item}`"
+                    @keydown.enter="simpanQty(o)"
+                  />
+                  <USelect
+                    v-model="ubahQty.unit"
+                    :items="opsiSatuan(o)"
+                    size="sm"
+                    class="w-28"
+                    :aria-label="`Satuan baru ${o.item}`"
+                  />
+                  <UButton
+                    icon="i-lucide-check"
+                    size="sm"
+                    square
+                    :loading="sibukBaris === o.nomorOrder"
+                    :aria-label="`Simpan order ${o.item}`"
+                    @click="simpanQty(o)"
+                  />
+                  <UButton
+                    icon="i-lucide-x"
+                    size="sm"
+                    square
+                    color="neutral"
+                    variant="ghost"
+                    aria-label="Batal ubah order"
+                    @click="ubahQty = null"
+                  />
+                </div>
+                <div
+                  v-else
+                  class="flex items-center gap-1"
+                >
+                  <span class="rounded-md bg-gold-soft px-2 py-1 text-sm font-bold text-gold-deep num">{{ o.qty }} {{ o.unit }}</span>
+                  <UButton
+                    v-if="bisaUbah"
+                    icon="i-lucide-pencil"
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    title="Ubah jumlah & satuan order"
+                    :aria-label="`Ubah order ${o.item}`"
+                    @click="mulaiUbahQty(o)"
+                  />
+                </div>
+              </div>
+
+              <!-- What actually came: empty = as ordered. -->
+              <div>
+                <p class="mb-1 text-[11px] font-bold uppercase tracking-wider text-muted">
+                  Datang <span
+                    v-if="beda(o)"
+                    class="normal-case tracking-normal text-warning"
+                  >· beda dari pesanan</span>
+                </p>
+                <div class="flex items-center gap-1.5">
+                  <UInput
+                    :model-value="aktualOf(o).qty"
+                    type="number"
+                    min="0"
+                    step="any"
+                    size="sm"
+                    class="w-20"
+                    :placeholder="String(o.qty)"
+                    :ui="{ base: 'text-center' }"
+                    :aria-label="`Jumlah datang ${o.item}`"
+                    @update:model-value="aturAktual(o, { qty: String($event ?? '') })"
+                  />
+                  <USelect
+                    :model-value="aktualOf(o).unit"
+                    :items="opsiSatuan(o)"
+                    size="sm"
+                    class="min-w-0 flex-1"
+                    :aria-label="`Satuan datang ${o.item}`"
+                    @update:model-value="aturAktual(o, { unit: String($event ?? '') })"
+                  />
+                </div>
+                <p
+                  v-if="aktualOf(o).lain"
+                  class="mt-1 text-xs text-muted"
+                >
+                  Catatan lama: {{ aktualOf(o).lain }}
+                </p>
+              </div>
+            </div>
+
             <!-- Delete asks once, in the row itself. -->
             <div
               v-if="hapusNomor === o.nomorOrder"
-              class="flex w-full flex-wrap items-center justify-end gap-2 rounded-lg border border-error/30 bg-error/5 p-2"
+              class="mt-3 flex flex-wrap items-center justify-end gap-2 rounded-lg border border-error/30 bg-error/5 p-2"
             >
               <span class="mr-auto text-sm text-error">Hapus order <b>{{ o.item }}</b>? Tidak bisa dibatalkan.</span>
               <UButton
