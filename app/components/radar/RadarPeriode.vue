@@ -1,13 +1,14 @@
 <!--
   The shared period control (kendaliPeriode): Harian | Mingguan | Bulanan plus
-  the browser's own date / month picker. Radar, Event and Reservasi ask for
+  the Ordering date field (AppTanggal + Hari ini / Besok / Lusa) for a day or
+  week, the browser's month picker for a month. Radar, Event and Reservasi ask for
   time the same way. The week is stored as its Monday: any picked date snaps
   to it, and ‹ › move a whole week.
 -->
 <script setup lang="ts">
 import type { Periode } from '~/utils/radar'
 import { OPSI_MODE, labelPeriode, seninMinggu } from '~/utils/radar'
-import { tambahHari } from '~/utils/format'
+import { hariIni, tambahHari } from '~/utils/format'
 
 const p = defineModel<Periode>({ required: true })
 
@@ -23,6 +24,11 @@ const set = (k: 'tgl' | 'bln', v: string) => {
 const pilihMinggu = (v: string) => {
   if (v) p.value = { ...p.value, mgg: seninMinggu(v) }
 }
+const pintas = [
+  { label: 'Hari ini', value: hariIni() },
+  { label: 'Besok', value: tambahHari(hariIni(), 1) },
+  { label: 'Lusa', value: tambahHari(hariIni(), 2) },
+]
 const geserMinggu = (n: number) => {
   p.value = { ...p.value, mgg: tambahHari(p.value.mgg, n) }
 }
@@ -35,15 +41,20 @@ const geserMinggu = (n: number) => {
       :options="OPSI_MODE"
       size="sm"
     />
-    <UInput
-      v-if="p.mode === 'hari'"
-      :model-value="p.tgl"
-      type="date"
-      size="sm"
-      class="[&_input]:min-h-11"
-      aria-label="Tanggal"
-      @update:model-value="v => set('tgl', String(v))"
-    />
+    <!-- Day and week use the Ordering date field: the app's own calendar
+         (AppTanggal) plus Hari ini / Besok / Lusa shortcuts for a single day. -->
+    <template v-if="p.mode === 'hari'">
+      <AppTanggal
+        :model-value="p.tgl"
+        class="w-full sm:w-64"
+        @update:model-value="v => set('tgl', String(v))"
+      />
+      <AppChips
+        :model-value="p.tgl"
+        :options="pintas"
+        @update:model-value="v => set('tgl', String(v ?? ''))"
+      />
+    </template>
     <div
       v-else-if="p.mode === 'minggu'"
       class="flex items-center gap-1"
@@ -57,12 +68,10 @@ const geserMinggu = (n: number) => {
         aria-label="Minggu sebelumnya"
         @click="geserMinggu(-7)"
       />
-      <UInput
+      <AppTanggal
         :model-value="p.mgg"
-        type="date"
-        size="sm"
-        class="[&_input]:min-h-11"
-        aria-label="Pilih tanggal mana pun, otomatis ke minggunya"
+        class="w-56"
+        placeholder="Pilih tanggal mana pun"
         @update:model-value="v => pilihMinggu(String(v))"
       />
       <UButton
