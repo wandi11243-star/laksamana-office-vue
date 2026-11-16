@@ -596,14 +596,6 @@ async function segarkan() {
             sub="catatan pada periode ini"
           />
           <AppStat
-            label="Total barang diserahkan"
-            icon="i-lucide-package"
-            :value="teksTotal(ringkas.totQty)"
-            :sub="`${ringkas.totalItem} baris · ${ringkas.rekap.length} jenis barang`"
-            tone="info"
-            wrap
-          />
-          <AppStat
             label="Berfoto"
             icon="i-lucide-camera"
             :value="ringkas.list.length ? `${ringkas.berfoto}/${ringkas.list.length}` : '—'"

@@ -66,10 +66,13 @@ const dalamHari = (o: OrderStock) => {
 const antre = computed(() => (jemputQ.data.value?.rows ?? [])
   .filter(o => diJemput(o) && dalamHari(o) && (o.kedatangan || '') !== 'Datang')
   .sort((a, b) => tglEfektif(a).localeCompare(tglEfektif(b)) || ((a.rowIndex ?? 0) - (b.rowIndex ?? 0))))
+/** Day it was actually picked up: when it was marked, else (old marks) its scheduled day. */
+const tglDiambil = (o: OrderStock) => (o.tglTerima || '').slice(0, 10) || tglEfektif(o)
+// Only what was picked up ON the chosen day (owner request, Nov 2026); the
+// waiting list above is the one that carries late lines along.
 const sudah = computed(() => (jemputQ.data.value?.rows ?? [])
-  .filter(o => diJemput(o) && dalamHari(o) && (o.kedatangan || '') === 'Datang')
+  .filter(o => diJemput(o) && (o.kedatangan || '') === 'Datang' && tglDiambil(o) === tgl.value)
   .sort((a, b) => ((b.tglTerima || '').localeCompare(a.tglTerima || '')) || ((b.rowIndex ?? 0) - (a.rowIndex ?? 0))))
-const sudahHariIni = computed(() => sudah.value.filter(o => (o.tglTerima || '').slice(0, 10) === hariIni()).length)
 
 /**
  * Central Kitchen pick-ups (old JEMPUT_GRUP_CK, `:4919,5131-5135`): requests
@@ -175,8 +178,8 @@ async function tetapkan(semua: OrderStock[], batal = false) {
         tone="warning"
       />
       <AppStat
-        label="Dijemput hari ini"
-        :value="String(sudahHariIni)"
+        :label="tgl === hariIni() ? 'Dijemput hari ini' : `Dijemput ${tglPendek(tgl)}`"
+        :value="String(sudah.length)"
         satuan="barang"
         icon="i-lucide-package-check"
         tone="success"
@@ -298,7 +301,7 @@ async function tetapkan(semua: OrderStock[], batal = false) {
       title="Sudah dijemput"
       icon="i-lucide-package-check"
       :count="sudah.length"
-      description="Jemputan tanggal ini dan 14 hari sebelumnya yang sudah ditandai, terbaru di atas."
+      description="Yang ditandai dijemput pada tanggal terpilih, terbaru di atas."
     >
       <div class="flex flex-col gap-2">
         <div
@@ -340,7 +343,7 @@ async function tetapkan(semua: OrderStock[], batal = false) {
           v-if="!sudah.length"
           class="py-2 text-sm text-dimmed"
         >
-          Belum ada barang yang ditandai dijemput.
+          Belum ada barang yang dijemput pada tanggal ini.
         </p>
       </div>
     </AppPanel>
