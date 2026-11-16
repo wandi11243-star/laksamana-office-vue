@@ -8,10 +8,10 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { BahanHpp } from '~/utils/pohon-resep'
-import { deleteIngredient, patchIngredient, useBahanHpp, useProdukStock } from '~/composables/useStock'
+import { deleteIngredient, hppIngredientsHalaman, patchIngredient, useBahanHpp, useProdukStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { rupiah } from '~/utils/format'
-import { tanganiKonflik } from '~/utils/versi'
+import { tanganiKonflik, type Versi } from '~/utils/versi'
 
 definePageMeta({ access: ['hpp'] })
 
@@ -19,7 +19,9 @@ const toast = useToast()
 
 const bahanQ = useBahanHpp()
 const produkQ = useProdukStock()
-const versi = computed(() => bahanQ.data.value?.versions ?? {})
+// The page's versions win: it is the fresher read of the rows being edited.
+const versi = computed(() => ({ ...(bahanQ.data.value?.versions ?? {}), ...(halQ.data.value?.versions ?? {}) }))
+const muatUlang = () => Promise.all([bahanQ.refresh(), halQ.refresh()])
 
 const namaFloor = computed(() => {
   const cari = new Set<string>()
@@ -34,10 +36,29 @@ const semua = computed(() => (bahanQ.data.value?.rows ?? []).filter((b) => {
   return namaFloor.value.has(n) || (pasangan && pasangan !== '-' && namaFloor.value.has(pasangan))
 }))
 
+// --- table: paged on the server (`area=floor` does the same pairing there) ---
 const cari = ref('')
-const tampil = computed(() => {
-  const q = cari.value.trim().toLowerCase()
-  return q ? semua.value.filter(b => String(b.nama ?? '').toLowerCase().includes(q)) : semua.value
+const cariTunda = ref('')
+let tundaCari: ReturnType<typeof setTimeout> | undefined
+watch(cari, (v) => {
+  clearTimeout(tundaCari)
+  tundaCari = setTimeout(() => {
+    cariTunda.value = v.trim()
+  }, 300)
+})
+const hal = ref(1)
+const perHal = ref(25)
+const halQ = useAsyncData('hpp-floor-hal', () => hppIngredientsHalaman({ area: 'floor', q: cariTunda.value || undefined, page: hal.value, perPage: perHal.value }), {
+  watch: [cariTunda, hal, perHal],
+  default: () => ({ rows: [] as BahanHpp[], total: 0, page: 1, versions: {} as Record<string, Versi> }),
+})
+const tampil = computed(() => halQ.data.value?.rows ?? [])
+const halTotal = computed(() => halQ.data.value?.total ?? 0)
+watch([cariTunda, perHal], () => {
+  hal.value = 1
+})
+watch(() => halQ.data.value?.page, (p) => {
+  if (p && p !== hal.value) hal.value = p
 })
 
 const kolom: TableColumn<BahanHpp>[] = [
@@ -67,11 +88,11 @@ async function simpan() {
       vendor: f.value.vendor.trim(),
     }, versi.value[String(editing.value.nama)])
     sheet.value = false
-    await bahanQ.refresh()
+    await muatUlang()
     toast.add({ title: 'Harga tersimpan', color: 'success' })
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, () => bahanQ.refresh()))) toast.add({ title: 'Gagal menyimpan', description: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, () => muatUlang()))) toast.add({ title: 'Gagal menyimpan', description: apiErrorMessage(e), color: 'error' })
   }
   finally {
     menyimpan.value = false
@@ -80,11 +101,11 @@ async function simpan() {
 async function hapus(b: BahanHpp) {
   try {
     await deleteIngredient(String(b.nama), versi.value[String(b.nama ?? '')])
-    await bahanQ.refresh()
+    await muatUlang()
     toast.add({ title: 'Barang dihapus', color: 'success' })
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, () => bahanQ.refresh()))) toast.add({ title: 'Gagal menghapus', description: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, () => muatUlang()))) toast.add({ title: 'Gagal menghapus', description: apiErrorMessage(e), color: 'error' })
   }
 }
 </script>
@@ -123,6 +144,8 @@ async function hapus(b: BahanHpp) {
         <UTable
           :columns="kolom"
           :data="tampil"
+          :loading="halQ.status.value === 'pending'"
+          :empty="cari ? `Tidak ada barang yang cocok dengan “${cari}”.` : 'Tidak ada barang floor. Atur area di Purchasing › Database & Vendor.'"
         >
           <template #harga_beli-cell="{ row }">
             {{ Number(row.original.harga_beli ?? 0) > 0 ? rupiah(Number(row.original.harga_beli)) : '—' }}
@@ -153,7 +176,7 @@ async function hapus(b: BahanHpp) {
       </div>
       <div class="flex flex-col gap-2 lg:hidden">
         <div
-          v-for="b in tampil.slice(0, 80)"
+          v-for="b in tampil"
           :key="String(b.nama)"
           class="flex items-center justify-between gap-2 rounded-xl border border-default p-3"
         >
@@ -183,9 +206,15 @@ async function hapus(b: BahanHpp) {
           v-if="!tampil.length"
           class="text-sm text-dimmed"
         >
-          Tidak ada barang floor. Atur area di Purchasing › Database & Vendor.
+          {{ cari ? `Tidak ada barang yang cocok dengan “${cari}”.` : 'Tidak ada barang floor. Atur area di Purchasing › Database & Vendor.' }}
         </p>
       </div>
+      <AppPager
+        v-model:page="hal"
+        v-model:per="perHal"
+        :total="halTotal"
+        satuan="barang"
+      />
     </AppPanel>
 
     <ResponsiveSheet

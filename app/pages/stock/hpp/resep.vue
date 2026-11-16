@@ -70,10 +70,11 @@ const ctx = computed<KonteksHpp>(() => buatKonteks(
 
 const tab = ref<'dish' | 'base' | 'pras'>('dish')
 const jenisTab = ref<'semua' | 'food' | 'drink'>('semua')
+const statusTab = ref<'semua' | 'aktif' | 'nonaktif'>('semua')
 const cari = ref('')
 const hal = ref(1)
 const per = 25
-watch([tab, jenisTab, cari], () => {
+watch([tab, jenisTab, statusTab, cari], () => {
   hal.value = 1
 })
 
@@ -85,7 +86,18 @@ const saringTab = computed(() => {
     return !q || [r.nama, r.seksi].some(v => String(v ?? '').toLowerCase().includes(q))
   }).sort((a, b) => String(a.nama ?? '').localeCompare(String(b.nama ?? ''), 'id'))
 })
-const saring = computed(() => saringTab.value.filter(r => jenisTab.value === 'semua' || String(r.jenis ?? 'food') === jenisTab.value))
+const cocokJenis = (r: ResepHppTulis) => jenisTab.value === 'semua' || String(r.jenis ?? 'food') === jenisTab.value
+const cocokStatus = (r: ResepHppTulis) => statusTab.value === 'semua' || aktifOf(r) === (statusTab.value === 'aktif')
+const saring = computed(() => saringTab.value.filter(r => cocokJenis(r) && cocokStatus(r)))
+const opsiStatus = computed(() => {
+  const rows = saringTab.value.filter(cocokJenis)
+  const nAktif = rows.filter(aktifOf).length
+  return [
+    { value: 'semua' as const, label: `Semua status (${rows.length})` },
+    { value: 'aktif' as const, label: `Aktif (${nAktif})`, icon: 'i-lucide-circle-check' },
+    { value: 'nonaktif' as const, label: `Nonaktif (${rows.length - nAktif})`, icon: 'i-lucide-circle-pause' },
+  ]
+})
 const opsiJenis = computed(() => [
   { value: 'semua' as const, label: `Semua (${saringTab.value.length})` },
   { value: 'food' as const, label: `Makanan (${saringTab.value.filter(r => String(r.jenis ?? 'food') === 'food').length})`, icon: 'i-lucide-utensils' },
@@ -379,11 +391,20 @@ async function impor(e: Event) {
           />
         </div>
       </template>
-      <AppChips
-        v-model="jenisTab"
-        :options="opsiJenis"
-        class="mb-3"
-      />
+      <div class="mb-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+        <AppChips
+          v-model="jenisTab"
+          :options="opsiJenis"
+        />
+        <span
+          class="hidden h-5 border-l border-default sm:block"
+          aria-hidden="true"
+        />
+        <AppChips
+          v-model="statusTab"
+          :options="opsiStatus"
+        />
+      </div>
       <div class="hidden lg:block">
         <UTable
           :columns="kolom"

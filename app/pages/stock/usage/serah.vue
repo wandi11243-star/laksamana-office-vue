@@ -11,7 +11,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { HandoverCatatan } from '~/composables/useStock'
-import { createHandover, deleteHandover, listHandovers, patchHandover, useProdukStock } from '~/composables/useStock'
+import { createHandover, deleteHandover, listHandovers, listHandoversHalaman, patchHandover, useProdukStock } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
 import { isAdminOf } from '~/composables/useMe'
 import { hariIni, tglPendek, tambahHari } from '~/utils/format'
@@ -163,7 +163,8 @@ const daftarQ = useAsyncData('stock-serah', () => listHandovers(rentang.value.da
   watch: [rentang],
   default: () => ({ rows: [] as HandoverCatatan[], versions: {} }),
 })
-const versi = computed<Record<string, Versi>>(() => daftarQ.data.value?.versions ?? {})
+// The cards edit from a paged list: its versions win over the period read.
+const versi = computed<Record<string, Versi>>(() => Object.assign({}, daftarQ.data.value?.versions ?? {}, ...halSemuaArah.map(h => h.versions)))
 const semua = computed<HandoverCatatan[]>(() => daftarQ.data.value?.rows ?? [])
 
 const menyimpan = ref(false)
@@ -203,11 +204,11 @@ async function simpan() {
     else await createHandover(body)
     toast.add({ title: 'Tersimpan', description: `${items.length} item diserahkan ke ${form.value.tujuan}.`, color: 'success' })
     resetForm()
-    await daftarQ.refresh()
+    await segarkanDaftar()
     sub.value = 'report'
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, () => daftarQ.refresh()))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, () => segarkanDaftar()))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
   finally {
     menyimpan.value = false
@@ -250,10 +251,10 @@ async function hapusGo() {
   try {
     await deleteHandover(s.id, versi.value[s.id])
     toast.add({ title: 'Dihapus' })
-    await daftarQ.refresh()
+    await segarkanDaftar()
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, () => daftarQ.refresh()))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, () => segarkanDaftar()))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
 }
 
@@ -308,21 +309,80 @@ const kolomRekap: TableColumn<RekapBahan>[] = [
   { accessorKey: 'dipakai', header: 'Berapa catatan' },
 ]
 
+// --- record list: paged on the server (`GET /stock/handovers?page=&per_page=`) ----
+// The stats and charts above still read the whole period (they sum every
+// record); only the cards below come one page at a time, per direction.
+
+const cariTunda = ref('')
+let tundaCari: ReturnType<typeof setTimeout> | undefined
+watch(cari, (v) => {
+  clearTimeout(tundaCari)
+  tundaCari = setTimeout(() => {
+    cariTunda.value = v.trim()
+  }, 300)
+})
+
+type Arah = 'semua' | 'kirim' | 'terima'
+function halamanArah(arah: Arah) {
+  const hal = ref(1)
+  const per = ref(10)
+  /** `semua` is for someone without a team; kirim/terima split a team's own records. */
+  const aktif = computed(() => (arah === 'semua') === !timSaya.value)
+  const q = useAsyncData(`stock-serah-hal-${arah}`, () => !aktif.value
+    ? Promise.resolve({ rows: [] as HandoverCatatan[], total: 0, page: 1, versions: {} as Record<string, Versi> })
+    : listHandoversHalaman({
+        dari: rentang.value.dari,
+        ke: rentang.value.ke,
+        q: cariTunda.value || undefined,
+        keluar: arah === 'kirim' ? timSaya.value : undefined,
+        masuk: arah === 'terima' ? timSaya.value : undefined,
+        page: hal.value,
+        perPage: per.value,
+      }), {
+    watch: [rentang, cariTunda, hal, per, aktif],
+    default: () => ({ rows: [] as HandoverCatatan[], total: 0, page: 1, versions: {} as Record<string, Versi> }),
+  })
+  // A new filter starts on page one; the server clamps a page past the end.
+  watch([rentang, cariTunda, per], () => {
+    hal.value = 1
+  })
+  watch(() => q.data.value?.page, (p) => {
+    if (p && p !== hal.value) hal.value = p
+  })
+  return reactive({
+    arah, hal, per, aktif,
+    status: q.status,
+    refresh: () => q.refresh(),
+    rows: computed(() => q.data.value?.rows ?? []),
+    total: computed(() => q.data.value?.total ?? 0),
+    versions: computed(() => q.data.value?.versions ?? {}),
+  })
+}
+const halSemua = halamanArah('semua')
+const halKirim = halamanArah('kirim')
+const halTerima = halamanArah('terima')
+const halSemuaArah = [halSemua, halKirim, halTerima]
+
 const blokSerah = computed(() => {
   const saya = timSaya.value
-  if (!saya) return [{ judul: '', sub: '', arah: '', list: daftarTampil.value }]
+  if (!saya) return [{ judul: '', sub: '', h: halSemua }]
   return [
-    { judul: 'Barang yang diserahkan', sub: `dari ${saya} ke tim lain`, arah: 'kirim', list: daftarTampil.value.filter(s => s.tim === saya) },
-    { judul: 'Barang yang diterima', sub: `dari tim lain ke ${saya}`, arah: 'terima', list: daftarTampil.value.filter(s => s.tujuan === saya && s.tim !== saya) },
+    { judul: 'Barang yang diserahkan', sub: `dari ${saya} ke tim lain`, h: halKirim },
+    { judul: 'Barang yang diterima', sub: `dari tim lain ke ${saya}`, h: halTerima },
   ]
 })
+const memuatDaftar = computed(() => halSemuaArah.some(h => h.aktif && h.status === 'pending'))
+
+async function segarkanDaftar() {
+  await Promise.all([daftarQ.refresh(), ...halSemuaArah.filter(h => h.aktif).map(h => h.refresh())])
+}
 
 function ekspor() {
   unduhCsvStock(`serah-terima-${bulanIni()}.csv`, csvSerah(daftarTampil.value))
 }
 
 async function segarkan() {
-  await Promise.all([produkQ.refresh(), daftarQ.refresh()])
+  await Promise.all([produkQ.refresh(), segarkanDaftar()])
 }
 </script>
 
@@ -709,18 +769,23 @@ async function segarkan() {
             >
               <span
                 class="text-[12px] font-bold uppercase tracking-wider"
-                :class="blk.arah === 'kirim' ? 'text-error' : 'text-success'"
+                :class="blk.h.arah === 'kirim' ? 'text-error' : 'text-success'"
               >{{ blk.judul }}</span>
-              <span class="text-[12px] text-dimmed">{{ blk.sub }} · {{ blk.list.length }} catatan</span>
+              <span class="text-[12px] text-dimmed">{{ blk.sub }} · {{ blk.h.total }} catatan</span>
+              <UIcon
+                v-if="memuatDaftar"
+                name="i-lucide-loader-circle"
+                class="size-3.5 animate-spin text-dimmed"
+              />
             </div>
             <div
-              v-if="!blk.list.length && blk.judul"
+              v-if="!blk.h.rows.length && blk.judul"
               class="rounded-panel border border-dashed border-default px-4 py-6 text-center text-[12.5px] font-medium text-dimmed"
             >
               Tidak ada pada periode ini.
             </div>
             <div
-              v-for="s in blk.list"
+              v-for="s in blk.h.rows"
               :key="s.id"
               class="mb-3 flex flex-wrap items-start gap-3 rounded-panel bg-default px-4 py-3.5 shadow-panel"
             >
@@ -784,6 +849,13 @@ async function segarkan() {
                 />
               </div>
             </div>
+            <AppPager
+              v-model:page="blk.h.hal"
+              v-model:per="blk.h.per"
+              :total="blk.h.total"
+              :sizes="[10, 25, 50]"
+              satuan="catatan"
+            />
           </div>
         </div>
       </AppPanel>
