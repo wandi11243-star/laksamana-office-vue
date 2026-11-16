@@ -1,3 +1,8 @@
+import { useBdState } from '~/composables/useBd'
+import { useMe } from '~/composables/useMe'
+import { bacaStateNotif, jumlahBelumDibacaNotif, kunciBacaNotif, notifBd, reviewTertunda } from '~/utils/bd-notif'
+import { cariAku, catIniAku, lewat, selesai, todayISO, tugasSaya, undanganTertunda } from '~/utils/bd-rumus'
+
 // The screens of the Task Management panel, in the order of the old sidebar
 // (deploy/bd/index.html NAV, putaran keempat). Keys are the old NAV keys, unchanged.
 //
@@ -24,3 +29,30 @@ export const LAYAR_BD: Layar[] = [
   { key: 'purchasing', label: 'Purchasing', desc: 'Purchase request mingguan, vendor & status pembelian', icon: 'i-lucide-shopping-cart', to: '/bd/purchasing', grup: 'Operasi' },
   { key: 'tim', label: 'Kru', desc: 'Siapa mengerjakan apa, dan siapa atasannya', icon: 'i-lucide-users', to: '/bd/tim', grup: 'Tim' },
 ]
+
+/**
+ * Red menu badges (old renderNav, deploy/bd/index.html:1855-1860): My Task =
+ * my tasks past their deadline; Undangan & Notifikasi = invites waiting for
+ * my answer + tasks waiting on my review + unread notifications (old
+ * jumlahInbox). The read marks live in this browser, so the count is re-read
+ * on every navigation (leaving the inbox clears it).
+ */
+export function useLencanaBd() {
+  const me = useMe()
+  const route = useRoute()
+  const { data: state } = useBdState()
+  return computed((): Record<string, number> => {
+    void route.fullPath
+    const s = state.value
+    const aku = cariAku(s.people, me.value)
+    const telat = tugasSaya(s.tasks, aku?.id).filter(t => !selesai(t) && lewat(t)).length
+    if (!aku) return { mytask: telat }
+    const notif = notifBd(s.agenda, s.tasks, s.people, aku.id)
+    const baca = bacaStateNotif(kunciBacaNotif(catIniAku(s.people, me.value?.id)))
+    return {
+      mytask: telat,
+      inbox: undanganTertunda(s.agenda, aku.id, todayISO()).length + reviewTertunda(s.tasks, aku.id).length
+        + jumlahBelumDibacaNotif(notif, baca),
+    }
+  })
+}
