@@ -390,6 +390,9 @@ export function lahirkanUlang(t: BdTask, semua: BdTask[]): (Partial<BdTask> & { 
       const o: BdSubtask = { id: uidBd('s'), t: String(x.t || ''), done: false }
       const d = g(x.d)
       if (d) o.d = d
+      // The step's keterangan carries over (it is how the step is done); the
+      // attachments do not — they are the proof of the occurrence just closed.
+      if (String(x.note || '').trim()) o.note = String(x.note)
       return o
     }),
   }

@@ -10,8 +10,8 @@
   `doneAt` — a PATCH merge could not remove it.
 -->
 <script setup lang="ts">
-import type { BdPerson, BdProject, BdSubtask, BdTask } from '~/composables/useBd'
-import { buatBd, bdSimpan, bdTulisDiam, capPenugasan, hapusTaskDenganUrutan, lahirkanUlangSetelah, pesanHapusTask, putSetelan, ubahBd, useBdSettings, versiBaris, versiSetelan } from '~/composables/useBd'
+import type { BdLampiran, BdPerson, BdProject, BdSubtask, BdTask } from '~/composables/useBd'
+import { LAMPIRAN_TERIMA, buatBd, bdSimpan, bdTulisDiam, capPenugasan, hapusTaskDenganUrutan, lahirkanUlangSetelah, pesanHapusTask, putSetelan, tolakLampiran, ubahBd, unggahLampiranBd, useBdSettings, versiBaris, versiSetelan } from '~/composables/useBd'
 import {
   PILIHAN_TANPA, PRIORITAS, STATUS_FLOW, TAG_PALET, TASK_TIPE, ULANG, cekBolehDone, deps, divisiBawaan, gayaTag, jamValid, kruTersedia, kuadran,
   kunciTag, labelUlang, menungguTransitif, opsiDivisi, opsiProject as opsiProjectBd, parseUlang, pesanTunggu, pics, reviewers, segarkanProgress, selesai, semuaTag, setPics, subs, susunUlang, tagsOf, todayISO, uidBd,
@@ -20,6 +20,7 @@ import {
 } from '~/utils/bd-rumus'
 import { WARNA_KUADRAN, WARNA_TASK } from '~/utils/status-bd'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
+import BdLampiranChip from '~/widgets/bd/BdLampiranChip.vue'
 import BdPicPicker from '~/widgets/bd/BdPicPicker.vue'
 
 const props = defineProps<{
@@ -100,8 +101,15 @@ const opsiUlang = computed(() => {
   return items
 })
 const ulangTampilKustom = computed(() => f.ulang === '__kustom' || f.ulang.startsWith('k/'))
-/** Sub-task drafts (`_subDraft`): id kept, empty text dropped on save. `p` is the single assignee. */
-const subDraf = ref<{ id: string, t: string, done: boolean, d: string, p: string }[]>([])
+/**
+ * Sub-task drafts (`_subDraft`): id kept, empty text dropped on save. `p` is the single assignee.
+ * `note` + `files` (Nov 2026) are the step's keterangan and attachments; `punya` = the stored
+ * sub-task already had them, so an emptied note or a last removed file is still sent (and wins
+ * over the server's keep-what-the-old-Panel-omits rule). `buka` = its box is open in this form.
+ */
+interface DrafSub { id: string, t: string, done: boolean, d: string, p: string, note: string, files: BdLampiran[], punya: boolean, buka: boolean }
+const subDraf = ref<DrafSub[]>([])
+const subBaruKosong = (t: string): DrafSub => ({ id: uidBd('s'), t, done: false, d: '', p: '', note: '', files: [], punya: false, buka: false })
 const subBaru = ref('')
 /** Tag drafts: committed on save, so a tag left in the box is never silently lost. */
 const tagDraf = ref<string[]>([])
@@ -188,7 +196,11 @@ watch(open, (o) => {
     f.important = !!t.important
     f.urgent = !!t.urgent
     kustomDari(t.ulang || '', t.deadline || '')
-    subDraf.value = subs(t).map(x => ({ id: String(x.id || uidBd('s')), t: String(x.t || ''), done: !!x.done, d: String(x.d || ''), p: String(x.p || '') }))
+    subDraf.value = subs(t).map(x => ({
+      id: String(x.id || uidBd('s')), t: String(x.t || ''), done: !!x.done, d: String(x.d || ''), p: String(x.p || ''),
+      note: String(x.note || ''), files: Array.isArray(x.files) ? x.files.slice() : [],
+      punya: 'note' in x || 'files' in x, buka: false,
+    }))
     tagDraf.value = tagsOf(t)
     depDraf.value = deps(t).filter(d => d !== t.id && props.tasks.some(x => x.id === d))
   }
@@ -249,8 +261,38 @@ const pesanHapus = computed(() => (props.task ? pesanHapusTask(props.task, props
 function subTambah() {
   const v = subBaru.value.trim()
   if (!v) return
-  subDraf.value.push({ id: uidBd('s'), t: v, done: false, d: '', p: '' })
+  subDraf.value.push(subBaruKosong(v))
   subBaru.value = ''
+}
+/** Uploads still running, per sub-task id — Save waits for them (the reference must be in the row). */
+const mengunggah = ref<Record<string, number>>({})
+const sedangUnggah = computed(() => Object.values(mengunggah.value).some(n => n > 0))
+/**
+ * Attach the picked files to one sub-task draft: checked here first (type,
+ * 8 MB), uploaded at once, the answer kept in the draft. The task row only
+ * changes on Save; an upload never saved is cleaned up by the server.
+ */
+async function lampirkan(s: DrafSub, ev: Event) {
+  const input = ev.target as HTMLInputElement
+  const daftar = Array.from(input.files ?? [])
+  input.value = ''
+  for (const file of daftar) {
+    const salah = tolakLampiran(file)
+    if (salah) {
+      toast.add({ title: salah, color: 'warning' })
+      continue
+    }
+    mengunggah.value[s.id] = (mengunggah.value[s.id] ?? 0) + 1
+    try {
+      s.files.push(await unggahLampiranBd(file))
+    }
+    catch (e) {
+      toast.add({ title: `Gagal mengunggah ${file.name}`, description: apiErrorMessage(e), color: 'error' })
+    }
+    finally {
+      mengunggah.value[s.id] = Math.max(0, (mengunggah.value[s.id] ?? 1) - 1)
+    }
+  }
 }
 /** Assignee choices for one sub-task row: active crew, plus whoever already holds it. */
 const opsiSubPic = (p: string) => [
@@ -261,6 +303,10 @@ const opsiSubPic = (p: string) => [
 async function simpan() {
   if (!f.name.trim()) {
     toast.add({ title: 'Nama task wajib diisi.', color: 'error' })
+    return
+  }
+  if (sedangUnggah.value) {
+    toast.add({ title: 'Lampiran masih diunggah — tunggu sebentar lalu simpan lagi.', color: 'warning' })
     return
   }
   // A start past the deadline would draw the Timeline bar backwards — refused
@@ -283,7 +329,11 @@ async function simpan() {
   // Sub-tasks without text are dropped: empty rows keep x/y from ever balancing.
   // `p` rides inside the sub-task, no migration — unassigned stays empty, never guessed.
   const subtasks: BdSubtask[] = subDraf.value
-    .map(s => ({ id: s.id, t: s.t.trim(), done: s.done, ...(s.d ? { d: s.d } : {}), ...(s.p ? { p: s.p } : {}) }))
+    .map(s => ({
+      id: s.id, t: s.t.trim(), done: s.done, ...(s.d ? { d: s.d } : {}), ...(s.p ? { p: s.p } : {}),
+      ...(s.note.trim() || s.punya ? { note: s.note.trim() } : {}),
+      ...(s.files.length || s.punya ? { files: s.files } : {}),
+    }))
     .filter(s => s.t)
   const dependsOn = depDraf.value.filter(d => d !== props.task?.id && props.tasks.some(x => x.id === d))
   // A leftover tag in the box joins: saving without Enter must not silently drop it.
@@ -710,44 +760,103 @@ async function hapus() {
           <div
             v-for="(s, ix) in subDraf"
             :key="s.id"
-            class="flex items-center gap-2 px-2 py-1.5"
           >
-            <UCheckbox
-              :model-value="s.done"
-              @update:model-value="(v: boolean | 'indeterminate') => s.done = v === true"
-            />
-            <UInput
-              :model-value="s.t"
-              placeholder="Sub-task…"
-              size="sm"
-              class="min-w-0 flex-1 [&_input]:min-w-0"
-              :class="s.done ? 'opacity-60 line-through' : ''"
-              @update:model-value="(v: string | number) => s.t = String(v)"
-            />
-            <UInput
-              :model-value="s.d"
-              type="date"
-              size="sm"
-              title="Deadline sub-task (opsional)"
-              class="w-36 shrink-0"
-              @update:model-value="(v: string | number) => s.d = String(v)"
-            />
-            <USelect
-              :model-value="s.p || PILIHAN_TANPA"
-              :items="opsiSubPic(s.p)"
-              size="sm"
-              title="Di-assign ke (opsional)"
-              class="w-32 shrink-0"
-              @update:model-value="(v: string | undefined) => s.p = !v || v === PILIHAN_TANPA ? '' : v"
-            />
-            <UButton
-              icon="i-lucide-x"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              aria-label="Hapus sub-task"
-              @click="subDraf.splice(ix, 1)"
-            />
+            <div class="flex items-center gap-2 px-2 py-1.5">
+              <UCheckbox
+                :model-value="s.done"
+                @update:model-value="(v: boolean | 'indeterminate') => s.done = v === true"
+              />
+              <UInput
+                :model-value="s.t"
+                placeholder="Sub-task…"
+                size="sm"
+                class="min-w-0 flex-1 [&_input]:min-w-0"
+                :class="s.done ? 'opacity-60 line-through' : ''"
+                @update:model-value="(v: string | number) => s.t = String(v)"
+              />
+              <UInput
+                :model-value="s.d"
+                type="date"
+                size="sm"
+                title="Deadline sub-task (opsional)"
+                class="w-36 shrink-0"
+                @update:model-value="(v: string | number) => s.d = String(v)"
+              />
+              <USelect
+                :model-value="s.p || PILIHAN_TANPA"
+                :items="opsiSubPic(s.p)"
+                size="sm"
+                title="Di-assign ke (opsional)"
+                class="w-32 shrink-0"
+                @update:model-value="(v: string | undefined) => s.p = !v || v === PILIHAN_TANPA ? '' : v"
+              />
+              <UButton
+                :icon="s.files.length ? 'i-lucide-paperclip' : (s.note.trim() ? 'i-lucide-message-square-text' : 'i-lucide-message-square-plus')"
+                :label="s.files.length ? String(s.files.length) : undefined"
+                color="neutral"
+                :variant="s.buka ? 'soft' : 'ghost'"
+                size="xs"
+                :class="s.note.trim() || s.files.length ? 'text-gold-deep' : ''"
+                title="Catatan & lampiran"
+                :aria-label="`Catatan & lampiran sub-task ${s.t || ix + 1}`"
+                :aria-expanded="s.buka"
+                @click="s.buka = !s.buka"
+              />
+              <UButton
+                icon="i-lucide-x"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                aria-label="Hapus sub-task"
+                @click="subDraf.splice(ix, 1)"
+              />
+            </div>
+            <!-- Keterangan + attachments of this step (Nov 2026). Saved with the task. -->
+            <div
+              v-if="s.buka"
+              class="mx-2 mb-2 flex flex-col gap-2 rounded-xl border border-default bg-muted p-3"
+            >
+              <UTextarea
+                v-model="s.note"
+                :rows="2"
+                autoresize
+                placeholder="Catatan / keterangan sub-task ini…"
+                class="w-full"
+                :aria-label="`Catatan sub-task ${s.t || ix + 1}`"
+              />
+              <div
+                v-if="s.files.length"
+                class="flex flex-wrap gap-2"
+              >
+                <BdLampiranChip
+                  v-for="(fl, fi) in s.files"
+                  :key="fl.key"
+                  :file="fl"
+                  hapus
+                  @hapus="s.files.splice(fi, 1)"
+                />
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <label
+                  class="inline-flex cursor-pointer items-center gap-1.5 rounded-field border border-default bg-default px-2.5 py-1.5 text-xs font-semibold text-gold-deep hover:bg-gold-soft/40"
+                >
+                  <UIcon
+                    :name="mengunggah[s.id] ? 'i-lucide-loader' : 'i-lucide-paperclip'"
+                    class="size-4"
+                    :class="mengunggah[s.id] ? 'animate-spin' : ''"
+                  />
+                  {{ mengunggah[s.id] ? 'Mengunggah…' : 'Lampirkan berkas / foto' }}
+                  <input
+                    type="file"
+                    multiple
+                    :accept="LAMPIRAN_TERIMA"
+                    class="sr-only"
+                    @change="lampirkan(s, $event)"
+                  >
+                </label>
+                <span class="text-[11px] text-muted">Gambar, PDF, Word, Excel, PowerPoint, TXT/CSV · maks 8 MB</span>
+              </div>
+            </div>
           </div>
         </div>
         <p

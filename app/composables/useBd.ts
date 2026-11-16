@@ -53,6 +53,18 @@ export interface BdSubtask {
   d?: string
   /** The single crew member this sub-task is assigned to (empty = unassigned, never guessed). */
   p?: string
+  /** Keterangan for this step (new in the Office, Nov 2026 — the old Panel has none). */
+  note?: string
+  /** Attachments: references to files on the server (`POST /bd/files`). */
+  files?: BdLampiran[]
+}
+
+/** One sub-task attachment as `POST /bd/files` answered it. */
+export interface BdLampiran {
+  key: string
+  name: string
+  mime: string
+  size: number
 }
 
 export interface BdProject {
@@ -753,3 +765,75 @@ export async function hapusTaskDenganUrutan(t: BdTask, semua: BdTask[]): Promise
     if (gagal) throw new Error(`${gagal} penunggu gagal dilepas`)
   }, 'Task dihapus')
 }
+
+// ---------------------------------------------------------------- sub-task attachments (Nov 2026)
+
+/** Same list and limit as the server (`BdFiles`): images, PDF, Office, TXT/CSV, 8 MB. */
+export const LAMPIRAN_MAKS = 8 * 1024 * 1024
+export const LAMPIRAN_TERIMA = 'image/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv'
+const EKSTENSI_LAMPIRAN = ['jpg', 'jpeg', 'png', 'webp', 'gif', 'heic', 'pdf', 'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'txt', 'csv']
+
+/** Why this file cannot be attached, or '' when it can (checked before the upload). */
+export function tolakLampiran(f: File): string {
+  const ext = (f.name.split('.').pop() || '').toLowerCase()
+  if (!f.type.startsWith('image/') && !EKSTENSI_LAMPIRAN.includes(ext)) {
+    return `${f.name}: jenis berkas tidak didukung. Pakai gambar, PDF, Word, Excel, PowerPoint, TXT atau CSV.`
+  }
+  if (f.size > LAMPIRAN_MAKS) return `${f.name}: lebih dari 8 MB.`
+  return ''
+}
+
+/** `POST /bd/files` — upload one file; the caller keeps the answer in the sub-task's `files`. */
+export async function unggahLampiranBd(f: File): Promise<BdLampiran> {
+  const dataBase64 = await new Promise<string>((resolve, reject) => {
+    const r = new FileReader()
+    r.onload = () => resolve(String(r.result))
+    r.onerror = () => reject(new Error('Berkas gagal dibaca.'))
+    r.readAsDataURL(f)
+  })
+  const r = await useApi()<{ data: BdLampiran }>('/bd/files', {
+    method: 'POST',
+    body: { dataBase64, fileName: f.name, mimeType: f.type },
+  })
+  return r.data
+}
+
+const urlLampiran = new Map<string, Promise<string>>()
+
+/**
+ * A `/bd/files/{key}` file as an object URL (the endpoint needs the Bearer
+ * token, so a plain <img src> or link cannot load it). Cached per key.
+ */
+export function urlLampiranBd(key: string): Promise<string> {
+  let p = urlLampiran.get(key)
+  if (!p) {
+    p = useApi()<Blob>(`/bd/files/${encodeURIComponent(key)}`, { responseType: 'blob' }).then(b => URL.createObjectURL(b))
+    p.catch(() => urlLampiran.delete(key))
+    urlLampiran.set(key, p)
+  }
+  return p
+}
+
+/** Open an attachment in a new tab (images and PDF show inline, other types download). */
+export async function bukaLampiranBd(f: BdLampiran): Promise<void> {
+  // Open the tab synchronously (pop-up blockers allow only that), then point it at the blob.
+  const tab = window.open('', '_blank')
+  try {
+    const url = await urlLampiranBd(f.key)
+    if (tab) tab.location.href = url
+    else window.location.href = url
+  }
+  catch (e) {
+    tab?.close()
+    toastBd()?.add({ title: `Lampiran tidak bisa dibuka: ${apiErrorMessage(e)}`, color: 'error' })
+  }
+}
+
+/** Short size label: "820 KB", "2,4 MB". */
+export function ukuranLampiran(n: number): string {
+  if (!(n > 0)) return ''
+  if (n < 1024 * 1024) return `${Math.max(1, Math.round(n / 1024))} KB`
+  return `${(n / 1024 / 1024).toLocaleString('id-ID', { maximumFractionDigits: 1 })} MB`
+}
+
+export const lampiranGambar = (f: Pick<BdLampiran, 'mime'>) => String(f.mime || '').startsWith('image/')
