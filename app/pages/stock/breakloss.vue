@@ -640,16 +640,16 @@ async function segarkan() {
       variant="subtle"
       icon="i-lucide-triangle-alert"
       title="Tabel Break & Loss belum ada di database"
-      :description="apiErrorMessage(daftarQ.error, 'Buka panel Break & Loss di Office lama sekali agar tabelnya dibuat. Selama itu seluruh tombol di sini akan ditolak.')"
+      :description="apiErrorMessage(daftarQ.error.value, 'Buka panel Break & Loss di Office lama sekali agar tabelnya dibuat. Selama itu seluruh tombol di sini akan ditolak.')"
     />
     <UAlert
-      v-else-if="daftarQ.error"
+      v-else-if="daftarQ.error.value"
       class="mb-5"
       color="error"
       variant="subtle"
       icon="i-lucide-triangle-alert"
       title="Data Break & Loss tidak terbaca"
-      :description="apiErrorMessage(daftarQ.error)"
+      :description="apiErrorMessage(daftarQ.error.value)"
     />
 
     <UAlert
@@ -662,28 +662,42 @@ async function segarkan() {
       :description="pesanTimKosong"
     />
 
-    <AppSeg
-      v-model="menu"
-      class="mb-5"
-      size="sm"
-      :options="[
-        { value: 'bl', label: 'Break & Loss', icon: 'i-lucide-package-x' },
-        { value: 'barang', label: 'Barang & Stok', icon: 'i-lucide-archive' },
-      ]"
-    />
-
-    <!-- ============================ 1. BREAK & LOSS ============================ -->
-    <template v-if="menu === 'bl'">
+    <!-- Menu + its sub-tabs on one row, with a divider between them. -->
+    <div class="mb-6 flex flex-wrap items-center gap-x-4 gap-y-3">
       <AppSeg
+        v-model="menu"
+        size="sm"
+        :options="[
+          { value: 'bl', label: 'Break & Loss', icon: 'i-lucide-package-x' },
+          { value: 'barang', label: 'Barang & Stok', icon: 'i-lucide-archive' },
+        ]"
+      />
+      <span
+        class="hidden h-6 border-l border-default sm:block"
+        aria-hidden="true"
+      />
+      <AppSeg
+        v-if="menu === 'bl'"
         v-model="subBl"
-        class="mb-5"
         size="sm"
         :options="[
           { value: 'catat', label: 'Catat Break & Loss' },
           { value: 'report', label: 'Report Break & Loss' },
         ]"
       />
+      <AppSeg
+        v-else
+        v-model="subBarang"
+        size="sm"
+        :options="[
+          { value: 'daftar', label: 'Daftarkan Barang' },
+          { value: 'stok', label: 'Stok Terkini' },
+        ]"
+      />
+    </div>
 
+    <!-- ============================ 1. BREAK & LOSS ============================ -->
+    <template v-if="menu === 'bl'">
       <template v-if="subBl === 'catat'">
         <AppPanel :title="form.id ? 'Ubah catatan break & loss' : 'Catat break & loss baru'">
           <template
@@ -1216,16 +1230,6 @@ async function segarkan() {
 
     <!-- ============================ 2. BARANG & STOK ============================ -->
     <template v-else>
-      <AppSeg
-        v-model="subBarang"
-        class="mb-5"
-        size="sm"
-        :options="[
-          { value: 'daftar', label: 'Daftarkan Barang' },
-          { value: 'stok', label: 'Stok Terkini' },
-        ]"
-      />
-
       <template v-if="subBarang === 'daftar'">
         <AppPanel :title="formItem.id ? 'Ubah barang' : 'Daftarkan barang baru'">
           <template
