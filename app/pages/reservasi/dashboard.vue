@@ -2500,7 +2500,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
       title="Tambah ke waiting list"
       :description="tglPanjangLama(tglDenah)"
     >
-      <div class="grid gap-3">
+      <div class="grid grid-cols-1 gap-3">
         <UFormField
           label="Nama"
           help="Kosongkan untuk walk-in cepat — tercatat sebagai “Walkin”"
@@ -3216,7 +3216,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
       :title="`Walk-in di meja ${walkin.meja}`"
       description="Tamu tanpa nama tetap dicatat sebagai “Walkin”."
     >
-      <div class="grid gap-3">
+      <div class="grid grid-cols-1 gap-3">
         <UFormField label="Nama (opsional)">
           <UInput
             v-model="walkin.nama"

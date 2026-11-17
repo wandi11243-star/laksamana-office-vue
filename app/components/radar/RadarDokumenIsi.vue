@@ -113,7 +113,7 @@ function kolomRundown(rows: { mulai: string, selesai: string, durasi: string, ke
         <!-- Attachment list: images centred, other files as links -->
         <div
           v-if="jenis(r) === 'lampiran'"
-          class="grid gap-3"
+          class="grid grid-cols-1 gap-3"
         >
           <div
             v-for="l in r.lampiran ?? []"

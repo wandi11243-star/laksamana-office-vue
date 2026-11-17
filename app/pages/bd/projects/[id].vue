@@ -214,7 +214,7 @@ function bukaPoSheet(o: BdPo) {
         </div>
       </div>
 
-      <div class="grid gap-5">
+      <div class="grid grid-cols-1 gap-5">
         <div class="mb-3 flex flex-wrap items-center gap-2">
           <AppSeg
             v-model="pdTab"
@@ -324,7 +324,7 @@ function bukaPoSheet(o: BdPo) {
             icon="i-lucide-flag"
             :count="(p.milestones || []).length"
           >
-            <div class="grid gap-2">
+            <div class="grid grid-cols-1 gap-2">
               <button
                 v-for="(m, i) in p.milestones || []"
                 :key="i"

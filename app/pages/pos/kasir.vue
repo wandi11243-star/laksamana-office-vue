@@ -489,7 +489,7 @@ const sinkronLabel = computed(() => {
       title="Bayar"
       :description="`Total ${rupiahPos(total.grand)}`"
     >
-      <div class="grid gap-3">
+      <div class="grid grid-cols-1 gap-3">
         <AppSeg
           v-model="cara"
           :options="CARA_BAYAR_POS.map(c => ({ value: c, label: c }))"

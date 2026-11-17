@@ -234,7 +234,7 @@ async function hapus() {
     v-model:open="open"
     :title="promo ? 'Ubah promo' : 'Promo baru'"
   >
-    <div class="grid gap-4">
+    <div class="grid grid-cols-1 gap-4">
       <UFormField label="Nama promo *">
         <UInput
           v-model="f.nama"

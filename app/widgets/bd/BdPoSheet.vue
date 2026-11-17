@@ -147,7 +147,7 @@ async function hapus() {
     v-model:open="open"
     :title="po ? 'Edit purchase order' : 'Purchase order baru'"
   >
-    <div class="grid gap-4">
+    <div class="grid grid-cols-1 gap-4">
       <p
         v-if="peminta"
         class="rounded-panel border border-info/30 bg-info/10 p-3 text-sm"

@@ -576,7 +576,7 @@ const namaHari = (tgl: string) => new Date(`${tgl}T00:00:00`).toLocaleDateString
       >
         <div
           v-if="bayarUntuk"
-          class="grid gap-3"
+          class="grid grid-cols-1 gap-3"
         >
           <p class="text-sm text-muted">
             {{ namaTalent(bayarUntuk.talent_id) }} · {{ periode.label }} · <b class="text-highlighted num">{{ rupiah(bayarUntuk.fee) }}</b>

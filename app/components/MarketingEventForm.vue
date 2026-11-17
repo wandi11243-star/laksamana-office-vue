@@ -373,7 +373,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
               />
               <div
                 v-else-if="f.t === 'files'"
-                class="grid gap-2"
+                class="grid grid-cols-1 gap-2"
               >
                 <div
                   v-for="b in berkas(f)"

@@ -333,7 +333,7 @@ function keGcal(c: HlifeContent) {
       :title="pindah ? `Pindah: ${pindah.title}` : 'Pindah stage'"
       description="Pilih kolom baru untuk konten ini."
     >
-      <div class="grid gap-2">
+      <div class="grid grid-cols-1 gap-2">
         <UButton
           v-for="s in CSTAGES"
           :key="s"

@@ -135,7 +135,7 @@ async function hapus() {
     :title="project ? 'Edit project' : 'Project baru'"
     description="Pekerjaan besar berjangka + milestone."
   >
-    <div class="grid gap-4">
+    <div class="grid grid-cols-1 gap-4">
       <UFormField label="Nama project">
         <UInput
           v-model="f.name"

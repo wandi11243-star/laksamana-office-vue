@@ -117,6 +117,7 @@ async function tambahKartu(st: string) {
   <AppKanban
     :columns="kolomKanban"
     layout="scroll"
+    list-class="max-h-[min(68dvh,640px)]"
     @move="pindahKartu"
   >
     <template #header="{ column }">

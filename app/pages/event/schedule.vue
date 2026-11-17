@@ -863,7 +863,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
         v-model:open="sheetTambah"
         title="Tambah jadwal"
       >
-        <div class="grid gap-3">
+        <div class="grid grid-cols-1 gap-3">
           <p
             v-if="jadwal.some(j => j.date === f.tanggal)"
             class="rounded-lg border border-default bg-default p-2.5 text-xs text-muted"
@@ -1056,7 +1056,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
         v-model:open="sheetRutin"
         title="Jadwal recurring"
       >
-        <div class="grid gap-3">
+        <div class="grid grid-cols-1 gap-3">
           <UFormField label="Cari talent">
             <UInput
               v-model="cariRt"
@@ -1166,7 +1166,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
         v-model:open="sheetBulan"
         title="Generate bulanan"
       >
-        <div class="grid gap-3">
+        <div class="grid grid-cols-1 gap-3">
           <UFormField label="Talent (boleh banyak)">
             <div class="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto rounded-panel border border-default p-2">
               <button

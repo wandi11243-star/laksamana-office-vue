@@ -323,7 +323,7 @@ useSegarSenyap(refresh, () => buka.value)
             {{ paxSel(c.iso).total ? `Total ${paxSel(c.iso).total} pax` : '' }}{{ paxSel(c.iso).total && paxSel(c.iso).vip ? ' · ' : '' }}{{ paxSel(c.iso).vip ? `${paxSel(c.iso).vip} VIP di luar total` : '' }}
           </span>
         </div>
-        <div class="grid gap-1.5">
+        <div class="grid grid-cols-1 gap-1.5">
           <button
             v-for="a in c.agenda"
             :key="`${a.sumber}-${a.id}`"

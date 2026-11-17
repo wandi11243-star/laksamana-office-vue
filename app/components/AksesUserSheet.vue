@@ -327,7 +327,7 @@ function toggleTim(label: string) {
     :title="user ? `Ubah ${user.name}` : 'Tambah kru'"
     description="Identitas, kepegawaian, modul, dan hak admin kru."
   >
-    <div class="grid gap-4">
+    <div class="grid grid-cols-1 gap-4">
       <AppSectionTitle
         title="Identitas dan akun"
         icon="i-lucide-user"

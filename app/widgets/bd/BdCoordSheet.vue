@@ -99,7 +99,7 @@ async function hapus() {
     :title="coord ? 'Edit request koordinasi' : 'Request ke divisi lain'"
     description="Catatan permintaan kita, bukan task divisi tujuan."
   >
-    <div class="grid gap-4">
+    <div class="grid grid-cols-1 gap-4">
       <UFormField label="Judul request">
         <UInput
           v-model="f.title"

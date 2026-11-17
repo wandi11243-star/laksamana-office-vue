@@ -360,7 +360,7 @@ const lewat = (p: HlifeProject) => !!p.due && p.due < hari && stageAktif(p) !== 
       :title="pindah ? `Pindah: ${pindah.name}` : 'Pindah stage'"
       description="Pilih kolom baru untuk project ini."
     >
-      <div class="grid gap-2">
+      <div class="grid grid-cols-1 gap-2">
         <UButton
           v-for="s in STAGES"
           :key="s"

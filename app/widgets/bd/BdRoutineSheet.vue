@@ -112,7 +112,7 @@ async function hapus() {
     :title="routine ? 'Edit routine' : 'Routine baru'"
     description="Task berulang & kepatuhannya."
   >
-    <div class="grid gap-4">
+    <div class="grid grid-cols-1 gap-4">
       <UFormField label="Nama routine">
         <UInput
           v-model="f.name"
