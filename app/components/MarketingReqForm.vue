@@ -114,7 +114,7 @@ function kirim() {
 </script>
 
 <template>
-  <div class="grid gap-3">
+  <div class="grid grid-cols-1 gap-3">
     <div class="grid gap-3 lg:grid-cols-2">
       <UFormField
         label="Jenis"

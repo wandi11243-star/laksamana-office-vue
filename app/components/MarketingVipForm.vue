@@ -125,7 +125,7 @@ async function pilihBerkas(b: BuktiVipMkt, files: FileList | null) {
 </script>
 
 <template>
-  <div class="grid gap-3">
+  <div class="grid grid-cols-1 gap-3">
     <UFormField
       label="Jenis reservasi"
       required
@@ -150,7 +150,7 @@ async function pilihBerkas(b: BuktiVipMkt, files: FileList | null) {
           inputmode="numeric"
         />
       </UFormField>
-      <div class="grid gap-2">
+      <div class="grid grid-cols-1 gap-2">
         <p class="text-sm font-semibold">
           DP & bukti transfer
         </p>

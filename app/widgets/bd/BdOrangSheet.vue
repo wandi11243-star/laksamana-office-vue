@@ -79,7 +79,7 @@ async function simpan() {
     :title="orang?.name || 'Kru'"
     description="Nama dan hak akses dikelola di Office › Kelola Akses."
   >
-    <div class="grid gap-4">
+    <div class="grid grid-cols-1 gap-4">
       <p class="rounded-xl border border-default bg-muted p-3 text-xs text-muted">
         Nama, hak akses, dan divisi tidak bisa diubah dari sini — divisinya mengikuti kolom Tim di
         Office › Kelola User, perubahannya akan terbaca saat daftar disegarkan.

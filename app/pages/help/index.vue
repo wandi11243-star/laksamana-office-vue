@@ -94,7 +94,7 @@ onBeforeUnmount(() => {
           icon="i-lucide-search"
           :count="hasil.length"
         >
-          <div class="grid gap-2.5">
+          <div class="grid grid-cols-1 gap-2.5">
             <NuxtLink
               v-for="h in hasil"
               :key="`${h.kunci}-${h.bagian.id}`"

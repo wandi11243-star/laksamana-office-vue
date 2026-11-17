@@ -79,7 +79,7 @@ async function tandaiSemua() {
         </p>
         <ul
           v-else
-          class="grid gap-1"
+          class="grid grid-cols-1 gap-1"
         >
           <li
             v-for="(n, i) in live"
@@ -128,7 +128,7 @@ async function tandaiSemua() {
         </p>
         <ul
           v-else
-          class="grid gap-1"
+          class="grid grid-cols-1 gap-1"
         >
           <li
             v-for="n in riwayat"

@@ -1650,7 +1650,7 @@ async function segarkan() {
       :title="moOpname ? `Opname — ${moItem?.nama || ''}` : `Tambah stok — ${moItem?.nama || ''}`"
       description="Stok terkini menurut catatan"
     >
-      <div class="grid gap-4">
+      <div class="grid grid-cols-1 gap-4">
         <p class="rounded-xl border border-default bg-muted px-3.5 py-2.5 text-sm">
           Stok terkini menurut catatan: <b class="num">{{ fmtBil(moItem?.stok) }} {{ moItem?.satuan }}</b>
         </p>

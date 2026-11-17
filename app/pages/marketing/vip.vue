@@ -400,7 +400,7 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
               @click="pulihkanSemua"
             />
           </div>
-          <ul class="grid gap-2">
+          <ul class="grid grid-cols-1 gap-2">
             <li
               v-for="r in yatim"
               :key="String(r.id)"

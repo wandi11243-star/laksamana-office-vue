@@ -30,6 +30,9 @@ const props = withDefaults(defineProps<{
   emptyText?: string
   /** Text for the fallback card when the caller provides no `card` slot. */
   titleOf?: (item: T) => string
+  /** Cap each column's card list (e.g. `max-h-[70dvh]`): the cards scroll inside
+   *  the column instead of stretching the page. Empty = grow with the cards. */
+  listClass?: string
 }>(), {
   canDrag: true,
   dragReason: '',
@@ -92,7 +95,10 @@ defineExpose({ swallowClick: drag.swallowClick })
           <span class="num ml-auto rounded-full bg-default px-2 text-xs font-bold ring-1 ring-default">{{ col.count ?? col.items.length }}</span>
         </slot>
       </header>
-      <div class="flex min-h-16 flex-1 flex-col gap-2 p-2">
+      <div
+        class="flex min-h-16 flex-1 flex-col gap-2 p-2"
+        :class="listClass ? `${listClass} overflow-y-auto overscroll-contain [scrollbar-width:thin]` : ''"
+      >
         <template
           v-for="item in col.items"
           :key="item.id"
@@ -135,6 +141,17 @@ defineExpose({ swallowClick: drag.swallowClick })
             {{ emptyText }}
           </p>
         </slot>
+        <slot
+          v-if="!listClass"
+          name="footer"
+          :column="col"
+        />
+      </div>
+      <!-- A capped list scrolls on its own; the footer (quick add) stays pinned below it. -->
+      <div
+        v-if="listClass && $slots.footer"
+        class="border-t border-default p-2"
+      >
         <slot
           name="footer"
           :column="col"

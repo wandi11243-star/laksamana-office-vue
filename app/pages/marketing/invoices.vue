@@ -445,7 +445,7 @@ const cetak = () => window.print()
             </template>
             <template #resmi-cell="{ row }">
               <div
-                class="grid gap-1.5"
+                class="grid grid-cols-1 gap-1.5"
                 @click.stop
               >
                 <MarketingSlotInv
@@ -607,7 +607,7 @@ const cetak = () => window.print()
           </div>
           <div
             v-else
-            class="grid gap-3"
+            class="grid grid-cols-1 gap-3"
           >
             <p class="text-sm text-muted">
               Yang bisa diubah cuma <b>teks</b> — Kepada, U.P, dan Keterangan tiap baris.

@@ -362,7 +362,7 @@ async function kirimRevisi() {
       :title="st === 'Ditolak' ? 'Perbaiki & Ajukan Lagi' : pen.file ? 'Ubah Penawaran' : 'Buat Penawaran'"
       :description="ev.nama"
     >
-      <div class="grid gap-3">
+      <div class="grid grid-cols-1 gap-3">
         <UFormField label="No. surat">
           <UInput v-model="form.noSurat" />
         </UFormField>

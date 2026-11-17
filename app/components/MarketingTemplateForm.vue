@@ -44,7 +44,7 @@ function kirim() {
     :title="`${awal ? 'Edit' : 'Tambah'} Template Task`"
     :description="`${div}${f.sub !== TANPA ? ` · ${f.sub}` : ''}`"
   >
-    <div class="grid gap-4">
+    <div class="grid grid-cols-1 gap-4">
       <UFormField
         label="Task"
         required

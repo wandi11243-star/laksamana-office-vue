@@ -504,7 +504,7 @@ async function submit() {
             Total piutang belum lunas seluruh tanggal: <b>{{ fmtRp(totOpen) }}</b> dari {{ grupBelum.length }} orang.
           </p>
         </div>
-        <div class="grid gap-3">
+        <div class="grid grid-cols-1 gap-3">
           <div>
             <AppSectionTitle title="Bon baru hari ini" />
             <p

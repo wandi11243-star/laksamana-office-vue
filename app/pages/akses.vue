@@ -819,7 +819,7 @@ async function kirimImpor() {
     >
       <div
         v-if="imporBuruk.length"
-        class="grid gap-1.5"
+        class="grid grid-cols-1 gap-1.5"
       >
         <p class="text-sm font-semibold text-highlighted">
           Baris bermasalah (dilewati):

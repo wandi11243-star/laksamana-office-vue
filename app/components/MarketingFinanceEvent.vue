@@ -349,7 +349,7 @@ async function simpanInvUbah() {
 </script>
 
 <template>
-  <div class="grid gap-5">
+  <div class="grid grid-cols-1 gap-5">
     <AppPanel
       title="Rincian Tagihan"
       description="Seluruh yang ditagih ada di sini — konsumsi, sewa venue, sound & lighting, sampai lain-lain. Persis kolom lembar tagihan yang dicetak."
@@ -544,7 +544,7 @@ async function simpanInvUbah() {
           title="Ketentuan"
           class="min-w-0"
         >
-          <div class="grid gap-4">
+          <div class="grid grid-cols-1 gap-4">
             <UFormField label="Discount (Rp)">
               <UInput
                 :model-value="String(draft.detail.diskon ?? '')"
@@ -600,7 +600,7 @@ async function simpanInvUbah() {
             </UFormField>
             <div class="lg:col-span-2">
               <UFormField label="Bukti transfer">
-                <div class="grid gap-2">
+                <div class="grid grid-cols-1 gap-2">
                   <UButton
                     v-if="draft.detail.dpBuktiUrl"
                     color="neutral"
@@ -699,7 +699,7 @@ async function simpanInvUbah() {
           </div>
           <ul
             v-else
-            class="grid gap-2"
+            class="grid grid-cols-1 gap-2"
           >
             <li
               v-for="p in (draft.payments ?? [])"
@@ -1104,7 +1104,7 @@ async function simpanInvUbah() {
         </div>
         <div
           v-else
-          class="grid gap-3"
+          class="grid grid-cols-1 gap-3"
         >
           <p class="text-sm text-muted">
             Yang bisa diubah cuma <b>teks</b> — Kepada, U.P, dan Keterangan tiap baris.

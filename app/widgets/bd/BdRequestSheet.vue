@@ -85,7 +85,7 @@ async function simpan() {
     title="Request order"
     description="Tulis semua kebutuhan sekaligus — satu baris per barang."
   >
-    <div class="grid gap-4">
+    <div class="grid grid-cols-1 gap-4">
       <p class="rounded-panel border border-default bg-muted p-3 text-xs text-muted">
         Harga boleh dikosongkan kalau belum tahu; tim purchasing yang melengkapinya.
         Semua baris masuk berstatus <b>Diajukan</b>.
@@ -115,7 +115,7 @@ async function simpan() {
         </UFormField>
       </div>
 
-      <div class="grid gap-3">
+      <div class="grid grid-cols-1 gap-3">
         <div
           v-for="(b, i) in baris"
           :key="i"

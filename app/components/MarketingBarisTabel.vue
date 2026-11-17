@@ -91,7 +91,7 @@ const nominal = (v: unknown) => {
 <template>
   <div
     v-if="kind !== 'menu'"
-    class="grid gap-2"
+    class="grid grid-cols-1 gap-2"
   >
     <div
       v-for="r in baris"
@@ -212,7 +212,7 @@ const nominal = (v: unknown) => {
 
   <div
     v-else
-    class="grid gap-3"
+    class="grid grid-cols-1 gap-3"
   >
     <div
       v-for="g in grupAktif"
@@ -258,7 +258,7 @@ const nominal = (v: unknown) => {
           />
         </UFormField>
       </div>
-      <div class="grid gap-2">
+      <div class="grid grid-cols-1 gap-2">
         <div
           v-for="(r, i) in (grup[g]?.rows ?? [])"
           :key="i"

@@ -60,7 +60,7 @@ async function simpan() {
     v-model:open="open"
     :title="`Kepala surat PR-${pr?.no || '?'}`"
   >
-    <div class="grid gap-4">
+    <div class="grid grid-cols-1 gap-4">
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField label="PR No">
           <UInput

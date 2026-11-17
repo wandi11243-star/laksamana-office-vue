@@ -101,7 +101,7 @@ const grand = computed(() => eventFinance(props.ev, props.settings).grand)
         <!-- Lampiran / layout: images centred, other files as links (all via Bearer blob) -->
         <div
           v-else-if="b.t === 'files'"
-          class="grid gap-2"
+          class="grid grid-cols-1 gap-2"
         >
           <div
             v-for="f in berkasOv(b.raw)"

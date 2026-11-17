@@ -1277,7 +1277,7 @@ function labelKursiTiket(sid?: string) {
         v-model:open="sheetKelas"
         :title="kelasId ? 'Edit kelas tiket' : 'Kelas tiket baru'"
       >
-        <div class="grid gap-3">
+        <div class="grid grid-cols-1 gap-3">
           <UFormField
             label="Nama"
             required

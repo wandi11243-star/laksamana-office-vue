@@ -266,7 +266,7 @@ function presentasi(i: number) {
           :file-key="slideEdit.key"
           img-class="mb-4 h-40 w-full rounded-lg border border-default object-cover"
         />
-        <div class="grid gap-4">
+        <div class="grid grid-cols-1 gap-4">
           <UFormField label="Judul">
             <UInput
               v-model="edit.judul"

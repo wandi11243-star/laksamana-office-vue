@@ -481,7 +481,7 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
     >
       <div
         v-if="detail"
-        class="grid gap-3"
+        class="grid grid-cols-1 gap-3"
       >
         <img
           v-if="detail.poster"
@@ -599,7 +599,7 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
     >
       <div
         v-if="impor"
-        class="grid gap-3"
+        class="grid grid-cols-1 gap-3"
       >
         <p class="text-xs text-muted">
           Yang diambil dari berkas hanya <b>nama promo, tanggal mulai, tanggal selesai, dan benefit/diskon</b> —

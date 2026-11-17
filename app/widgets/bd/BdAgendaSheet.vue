@@ -304,7 +304,7 @@ async function hapus() {
     >
       Hanya penyelenggara yang bisa mengubah agenda ini. Kamu tetap bisa menjawab undangan di bawah.
     </p>
-    <div class="grid gap-4">
+    <div class="grid grid-cols-1 gap-4">
       <p
         v-if="agenda"
         class="text-xs text-muted"
@@ -524,7 +524,7 @@ async function hapus() {
         </p>
         <div
           v-if="f.peserta.length"
-          class="grid gap-1"
+          class="grid grid-cols-1 gap-1"
         >
           <div
             v-for="id in f.peserta"

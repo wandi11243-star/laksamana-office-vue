@@ -21,11 +21,35 @@ export default defineAppConfig({
     input: {
       slots: { base: 'rounded-field' },
     },
+    // Dropdowns (every USelect / USelectMenu in the app): a roomy rounded panel
+    // with a soft shadow, gold-tinted hover, the chosen item bold in deep gold
+    // with a gold check, quiet uppercase group labels, and a chevron that turns
+    // while open. The panel may grow wider than its trigger so long names show.
     select: {
-      slots: { base: 'rounded-field' },
+      slots: {
+        base: 'rounded-field hover:ring-accented data-[state=open]:ring-2 data-[state=open]:ring-gold',
+        trailingIcon: 'transition-transform duration-200 group-data-[state=open]:rotate-180',
+        content: 'w-auto min-w-(--reka-select-trigger-width) max-w-[min(26rem,92vw)] rounded-xl ring-1 ring-default shadow-xl shadow-ink-900/10',
+        viewport: 'divide-y-0',
+        group: 'p-1.5',
+        label: 'px-2.5 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted',
+        item: 'before:rounded-lg data-highlighted:not-data-disabled:before:bg-gold-soft/60 data-[state=checked]:font-semibold data-[state=checked]:text-gold-deep',
+        itemTrailingIcon: 'text-gold-deep',
+      },
+      variants: { size: { sm: { item: 'px-2.5 py-1.5 text-xs' }, md: { item: 'px-2.5 py-2 text-sm' } } },
     },
     selectMenu: {
-      slots: { base: 'rounded-field' },
+      slots: {
+        base: 'rounded-field hover:ring-accented data-[state=open]:ring-2 data-[state=open]:ring-gold',
+        trailingIcon: 'transition-transform duration-200 group-data-[state=open]:rotate-180',
+        content: 'w-auto min-w-(--reka-combobox-trigger-width) max-w-[min(26rem,92vw)] rounded-xl ring-1 ring-default shadow-xl shadow-ink-900/10',
+        input: 'border-b border-default',
+        group: 'p-1.5',
+        label: 'px-2.5 pt-2 pb-1 text-[10px] font-bold uppercase tracking-wider text-muted',
+        item: 'before:rounded-lg data-highlighted:not-data-disabled:before:bg-gold-soft/60 data-[state=checked]:font-semibold data-[state=checked]:text-gold-deep',
+        itemTrailingIcon: 'text-gold-deep',
+      },
+      variants: { size: { sm: { item: 'px-2.5 py-1.5 text-xs' }, md: { item: 'px-2.5 py-2 text-sm' } } },
     },
     textarea: {
       slots: { base: 'rounded-field' },

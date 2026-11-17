@@ -450,12 +450,16 @@ async function hapus() {
     v-model:open="open"
     :title="task ? 'Edit task' : 'Task baru'"
     description="Prioritas ala Eisenhower — penting × mendesak."
+    detail
   >
-    <div class="grid gap-4">
+    <!-- Wide dialog (owner request, 17 Nov 2026): fields sit in aligned rows,
+         every explanation goes under its label so the rows line up. -->
+    <div class="grid grid-cols-1 gap-5">
       <UFormField label="Nama task">
         <UInput
           v-model="f.name"
           placeholder="Apa yang harus dikerjakan?"
+          size="lg"
           class="w-full"
         />
       </UFormField>
@@ -464,30 +468,54 @@ async function hapus() {
           v-model="f.desc"
           placeholder="Detail / catatan…"
           :rows="3"
+          autoresize
           class="w-full"
         />
       </UFormField>
-      <UFormField label="Divisi">
-        <USelect
-          v-model="f.div"
-          :items="opsiDiv"
-          class="w-full"
-        />
-      </UFormField>
+      <div class="grid gap-4 *:min-w-0 sm:grid-cols-2 lg:grid-cols-4">
+        <UFormField label="Divisi">
+          <USelect
+            v-model="f.div"
+            :items="opsiDiv"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField label="Status">
+          <USelect
+            v-model="f.status"
+            :items="STATUS_FLOW"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField label="Prioritas">
+          <USelect
+            v-model="f.priority"
+            :items="PRIORITAS"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField label="Tipe">
+          <USelect
+            v-model="f.type"
+            :items="TASK_TIPE"
+            class="w-full"
+          />
+        </UFormField>
+      </div>
       <UFormField label="PIC — boleh lebih dari satu">
         <BdPicPicker
           v-model="f.pics"
           :people="people"
         />
       </UFormField>
-      <UFormField label="Review oleh — tag siapa yang memeriksa (opsional)">
+      <UFormField
+        label="Review oleh (opsional)"
+        description="Tag siapa yang memeriksa — task berstatus Review masuk My Task-nya di kelompok &quot;Menunggu review kamu&quot;."
+      >
         <BdPicPicker
           v-model="f.reviewers"
           :people="people"
         />
-        <template #hint>
-          Task berstatus Review masuk My Task reviewer di kelompok "Menunggu review kamu".
-        </template>
       </UFormField>
       <UFormField label="Tag — task ini untuk siapa (boleh lebih dari satu)">
         <div
@@ -578,30 +606,7 @@ async function hapus() {
           />
         </div>
       </UFormField>
-      <div class="grid gap-4 *:min-w-0 sm:grid-cols-3">
-        <UFormField label="Status">
-          <USelect
-            v-model="f.status"
-            :items="STATUS_FLOW"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Prioritas">
-          <USelect
-            v-model="f.priority"
-            :items="PRIORITAS"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Tipe">
-          <USelect
-            v-model="f.type"
-            :items="TASK_TIPE"
-            class="w-full"
-          />
-        </UFormField>
-      </div>
-      <div class="grid gap-4 *:min-w-0 sm:grid-cols-2 xl:grid-cols-4">
+      <div class="grid gap-4 *:min-w-0 sm:grid-cols-2 lg:grid-cols-4">
         <UFormField label="Mulai (opsional)">
           <UInput
             v-model="f.start"
@@ -616,15 +621,15 @@ async function hapus() {
             class="w-full"
           />
         </UFormField>
-        <UFormField label="Jam (opsional)">
+        <UFormField
+          label="Jam (opsional)"
+          help="Info di samping deadline, mis. 14:00."
+        >
           <UInput
             v-model="f.jam"
             type="time"
             class="w-full"
           />
-          <template #hint>
-            Tampil sebagai info di samping deadline — mis. 14:00.
-          </template>
         </UFormField>
         <UFormField label="Project (opsional)">
           <USelect
@@ -637,26 +642,25 @@ async function hapus() {
         </UFormField>
       </div>
       <div class="grid gap-4 *:min-w-0 sm:grid-cols-2">
-        <UFormField label="Berulang">
+        <UFormField
+          label="Berulang"
+          :help="`Saat ditandai Done, task berikutnya lahir otomatis dengan deadline berikutnya (butuh deadline).${labelUlang(f.ulang === '__kustom' ? ulangKustom : f.ulang, f.deadline) ? ` ${labelUlang(f.ulang === '__kustom' ? ulangKustom : f.ulang, f.deadline)}.` : ''}`"
+        >
           <USelect
             :model-value="f.ulang || PILIHAN_TANPA"
             :items="opsiUlang"
             class="w-full"
             @update:model-value="(v: string | undefined) => { f.ulang = !v || v === PILIHAN_TANPA ? '' : v; if (f.ulang === '__kustom' || f.ulang.startsWith('k/')) kustomDari(f.ulang === '__kustom' ? ulangKustom : f.ulang, f.deadline) }"
           />
-          <template #hint>
-            Saat ditandai Done, task berikutnya lahir otomatis dengan deadline berikutnya. Butuh deadline.
-            {{ labelUlang(f.ulang === '__kustom' ? ulangKustom : f.ulang, f.deadline) }}
-          </template>
         </UFormField>
-        <UFormField label="Daily Task">
-          <UCheckbox
-            v-model="f.daily"
-            label="Masuk Daily Task"
-          />
-          <template #hint>
-            Daily Task tidak masuk project mana pun.
-          </template>
+        <UFormField
+          label="Daily Task"
+          help="Daily Task tidak masuk project mana pun."
+        >
+          <label class="flex min-h-9 cursor-pointer items-center gap-2 rounded-field border border-default bg-default px-3 py-2 text-sm">
+            <UCheckbox v-model="f.daily" />
+            Masuk Daily Task
+          </label>
         </UFormField>
       </div>
       <div
@@ -761,7 +765,8 @@ async function hapus() {
             v-for="(s, ix) in subDraf"
             :key="s.id"
           >
-            <div class="flex items-center gap-2 px-2 py-1.5">
+            <!-- Phone: the name takes a full line, date / assignee / buttons wrap under it. -->
+            <div class="flex flex-wrap items-center gap-2 px-3 py-2">
               <UCheckbox
                 :model-value="s.done"
                 @update:model-value="(v: boolean | 'indeterminate') => s.done = v === true"
@@ -770,7 +775,7 @@ async function hapus() {
                 :model-value="s.t"
                 placeholder="Sub-task…"
                 size="sm"
-                class="min-w-0 flex-1 [&_input]:min-w-0"
+                class="min-w-[12rem] flex-1 [&_input]:min-w-0"
                 :class="s.done ? 'opacity-60 line-through' : ''"
                 @update:model-value="(v: string | number) => s.t = String(v)"
               />
@@ -787,7 +792,7 @@ async function hapus() {
                 :items="opsiSubPic(s.p)"
                 size="sm"
                 title="Di-assign ke (opsional)"
-                class="w-32 shrink-0"
+                class="w-40 shrink-0"
                 @update:model-value="(v: string | undefined) => s.p = !v || v === PILIHAN_TANPA ? '' : v"
               />
               <UButton
@@ -950,11 +955,16 @@ async function hapus() {
       </div>
     </div>
 
+    <!-- The wide (detail) footer lays out left to right: Hapus apart on the left, Batal · Simpan on the right. -->
     <template #footer>
       <UButton
-        label="Simpan"
-        icon="i-lucide-check"
-        @click="simpan"
+        v-if="task"
+        label="Hapus"
+        icon="i-lucide-trash-2"
+        color="error"
+        variant="soft"
+        class="me-auto"
+        @click="hapusMau = true"
       />
       <UButton
         label="Batal"
@@ -962,13 +972,12 @@ async function hapus() {
         variant="outline"
         @click="open = false"
       />
+      <!-- Phone sheet footer is a 2-column grid: with Hapus present Simpan takes a full row. -->
       <UButton
-        v-if="task"
-        label="Hapus"
-        icon="i-lucide-trash-2"
-        color="error"
-        variant="soft"
-        @click="hapusMau = true"
+        label="Simpan"
+        icon="i-lucide-check"
+        :class="task ? 'col-span-2' : ''"
+        @click="simpan"
       />
     </template>
   </ResponsiveSheet>

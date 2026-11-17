@@ -435,7 +435,7 @@ function bersihkan(): void {
     >
       <div
         v-if="menuEdit"
-        class="grid gap-3"
+        class="grid grid-cols-1 gap-3"
       >
         <UFormField label="Nama">
           <UInput v-model="menuEdit.nama" />
@@ -480,7 +480,7 @@ function bersihkan(): void {
     >
       <div
         v-if="userEdit"
-        class="grid gap-3"
+        class="grid grid-cols-1 gap-3"
       >
         <UFormField label="Nama">
           <UInput v-model="userEdit.nama" />
