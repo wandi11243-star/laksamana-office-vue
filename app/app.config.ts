@@ -91,6 +91,11 @@ export default defineAppConfig({
       // The modal's overlay colour lives in its `overlay` variant (applied after
       // the slots), so the dark tint must be set there or the light default wins.
       variants: { overlay: { true: { overlay: 'bg-ink-900/55' } } },
+      // `overflow-clip`, not `hidden`: a hidden box can still be scrolled by the
+      // browser (focusing an off-screen input inside it), which slid the whole
+      // dialog up and left it blank white. A clipped box cannot scroll at all;
+      // the body keeps its own scroll.
+      compoundVariants: [{ scrollable: false, fullscreen: false, class: { content: 'overflow-clip' } }],
     },
     slideover: {
       slots: { overlay: 'bg-ink-900/55 backdrop-blur-[2px]', content: 'ring-0 shadow-2xl shadow-ink-900/30', body: 'overflow-x-hidden' },
