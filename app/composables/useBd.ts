@@ -20,12 +20,13 @@ import type { Versi } from '~/utils/versi'
 import { ifMatch, isKonflik, isVersiWajib, tanganiKonflik, tulisBerVersi } from '~/utils/versi'
 import { cekBolehDone, deps, gulirPatch, labelUlang, lahirkanUlang, namaPendekTask, normalisasiStatus, normResp, parseUlang, penunggu, pesanTunggu, rantaiUlang, segarkanProgress, selesai, seriBerakhir, todayISO } from '~/utils/bd-rumus'
 import { fTglP } from '~/utils/format'
+import { isAdminOf, type Me } from '~/composables/useMe'
 import { BATAS_TULIS_PARALEL, hitungBerhasilParalel, petaParalel } from '~/utils/paralel'
 
 /** API resource names (`docs/api/bd.md:40`). */
 export type BdResource = 'people' | 'projects' | 'tasks' | 'routines' | 'coord-requests' | 'purchase-orders' | 'purchase-requests' | 'agenda'
 /** Setting documents (`docs/api/bd.md:60-68`). */
-export type BdSetting = 'focus' | 'approverSets' | 'promos' | 'tagWarna'
+export type BdSetting = 'focus' | 'approverSets' | 'promos' | 'tagWarna' | 'aksesHalaman'
 
 /** One BD crew row. `ket/name/active/tanpaAkses` belong to the Office roster; `role/div/boss` are BD OS's. */
 export interface BdPerson {
@@ -313,6 +314,8 @@ export interface BdSettings {
   promos: BdPromo[]
   /** Tag colours (`{lowercaseTag: hex}`); absent until the API carries it — readers fall back to the name hash. */
   tagWarna: Record<string, string>
+  /** Kelola Akses: screens hidden per crew member, `{officeUserId: [screen keys]}`; absent = everything open. */
+  aksesHalaman?: Record<string, string[]>
 }
 
 export const stateKosong = (): BdState => ({
@@ -850,3 +853,19 @@ export function ukuranLampiran(n: number): string {
 }
 
 export const lampiranGambar = (f: Pick<BdLampiran, 'mime'>) => String(f.mime || '').startsWith('image/')
+
+// ---------------------------------------------------------------- Kelola Akses (page access)
+
+/**
+ * Screens a BD admin can close per crew member. Dashboard (the landing page)
+ * and Kelola Akses itself are not in the list: everyone keeps a home screen,
+ * and only admins reach the access page anyway.
+ */
+export const LAYAR_DIATUR_BD = ['mytask', 'daily', 'recurring', 'projects', 'calendar', 'inbox', 'promo', 'purchasing'] as const
+
+/** The screen keys hidden from this Office user (empty for BD admins and while settings load). */
+export function layarTersembunyiBd(me: Me | null, akses?: Record<string, string[]>): string[] {
+  if (!me || isAdminOf(me, 'bd')) return []
+  const a = akses ?? (useNuxtData<{ data?: BdSettings }>('bd-settings').data.value?.data?.aksesHalaman)
+  return Array.isArray(a?.[me.id]) ? a![me.id]! : []
+}
