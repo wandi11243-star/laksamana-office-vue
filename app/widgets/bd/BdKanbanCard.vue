@@ -42,7 +42,7 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
     role="button"
     tabindex="0"
     title="Seret untuk pindah kolom"
-    class="group block w-full min-w-0 cursor-grab overflow-hidden rounded-lg border border-l-[3px] bg-default px-3 py-2.5 text-start shadow-panel transition-[transform,box-shadow,border-color] duration-150 ease-laks hover:-translate-y-0.5 hover:border-gold/60 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-primary active:cursor-grabbing"
+    class="group block w-full min-w-0 cursor-grab overflow-hidden rounded-lg border border-l-[3px] bg-default px-4 py-3.5 text-start shadow-panel transition-[transform,box-shadow,border-color] duration-150 ease-laks hover:-translate-y-0.5 hover:border-gold/60 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-primary active:cursor-grabbing"
     :class="[
       hal.length ? 'border-lilac-light' : 'border-default',
       // The left edge tells the deadline at a glance: red overdue, gold due, green done.
@@ -58,7 +58,7 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
     >{{ task.name }}</span>
     <span
       v-if="hal.length"
-      class="mt-1 flex items-start gap-1 text-[11px] font-semibold text-ink-900"
+      class="mt-2 flex items-start gap-1 text-[11px] font-semibold text-ink-900"
     >
       <UIcon
         name="i-lucide-lock"
@@ -68,7 +68,7 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
     </span>
     <span
       v-if="namaReview.length"
-      class="mt-1 flex items-start gap-1 text-[11px] font-semibold text-muted"
+      class="mt-2 flex items-start gap-1 text-[11px] font-semibold text-muted"
       :title="`Review oleh ${namaReview.join(', ')}`"
     >
       <UIcon
@@ -78,7 +78,7 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
       <span class="min-w-0 break-words">Review: {{ namaReview.join(', ') }}</span>
     </span>
 
-    <span class="mt-2 flex min-w-0 flex-wrap items-center gap-1.5">
+    <span class="mt-3 flex min-w-0 flex-wrap items-center gap-2">
       <AppStatus
         v-if="projectName"
         size="sm"
@@ -154,7 +154,7 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
 
     <span
       v-if="tagsOf(task).length || labelUlang(task.ulang, task.deadline)"
-      class="mt-1.5 flex min-w-0 flex-wrap items-center gap-1"
+      class="mt-2.5 flex min-w-0 flex-wrap items-center gap-1.5"
     >
       <BdTagChip
         v-for="g in tagsOf(task)"
@@ -176,7 +176,7 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
 
     <span
       v-if="subBuka && subs(task).length"
-      class="mt-2 grid gap-1 rounded-md bg-muted/50 p-2"
+      class="mt-3 grid gap-1.5 rounded-md bg-muted/50 p-2"
       @click.stop
     >
       <label
@@ -225,7 +225,7 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
 
     <span
       v-if="sub.n"
-      class="mt-2 flex items-center gap-2"
+      class="mt-3 flex items-center gap-2"
     >
       <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
         <span

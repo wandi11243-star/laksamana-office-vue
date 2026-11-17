@@ -33,7 +33,10 @@ const props = withDefaults(defineProps<{
   /** Cap each column's card list (e.g. `max-h-[70dvh]`): the cards scroll inside
    *  the column instead of stretching the page. Empty = grow with the cards. */
   listClass?: string
+  /** Narrowest column width (px) in the `scroll` layout; columns share any extra room. */
+  colMin?: number
 }>(), {
+  colMin: 240,
   canDrag: true,
   dragReason: '',
   layout: 'grid',
@@ -56,7 +59,7 @@ function onCardClick(itemId: string, colId: string) {
 }
 
 const trackClass = computed(() => props.layout === 'scroll'
-  ? 'grid auto-cols-[minmax(240px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-2'
+  ? 'grid grid-flow-col gap-4 overflow-x-auto pb-2'
   : 'grid gap-3 lg:grid-cols-6')
 
 function onDragOver(colId: string) {
@@ -76,7 +79,10 @@ defineExpose({ swallowClick: drag.swallowClick })
 </script>
 
 <template>
-  <div :class="trackClass">
+  <div
+    :class="trackClass"
+    :style="layout === 'scroll' ? { gridAutoColumns: `minmax(${colMin}px, 1fr)` } : undefined"
+  >
     <section
       v-for="col in columns"
       :key="col.id"
@@ -96,8 +102,8 @@ defineExpose({ swallowClick: drag.swallowClick })
         </slot>
       </header>
       <div
-        class="flex min-h-16 flex-1 flex-col gap-2 p-2"
-        :class="listClass ? `${listClass} overflow-y-auto overscroll-contain [scrollbar-width:thin] *:shrink-0` : ''"
+        class="flex min-h-16 flex-1 flex-col p-2"
+        :class="listClass ? `${listClass} gap-3 overflow-y-auto overscroll-contain [scrollbar-width:thin] *:shrink-0` : 'gap-2'"
       >
         <template
           v-for="item in col.items"
