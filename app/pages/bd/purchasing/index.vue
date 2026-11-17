@@ -245,6 +245,8 @@ const pilihTambah = reactive<Record<string, string>>({})
 function prTtd(x: BdPr): { l: string, ok: boolean }[] {
   return penyetujuPr(x, setsEfektif.value, people.value).map(s => ({ l: s.l, ok: (x.approvals?.[s.k] || {}).at ? true : false }))
 }
+/** Signer columns of the sheet table: every signer label of the listed sheets, first-seen order. */
+const kolomTtd = computed(() => [...new Set(prTampil.value.flatMap(x => prTtd(x).map(t => t.l)))])
 </script>
 
 <template>
@@ -252,20 +254,19 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
     title="Purchasing"
     description="Purchase request mingguan, vendor & status pembelian."
   >
+    <!-- Old layout: the view tabs sit next to "Request Order" in the header. -->
     <template #actions>
+      <AppSeg
+        v-model="poMode"
+        :options="tab"
+        size="sm"
+      />
       <UButton
         label="Request Order"
         icon="i-lucide-plus"
         @click="bukaRequest = true"
       />
     </template>
-
-    <div class="mb-4">
-      <AppSeg
-        v-model="poMode"
-        :options="tab"
-      />
-    </div>
 
     <AppStatGrid
       :loading="statMemuat"
@@ -295,9 +296,9 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
     <!-- ── PR & Rekap Mingguan ── -->
     <template v-if="poMode === 'pr'">
       <AppPanel
-        title="PR & Rekap Mingguan"
-        icon="i-lucide-file-text"
-        :description="bebas.length ? `${bebas.length} request menunggu dijadikan lembar PR` : undefined"
+        :title="bebas.length ? `${bebas.length} request menunggu dijadikan lembar PR` : 'Request order'"
+        icon="i-lucide-inbox"
+        flush
       >
         <template #actions>
           <UButton
@@ -311,8 +312,12 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
 
         <p
           v-if="!bebas.length"
-          class="py-4 text-center text-sm text-muted"
+          class="px-4 py-8 text-center text-sm text-muted"
         >
+          <UIcon
+            name="i-lucide-check-circle-2"
+            class="mx-auto mb-1 block size-6 text-success"
+          />
           Semua request sudah masuk dokumen PR.
         </p>
         <div
@@ -321,95 +326,97 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
         >
           <table class="w-full text-sm">
             <thead class="bg-muted text-muted">
-              <tr>
-                <th class="px-2 py-2">
-                  <input
-                    type="checkbox"
-                    :checked="pilih.size === bebas.length"
+              <tr class="text-[11px] font-semibold uppercase tracking-wide">
+                <th class="w-10 py-3 ps-4 pe-2">
+                  <UCheckbox
+                    :model-value="pilih.size === bebas.length ? true : pilih.size ? 'indeterminate' : false"
                     aria-label="Pilih semua"
-                    @change="pilihSemua"
-                  >
+                    @update:model-value="pilihSemua"
+                  />
                 </th>
-                <th class="px-2 py-2 text-start text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-start">
                   Nama item
                 </th>
-                <th class="px-2 py-2 text-start text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-end">
                   Jumlah
                 </th>
-                <th class="px-2 py-2 text-start text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-start">
                   Satuan
                 </th>
-                <th class="px-2 py-2 text-start text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-start">
                   Alasan / kebutuhan
                 </th>
-                <th class="px-2 py-2 text-start text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-start">
                   Peminta
                 </th>
-                <th class="px-2 py-2 text-end text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-end">
                   Harga
                 </th>
-                <th class="px-2 py-2 text-start text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-start">
                   Butuh
                 </th>
-                <th class="px-2 py-2 text-start text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-start">
                   Diinput
                 </th>
-                <th class="px-2 py-2" />
+                <th class="py-3 pe-4" />
               </tr>
             </thead>
             <tbody class="divide-y divide-default">
               <tr
                 v-for="p in bebas"
                 :key="p.id"
-                class="hover:bg-elevated/50"
+                class="transition-colors hover:bg-muted/70"
+                :class="pilih.has(p.id) ? 'bg-gold-soft/30' : ''"
               >
-                <td class="px-2 py-2 text-center">
-                  <input
-                    type="checkbox"
-                    :checked="pilih.has(p.id)"
+                <td class="py-3.5 ps-4 pe-2">
+                  <UCheckbox
+                    :model-value="pilih.has(p.id)"
                     :aria-label="`Pilih ${p.item}`"
-                    @change="togglePilih(p.id)"
-                  >
+                    @update:model-value="togglePilih(p.id)"
+                  />
                 </td>
                 <td
-                  class="cursor-pointer px-2 py-2"
+                  class="cursor-pointer px-3 py-3.5"
                   @click="bukaPoSheet(p)"
                 >
-                  <span class="font-semibold text-highlighted">{{ p.item }}</span>
+                  <span class="font-semibold text-highlighted hover:text-gold-deep">{{ p.item }}</span>
                   <span
                     v-if="p.sumber"
                     class="ms-1 text-xs text-muted"
                   >(dari {{ p.sumber }})</span>
                 </td>
-                <td class="px-2 py-2 num">
+                <td class="px-3 py-3.5 text-end num font-semibold">
                   {{ Number(p.qty) || 0 }}
                 </td>
-                <td class="px-2 py-2 text-muted">
+                <td class="px-3 py-3.5 text-muted">
                   {{ p.unit || '—' }}
                 </td>
-                <td class="px-2 py-2 text-muted">
+                <td class="max-w-[280px] px-3 py-3.5 text-muted">
                   {{ p.note || '—' }}
                 </td>
-                <td class="px-2 py-2 text-muted">
+                <td class="px-3 py-3.5 text-muted">
                   {{ poRequester(p, people) }}
                 </td>
-                <td class="px-2 py-2 text-end whitespace-nowrap">
+                <td class="px-3 py-3.5 text-end whitespace-nowrap">
                   <span
                     v-if="Number(p.amount)"
                     class="font-semibold text-highlighted num"
                   >{{ fRpPenuh(p.amount) }}</span>
-                  <span
+                  <AppStatus
                     v-else
-                    class="text-muted"
-                  >belum diisi</span>
+                    color="warning"
+                    size="sm"
+                  >
+                    belum diisi
+                  </AppStatus>
                 </td>
-                <td class="px-2 py-2 whitespace-nowrap text-muted">
+                <td class="px-3 py-3.5 whitespace-nowrap text-muted">
                   {{ p.needBy ? fTglP(p.needBy) : '—' }}
                 </td>
-                <td class="px-2 py-2 whitespace-nowrap text-muted">
+                <td class="px-3 py-3.5 whitespace-nowrap text-muted">
                   {{ fWaktu(p.at) }}
                 </td>
-                <td class="px-2 py-2">
+                <td class="py-3.5 pe-4">
                   <div class="flex justify-end gap-1">
                     <UButton
                       icon="i-lucide-pencil"
@@ -435,23 +442,22 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
         </div>
       </AppPanel>
 
+      <!-- Old layout: Berjalan / Arsip tabs above the sheet table, the archive rule on the right. -->
+      <div class="mb-3 mt-6 flex flex-wrap items-center justify-between gap-3">
+        <AppSeg
+          :model-value="prArsip ? 'arsip' : 'berjalan'"
+          :options="[{ value: 'berjalan', label: `Berjalan (${prJalan.length})` }, { value: 'arsip', label: `Arsip (${prArsipList.length})` }]"
+          size="sm"
+          @update:model-value="(v: 'berjalan' | 'arsip' | undefined) => { prArsip = v === 'arsip' }"
+        />
+        <span class="text-xs text-muted">Lembar pindah ke arsip sendiri begitu seluruh itemnya diproses.</span>
+      </div>
       <AppPanel
-        title="Dokumen PR"
-        icon="i-lucide-files"
-        :description="`${prJalan.length} berjalan · ${prArsipList.length} arsip`"
+        flush
       >
-        <template #actions>
-          <AppSeg
-            :model-value="prArsip ? 'arsip' : 'berjalan'"
-            :options="[{ value: 'berjalan', label: `Berjalan (${prJalan.length})` }, { value: 'arsip', label: `Arsip (${prArsipList.length})` }]"
-            size="sm"
-            @update:model-value="(v: 'berjalan' | 'arsip' | undefined) => { prArsip = v === 'arsip' }"
-          />
-        </template>
-
         <p
           v-if="!prTampil.length"
-          class="py-4 text-center text-sm text-muted"
+          class="px-4 py-8 text-center text-sm text-muted"
         >
           {{ prArsip ? 'Arsip masih kosong.' : 'Tidak ada lembar PR yang berjalan — semua sudah selesai diproses.' }}
         </p>
@@ -461,41 +467,46 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
         >
           <table class="w-full text-sm">
             <thead class="bg-muted text-muted">
-              <tr>
-                <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
-                  PR No
+              <tr class="text-[11px] font-semibold uppercase tracking-wide">
+                <th class="py-3 ps-4 pe-3 text-start whitespace-nowrap">
+                  PR no
                 </th>
-                <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-start">
                   Tanggal
                 </th>
-                <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-start">
                   Periode
                 </th>
-                <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-start">
                   Penyusun
                 </th>
-                <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-start">
                   Dept
                 </th>
-                <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-start">
                   Isi lembar
                 </th>
-                <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-end">
                   Item
                 </th>
-                <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-start">
                   Diproses
                 </th>
-                <th class="px-3 py-2 text-end text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-end whitespace-nowrap">
                   Grand total
                 </th>
-                <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
-                  Tanda tangan
+                <!-- One column per signer (old layout), in the order the sets list them. -->
+                <th
+                  v-for="k in kolomTtd"
+                  :key="k"
+                  class="px-3 py-3 text-start"
+                >
+                  {{ k }}
                 </th>
-                <th class="px-3 py-2 text-start text-[11px] uppercase tracking-wide">
+                <th class="px-3 py-3 text-start">
                   Status
                 </th>
-                <th class="px-3 py-2 text-end text-[11px] uppercase tracking-wide">
+                <th class="py-3 pe-4">
                   <span class="sr-only">Aksi</span>
                 </th>
               </tr>
@@ -504,30 +515,35 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
               <tr
                 v-for="x in prTampil"
                 :key="x.id"
-                class="cursor-pointer hover:bg-elevated/50"
+                class="cursor-pointer transition-colors hover:bg-muted/70"
                 @click="navigateTo(`/bd/purchasing/pr-${x.id}`)"
               >
-                <td class="px-3 py-2 font-semibold text-highlighted">
+                <td class="py-3.5 ps-4 pe-3 font-semibold whitespace-nowrap text-highlighted">
                   PR-{{ x.no || '?' }}
                 </td>
-                <td class="px-3 py-2 whitespace-nowrap text-muted">
+                <td class="px-3 py-3.5 whitespace-nowrap text-muted">
                   {{ fTglP(x.tanggal) }}
                 </td>
-                <td class="px-3 py-2 whitespace-nowrap text-muted">
+                <td class="px-3 py-3.5 whitespace-nowrap text-muted">
                   {{ labelMinggu(x.weekStart || x.tanggal) }}
                 </td>
-                <td class="px-3 py-2 text-muted">
+                <td class="px-3 py-3.5 text-default">
                   {{ x.nama || '—' }}
                 </td>
-                <td class="px-3 py-2 text-muted">
-                  {{ String(x.dept || '—').split(' ')[0] }}
+                <td class="px-3 py-3.5">
+                  <AppStatus
+                    size="sm"
+                    color="gold"
+                  >
+                    {{ String(x.dept || '—').split(' ')[0] }}
+                  </AppStatus>
                 </td>
-                <td class="max-w-[260px] px-3 py-2 text-xs text-muted">
+                <td class="max-w-[260px] px-3 py-3.5 text-xs leading-relaxed text-muted">
                   {{ prIsi(x.id).slice(0, 5).map(p => p.item).join(', ') || 'belum ada item' }}<template v-if="prIsi(x.id).length > 5">
                     <b> +{{ prIsi(x.id).length - 5 }} lagi</b>
                   </template>
                 </td>
-                <td class="px-3 py-2 num">
+                <td class="px-3 py-3.5 text-end num">
                   {{ prIsi(x.id).length }}
                   <div v-if="prTotal(x.id, semuaPo).belum">
                     <AppStatus
@@ -538,25 +554,37 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
                     </AppStatus>
                   </div>
                 </td>
-                <td class="px-3 py-2">
-                  <AppStatus size="sm">
+                <td class="px-3 py-3.5">
+                  <AppStatus
+                    size="sm"
+                    :color="prIsi(x.id).length && prIsi(x.id).filter(poBeres).length === prIsi(x.id).length ? 'success' : 'neutral'"
+                  >
                     {{ prIsi(x.id).filter(poBeres).length }} / {{ prIsi(x.id).length }}
                   </AppStatus>
                 </td>
-                <td class="px-3 py-2 text-end whitespace-nowrap font-semibold text-highlighted num">
+                <td class="px-3 py-3.5 text-end whitespace-nowrap font-semibold text-highlighted num">
                   {{ fRpPenuh(prTotal(x.id, semuaPo).grand) }}
                 </td>
-                <td class="px-3 py-2">
-                  <span class="flex gap-1">
+                <td
+                  v-for="k in kolomTtd"
+                  :key="k"
+                  class="px-3 py-3.5"
+                >
+                  <template v-if="prTtd(x).find(t => t.l === k)">
                     <AppStatus
-                      v-for="(t, i) in prTtd(x)"
-                      :key="i"
-                      :color="t.ok ? 'success' : 'neutral'"
+                      :color="prTtd(x).find(t => t.l === k)!.ok ? 'success' : 'neutral'"
+                      :icon="prTtd(x).find(t => t.l === k)!.ok ? 'i-lucide-check' : undefined"
                       size="sm"
-                    >{{ t.l }}</AppStatus>
-                  </span>
+                    >
+                      {{ prTtd(x).find(t => t.l === k)!.ok ? 'Sudah' : 'Belum' }}
+                    </AppStatus>
+                  </template>
+                  <span
+                    v-else
+                    class="text-dimmed"
+                  >—</span>
                 </td>
-                <td class="px-3 py-2">
+                <td class="px-3 py-3.5">
                   <AppStatus
                     :color="x.status === 'Selesai' ? 'success' : x.status === 'Disetujui' ? 'info' : x.status === 'Diajukan' ? 'warning' : 'neutral'"
                     size="sm"
@@ -564,7 +592,7 @@ function prTtd(x: BdPr): { l: string, ok: boolean }[] {
                     {{ x.status || 'Draft' }}
                   </AppStatus>
                 </td>
-                <td class="px-3 py-2 text-end">
+                <td class="py-3.5 pe-4 text-end">
                   <UButton
                     icon="i-lucide-trash-2"
                     color="neutral"
