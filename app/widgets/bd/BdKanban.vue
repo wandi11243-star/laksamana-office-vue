@@ -118,6 +118,7 @@ async function tambahKartu(st: string) {
     :columns="kolomKanban"
     layout="scroll"
     list-class="max-h-[min(68dvh,640px)]"
+    :col-min="300"
     @move="pindahKartu"
   >
     <template #header="{ column }">
