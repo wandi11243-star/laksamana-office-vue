@@ -403,6 +403,7 @@ const perBulan = computed(() => {
               <div class="flex gap-2 sm:col-span-2">
                 <UButton
                   color="primary"
+                  loading-auto
                   @click="simpanInline()"
                 >
                   Simpan
@@ -532,6 +533,7 @@ const perBulan = computed(() => {
                   color="neutral"
                   variant="ghost"
                   size="xs"
+                  loading-auto
                   @click="hapusDok(d.k)"
                 >
                   Hapus

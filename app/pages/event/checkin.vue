@@ -489,6 +489,7 @@ onBeforeUnmount(matikanKamera)
           color="primary"
           :icon="kameraNyala ? 'i-lucide-square' : 'i-lucide-camera'"
           class="mb-3"
+          loading-auto
           @click="toggleKamera()"
         >
           {{ kameraNyala ? 'Matikan kamera' : 'Nyalakan kamera' }}
@@ -694,6 +695,7 @@ onBeforeUnmount(matikanKamera)
                 v-if="bolehUbah && !idCheckin.has(row.original.id)"
                 color="primary"
                 size="sm"
+                loading-auto
                 @click="checkin(row.original)"
               >
                 Check-in
@@ -727,6 +729,7 @@ onBeforeUnmount(matikanKamera)
                 v-if="bolehUbah && !idCheckin.has(t.id)"
                 color="primary"
                 size="sm"
+                loading-auto
                 @click="checkin(t)"
               >
                 Check-in

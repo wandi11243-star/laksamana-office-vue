@@ -146,6 +146,7 @@ async function simpan() {
       <UButton
         label="Simpan"
         icon="i-lucide-check"
+        loading-auto
         @click="simpan"
       />
       <UButton

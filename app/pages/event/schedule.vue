@@ -803,6 +803,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
                 color="neutral"
                 variant="outline"
                 size="sm"
+                loading-auto
                 @click="ubahJam()"
               >
                 Simpan jam
@@ -845,6 +846,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
             color="error"
             variant="outline"
             icon="i-lucide-trash-2"
+            loading-auto
             @click="hapusJadwal()"
           >
             Hapus
@@ -932,6 +934,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
         <template #footer>
           <UButton
             color="primary"
+            loading-auto
             @click="simpanTambah()"
           >
             Simpan {{ pilihTalent.length }} jadwal
@@ -1148,6 +1151,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
         <template #footer>
           <UButton
             color="primary"
+            loading-auto
             @click="simpanRutin()"
           >
             Buat jadwal rutin
@@ -1225,6 +1229,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
         <template #footer>
           <UButton
             color="primary"
+            loading-auto
             @click="simpanBulan()"
           >
             Buat jadwal bulan ini

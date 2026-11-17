@@ -587,12 +587,14 @@ async function hapus() {
         v-if="bolehUbah"
         label="Simpan"
         icon="i-lucide-check"
+        loading-auto
         @click="simpan"
       />
       <UButton
         v-if="!bolehUbah && bisaKirimJawaban"
         label="Kirim jawaban"
         icon="i-lucide-check"
+        loading-auto
         @click="simpan"
       />
       <UButton

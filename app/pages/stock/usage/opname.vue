@@ -313,6 +313,7 @@ async function segarkan() {
         color="neutral"
         variant="outline"
         size="sm"
+        loading-auto
         @click="segarkan"
       />
     </template>
@@ -634,6 +635,7 @@ async function segarkan() {
       <template #footer>
         <UButton
           label="Tambah ke database"
+          loading-auto
           @click="simpanItemBaru"
         />
         <UButton
@@ -656,6 +658,7 @@ async function segarkan() {
         <UButton
           label="Hapus"
           color="error"
+          loading-auto
           @click="hapusGo"
         />
         <UButton

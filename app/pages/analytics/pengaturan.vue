@@ -293,6 +293,7 @@ const { data: resepHpp } = useAsyncData(
           <UButton
             label="Petakan"
             icon="i-lucide-plus"
+            loading-auto
             @click="petaTambah()"
           />
         </div>
@@ -322,6 +323,7 @@ const { data: resepHpp } = useAsyncData(
               variant="ghost"
               size="xs"
               :title="`Hapus pemetaan ${k}`"
+              loading-auto
               @click="petaHapus(k)"
             />
           </div>
@@ -375,6 +377,7 @@ const { data: resepHpp } = useAsyncData(
           <UButton
             label="Pasangkan"
             icon="i-lucide-plus"
+            loading-auto
             @click="kodeTambah()"
           />
         </div>
@@ -410,6 +413,7 @@ const { data: resepHpp } = useAsyncData(
               variant="ghost"
               size="xs"
               :title="`Hapus pasangan ${k}`"
+              loading-auto
               @click="kodeHapus(k)"
             />
           </div>

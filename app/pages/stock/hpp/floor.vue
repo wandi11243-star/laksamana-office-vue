@@ -168,6 +168,7 @@ async function hapus(b: BahanHpp) {
                 size="sm"
                 color="error"
                 :aria-label="`Hapus ${row.original.nama}`"
+                loading-auto
                 @click="hapus(row.original)"
               />
             </div>
@@ -198,6 +199,7 @@ async function hapus(b: BahanHpp) {
               variant="ghost"
               color="error"
               :aria-label="`Hapus ${b.nama}`"
+              loading-auto
               @click="hapus(b)"
             />
           </div>

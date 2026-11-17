@@ -312,6 +312,7 @@ async function kirimRevisi() {
         variant="outline"
         size="sm"
         label="Ajukan Approval"
+        loading-auto
         @click="simpanPenawaran({ status: 'Menunggu Approval', submittedBy: sayaId, submittedAt: new Date().toISOString() }, 'Diajukan ke approval', 'mengajukan penawaran')"
       />
       <template v-if="bisaPutus && st === 'Menunggu Approval'">
@@ -319,6 +320,7 @@ async function kirimRevisi() {
           icon="i-lucide-check"
           size="sm"
           label="Setujui"
+          loading-auto
           @click="putus(true)"
         />
         <UButton
@@ -327,6 +329,7 @@ async function kirimRevisi() {
           variant="outline"
           size="sm"
           label="Tolak"
+          loading-auto
           @click="putus(false)"
         />
       </template>
@@ -337,6 +340,7 @@ async function kirimRevisi() {
         variant="outline"
         size="sm"
         :label="st === 'Terkirim' ? 'Kirim ulang' : 'Kirim ke Client'"
+        loading-auto
         @click="kirim"
       />
       <UButton
@@ -431,6 +435,7 @@ async function kirimRevisi() {
         <UButton
           label="Tolak"
           color="error"
+          loading-auto
           @click="kirimTolak"
         />
       </div>

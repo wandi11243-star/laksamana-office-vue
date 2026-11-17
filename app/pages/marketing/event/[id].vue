@@ -859,6 +859,7 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
           />
           <UButton
             :label="tahapKe === 'Deal' ? 'Ya, Deal' : 'Ya, ubah'"
+            loading-auto
             @click="pindahTahap"
           />
         </div>
@@ -889,6 +890,7 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
           />
           <UButton
             label="Ya, Event Selesai"
+            loading-auto
             @click="tandaiSelesai"
           />
         </div>

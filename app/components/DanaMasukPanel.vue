@@ -1105,6 +1105,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           color="error"
           variant="soft"
           size="sm"
+          loading-auto
           @click="hapusDemo"
         />
         <UButton
@@ -1114,6 +1115,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           color="neutral"
           variant="outline"
           size="sm"
+          loading-auto
           @click="pindaiBorongan"
         />
         <UButton
@@ -1122,6 +1124,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           color="neutral"
           variant="outline"
           size="sm"
+          loading-auto
           @click="unduhCsv"
         />
       </div>
@@ -1460,6 +1463,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
                 color="neutral"
                 variant="ghost"
                 size="xs"
+                loading-auto
                 @click="lihatBukti(row.original)"
               />
               <AppStatus v-else>
@@ -1496,6 +1500,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
                   color="neutral"
                   variant="ghost"
                   size="xs"
+                  loading-auto
                   @click="pindaiBaris(row.original)"
                 />
                 <UButton
@@ -2128,6 +2133,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
               color="neutral"
               variant="soft"
               size="sm"
+              loading-auto
               @click="tfSimpan && tfRes && lihatBukti({ r: tfRes, p: tfSimpan, ke: tfForm.ke, dari: tfForm.dari })"
             />
             <UButton
@@ -2136,6 +2142,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
               color="neutral"
               variant="soft"
               size="sm"
+              loading-auto
               @click="tfSimpan && tfRes && pindaiBaris({ r: tfRes, p: tfSimpan, ke: tfForm.ke, dari: tfForm.dari })"
             />
             <span
@@ -2150,6 +2157,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           v-if="bolehVerifikasi"
           label="Simpan"
           size="xl"
+          loading-auto
           @click="simpanTf(false)"
         />
         <UButton
@@ -2158,6 +2166,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           color="neutral"
           variant="soft"
           size="xl"
+          loading-auto
           @click="simpanTf(true)"
         />
         <UButton
@@ -2230,6 +2239,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
         <UButton
           :label="ver.kurang.length ? 'Ya, verifikasi tanpa data lengkap' : 'Ya, verifikasi'"
           size="xl"
+          loading-auto
           @click="verifikasiGo"
         />
         <UButton
@@ -2266,6 +2276,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           label="Tolak bukti"
           color="error"
           size="xl"
+          loading-auto
           @click="tolakGo"
         />
         <UButton
@@ -2345,6 +2356,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
         <UButton
           label="Simpan DP"
           size="xl"
+          loading-auto
           @click="simpanTambah"
         />
         <UButton
@@ -2370,6 +2382,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           :color="konfirmasi.bahaya ? 'error' : 'neutral'"
           :variant="konfirmasi.bahaya ? 'solid' : 'soft'"
           size="xl"
+          loading-auto
           @click="jalankanKonfirmasi"
         />
         <UButton

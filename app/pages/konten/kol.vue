@@ -600,6 +600,7 @@ const kolomV: TableColumn<VisitPenuh>[] = [
                     label="Hadir"
                     icon="i-lucide-check"
                     size="xs"
+                    loading-auto
                     @click="setStatus(row.original, 'came')"
                   />
                   <UButton
@@ -608,6 +609,7 @@ const kolomV: TableColumn<VisitPenuh>[] = [
                     color="neutral"
                     variant="outline"
                     aria-label="Tandai tidak hadir"
+                    loading-auto
                     @click="setStatus(row.original, 'noshow')"
                   />
                 </span>
@@ -645,6 +647,7 @@ const kolomV: TableColumn<VisitPenuh>[] = [
                       label="Hadir"
                       icon="i-lucide-check"
                       size="xs"
+                      loading-auto
                       @click="setStatus(v, 'came')"
                     />
                     <UButton
@@ -653,6 +656,7 @@ const kolomV: TableColumn<VisitPenuh>[] = [
                       color="neutral"
                       variant="outline"
                       aria-label="Tandai tidak hadir"
+                      loading-auto
                       @click="setStatus(v, 'noshow')"
                     />
                   </template>

@@ -389,6 +389,7 @@ function bersihkan(): void {
           label="Unduh cadangan (.json)"
           icon="i-lucide-download"
           color="neutral"
+          loading-auto
           @click="unduh()"
         />
         <p class="mt-4 mb-2 text-sm">

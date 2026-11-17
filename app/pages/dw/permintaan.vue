@@ -398,6 +398,7 @@ async function jalanHapus() {
         <UButton
           label="Ya, tarik"
           color="error"
+          loading-auto
           @click="jalanTarik"
         />
         <UButton
@@ -435,6 +436,7 @@ async function jalanHapus() {
         <UButton
           label="Ya, hapus permanen"
           color="error"
+          loading-auto
           @click="jalanHapus"
         />
         <UButton

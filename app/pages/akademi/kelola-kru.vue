@@ -291,6 +291,7 @@ const tanpaJabatan = computed(() => aktif.value.filter(k => !(k.title ?? '').tri
         <UButton
           label="Simpan"
           icon="i-lucide-save"
+          loading-auto
           @click="simpan"
         />
       </template>

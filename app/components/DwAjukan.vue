@@ -340,6 +340,7 @@ function tutupKonfirm() {
       <UButton
         label="Ya, ganti ajuannya"
         color="error"
+        loading-auto
         @click="jawabBentrok"
       />
       <UButton
@@ -365,6 +366,7 @@ function tutupKonfirm() {
     <template #footer>
       <UButton
         label="Ya, tetap ajukan"
+        loading-auto
         @click="jawabKuota"
       />
       <UButton

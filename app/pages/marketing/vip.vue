@@ -397,6 +397,7 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
               color="neutral"
               variant="outline"
               label="Pulihkan semua"
+              loading-auto
               @click="pulihkanSemua"
             />
           </div>
@@ -414,6 +415,7 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
                 v-if="bisaUbah"
                 size="sm"
                 label="Pulihkan"
+                loading-auto
                 @click="pulihkan(String(r.id))"
               />
               <span
@@ -838,6 +840,7 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
           />
           <UButton
             label="Simpan"
+            loading-auto
             @click="simpanNominal"
           />
         </div>

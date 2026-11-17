@@ -99,6 +99,9 @@ async function sesudah() {
   await refresh()
 }
 const nadaStatus = (x: string): 'success' | 'info' | 'neutral' => (x === 'Diterapkan' ? 'success' : x === 'Ditinjau' ? 'info' : 'neutral')
+
+// Plain buttons that write: no double click while the write runs.
+const { jalan, lagi } = useSibuk()
 </script>
 
 <template>
@@ -132,7 +135,8 @@ const nadaStatus = (x: string): 'success' | 'info' | 'neutral' => (x === 'Ditera
             class="flex min-h-12 min-w-12 flex-col items-center justify-center rounded-field border-2 px-2 py-1"
             :class="myMood?.mood === m ? 'border-primary-400 bg-primary-100 text-primary-700' : 'border-default bg-muted text-muted hover:border-accented'"
             :title="MOOD_LABEL[m]"
-            @click="setMood(m)"
+            :disabled="lagi(m)"
+            @click="jalan(m, () => setMood(m))"
           >
             <UIcon
               :name="MOOD_IKON[m] ?? 'i-lucide-meh'"

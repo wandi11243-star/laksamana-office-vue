@@ -215,6 +215,7 @@ async function hapus() {
       <UButton
         label="Simpan"
         icon="i-lucide-check"
+        loading-auto
         @click="simpan"
       />
       <UButton

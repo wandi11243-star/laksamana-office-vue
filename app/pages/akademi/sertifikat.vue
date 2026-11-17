@@ -29,7 +29,7 @@ const kolom: TableColumn<MateriAkademi>[] = [
 
 const progresMateri = (m: MateriAkademi) => progress.value[kru.value?.id ?? '']?.[m.id] ?? null
 const tanggalSertifikat = tanggalMs(Date.now())
-const cetak = () => window.print()
+const cetak = () => cetakPdf(namaBerkas('Sertifikat Akademi', me.value?.name, tanggalSertifikat))
 
 // Reimagine (B): linear checklist. One next mandatory item is the focal step,
 // the full table stays as the detail archive.

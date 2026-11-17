@@ -459,6 +459,7 @@ const gantt = ref<InstanceType<typeof BdGantt> | null>(null)
       <template #footer>
         <UButton
           label="Simpan"
+          loading-auto
           @click="simpanStage"
         />
         <UButton

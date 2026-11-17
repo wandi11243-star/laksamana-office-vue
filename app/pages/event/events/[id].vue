@@ -809,6 +809,7 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
           <UButton
             v-if="!infoHapus.lunas"
             color="error"
+            loading-auto
             @click="hapus()"
           >
             Ya, hapus

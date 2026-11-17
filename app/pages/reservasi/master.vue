@@ -258,6 +258,7 @@ async function backupJson() {
           color="neutral"
           variant="soft"
           size="sm"
+          loading-auto
           @click="backupJson"
         />
       </div>
@@ -280,6 +281,7 @@ async function backupJson() {
           <UButton
             label="Simpan"
             size="xl"
+            loading-auto
             @click="simpanEstimasi"
           />
           <div class="flex gap-1">
@@ -317,6 +319,7 @@ async function backupJson() {
               color="neutral"
               variant="ghost"
               size="xs"
+              loading-auto
               @click="hapusItem(d.key, i)"
             />
           </span>
@@ -335,6 +338,7 @@ async function backupJson() {
           <UButton
             label="Tambah"
             size="sm"
+            loading-auto
             @click="tambahItem(d.key)"
           />
         </div>
@@ -401,6 +405,7 @@ async function backupJson() {
             <UButton
               label="Simpan hak akses"
               size="sm"
+              loading-auto
               @click="simpanMatriks"
             />
             <UButton
@@ -421,6 +426,7 @@ async function backupJson() {
             color="neutral"
             variant="soft"
             size="sm"
+            loading-auto
             @click="backupJson"
           />
           <p class="basis-full text-sm text-muted">
@@ -450,6 +456,7 @@ async function backupJson() {
           <UButton
             label="Simpan"
             size="xl"
+            loading-auto
             @click="simpanRole"
           />
           <UButton
@@ -474,6 +481,7 @@ async function backupJson() {
             label="Kembalikan"
             color="error"
             size="xl"
+            loading-auto
             @click="resetMatriks"
           />
           <UButton

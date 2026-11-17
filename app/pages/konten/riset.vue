@@ -329,6 +329,7 @@ async function simpanBank() {
           </UButton>
           <UButton
             color="primary"
+            loading-auto
             @click="simpanBank()"
           >
             Simpan ide

@@ -270,6 +270,7 @@ async function hapus(b: IdeBank) {
                 color="neutral"
                 variant="soft"
                 size="xs"
+                loading-auto
                 @click="arsipkan(b, true)"
               >
                 Arsipkan
@@ -297,6 +298,7 @@ async function hapus(b: IdeBank) {
                 color="error"
                 variant="soft"
                 size="xs"
+                loading-auto
                 @click="hapus(b)"
               >
                 Hapus permanen
@@ -305,6 +307,7 @@ async function hapus(b: IdeBank) {
                 color="neutral"
                 variant="soft"
                 size="xs"
+                loading-auto
                 @click="arsipkan(b, false)"
               >
                 Pulihkan
@@ -385,6 +388,7 @@ async function hapus(b: IdeBank) {
           </UButton>
           <UButton
             color="primary"
+            loading-auto
             @click="simpanForm()"
           >
             Simpan ide

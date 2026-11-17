@@ -152,7 +152,7 @@ function kosongkanMinggu() {
 const eksporOpen = ref(false)
 const waOpen = ref(false)
 const waTeks = computed(() => teksWA(set.value, peta.value, kruDiv.value, div.value, hari.value, rentangMinggu(senin.value), true, dwRows.value ?? []))
-const cetak = () => window.print()
+const cetak = () => cetakPdf(namaBerkas('Jadwal mingguan', semuaDiv.value ? 'Semua divisi' : namaDivisiJadwal(div.value), rentangMinggu(senin.value)))
 </script>
 
 <template>

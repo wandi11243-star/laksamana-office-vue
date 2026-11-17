@@ -252,6 +252,7 @@ async function hentikan() {
               label="Selesai"
               icon="i-lucide-check"
               size="xs"
+              loading-auto
               @click="tandaiSelesai(s)"
             />
             <UButton
@@ -268,6 +269,7 @@ async function hentikan() {
               color="neutral"
               variant="outline"
               size="xs"
+              loading-auto
               @click="lanjutkan(s)"
             />
             <span

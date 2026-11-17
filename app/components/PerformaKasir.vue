@@ -733,6 +733,7 @@ const hariBelum = computed(() => days.value.filter(d => !syncKasirBerlaku(d.date
       color="neutral"
       variant="outline"
       class="mt-4"
+      loading-auto
       @click="muatUlang()"
     />
   </AppPage>

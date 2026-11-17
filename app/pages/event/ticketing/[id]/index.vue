@@ -1255,6 +1255,7 @@ function labelKursiTiket(sid?: string) {
             color="neutral"
             variant="outline"
             size="xl"
+            loading-auto
             @click="etiket && unduhQR(etiket)"
           />
           <UButton
@@ -1351,6 +1352,7 @@ function labelKursiTiket(sid?: string) {
         <template #footer>
           <UButton
             color="primary"
+            loading-auto
             @click="simpanKelas()"
           >
             Simpan kelas
@@ -1375,6 +1377,7 @@ function labelKursiTiket(sid?: string) {
         <template #footer>
           <UButton
             color="error"
+            loading-auto
             @click="hapusKelas()"
           >
             Ya, hapus
@@ -1409,6 +1412,7 @@ function labelKursiTiket(sid?: string) {
         <template #footer>
           <UButton
             color="primary"
+            loading-auto
             @click="selesaikan()"
           >
             Selesaikan
@@ -1443,6 +1447,7 @@ function labelKursiTiket(sid?: string) {
         <template #footer>
           <UButton
             label="Ajukan"
+            loading-auto
             @click="ajukanRefund"
           />
           <UButton

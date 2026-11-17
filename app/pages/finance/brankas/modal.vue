@@ -579,12 +579,14 @@ async function akLepas(i: InvestorBrankas) {
                 color="neutral"
                 variant="outline"
                 icon="i-lucide-link"
+                loading-auto
                 @click="akBukaForm(i, 'pilih')"
               />
               <UButton
                 label="Buat akun baru"
                 size="sm"
                 icon="i-lucide-user-plus"
+                loading-auto
                 @click="akBukaForm(i, 'buat')"
               />
             </div>
@@ -780,6 +782,7 @@ async function akLepas(i: InvestorBrankas) {
                   size="xs"
                   color="error"
                   variant="ghost"
+                  loading-auto
                   @click="tmHapus(i, String(t.id))"
                 />
               </span>
@@ -875,6 +878,7 @@ async function akLepas(i: InvestorBrankas) {
                   size="xs"
                   color="error"
                   variant="ghost"
+                  loading-auto
                   @click="rvHapus(i, ix)"
                 />
               </template>

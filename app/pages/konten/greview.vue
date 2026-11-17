@@ -333,6 +333,7 @@ const segSegera = computed(() => (data.value?.review ?? []).filter(r => r.tingka
                   color="neutral"
                   variant="ghost"
                   size="xs"
+                  loading-auto
                   @click="tandai(r, Number(r.ditangani) !== 1)"
                 />
               </div>

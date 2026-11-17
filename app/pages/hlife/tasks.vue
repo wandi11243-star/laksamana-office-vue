@@ -254,6 +254,9 @@ watch(tasks, (list) => {
     })
   }
 }, { immediate: true })
+
+// Plain buttons that write: no double click while the write runs.
+const { jalan, lagi } = useSibuk()
 </script>
 
 <template>
@@ -365,7 +368,8 @@ watch(tasks, (list) => {
               type="button"
               class="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md border border-default bg-default text-transparent transition-colors hover:border-success focus-visible:outline-2 focus-visible:outline-primary"
               aria-label="Tandai selesai"
-              @click="toggle(t)"
+              :disabled="lagi(t)"
+              @click="jalan(t, () => toggle(t))"
             >
               <UIcon
                 name="i-lucide-check"
@@ -446,7 +450,8 @@ watch(tasks, (list) => {
               class="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md border transition-colors focus-visible:outline-2 focus-visible:outline-primary"
               :class="t.done ? 'border-success bg-success text-white' : 'border-default bg-default text-transparent hover:border-success'"
               :aria-label="t.done ? 'Tandai belum selesai' : 'Tandai selesai'"
-              @click="toggle(t)"
+              :disabled="lagi(t)"
+              @click="jalan(t, () => toggle(t))"
             >
               <UIcon
                 name="i-lucide-check"

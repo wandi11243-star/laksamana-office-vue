@@ -409,6 +409,7 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
                   size="sm"
                   color="error"
                   :aria-label="`Hapus mutasi ${row.original.item}`"
+                  loading-auto
                   @click="hapus(row.original)"
                 />
               </div>

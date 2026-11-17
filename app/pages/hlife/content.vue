@@ -342,6 +342,7 @@ function keGcal(c: HlifeContent) {
           :variant="pindah && pindah.stage === s ? 'soft' : 'outline'"
           block
           class="justify-start"
+          loading-auto
           @click="pilihStage(s)"
         />
       </div>

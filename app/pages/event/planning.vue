@@ -305,6 +305,7 @@ async function hapus() {
                   v-if="bolehUbah && statusPengajuan({ pengajuan: e.pengajuan }) !== 'Menunggu'"
                   color="warning"
                   size="sm"
+                  loading-auto
                   @click="ajukan(e)"
                 >
                   Ajukan ke manajemen
@@ -417,6 +418,7 @@ async function hapus() {
         <template #footer>
           <UButton
             color="error"
+            loading-auto
             @click="tolakYakin()"
           >
             Tolak
@@ -462,6 +464,7 @@ async function hapus() {
           <UButton
             v-if="!infoHapus.lunas"
             color="error"
+            loading-auto
             @click="hapus()"
           >
             Ya, hapus

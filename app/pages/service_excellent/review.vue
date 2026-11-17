@@ -510,6 +510,7 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
             color="neutral"
             variant="soft"
             size="sm"
+            loading-auto
             @click="salinLink"
           />
           <UButton
@@ -585,6 +586,7 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
                   v-if="waAktif && bolehMinta"
                   label="Minta review"
                   size="xs"
+                  loading-auto
                   @click="mintaReview(row.original)"
                 />
                 <span
@@ -607,6 +609,7 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
                 v-if="waAktif && bolehMinta"
                 label="Minta"
                 size="xs"
+                loading-auto
                 @click="mintaReview(r)"
               />
             </template>
@@ -682,6 +685,7 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
                   color="neutral"
                   variant="ghost"
                   size="xs"
+                  loading-auto
                   @click="lihatBukti(row.original, row.original.proofData ? 1 : 2)"
                 />
                 <UButton
@@ -867,6 +871,7 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
         <UButton
           label="Simpan klaim"
           size="xl"
+          loading-auto
           @click="simpanKlaim"
         />
         <UButton
@@ -890,6 +895,7 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
         <UButton
           label="Ya, verifikasi"
           size="xl"
+          loading-auto
           @click="verifGo"
         />
         <UButton
@@ -919,6 +925,7 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
           label="Tolak review"
           color="error"
           size="xl"
+          loading-auto
           @click="tolakGo"
         />
         <UButton
@@ -943,6 +950,7 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
           label="Hapus"
           color="error"
           size="xl"
+          loading-auto
           @click="hapusGo"
         />
         <UButton

@@ -1073,6 +1073,7 @@ async function pasang(kode: string, menu: string) {
                 size="sm"
                 color="neutral"
                 variant="outline"
+                loading-auto
                 @click="salin"
               />
               <UButton
@@ -1081,6 +1082,7 @@ async function pasang(kode: string, menu: string) {
                 size="sm"
                 color="neutral"
                 variant="outline"
+                loading-auto
                 @click="unduhCsv"
               />
               <span class="text-xs text-muted">{{ ketSalin }}</span>

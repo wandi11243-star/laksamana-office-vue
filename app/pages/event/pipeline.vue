@@ -242,6 +242,7 @@ function pindahMinta(p: { id: string, to: string }) {
         <template #footer>
           <UButton
             color="primary"
+            loading-auto
             @click="jalankanPindah()"
           >
             Ya, pindahkan

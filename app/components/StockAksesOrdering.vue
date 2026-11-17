@@ -388,6 +388,7 @@ const kolom: TableColumn<KruStock>[] = [
                 size="sm"
                 color="error"
                 :aria-label="`Hapus ${row.original.name}`"
+                loading-auto
                 @click="hapus(row.original)"
               />
             </div>
@@ -418,6 +419,7 @@ const kolom: TableColumn<KruStock>[] = [
               variant="ghost"
               color="error"
               aria-label="Hapus kru"
+              loading-auto
               @click="hapus(k)"
             />
           </div>

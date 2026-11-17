@@ -162,6 +162,9 @@ async function toggleTugas(t: HlifeTask) {
     if (!(await tanganiKonflik(e, refreshTasks))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
 }
+
+// Plain buttons that write: no double click while the write runs.
+const { jalan, lagi } = useSibuk()
 </script>
 
 <template>
@@ -403,7 +406,8 @@ async function toggleTugas(t: HlifeTask) {
               class="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md border transition-colors focus-visible:outline-2 focus-visible:outline-primary"
               :class="t.done ? 'border-success bg-success text-white' : 'border-default bg-default text-transparent hover:border-success'"
               :aria-label="t.done ? 'Tandai belum selesai' : 'Tandai selesai'"
-              @click="toggleTugas(t)"
+              :disabled="lagi(t)"
+              @click="jalan(t, () => toggleTugas(t))"
             >
               <UIcon
                 name="i-lucide-check"
@@ -578,7 +582,8 @@ async function toggleTugas(t: HlifeTask) {
               ? 'border-success bg-success/12 text-success'
               : 'border-default bg-default text-muted hover:border-accented'"
             :aria-pressed="h.dates.includes(hari)"
-            @click="toggleHabit(h)"
+            :disabled="lagi(h)"
+            @click="jalan(h, () => toggleHabit(h))"
           >
             <UIcon
               v-if="h.dates.includes(hari)"

@@ -188,6 +188,7 @@ const ikon = (kind: string) => (kind === 'Birthday' ? 'i-lucide-cake' : kind ===
         <UButton
           label="Ya, hapus"
           color="error"
+          loading-auto
           @click="jalanHapus"
         />
         <UButton

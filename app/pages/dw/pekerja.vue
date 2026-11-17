@@ -251,6 +251,7 @@ const pernahKerja = (p: PekerjaDw) => !!(p.terakhirKerja || st(p).total || st(p)
                 :color="statusDw(row.original.status) === 'AKTIF' ? 'error' : 'success'"
                 variant="ghost"
                 size="xs"
+                loading-auto
                 @click="konfirmAktif(row.original)"
               />
               <UButton
@@ -311,6 +312,7 @@ const pernahKerja = (p: PekerjaDw) => !!(p.terakhirKerja || st(p).total || st(p)
                 :color="statusDw(p.status) === 'AKTIF' ? 'error' : 'success'"
                 variant="ghost"
                 size="xs"
+                loading-auto
                 @click="konfirmAktif(p)"
               />
               <UButton
@@ -381,6 +383,7 @@ const pernahKerja = (p: PekerjaDw) => !!(p.terakhirKerja || st(p).total || st(p)
         <UButton
           :label="aktifP && statusDw(aktifP.status) === 'AKTIF' ? 'Ya, nonaktifkan' : 'Ya, aktifkan'"
           :color="aktifP && statusDw(aktifP.status) === 'AKTIF' ? 'error' : 'success'"
+          loading-auto
           @click="jalanAktif"
         />
         <UButton
@@ -424,6 +427,7 @@ const pernahKerja = (p: PekerjaDw) => !!(p.terakhirKerja || st(p).total || st(p)
         <UButton
           label="Ya, hapus permanen"
           color="error"
+          loading-auto
           @click="jalanHapus"
         />
         <UButton

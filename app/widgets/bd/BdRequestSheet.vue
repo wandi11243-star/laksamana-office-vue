@@ -201,6 +201,7 @@ async function simpan() {
       <UButton
         label="Ajukan semua"
         icon="i-lucide-check"
+        loading-auto
         @click="simpan"
       />
       <UButton

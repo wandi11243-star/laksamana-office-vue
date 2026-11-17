@@ -220,7 +220,7 @@ function reminderDp() {
 
 // ---- invoice preview ----
 const pratinjau = ref(false)
-const cetak = () => window.print()
+const cetak = () => cetakPdf(namaBerkas('Tagihan', evGabung.value.nama, props.namaClient))
 const barisTagih = computed(() => {
   const rows = rinci.value.filter(r => String(r.desc ?? '').trim())
   return rows.map(r => ({ ...r, total: totalBaris(r) }))
@@ -890,6 +890,7 @@ async function simpanInvUbah() {
             variant="outline"
             icon="i-lucide-file-text"
             label="PDF Invoice DP"
+            loading-auto
             @click="bukaInvPdf('INV_DP')"
           />
           <UButton
@@ -899,6 +900,7 @@ async function simpanInvUbah() {
             variant="outline"
             icon="i-lucide-file-text"
             label="PDF Pelunasan"
+            loading-auto
             @click="bukaInvPdf('INV_LUNAS')"
           />
         </div>

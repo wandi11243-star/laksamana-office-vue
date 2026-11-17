@@ -2164,6 +2164,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
                 color="success"
                 variant="soft"
                 size="xs"
+                loading-auto
                 @click="followUp(row.original)"
               />
               <UButton
@@ -2189,6 +2190,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               label="Selesai"
               icon="i-lucide-utensils"
               size="xs"
+              loading-auto
               @click="selesai(row.original)"
             />
             <UButton
@@ -2469,6 +2471,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
             color="error"
             variant="ghost"
             size="sm"
+            loading-auto
             @click="batalkanAntrean(w)"
           />
         </div>
@@ -2543,6 +2546,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         <UButton
           label="Simpan ke antrean"
           size="xl"
+          loading-auto
           @click="simpanAntrean"
         />
         <UButton
@@ -2800,6 +2804,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               color="neutral"
               variant="soft"
               size="sm"
+              loading-auto
               @click="tambahTanggalLayout"
             />
           </div>
@@ -2830,6 +2835,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               color="neutral"
               variant="ghost"
               size="sm"
+              loading-auto
               @click="bersihkanTanggal(t.tgl)"
             />
           </div>
@@ -2839,6 +2845,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         <UButton
           label="Terapkan"
           size="xl"
+          loading-auto
           @click="simpanLayoutTgl"
         />
         <UButton
@@ -2924,6 +2931,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               variant="soft"
               size="sm"
               class="min-h-11 justify-center whitespace-normal"
+              loading-auto
               @click="ubahStatus(aksi, 'Pending')"
             />
             <UButton
@@ -2934,6 +2942,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               variant="soft"
               size="sm"
               class="min-h-11 justify-center whitespace-normal"
+              loading-auto
               @click="ubahStatus(aksi, 'Confirmed')"
             />
             <UButton
@@ -2983,6 +2992,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               variant="soft"
               size="sm"
               class="min-h-11 justify-start whitespace-normal"
+              loading-auto
               @click="followUp(aksi)"
             />
             <UButton
@@ -3002,6 +3012,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               variant="soft"
               size="sm"
               class="min-h-11 justify-start whitespace-normal"
+              loading-auto
               @click="selesai(aksi)"
             />
             <UButton
@@ -3011,6 +3022,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               variant="soft"
               size="sm"
               class="min-h-11 justify-start whitespace-normal"
+              loading-auto
               @click="kembaliKeAsli(aksi)"
             />
             <UButton
@@ -3021,6 +3033,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               variant="soft"
               size="sm"
               class="min-h-11 justify-start whitespace-normal bg-vip/12 text-vip"
+              loading-auto
               @click="toggleSharing(aksi)"
             />
             <UButton
@@ -3140,6 +3153,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         <UButton
           label="Catat kedatangan"
           size="xl"
+          loading-auto
           @click="simpanDatang"
         />
         <UButton
@@ -3255,6 +3269,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         <UButton
           label="Simpan walk-in"
           size="xl"
+          loading-auto
           @click="simpanWalkin"
         />
         <UButton
@@ -3315,6 +3330,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         <UButton
           label="Tandai no-show"
           color="error"
+          loading-auto
           @click="simpanNoShow"
         />
       </template>
@@ -3340,6 +3356,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           label="Ya, batalkan"
           color="error"
           size="xl"
+          loading-auto
           @click="simpanBatal"
         />
         <UButton

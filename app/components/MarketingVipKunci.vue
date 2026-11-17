@@ -153,6 +153,7 @@ async function simpanKunci() {
         variant="outline"
         size="sm"
         :label="(vip.meja ?? []).length ? 'Ubah Meja & Kunci' : 'Pilih Meja & Kunci'"
+        loading-auto
         @click="buka = true; void muat()"
       />
     </div>

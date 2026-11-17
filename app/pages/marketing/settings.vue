@@ -361,6 +361,7 @@ const POIN = ['DP 30% vs 50%', 'Tarif pajak & service final', 'Integrasi POS in-
           <UButton
             color="error"
             label="Hapus"
+            loading-auto
             @click="hapusFoto"
           />
         </template>

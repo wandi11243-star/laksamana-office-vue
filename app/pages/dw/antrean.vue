@@ -697,6 +697,7 @@ const kosongTeks = computed(() => (tab.value === 'antri'
         <UButton
           label="Ya, setujui"
           color="success"
+          loading-auto
           @click="jalanSetuju"
         />
         <UButton
@@ -726,6 +727,7 @@ const kosongTeks = computed(() => (tab.value === 'antri'
         <UButton
           label="Tolak"
           color="error"
+          loading-auto
           @click="jalanTolak"
         />
         <UButton
@@ -765,6 +767,7 @@ const kosongTeks = computed(() => (tab.value === 'antri'
         <UButton
           label="Kembalikan ke antrean"
           color="primary"
+          loading-auto
           @click="jalanKembali"
         />
         <UButton
@@ -796,6 +799,7 @@ const kosongTeks = computed(() => (tab.value === 'antri'
       <template #footer>
         <UButton
           label="Kembalikan ke antrean"
+          loading-auto
           @click="jalanKembaliMinta"
         />
         <UButton
@@ -859,6 +863,7 @@ const kosongTeks = computed(() => (tab.value === 'antri'
         <UButton
           label="Ya, setujui"
           color="success"
+          loading-auto
           @click="jalanUsul"
         />
         <UButton
@@ -910,6 +915,7 @@ const kosongTeks = computed(() => (tab.value === 'antri'
         <UButton
           :label="`Ya, setujui ${ringkas.n} shift`"
           color="success"
+          loading-auto
           @click="jalanBanyak"
         />
         <UButton

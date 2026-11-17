@@ -258,6 +258,7 @@ const opsiJenis = EVENT_TYPES.map(t => ({ value: t.value, label: t.label }))
           icon="i-lucide-download"
           color="neutral"
           variant="outline"
+          loading-auto
           @click="eksporIcs"
         />
       </div>

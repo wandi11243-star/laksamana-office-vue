@@ -581,6 +581,7 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
           :icon="detail?.paused ? 'i-lucide-play' : 'i-lucide-pause'"
           color="neutral"
           variant="outline"
+          loading-auto
           @click="detail && togglePaused(detail)"
         />
         <UButton
@@ -662,6 +663,7 @@ const statut = (p: BdPromo) => PROMO_ST[promoStatus(p)] || PROMO_ST.running!
         <UButton
           :label="`Terapkan ${(impor?.baru.length || 0) + (impor?.ubah.length || 0)} baris`"
           icon="i-lucide-check"
+          loading-auto
           @click="terapkanImpor"
         />
         <UButton

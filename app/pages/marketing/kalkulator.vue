@@ -556,6 +556,7 @@ async function hapusRiwayat(x: RiwayatKalkMkt) {
             <UButton
               icon="i-lucide-check"
               label="Simpan ke riwayat"
+              loading-auto
               @click="simpanRiwayat"
             />
           </div>
@@ -646,6 +647,7 @@ async function hapusRiwayat(x: RiwayatKalkMkt) {
                         variant="ghost"
                         icon="i-lucide-trash-2"
                         aria-label="Hapus riwayat"
+                        loading-auto
                         @click="hapusRiwayat(x)"
                       />
                     </div>
@@ -684,6 +686,7 @@ async function hapusRiwayat(x: RiwayatKalkMkt) {
                       variant="ghost"
                       icon="i-lucide-trash-2"
                       aria-label="Hapus riwayat"
+                      loading-auto
                       @click="hapusRiwayat(x)"
                     />
                   </div>

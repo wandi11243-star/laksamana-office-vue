@@ -84,7 +84,7 @@ function buka(u: { id: string, name: string }, tgl: string) {
   editor.value = true
 }
 const muatUlang = () => Promise.all([refreshDasar(), refreshSel()])
-const cetak = () => window.print()
+const cetak = () => cetakPdf(namaBerkas('Jadwal bulanan', judulLembar.value, labelBulanJadwal(mk.value)))
 
 // ---- sheet tools (one Divisi; deploy/jadwal/index.html :2905-2935)
 const toast = useToast()

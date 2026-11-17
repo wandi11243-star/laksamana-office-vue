@@ -173,6 +173,7 @@ async function pdfGo() {
       color="neutral"
       variant="soft"
       size="sm"
+      loading-auto
       @click="pdfGo"
     />
     <template v-else-if="bolehLangsung">
@@ -181,6 +182,7 @@ async function pdfGo() {
         color="neutral"
         variant="soft"
         size="sm"
+        loading-auto
         @click="pdfGo"
       />
       <AppStatus v-if="tahan">
@@ -212,6 +214,7 @@ async function pdfGo() {
       color="neutral"
       variant="ghost"
       size="sm"
+      loading-auto
       @click="muatStatus"
     />
     <AppStatus v-else-if="!bolehMinta">
@@ -258,6 +261,7 @@ async function pdfGo() {
         <UButton
           label="Minta ke Finance"
           size="xl"
+          loading-auto
           @click="mintaGo"
         />
         <UButton

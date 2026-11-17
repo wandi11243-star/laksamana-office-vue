@@ -506,6 +506,7 @@ function unduhCsv() {
         label="Segarkan"
         icon="i-lucide-refresh-cw"
         variant="outline"
+        loading-auto
         @click="segarkan()"
       />
       <UButton
@@ -1026,6 +1027,7 @@ function unduhCsv() {
                   variant="soft"
                   size="lg"
                   class="w-full justify-center sm:w-auto"
+                  loading-auto
                   @click="arsipkanBatch([o.nomorOrder], true)"
                 />
               </div>

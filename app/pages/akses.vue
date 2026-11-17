@@ -322,6 +322,7 @@ async function kirimImpor() {
           icon="i-lucide-download"
           color="neutral"
           variant="outline"
+          loading-auto
           @click="eksporCsv"
         />
         <UButton

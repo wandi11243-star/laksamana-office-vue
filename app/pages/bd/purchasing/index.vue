@@ -98,8 +98,10 @@ async function hapusPrDok() {
   await bdSimpan(aksi, 'Dokumen PR dihapus, itemnya dilepas')
 }
 function toggleProses(p: BdPo) {
-  const on = !poBeres(p)
-  bdTulisDiam(() => tambalBd<BdPo>('purchase-orders', p.id, fieldsProses(p, on, aku.value?.name || ''), versiBaris(p)))
+  // The freshest copy in state: the row object a template captured may predate the last reload.
+  const po = state.value.po.find(x => x.id === p.id) ?? p
+  const on = !poBeres(po)
+  return bdTulisDiam(() => tambalBd<BdPo>('purchase-orders', po.id, fieldsProses(po, on, aku.value?.name || ''), versiBaris(po)))
 }
 
 // ---- PR & weekly recap ----

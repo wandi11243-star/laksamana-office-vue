@@ -675,6 +675,7 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
                   size="xs"
                   variant="outline"
                   class="mt-1"
+                  loading-auto
                   @click="terimaUsul(row)"
                 />
               </template>
@@ -694,6 +695,7 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
                   color="neutral"
                   variant="outline"
                   size="xs"
+                  loading-auto
                   @click="lihatBukti(row.dp)"
                 />
                 <AppStatus
@@ -852,6 +854,7 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
                 v-if="usulan[row.id] && izinUbah"
                 label="Terima usul"
                 size="xs"
+                loading-auto
                 @click="terimaUsul(row)"
               />
               <UButton
@@ -866,6 +869,7 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
                 color="neutral"
                 variant="outline"
                 size="xs"
+                loading-auto
                 @click="lihatBukti(row.dp)"
               />
               <UButton
@@ -947,6 +951,7 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
               color="neutral"
               variant="outline"
               size="xs"
+              loading-auto
               @click="lihatBukti(d)"
             />
             <UButton
@@ -1033,6 +1038,7 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
               color="neutral"
               variant="outline"
               size="xs"
+              loading-auto
               @click="lihatBukti(d)"
             />
             <UButton
@@ -1101,6 +1107,7 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
                 color="neutral"
                 variant="outline"
                 size="xs"
+                loading-auto
                 @click="lihatBukti(d)"
               />
               <UButton

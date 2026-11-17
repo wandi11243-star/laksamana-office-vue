@@ -307,6 +307,7 @@ async function konfirmasiHapus() {
         <UButton
           label="Simpan"
           icon="i-lucide-save"
+          loading-auto
           @click="simpanDivisi"
         />
       </template>

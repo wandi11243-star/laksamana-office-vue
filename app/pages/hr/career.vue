@@ -343,6 +343,7 @@ const nadaReadiness = (r: string): 'success' | 'gold' | 'info' => (r === 'Ready 
         <UButton
           label="Ya, hapus"
           color="error"
+          loading-auto
           @click="jalanHapusTrack"
         />
         <UButton
@@ -365,6 +366,7 @@ const nadaReadiness = (r: string): 'success' | 'gold' | 'info' => (r === 'Ready 
         <UButton
           label="Ya, hapus"
           color="error"
+          loading-auto
           @click="jalanHapusSc"
         />
         <UButton

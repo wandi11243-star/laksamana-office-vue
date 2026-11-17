@@ -87,7 +87,7 @@ function buka(tgl: string) {
   ajukanOpen.value = true
 }
 function cetak() {
-  window.print()
+  cetakPdf(namaBerkas('Rekap DW', p.value?.nama))
 }
 function perTgl(tgl: string) {
   return ajuan.value.filter(a => p.value && a.dwId === p.value.id && a.tgl === tgl && a.status !== 'BATAL')

@@ -129,6 +129,7 @@ async function kirim(tujuan: string | null, teks: string) {
             color="neutral"
             variant="soft"
             size="sm"
+            loading-auto
             @click="salin(teksUntuk(t))"
           />
           <UButton
@@ -136,6 +137,7 @@ async function kirim(tujuan: string | null, teks: string) {
             color="neutral"
             variant="soft"
             size="sm"
+            loading-auto
             @click="kirim(t.type === 'group' ? null : t.detail, teksUntuk(t))"
           />
         </div>
@@ -179,6 +181,7 @@ async function kirim(tujuan: string | null, teks: string) {
             color="neutral"
             variant="soft"
             size="sm"
+            loading-auto
             @click="salin(teksCustom)"
           />
           <UButton
@@ -186,6 +189,7 @@ async function kirim(tujuan: string | null, teks: string) {
             color="neutral"
             variant="soft"
             size="sm"
+            loading-auto
             @click="kirim(nomorCustom || null, teksCustom)"
           />
         </div>

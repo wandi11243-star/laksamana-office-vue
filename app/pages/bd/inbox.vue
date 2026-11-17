@@ -211,6 +211,7 @@ const barisKirim = computed(() => kirim.value.map(e => ({ ...e, ...rekap(e) })))
                 color="neutral"
                 variant="outline"
                 size="xs"
+                loading-auto
                 @click="jawabUndangan(e, 'hadir')"
               />
               <UButton
@@ -218,6 +219,7 @@ const barisKirim = computed(() => kirim.value.map(e => ({ ...e, ...rekap(e) })))
                 color="neutral"
                 variant="outline"
                 size="xs"
+                loading-auto
                 @click="jawabUndangan(e, 'mungkin')"
               />
               <UButton
@@ -225,6 +227,7 @@ const barisKirim = computed(() => kirim.value.map(e => ({ ...e, ...rekap(e) })))
                 color="error"
                 variant="soft"
                 size="xs"
+                loading-auto
                 @click="jawabUndangan(e, 'tidak')"
               />
             </div>
@@ -295,6 +298,7 @@ const barisKirim = computed(() => kirim.value.map(e => ({ ...e, ...rekap(e) })))
                 label="Setujui"
                 icon="i-lucide-check"
                 size="xs"
+                loading-auto
                 @click="setujui(t)"
               />
               <UButton
