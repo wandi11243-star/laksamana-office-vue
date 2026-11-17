@@ -1,6 +1,6 @@
 <!--
   BD › hour grid (Hari/Minggu, LM Agenda 30 Okt 2026): timed agendas and timed
-  tasks drawn as blocks on a 07:00–22:00 grid (grown to fit), timeless items in
+  tasks drawn as blocks on a 07:00–24:00 grid (grown to fit), timeless items in
   the "tanpa jam" strip above.
 
   Interactions, all snapped to 15 minutes:
@@ -47,7 +47,8 @@ const me = useMe()
 const toast = useToast()
 const admin = computed(() => isAdminOf(me.value, 'bd'))
 
-const HH = 44
+// Hour row height (px). 56 leaves room for a two-line block per hour (was 44: cramped).
+const HH = 56
 const SNAP = 15
 
 type Tone = 'error' | 'gold' | 'info' | 'vip' | 'warning'
@@ -152,9 +153,11 @@ const tanpaJam = computed<Record<string, { ag: BdAgenda[], task: BdTask[] }>>(()
   return out
 })
 
+// The grid runs 07:00 to midnight (owner request, Nov 2026: was 07–22), and starts
+// earlier when a block does.
 const datar = computed(() => {
   let h0 = 7
-  let h1 = 22
+  let h1 = 24
   for (const d of props.hari) {
     for (const b of blokHari.value[d] || []) {
       h0 = Math.min(h0, Math.floor(b.s / 60))
@@ -448,8 +451,18 @@ const gayaPratinjau = computed<Record<string, string> | null>(() => {
 
 const HARI_PENDEK = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
 function namaHari(iso: string) {
-  return HARI_PENDEK[(new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))).getDay() + 6) % 7] || ''
+  // HARI_PENDEK is Sunday-first, like getDay(): index it directly (16 Nov 2026 is a Monday → "Sen").
+  return HARI_PENDEK[new Date(Number(iso.slice(0, 4)), Number(iso.slice(5, 7)) - 1, Number(iso.slice(8, 10))).getDay()] || ''
 }
+/**
+ * One column template for the header, the timeless strip and the hour grid, with
+ * a FIXED minimum width: `min-w-max` let each row size itself to its own longest
+ * chip, so the three rows drifted out of line. Long chips now truncate instead.
+ */
+const gayaGrid = computed(() => {
+  const min = props.hari.length > 1 ? 150 : 260
+  return { gridTemplateColumns: `64px repeat(${props.hari.length}, minmax(${min}px, 1fr))`, minWidth: `${64 + props.hari.length * min}px` }
+})
 const hariIni = todayISO()
 </script>
 
@@ -457,8 +470,8 @@ const hariIni = todayISO()
   <div class="overflow-x-auto rounded-panel border border-default bg-default">
     <!-- header -->
     <div
-      class="grid min-w-max border-b border-default bg-default"
-      :style="{ gridTemplateColumns: `54px repeat(${hari.length}, minmax(${hari.length > 1 ? 150 : 260}px, 1fr))` }"
+      class="grid border-b border-default bg-default"
+      :style="gayaGrid"
     >
       <div />
       <div
@@ -485,17 +498,17 @@ const hariIni = todayISO()
     </div>
     <!-- timeless strip -->
     <div
-      class="grid min-w-max border-b border-default bg-muted/50"
-      :style="{ gridTemplateColumns: `54px repeat(${hari.length}, minmax(${hari.length > 1 ? 150 : 260}px, 1fr))` }"
+      class="grid border-b border-default bg-muted/50"
+      :style="gayaGrid"
     >
-      <div class="px-1.5 py-2 text-right text-[10px] text-dimmed">
+      <div class="whitespace-nowrap px-2 py-2.5 text-right text-[10px] text-dimmed">
         tanpa jam
       </div>
       <!-- One chip style for every timeless item: white, a coloured left edge. -->
       <div
         v-for="(d, ix) in hari"
         :key="d"
-        class="flex min-w-0 flex-col gap-1 border-l border-default px-1.5 py-1.5"
+        class="flex min-w-0 flex-col gap-1.5 border-l border-default px-2 py-2"
         data-tanpajam
       >
         <button
@@ -528,10 +541,10 @@ const hariIni = todayISO()
         >{{ x.title }}</span>
       </div>
     </div>
-    <!-- hour columns -->
+    <!-- hour columns (pt-3: the first hour label sits clear of the strip above) -->
     <div
-      class="grid min-w-max"
-      :style="{ gridTemplateColumns: `54px repeat(${hari.length}, minmax(${hari.length > 1 ? 150 : 260}px, 1fr))` }"
+      class="grid pt-3 pb-3"
+      :style="gayaGrid"
     >
       <div>
         <div
@@ -541,6 +554,13 @@ const hariIni = todayISO()
           :style="{ height: `${HH}px`, transform: 'translateY(-6px)' }"
         >
           {{ String(datar.h0 + h - 1).padStart(2, '0') }}:00
+        </div>
+        <!-- The bottom line is labelled too (24:00), so the last hour reads as closed. -->
+        <div
+          class="h-0 pr-1.5 text-right font-mono text-[10px] text-dimmed"
+          style="transform: translateY(-6px)"
+        >
+          {{ String(datar.h1).padStart(2, '0') }}:00
         </div>
       </div>
       <div
@@ -566,17 +586,17 @@ const hariIni = todayISO()
         <div
           v-for="b in (blokHari[d] || [])"
           :key="b.key"
-          class="blk absolute overflow-hidden rounded-md border border-default border-l-4 bg-default px-1.5 py-0.5 text-left shadow-sm hover:z-10 hover:shadow"
+          class="blk absolute overflow-hidden rounded-md border border-default border-l-4 bg-default px-2 py-1.5 text-left shadow-sm hover:z-10 hover:shadow"
           :class="[KELAS_TONE[b.tone], b.boleh ? 'cursor-grab' : 'cursor-pointer', b.pending ? 'border-dashed bg-warning/10' : '']"
           :style="gayaBlok(b)"
           :title="`${b.sub} — ${b.judul}${b.boleh ? ' (seret untuk pindah, tepi bawah untuk ubah selesai)' : ''}`"
           @pointerdown="tekanBlok($event, b, ix)"
         >
-          <p class="truncate font-mono text-[10px] text-muted">
+          <p class="truncate font-mono text-[10px] leading-tight text-muted">
             {{ b.sub }}
           </p>
           <p
-            class="truncate text-[11px] font-semibold text-highlighted"
+            class="mt-0.5 truncate text-xs font-semibold leading-snug text-highlighted"
             :class="b.tolak ? 'line-through' : ''"
           >
             {{ b.judul }}

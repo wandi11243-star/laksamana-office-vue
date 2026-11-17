@@ -2,6 +2,10 @@
 // A page that belongs to a module says `definePageMeta({ access: ['absensi'] })`;
 // users without any of those keys get a 403 page. The API enforces the same
 // rule again, so this is only about not showing a screen that would fail.
+import type { BdSettings } from '~/composables/useBd'
+import { getBdSettings, layarTersembunyiBd } from '~/composables/useBd'
+import { LAYAR_BD } from '~/utils/layar/bd'
+
 export default defineNuxtRouteMiddleware(async (to) => {
   if (to.meta.public) return
 
@@ -32,5 +36,22 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   if (to.meta.access && !hasAccess(me.value, to.meta.access)) {
     throw createError({ statusCode: 403, statusMessage: 'Anda belum punya akses ke modul ini. Minta admin membukanya di Kelola Akses.' })
+  }
+
+  // Task Management: a screen a BD admin closed for this crew member (Kelola
+  // Akses) stays closed by URL too, not only in the menu. Detail pages follow
+  // their list (a project → Projects, a PR sheet → Purchasing).
+  if (to.path.startsWith('/bd/') && me.value && !isAdminOf(me.value, 'bd')) {
+    const layar = LAYAR_BD.find(l => l.key !== 'dashboard' && (to.path === l.to || to.path.startsWith(`${l.to}/`) || to.path.startsWith(`${l.to}-`)))
+    if (layar?.key === 'tim') {
+      throw createError({ statusCode: 403, statusMessage: 'Kelola Akses hanya untuk admin Task Management.' })
+    }
+    if (layar) {
+      const cache = useNuxtData<{ data?: BdSettings }>('bd-settings').data.value
+      const akses = cache?.data?.aksesHalaman ?? (await getBdSettings().catch(() => null))?.data?.aksesHalaman
+      if (layarTersembunyiBd(me.value, akses ?? {}).includes(layar.key)) {
+        throw createError({ statusCode: 403, statusMessage: `${layar.label} belum dibuka untukmu. Minta admin Task Management membukanya di Kelola Akses.` })
+      }
+    }
   }
 })

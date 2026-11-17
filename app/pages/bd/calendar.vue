@@ -20,7 +20,6 @@ import {
 } from '~/utils/bd-rumus'
 import BdAgendaSheet from '~/widgets/bd/BdAgendaSheet.vue'
 import BdJamGrid from '~/widgets/bd/BdJamGrid.vue'
-import BdPicFilter from '~/widgets/bd/BdPicFilter.vue'
 import BdTaskSheet from '~/widgets/bd/BdTaskSheet.vue'
 import { BULAN, tambahHari } from '~/utils/format'
 
@@ -226,6 +225,11 @@ const opsiDiv = computed(() => [
     ...state.value.tasks, ...state.value.projects, ...state.value.po, ...state.value.agenda,
   ]).map(d => ({ value: d, label: d })),
 ])
+/** Active crew for the PIC multi-select (same people the chip filter offered). */
+const opsiPic = computed(() => people.value
+  .filter(p => p.active !== false && !p.tanpaAkses)
+  .map(p => ({ value: p.id, label: String(p.name || p.id) }))
+  .sort((a, b) => a.label.localeCompare(b.label, 'id')))
 const resetAktif = computed(() => fPics.value.length || f.value.div !== PILIHAN_SEMUA || f.value.scope !== 'semua')
 function reset() {
   fPics.value = []
@@ -404,9 +408,18 @@ onUnmounted(() => {
         class="w-40"
         aria-label="Divisi"
       />
-      <BdPicFilter
+      <!-- PIC as one multi-select (the chip row wrapped onto two lines). -->
+      <USelectMenu
         v-model="fPics"
-        :people="people"
+        :items="opsiPic"
+        value-key="value"
+        multiple
+        size="sm"
+        icon="i-lucide-users"
+        placeholder="Semua PIC"
+        :search-input="{ placeholder: 'Cari kru…' }"
+        class="w-48"
+        aria-label="PIC"
       />
       <UButton
         v-if="resetAktif"
