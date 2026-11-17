@@ -221,6 +221,9 @@ async function hapusDream() {
     sibuk.value = false
   }
 }
+
+// Plain buttons that write: no double click while the write runs.
+const { jalan, lagi } = useSibuk()
 </script>
 
 <template>
@@ -262,7 +265,8 @@ async function hapusDream() {
               class="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md border transition-colors focus-visible:outline-2 focus-visible:outline-primary"
               :class="r.done ? 'border-success bg-success text-white' : 'border-default bg-default text-transparent hover:border-success'"
               :aria-label="r.done ? 'Tandai belum selesai' : 'Tandai selesai'"
-              @click="toggleMile(r)"
+              :disabled="lagi(r)"
+              @click="jalan(r, () => toggleMile(r))"
             >
               <UIcon
                 name="i-lucide-check"
@@ -428,6 +432,7 @@ async function hapusDream() {
                 variant="ghost"
                 size="xs"
                 aria-label="Tandai selesai"
+                loading-auto
                 @click="toggleDream(d)"
               />
               <UButton

@@ -429,6 +429,7 @@ async function hapusLama(div: string) {
                 color="error"
                 variant="outline"
                 :aria-label="`Hapus kategori ${div} beserta seluruh task di dalamnya`"
+                loading-auto
                 @click="i < formats.length ? hapusKategori(div) : hapusLama(div)"
               />
             </div>
@@ -536,6 +537,7 @@ async function hapusLama(div: string) {
                         color="neutral"
                         variant="ghost"
                         aria-label="Hapus sub kategori"
+                        loading-auto
                         @click="hapusSub(sc)"
                       />
                     </div>

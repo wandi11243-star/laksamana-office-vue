@@ -206,6 +206,7 @@ async function simpan() {
             <UButton
               label="Simpan setelan"
               size="xl"
+              loading-auto
               @click="simpan"
             />
           </AppFocus>

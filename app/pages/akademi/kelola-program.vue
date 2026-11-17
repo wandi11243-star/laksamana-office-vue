@@ -230,6 +230,7 @@ const programBerjalan = computed(() => daftar.value.find(p => p.bulan === kunciB
             icon="i-lucide-repeat"
             color="neutral"
             variant="outline"
+            loading-auto
             @click="duplikat(programBerjalan)"
           />
         </div>
@@ -293,6 +294,7 @@ const programBerjalan = computed(() => daftar.value.find(p => p.bulan === kunciB
                   variant="ghost"
                   size="xs"
                   aria-label="Duplikat ke bulan berikutnya"
+                  loading-auto
                   @click="duplikat(row.original)"
                 />
                 <UButton
@@ -361,6 +363,7 @@ const programBerjalan = computed(() => daftar.value.find(p => p.bulan === kunciB
                 size="xs"
                 color="neutral"
                 variant="outline"
+                loading-auto
                 @click="duplikat(p)"
               />
               <UButton
@@ -478,6 +481,7 @@ const programBerjalan = computed(() => daftar.value.find(p => p.bulan === kunciB
         <UButton
           label="Simpan Program"
           icon="i-lucide-save"
+          loading-auto
           @click="simpan"
         />
       </template>

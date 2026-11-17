@@ -146,6 +146,9 @@ async function hapusTask() {
     sibuk.value = false
   }
 }
+
+// Plain buttons that write: no double click while the write runs.
+const { jalan, lagi } = useSibuk()
 </script>
 
 <template>
@@ -290,7 +293,8 @@ async function hapusTask() {
                 type="button"
                 class="mt-0.5 grid size-6 shrink-0 place-items-center rounded-md border border-default bg-default text-transparent transition-colors hover:border-success focus-visible:outline-2 focus-visible:outline-primary"
                 aria-label="Tandai selesai"
-                @click="toggle(t)"
+                :disabled="lagi(t)"
+                @click="jalan(t, () => toggle(t))"
               >
                 <UIcon
                   name="i-lucide-check"

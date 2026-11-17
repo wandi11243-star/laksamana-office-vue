@@ -402,6 +402,7 @@ function toggleHR(u: ModulMember) {
       <template #footer>
         <UButton
           label="Kembalikan ke bawaan"
+          loading-auto
           @click="resetAkses"
         />
         <UButton

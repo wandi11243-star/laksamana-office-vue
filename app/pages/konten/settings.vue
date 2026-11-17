@@ -176,6 +176,7 @@ const katalog = computed(() => ROLE_KEYS_KONTEN.map(r => ({
             label="Simpan"
             size="sm"
             class="mt-3"
+            loading-auto
             @click="simpanOrg"
           />
         </AppPanel>

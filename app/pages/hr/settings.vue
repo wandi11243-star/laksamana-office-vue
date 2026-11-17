@@ -454,6 +454,7 @@ function ekspor() {
             label="Ekspor backup (JSON)"
             icon="i-lucide-download"
             size="sm"
+            loading-auto
             @click="ekspor"
           />
           <UButton

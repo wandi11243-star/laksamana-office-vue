@@ -95,6 +95,9 @@ function bukaPoSheet(o: BdPo) {
   poPilih.value = o
   bukaPo.value = true
 }
+
+// Plain buttons that write: no double click while the write runs.
+const { jalan, lagi } = useSibuk()
 </script>
 
 <template>
@@ -331,7 +334,8 @@ function bukaPoSheet(o: BdPo) {
                 type="button"
                 class="flex items-start gap-2 rounded-xl border p-2.5 text-start transition-colors"
                 :class="m.done ? 'border-success/40 bg-success/10' : 'border-default hover:border-accented'"
-                @click="toggleMilestone(i)"
+                :disabled="lagi(i)"
+                @click="jalan(i, () => toggleMilestone(i))"
               >
                 <span
                   class="mt-0.5 flex size-4 shrink-0 items-center justify-center rounded border"

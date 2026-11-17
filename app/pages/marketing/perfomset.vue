@@ -340,6 +340,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
                           size="xs"
                           class="p-0"
                           label="pulihkan"
+                          loading-auto
                           @click="setNominal(r, '')"
                         />
                       </template>
@@ -443,6 +444,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
                   variant="link"
                   size="xs"
                   label="pulihkan"
+                  loading-auto
                   @click="setNominal(r, '')"
                 />
               </div>

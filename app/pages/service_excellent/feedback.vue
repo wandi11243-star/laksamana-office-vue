@@ -520,6 +520,7 @@ async function lihatBukti(fb: Feedback) {
                 color="neutral"
                 variant="ghost"
                 size="xs"
+                loading-auto
                 @click="lihatBukti(row.original)"
               />
               <UButton
@@ -528,6 +529,7 @@ async function lihatBukti(fb: Feedback) {
                 color="neutral"
                 variant="ghost"
                 size="xs"
+                loading-auto
                 @click="waTindakLanjut(row.original)"
               />
               <UButton
@@ -536,6 +538,7 @@ async function lihatBukti(fb: Feedback) {
                 color="neutral"
                 variant="ghost"
                 size="xs"
+                loading-auto
                 @click="setStatus(row.original, 'proses', row.original.actionNote || '')"
               />
               <UButton
@@ -779,6 +782,7 @@ async function lihatBukti(fb: Feedback) {
         <UButton
           label="Simpan feedback"
           size="xl"
+          loading-auto
           @click="simpan"
         />
         <UButton
@@ -807,6 +811,7 @@ async function lihatBukti(fb: Feedback) {
         <UButton
           label="Tandai selesai"
           size="xl"
+          loading-auto
           @click="selesaiGo"
         />
         <UButton
@@ -831,6 +836,7 @@ async function lihatBukti(fb: Feedback) {
           label="Hapus"
           color="error"
           size="xl"
+          loading-auto
           @click="hapusTarget && hapus(hapusTarget); sheetHapus = false"
         />
         <UButton

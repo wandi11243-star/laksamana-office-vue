@@ -370,6 +370,7 @@ const lewat = (p: HlifeProject) => !!p.due && p.due < hari && stageAktif(p) !== 
           :variant="pindah && stageAktif(pindah) === s ? 'soft' : 'outline'"
           block
           class="justify-start"
+          loading-auto
           @click="pilihStage(s)"
         />
       </div>

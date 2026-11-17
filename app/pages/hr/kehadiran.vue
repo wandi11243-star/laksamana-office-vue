@@ -359,6 +359,7 @@ const angka = (v: number | null | undefined, digit = 1) => (v == null ? '—' : 
         <UButton
           label="Ya, hapus"
           color="error"
+          loading-auto
           @click="jalanHapus"
         />
         <UButton

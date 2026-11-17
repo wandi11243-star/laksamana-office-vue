@@ -336,6 +336,7 @@ async function segarkan() {
         color="neutral"
         variant="outline"
         size="sm"
+        loading-auto
         @click="segarkan"
       />
     </template>
@@ -837,6 +838,7 @@ async function segarkan() {
                   size="sm"
                   :title="r.status === 'Selesai' ? 'Kembalikan ke rencana' : 'Tandai sudah dipakai'"
                   :aria-label="r.status === 'Selesai' ? 'Kembalikan ke rencana' : 'Tandai sudah dipakai'"
+                  loading-auto
                   @click="ubahStatus(r)"
                 />
                 <UButton
@@ -926,6 +928,7 @@ async function segarkan() {
         <UButton
           label="Hapus"
           color="error"
+          loading-auto
           @click="hapusGo"
         />
         <UButton

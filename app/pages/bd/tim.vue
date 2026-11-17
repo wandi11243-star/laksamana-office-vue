@@ -154,6 +154,7 @@ async function hapus() {
         icon="i-lucide-refresh-cw"
         color="neutral"
         variant="outline"
+        loading-auto
         @click="segarkan"
       />
     </template>

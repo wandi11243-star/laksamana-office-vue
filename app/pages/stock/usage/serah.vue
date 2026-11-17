@@ -398,6 +398,7 @@ async function segarkan() {
         color="neutral"
         variant="outline"
         size="sm"
+        loading-auto
         @click="segarkan"
       />
     </template>
@@ -879,6 +880,7 @@ async function segarkan() {
         <UButton
           label="Hapus"
           color="error"
+          loading-auto
           @click="hapusGo"
         />
         <UButton

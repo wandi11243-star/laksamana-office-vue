@@ -162,7 +162,7 @@ const desk = computed(() => (d.value?.event?.description ? tanpaTag(d.value.even
 const noTalentEvt = computed(() => (desk.value ? 2 : 1))
 const noCatatanVip = computed(() => (klienVip.value.length ? 2 : 1))
 
-const cetak = () => window.print()
+const cetak = () => cetakPdf(namaBerkas('Detail', d.value?.judul))
 </script>
 
 <template>

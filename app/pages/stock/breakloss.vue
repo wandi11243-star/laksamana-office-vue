@@ -629,6 +629,7 @@ async function segarkan() {
         color="neutral"
         variant="outline"
         size="sm"
+        loading-auto
         @click="segarkan"
       />
     </template>
@@ -1428,6 +1429,7 @@ async function segarkan() {
               :icon="item(formItem.id)?.aktif ? 'i-lucide-pause' : 'i-lucide-play'"
               color="neutral"
               variant="outline"
+              loading-auto
               @click="toggleAktif"
             />
             <UButton
@@ -1735,6 +1737,7 @@ async function segarkan() {
           label="Batalkan catatan"
           icon="i-lucide-ban"
           color="error"
+          loading-auto
           @click="batalGo"
         />
         <UButton

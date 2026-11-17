@@ -320,6 +320,7 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
             <UButton
               color="neutral"
               variant="soft"
+              loading-auto
               @click="muatTop()"
             >
               Coba lagi
@@ -588,6 +589,7 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
               color="neutral"
               variant="soft"
               size="xs"
+              loading-auto
               @click="arsipkan(i, !i.arsip)"
             >
               {{ i.arsip ? 'Pulihkan' : 'Arsipkan' }}
@@ -652,6 +654,7 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
           </UButton>
           <UButton
             color="primary"
+            loading-auto
             @click="simpanForm()"
           >
             Simpan insight

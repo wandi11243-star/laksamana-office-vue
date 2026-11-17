@@ -216,6 +216,7 @@ async function salinCaption(caption: string) {
               color="neutral"
               variant="soft"
               size="xs"
+              loading-auto
               @click="salinCaption(j.caption)"
             >
               Salin caption
@@ -311,6 +312,7 @@ async function salinCaption(caption: string) {
           </UButton>
           <UButton
             color="primary"
+            loading-auto
             @click="simpanForm()"
           >
             Simpan jadwal

@@ -315,6 +315,7 @@ async function hapus() {
           <UButton
             v-if="!infoHapus.lunas"
             color="error"
+            loading-auto
             @click="hapus()"
           >
             Ya, hapus

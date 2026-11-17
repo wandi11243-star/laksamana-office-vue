@@ -332,6 +332,7 @@ const warnaAntri = (r: BarisApprovalMkt) => {
           <UButton
             :label="putus?.setuju ? 'Setujui' : 'Tolak'"
             :color="putus?.setuju ? 'primary' : 'error'"
+            loading-auto
             @click="kirimPutus"
           />
         </div>

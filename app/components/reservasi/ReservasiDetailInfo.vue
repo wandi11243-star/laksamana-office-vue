@@ -407,6 +407,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
                 color="neutral"
                 variant="ghost"
                 size="xs"
+                loading-auto
                 @click="lihatBukti(p.proofData, p.proofName)"
               />
               <span
@@ -454,6 +455,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
         color="neutral"
         variant="ghost"
         size="xs"
+        loading-auto
         @click="lihatBukti(r.docReqData, r.docReqName)"
       />
     </div>
@@ -478,6 +480,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
             size="xs"
             title="Hapus catatan gelombang ini"
             :aria-label="`Hapus catatan ${g.pax} orang masuk`"
+            loading-auto
             @click="hapusGelombang(i)"
           />
         </div>

@@ -230,6 +230,7 @@ async function resetMatriks() {
             color="neutral"
             variant="soft"
             size="sm"
+            loading-auto
             @click="segarkan"
           />
         </div>
@@ -284,6 +285,7 @@ async function resetMatriks() {
           <UButton
             label="Simpan hak akses"
             size="sm"
+            loading-auto
             @click="simpanMatriks"
           />
           <UButton
@@ -308,6 +310,7 @@ async function resetMatriks() {
             label="Kembalikan"
             color="error"
             size="xl"
+            loading-auto
             @click="resetMatriks"
           />
           <UButton

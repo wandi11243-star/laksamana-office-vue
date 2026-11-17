@@ -158,6 +158,7 @@ async function buatSerupa(e: Acara) {
               icon="i-lucide-rotate-ccw"
               block
               class="mt-2.5"
+              loading-auto
               @click="buatSerupa(e)"
             >
               Buat event serupa

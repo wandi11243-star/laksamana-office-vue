@@ -200,6 +200,7 @@ async function sesudah() {
         <UButton
           label="Ya, hapus"
           color="error"
+          loading-auto
           @click="jalanHapus"
         />
         <UButton

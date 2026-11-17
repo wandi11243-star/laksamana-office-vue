@@ -386,6 +386,7 @@ async function pulihkan() {
       <template #footer>
         <UButton
           label="Tambah"
+          loading-auto
           @click="simpanTambah"
         />
         <UButton
@@ -414,6 +415,7 @@ async function pulihkan() {
       <template #footer>
         <UButton
           label="Simpan nama POS"
+          loading-auto
           @click="simpanPos"
         />
         <UButton
@@ -443,6 +445,7 @@ async function pulihkan() {
       <template #footer>
         <UButton
           label="Simpan nama"
+          loading-auto
           @click="simpanUbah"
         />
         <UButton
@@ -474,6 +477,7 @@ async function pulihkan() {
         <UButton
           label="Ya, buang"
           color="error"
+          loading-auto
           @click="jalanHapus"
         />
         <UButton
@@ -496,6 +500,7 @@ async function pulihkan() {
       <template #footer>
         <UButton
           label="Kembalikan ke bawaan"
+          loading-auto
           @click="pulihkan"
         />
         <UButton

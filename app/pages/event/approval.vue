@@ -489,6 +489,7 @@ const kosong = computed(() => {
             >
               <UButton
                 size="sm"
+                loading-auto
                 @click="putuskanRefund(row.original, true)"
               >
                 Setujui
@@ -497,6 +498,7 @@ const kosong = computed(() => {
                 color="error"
                 variant="outline"
                 size="sm"
+                loading-auto
                 @click="putuskanRefund(row.original, false)"
               >
                 Tolak
@@ -539,12 +541,14 @@ const kosong = computed(() => {
             >
               <UButton
                 size="sm"
+                loading-auto
                 @click="putuskanRefund(r, true)"
               >Setujui</UButton>
               <UButton
                 color="error"
                 variant="outline"
                 size="sm"
+                loading-auto
                 @click="putuskanRefund(r, false)"
               >Tolak</UButton>
             </span>
@@ -572,6 +576,7 @@ const kosong = computed(() => {
         <template #footer>
           <UButton
             color="primary"
+            loading-auto
             @click="selesaikan()"
           >
             Selesaikan
@@ -608,6 +613,7 @@ const kosong = computed(() => {
         <template #footer>
           <UButton
             color="error"
+            loading-auto
             @click="tolakRencanaYakin()"
           >
             Tolak

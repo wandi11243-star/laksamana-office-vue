@@ -108,7 +108,7 @@ const STATUS_POTONG = {
 } as const
 
 const labelPeriode = computed(() => new Date(`${periode.value}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }))
-const cetak = () => window.print()
+const cetak = () => cetakPdf(namaBerkas(judul.value, labelPeriode.value))
 </script>
 
 <template>

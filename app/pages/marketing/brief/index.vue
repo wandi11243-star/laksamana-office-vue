@@ -151,7 +151,7 @@ const keDok = (eid: string, m: ModeBriefMkt) => router.push({ path: '/marketing/
 const judulMode = computed(() => (mode.value === 'client' ? 'Konfirmasi Detail Acara' : mode.value === 'quote' ? 'Draft Negosiasi (bukan surat resmi)' : 'Briefing Internal'))
 
 function cetak() {
-  window.print()
+  cetakPdf(namaBerkas(judulDok.value, ev.value?.nama))
 }
 </script>
 

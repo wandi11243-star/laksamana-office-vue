@@ -202,6 +202,7 @@ async function jalanSinkron() {
             color="neutral"
             variant="ghost"
             size="sm"
+            loading-auto
             @click="jalanSinkron"
           />
         </div>

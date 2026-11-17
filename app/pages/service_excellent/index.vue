@@ -707,6 +707,7 @@ async function simpanTarget() {
         <UButton
           label="Simpan target"
           size="xl"
+          loading-auto
           @click="simpanTarget"
         />
         <UButton

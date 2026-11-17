@@ -346,6 +346,7 @@ async function impor(e: Event) {
                 size="sm"
                 color="error"
                 :aria-label="`Hapus ${row.original.nama}`"
+                loading-auto
                 @click="hapus(row.original)"
               />
             </div>
@@ -376,6 +377,7 @@ async function impor(e: Event) {
               variant="ghost"
               color="error"
               :aria-label="`Hapus ${b.nama}`"
+              loading-auto
               @click="hapus(b)"
             />
           </div>

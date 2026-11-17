@@ -138,7 +138,7 @@ function bukaWa() {
   }
   waOpen.value = true
 }
-const cetak = () => window.print()
+const cetak = () => cetakPdf(namaBerkas('Kalender DW', namaDivisiJadwal(div.value), namaBulan.value))
 </script>
 
 <template>

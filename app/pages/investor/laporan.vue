@@ -493,6 +493,7 @@ const namaHapus = computed(() => JENIS_LAPOR.find(j => j.key === hapusTarget.val
         <UButton
           label="Hapus berkas"
           color="error"
+          loading-auto
           @click="jalankanHapus()"
         />
       </template>

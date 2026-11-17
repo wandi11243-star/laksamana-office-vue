@@ -255,6 +255,7 @@ async function simpanEval() {
               variant="outline"
               size="sm"
               icon="i-lucide-arrow-right"
+              loading-auto
               @click="buatEvent(i)"
             >
               Buat event
@@ -357,6 +358,7 @@ async function simpanEval() {
         <template #footer>
           <UButton
             color="primary"
+            loading-auto
             @click="simpan()"
           >
             Simpan ide
@@ -441,6 +443,7 @@ async function simpanEval() {
         <template #footer>
           <UButton
             color="primary"
+            loading-auto
             @click="simpanEval()"
           >
             Simpan evaluasi
@@ -465,6 +468,7 @@ async function simpanEval() {
         <template #footer>
           <UButton
             color="error"
+            loading-auto
             @click="hapus()"
           >
             Ya, hapus

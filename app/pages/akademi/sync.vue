@@ -104,6 +104,7 @@ function unduhBackup() {
           <UButton
             label="Unduh Backup (.json)"
             icon="i-lucide-download"
+            loading-auto
             @click="unduhBackup"
           />
         </div>

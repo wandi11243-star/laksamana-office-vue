@@ -250,6 +250,7 @@ function presentasi(i: number) {
               color="error"
               variant="ghost"
               aria-label="Hapus slide"
+              loading-auto
               @click="hapus(s)"
             />
           </div>

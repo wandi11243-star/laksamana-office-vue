@@ -382,6 +382,7 @@ async function hapus() {
         label="Hapus"
         color="error"
         variant="ghost"
+        loading-auto
         @click="hapus"
       />
       <UButton
@@ -411,6 +412,7 @@ async function hapus() {
       <UButton
         :label="`Batalkan ${sisa.length} shift itu`"
         color="error"
+        loading-auto
         @click="batalkanSisa"
       />
       <UButton

@@ -451,6 +451,7 @@ const kolom: TableColumn<BarisRiwayat>[] = [
           <UButton
             :label="`Simpan ke ${fmtBln(hasilPromo.bulan)}`"
             icon="i-lucide-check"
+            loading-auto
             @click="simpanPromo()"
           />
           <UButton
@@ -523,6 +524,7 @@ const kolom: TableColumn<BarisRiwayat>[] = [
           <UButton
             :label="`Simpan ke ${fmtBln(hasilVoid.bulan)}`"
             icon="i-lucide-check"
+            loading-auto
             @click="simpanVoid()"
           />
           <UButton
@@ -603,6 +605,7 @@ const kolom: TableColumn<BarisRiwayat>[] = [
           <UButton
             :label="`Simpan ke ${fmtBln(hasil.bulan)}`"
             icon="i-lucide-check"
+            loading-auto
             @click="simpan()"
           />
           <UButton
@@ -658,6 +661,7 @@ const kolom: TableColumn<BarisRiwayat>[] = [
                 variant="ghost"
                 size="xs"
                 :title="`Hapus ringkasan ${fmtBln(row.original.bulan)}`"
+                loading-auto
                 @click="hapus(row.original.bulan)"
               />
             </template>
@@ -680,6 +684,7 @@ const kolom: TableColumn<BarisRiwayat>[] = [
                 variant="ghost"
                 size="xs"
                 :title="`Hapus ringkasan ${fmtBln(r.bulan)}`"
+                loading-auto
                 @click="hapus(r.bulan)"
               />
             </div>
@@ -718,6 +723,7 @@ const kolom: TableColumn<BarisRiwayat>[] = [
               variant="ghost"
               size="xs"
               :title="`Hapus laporan promo ${fmtBln(b)}`"
+              loading-auto
               @click="hapusPromo(b)"
             />
           </div>
@@ -756,6 +762,7 @@ const kolom: TableColumn<BarisRiwayat>[] = [
               variant="ghost"
               size="xs"
               :title="`Hapus laporan Void/Cancel ${fmtBln(b)}`"
+              loading-auto
               @click="hapusVoid(b)"
             />
           </div>

@@ -299,6 +299,7 @@ async function selesaiGanti(pesan: string) {
                   color="neutral"
                   variant="ghost"
                   size="xs"
+                  loading-auto
                   @click="setHadir(row.original, '')"
                 />
                 <UButton
@@ -364,6 +365,7 @@ async function selesaiGanti(pesan: string) {
                   color="neutral"
                   variant="ghost"
                   size="xs"
+                  loading-auto
                   @click="setHadir(a, '')"
                 />
                 <UButton

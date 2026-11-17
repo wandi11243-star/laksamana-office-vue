@@ -475,6 +475,7 @@ const setelahSimpan = (nid: string) => router.replace(`/konten/detail/${nid}`)
           color="neutral"
           variant="outline"
           size="sm"
+          loading-auto
           @click="salin"
         />
       </template>
@@ -572,6 +573,7 @@ const setelahSimpan = (nid: string) => router.replace(`/konten/detail/${nid}`)
           color="neutral"
           variant="outline"
           aria-label="Tambah"
+          loading-auto
           @click="addChk"
         />
       </div>
@@ -680,6 +682,7 @@ const setelahSimpan = (nid: string) => router.replace(`/konten/detail/${nid}`)
         />
         <UButton
           label="Kirim"
+          loading-auto
           @click="kirimKomentar"
         />
       </div>

@@ -337,6 +337,7 @@ async function hapus() {
       <template #footer>
         <UButton
           label="Simpan"
+          loading-auto
           @click="simpanStatus"
         />
         <UButton

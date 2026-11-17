@@ -1098,6 +1098,7 @@ async function hapus() {
                   color="neutral"
                   variant="outline"
                   size="xs"
+                  loading-auto
                   @click="lihatBukti"
                 />
               </div>
@@ -1356,6 +1357,7 @@ async function hapus() {
         <UButton
           label="Simpan apa adanya"
           size="xl"
+          loading-auto
           @click="simpan(true)"
         />
         <UButton

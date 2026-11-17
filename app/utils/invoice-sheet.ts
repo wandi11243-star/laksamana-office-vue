@@ -10,6 +10,8 @@
 // Amounts keep the sheet's own spelling ("Rp 1.000.000"); dates are read as
 // LOCAL (T00:00:00), never UTC, so a dateless date does not shift a day west.
 
+import { namaBerkas } from './cetak'
+
 export const INV_KOP = {
   pt: 'PT. Laksamana Muda Bersatu',
   alamat: 'Jl. Soekarno - Hatta No. 39, Labuh Baru Tim, Kec. Payung Sekaki,<br>Kota Pekanbaru, Riau 28282',
@@ -194,7 +196,7 @@ export function invoiceHtml(d: InvoiceSheetData): string {
 /** A whole document for a fresh window (used by Finance to LOOK first). */
 export function invoiceHalaman(d: InvoiceSheetData): string {
   const src = d || {}
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Invoice ${escSheet(src.no || '')}</title>`
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${escSheet(namaBerkas('Invoice', src.no, src.kepada || src.acara))}</title>`
     + `<style>*{box-sizing:border-box;margin:0;padding:0}body{background:#fff}`
     + `@page{size:A4;margin:10mm}@media print{.noprint{display:none}}`
     + `.noprint{margin:18px 0 28px;text-align:center}`

@@ -359,6 +359,7 @@ watch(reqBuka, async (r) => {
               :color="row.original.done ? 'neutral' : 'primary'"
               :variant="row.original.done ? 'outline' : 'solid'"
               size="xs"
+              loading-auto
               @click="toggle(row.original)"
             />
           </template>
@@ -410,6 +411,7 @@ watch(reqBuka, async (r) => {
               :variant="r.done ? 'outline' : 'solid'"
               size="sm"
               :aria-label="r.done ? 'Buka lagi' : 'Tandai selesai'"
+              loading-auto
               @click="toggle(r)"
             />
           </li>
@@ -546,6 +548,7 @@ watch(reqBuka, async (r) => {
         <UButton
           label="Tandai Selesai"
           icon="i-lucide-check"
+          loading-auto
           @click="reqBuka && selesaiMkt(reqBuka.id)"
         />
         <UButton

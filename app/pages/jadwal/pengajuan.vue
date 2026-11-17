@@ -353,6 +353,7 @@ const form = ref(false)
               color="neutral"
               variant="ghost"
               size="xs"
+              loading-auto
               @click="batal(row.original)"
             />
             <span
@@ -419,6 +420,7 @@ const form = ref(false)
               color="neutral"
               variant="outline"
               class="col-span-full justify-center"
+              loading-auto
               @click="batal(a)"
             />
           </div>

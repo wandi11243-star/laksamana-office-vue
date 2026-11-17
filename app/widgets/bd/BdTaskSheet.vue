@@ -977,6 +977,7 @@ async function hapus() {
         label="Simpan"
         icon="i-lucide-check"
         :class="task ? 'col-span-2' : ''"
+        loading-auto
         @click="simpan"
       />
     </template>

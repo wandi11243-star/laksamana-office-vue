@@ -296,6 +296,7 @@ async function simpanRole(m: ModulMember) {
                 v-if="izin.ubah('akses') && rolePilih(m) !== (roleOf(m) || '__bawaan')"
                 label="Simpan"
                 size="xs"
+                loading-auto
                 @click="simpanRole(m)"
               />
             </template>

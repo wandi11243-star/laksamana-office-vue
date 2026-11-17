@@ -565,6 +565,7 @@ const namaHari = (tgl: string) => new Date(`${tgl}T00:00:00`).toLocaleDateString
           <UButton
             label="Proses pembayaran"
             size="xl"
+            loading-auto
             @click="prosesGenerate"
           />
         </template>
@@ -709,6 +710,7 @@ const namaHari = (tgl: string) => new Date(`${tgl}T00:00:00`).toLocaleDateString
           <UButton
             color="error"
             variant="outline"
+            loading-auto
             @click="tolakDariForm()"
           >
             Reject

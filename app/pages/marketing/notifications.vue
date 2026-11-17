@@ -54,6 +54,9 @@ async function tandaiSemua() {
     await mktSimpan(() => tandaiDibacaMkt(n.id as string, n.updatedAt))
   }
 }
+
+// Plain buttons that write: no double click while the write runs.
+const { jalan, lagi } = useSibuk()
 </script>
 
 <template>
@@ -66,6 +69,7 @@ async function tandaiSemua() {
         label="Tandai semua dibaca"
         color="neutral"
         variant="outline"
+        loading-auto
         @click="tandaiSemua"
       />
     </template>
@@ -138,7 +142,8 @@ async function tandaiSemua() {
             <button
               type="button"
               class="flex w-full items-center gap-3 rounded-field px-2 py-2.5 text-start hover:bg-muted"
-              @click="buka(n)"
+              :disabled="lagi(n)"
+              @click="jalan(n, () => buka(n))"
             >
               <span
                 v-if="!n.read"

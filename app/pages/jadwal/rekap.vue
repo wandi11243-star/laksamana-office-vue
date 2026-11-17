@@ -79,7 +79,7 @@ function buka(tgl: string) {
   editor.value = true
 }
 const muatUlang = () => Promise.all([refreshDasar(), refreshSel()])
-const cetak = () => window.print()
+const cetak = () => cetakPdf(namaBerkas('Rekap jadwal', u.value?.name))
 </script>
 
 <template>

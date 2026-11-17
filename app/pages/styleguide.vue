@@ -365,12 +365,14 @@ const columns: TableColumn<Row>[] = [
           <div class="flex flex-wrap gap-2">
             <UButton
               label="Coba konflik versi (409)"
+              loading-auto
               @click="cobaKonflik"
             />
             <UButton
               label="Coba error biasa (422)"
               color="neutral"
               variant="soft"
+              loading-auto
               @click="cobaErrorBiasa"
             />
           </div>

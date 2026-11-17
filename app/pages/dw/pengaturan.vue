@@ -491,6 +491,7 @@ async function jalanKosongkan() {
         <UButton
           label="Ya, hapus posisi"
           color="error"
+          loading-auto
           @click="jalanHapusPosisi"
         />
         <UButton
@@ -532,6 +533,7 @@ async function jalanKosongkan() {
         <UButton
           label="Kosongkan"
           color="error"
+          loading-auto
           @click="jalanKosongkan"
         />
         <UButton

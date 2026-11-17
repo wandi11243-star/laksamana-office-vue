@@ -108,7 +108,7 @@ async function salin() {
   }
 }
 function cetak() {
-  window.print()
+  cetakPdf(namaBerkas('Pembayaran DW', rentang.value))
 }
 </script>
 
@@ -271,6 +271,7 @@ function cetak() {
           color="neutral"
           variant="ghost"
           size="sm"
+          loading-auto
           @click="salin"
         />
         <UButton
@@ -335,6 +336,7 @@ function cetak() {
               :variant="bayarSudahDw(set, senin, row.original.kunci) ? 'soft' : 'outline'"
               size="xs"
               class="justify-end"
+              loading-auto
               @click="tandai(row.original)"
             />
             <span
@@ -370,6 +372,7 @@ function cetak() {
               :color="bayarSudahDw(set, senin, g.kunci) ? 'success' : 'neutral'"
               :variant="bayarSudahDw(set, senin, g.kunci) ? 'soft' : 'outline'"
               size="sm"
+              loading-auto
               @click="tandai(g)"
             />
           </article>
@@ -430,6 +433,7 @@ function cetak() {
               :color="bayarSudahDw(set, senin, kunciBayarDw(row.original.p, row.original.id)) ? 'success' : 'neutral'"
               :variant="bayarSudahDw(set, senin, kunciBayarDw(row.original.p, row.original.id)) ? 'soft' : 'outline'"
               size="xs"
+              loading-auto
               @click="pindahTanda(kunciBayarDw(row.original.p, row.original.id), !bayarSudahDw(set, senin, kunciBayarDw(row.original.p, row.original.id)))"
             />
             <span
@@ -465,6 +469,7 @@ function cetak() {
               :color="bayarSudahDw(set, senin, kunciBayarDw(x.p, x.id)) ? 'success' : 'neutral'"
               :variant="bayarSudahDw(set, senin, kunciBayarDw(x.p, x.id)) ? 'soft' : 'outline'"
               size="sm"
+              loading-auto
               @click="pindahTanda(kunciBayarDw(x.p, x.id), !bayarSudahDw(set, senin, kunciBayarDw(x.p, x.id)))"
             />
           </article>

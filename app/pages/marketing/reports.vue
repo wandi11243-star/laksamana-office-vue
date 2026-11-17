@@ -45,6 +45,7 @@ function ekspor() {
         label="Export CSV"
         color="neutral"
         variant="outline"
+        loading-auto
         @click="ekspor"
       />
     </template>

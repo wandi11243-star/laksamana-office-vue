@@ -89,7 +89,7 @@ const labelHari = (t: string) => {
   return `${t.slice(8)} ${d.toLocaleDateString('id-ID', { weekday: 'short' })}`
 }
 
-const cetak = () => window.print()
+const cetak = () => cetakPdf(namaBerkas('Laporan omset', labelRentang.value))
 
 function kirimWhatsApp() {
   const x = r.value

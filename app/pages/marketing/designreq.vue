@@ -387,6 +387,7 @@ const warnaStatus = (r: RequestDesainMkt) => {
                   color="neutral"
                   variant="ghost"
                   label="Ubah"
+                  loading-auto
                   @click="ubah(row.original)"
                 />
               </div>
@@ -549,6 +550,7 @@ const warnaStatus = (r: RequestDesainMkt) => {
             variant="outline"
             size="sm"
             label="Batalkan"
+            loading-auto
             @click="batalkan"
           />
         </div>

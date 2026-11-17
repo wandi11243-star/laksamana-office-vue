@@ -495,6 +495,7 @@ async function simpanTemplate() {
                   size="sm"
                   color="error"
                   :aria-label="`Hapus ${row.original.nama}`"
+                  loading-auto
                   @click="hapusV(row.original)"
                 />
               </div>
@@ -527,6 +528,7 @@ async function simpanTemplate() {
                 variant="ghost"
                 color="error"
                 :aria-label="`Hapus ${v.nama}`"
+                loading-auto
                 @click="hapusV(v)"
               />
             </div>
@@ -717,6 +719,7 @@ async function simpanTemplate() {
                     size="sm"
                     color="error"
                     :aria-label="`Hapus ${row.original.nama}`"
+                    loading-auto
                     @click="hapusP(row.original)"
                   />
                 </div>
@@ -752,6 +755,7 @@ async function simpanTemplate() {
                   variant="ghost"
                   color="error"
                   :aria-label="`Hapus ${p.nama}`"
+                  loading-auto
                   @click="hapusP(p)"
                 />
               </div>

@@ -439,6 +439,7 @@ async function hapus() {
         <template #footer>
           <UButton
             color="primary"
+            loading-auto
             @click="simpan()"
           >
             Simpan talent
@@ -463,6 +464,7 @@ async function hapus() {
         <template #footer>
           <UButton
             color="error"
+            loading-auto
             @click="hapus()"
           >
             Ya, hapus

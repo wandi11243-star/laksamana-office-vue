@@ -305,7 +305,7 @@ const pdfKind = (e: EventMkt): 'INV_DP' | 'INV_LUNAS' | null => {
   return null
 }
 const bisaCatat = (e: EventMkt) => can('verify_payment') && uang(e).remaining > 0
-const cetak = () => window.print()
+const cetak = () => cetakPdf(namaBerkas('Invoice', pdf.value?.berkas.no, pdf.value?.e.nama))
 </script>
 
 <template>
@@ -370,6 +370,7 @@ const cetak = () => window.print()
           variant="outline"
           size="sm"
           class="mt-2"
+          loading-auto
           @click="muat"
         />
       </AppPanel>
@@ -512,6 +513,7 @@ const cetak = () => window.print()
                   color="neutral"
                   variant="outline"
                   label="PDF Resmi"
+                  loading-auto
                   @click="bukaPdf(e, pdfKind(e) as 'INV_DP' | 'INV_LUNAS')"
                 />
                 <template v-if="!pdfKind(e)">

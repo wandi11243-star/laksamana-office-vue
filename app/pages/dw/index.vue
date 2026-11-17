@@ -364,6 +364,7 @@ function chat(a: AjuanDw) {
                 color="neutral"
                 variant="ghost"
                 size="xs"
+                loading-auto
                 @click="setHadir(row.original, '')"
               />
               <UButton
@@ -373,6 +374,7 @@ function chat(a: AjuanDw) {
                 color="error"
                 variant="ghost"
                 size="xs"
+                loading-auto
                 @click="setHadir(row.original, 'ALFA')"
               />
               <UButton
@@ -430,6 +432,7 @@ function chat(a: AjuanDw) {
                 color="neutral"
                 variant="ghost"
                 size="xs"
+                loading-auto
                 @click="setHadir(a, '')"
               />
               <UButton
@@ -438,6 +441,7 @@ function chat(a: AjuanDw) {
                 color="error"
                 variant="ghost"
                 size="xs"
+                loading-auto
                 @click="setHadir(a, 'ALFA')"
               />
               <UButton

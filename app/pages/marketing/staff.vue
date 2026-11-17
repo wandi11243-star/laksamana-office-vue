@@ -420,6 +420,7 @@ const warnaLevel = (v: number) => (v === 2 ? 'success' : v === 1 ? 'info' : 'neu
             icon="i-lucide-check"
             label="Simpan matriks"
             size="sm"
+            loading-auto
             @click="simpanMatriks"
           />
         </template>
@@ -500,6 +501,7 @@ const warnaLevel = (v: number) => (v === 2 ? 'success' : v === 1 ? 'info' : 'neu
           />
           <UButton
             label="Simpan"
+            loading-auto
             @click="simpanHp"
           />
         </template>
@@ -546,10 +548,12 @@ const warnaLevel = (v: number) => (v === 2 ? 'success' : v === 1 ? 'info' : 'neu
             color="neutral"
             variant="outline"
             label="Reset ke default role"
+            loading-auto
             @click="resetAkses"
           />
           <UButton
             label="Simpan"
+            loading-auto
             @click="simpanAkses"
           />
         </template>
