@@ -77,22 +77,22 @@ defineExpose({ swallowClick: drag.swallowClick })
     <section
       v-for="col in columns"
       :key="col.id"
-      class="kanban-col flex min-w-0 flex-col rounded-xl border border-default bg-muted transition-[background-color,border-color] duration-200 ease-laks"
+      class="kanban-col flex min-w-0 flex-col rounded-xl border bg-elevated transition-[background-color,border-color] duration-200 ease-laks"
       :class="drag.overColumn.value === col.id ? 'border-primary-400 bg-primary-50' : 'border-default'"
       @dragover.prevent="onDragOver(col.id)"
       @dragleave="drag.leaveColumn($event, col.id)"
       @drop="onDrop($event, col.id)"
     >
-      <header class="flex items-center gap-2 px-3 py-2.5">
+      <header class="flex items-center gap-2 border-b border-default px-3 py-2.5">
         <slot
           name="header"
           :column="col"
         >
           <span class="text-sm font-bold text-highlighted">{{ col.title ?? col.id }}</span>
-          <span class="num ml-auto rounded-full bg-muted px-2 text-xs font-bold">{{ col.count ?? col.items.length }}</span>
+          <span class="num ml-auto rounded-full bg-default px-2 text-xs font-bold ring-1 ring-default">{{ col.count ?? col.items.length }}</span>
         </slot>
       </header>
-      <div class="flex min-h-16 flex-1 flex-col gap-2 px-2 pb-2">
+      <div class="flex min-h-16 flex-1 flex-col gap-2 p-2">
         <template
           v-for="item in col.items"
           :key="item.id"

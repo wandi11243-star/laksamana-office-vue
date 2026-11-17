@@ -120,8 +120,8 @@ async function tambahKartu(st: string) {
     @move="pindahKartu"
   >
     <template #header="{ column }">
-      <span class="text-sm font-bold text-highlighted">{{ column.title }}</span>
-      <span class="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-ink-900 num">{{ column.count }}</span>
+      <span class="text-xs font-bold uppercase tracking-wider text-highlighted">{{ column.title }}</span>
+      <span class="ml-auto rounded-full bg-default px-2 py-0.5 text-xs font-bold text-ink-900 ring-1 ring-default num">{{ column.count }}</span>
     </template>
     <template #card="{ item, dragging, dragStart, dragEnd }">
       <BdKanbanCard

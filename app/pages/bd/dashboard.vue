@@ -232,30 +232,35 @@ async function hapus() {
           to="/bd/mytask"
         />
       </template>
-      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <!-- Compact tickets: a thin red edge and a hairline border, small corners,
+           the date as a small caption over the name (owner request, 17 Nov 2026). -->
+      <div class="grid gap-2.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         <button
           v-for="t in odTampil"
           :key="t.id"
           type="button"
-          class="flex min-w-0 items-start gap-3 rounded-xl border border-l-4 border-default border-l-error bg-muted p-3 text-left transition-colors hover:bg-error/5"
+          class="group flex min-w-0 flex-col gap-1.5 rounded-lg border border-error/30 border-l-[3px] border-l-error bg-default px-3 py-2.5 text-left shadow-sm transition-[box-shadow,border-color,transform] duration-150 hover:-translate-y-px hover:border-error/60 hover:shadow-md"
           @click="buka(t)"
         >
-          <span class="num shrink-0 pt-0.5 text-xs text-muted">{{ t.deadline ? tglPendek(t.deadline) : '—' }}</span>
-          <span class="min-w-0 flex-1">
-            <span class="block font-semibold text-highlighted">{{ t.name }}</span>
-            <span class="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted">
-              <AppStatus
-                color="error"
-                size="sm"
-              >telat {{ -sisaHari(t.deadline) }} hari</AppStatus>
-              <AppStatus
-                :color="WARNA_TASK[t.status] ?? 'neutral'"
-                :icon="IKON_TASK[t.status]"
-                size="sm"
-              >{{ t.status }}</AppStatus>
-              <span v-if="namaProject(t.project) || t.daily">· {{ namaProject(t.project) || 'Daily' }}</span>
+          <span class="flex items-center justify-between gap-2 text-[11px]">
+            <span class="num inline-flex items-center gap-1 font-semibold text-error">
+              <UIcon
+                name="i-lucide-calendar-x"
+                class="size-3.5"
+              />
+              {{ t.deadline ? tglPendek(t.deadline) : '—' }} · telat {{ -sisaHari(t.deadline) }} hari
             </span>
+            <AppStatus
+              :color="WARNA_TASK[t.status] ?? 'neutral'"
+              :icon="IKON_TASK[t.status]"
+              size="sm"
+            >{{ t.status }}</AppStatus>
           </span>
+          <span class="line-clamp-2 text-sm font-semibold leading-snug text-highlighted group-hover:text-gold-deep">{{ t.name }}</span>
+          <span
+            v-if="namaProject(t.project) || t.daily"
+            class="truncate text-[11px] text-muted"
+          >{{ namaProject(t.project) || 'Daily' }}</span>
         </button>
       </div>
       <p
@@ -374,30 +379,34 @@ async function hapus() {
         icon="i-lucide-calendar-x"
         :count="tanpaDeadline.length"
       >
-        <div class="divide-y divide-default">
+        <!-- One tidy line per task: name + where it lives on the left, one
+             "Atur deadline" action on the right (no second row of buttons). -->
+        <div class="flex flex-col gap-2">
           <div
             v-for="t in tanpaDeadline.slice(0, 6)"
             :key="t.id"
+            class="flex items-center gap-3 rounded-lg border border-dashed border-accented bg-default px-3 py-2 transition-colors hover:border-gold"
           >
-            <BdTaskRow
-              :task="t"
-              :people="people"
-              :project-name="namaProject(t.project)"
-              hide-quad
-              @buka="buka(t)"
-              @toggle="toggle(t)"
-              @hapus="taskHapus = t"
+            <button
+              type="button"
+              class="min-w-0 flex-1 text-left"
+              @click="buka(t)"
+            >
+              <span class="block truncate text-sm font-semibold text-highlighted">{{ t.name }}</span>
+              <span class="block truncate text-[11px] text-muted">
+                {{ namaProject(t.project) || (t.daily ? 'Daily' : t.div || 'Tanpa project') }} · {{ t.status }}
+              </span>
+            </button>
+            <UButton
+              label="Atur"
+              icon="i-lucide-calendar-plus"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              class="shrink-0"
+              :aria-label="`Atur deadline ${t.name}`"
+              @click="buka(t)"
             />
-            <div class="px-4 pb-3">
-              <UButton
-                label="Atur deadline"
-                icon="i-lucide-calendar-plus"
-                color="neutral"
-                variant="outline"
-                size="xs"
-                @click="buka(t)"
-              />
-            </div>
           </div>
           <p
             v-if="!tanpaDeadline.length"

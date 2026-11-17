@@ -42,21 +42,20 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
     role="button"
     tabindex="0"
     title="Seret untuk pindah kolom"
-    class="block w-full min-w-0 cursor-grab overflow-hidden rounded-lg border bg-default px-3 py-2.5 text-start transition hover:border-accented active:cursor-grabbing"
-    :class="[hal.length ? 'border-lilac-light' : 'border-default', dragging ? 'opacity-50' : '']"
+    class="group block w-full min-w-0 cursor-grab overflow-hidden rounded-lg border border-l-[3px] bg-default px-3 py-2.5 text-start shadow-panel transition-[transform,box-shadow,border-color] duration-150 ease-laks hover:-translate-y-0.5 hover:border-gold/60 hover:shadow-lg focus-visible:outline-2 focus-visible:outline-primary active:cursor-grabbing"
+    :class="[
+      hal.length ? 'border-lilac-light' : 'border-default',
+      // The left edge tells the deadline at a glance: red overdue, gold due, green done.
+      sel ? 'border-l-success' : od ? 'border-l-error' : task.deadline ? 'border-l-gold' : 'border-l-ink-300',
+      dragging ? 'opacity-50' : '',
+    ]"
     @click="emit('buka')"
     @keydown.enter.self="emit('buka')"
   >
-    <span class="flex items-start gap-1">
-      <UIcon
-        name="i-lucide-grip-vertical"
-        class="mt-0.5 size-4 shrink-0 cursor-grab text-dimmed"
-      />
-      <span
-        class="block min-w-0 flex-1 break-words text-sm font-semibold leading-snug"
-        :class="sel ? 'text-muted line-through' : 'text-highlighted'"
-      >{{ task.name }}</span>
-    </span>
+    <span
+      class="block min-w-0 break-words text-sm font-semibold leading-snug transition-colors"
+      :class="sel ? 'text-muted line-through' : 'text-highlighted group-hover:text-gold-deep'"
+    >{{ task.name }}</span>
     <span
       v-if="hal.length"
       class="mt-1 flex items-start gap-1 text-[11px] font-semibold text-ink-900"

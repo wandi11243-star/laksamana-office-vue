@@ -53,10 +53,21 @@ function keHariIni() {
   jangkar.value = todayISO()
   bulanIni()
 }
+const tglLabel = (iso: string, tahun = false) => new Date(`${iso}T00:00:00`)
+  .toLocaleDateString('id-ID', { weekday: tahun ? undefined : 'long', day: 'numeric', month: 'short', ...(tahun ? { year: 'numeric' } : {}) })
 const labelJangkar = computed(() => {
-  if (mode.value === 'hari') return hariList.value[0]!
-  if (mode.value === 'minggu') return `${hariList.value[0]} – ${hariList.value[6]}`
+  if (mode.value === 'hari') return `${tglLabel(hariList.value[0]!)} ${hariList.value[0]!.slice(0, 4)}`
+  if (mode.value === 'minggu') return `${tglLabel(hariList.value[0]!, true).replace(/ \d{4}$/, '')} – ${tglLabel(hariList.value[6]!, true)}`
   return label.value
+})
+/** The date box: any day jumps there (and to its month on the month grid). */
+const tglPilih = computed({
+  get: () => jangkar.value,
+  set: (v: string) => {
+    if (!v) return
+    jangkar.value = v
+    awal.value = new Date(Number(v.slice(0, 4)), Number(v.slice(5, 7)) - 1, 1)
+  },
 })
 
 /** Tasks drawn on the hour grid: same scope/division/pic filter as the month grid. */
@@ -134,6 +145,8 @@ interface BandLuar { tanggal: string, judul: string, selesai?: string }
  * every band response would change the key and refetch the bands again.
  */
 const rentangBulan = computed(() => {
+  // Hari/Minggu read the bands for the drawn days only.
+  if (mode.value !== 'bulan') return { dari: hariList.value[0]!, sampai: hariList.value[hariList.value.length - 1]! }
   const y = awal.value.getFullYear()
   const mo = awal.value.getMonth()
   const mulaiDow = (new Date(y, mo, 1).getDay() + 6) % 7
@@ -157,6 +170,44 @@ const { data: kalMkt, error: kalMktGagal, refresh: muatKalMkt } = useAsyncData('
 const { data: kalRsv, error: kalRsvGagal, refresh: muatKalRsv } = useAsyncData('bd-kal-reservasi',
   () => listReservations(rentangBulan.value.dari, rentangBulan.value.sampai).then(r => r.data),
   { watch: [kunciRentang], default: () => [] })
+/**
+ * The other modules on the hour grid's "tanpa jam" strip, read-only: events
+ * and marketing by title, reservations as one summary chip per day
+ * ("Reservasi · 3 booking · 12 pax"), cancelled / no-show left out.
+ */
+const luarJam = computed(() => {
+  const hari = new Set(hariList.value)
+  const out: { date: string, title: string, tone: 'vip' | 'info' | 'warning' }[] = []
+  for (const it of kalEvent.value) {
+    if (it.tanggal && hari.has(it.tanggal)) out.push({ date: it.tanggal, title: `Event · ${it.judul}`, tone: 'vip' })
+  }
+  for (const it of kalMkt.value) {
+    if (!it.tanggal) continue
+    const akhir = it.selesai && it.selesai > it.tanggal ? it.selesai : it.tanggal
+    for (let d = it.tanggal; d <= akhir; d = tambahHari(d, 1)) {
+      if (hari.has(d)) out.push({ date: d, title: `Marketing · ${it.judul}`, tone: 'info' })
+    }
+  }
+  const rsv: Record<string, { n: number, pax: number }> = {}
+  for (const r of kalRsv.value) {
+    const tgl = String(r.date || '').slice(0, 10)
+    if (!hari.has(tgl) || /cancel|batal|no.?show/i.test(String(r.status || ''))) continue
+    const x = (rsv[tgl] ??= { n: 0, pax: 0 })
+    x.n++
+    x.pax += Number(r.pax) || 0
+  }
+  for (const [date, x] of Object.entries(rsv)) out.push({ date, title: `Reservasi · ${x.n} booking · ${x.pax} pax`, tone: 'warning' })
+  return out
+})
+
+const LEGENDA = [
+  { label: 'Deadline task', dot: 'bg-error' },
+  { label: 'Meeting', dot: 'bg-yellow-deep' },
+  { label: 'Event', dot: 'bg-lilac-light' },
+  { label: 'Marketing', dot: 'bg-info' },
+  { label: 'Reservasi', dot: 'bg-warning' },
+]
+
 const pitaLuar = computed(() => [
   kalEventGagal.value ? 'Event' : '',
   kalMktGagal.value ? 'Marketing' : '',
@@ -275,44 +326,9 @@ onUnmounted(() => {
 <template>
   <AppPage
     title="Calendar"
-    description="Deadline, meeting, event, marketing & reservasi."
+    description="Agenda berjam, deadline, meeting, event, marketing & reservasi — per orang, per divisi, atau seluruh tim."
   >
     <template #actions>
-      <AppSeg
-        v-model="mode"
-        :options="[
-          { value: 'hari', label: 'Hari' },
-          { value: 'minggu', label: 'Minggu' },
-          { value: 'bulan', label: 'Bulan' },
-        ]"
-        size="sm"
-      />
-      <div class="inline-flex items-center overflow-hidden rounded-full border border-default">
-        <UButton
-          icon="i-lucide-chevron-left"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          aria-label="Sebelumnya"
-          @click="geser(-1)"
-        />
-        <span class="px-2 text-sm font-semibold text-highlighted">{{ labelJangkar }}</span>
-        <UButton
-          icon="i-lucide-chevron-right"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          aria-label="Berikutnya"
-          @click="geser(1)"
-        />
-      </div>
-      <UButton
-        label="Hari ini"
-        color="neutral"
-        variant="outline"
-        size="sm"
-        @click="keHariIni"
-      />
       <UButton
         label="Agenda"
         icon="i-lucide-plus"
@@ -320,40 +336,88 @@ onUnmounted(() => {
       />
     </template>
 
-    <AppPanel>
-      <AppFilterGrid>
-        <UFormField label="Lingkup">
-          <USelect
-            v-model="f.scope"
-            :items="skop"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Divisi">
-          <USelect
-            v-model="f.div"
-            :items="opsiDiv"
-            class="w-full"
-          />
-        </UFormField>
-      </AppFilterGrid>
-      <div class="mt-3 flex flex-wrap items-center gap-2">
-        <BdPicFilter
-          v-model="fPics"
-          :people="people"
-        />
-        <div class="flex-1" />
+    <!-- Toolbar (old calendar): scope · view · ‹ Hari ini › · date · the range in big type. -->
+    <div class="mb-3 flex flex-wrap items-center gap-2">
+      <USelect
+        v-model="f.scope"
+        :items="skop"
+        class="w-full sm:w-48"
+        aria-label="Lingkup"
+      />
+      <AppSeg
+        v-model="mode"
+        :options="[
+          { value: 'hari', label: 'Hari' },
+          { value: 'minggu', label: 'Minggu' },
+          { value: 'bulan', label: 'Bulan' },
+        ]"
+      />
+      <div class="flex items-center gap-1">
         <UButton
-          v-if="resetAktif"
-          label="Reset"
-          icon="i-lucide-x"
+          icon="i-lucide-chevron-left"
           color="neutral"
           variant="outline"
-          size="sm"
-          @click="reset"
+          square
+          aria-label="Sebelumnya"
+          @click="geser(-1)"
+        />
+        <UButton
+          label="Hari ini"
+          color="neutral"
+          variant="outline"
+          @click="keHariIni"
+        />
+        <UButton
+          icon="i-lucide-chevron-right"
+          color="neutral"
+          variant="outline"
+          square
+          aria-label="Berikutnya"
+          @click="geser(1)"
         />
       </div>
-    </AppPanel>
+      <AppTanggal
+        v-model="tglPilih"
+        class="w-full sm:w-60"
+      />
+      <span class="font-display text-lg font-bold text-highlighted sm:ml-1 sm:text-xl">{{ labelJangkar }}</span>
+    </div>
+
+    <!-- Legend chips, then the division / PIC filters on the same line. -->
+    <div class="mb-4 flex flex-wrap items-center gap-2">
+      <span
+        v-for="l in LEGENDA"
+        :key="l.label"
+        class="inline-flex items-center gap-1.5 rounded-full border border-default bg-default px-3 py-1 text-[13px] font-semibold text-default"
+      >
+        <span
+          class="size-2.5 rounded-full"
+          :class="l.dot"
+        />
+        {{ l.label }}
+      </span>
+      <div class="flex-1" />
+      <USelect
+        v-model="f.div"
+        :items="opsiDiv"
+        size="sm"
+        class="w-40"
+        aria-label="Divisi"
+      />
+      <BdPicFilter
+        v-model="fPics"
+        :people="people"
+      />
+      <UButton
+        v-if="resetAktif"
+        label="Reset"
+        icon="i-lucide-x"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        @click="reset"
+      />
+    </div>
 
     <UAlert
       v-if="pitaLuar.length"
@@ -364,17 +428,14 @@ onUnmounted(() => {
       class="mb-4"
     />
 
-    <AppPanel
-      title="Kalender"
-      icon="i-lucide-calendar-days"
-      :description="labelJangkar"
-    >
+    <div :class="mode === 'bulan' ? 'rounded-panel bg-default p-3 shadow-panel sm:p-4' : ''">
       <BdJamGrid
         v-if="mode !== 'bulan'"
         :agenda="state.agenda"
         :tasks="tasksKal"
         :aku-id="aku?.id"
         :hari="hariList"
+        :luar="luarJam"
         @buka-agenda="bukaAgendaSheet($event)"
         @buat-agenda="buatAgendaSlot"
         @buka-task="bukaTaskSheet"
@@ -395,13 +456,13 @@ onUnmounted(() => {
             v-for="c in sel"
             :key="c.iso"
             class="min-h-24 rounded-md border p-1.5"
-            :class="[c.luar ? 'border-default bg-muted/40 opacity-60' : 'border-default bg-default', c.iso === hariIni ? 'ring-2 ring-yellow-deep' : '']"
+            :class="[c.luar ? 'border-default bg-muted/40 opacity-60' : 'border-default bg-default', c.iso === hariIni ? 'ring-2 ring-gold' : '']"
             @dragover.prevent
             @drop="dropHari(c.iso)"
           >
             <span
               class="text-xs font-semibold"
-              :class="c.iso === hariIni ? 'text-ink-900' : 'text-muted'"
+              :class="c.iso === hariIni ? 'rounded-full bg-primary px-1.5 py-0.5 text-white' : 'text-muted'"
             >{{ c.hari }}</span>
             <div class="mt-1 grid gap-1">
               <span
@@ -438,7 +499,7 @@ onUnmounted(() => {
           v-for="c in hariBerisi"
           :key="c.iso"
           class="rounded-panel border border-default p-3"
-          :class="c.iso === hariIni ? 'ring-2 ring-yellow-deep' : ''"
+          :class="c.iso === hariIni ? 'ring-2 ring-gold' : ''"
         >
           <p
             class="text-sm font-semibold"
@@ -470,18 +531,13 @@ onUnmounted(() => {
         </p>
       </div>
 
-      <div
+      <p
         v-if="mode === 'bulan'"
-        class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-default pt-3 text-xs text-muted"
+        class="mt-4 border-t border-default pt-3 text-xs text-muted"
       >
-        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-error" /> Deadline task</span>
-        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-brand-yellow" /> Meeting</span>
-        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-lilac-light" /> Event</span>
-        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-info" /> Marketing</span>
-        <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-full bg-warning" /> Reservasi</span>
-        <span class="text-ink-900">Seret <b>deadline task</b> ke kotak lain untuk memindahkan tanggalnya (di HP: buka task dan ubah deadlinenya).</span>
-      </div>
-    </AppPanel>
+        Seret <b class="text-highlighted">deadline task</b> ke kotak lain untuk memindahkan tanggalnya (di HP: buka task dan ubah deadlinenya).
+      </p>
+    </div>
 
     <BdAgendaSheet
       v-model:open="bukaAgenda"

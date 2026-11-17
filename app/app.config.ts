@@ -31,7 +31,9 @@ export default defineAppConfig({
       slots: { base: 'rounded-field' },
     },
     formField: {
-      slots: { label: 'font-semibold text-highlighted' },
+      // The hint wraps under a long label instead of pushing the field (and the
+      // dialog around it) wider than the screen.
+      slots: { label: 'font-semibold text-highlighted', labelWrapper: 'flex-wrap gap-x-3', hint: 'min-w-0' },
     },
     // WattVision sidebar: the active item is a white card with a soft shadow on
     // the shell, words and icon in deep gold; others are muted, whiten on hover.
@@ -53,11 +55,24 @@ export default defineAppConfig({
     card: {
       slots: { root: 'rounded-panel ring-1 ring-default shadow-panel' },
     },
+    // Pop-ups stand apart from the page: a dark, lightly blurred overlay and a
+    // deep shadow, so the white dialog never melts into the white cards behind.
+    // The body never scrolls sideways — content wraps instead.
     modal: {
-      slots: { content: 'rounded-panel ring-0' },
+      slots: {
+        overlay: 'backdrop-blur-[2px]',
+        content: 'rounded-panel ring-0 shadow-2xl shadow-ink-900/30',
+        body: 'overflow-x-hidden',
+      },
+      // The modal's overlay colour lives in its `overlay` variant (applied after
+      // the slots), so the dark tint must be set there or the light default wins.
+      variants: { overlay: { true: { overlay: 'bg-ink-900/55' } } },
+    },
+    slideover: {
+      slots: { overlay: 'bg-ink-900/55 backdrop-blur-[2px]', content: 'ring-0 shadow-2xl shadow-ink-900/30', body: 'overflow-x-hidden' },
     },
     drawer: {
-      slots: { content: 'ring-0' },
+      slots: { overlay: 'bg-ink-900/55 backdrop-blur-[2px]', content: 'ring-0 shadow-2xl shadow-ink-900/30', body: 'overflow-x-hidden' },
     },
     // Data table (DESIGN.md › Tabel): muted capital head, a hairline under
     // every row, a quiet hover.

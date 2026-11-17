@@ -34,6 +34,8 @@ const props = defineProps<{
   akuId?: string | null
   /** The drawn days, Monday-first for a week. */
   hari: string[]
+  /** Read-only day chips from other modules (reservations, events, marketing), drawn in the timeless strip. */
+  luar?: { date: string, title: string, tone: Tone }[]
 }>()
 const emit = defineEmits<{
   'buka-agenda': [e: BdAgenda]
@@ -177,6 +179,13 @@ function gayaBlok(b: Blok): Record<string, string> {
     width: `calc(${100 / n}% - 4px)`,
   }
 }
+
+/** The other modules' chips per drawn day. */
+const luarHari = computed(() => {
+  const out: Record<string, { title: string, tone: Tone }[]> = {}
+  for (const x of props.luar ?? []) (out[x.date] ??= []).push(x)
+  return out
+})
 
 const KELAS_TONE: Record<Tone, string> = {
   error: 'border-l-error',
@@ -455,13 +464,13 @@ const hariIni = todayISO()
       <div
         v-for="d in hari"
         :key="d"
-        class="flex items-center justify-center gap-1.5 px-2 py-2 text-center"
-        :class="d === hariIni ? 'text-ink-900' : 'text-muted'"
+        class="flex items-center justify-center gap-1.5 border-l border-default px-2 py-3 text-center first-of-type:border-l-0"
+        :class="d === hariIni ? 'text-gold-deep' : 'text-muted'"
       >
-        <span class="text-xs font-semibold">{{ namaHari(d) }}</span>
+        <span class="text-sm font-semibold">{{ namaHari(d) }}</span>
         <span
-          class="text-sm font-bold"
-          :class="d === hariIni ? 'rounded-full bg-ink-900 px-2 py-0.5 text-white' : 'text-highlighted'"
+          class="num font-display text-lg font-bold leading-none"
+          :class="d === hariIni ? 'rounded-full bg-primary px-2 py-1 text-white' : 'text-highlighted'"
         >{{ Number(d.slice(8, 10)) }}</span>
         <UButton
           icon="i-lucide-plus"
@@ -476,39 +485,47 @@ const hariIni = todayISO()
     </div>
     <!-- timeless strip -->
     <div
-      class="grid min-w-max border-b border-default bg-muted/60"
+      class="grid min-w-max border-b border-default bg-muted/50"
       :style="{ gridTemplateColumns: `54px repeat(${hari.length}, minmax(${hari.length > 1 ? 150 : 260}px, 1fr))` }"
     >
-      <div class="px-1 py-2 text-right text-[10px] font-semibold uppercase tracking-wide text-dimmed">
+      <div class="px-1.5 py-2 text-right text-[10px] text-dimmed">
         tanpa jam
       </div>
+      <!-- One chip style for every timeless item: white, a coloured left edge. -->
       <div
         v-for="(d, ix) in hari"
         :key="d"
-        class="min-w-0 border-l border-default px-1 py-1"
+        class="flex min-w-0 flex-col gap-1 border-l border-default px-1.5 py-1.5"
         data-tanpajam
       >
-        <button
-          v-for="e in tanpaJam[d]!.ag"
-          :key="e.id"
-          type="button"
-          class="mb-1 block w-full truncate rounded border border-l-4 border-default border-l-yellow-deep bg-default px-1.5 py-1 text-left text-[11px] font-semibold text-highlighted hover:border-accented"
-          :title="`${e.type || 'Agenda'} — ${e.title}`"
-          @click="emit('buka-agenda', e)"
-        >
-          {{ e.title }}
-        </button>
         <button
           v-for="t in tanpaJam[d]!.task"
           :key="t.id"
           type="button"
-          class="mb-1 block w-full cursor-grab truncate rounded border border-l-4 border-error/40 bg-error/10 px-1.5 py-1 text-left text-[11px] font-semibold text-error"
-          :title="`Seret ke grid untuk memberi jam — ${t.name}`"
+          class="block w-full cursor-grab truncate rounded-md border border-default border-l-[3px] border-l-error bg-default px-2 py-1 text-left text-[11px] font-medium text-highlighted shadow-xs hover:border-error/50"
+          :title="`Deadline — seret ke grid untuk memberi jam — ${t.name}`"
           @pointerdown="tekanTanpaJam($event, t, ix)"
           @click="klikTanpaJam(t)"
         >
           ◆ {{ t.name }}
         </button>
+        <button
+          v-for="e in tanpaJam[d]!.ag"
+          :key="e.id"
+          type="button"
+          class="block w-full truncate rounded-md border border-default border-l-[3px] border-l-yellow-deep bg-default px-2 py-1 text-left text-[11px] font-medium text-highlighted shadow-xs hover:border-accented"
+          :title="`${e.type || 'Agenda'} — ${e.title}`"
+          @click="emit('buka-agenda', e)"
+        >
+          {{ e.title }}
+        </button>
+        <span
+          v-for="(x, i) in luarHari[d] || []"
+          :key="`l${i}`"
+          class="block w-full truncate rounded-md border border-default border-l-[3px] bg-default px-2 py-1 text-[11px] text-default shadow-xs"
+          :class="KELAS_TONE[x.tone]"
+          :title="x.title"
+        >{{ x.title }}</span>
       </div>
     </div>
     <!-- hour columns -->
@@ -520,7 +537,7 @@ const hariIni = todayISO()
         <div
           v-for="h in datar.h1 - datar.h0"
           :key="h"
-          class="pr-1.5 text-right text-[10px] text-dimmed"
+          class="pr-1.5 text-right font-mono text-[10px] text-dimmed"
           :style="{ height: `${HH}px`, transform: 'translateY(-6px)' }"
         >
           {{ String(datar.h0 + h - 1).padStart(2, '0') }}:00
@@ -555,7 +572,7 @@ const hariIni = todayISO()
           :title="`${b.sub} — ${b.judul}${b.boleh ? ' (seret untuk pindah, tepi bawah untuk ubah selesai)' : ''}`"
           @pointerdown="tekanBlok($event, b, ix)"
         >
-          <p class="truncate text-[10px] text-muted">
+          <p class="truncate font-mono text-[10px] text-muted">
             {{ b.sub }}
           </p>
           <p
