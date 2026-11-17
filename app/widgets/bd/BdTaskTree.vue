@@ -8,6 +8,7 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
+import { lampiranSah } from '~/composables/useBd'
 import { fDue, inisial, kunciTag, lewat, penghalang, pics, selesai, sisaHari, subHitung, subs, tagsOf } from '~/utils/bd-rumus'
 import { IKON_TASK, WARNA_TASK } from '~/utils/status-bd'
 import { fTgl } from '~/utils/format'
@@ -236,7 +237,7 @@ const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
           </div>
           <!-- The step's keterangan + attachments (Nov 2026). -->
           <div
-            v-if="(s.note || '').trim() || (s.files || []).length"
+            v-if="(s.note || '').trim() || lampiranSah(s.files).length"
             class="mt-1.5 flex flex-col gap-1.5 ps-8"
           >
             <p
@@ -246,11 +247,11 @@ const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
               {{ s.note }}
             </p>
             <div
-              v-if="(s.files || []).length"
+              v-if="lampiranSah(s.files).length"
               class="flex flex-wrap gap-1.5"
             >
               <BdLampiranChip
-                v-for="fl in s.files"
+                v-for="fl in lampiranSah(s.files)"
                 :key="fl.key"
                 :file="fl"
               />

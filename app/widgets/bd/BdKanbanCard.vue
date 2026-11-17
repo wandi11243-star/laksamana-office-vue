@@ -8,6 +8,7 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
+import { lampiranSah } from '~/composables/useBd'
 import { fDue, inisial, kunciTag, labelUlang, lewat, penghalang, pics, reviewers, selesai, sisaHari, subHitung, subs, tagsOf } from '~/utils/bd-rumus'
 import { fTglP } from '~/utils/format'
 import BdTagChip from '~/widgets/bd/BdTagChip.vue'
@@ -201,14 +202,14 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
           :aria-label="`Catatan: ${s.note}`"
         />
         <span
-          v-if="(s.files || []).length"
+          v-if="lampiranSah(s.files).length"
           class="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-semibold text-gold-deep"
-          :title="(s.files || []).map(fl => fl.name).join(', ')"
+          :title="lampiranSah(s.files).map(fl => fl.name).join(', ')"
         >
           <UIcon
             name="i-lucide-paperclip"
             class="size-3"
-          />{{ (s.files || []).length }}
+          />{{ lampiranSah(s.files).length }}
         </span>
         <span
           v-if="s.p && namaSubPic(s.p)"

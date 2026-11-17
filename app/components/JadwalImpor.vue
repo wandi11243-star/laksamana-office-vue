@@ -94,7 +94,7 @@ function simpan() {
     :title="`Impor dari Excel · ${namaDivisiJadwal(div)}`"
   >
     <div class="space-y-3 text-sm">
-      <label class="flex cursor-pointer items-start gap-3 rounded-field border-2 border-dashed border-default p-3 hover:border-primary-400">
+      <label class="relative flex cursor-pointer items-start gap-3 rounded-field border-2 border-dashed border-default p-3 hover:border-primary-400">
         <UIcon
           name="i-lucide-folder-open"
           class="size-7 shrink-0 text-primary-700"

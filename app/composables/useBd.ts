@@ -795,7 +795,20 @@ export async function unggahLampiranBd(f: File): Promise<BdLampiran> {
     method: 'POST',
     body: { dataBase64, fileName: f.name, mimeType: f.type },
   })
-  return r.data
+  // A proxy or firewall can answer 2xx with an HTML page (e.g. a large photo):
+  // never hand the form an attachment without a key — it would break the sheet.
+  const d = (r as { data?: Partial<BdLampiran> } | null)?.data
+  if (!d || typeof d.key !== 'string' || !d.key) {
+    throw new Error('Server tidak mengembalikan berkas yang tersimpan. Coba lagi, atau pakai foto yang lebih kecil.')
+  }
+  return { key: d.key, name: String(d.name || f.name), mime: String(d.mime || f.type), size: Number(d.size) || f.size }
+}
+
+/** Only well-formed attachments (an object with a key): a broken entry must never reach a chip. */
+export function lampiranSah(files: unknown): BdLampiran[] {
+  return Array.isArray(files)
+    ? files.filter((x): x is BdLampiran => !!x && typeof x === 'object' && typeof (x as BdLampiran).key === 'string' && !!(x as BdLampiran).key)
+    : []
 }
 
 const urlLampiran = new Map<string, Promise<string>>()

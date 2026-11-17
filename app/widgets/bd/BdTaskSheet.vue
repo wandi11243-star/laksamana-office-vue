@@ -11,7 +11,7 @@
 -->
 <script setup lang="ts">
 import type { BdLampiran, BdPerson, BdProject, BdSubtask, BdTask } from '~/composables/useBd'
-import { LAMPIRAN_TERIMA, buatBd, bdSimpan, bdTulisDiam, capPenugasan, hapusTaskDenganUrutan, lahirkanUlangSetelah, pesanHapusTask, putSetelan, tolakLampiran, ubahBd, unggahLampiranBd, useBdSettings, versiBaris, versiSetelan } from '~/composables/useBd'
+import { LAMPIRAN_TERIMA, buatBd, bdSimpan, bdTulisDiam, capPenugasan, hapusTaskDenganUrutan, lahirkanUlangSetelah, lampiranSah, pesanHapusTask, putSetelan, tolakLampiran, ubahBd, unggahLampiranBd, useBdSettings, versiBaris, versiSetelan } from '~/composables/useBd'
 import {
   PILIHAN_TANPA, PRIORITAS, STATUS_FLOW, TAG_PALET, TASK_TIPE, ULANG, cekBolehDone, deps, divisiBawaan, gayaTag, jamValid, kruTersedia, kuadran,
   kunciTag, labelUlang, menungguTransitif, opsiDivisi, opsiProject as opsiProjectBd, parseUlang, pesanTunggu, pics, reviewers, segarkanProgress, selesai, semuaTag, setPics, subs, susunUlang, tagsOf, todayISO, uidBd,
@@ -198,7 +198,7 @@ watch(open, (o) => {
     kustomDari(t.ulang || '', t.deadline || '')
     subDraf.value = subs(t).map(x => ({
       id: String(x.id || uidBd('s')), t: String(x.t || ''), done: !!x.done, d: String(x.d || ''), p: String(x.p || ''),
-      note: String(x.note || ''), files: Array.isArray(x.files) ? x.files.slice() : [],
+      note: String(x.note || ''), files: lampiranSah(x.files),
       punya: 'note' in x || 'files' in x, buka: false,
     }))
     tagDraf.value = tagsOf(t)
@@ -287,7 +287,9 @@ async function lampirkan(s: DrafSub, ev: Event) {
       s.files.push(await unggahLampiranBd(file))
     }
     catch (e) {
-      toast.add({ title: `Gagal mengunggah ${file.name}`, description: apiErrorMessage(e), color: 'error' })
+      // Our own refusals (unreadable file, no key back) carry their reason; network/API errors go through apiErrorMessage.
+      const pesan = e instanceof Error && e.name !== 'FetchError' ? e.message : apiErrorMessage(e)
+      toast.add({ title: `Gagal mengunggah ${file.name}`, description: pesan, color: 'error' })
     }
     finally {
       mengunggah.value[s.id] = Math.max(0, (mengunggah.value[s.id] ?? 1) - 1)
@@ -843,7 +845,7 @@ async function hapus() {
               </div>
               <div class="flex flex-wrap items-center gap-2">
                 <label
-                  class="inline-flex cursor-pointer items-center gap-1.5 rounded-field border border-default bg-default px-2.5 py-1.5 text-xs font-semibold text-gold-deep hover:bg-gold-soft/40"
+                  class="relative inline-flex cursor-pointer items-center gap-1.5 rounded-field border border-default bg-default px-2.5 py-1.5 text-xs font-semibold text-gold-deep hover:bg-gold-soft/40"
                 >
                   <UIcon
                     :name="mengunggah[s.id] ? 'i-lucide-loader' : 'i-lucide-paperclip'"
