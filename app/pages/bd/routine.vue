@@ -207,7 +207,7 @@ async function hapus() {
               <span class="h-2 w-20 overflow-hidden rounded-full bg-muted">
                 <span
                   class="block h-full rounded-full"
-                  :class="kepatuhanBaris(row.original) >= 90 ? 'bg-success' : 'bg-ink-900'"
+                  :class="kepatuhanBaris(row.original) >= 90 ? 'bg-success' : 'bar-emas'"
                   :style="{ width: `${kepatuhanBaris(row.original)}%` }"
                 />
               </span>

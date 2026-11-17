@@ -246,6 +246,13 @@ h1, h2, h3, .font-display {
   transform: scale(1.07);
   box-shadow: 0 10px 22px rgb(122 86 15 / 0.3);
 }
+
+/* Task Management progress fill: deep gold → bright gold, left to right
+   (owner request, 18 Nov 2026 — the second allowed gradient). A finished
+   bar stays plain success green. */
+.bar-emas {
+  background: linear-gradient(90deg, var(--color-gold-deep), var(--color-gold-bright));
+}
 @media (prefers-reduced-motion: reduce) {
   .group:hover .ubin-emas { transform: none; }
 }

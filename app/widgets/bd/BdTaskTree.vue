@@ -182,7 +182,7 @@ const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
           <span class="h-2 flex-1 overflow-hidden rounded-full bg-muted">
             <span
               class="block h-full rounded-full"
-              :class="selesai(t) ? 'bg-success' : 'bg-ink-900'"
+              :class="selesai(t) ? 'bg-success' : 'bar-emas'"
               :style="{ width: `${Math.max(0, Math.min(100, Number(t.progress) || 0))}%` }"
             />
           </span>

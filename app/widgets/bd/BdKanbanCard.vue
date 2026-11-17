@@ -230,7 +230,7 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
       <span class="h-1.5 flex-1 overflow-hidden rounded-full bg-muted">
         <span
           class="block h-full rounded-full"
-          :class="sel ? 'bg-success' : 'bg-ink-900'"
+          :class="sel ? 'bg-success' : 'bar-emas'"
           :style="{ width: `${progres}%` }"
         />
       </span>

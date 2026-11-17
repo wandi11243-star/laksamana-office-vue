@@ -40,7 +40,7 @@ const dpakai = computed(() => pics(props.project).map(id => props.people.find(p 
       <span class="h-2.5 flex-1 overflow-hidden rounded-full bg-muted">
         <span
           class="block h-full rounded-full"
-          :class="pg >= 100 ? 'bg-success' : 'bg-ink-900'"
+          :class="pg >= 100 ? 'bg-success' : 'bar-emas'"
           :style="{ width: `${pg}%` }"
         />
       </span>
