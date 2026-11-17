@@ -11,6 +11,7 @@ import type { BdPerson, BdTask } from '~/composables/useBd'
 import { fDue, inisial, kunciTag, lewat, penghalang, pics, selesai, sisaHari, subHitung, subs, tagsOf } from '~/utils/bd-rumus'
 import { IKON_TASK, WARNA_TASK } from '~/utils/status-bd'
 import { fTgl } from '~/utils/format'
+import BdLampiranChip from '~/widgets/bd/BdLampiranChip.vue'
 import BdTagChip from '~/widgets/bd/BdTagChip.vue'
 
 const props = defineProps<{
@@ -208,29 +209,53 @@ const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
         <div
           v-for="(s, ix) in subs(t)"
           :key="`${t.id}-s${ix}`"
-          class="flex items-center gap-3 bg-muted/40 px-4 py-2 ps-16"
+          class="bg-muted/40 px-4 py-2 ps-16"
         >
-          <UCheckbox
-            :model-value="!!s.done"
-            @update:model-value="(v: boolean | 'indeterminate') => emit('subToggle', t, ix, v === true)"
-          />
-          <span
-            class="min-w-0 flex-1 truncate text-sm"
-            :class="s.done ? 'text-muted line-through' : 'text-default'"
-          >{{ s.t }}</span>
-          <span
-            v-if="s.p && namaSubPic(s.p)"
-            :title="`Di-assign ke ${namaSubPic(s.p)}`"
-            class="flex size-5 shrink-0 items-center justify-center rounded-full bg-yellow-light text-[9px] font-bold text-yellow-dark"
-          >{{ inisial(namaSubPic(s.p)) }}</span>
-          <AppStatus
-            v-if="dlSub(s.d)"
-            size="sm"
-            :color="s.done ? 'success' : (!s.done && sisaHari(s.d) < 0 ? 'error' : 'neutral')"
-            :icon="s.done ? 'i-lucide-check' : undefined"
+          <div class="flex items-center gap-3">
+            <UCheckbox
+              :model-value="!!s.done"
+              @update:model-value="(v: boolean | 'indeterminate') => emit('subToggle', t, ix, v === true)"
+            />
+            <span
+              class="min-w-0 flex-1 truncate text-sm"
+              :class="s.done ? 'text-muted line-through' : 'text-default'"
+            >{{ s.t }}</span>
+            <span
+              v-if="s.p && namaSubPic(s.p)"
+              :title="`Di-assign ke ${namaSubPic(s.p)}`"
+              class="flex size-5 shrink-0 items-center justify-center rounded-full bg-yellow-light text-[9px] font-bold text-yellow-dark"
+            >{{ inisial(namaSubPic(s.p)) }}</span>
+            <AppStatus
+              v-if="dlSub(s.d)"
+              size="sm"
+              :color="s.done ? 'success' : (!s.done && sisaHari(s.d) < 0 ? 'error' : 'neutral')"
+              :icon="s.done ? 'i-lucide-check' : undefined"
+            >
+              {{ s.done ? fTgl(s.d) : fDue(s.d) }}
+            </AppStatus>
+          </div>
+          <!-- The step's keterangan + attachments (Nov 2026). -->
+          <div
+            v-if="(s.note || '').trim() || (s.files || []).length"
+            class="mt-1.5 flex flex-col gap-1.5 ps-8"
           >
-            {{ s.done ? fTgl(s.d) : fDue(s.d) }}
-          </AppStatus>
+            <p
+              v-if="(s.note || '').trim()"
+              class="whitespace-pre-line text-xs text-muted"
+            >
+              {{ s.note }}
+            </p>
+            <div
+              v-if="(s.files || []).length"
+              class="flex flex-wrap gap-1.5"
+            >
+              <BdLampiranChip
+                v-for="fl in s.files"
+                :key="fl.key"
+                :file="fl"
+              />
+            </div>
+          </div>
         </div>
       </template>
     </template>

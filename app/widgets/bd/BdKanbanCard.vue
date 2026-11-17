@@ -194,6 +194,23 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
           class="min-w-0 flex-1 truncate"
           :class="s.done ? 'text-muted line-through' : 'text-default'"
         >{{ s.t }}</span>
+        <UIcon
+          v-if="(s.note || '').trim()"
+          name="i-lucide-message-square-text"
+          class="size-3.5 shrink-0 text-gold-deep"
+          :title="s.note"
+          :aria-label="`Catatan: ${s.note}`"
+        />
+        <span
+          v-if="(s.files || []).length"
+          class="inline-flex shrink-0 items-center gap-0.5 text-[10px] font-semibold text-gold-deep"
+          :title="(s.files || []).map(fl => fl.name).join(', ')"
+        >
+          <UIcon
+            name="i-lucide-paperclip"
+            class="size-3"
+          />{{ (s.files || []).length }}
+        </span>
         <span
           v-if="s.p && namaSubPic(s.p)"
           :title="`Di-assign ke ${namaSubPic(s.p)}`"
