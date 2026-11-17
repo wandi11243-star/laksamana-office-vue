@@ -18,7 +18,7 @@ Hard rules:
   Lucide icons instead of the old emoji (emoji only inside WhatsApp message text). Accent = Laksamana gold (CTA `color="primary"` = white on `#85600F`; active = `gold-soft`/`gold-deep`);
   WattVision dashboard look: borderless white cards with a soft shadow, sidebar on `bg-shell`, display face Plus Jakarta Sans
   for titles and KPI numbers, no pastel card/tile backgrounds; 16px cards, 10px fields. No hex colours
-  in components; no gradients (one exception: the `ubin-emas` module icon tile copied from the old launcher). Module card
+  in components; no gradients (two exceptions: the `ubin-emas` module icon tile copied from the old launcher, and the `bar-emas` Task Management progress fill). Module card
   icons are the old launcher's own SVGs (`i-laks-*`, `app/assets/icons`). Restyle Nuxt UI in `app/app.config.ts`, don't wrap it.
 - One page serves phone and desktop. Check 390px and 1366px **in a browser** (lint/typecheck do not catch runtime errors). The
   app is light-only: color mode is pinned to light in `nuxt.config.ts` and there is no theme picker — do not add `dark:` styles

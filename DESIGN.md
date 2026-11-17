@@ -46,7 +46,7 @@ Semua warna adalah token di `app/assets/css/main.css`; komponen tidak boleh beri
 
 - **Tidak ada pastel.** Tint pastel Miro lama (`sky-`, `teal-`, `lilac-`, `rose-`, `coral-`,
   `sand-`, `mint-light`, dst.) tidak dipakai untuk kode baru; sisa pemakaian di halaman diganti
-  bertahap. Kartu netral (putih); ubin ikon `gold-soft`, kecuali ubin modul Beranda (kelas `ubin-emas`): **salinan persis launcher Office lama** — gradien 135° `#C8961F` → `#7A560F`, ikon putih 20px, sudut 11px, bayangan emas, membesar 7% saat hover. Satu-satunya gradien di aplikasi. Ikon kartu modul juga gambar SVG Office lama sendiri (`i-laks-*` di `app/assets/icons`).
+  bertahap. Kartu netral (putih); ubin ikon `gold-soft`, kecuali ubin modul Beranda (kelas `ubin-emas`): **salinan persis launcher Office lama** — gradien 135° `#C8961F` → `#7A560F`, ikon putih 20px, sudut 11px, bayangan emas, membesar 7% saat hover. Gradien lain hanya `bar-emas` (isi progress bar Task Management, emas tua → emas terang). Ikon kartu modul juga gambar SVG Office lama sendiri (`i-laks-*` di `app/assets/icons`).
 - **Warna status punya arti tetap**, dipakai sebagai kata berwarna di atas tint 10% warnanya
   (`bg-success/10 text-success`). Status selalu **ikon + kata**, tidak pernah warna saja. Satu
   sumber per status: `app/utils/status-reservasi.ts`; modul lain membuat file serupa.
@@ -199,7 +199,7 @@ Komponen Nuxt UI lain dipakai langsung, tidak dibungkus; ubah gayanya di `app/ap
 - ✅ Bahasa Indonesia sehari-hari, kapital di awal kalimat; istilah kru tetap (Setoran, Kas kecil,
   Walk-in, Follow up, DP). Pesan error menyebut masalah dan cara memperbaikinya.
 - ❌ Warna pastel sebagai latar kartu, panel, atau ubin.
-- ❌ Gradien (kecuali `ubin-emas`), garis tebal, bayangan berat, atau sudut sangat bulat (pil) untuk kartu dan tombol.
+- ❌ Gradien (kecuali `ubin-emas` dan `bar-emas`), garis tebal, bayangan berat, atau sudut sangat bulat (pil) untuk kartu dan tombol.
 - ❌ Hex di komponen; warna hanya dari token.
 - ❌ Warna sebagai satu-satunya penanda status.
 - ❌ Ikon generik yang tidak menjelaskan apa-apa (bintang/hiasan) di tempat yang butuh makna.

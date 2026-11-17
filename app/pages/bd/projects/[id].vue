@@ -185,7 +185,7 @@ const { jalan, lagi } = useSibuk()
           <div class="mt-1.5 h-2 overflow-hidden rounded-full bg-muted">
             <div
               class="h-full rounded-full"
-              :class="pg >= 100 ? 'bg-success' : 'bg-primary-400'"
+              :class="pg >= 100 ? 'bg-success' : 'bar-emas'"
               :style="{ width: `${pg}%` }"
             />
           </div>
