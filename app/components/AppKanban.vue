@@ -97,7 +97,7 @@ defineExpose({ swallowClick: drag.swallowClick })
       </header>
       <div
         class="flex min-h-16 flex-1 flex-col gap-2 p-2"
-        :class="listClass ? `${listClass} overflow-y-auto overscroll-contain [scrollbar-width:thin]` : ''"
+        :class="listClass ? `${listClass} overflow-y-auto overscroll-contain [scrollbar-width:thin] *:shrink-0` : ''"
       >
         <template
           v-for="item in col.items"
