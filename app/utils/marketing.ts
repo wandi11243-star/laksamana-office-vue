@@ -514,14 +514,17 @@ export function tglFuBerikut(hari: string, fuNextDays: number): string {
 }
 
 /** Event list period (BRIEF_PERIODE + month stepper, :11130-11169). */
-export type PeriodeEventMkt = '' | 'hari' | 'minggu' | 'bulan' | 'pilih'
+export type PeriodeEventMkt = '' | 'upcoming' | 'hari' | 'minggu' | 'bulan' | 'pilih'
+/** Daftar Event periods (owner request, Nov 2026): Upcoming first, then this month, then everything. */
 export const PERIODE_EVENT_MKT: { value: PeriodeEventMkt, label: string }[] = [
-  { value: '', label: 'Semua' }, { value: 'hari', label: 'Hari ini' }, { value: 'minggu', label: 'Minggu ini' }, { value: 'bulan', label: 'Bulan ini' },
+  { value: 'upcoming', label: 'Upcoming' }, { value: 'bulan', label: 'Bulan ini' }, { value: '', label: 'Semua' },
 ]
 
 /** The date range of a period; null = all dates. `bulan` is 'YYYY-MM' for 'pilih'. */
 export function rentangPeriodeMkt(p: PeriodeEventMkt, hari: string, bulan: string): { a: string, b: string } | null {
   const f = (x: Date) => `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`
+  // Upcoming = today onwards (no end).
+  if (p === 'upcoming') return { a: hari, b: '9999-12-31' }
   if (p === 'hari') return { a: hari, b: hari }
   if (p === 'minggu') {
     const d = new Date(`${hari}T00:00:00`)

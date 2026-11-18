@@ -32,7 +32,6 @@ const opsiClient = computed(() => [
   ...st.value.clients.slice().sort((a, b) => String(a.nama).localeCompare(String(b.nama))).map(c => ({ value: c.id, label: label(c) })),
   { value: BARU, label: '+ Client baru (isi cepat)' },
 ])
-const infoMenuFix = computed(() => MENU_FIX_MKT.find(x => x.v === f.menuFix))
 
 watch(open, (o) => {
   if (o) Object.assign(f, { client: '', cnama: '', chp: '', nama: '', jenis: JENIS_EVENT_MKT[0], jenisLain: '', tanggal: hariIni(), pax: '', menuFix: '' })
@@ -97,6 +96,7 @@ async function simpan() {
       >
         <USelectMenu
           v-model="f.client"
+          size="lg"
           :items="opsiClient"
           value-key="value"
           placeholder="cari nama client atau perusahaan…"
@@ -111,12 +111,14 @@ async function simpan() {
         >
           <UInput
             v-model="f.cnama"
+            size="lg"
             class="w-full"
           />
         </UFormField>
         <UFormField label="No. HP">
           <UInput
             v-model="f.chp"
+            size="lg"
             inputmode="tel"
             class="w-full"
           />
@@ -128,6 +130,7 @@ async function simpan() {
       >
         <UInput
           v-model="f.nama"
+          size="lg"
           class="w-full"
         />
       </UFormField>
@@ -137,12 +140,14 @@ async function simpan() {
       >
         <USelect
           v-model="f.jenis"
+          size="lg"
           :items="JENIS_EVENT_MKT"
           class="w-full"
         />
         <UInput
           v-if="f.jenis === 'Lainnya'"
           v-model="f.jenisLain"
+          size="lg"
           placeholder="Tulis jenis eventnya"
           class="mt-2 w-full"
         />
@@ -151,15 +156,15 @@ async function simpan() {
         label="Tanggal"
         required
       >
-        <UInput
+        <AppTanggal
           v-model="f.tanggal"
-          type="date"
           class="w-full"
         />
       </UFormField>
       <UFormField label="Estimasi Pax">
         <UInput
           v-model="f.pax"
+          size="lg"
           type="number"
           min="0"
           class="w-full"
@@ -170,22 +175,48 @@ async function simpan() {
         required
         class="sm:col-span-2"
       >
-        <AppSeg
-          v-model="f.menuFix"
-          :options="MENU_FIX_MKT.map(x => ({ value: x.v as string, label: x.t }))"
-        />
-        <p
-          v-if="infoMenuFix"
-          class="mt-1.5 text-xs text-muted"
+        <!-- Two choice cards; until one is picked the block is ringed in warning
+             and says it must be chosen (owner request, Nov 2026). -->
+        <div
+          class="rounded-xl p-2 transition-colors"
+          :class="f.menuFix ? '' : 'bg-warning/5 ring-2 ring-warning/50'"
         >
-          {{ infoMenuFix.d }}
-        </p>
-        <p
-          v-else
-          class="mt-1.5 text-xs text-warning"
-        >
-          <b>Belum ditentukan.</b> {{ MENU_FIX_KOSONG_MKT }}
-        </p>
+          <p
+            v-if="!f.menuFix"
+            class="mb-2 flex items-center gap-1.5 px-1 text-xs font-semibold text-warning"
+          >
+            <UIcon
+              name="i-lucide-alert-triangle"
+              class="size-4"
+            />
+            Wajib dipilih — {{ MENU_FIX_KOSONG_MKT }}
+          </p>
+          <div class="grid gap-2 sm:grid-cols-2">
+            <button
+              v-for="x in MENU_FIX_MKT"
+              :key="x.v"
+              type="button"
+              class="flex items-start gap-2.5 rounded-xl border-2 bg-default p-3 text-left transition-colors"
+              :class="f.menuFix === x.v ? 'border-gold bg-gold-soft/40' : 'border-default hover:border-accented'"
+              :aria-pressed="f.menuFix === x.v"
+              @click="f.menuFix = x.v"
+            >
+              <span
+                class="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full border-2"
+                :class="f.menuFix === x.v ? 'border-gold-deep bg-gold-deep' : 'border-accented'"
+              >
+                <span
+                  v-if="f.menuFix === x.v"
+                  class="size-2 rounded-full bg-white"
+                />
+              </span>
+              <span class="min-w-0">
+                <span class="block text-sm font-semibold text-highlighted">{{ x.t }}</span>
+                <span class="mt-0.5 block text-xs leading-relaxed text-muted">{{ x.d }}</span>
+              </span>
+            </button>
+          </div>
+        </div>
       </UFormField>
     </div>
     <template #footer>

@@ -41,7 +41,8 @@ export function rekapVipMkt(rows: VipMkt[]) {
   }
 }
 
-export type PeriodeVipMkt = 'semua' | 'hari' | 'minggu' | 'bulan' | 'pilih'
+/** upcoming = today onwards (the default view, owner request Nov 2026). */
+export type PeriodeVipMkt = 'upcoming' | 'semua' | 'hari' | 'minggu' | 'bulan' | 'pilih'
 /** aktif = Regular & Assisted without the cancelled (the default); semua = everything. */
 export type JenisVipMkt = 'aktif' | 'Assisted' | 'Regular' | 'batal' | 'semua'
 
@@ -69,7 +70,10 @@ export function saringVipMkt(rows: VipMkt[], q: string, periode: PeriodeVipMkt, 
   const s = q.trim().toLowerCase()
   let a = ''
   let b = ''
-  if (periode === 'hari') {
+  if (periode === 'upcoming') {
+    a = hari
+  }
+  else if (periode === 'hari') {
     a = hari
     b = hari
   }

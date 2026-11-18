@@ -18,7 +18,7 @@ import type { EventMkt, KolomMkt } from '~/utils/marketing'
 import { STATUS_EVENT_MKT, STATUS_OMSET_MKT, hMinusMkt, hariAntaraMkt, rentangTglMkt } from '~/utils/marketing'
 import { eventFinance, papanClosing, pendapatanPerBulan } from '~/utils/marketing-uang'
 import { ikonStatusMkt, warnaStatusMkt } from '~/utils/status-marketing'
-import { BULAN, hariIni, rupiah } from '~/utils/format'
+import { BULAN, angka, hariIni, rupiah } from '~/utils/format'
 
 definePageMeta({ access: ['marketing'] })
 
@@ -293,7 +293,7 @@ const namaDepan = computed(() => String(saya.value?.user.name ?? '').split(' ')[
             Pendapatan 6 Bulan
           </h3>
           <p class="mb-3 text-xs text-muted">
-            Dari event yang sudah Deal / selesai.
+            Dari event yang sudah Deal / selesai · nominal dalam Rupiah.
           </p>
           <div class="grid h-44 grid-cols-6 items-end gap-2">
             <div
@@ -302,7 +302,8 @@ const namaDepan = computed(() => String(saya.value?.user.name ?? '').split(' ')[
               class="flex h-full min-w-0 flex-col items-center justify-end gap-1"
               :title="`${x.label}: ${rupiah(x.nilai)}`"
             >
-              <span class="num line-clamp-2 text-center text-[10px] leading-tight break-all text-muted">{{ x.nilai ? rupiah(x.nilai) : '—' }}</span>
+              <!-- Full amount, no "Rp" (named once in the caption) so it fits one line over a narrow bar. -->
+              <span class="num whitespace-nowrap text-center text-[10px] font-semibold leading-tight text-muted sm:text-[11px]">{{ x.nilai ? angka(x.nilai) : '—' }}</span>
               <div
                 class="w-full min-h-[3px] rounded-t"
                 :class="x.kini ? 'bg-primary-400' : x.nilai ? 'bg-primary-200' : 'bg-muted'"

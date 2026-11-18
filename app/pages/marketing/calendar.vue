@@ -2,7 +2,7 @@
   Marketing › Kalender (old renderCalendar, deploy/marketing/index.html:12326-12438;
   marketing.md D.6). Month grid starting Sunday like the old one; three bands:
   Marketing events (gold, multi-day events on every day they touch), EMS
-  events from the Event module (violet, read-only) and Reservasi (one line per
+  events from the Event module (violet, read-only) and Reservasi (teal, like the old calendar; one line per
   day: bookings · pax, cancelled/no-show left out). Status filter defaults to
   "everything except Lost"; the header shows the month's pax with the same
   filter.
@@ -180,8 +180,11 @@ const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ??
           </h2>
           <div class="flex flex-wrap items-center gap-3 text-xs">
             <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-primary-400" />Event Marketing</span>
-            <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-vip" />Acara EMS{{ ems.length ? ` (${ems.length})` : '' }}</span>
-            <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-info" />Reservasi{{ Object.keys(rsv).length ? ` (${Object.keys(rsv).length} hari)` : '' }}</span>
+            <span class="flex items-center gap-1.5"><span
+              class="size-2.5 rounded-sm bg-vip"
+              title="EMS = Event Management System (modul Event)"
+            />Acara EMS{{ ems.length ? ` (${ems.length})` : '' }}</span>
+            <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-success" />Reservasi{{ Object.keys(rsv).length ? ` (${Object.keys(rsv).length} hari)` : '' }}</span>
           </div>
           <span class="num ml-auto text-sm font-bold text-primary-700">{{ paxBulan.toLocaleString('id-ID') }} pax bulan ini</span>
         </div>
@@ -241,11 +244,11 @@ const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ??
               <button
                 v-if="s.tgl && rsv[s.tgl]"
                 type="button"
-                class="block w-full truncate rounded border-l-2 border-info bg-info/12 px-1 py-0.5 text-left text-[10.5px] leading-tight text-info lg:text-[11px]"
+                class="block w-full truncate rounded border-l-2 border-success bg-success/10 px-1 py-0.5 text-left text-[10.5px] font-semibold leading-tight text-success lg:text-[11px]"
                 :title="`${rsv[s.tgl]!.jml} reservasi · ${rsv[s.tgl]!.pax} pax — klik untuk rinciannya`"
                 @click="rsvBuka = s.tgl"
               >
-                {{ rsv[s.tgl]!.jml }} reservasi<span class="hidden lg:inline">{{ rsv[s.tgl]!.pax ? ` · ${rsv[s.tgl]!.pax} pax` : '' }}</span>
+                • {{ rsv[s.tgl]!.jml }} reservasi<span class="hidden lg:inline">{{ rsv[s.tgl]!.pax ? ` · ${rsv[s.tgl]!.pax} pax` : '' }}</span>
               </button>
             </div>
           </div>
