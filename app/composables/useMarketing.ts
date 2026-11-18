@@ -287,6 +287,21 @@ export const hapusMkt = (res: MarketingResource, id: string, versi?: Versi) =>
 export const logMkt = (refType: string, refId: string, action: string, detail = '') =>
   useApi()<unknown>('/marketing/activities', { method: 'POST', body: { refType, refId: refId || '-', action, detail } })
 
+/** `GET /marketing/activities?page=&perPage=` — one page of the log, newest first, with `meta.total`. */
+export async function listAktivitasHalamanMkt(page: number, perPage: number) {
+  const per = Math.min(perPage, 100)
+  const r = await useApi()<Envelope<AktivitasMkt[]>>('/marketing/activities', { query: { page, perPage: per } })
+  const rows = r.data ?? []
+  // An API without paging yet answers its plain list (newest 200) and no
+  // meta.page: cut the page here so the screen still shows `per` rows.
+  if (r.meta?.page === undefined) {
+    const maks = Math.max(1, Math.ceil(rows.length / per))
+    const kini = Math.min(Math.max(1, page), maks)
+    return { rows: rows.slice((kini - 1) * per, kini * per), total: rows.length, page: kini }
+  }
+  return { rows, total: Number(r.meta?.total ?? rows.length), page: Number(r.meta.page) }
+}
+
 export type JejakMkt = { refType: string, refId?: string, action: string, detail?: string }
 
 /**

@@ -242,16 +242,16 @@ export interface AktivitasMkt { id?: string, refType?: string, refId?: string, a
 export type LevelMkt = 0 | 1 | 2
 export const OPSI_LEVEL_MKT = [{ value: 0, label: 'Tak Terlihat' }, { value: 1, label: 'Lihat' }, { value: 2, label: 'Boleh Ubah' }]
 
-/** Every matrix row, in NAV_DEF order incl. the hidden `events`, `brief`, `users` (:4826-4900). */
-export const VIEW_KEYS_MKT = ['dashboard', 'calendar', 'pipeline', 'events', 'brief', 'vip', 'designreq', 'kalkulator', 'invoices', 'approvals', 'purchasing', 'perfomset', 'reports', 'tasks', 'crm', 'katalog', 'templates', 'notifications', 'staff', 'settings', 'timeline', 'users']
+/** Every matrix row, in NAV_DEF order incl. the hidden `events`, `brief`, `users` (:4826-4900). Task Divisi & Template Task were removed (owner request, Nov 2026). */
+export const VIEW_KEYS_MKT = ['dashboard', 'calendar', 'pipeline', 'events', 'brief', 'vip', 'designreq', 'kalkulator', 'invoices', 'approvals', 'purchasing', 'perfomset', 'reports', 'crm', 'katalog', 'notifications', 'staff', 'settings', 'timeline', 'users']
 
 /** Roles and the screens each opens by default (:3620-3626). */
 export const ROLES_MKT: Record<string, { t: string, nav: string[] }> = {
-  super_admin: { t: 'Super Admin', nav: ['dashboard', 'crm', 'pipeline', 'events', 'vip', 'katalog', 'brief', 'kalkulator', 'calendar', 'invoices', 'tasks', 'templates', 'staff', 'approvals', 'perfomset', 'reports', 'timeline', 'notifications', 'purchasing', 'users', 'settings'] },
-  marketing: { t: 'Marketing', nav: ['dashboard', 'crm', 'pipeline', 'events', 'vip', 'katalog', 'brief', 'kalkulator', 'calendar', 'invoices', 'tasks', 'templates', 'staff', 'perfomset', 'reports', 'timeline', 'notifications', 'purchasing', 'settings'] },
-  finance: { t: 'Finance', nav: ['dashboard', 'crm', 'events', 'vip', 'katalog', 'brief', 'kalkulator', 'calendar', 'invoices', 'tasks', 'templates', 'staff', 'perfomset', 'reports', 'timeline', 'notifications', 'purchasing', 'settings'] },
-  manager: { t: 'Manager / Approver', nav: ['dashboard', 'crm', 'pipeline', 'events', 'vip', 'katalog', 'brief', 'kalkulator', 'calendar', 'invoices', 'tasks', 'templates', 'staff', 'approvals', 'perfomset', 'reports', 'timeline', 'notifications', 'purchasing', 'settings'] },
-  operational: { t: 'Operational', nav: ['dashboard', 'events', 'brief', 'kalkulator', 'calendar', 'tasks', 'templates', 'staff', 'notifications', 'settings'] },
+  super_admin: { t: 'Super Admin', nav: ['dashboard', 'crm', 'pipeline', 'events', 'vip', 'katalog', 'brief', 'kalkulator', 'calendar', 'invoices', 'staff', 'approvals', 'perfomset', 'reports', 'timeline', 'notifications', 'purchasing', 'users', 'settings'] },
+  marketing: { t: 'Marketing', nav: ['dashboard', 'crm', 'pipeline', 'events', 'vip', 'katalog', 'brief', 'kalkulator', 'calendar', 'invoices', 'staff', 'perfomset', 'reports', 'timeline', 'notifications', 'purchasing', 'settings'] },
+  finance: { t: 'Finance', nav: ['dashboard', 'crm', 'events', 'vip', 'katalog', 'brief', 'kalkulator', 'calendar', 'invoices', 'staff', 'perfomset', 'reports', 'timeline', 'notifications', 'purchasing', 'settings'] },
+  manager: { t: 'Manager / Approver', nav: ['dashboard', 'crm', 'pipeline', 'events', 'vip', 'katalog', 'brief', 'kalkulator', 'calendar', 'invoices', 'staff', 'approvals', 'perfomset', 'reports', 'timeline', 'notifications', 'purchasing', 'settings'] },
+  operational: { t: 'Operational', nav: ['dashboard', 'events', 'brief', 'kalkulator', 'calendar', 'staff', 'notifications', 'settings'] },
 }
 
 /** Empty role = a valid state: not yet allowed in (:3632-3635). */
@@ -261,7 +261,7 @@ export const namaRoleMkt = (role?: string) => (role ? ROLES_MKT[role]?.t ?? role
 export const ACTION_VIEW_MKT: Record<string, string> = {
   edit_client: 'crm', del_client: 'crm', del_event: 'events', edit_event: 'events',
   verify_payment: 'invoices', approve: 'approvals', manage_users: 'users',
-  edit_task: 'tasks', edit_template: 'templates', edit_staff: 'staff',
+  edit_staff: 'staff',
   edit_vip: 'vip', edit_designreq: 'designreq', edit_katalog: 'katalog',
 }
 
@@ -281,8 +281,6 @@ export function permBawaanMkt(role: string | undefined, view: string): LevelMkt 
     verify_payment: r === 'finance',
     approve: r === 'manager',
     manage_users: false,
-    edit_task: ['operational', 'marketing', 'finance', 'manager'].includes(r),
-    edit_template: ['operational', 'marketing', 'finance', 'manager'].includes(r),
     edit_staff: ['marketing', 'manager'].includes(r),
     edit_vip: ['marketing', 'manager'].includes(r),
     edit_designreq: ['marketing', 'manager'].includes(r),
@@ -517,7 +515,7 @@ export function tglFuBerikut(hari: string, fuNextDays: number): string {
 export type PeriodeEventMkt = '' | 'upcoming' | 'hari' | 'minggu' | 'bulan' | 'pilih'
 /** Daftar Event periods (owner request, Nov 2026): Upcoming first, then this month, then everything. */
 export const PERIODE_EVENT_MKT: { value: PeriodeEventMkt, label: string }[] = [
-  { value: 'upcoming', label: 'Upcoming' }, { value: 'bulan', label: 'Bulan ini' }, { value: '', label: 'Semua' },
+  { value: 'upcoming', label: 'Upcoming' }, { value: 'bulan', label: 'Per bulan' }, { value: '', label: 'Semua' },
 ]
 
 /** The date range of a period; null = all dates. `bulan` is 'YYYY-MM' for 'pilih'. */

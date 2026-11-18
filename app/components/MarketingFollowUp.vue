@@ -14,7 +14,7 @@
 -->
 <script setup lang="ts">
 import type { ClientMkt, EventMkt, FollowupMkt } from '~/utils/marketing'
-import { AKSI_FU_MKT, HASIL_FU_MKT, JENIS_EVENT_MKT, ingatTahapMkt, peluangClientMkt, tglFuBerikut, tglMkt, tugasDealMkt } from '~/utils/marketing'
+import { AKSI_FU_MKT, HASIL_FU_MKT, JENIS_EVENT_MKT, ingatTahapMkt, peluangClientMkt, tglFuBerikut, tglMkt } from '~/utils/marketing'
 import { hariIni } from '~/utils/format'
 
 const props = defineProps<{ clientId: string | null, eventId?: string | null }>()
@@ -68,7 +68,6 @@ async function simpan() {
   const note = f.note.trim()
   const tahap = HASIL_FU_MKT[f.hasil] ?? null
   const fuNext = tglFuBerikut(hari, +st.value.settings.fuNextDays)
-  const fb = formatFbMkt(st.value)
   let ingat = ''
   let judulToast = ''
   sibuk.value = true
@@ -97,7 +96,6 @@ async function simpan() {
         ubah.status = tahap
         ubah.pipeCol = tahap
         status = tahap
-        if (tahap === 'Deal') ubah.tasks = tugasDealMkt(ev, fb)
         await logDenganCobaLagi(() => logMkt('event', ev.id, `Follow up: ${f.action}`, `${f.hasil} · ${ev.status} → ${tahap}${note ? ` · ${note}` : ''}`))
       }
       else {

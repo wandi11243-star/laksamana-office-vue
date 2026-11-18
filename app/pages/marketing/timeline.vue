@@ -1,13 +1,19 @@
 <!--
-  Marketing › Timeline & Audit Log (docs/migrasi/marketing.md D.17, issue
-  #60): chronological trail of every important change, newest first,
-  sortable per column. "Bersihkan Log" stays "Segera": v1 has no bulk delete
-  and rows carry no version for per-row DELETE.
+  Marketing › Log Activity (was Timeline & Audit Log; docs/migrasi/marketing.md
+  D.17, issue #60): chronological trail of every important change, newest
+  first. Read one page at a time from its own endpoint
+  (`GET /marketing/activities?page=&perPage=`, meta.total — owner request,
+  Nov 2026) instead of the 400 newest rows riding on the shared state, so the
+  whole history is reachable. The module state still names the record a row
+  points to (client / user / event) — the shell loads it for access anyway.
+  "Bersihkan Log" stays "Segera": v1 has no bulk delete and rows carry no
+  version for per-row DELETE.
 -->
 <script setup lang="ts">
 import { labelJenisMkt, laluMkt } from '~/utils/marketing-keuangan'
-import { useAksesMkt, useStateMkt, useTabelMkt } from '~/composables/useMarketing'
-import type { AktivitasMkt, KolomMkt } from '~/utils/marketing'
+import { listAktivitasHalamanMkt, useAksesMkt, useStateMkt } from '~/composables/useMarketing'
+import type { AktivitasMkt } from '~/utils/marketing'
+import { angka } from '~/utils/format'
 
 definePageMeta({ access: ['marketing'] })
 
@@ -21,31 +27,53 @@ const namaRujuk = (a: AktivitasMkt) => {
   if (a.refType === 'event') return st.value.events.find(e => e.id === a.refId)?.nama ?? ''
   return ''
 }
-const KOL: KolomMkt<AktivitasMkt>[] = [
-  { k: 'at', t: 'Waktu', v: a => String(a.at ?? ''), def: true, turun: true },
-  { k: 'by', t: 'Oleh', v: a => a.by ?? '' },
-  { k: 'jenis', t: 'Jenis', v: a => labelJenisMkt(a.refType) },
-  { k: 'aksi', t: 'Aktivitas', v: a => a.action ?? '' },
-  { k: 'ref', t: 'Detail', v: a => namaRujuk(a) },
+
+const hal = ref(1)
+const perHal = ref(25)
+const logQ = useAsyncData('mkt-log-hal', () => listAktivitasHalamanMkt(hal.value, perHal.value), {
+  watch: [hal, perHal],
+  default: () => ({ rows: [] as AktivitasMkt[], total: 0, page: 1 }),
+})
+const daftar = computed(() => logQ.data.value?.rows ?? [])
+const total = computed(() => logQ.data.value?.total ?? 0)
+watch(perHal, () => {
+  hal.value = 1
+})
+watch(() => logQ.data.value?.page, (p) => {
+  if (p && p !== hal.value) hal.value = p
+})
+
+const kolom = [
+  { id: 'at', header: 'Waktu' },
+  { accessorKey: 'by', header: 'Oleh' },
+  { id: 'jenis', header: 'Jenis' },
+  { id: 'aksi', header: 'Aktivitas' },
+  { id: 'ref', header: 'Detail' },
 ]
-const tbl = useTabelMkt<AktivitasMkt>('timeline', KOL, () => String(st.value.activities.length))
-const hal = computed(() => tbl.potong(tbl.susun([...st.value.activities])))
 </script>
 
 <template>
   <AppPage
-    title="Timeline & Audit Log"
-    description="Jejak kronologis semua perubahan data penting. Log otomatis dibatasi 400 entri terbaru."
+    title="Log activity"
+    description="Jejak kronologis semua perubahan data penting — terbaru dulu."
   >
     <template #actions>
       <UBadge
-        v-if="st.activities.length"
-        :label="`${st.activities.length} entri`"
+        v-if="total"
+        :label="`${angka(total)} entri`"
         color="neutral"
         variant="soft"
       />
       <UButton
-        v-if="superAdmin && st.activities.length"
+        label="Segarkan"
+        icon="i-lucide-refresh-cw"
+        color="neutral"
+        variant="outline"
+        :loading="logQ.status.value === 'pending'"
+        @click="logQ.refresh()"
+      />
+      <UButton
+        v-if="superAdmin && total"
         icon="i-lucide-trash-2"
         label="Bersihkan Log"
         color="neutral"
@@ -55,23 +83,27 @@ const hal = computed(() => tbl.potong(tbl.susun([...st.value.activities])))
       />
     </template>
     <MarketingGerbang layar="timeline">
+      <UAlert
+        v-if="logQ.error.value"
+        class="mb-4"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        title="Log tidak terbaca"
+        :description="apiErrorMessage(logQ.error.value)"
+      />
       <AppPanel flush>
         <div
-          v-if="!st.activities.length"
+          v-if="!daftar.length && logQ.status.value !== 'pending'"
           class="p-8 text-center text-sm text-muted"
         >
           Belum ada aktivitas.
         </div>
         <template v-else>
           <UTable
-            :data="hal"
-            :columns="[
-              { id: 'at', header: tbl.kepala('at', 'Waktu') },
-              { accessorKey: 'by', header: tbl.kepala('by', 'Oleh') },
-              { id: 'jenis', header: tbl.kepala('jenis', 'Jenis') },
-              { id: 'aksi', header: tbl.kepala('aksi', 'Aktivitas') },
-              { id: 'ref', header: tbl.kepala('ref', 'Detail') },
-            ]"
+            :data="daftar"
+            :columns="kolom"
+            :loading="logQ.status.value === 'pending'"
             class="hidden lg:block"
           >
             <template #at-cell="{ row }">
@@ -88,12 +120,12 @@ const hal = computed(() => tbl.potong(tbl.susun([...st.value.activities])))
               <b>{{ row.original.action }}</b>
             </template>
             <template #ref-cell="{ row }">
-              <span class="text-muted">{{ namaRujuk(row.original) }}{{ row.original.detail ? ` — ${row.original.detail}` : '' }}</span>
+              <span class="whitespace-normal text-muted">{{ namaRujuk(row.original) }}{{ namaRujuk(row.original) && row.original.detail ? ' — ' : '' }}{{ row.original.detail }}</span>
             </template>
           </UTable>
           <ul class="divide-y divide-default lg:hidden">
             <li
-              v-for="a in hal"
+              v-for="a in daftar"
               :key="String(a.id ?? `${a.at}-${a.action}`)"
               class="p-4"
             >
@@ -101,17 +133,21 @@ const hal = computed(() => tbl.potong(tbl.susun([...st.value.activities])))
                 <b>{{ a.action }}</b>
               </p>
               <p class="text-xs text-muted">
-                {{ namaRujuk(a) }}{{ a.detail ? ` — ${a.detail}` : '' }}
+                {{ namaRujuk(a) }}{{ namaRujuk(a) && a.detail ? ' — ' : '' }}{{ a.detail }}
               </p>
               <p class="num mt-0.5 text-xs text-muted">
                 {{ laluMkt(a.at) }} · {{ a.by }} · {{ labelJenisMkt(a.refType) }}
               </p>
             </li>
           </ul>
-          <MarketingPager
-            v-model="tbl.hal.value"
-            :total="st.activities.length"
-          />
+          <div class="px-4 pb-3">
+            <AppPager
+              v-model:page="hal"
+              v-model:per="perHal"
+              :total="total"
+              satuan="entri"
+            />
+          </div>
         </template>
       </AppPanel>
     </MarketingGerbang>

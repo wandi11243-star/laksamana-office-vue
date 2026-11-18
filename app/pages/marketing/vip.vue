@@ -42,7 +42,13 @@ const q = useState('mkt-vip-q', () => '')
 const periode = useState<PeriodeVipMkt>('mkt-vip-periode-v2', () => 'upcoming')
 const rentang = useState('mkt-vip-rentang', () => ({ dari: '', sampai: '' }))
 const jenis = useState<JenisVipMkt>('mkt-vip-jenis', () => 'aktif')
-const bulan = computed(() => hari.slice(0, 7))
+// The month shown by 'Per bulan' (owner request, Nov 2026): this month, stepped with ‹ ›.
+const bulan = useState('mkt-vip-bulan', () => hari.slice(0, 7))
+const labelBulanVip = computed(() => new Date(`${bulan.value}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }))
+function geserBulanVip(n: number) {
+  const d = new Date(+bulan.value.slice(0, 4), +bulan.value.slice(5, 7) - 1 + n, 1)
+  bulan.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
 // Text + period first; the kind segments count from this, like the old nJ().
 const dasar = computed(() => saringVipMkt(st.value.vip, q.value, periode.value, rentang.value.dari, rentang.value.sampai, bulan.value, hari, 'semua'))
 const daftar = computed(() => dasar.value.filter(v => vipCocokJenisMkt(v, jenis.value)))
@@ -52,7 +58,7 @@ const opsiJenis = computed(() => ([
 // The filter is SAID in words — a list that shrinks silently is reported as lost data.
 const keteranganSaring = computed(() => {
   const nj = { aktif: 'Regular & Assisted (tanpa yang dibatalkan)', Assisted: 'Assisted', Regular: 'Regular', batal: 'yang dibatalkan', semua: 'semua status' }[jenis.value]
-  const np = { upcoming: 'mulai hari ini', semua: 'semua tanggal', hari: 'hari ini', minggu: 'minggu ini', bulan: 'bulan ini', pilih: `${rentang.value.dari || '…'} – ${rentang.value.sampai || '…'}` }[periode.value]
+  const np = { upcoming: 'mulai hari ini', semua: 'semua tanggal', hari: 'hari ini', minggu: 'minggu ini', bulan: labelBulanVip.value, pilih: `${rentang.value.dari || '…'} – ${rentang.value.sampai || '…'}` }[periode.value]
   return `Menampilkan ${nj}, acara ${np}.`
 })
 const paxTeks = (v: VipMkt) => (v.paxMin && v.paxMax && +v.paxMin !== +v.paxMax ? `${v.paxMin}–${v.paxMax}` : String(vipPaxMkt(v) || '—'))
@@ -439,8 +445,32 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
             <div class="flex flex-wrap gap-2">
               <AppSeg
                 v-model="periode"
-                :options="[{ value: 'upcoming', label: 'Upcoming' }, { value: 'bulan', label: 'Bulan ini' }, { value: 'semua', label: 'Semua' }, { value: 'pilih', label: 'Pilih tanggal' }]"
+                :options="[{ value: 'upcoming', label: 'Upcoming' }, { value: 'bulan', label: 'Per bulan' }, { value: 'semua', label: 'Semua' }, { value: 'pilih', label: 'Pilih tanggal' }]"
               />
+              <div
+                v-if="periode === 'bulan'"
+                class="flex items-center gap-1.5"
+              >
+                <UButton
+                  icon="i-lucide-chevron-left"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  square
+                  aria-label="Bulan sebelumnya"
+                  @click="geserBulanVip(-1)"
+                />
+                <b class="min-w-32 text-center text-sm text-highlighted">{{ labelBulanVip }}</b>
+                <UButton
+                  icon="i-lucide-chevron-right"
+                  color="neutral"
+                  variant="outline"
+                  size="sm"
+                  square
+                  aria-label="Bulan berikutnya"
+                  @click="geserBulanVip(1)"
+                />
+              </div>
               <AppTanggal
                 v-if="periode === 'pilih'"
                 v-model="rentang.dari"

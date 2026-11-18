@@ -175,6 +175,13 @@ const KOL: KolomMkt<RequestDesainMkt>[] = [
   { k: 'status', t: 'Status', v: r => drStatusMkt(r, prog.value) },
 ]
 const tbl = useTabelMkt<RequestDesainMkt>('designreq', KOL, () => `${fJenis.value}${fKat.value}${fQ.value}${st.value.designreqs.length}`)
+/** Priority tag colours: Urgent red with a flame, Tinggi amber, Sedang/Rendah quiet. */
+const WARNA_PRIO: Record<string, { c: 'error' | 'warning' | 'neutral', i?: string }> = {
+  urgent: { c: 'error', i: 'i-lucide-flame' },
+  high: { c: 'warning', i: 'i-lucide-arrow-up' },
+  medium: { c: 'neutral' },
+  low: { c: 'neutral', i: 'i-lucide-arrow-down' },
+}
 const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
 // Chrome blocks top-level navigation to data: URLs (since v60): window.open on
 // a base64 photo opened nothing at all. A blob: URL opens; revoked a minute
@@ -309,14 +316,14 @@ const warnaStatus = (r: RequestDesainMkt) => {
               { id: 'aksi', header: 'Aksi' },
             ]"
             class="hidden lg:block"
-            :ui="{ tr: 'cursor-pointer' }"
+            :ui="{ base: 'w-full table-fixed', th: 'whitespace-normal', td: 'whitespace-normal align-top', tr: 'cursor-pointer' }"
             @select="(_e: Event, r: { original: RequestDesainMkt }) => { lihatId = r.original.id }"
           >
             <template #judul-cell="{ row }">
               <p class="font-semibold text-highlighted">
                 {{ row.original.judul }}
               </p>
-              <p class="max-w-64 truncate text-xs text-muted">
+              <p class="line-clamp-2 text-xs text-muted">
                 {{ row.original.brief }}
               </p>
             </template>
@@ -351,8 +358,15 @@ const warnaStatus = (r: RequestDesainMkt) => {
                 {{ drSisaMkt(row.original, prog, hari) }}
               </p>
             </template>
+            <!-- Priority as a coloured tag (owner request, Nov 2026): Urgent stands out in red. -->
             <template #prio-cell="{ row }">
-              {{ drPrioLabelMkt(row.original.prioritas) }}
+              <AppStatus
+                size="sm"
+                :color="WARNA_PRIO[row.original.prioritas ?? 'medium']?.c ?? 'neutral'"
+                :icon="WARNA_PRIO[row.original.prioritas ?? 'medium']?.i"
+              >
+                {{ drPrioLabelMkt(row.original.prioritas) }}
+              </AppStatus>
             </template>
             <template #pic-cell="{ row }">
               <p>{{ row.original.picNama || '—' }}</p>
