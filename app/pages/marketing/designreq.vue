@@ -2,7 +2,8 @@
   Marketing › Request Design & Video (docs/migrasi/marketing.md D.13, issue
   #61): requests stay HERE and Konten reads them through its narrow
   endpoints — never copied over. Progress flows back the other way
-  (done/picNama/at). Cancelling keeps the trace (batalAt), never deletes.
+  (done/picNama/at). Cancelling keeps the trace (batalAt);
+  Hapus removes a request for good.
   G-16 (laksamana-api#190) opens the queue to `marketing|konten`; a failure
   shows a ribbon + retry and never blocks.
 -->
@@ -13,7 +14,7 @@ import {
   DR_JENIS_MKT, DR_KAT_MKT, DR_PRIO_MKT, drDataMkt, drHitungKatMkt, drPrioLabelMkt, drProgMkt, drSisaMkt, drStatusMkt,
 } from '~/utils/marketing-vip'
 import {
-  ambilRequestDesainMkt, buatMkt, mktSimpan, bacaOpsiDesainMkt, progresDesainMkt, tambalMkt,
+  ambilRequestDesainMkt, buatMkt, hapusMkt, mktSimpan, bacaOpsiDesainMkt, progresDesainMkt, tambalMkt,
   useAksesMkt, useStateMkt, useTabelMkt, type OpsiDesainMkt,
 } from '~/composables/useMarketing'
 import { hariIni } from '~/utils/format'
@@ -163,6 +164,17 @@ async function batalkan() {
   if (ok) lihatId.value = null
 }
 
+// Delete for good (owner request, Nov 2026) — beside Batalkan, which keeps
+// the trace. The request also leaves the Konten queue, which reads it from here.
+async function hapus(r: RequestDesainMkt) {
+  if (!confirm(`Hapus permanen request ${r.judul ?? ''}? Ia hilang dari daftar ini dan dari antrian modul Konten.`)) return
+  const ok = await mktSimpan(
+    () => hapusMkt('design-requests', r.id, r.updatedAt),
+    'Request dihapus', { refType: 'event', refId: '-', action: `Request ${labelJenis(r.jenis)} dihapus`, detail: r.judul ?? '' },
+  )
+  if (ok && lihatId.value === r.id) lihatId.value = null
+}
+
 // ---- table ----
 const KOL: KolomMkt<RequestDesainMkt>[] = [
   { k: 'judul', t: 'Permintaan', v: r => r.judul ?? '', def: true },
@@ -306,14 +318,14 @@ const warnaStatus = (r: RequestDesainMkt) => {
             :data="hal"
             :columns="[
               { id: 'judul', header: tbl.kepala('judul', 'Permintaan') },
-              { id: 'jenis', header: tbl.kepala('jenis', 'Jenis') },
+              { id: 'jenis', header: tbl.kepala('jenis', 'Jenis'), meta: { class: { th: 'w-28', td: 'w-28' } } },
               { id: 'brand', header: tbl.kepala('brand', 'Brand') },
               { id: 'acara', header: tbl.kepala('acara', 'Untuk Acara') },
-              { id: 'dl', header: tbl.kepala('dl', 'Deadline') },
-              { id: 'prio', header: tbl.kepala('prio', 'Prioritas') },
+              { id: 'dl', header: tbl.kepala('dl', 'Deadline'), meta: { class: { th: 'w-32', td: 'w-32' } } },
+              { id: 'prio', header: tbl.kepala('prio', 'Prioritas'), meta: { class: { th: 'w-32', td: 'w-32' } } },
               { id: 'pic', header: tbl.kepala('pic', 'PIC Diminta') },
-              { id: 'status', header: tbl.kepala('status', 'Status') },
-              { id: 'aksi', header: 'Aksi' },
+              { id: 'status', header: tbl.kepala('status', 'Status'), meta: { class: { th: 'w-52', td: 'w-52' } } },
+              { id: 'aksi', header: 'Aksi', meta: { class: { th: 'w-28', td: 'w-28' } } },
             ]"
             class="hidden lg:block"
             :ui="{ base: 'w-full table-fixed', th: 'whitespace-normal', td: 'whitespace-normal align-top', tr: 'cursor-pointer' }"
@@ -384,26 +396,55 @@ const warnaStatus = (r: RequestDesainMkt) => {
               </AppStatus>
             </template>
             <template #aksi-cell="{ row }">
+              <!-- Icon-only, one row, named on hover (owner request, Nov 2026). -->
               <div
-                class="flex gap-1"
+                class="flex flex-nowrap items-center gap-0.5"
                 @click.stop
               >
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  label="Lihat"
-                  @click="lihatId = row.original.id"
-                />
-                <UButton
+                <UTooltip
+                  text="Lihat detail"
+                  :delay-duration="0"
+                >
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-eye"
+                    aria-label="Lihat detail"
+                    loading-auto
+                    @click="lihatId = row.original.id"
+                  />
+                </UTooltip>
+                <UTooltip
                   v-if="bisaUbah && !row.original.batalAt"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  label="Ubah"
-                  loading-auto
-                  @click="ubah(row.original)"
-                />
+                  text="Ubah request"
+                  :delay-duration="0"
+                >
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-pencil"
+                    aria-label="Ubah request"
+                    loading-auto
+                    @click="ubah(row.original)"
+                  />
+                </UTooltip>
+                <UTooltip
+                  v-if="bisaUbah"
+                  text="Hapus request"
+                  :delay-duration="0"
+                >
+                  <UButton
+                    size="xs"
+                    color="error"
+                    variant="ghost"
+                    icon="i-lucide-trash-2"
+                    aria-label="Hapus request"
+                    loading-auto
+                    @click="hapus(row.original)"
+                  />
+                </UTooltip>
               </div>
             </template>
           </UTable>

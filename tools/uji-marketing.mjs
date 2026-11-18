@@ -57,6 +57,8 @@ f = U.eventFinance(ev({ rincianItem: [{ desc: 'A', jumlah: 1, harga: 1000000 }, 
 cek('FREE/TBC tidak ditagih; diskon tidak bikin minus', f.sub === 1_000_000 && f.afterDisc === 0 && f.grand === 0)
 f = U.eventFinance(ev({ rincianItem: [{ desc: 'A', harga: 10_000_000 }], svcApply: false, depositNominal: 3_000_000, dpPaid: true }, { payments: [{ amount: 1_000_000 }] }), { ...ST, pb1: 0 })
 cek('DP nominal; centang DP hanya menambah selisih yang belum tercatat', f.dp === 3_000_000 && f.dpDiakui === 2_000_000 && f.paid === 3_000_000 && f.remaining === 7_000_000 && U.dpLabel(f) === 'DP')
+f = U.eventFinance(ev({ rincianItem: [{ desc: 'A', harga: 10_000_000 }], svcApply: false, openBillTambah: [{ id: 't1', desc: 'Minuman', nominal: 1_500_000, at: '2026-11-18' }] }, { payments: [{ amount: 10_000_000 }] }), { ...ST, pb1: 0, dpPercent: 50 })
+cek('open bill: tambahan menaikkan grand & sisa, DP tetap dari penawaran', f.tambahan === 1_500_000 && f.grand === 11_500_000 && f.remaining === 1_500_000 && f.dp === 5_000_000, f)
 f = U.eventFinance(ev({ rincianItem: [{ desc: 'A', harga: 10_000_000 }], svcApply: false, depositNominal: 1_000_000, dpPaid: true }, { payments: [{ amount: 5_000_000 }] }), { ...ST, pb1: 0 })
 cek('pembayaran melampaui DP: centang tidak dobel, dpTertutupBayar', f.paid === 5_000_000 && f.dpDiakui === 0 && f.dpTertutupBayar)
 cek('pax OTS teks dijumlah ("150 + 2 OTS" = 152)', U.paxDariTeks('150 + 2 OTS') === 152 && U.paxDariTeks('±150') === 150 && U.paxDariTeks('') === 0)

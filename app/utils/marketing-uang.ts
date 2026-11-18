@@ -92,6 +92,8 @@ export interface UangEventMkt {
   taxPct: number
   taxInc: boolean
   tax: number
+  /** Open-bill extras billed on the day (detail.openBillTambah), on top of the offer. */
+  tambahan: number
   grand: number
   dpPct: number
   dp: number
@@ -109,6 +111,11 @@ export interface UangEventMkt {
  * discount → service (optional) → PB1 (inclusive or on top) → DP (nominal
  * first, else % of grand) → paid = recorded payments + the "DP sudah dibayar"
  * tick counted only as the part not yet recorded (so it can never double).
+ * Open-bill extras (detail.openBillTambah: the guests order more on the day)
+ * are a separate charge on top of the offer: they raise the grand total — the
+ * omset — and the balance owed, and are paid like any other payment (owner
+ * request, Nov 2026). Each line is a final amount: no service or PB1 on top.
+ * The DP stays a share of the offer alone.
  */
 export function eventFinance(ev: EventMkt, st: SettingsMkt): UangEventMkt {
   const d = dt(ev)
@@ -133,6 +140,8 @@ export function eventFinance(ev: EventMkt, st: SettingsMkt): UangEventMkt {
   const dpNom = n(d.depositNominal)
   const dpPct = ev.dpPercent || st.dpPercent
   const dp = dpNom > 0 ? dpNom : Math.round(grand * dpPct / 100)
+  const tambahan = tambahanOpenBillMkt(ev).reduce((a, t) => a + n(t.nominal), 0)
+  grand += tambahan
   const dpDariNominal = dpNom > 0
   const bayarTercatat = (ev.payments ?? []).reduce((a, p) => a + n(p.amount), 0)
   const dpCentang = ynBool(d.dpPaid, false)
@@ -140,7 +149,15 @@ export function eventFinance(ev: EventMkt, st: SettingsMkt): UangEventMkt {
   const paid = bayarTercatat + dpDiakui
   const remaining = Math.max(0, grand - paid)
   const dpTertutupBayar = dpCentang && dp > 0 && dpDiakui === 0 && bayarTercatat >= dp
-  return { sub, fb, disc, afterDisc, svcOn, service, taxPct, taxInc, tax, grand, dpPct, dp, dpDariNominal, bayarTercatat, dpCentang, dpDiakui, dpTertutupBayar, paid, remaining }
+  return { sub, fb, disc, afterDisc, svcOn, service, taxPct, taxInc, tax, tambahan, grand, dpPct, dp, dpDariNominal, bayarTercatat, dpCentang, dpDiakui, dpTertutupBayar, paid, remaining }
+}
+
+/** One open-bill extra charge, stored in the event's detail. */
+export interface TambahanOpenBillMkt { id: string, desc: string, nominal: number, at: string, by?: string }
+/** The event's open-bill extras (detail.openBillTambah); junk entries dropped. */
+export function tambahanOpenBillMkt(ev: EventMkt): TambahanOpenBillMkt[] {
+  const v = dt(ev).openBillTambah
+  return (Array.isArray(v) ? v : []).filter(t => t && typeof t === 'object') as TambahanOpenBillMkt[]
 }
 
 /** "DP" when it came from a nominal, "DP 50%" only when the % really made it (:4599). */

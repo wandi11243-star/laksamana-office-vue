@@ -290,9 +290,8 @@ async function jalanHapusSetoran() {
     description="Cocokkan POS dengan setoran bank — angka penjualannya after tax & service."
   >
     <template #actions>
-      <UInput
+      <AppBulan
         v-model="periode"
-        type="month"
         size="sm"
         class="w-40"
       />

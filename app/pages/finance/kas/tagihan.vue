@@ -277,9 +277,8 @@ const namaTagihan = (b: BayarTagihan) => tagihanDari(b.tagihanId)?.nama ?? `(tag
     description="Langganan & tagihan berulang — kapan jatuh temponya, dan berapa yang sudah dibayar."
   >
     <template #actions>
-      <UInput
+      <AppBulan
         v-model="periode"
-        type="month"
         size="sm"
         class="w-40"
       />

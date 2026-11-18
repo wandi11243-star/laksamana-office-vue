@@ -485,9 +485,8 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
           label="Bulan"
           class="max-w-44 [&_label]:sr-only"
         >
-          <UInput
+          <AppBulan
             v-model="periode.month"
-            type="month"
             class="w-full"
           />
         </UFormField>

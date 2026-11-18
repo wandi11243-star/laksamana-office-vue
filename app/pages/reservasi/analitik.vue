@@ -93,10 +93,9 @@ const jamCapWaktu = (ts: number) => ts
             v-model="tanggal"
             class="w-40"
           />
-          <UInput
+          <AppBulan
             v-else
             v-model="bulan"
-            type="month"
             class="w-40"
           />
         </template>

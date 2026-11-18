@@ -260,10 +260,9 @@ const hariBelum = computed(() => days.value.filter(d => !syncKasirBerlaku(d.date
           size="sm"
           :options="[{ value: 'bulan', label: 'Bulanan' }, { value: 'hari', label: 'Harian' }]"
         />
-        <UInput
+        <AppBulan
           v-if="mode === 'bulan'"
           v-model="period"
-          type="month"
           size="sm"
           class="w-40"
         />

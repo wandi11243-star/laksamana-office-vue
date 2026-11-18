@@ -104,9 +104,8 @@ const selisihPos = computed(() => (nPos.value === null ? null : Math.max(0, nPos
     description="Menu yang di-void berikut kronologinya — dicatat kasir di modul Cashier."
   >
     <template #actions>
-      <UInput
+      <AppBulan
         v-model="periode"
-        type="month"
         size="sm"
         class="w-40"
       />

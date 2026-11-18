@@ -117,9 +117,8 @@ const cetak = () => cetakPdf(namaBerkas(judul.value, labelPeriode.value))
     :description="divisi === 'marketing' ? 'Kontribusi omset per marketing.' : 'Kontribusi omset per PIC event.'"
   >
     <template #actions>
-      <UInput
+      <AppBulan
         v-model="periode"
-        type="month"
         size="sm"
         class="w-40"
       />

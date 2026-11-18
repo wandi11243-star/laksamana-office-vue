@@ -170,9 +170,8 @@ const fmtTgl = (iso: string) => {
             title="Geser mundur"
             @click="geser(-1)"
           />
-          <UInput
+          <AppBulan
             v-model="bulanPick"
-            type="month"
             size="sm"
             title="Pilih bulan"
             class="w-40"

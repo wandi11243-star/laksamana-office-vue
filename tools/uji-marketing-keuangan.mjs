@@ -42,6 +42,7 @@ cek('rekap: piutang + overdue + lunas + draft tersembunyi', (() => {
   return r.piutang === 12 && r.overdue === 1 && r.lunas === 1 && r.draft === 2
 })())
 cek('tab: lunas/dp/belum', K.kelompokBayarMkt('lunas', { remaining: 0, paid: 1 }) && K.kelompokBayarMkt('dp', { remaining: 1, paid: 1 }) && !K.kelompokBayarMkt('dp', { remaining: 1, paid: 0 }) && K.kelompokBayarMkt('belum', { remaining: 9, paid: 0 }))
+cek('tab: upcoming/lewat', K.kelompokBayarMkt('upcoming', { remaining: 0, paid: 1, tanggal: '2026-11-18', hari: '2026-11-18' }) && !K.kelompokBayarMkt('upcoming', { remaining: 1, paid: 0, tanggal: '2026-11-17', hari: '2026-11-18' }) && K.kelompokBayarMkt('lewat', { remaining: 1, paid: 0, tanggal: '2026-11-17', hari: '2026-11-18' }) && !K.kelompokBayarMkt('lewat', { remaining: 0, paid: 5, tanggal: '2026-11-17', hari: '2026-11-18' }) && !K.kelompokBayarMkt('lewat', { remaining: 5, paid: 0, tanggal: '', hari: '2026-11-18' }))
 cek('resId mkt:<id>:dp|lunas', K.resIdInvMkt('e9', 'dp') === 'mkt:e9:dp' && K.resIdInvMkt('e9', 'lunas') === 'mkt:e9:lunas')
 cek('nomor resmi: pelunasan didahulukan', (() => {
   const peta = { 'mkt:e1:dp': { status: 'DIBUAT', no: 'DP/1' }, 'mkt:e1:lunas': { status: 'DIBUAT', no: 'LNS/1' } }

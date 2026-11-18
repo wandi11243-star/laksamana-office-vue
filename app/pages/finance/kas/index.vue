@@ -175,9 +175,8 @@ async function jalanHapus() {
     description="Semua transaksi berikut saldo berjalan tiap pos."
   >
     <template #actions>
-      <UInput
+      <AppBulan
         v-model="periode"
-        type="month"
         size="sm"
         class="w-40"
       />

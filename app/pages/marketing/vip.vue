@@ -504,11 +504,11 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
               { accessorKey: 'tanggal', header: tbl.kepala('tanggal', 'Tanggal'), meta: { class: { th: 'w-24', td: 'w-24' } } },
               { id: 'nama', header: tbl.kepala('nama', 'Atas Nama') },
               { id: 'jenis', header: tbl.kepala('jenis', 'Jenis'), meta: { class: { th: 'w-28', td: 'w-28' } } },
-              { id: 'pax', header: tbl.kepala('pax', 'Orang'), meta: { class: { th: 'w-16', td: 'w-16' } } },
+              { id: 'pax', header: tbl.kepala('pax', 'Orang'), meta: { class: { th: 'w-24', td: 'w-24' } } },
               { id: 'meja', header: tbl.kepala('meja', 'Meja'), meta: { class: { th: 'w-32', td: 'w-32' } } },
               { id: 'bayar', header: tbl.kepala('bayar', 'Pembayaran'), meta: { class: { th: 'w-28', td: 'w-28' } } },
               { id: 'nominal', header: tbl.kepala('nominal', 'Nominal'), meta: { class: { th: 'w-32', td: 'w-32' } } },
-              { id: 'aksi', header: 'Aksi', meta: { class: { th: 'w-32', td: 'w-32' } } },
+              { id: 'aksi', header: 'Aksi', meta: { class: { th: 'w-36', td: 'w-36' } } },
             ]"
             class="hidden lg:block"
             :ui="{ base: 'w-full table-fixed', td: 'whitespace-normal', tr: 'cursor-pointer' }"
@@ -596,57 +596,83 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
               >{{ rupiah(vipNominalMkt(row.original)) }}</span>
             </template>
             <template #aksi-cell="{ row }">
+              <!-- Icon-only, one row; each says what it does on hover (owner request, Nov 2026). -->
               <div
-                class="flex flex-wrap gap-1"
+                class="flex flex-nowrap items-center gap-0.5"
                 @click.stop
               >
-                <UButton
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  icon="i-lucide-eye"
-                  aria-label="Lihat detail & meja"
-                  @click="lihatId = row.original.id"
-                />
+                <UTooltip
+                  text="Lihat detail & meja"
+                  :delay-duration="0"
+                >
+                  <UButton
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    icon="i-lucide-eye"
+                    aria-label="Lihat detail & meja"
+                    @click="lihatId = row.original.id"
+                  />
+                </UTooltip>
                 <template v-if="bisaUbah">
-                  <UButton
+                  <UTooltip
                     v-if="!row.original.batalAt"
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    icon="i-lucide-pencil"
-                    aria-label="Ubah reservasi"
-                    @click="ubah(row.original)"
-                  />
-                  <UButton
+                    text="Ubah reservasi"
+                    :delay-duration="0"
+                  >
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-pencil"
+                      aria-label="Ubah reservasi"
+                      @click="ubah(row.original)"
+                    />
+                  </UTooltip>
+                  <UTooltip
                     v-if="!row.original.batalAt"
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    icon="i-lucide-x"
-                    aria-label="Batalkan — meja dilepas, jejaknya tetap ada di Reservasi"
-                    :disabled="kerja"
-                    @click="batalkan(row.original)"
-                  />
-                  <UButton
+                    text="Batalkan — meja dilepas, jejaknya tetap ada"
+                    :delay-duration="0"
+                  >
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-x"
+                      aria-label="Batalkan — meja dilepas, jejaknya tetap ada di Reservasi"
+                      :disabled="kerja"
+                      @click="batalkan(row.original)"
+                    />
+                  </UTooltip>
+                  <UTooltip
                     v-else
-                    size="xs"
-                    color="neutral"
-                    variant="ghost"
-                    icon="i-lucide-check"
-                    aria-label="Buka kembali — mejanya dikunci lagi di Reservasi"
-                    :disabled="kerja"
-                    @click="bukaLagi(row.original)"
-                  />
-                  <UButton
-                    size="xs"
-                    color="error"
-                    variant="ghost"
-                    icon="i-lucide-trash-2"
-                    aria-label="Hapus permanen dari sini dan dari modul Reservasi"
-                    :disabled="kerja"
-                    @click="hapus(row.original)"
-                  />
+                    text="Buka kembali — meja dikunci lagi"
+                    :delay-duration="0"
+                  >
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-rotate-ccw"
+                      aria-label="Buka kembali — mejanya dikunci lagi di Reservasi"
+                      :disabled="kerja"
+                      @click="bukaLagi(row.original)"
+                    />
+                  </UTooltip>
+                  <UTooltip
+                    text="Hapus permanen"
+                    :delay-duration="0"
+                  >
+                    <UButton
+                      size="xs"
+                      color="error"
+                      variant="ghost"
+                      icon="i-lucide-trash-2"
+                      aria-label="Hapus permanen dari sini dan dari modul Reservasi"
+                      :disabled="kerja"
+                      @click="hapus(row.original)"
+                    />
+                  </UTooltip>
                 </template>
               </div>
             </template>

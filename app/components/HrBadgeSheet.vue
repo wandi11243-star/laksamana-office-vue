@@ -89,9 +89,8 @@ async function simpan() {
       </UFormField>
       <div class="grid grid-cols-2 gap-3">
         <UFormField label="Bulan">
-          <UInput
+          <AppBulan
             v-model="month"
-            type="month"
             class="w-full"
           />
         </UFormField>

@@ -465,9 +465,8 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
     description="Mutasi masuk rekening BRI dicocokkan ke DP reservasi."
   >
     <template #actions>
-      <UInput
+      <AppBulan
         v-model="bulan"
-        type="month"
         size="sm"
         class="w-40"
       />
