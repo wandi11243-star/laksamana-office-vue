@@ -38,7 +38,8 @@ const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ??
 
 // ---- filters ----
 const q = useState('mkt-vip-q', () => '')
-const periode = useState<PeriodeVipMkt>('mkt-vip-periode', () => 'semua')
+// Opens on Upcoming (owner request, Nov 2026): what is still coming first.
+const periode = useState<PeriodeVipMkt>('mkt-vip-periode-v2', () => 'upcoming')
 const rentang = useState('mkt-vip-rentang', () => ({ dari: '', sampai: '' }))
 const jenis = useState<JenisVipMkt>('mkt-vip-jenis', () => 'aktif')
 const bulan = computed(() => hari.slice(0, 7))
@@ -51,7 +52,7 @@ const opsiJenis = computed(() => ([
 // The filter is SAID in words — a list that shrinks silently is reported as lost data.
 const keteranganSaring = computed(() => {
   const nj = { aktif: 'Regular & Assisted (tanpa yang dibatalkan)', Assisted: 'Assisted', Regular: 'Regular', batal: 'yang dibatalkan', semua: 'semua status' }[jenis.value]
-  const np = { semua: 'semua tanggal', hari: 'hari ini', minggu: 'minggu ini', bulan: 'bulan ini', pilih: `${rentang.value.dari || '…'} – ${rentang.value.sampai || '…'}` }[periode.value]
+  const np = { upcoming: 'mulai hari ini', semua: 'semua tanggal', hari: 'hari ini', minggu: 'minggu ini', bulan: 'bulan ini', pilih: `${rentang.value.dari || '…'} – ${rentang.value.sampai || '…'}` }[periode.value]
   return `Menampilkan ${nj}, acara ${np}.`
 })
 const paxTeks = (v: VipMkt) => (v.paxMin && v.paxMax && +v.paxMin !== +v.paxMax ? `${v.paxMin}–${v.paxMax}` : String(vipPaxMkt(v) || '—'))
@@ -438,7 +439,7 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
             <div class="flex flex-wrap gap-2">
               <AppSeg
                 v-model="periode"
-                :options="[{ value: 'semua', label: 'Semua' }, { value: 'hari', label: 'Hari ini' }, { value: 'minggu', label: 'Minggu ini' }, { value: 'bulan', label: 'Bulan ini' }, { value: 'pilih', label: 'Pilih tanggal' }]"
+                :options="[{ value: 'upcoming', label: 'Upcoming' }, { value: 'bulan', label: 'Bulan ini' }, { value: 'semua', label: 'Semua' }, { value: 'pilih', label: 'Pilih tanggal' }]"
               />
               <UInput
                 v-if="periode === 'pilih'"

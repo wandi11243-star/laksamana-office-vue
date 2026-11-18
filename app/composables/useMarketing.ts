@@ -404,7 +404,9 @@ export function useTabelMkt<T>(key: string, kolom: KolomMkt<T>[], sidik?: () => 
     'label': t,
     'color': 'neutral',
     'variant': 'link',
-    'class': '-mx-1 px-1 text-xs font-semibold tracking-wide text-table-head-text uppercase',
+    // The th's own colour (white on the dark Marketing heads, muted on light ones) — a fixed
+    // white vanished on light heads (dashboard Upcoming Event, pipeline, invoices).
+    'class': '-mx-1 px-1 text-xs font-semibold tracking-wide uppercase text-inherit hover:text-inherit hover:opacity-80',
     'trailingIcon': urut.value?.k === k ? (urut.value.arah === 1 ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down') : 'i-lucide-arrow-up-down',
     'aria-label': `Urutkan menurut ${t}`,
     'onClick': () => klik(k),

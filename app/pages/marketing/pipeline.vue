@@ -126,10 +126,12 @@ const bisaRevisi = (e: EventMkt) => {
 // ---- Daftar Event (pipeIsiEvents / paintEvents, :6718-6922) ----
 const AKTIF = '__aktif__'
 const SEMUA = '__semua'
-const fe = useState('mkt-ev-filter', () => ({ periode: '' as PeriodeEventMkt, bulan: '', status: AKTIF, q: '' }))
-const bawaan = computed(() => fe.value.periode === '' && fe.value.status === AKTIF && !fe.value.q && !pic.value)
+// Opens on Upcoming with every status (owner request, Nov 2026): the table is a view,
+// so finished events count too; 'Bulan ini' and the month stepper narrow it.
+const fe = useState('mkt-ev-filter-v2', () => ({ periode: 'upcoming' as PeriodeEventMkt, bulan: '', status: '', q: '' }))
+const bawaan = computed(() => fe.value.periode === 'upcoming' && !fe.value.status && !fe.value.q && !pic.value)
 function reset() {
-  fe.value = { periode: '', bulan: '', status: AKTIF, q: '' }
+  fe.value = { periode: 'upcoming', bulan: '', status: '', q: '' }
   pic.value = ''
 }
 const bulanAktif = computed(() => fe.value.bulan || hari.slice(0, 7))
@@ -148,7 +150,7 @@ const fStatus = computed({ get: () => fe.value.status || SEMUA, set: (v: string)
   fe.value.status = v === SEMUA ? '' : v
 } })
 const opsiStatus = [{ value: AKTIF, label: 'Semua kecuali selesai' }, { value: SEMUA, label: 'Semua status (termasuk selesai)' }, ...STATUS_EVENT_MKT.map(s => ({ value: s, label: s }))]
-const periodeSeg = computed({ get: () => fe.value.periode, set: (v: PeriodeEventMkt) => {
+const periodeSeg = computed({ get: () => (fe.value.periode === 'pilih' ? 'bulan' : fe.value.periode), set: (v: PeriodeEventMkt) => {
   fe.value.periode = v
 } })
 
@@ -176,6 +178,10 @@ const KOL: KolomMkt<EventMkt>[] = [
   { k: 'grand', t: 'Grand Total', v: e => grand(e), turun: true },
 ]
 const tbl = useTabelMkt('events', KOL, () => fe.value.q)
+// Upcoming reads nearest first; the other periods keep the newest-first default.
+watch(() => fe.value.periode, (p) => {
+  tbl.urut.value = { k: 'tanggal', arah: p === 'upcoming' ? 1 : -1 }
+}, { immediate: true })
 const urut = computed(() => tbl.susun(daftar.value))
 const hal = computed(() => tbl.potong(urut.value))
 const kolomTabel: TableColumn<EventMkt>[] = [
@@ -186,14 +192,14 @@ const kolomTabel: TableColumn<EventMkt>[] = [
 const hitung = computed(() => {
   const r = rentang.value
   return `${daftar.value.length} dari ${seperiode.value.length} event`
-    + (r ? ` · ${tglMkt(r.a)}${r.a !== r.b ? ` – ${tglMkt(r.b)}` : ''}` : '')
+    + (fe.value.periode === 'upcoming' ? ` · mulai ${tglMkt(hari)}` : r ? ` · ${tglMkt(r.a)}${r.a !== r.b ? ` – ${tglMkt(r.b)}` : ''}` : '')
     + (fe.value.status === AKTIF && nSelesai.value ? ` · ${nSelesai.value} selesai disembunyikan` : '')
 })
 const kosong = computed(() => {
   const ada = !bawaan.value
-  if (!ada && nSelesai.value > 0) return { t: 'Semua event di sini sudah selesai', d: `${nSelesai.value} event selesai disembunyikan. Pilih Semua status (termasuk selesai) di kotak status untuk melihatnya.` }
+  if (!ada && fe.value.status === AKTIF && nSelesai.value > 0) return { t: 'Semua event di sini sudah selesai', d: `${nSelesai.value} event selesai disembunyikan. Pilih Semua status (termasuk selesai) di kotak status untuk melihatnya.` }
   if (ada) return { t: 'Tidak ada yang cocok', d: `Longgarkan saringan periode/status, kosongkan pencariannya${pic.value ? `, atau pilih PIC Semua — sekarang tersaring ke ${namaUser(pic.value)}` : ''} — atau tekan Reset filter.` }
-  return { t: 'Belum ada event', d: 'Buat event dari client yang sudah Deal.' }
+  return { t: 'Belum ada event mendatang', d: 'Pilih Bulan ini atau Semua untuk melihat event lain, atau buat event dari client yang sudah Deal.' }
 })
 </script>
 
@@ -335,25 +341,28 @@ const kosong = computed(() => {
               :dragging="dragging"
               :can-drag="bolehSeret"
               :drag-reason="alasanSeret"
+              lega
               @dragstart="dragStart"
               @dragend="dragEnd"
               @card-click="alihKartu(item.id, swallowClick)"
             >
+              <!-- Old pipeline card: a roomy name, the PIC small after it, client · type
+                   on its own line, the value in deep gold (owner request, Nov 2026). -->
               <template #title>
-                <p class="text-sm font-semibold text-highlighted">
+                <p class="text-[15px] font-semibold leading-snug text-highlighted">
                   {{ item.nama }}<span
                     v-if="item.mktPIC"
-                    class="font-normal text-muted"
+                    class="text-[13px] font-normal text-muted"
                   > · {{ depan(item.mktPIC) }}</span>
                 </p>
               </template>
               <template #meta>
-                <p class="truncate text-xs text-muted">
+                <p class="mt-1.5 line-clamp-2 text-[13px] leading-relaxed text-muted">
                   {{ namaClient(item.clientId) }} · {{ jenisEvent(item) }}
                 </p>
                 <p
                   v-if="grand(item)"
-                  class="num mt-1 truncate text-xs font-semibold text-primary-700"
+                  class="num mt-2.5 truncate text-[15px] font-bold text-gold-deep"
                   :title="rupiah(grand(item))"
                 >
                   {{ rupiah(grand(item)) }}
@@ -419,7 +428,10 @@ const kosong = computed(() => {
                 :options="PERIODE_EVENT_MKT"
                 size="sm"
               />
-              <div class="flex items-center gap-1.5">
+              <div
+                v-if="fe.periode === 'bulan' || fe.periode === 'pilih'"
+                class="flex items-center gap-1.5"
+              >
                 <UButton
                   icon="i-lucide-chevron-left"
                   color="neutral"
