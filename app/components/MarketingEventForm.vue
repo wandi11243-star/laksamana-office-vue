@@ -218,6 +218,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
             >
               <UInput
                 v-if="f.t === 'text'"
+                size="lg"
                 :model-value="String(baca(f.k) ?? '')"
                 :list="f.src === 'staff' ? `dl-staf-${f.k}` : undefined"
                 :disabled="!bisaUbah"
@@ -236,6 +237,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
               </datalist>
               <UTextarea
                 v-else-if="f.t === 'ta'"
+                size="lg"
                 :model-value="String(baca(f.k) ?? '')"
                 :disabled="!bisaUbah"
                 autoresize
@@ -244,6 +246,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
               />
               <UInput
                 v-else-if="f.t === 'num'"
+                size="lg"
                 :model-value="String(baca(f.k) ?? '')"
                 type="number"
                 :disabled="!bisaUbah"
@@ -252,6 +255,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
               />
               <UInput
                 v-else-if="f.t === 'cur'"
+                size="lg"
                 :model-value="String(baca(f.k) ?? '')"
                 inputmode="numeric"
                 :disabled="!bisaUbah"
@@ -260,6 +264,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
               />
               <UInput
                 v-else-if="f.t === 'date'"
+                size="lg"
                 :model-value="String(baca(f.k) ?? '')"
                 type="date"
                 :disabled="!bisaUbah"
@@ -268,6 +273,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
               />
               <UInput
                 v-else-if="f.t === 'time'"
+                size="lg"
                 :model-value="String(baca(f.k) ?? '')"
                 type="time"
                 :disabled="!bisaUbah"
@@ -279,6 +285,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                 class="flex w-full items-center gap-2"
               >
                 <UInput
+                  size="lg"
                   :model-value="rentang(f)[0] ?? ''"
                   type="time"
                   aria-label="Jam mulai"
@@ -288,6 +295,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                 />
                 <span class="flex-none text-xs text-muted">s/d</span>
                 <UInput
+                  size="lg"
                   :model-value="rentang(f)[1] ?? ''"
                   type="time"
                   aria-label="Jam selesai"
@@ -298,6 +306,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
               </div>
               <USelect
                 v-else-if="f.t === 'sel'"
+                size="lg"
                 :model-value="String(baca(f.k) ?? '')"
                 :items="opsiSel(f)"
                 :disabled="!bisaUbah"
@@ -320,6 +329,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
               </div>
               <USelect
                 v-else-if="f.t === 'yn'"
+                size="lg"
                 :model-value="ynVal(f)"
                 :items="[{ value: KOSONG_YN, label: 'Belum dijawab' }, { value: 'ya', label: 'Ya' }, { value: 'tidak', label: 'Tidak' }]"
                 value-key="value"
@@ -340,6 +350,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                   @update:model-value="ynnoteSet(f, $event as boolean | undefined, ynnoteN(f))"
                 />
                 <UTextarea
+                  size="lg"
                   :model-value="ynnoteN(f)"
                   placeholder="Catatan / detail (opsional) — boleh beberapa baris"
                   :disabled="!bisaUbah"
@@ -405,6 +416,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                 </div>
                 <UInput
                   v-if="bisaUbah"
+                  size="lg"
                   type="file"
                   multiple
                   accept="image/*,application/pdf"
@@ -461,6 +473,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
               >
                 <USelect
                   v-model="salinDari"
+                  size="lg"
                   :items="[{ value: '__pilih', label: 'Pilih event…' }, ...events.filter(e => e.id !== ev.id).map(e => ({ value: e.id, label: `${e.nama} · ${e.tanggal ?? ''}` }))]"
                   value-key="value"
                   label-key="label"

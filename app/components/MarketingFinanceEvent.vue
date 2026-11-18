@@ -468,6 +468,7 @@ async function simpanInvUbah() {
           </div>
           <UFormField label="Deskripsi">
             <UInput
+              size="lg"
               :model-value="String(r.desc ?? '')"
               placeholder="mis. Biaya konsumsi event"
               :disabled="!bisaUbah"
@@ -478,6 +479,7 @@ async function simpanInvUbah() {
           <div class="grid grid-cols-2 gap-2">
             <UFormField label="Qty">
               <UInput
+                size="lg"
                 :model-value="String(r.jumlah ?? '')"
                 inputmode="numeric"
                 :disabled="!bisaUbah || (r.jenis || 'bayar') !== 'bayar'"
@@ -487,6 +489,7 @@ async function simpanInvUbah() {
             </UFormField>
             <UFormField label="Harga">
               <UInput
+                size="lg"
                 :model-value="String(r.harga ?? '')"
                 inputmode="numeric"
                 :disabled="!bisaUbah || (r.jenis || 'bayar') !== 'bayar'"
@@ -498,6 +501,7 @@ async function simpanInvUbah() {
           <div class="grid grid-cols-2 items-end gap-2">
             <UFormField label="Jenis">
               <USelect
+                size="lg"
                 :model-value="String(r.jenis || 'bayar')"
                 :items="[{ value: 'bayar', label: 'Ditagih' }, { value: 'free', label: 'FREE' }, { value: 'tbc', label: 'Belum pasti' }]"
                 value-key="value"
@@ -547,6 +551,7 @@ async function simpanInvUbah() {
           <div class="grid grid-cols-1 gap-4">
             <UFormField label="Discount (Rp)">
               <UInput
+                size="lg"
                 :model-value="String(draft.detail.diskon ?? '')"
                 inputmode="numeric"
                 :disabled="!bisaUbah"
@@ -572,6 +577,7 @@ async function simpanInvUbah() {
             </UFormField>
             <UFormField label="DP / Uang Muka (Rp)">
               <UInput
+                size="lg"
                 :model-value="String(draft.detail.depositNominal ?? '')"
                 inputmode="numeric"
                 :disabled="!bisaUbah"
@@ -581,6 +587,7 @@ async function simpanInvUbah() {
             </UFormField>
             <UFormField label="Masuk ke rekening">
               <USelect
+                size="lg"
                 :model-value="String(draft.detail.dpRek ?? '')"
                 :items="REKENING_MKT"
                 :disabled="!bisaUbah"
@@ -591,6 +598,7 @@ async function simpanInvUbah() {
             </UFormField>
             <UFormField label="Tanggal transfer">
               <UInput
+                size="lg"
                 :model-value="String(draft.detail.dpTgl ?? '')"
                 type="date"
                 :disabled="!bisaUbah"
@@ -613,6 +621,7 @@ async function simpanInvUbah() {
                   </UButton>
                   <UInput
                     v-if="bisaUbah"
+                    size="lg"
                     type="file"
                     accept="image/*,application/pdf"
                     :disabled="mengunggahDp"
@@ -643,6 +652,7 @@ async function simpanInvUbah() {
               class="lg:col-span-2"
             >
               <UTextarea
+                size="lg"
                 :model-value="String(draft.detail.itemFree ?? '')"
                 :disabled="!bisaUbah"
                 autoresize
@@ -655,6 +665,7 @@ async function simpanInvUbah() {
               class="lg:col-span-2"
             >
               <UTextarea
+                size="lg"
                 :model-value="String(draft.detail.itemTbc ?? '')"
                 :disabled="!bisaUbah"
                 autoresize
@@ -667,6 +678,7 @@ async function simpanInvUbah() {
               class="lg:col-span-2"
             >
               <UTextarea
+                size="lg"
                 :model-value="String(draft.detail.npwp ?? '')"
                 :disabled="!bisaUbah"
                 autoresize
@@ -916,6 +928,7 @@ async function simpanInvUbah() {
         <UFormField label="Jenis">
           <USelect
             v-model="bayar.type"
+            size="lg"
             :items="JENIS_BAYAR_MKT"
             class="w-full"
           />
@@ -923,12 +936,14 @@ async function simpanInvUbah() {
         <UFormField label="Jumlah (Rp)">
           <UInput
             v-model="bayar.amount"
+            size="lg"
             inputmode="numeric"
           />
         </UFormField>
         <UFormField label="Metode">
           <USelect
             v-model="bayar.method"
+            size="lg"
             :items="['Transfer', 'Cash', 'QRIS', 'Card']"
             class="w-full"
           />
@@ -936,6 +951,7 @@ async function simpanInvUbah() {
         <UFormField label="Tanggal">
           <UInput
             v-model="bayar.at"
+            size="lg"
             type="date"
           />
         </UFormField>
@@ -969,6 +985,7 @@ async function simpanInvUbah() {
         class="mt-3"
       >
         <UInput
+          size="lg"
           type="file"
           accept="image/*,application/pdf"
           @change="bayarBerkas = ($event.target as HTMLInputElement).files?.[0] ?? null"
@@ -984,6 +1001,7 @@ async function simpanInvUbah() {
       >
         <UInput
           v-model="bayar.note"
+          size="lg"
           placeholder="mis. transfer dari rek. BCA a.n. …"
         />
       </UFormField>
@@ -1115,6 +1133,7 @@ async function simpanInvUbah() {
           <UFormField label="Kepada">
             <UInput
               v-model="invUbahKepada"
+              size="lg"
               class="w-full"
               :placeholder="namaClient"
             />
@@ -1122,6 +1141,7 @@ async function simpanInvUbah() {
           <UFormField label="U.P">
             <UInput
               v-model="invUbahUp"
+              size="lg"
               class="w-full"
               :placeholder="namaClient"
             />
@@ -1137,6 +1157,7 @@ async function simpanInvUbah() {
             >
               <UTextarea
                 v-model="invUbahKet[i]"
+                size="lg"
                 :rows="1"
                 class="w-full"
                 :placeholder="String(it.desc ?? '')"

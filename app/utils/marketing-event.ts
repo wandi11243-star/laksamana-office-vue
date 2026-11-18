@@ -335,14 +335,16 @@ export function kosongNilaiMkt(t: FieldEventMkt['t'], v: unknown): boolean {
 }
 
 /**
- * Who sees what (:4326-4333): finance sections hide from operational; a
- * section shows when its div has 'all', has the viewer's division, or the
- * viewer has no division recorded (then everything shows).
+ * Who sees what (old visibleSections, deploy/marketing:9572-9579): finance
+ * sections hide from operational crew, and ONLY operational crew are narrowed
+ * to their division's sections. Marketing, admins and every other role see all
+ * eleven sections whatever division they carry (a Super Admin listed under
+ * Kitchen saw only D.1, D.2, D.10, D.11 before).
  */
 export function terlihatSeksiMkt(divUser?: string, role?: string): SeksiEventMkt[] {
   return SEKSI_EVENT_MKT.filter((s) => {
     if (s.fin && role === 'operational') return false
-    if (!divUser) return true
+    if (!divUser || role !== 'operational') return true
     return s.div.includes('all') || s.div.includes(divUser)
   })
 }
