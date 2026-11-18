@@ -785,16 +785,14 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
               Jam
             </dt>
             <dd class="flex flex-wrap items-center gap-1.5">
-              <UInput
+              <AppJam
                 v-model="jamInfo.mulai"
-                type="time"
                 :disabled="!bolehUbah"
                 class="w-28"
               />
               <span>–</span>
-              <UInput
+              <AppJam
                 v-model="jamInfo.selesai"
-                type="time"
                 :disabled="!bolehUbah"
                 class="w-28"
               />
@@ -888,9 +886,8 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
           </UFormField>
           <div class="grid grid-cols-2 gap-3">
             <UFormField label="Tanggal">
-              <UInput
+              <AppTanggal
                 v-model="f.tanggal"
-                type="date"
                 class="w-full"
               />
             </UFormField>
@@ -902,16 +899,14 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
               />
             </UFormField>
             <UFormField label="Jam mulai">
-              <UInput
+              <AppJam
                 v-model="f.mulai"
-                type="time"
                 class="w-full"
               />
             </UFormField>
             <UFormField label="Jam selesai">
-              <UInput
+              <AppJam
                 v-model="f.selesai"
-                type="time"
                 class="w-full"
               />
             </UFormField>
@@ -975,16 +970,14 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
         </div>
         <div class="grid grid-cols-3 gap-3">
           <UFormField label="Jam mulai">
-            <UInput
+            <AppJam
               v-model="mg.mulai"
-              type="time"
               class="w-full"
             />
           </UFormField>
           <UFormField label="Jam selesai">
-            <UInput
+            <AppJam
               v-model="mg.selesai"
-              type="time"
               class="w-full"
             />
           </UFormField>
@@ -1119,30 +1112,26 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
               />
             </UFormField>
             <UFormField label="Jam mulai">
-              <UInput
+              <AppJam
                 v-model="rt.mulai"
-                type="time"
                 class="w-full"
               />
             </UFormField>
             <UFormField label="Jam selesai">
-              <UInput
+              <AppJam
                 v-model="rt.selesai"
-                type="time"
                 class="w-full"
               />
             </UFormField>
             <UFormField label="Dari">
-              <UInput
+              <AppTanggal
                 v-model="rt.dari"
-                type="date"
                 class="w-full"
               />
             </UFormField>
             <UFormField label="Sampai">
-              <UInput
+              <AppTanggal
                 v-model="rt.sampai"
-                type="date"
                 class="w-full"
               />
             </UFormField>
@@ -1208,16 +1197,14 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
               />
             </UFormField>
             <UFormField label="Jam mulai">
-              <UInput
+              <AppJam
                 v-model="bl.mulai"
-                type="time"
                 class="w-full"
               />
             </UFormField>
             <UFormField label="Jam selesai">
-              <UInput
+              <AppJam
                 v-model="bl.selesai"
-                type="time"
                 class="w-full"
               />
             </UFormField>

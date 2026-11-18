@@ -88,10 +88,9 @@ const jamCapWaktu = (ts: number) => ts
               { value: 'bulanan', label: 'Bulanan', icon: 'i-lucide-calendar-range' },
             ]"
           />
-          <UInput
+          <AppTanggal
             v-if="mode === 'harian'"
             v-model="tanggal"
-            type="date"
             class="w-40"
           />
           <UInput

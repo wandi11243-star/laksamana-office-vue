@@ -411,9 +411,8 @@ const programBerjalan = computed(() => daftar.value.find(p => p.bulan === kunciB
             />
           </UFormField>
           <UFormField label="Deadline">
-            <UInput
+            <AppTanggal
               v-model="formDeadline"
-              type="date"
               class="w-full"
             />
           </UFormField>

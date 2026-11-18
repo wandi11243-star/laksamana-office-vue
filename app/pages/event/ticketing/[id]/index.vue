@@ -1323,16 +1323,14 @@ function labelKursiTiket(sid?: string) {
               />
             </UFormField>
             <UFormField label="Mulai jual">
-              <UInput
+              <AppTanggal
                 v-model="fk.sale_start"
-                type="date"
                 class="w-full"
               />
             </UFormField>
             <UFormField label="Akhir jual">
-              <UInput
+              <AppTanggal
                 v-model="fk.sale_end"
-                type="date"
                 :min="fk.sale_start || undefined"
                 class="w-full"
               />

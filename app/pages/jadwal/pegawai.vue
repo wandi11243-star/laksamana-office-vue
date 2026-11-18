@@ -548,9 +548,8 @@ async function jalanHapus() {
           />
         </UFormField>
         <UFormField label="Tanggal masuk">
-          <UInput
+          <AppTanggal
             v-model="f.joinDate"
-            type="date"
             class="w-full"
           />
         </UFormField>

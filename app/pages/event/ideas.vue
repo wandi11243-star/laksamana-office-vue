@@ -379,9 +379,8 @@ async function simpanEval() {
       >
         <div class="grid gap-3 lg:grid-cols-2">
           <UFormField label="Tanggal pelaksanaan">
-            <UInput
+            <AppTanggal
               v-model="fe.date"
-              type="date"
               class="w-full"
             />
           </UFormField>

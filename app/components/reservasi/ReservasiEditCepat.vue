@@ -252,9 +252,8 @@ async function simpan() {
           label="Jam"
           required
         >
-          <UInput
+          <AppJam
             v-model="jam"
-            type="time"
             size="xl"
             class="w-full"
           />

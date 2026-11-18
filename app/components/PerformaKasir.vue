@@ -267,10 +267,9 @@ const hariBelum = computed(() => days.value.filter(d => !syncKasirBerlaku(d.date
           size="sm"
           class="w-40"
         />
-        <UInput
+        <AppTanggal
           v-else
           v-model="tanggal"
-          type="date"
           size="sm"
           class="w-40"
         />

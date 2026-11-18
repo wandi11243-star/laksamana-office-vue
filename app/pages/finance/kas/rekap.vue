@@ -607,9 +607,8 @@ async function jalanHapusSetoran() {
           :title="`Input MDR & penanda — ${hariInput}`"
           description="Aktual yang diketik menggantikan hitungan; MDR manual dipakai saat aktual BERLEBIH (bank memotong, angka saja tidak bisa menebak pembagiannya)."
         >
-          <UInput
+          <AppTanggal
             v-model="hariInput"
-            type="date"
             size="sm"
             class="mb-3 w-40"
           />
@@ -741,6 +740,7 @@ async function jalanHapusSetoran() {
       <div class="max-h-64 space-y-1 overflow-y-auto">
         <UCheckbox
           v-for="t in hariBulan.filter(t => cash(t) > 0 || sisaSetor(t) > 0)"
+          :id="`cb-rekap-741-${String(t).replace(/\s+/g, '-')}`"
           :key="t"
           :model-value="!!terpilih[t]"
           :label="`${t} — sisa ${fmtRp(sisaSetor(t))}`"

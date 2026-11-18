@@ -776,9 +776,8 @@ async function hapus() {
               label="Mulai"
               hint="opsional"
             >
-              <UInput
+              <AppTanggal
                 v-model="form.mulai"
-                type="date"
                 size="xl"
                 class="w-full"
               />
@@ -787,9 +786,8 @@ async function hapus() {
               label="Selesai"
               hint="opsional"
             >
-              <UInput
+              <AppTanggal
                 v-model="form.selesai"
-                type="date"
                 size="xl"
                 class="w-full"
               />

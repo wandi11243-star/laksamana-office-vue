@@ -122,14 +122,13 @@ const dariInput = (e: Event) => (e.target as HTMLInputElement).value
         class="w-full"
         @update:model-value="ubah('pic', $event === KOSONG ? '' : String($event))"
       />
-      <UInput
+      <AppTanggal
         :model-value="nilai('deadline')"
-        type="date"
         :disabled="!bisaUbah"
         size="sm"
         aria-label="Deadline"
         class="w-full"
-        @change="ubah('deadline', dariInput($event))"
+        @update:model-value="ubah('deadline', $event)"
       />
       <UInput
         :model-value="nilai('note')"

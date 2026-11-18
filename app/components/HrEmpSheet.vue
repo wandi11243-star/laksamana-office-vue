@@ -142,16 +142,14 @@ async function simpan() {
       </div>
       <div class="grid grid-cols-3 gap-3">
         <UFormField label="Bergabung">
-          <UInput
+          <AppTanggal
             v-model="joinDate"
-            type="date"
             class="w-full"
           />
         </UFormField>
         <UFormField label="Ulang tahun">
-          <UInput
+          <AppTanggal
             v-model="birthDate"
-            type="date"
             class="w-full"
           />
         </UFormField>
@@ -165,16 +163,14 @@ async function simpan() {
       </div>
       <div class="grid grid-cols-2 gap-3">
         <UFormField label="Kontrak berakhir">
-          <UInput
+          <AppTanggal
             v-model="contractEnd"
-            type="date"
             class="w-full"
           />
         </UFormField>
         <UFormField label="Probation selesai">
-          <UInput
+          <AppTanggal
             v-model="probationEnd"
-            type="date"
             class="w-full"
           />
         </UFormField>

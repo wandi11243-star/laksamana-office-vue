@@ -362,9 +362,8 @@ async function jalanKonfirm() {
       <AppPanel>
         <div class="flex flex-wrap items-center gap-2.5">
           <b class="text-sm text-highlighted">Lembar pembayaran</b>
-          <UInput
+          <AppTanggal
             :model-value="tglLembar"
-            type="date"
             size="sm"
             class="w-44"
             @update:model-value="(v: string) => pilihLembar(v)"

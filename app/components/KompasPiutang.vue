@@ -290,9 +290,8 @@ const helpPic = computed(() => {
     >
       <template #actions>
         <UFormField label="Tanggal bill">
-          <UInput
+          <AppTanggal
             v-model="tanggal"
-            type="date"
           />
         </UFormField>
       </template>
@@ -589,9 +588,8 @@ const helpPic = computed(() => {
         </div>
         <div class="mt-3 grid items-end gap-3 lg:grid-cols-3">
           <UFormField label="Tanggal uang diterima">
-            <UInput
+            <AppTanggal
               v-model="lunasTgl[kunciGrup(g)]"
-              type="date"
               class="w-full"
             />
           </UFormField>

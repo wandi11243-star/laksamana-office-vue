@@ -187,9 +187,8 @@ async function submit() {
     >
       <template #actions>
         <UFormField label="Tanggal">
-          <UInput
+          <AppTanggal
             v-model="tanggal"
-            type="date"
           />
         </UFormField>
       </template>

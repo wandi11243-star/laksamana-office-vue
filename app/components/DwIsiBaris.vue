@@ -198,17 +198,15 @@ async function simpan() {
           class="grid grid-cols-2 gap-3"
         >
           <UFormField label="Jam mulai">
-            <UInput
+            <AppJam
               :model-value="isi[i]!.m"
-              type="time"
               class="w-full"
               @update:model-value="(v: string) => ubahJam('m', v)"
             />
           </UFormField>
           <UFormField label="Jam selesai">
-            <UInput
+            <AppJam
               :model-value="isi[i]!.s"
-              type="time"
               class="w-full"
               @update:model-value="(v: string) => ubahJam('s', v)"
             />

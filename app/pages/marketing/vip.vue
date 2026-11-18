@@ -441,16 +441,14 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
                 v-model="periode"
                 :options="[{ value: 'upcoming', label: 'Upcoming' }, { value: 'bulan', label: 'Bulan ini' }, { value: 'semua', label: 'Semua' }, { value: 'pilih', label: 'Pilih tanggal' }]"
               />
-              <UInput
+              <AppTanggal
                 v-if="periode === 'pilih'"
                 v-model="rentang.dari"
-                type="date"
                 aria-label="Dari tanggal"
               />
-              <UInput
+              <AppTanggal
                 v-if="periode === 'pilih'"
                 v-model="rentang.sampai"
-                type="date"
                 aria-label="Sampai tanggal"
               />
               <AppSeg
@@ -827,9 +825,8 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
           label="Nominal pendapatan (Rp)"
           hint="Sudah termasuk tax & service. Inilah angka yang masuk laporan."
         >
-          <UInput
+          <AppNominal
             v-model="nominalNilai"
-            inputmode="numeric"
           />
         </UFormField>
         <div class="mt-4 flex justify-end gap-2">

@@ -724,9 +724,8 @@ async function segarkan() {
 
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <UFormField label="Tanggal">
-              <UInput
+              <AppTanggal
                 v-model="form.tanggal"
-                type="date"
                 class="w-full"
               />
             </UFormField>
@@ -1669,9 +1668,8 @@ async function segarkan() {
             />
           </UFormField>
           <UFormField label="Tanggal">
-            <UInput
+            <AppTanggal
               v-model="mo.tanggal"
-              type="date"
               class="w-full"
             />
           </UFormField>

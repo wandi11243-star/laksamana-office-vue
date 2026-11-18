@@ -139,9 +139,12 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
 
 <template>
   <div>
+    <!-- id + scroll margin: the Ringkasan Pengisian chips jump straight to a section. -->
     <AppPanel
       v-for="s in seksi"
+      :id="`seksi-${s.id}`"
       :key="s.id"
+      class="scroll-mt-36 transition-shadow duration-500"
     >
       <template #head>
         <div class="flex min-w-0 flex-1 basis-72 items-start gap-3">
@@ -185,7 +188,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
       />
       <div
         v-else
-        class="grid grid-cols-2 gap-x-[18px] gap-y-0 min-[861px]:grid-cols-4 min-[1081px]:grid-cols-6"
+        class="grid grid-cols-2 gap-x-6 gap-y-0 min-[861px]:grid-cols-4 min-[1081px]:grid-cols-6"
       >
         <template
           v-for="f in s.fields"
@@ -194,7 +197,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
           <!-- Slim tint divider: stacked title + desc with a deep-yellow edge marker. -->
           <div
             v-if="f.t === 'head' && terlihat(f)"
-            class="col-span-full mb-2 mt-5 rounded-md border-l-[3px] border-yellow-deep bg-yellow-light px-2.5 py-1.5 first:mt-0"
+            class="col-span-full mb-4 mt-6 rounded-md border-l-[3px] border-yellow-deep bg-yellow-light px-3 py-2 first:mt-0"
           >
             <p class="text-sm font-semibold text-ink-900">
               {{ f.l }}
@@ -208,7 +211,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
           </div>
           <div
             v-else-if="f.t !== 'head' && terlihat(f)"
-            :class="[kolomField(f), 'mb-[15px]']"
+            :class="[kolomField(f), 'mb-6']"
           >
             <UFormField
               v-if="!['tog', 'mirror', 'head', 'mejalock', 'salinlayout'].includes(f.t)"
@@ -253,29 +256,26 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                 class="w-full"
                 @update:model-value="tulis(f.k, String($event) === '' ? '' : +String($event))"
               />
-              <UInput
+              <AppNominal
                 v-else-if="f.t === 'cur'"
                 size="lg"
                 :model-value="String(baca(f.k) ?? '')"
-                inputmode="numeric"
                 :disabled="!bisaUbah"
                 class="w-full"
                 @update:model-value="tulis(f.k, angka($event))"
               />
-              <UInput
+              <AppTanggal
                 v-else-if="f.t === 'date'"
                 size="lg"
                 :model-value="String(baca(f.k) ?? '')"
-                type="date"
                 :disabled="!bisaUbah"
                 class="w-full"
                 @update:model-value="tulis(f.k, String($event))"
               />
-              <UInput
+              <AppJam
                 v-else-if="f.t === 'time'"
                 size="lg"
                 :model-value="String(baca(f.k) ?? '')"
-                type="time"
                 :disabled="!bisaUbah"
                 class="w-full"
                 @update:model-value="tulis(f.k, String($event))"
@@ -284,20 +284,18 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                 v-else-if="f.t === 'timerange'"
                 class="flex w-full items-center gap-2"
               >
-                <UInput
+                <AppJam
                   size="lg"
                   :model-value="rentang(f)[0] ?? ''"
-                  type="time"
                   aria-label="Jam mulai"
                   :disabled="!bisaUbah"
                   class="min-w-0 flex-1"
                   @update:model-value="rentangSet(f, 0, String($event))"
                 />
                 <span class="flex-none text-xs text-muted">s/d</span>
-                <UInput
+                <AppJam
                   size="lg"
                   :model-value="rentang(f)[1] ?? ''"
-                  type="time"
                   aria-label="Jam selesai"
                   :disabled="!bisaUbah"
                   class="min-w-0 flex-1"
@@ -320,6 +318,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
               >
                 <UCheckbox
                   v-for="o in (f.o as string[])"
+                  :id="`cb-marketingeventform-319-${String(o).replace(/\s+/g, '-')}`"
                   :key="o"
                   :model-value="(Array.isArray(baca(f.k)) ? (baca(f.k) as string[]) : []).includes(o)"
                   :label="o"

@@ -757,9 +757,8 @@ const namaTagihan = (b: BayarTagihan) => tagihanDari(b.tagihanId)?.nama ?? `(tag
           label="Jatuh tempo pertama yang mau dicatat"
           help="Tanggal di bulan ini menentukan tanggal jatuh tempo tiap periode (mis. 5 Okt → tiap tanggal 5). Isi dengan jatuh tempo terdekat, bukan tanggal mulai berlangganan dulu — jatuh tempo sebelumnya yang belum dicatat akan terhitung terlambat."
         >
-          <UInput
+          <AppTanggal
             v-model="form.mulai"
-            type="date"
             class="w-full"
           />
         </UFormField>
@@ -803,16 +802,14 @@ const namaTagihan = (b: BayarTagihan) => tagihanDari(b.tagihanId)?.nama ?? `(tag
     >
       <div class="grid gap-3 sm:grid-cols-2">
         <UFormField label="Jatuh tempo yang dibayar">
-          <UInput
+          <AppTanggal
             v-model="fb.periode"
-            type="date"
             class="w-full"
           />
         </UFormField>
         <UFormField label="Tanggal bayar">
-          <UInput
+          <AppTanggal
             v-model="fb.tglBayar"
-            type="date"
             class="w-full"
           />
         </UFormField>

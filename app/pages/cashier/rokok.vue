@@ -198,9 +198,8 @@ const kosongKelas = 'w-24 text-end'
             aria-label="Hari sebelumnya"
             @click="geser(-1)"
           />
-          <UInput
+          <AppTanggal
             v-model="tanggal"
-            type="date"
             size="sm"
             class="w-40"
           />

@@ -31,7 +31,6 @@ import { progresDivMkt } from '~/utils/marketing-tugas'
 import { ikonStatusMkt, warnaStatusMkt } from '~/utils/status-marketing'
 import { formatFbMkt, getDokumenMkt, hapusMkt, lepasKunciMejaMkt, mktSimpan, simpanDokumenMkt, tambalMkt, useAksesMkt, useStateMkt, versiDokumenMkt } from '~/composables/useMarketing'
 import { rupiah } from '~/utils/format'
-import { rupiahRingkas } from '~/utils/hlife'
 
 definePageMeta({ access: ['marketing'] })
 
@@ -287,6 +286,22 @@ const jumlahSurat = computed(() => st.value.events.filter(e => e.penawaran?.noSu
 const keBrief = (mode: string) => router.push({ path: '/marketing/brief', query: { id: id.value, mode } })
 
 // ---- Ringkasan Pengisian (ringkasIsianHTML): live from the draft ----
+
+/**
+ * A summary chip jumps to its section: switch tab, wait for the form to
+ * render, scroll the section into view and ring it for a moment, so the move
+ * is visible (a bare tab switch under the fold looked like nothing happened).
+ */
+async function lompatSeksi(s: { tab: string, id: string }) {
+  tab.value = s.tab
+  await nextTick()
+  await new Promise(r => requestAnimationFrame(() => r(null)))
+  const el = document.getElementById(`seksi-${s.id}`)
+  if (!el) return
+  el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  el.classList.add('ring-2', 'ring-gold', 'shadow-lg')
+  setTimeout(() => el.classList.remove('ring-2', 'ring-gold', 'shadow-lg'), 1600)
+}
 const ringkas = computed(() => {
   const e = evDraf.value
   if (!e) return null
@@ -502,21 +517,21 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
       >
         <AppStat
           label="Grand Total"
-          :value="rupiahRingkas(uang.grand)"
-          :sub="rupiah(uang.grand)"
+          :value="rupiah(uang.grand)"
+          sub="Total tagihan acara"
           icon="i-lucide-receipt"
         />
         <AppStat
           :label="dpLabel(uang)"
-          :value="rupiahRingkas(uang.dp)"
+          :value="rupiah(uang.dp)"
           :sub="uang.paid >= uang.dp ? 'Terpenuhi' : 'Belum masuk'"
           icon="i-lucide-wallet"
           :tone="uang.paid >= uang.dp ? 'success' : 'warning'"
         />
         <AppStat
           label="Sisa Tagihan"
-          :value="rupiahRingkas(uang.remaining)"
-          :sub="`terbayar ${rupiahRingkas(uang.paid)} dari ${rupiahRingkas(uang.grand)}`"
+          :value="rupiah(uang.remaining)"
+          :sub="`terbayar ${rupiah(uang.paid)} dari ${rupiah(uang.grand)}`"
           icon="i-lucide-hourglass"
           :tone="uang.remaining > 0 ? 'error' : 'success'"
         />
@@ -643,14 +658,19 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
           />
         </div>
         <div class="mt-3 flex flex-wrap gap-2">
+          <!-- A chip is a jump: open its tab, scroll to the section, ring it briefly.
+               Bigger targets with a hover lift; the open tab's chips are ringed. -->
           <button
             v-for="s in ringkas.secs"
             :key="s.id"
             type="button"
-            class="flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-xs transition hover:brightness-95"
-            :class="s.isi >= s.total ? 'border-success/40 bg-teal-light' : s.isi === 0 ? 'border-error/40 bg-coral-light' : 'border-warning/40 bg-yellow-light'"
-            :title="`${s.title} — ${s.isi} dari ${s.total} isian terisi`"
-            @click="tab = s.tab"
+            class="group flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-left text-[13px] transition-[transform,box-shadow,filter] duration-150 hover:-translate-y-px hover:shadow-md hover:brightness-[0.97] focus-visible:outline-2 focus-visible:outline-primary"
+            :class="[
+              s.isi >= s.total ? 'border-success/40 bg-teal-light' : s.isi === 0 ? 'border-error/40 bg-coral-light' : 'border-warning/40 bg-yellow-light',
+              s.tab === tab ? 'ring-2 ring-gold/70' : '',
+            ]"
+            :title="`Buka ${s.n} ${s.title} — ${s.isi} dari ${s.total} isian terisi`"
+            @click="lompatSeksi(s)"
           >
             <!-- Number and count follow the section status colour; title stays highlighted for readability. -->
             <span
@@ -662,6 +682,10 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
               class="num"
               :class="s.isi >= s.total ? 'text-success' : s.isi === 0 ? 'text-error' : 'text-warning'"
             >{{ s.isi }}/{{ s.total }}</span>
+            <UIcon
+              name="i-lucide-arrow-down-right"
+              class="size-3.5 shrink-0 text-muted opacity-0 transition-opacity group-hover:opacity-100"
+            />
           </button>
         </div>
       </AppPanel>

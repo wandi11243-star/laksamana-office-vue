@@ -610,16 +610,14 @@ async function hapus() {
       </UFormField>
       <div class="grid gap-4 *:min-w-0 sm:grid-cols-2 lg:grid-cols-4">
         <UFormField label="Mulai (opsional)">
-          <UInput
+          <AppTanggal
             v-model="f.start"
-            type="date"
             class="w-full"
           />
         </UFormField>
         <UFormField label="Deadline">
-          <UInput
+          <AppTanggal
             v-model="f.deadline"
-            type="date"
             class="w-full"
           />
         </UFormField>
@@ -627,9 +625,8 @@ async function hapus() {
           label="Jam (opsional)"
           help="Info di samping deadline, mis. 14:00."
         >
-          <UInput
+          <AppJam
             v-model="f.jam"
-            type="time"
             class="w-full"
           />
         </UFormField>
@@ -730,9 +727,8 @@ async function hapus() {
               @update:model-value="(v: boolean | 'indeterminate') => { if (v === true) kustom.akhir = 'd' }"
             />
             Pada tanggal
-            <UInput
+            <AppTanggal
               v-model="kustom.sampai"
-              type="date"
               class="w-40"
               @focus="kustom.akhir = 'd'"
             />
@@ -781,9 +777,8 @@ async function hapus() {
                 :class="s.done ? 'opacity-60 line-through' : ''"
                 @update:model-value="(v: string | number) => s.t = String(v)"
               />
-              <UInput
+              <AppTanggal
                 :model-value="s.d"
-                type="date"
                 size="sm"
                 title="Deadline sub-task (opsional)"
                 class="w-36 shrink-0"

@@ -204,9 +204,8 @@ async function hapus() {
           />
         </UFormField>
         <UFormField label="Butuh tgl">
-          <UInput
+          <AppTanggal
             v-model="f.needBy"
-            type="date"
             class="w-full"
           />
         </UFormField>

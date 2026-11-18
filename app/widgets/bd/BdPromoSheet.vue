@@ -267,16 +267,14 @@ async function hapus() {
       </UFormField>
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField label="Tanggal mulai *">
-          <UInput
+          <AppTanggal
             v-model="f.mulai"
-            type="date"
             class="w-full"
           />
         </UFormField>
         <UFormField label="Tanggal selesai *">
-          <UInput
+          <AppTanggal
             v-model="f.selesai"
-            type="date"
             class="w-full"
           />
         </UFormField>
@@ -292,16 +290,14 @@ async function hapus() {
         class="grid gap-4 sm:grid-cols-2"
       >
         <UFormField label="Jam mulai">
-          <UInput
+          <AppJam
             v-model="f.jamMulai"
-            type="time"
             class="w-full"
           />
         </UFormField>
         <UFormField label="Jam selesai">
-          <UInput
+          <AppJam
             v-model="f.jamSelesai"
-            type="time"
             class="w-full"
           />
         </UFormField>

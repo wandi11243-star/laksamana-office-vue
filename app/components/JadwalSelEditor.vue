@@ -116,16 +116,14 @@ function kosongkan() {
       <template v-if="def && !def.libur">
         <div class="grid grid-cols-2 gap-3">
           <UFormField label="Jam masuk">
-            <UInput
+            <AppJam
               v-model="m"
-              type="time"
               class="w-full"
             />
           </UFormField>
           <UFormField label="Jam pulang">
-            <UInput
+            <AppJam
               v-model="s"
-              type="time"
               class="w-full"
             />
           </UFormField>

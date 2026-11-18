@@ -410,9 +410,8 @@ async function simpanInvUbah() {
                 />
               </td>
               <td class="px-2 py-2">
-                <UInput
+                <AppNominal
                   :model-value="String(r.harga ?? '')"
-                  inputmode="numeric"
                   :disabled="!bisaUbah || (r.jenis || 'bayar') !== 'bayar'"
                   class="w-full"
                   @update:model-value="ubahRinci(i, 'harga', String($event))"
@@ -488,10 +487,9 @@ async function simpanInvUbah() {
               />
             </UFormField>
             <UFormField label="Harga">
-              <UInput
+              <AppNominal
                 size="lg"
                 :model-value="String(r.harga ?? '')"
-                inputmode="numeric"
                 :disabled="!bisaUbah || (r.jenis || 'bayar') !== 'bayar'"
                 class="w-full"
                 @update:model-value="ubahRinci(i, 'harga', String($event))"
@@ -550,10 +548,9 @@ async function simpanInvUbah() {
         >
           <div class="grid grid-cols-1 gap-4">
             <UFormField label="Discount (Rp)">
-              <UInput
+              <AppNominal
                 size="lg"
                 :model-value="String(draft.detail.diskon ?? '')"
-                inputmode="numeric"
                 :disabled="!bisaUbah"
                 class="w-full"
                 @update:model-value="draft.detail.diskon = String($event).replace(/\D/g, '') === '' ? '' : +String($event).replace(/\D/g, '')"
@@ -576,10 +573,9 @@ async function simpanInvUbah() {
               />
             </UFormField>
             <UFormField label="DP / Uang Muka (Rp)">
-              <UInput
+              <AppNominal
                 size="lg"
                 :model-value="String(draft.detail.depositNominal ?? '')"
-                inputmode="numeric"
                 :disabled="!bisaUbah"
                 class="w-full"
                 @update:model-value="draft.detail.depositNominal = String($event).replace(/\D/g, '') === '' ? '' : +String($event).replace(/\D/g, '')"
@@ -597,10 +593,9 @@ async function simpanInvUbah() {
               />
             </UFormField>
             <UFormField label="Tanggal transfer">
-              <UInput
+              <AppTanggal
                 size="lg"
                 :model-value="String(draft.detail.dpTgl ?? '')"
-                type="date"
                 :disabled="!bisaUbah"
                 class="w-full"
                 @update:model-value="draft.detail.dpTgl = String($event)"
@@ -934,10 +929,9 @@ async function simpanInvUbah() {
           />
         </UFormField>
         <UFormField label="Jumlah (Rp)">
-          <UInput
+          <AppNominal
             v-model="bayar.amount"
             size="lg"
-            inputmode="numeric"
           />
         </UFormField>
         <UFormField label="Metode">
@@ -949,10 +943,9 @@ async function simpanInvUbah() {
           />
         </UFormField>
         <UFormField label="Tanggal">
-          <UInput
+          <AppTanggal
             v-model="bayar.at"
             size="lg"
-            type="date"
           />
         </UFormField>
       </div>

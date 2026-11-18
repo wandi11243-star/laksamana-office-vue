@@ -495,9 +495,8 @@ async function hapusRiwayat(x: RiwayatKalkMkt) {
             icon="i-lucide-handshake"
           >
             <UFormField label="Harga deal / pax (Rp)">
-              <UInput
+              <AppNominal
                 v-model="dealTeks"
-                inputmode="numeric"
                 placeholder="mis. 45.000"
                 class="w-full"
               />

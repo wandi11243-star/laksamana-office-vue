@@ -109,9 +109,8 @@ const terkirim = computed(() => poMarketingMkt(daftar.value ?? []))
             label="Dibutuhkan tanggal"
             help="Bawaannya akhir minggu ini — siklus belanja tim mingguan."
           >
-            <UInput
+            <AppTanggal
               v-model="f.need"
-              type="date"
               class="w-full"
             />
           </UFormField>

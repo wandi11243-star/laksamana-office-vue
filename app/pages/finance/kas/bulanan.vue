@@ -158,10 +158,9 @@ function kirimWhatsApp() {
         :options="[{ value: 'hari', label: 'Harian' }, { value: 'bulan', label: 'Bulanan' }]"
         class="print:hidden"
       />
-      <UInput
+      <AppTanggal
         v-if="harian"
         v-model="tanggal"
-        type="date"
         size="sm"
         class="w-40 print:hidden"
       />

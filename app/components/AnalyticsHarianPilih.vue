@@ -31,8 +31,7 @@ const L = computed(() => h.laporanHari.value)
         title="Hari sebelumnya"
         @click="h.geser(-1)"
       />
-      <UInput
-        type="date"
+      <AppTanggal
         size="sm"
         :max="hari0"
         :model-value="h.hari.value"

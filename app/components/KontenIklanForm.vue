@@ -174,16 +174,14 @@ async function hapus() {
         required
         help="Tanggal iklan ini mulai jalan — inilah yang menentukan dananya masuk pengeluaran bulan mana di Report per Bulan. Kosong = hari ini."
       >
-        <UInput
+        <AppTanggal
           v-model="f.startDate"
-          type="date"
           class="w-full"
         />
       </UFormField>
       <UFormField label="Selesai">
-        <UInput
+        <AppTanggal
           v-model="f.endDate"
-          type="date"
           class="w-full"
         />
       </UFormField>
@@ -225,9 +223,8 @@ async function hapus() {
           :key="i"
           class="mb-2 grid grid-cols-[1fr_auto] gap-2 sm:grid-cols-[9rem_1fr_9rem_auto]"
         >
-          <UInput
+          <AppTanggal
             v-model="x.date"
-            type="date"
             aria-label="Tanggal"
             class="col-span-2 sm:col-span-1"
           />

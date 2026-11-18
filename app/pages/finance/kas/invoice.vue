@@ -537,6 +537,7 @@ const jalanHapusP = () => {
         </p>
         <UCheckbox
           v-for="p in penanda.filter(x => x.aktif !== false)"
+          :id="`cb-invoice-538-${String(p.id).replace(/\s+/g, '-')}`"
           :key="p.id"
           :model-value="putusPenanda.includes(p.id)"
           :label="`${p.nama}${p.jabatan ? ` — ${p.jabatan}` : ''}`"

@@ -138,16 +138,14 @@ async function hapus() {
         />
       </UFormField>
       <UFormField label="Tanggal event">
-        <UInput
+        <AppTanggal
           v-model="f.date"
-          type="date"
           class="w-full"
         />
       </UFormField>
       <UFormField label="Jam">
-        <UInput
+        <AppJam
           v-model="f.time"
-          type="time"
           class="w-full"
         />
       </UFormField>

@@ -69,9 +69,8 @@ async function simpan() {
           />
         </UFormField>
         <UFormField label="Request date">
-          <UInput
+          <AppTanggal
             v-model="f.tanggal"
-            type="date"
             class="w-full"
           />
         </UFormField>

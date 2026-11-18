@@ -1276,16 +1276,14 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
         </template>
         <AppFilterGrid>
           <UFormField label="Dari">
-            <UInput
+            <AppTanggal
               v-model="saring.dari"
-              type="date"
               class="w-full"
             />
           </UFormField>
           <UFormField label="Sampai">
-            <UInput
+            <AppTanggal
               v-model="saring.sampai"
-              type="date"
               class="w-full"
             />
           </UFormField>
@@ -1698,9 +1696,8 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
             label="Tanggal acara — Dari"
             class="max-w-44"
           >
-            <UInput
+            <AppTanggal
               v-model="saring.dari"
-              type="date"
               class="w-full"
             />
           </UFormField>
@@ -1708,9 +1705,8 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
             label="Sampai"
             class="max-w-44"
           >
-            <UInput
+            <AppTanggal
               v-model="saring.sampai"
-              type="date"
               class="w-full"
             />
           </UFormField>
@@ -1935,9 +1931,8 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           </div>
         </div>
         <UFormField label="Tanggal transfer">
-          <UInput
+          <AppTanggal
             v-model="tfForm.date"
-            type="date"
             size="xl"
             class="w-full"
           />

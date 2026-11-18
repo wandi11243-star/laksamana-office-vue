@@ -339,10 +339,9 @@ async function simpanTarget() {
               class="w-40"
               aria-label="Bulan"
             />
-            <UInput
+            <AppTanggal
               v-else
               v-model="periode.date"
-              type="date"
               class="w-40"
               aria-label="Tanggal acuan"
             />

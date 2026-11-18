@@ -331,9 +331,8 @@ const diubahTeks = (r: VoidBaris) => (r.diubahOleh && num(r.diubah) > num(r.dibu
       description="Tanggalnya terisi hari ini dan boleh diubah — tanggal yang dipilih di sini juga menentukan tanggal catatan baru."
     >
       <template #actions>
-        <UInput
+        <AppTanggal
           v-model="tanggal"
-          type="date"
           aria-label="Tanggal"
         />
       </template>

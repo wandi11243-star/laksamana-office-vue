@@ -269,15 +269,13 @@ async function salinCaption(caption: string) {
           />
         </UFormField>
         <UFormField label="Tanggal tayang *">
-          <UInput
+          <AppTanggal
             v-model="form.tanggal"
-            type="date"
           />
         </UFormField>
         <UFormField label="Jam tayang (WIB)">
-          <UInput
+          <AppJam
             v-model="form.jam"
-            type="time"
           />
         </UFormField>
         <UFormField label="PIC (siapa yang memposting)">

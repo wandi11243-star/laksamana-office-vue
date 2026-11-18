@@ -101,9 +101,8 @@ function kirim() {
         </UFormField>
       </div>
       <UFormField label="Deadline (opsional)">
-        <UInput
+        <AppTanggal
           v-model="f.deadline"
-          type="date"
           class="w-full"
         />
       </UFormField>

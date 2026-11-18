@@ -363,9 +363,8 @@ async function lihatBukti(fb: Feedback) {
           label="Tanggal acuan"
           class="max-w-44 [&_label]:sr-only"
         >
-          <UInput
+          <AppTanggal
             v-model="periode.date"
-            type="date"
             class="w-full"
           />
         </UFormField>
@@ -679,9 +678,8 @@ async function lihatBukti(fb: Feedback) {
           />
         </UFormField>
         <UFormField label="Tanggal kejadian">
-          <UInput
+          <AppTanggal
             v-model="form.tanggal"
-            type="date"
             size="xl"
             class="w-full"
           />

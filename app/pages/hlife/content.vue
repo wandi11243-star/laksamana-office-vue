@@ -392,9 +392,8 @@ function keGcal(c: HlifeContent) {
             />
           </UFormField>
           <UFormField label="Tanggal publish">
-            <UInput
+            <AppTanggal
               v-model="form.date"
-              type="date"
               size="xl"
               class="w-full"
             />
