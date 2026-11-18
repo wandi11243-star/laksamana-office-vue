@@ -155,9 +155,8 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
       <AppPanel>
         <div class="flex flex-wrap items-center gap-3">
           <UFormField label="Periode">
-            <UInput
+            <AppBulan
               v-model="bulan"
-              type="month"
               class="w-44"
             />
           </UFormField>

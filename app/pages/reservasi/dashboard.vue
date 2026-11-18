@@ -1702,9 +1702,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           v-if="filter.mode === 'month'"
           label="Bulan"
         >
-          <UInput
+          <AppBulan
             v-model="filter.month"
-            type="month"
             class="w-full"
           />
         </UFormField>

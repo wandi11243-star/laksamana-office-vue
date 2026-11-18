@@ -34,11 +34,18 @@ export function rekapInvoiceMkt(rows: RingkasUangMkt[], nDraft: number) {
   }
 }
 
-export type TabBayarMkt = 'semua' | 'lunas' | 'dp' | 'belum'
+export type TabBayarMkt = 'upcoming' | 'lewat' | 'semua' | 'lunas' | 'dp' | 'belum'
 
-/** bayarTab: lunas = nothing left; dp = something in; belum = nothing yet. */
-export function kelompokBayarMkt(tab: TabBayarMkt, r: RingkasUangMkt): boolean {
+/**
+ * bayarTab: lunas = nothing left; dp = something in; belum = nothing yet.
+ * Owner request (Nov 2026) put two date tabs in front: upcoming = the event
+ * is today or later (any payment state); lewat = the event is past and money
+ * is still owed. Both need the event date and today (YYYY-MM-DD).
+ */
+export function kelompokBayarMkt(tab: TabBayarMkt, r: RingkasUangMkt & { tanggal?: string, hari?: string }): boolean {
   if (tab === 'semua') return true
+  if (tab === 'upcoming') return !!r.tanggal && !!r.hari && r.tanggal >= r.hari
+  if (tab === 'lewat') return !!r.tanggal && !!r.hari && r.tanggal < r.hari && r.remaining > 0
   if (tab === 'lunas') return r.remaining <= 0
   if (tab === 'dp') return r.paid > 0 && r.remaining > 0
   return r.paid <= 0

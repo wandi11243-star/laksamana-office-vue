@@ -332,10 +332,9 @@ async function simpanTarget() {
                 { value: 'bulan', label: 'Bulanan' },
               ]"
             />
-            <UInput
+            <AppBulan
               v-if="periode.mode === 'bulan'"
               v-model="periode.month"
-              type="month"
               class="w-40"
               aria-label="Bulan"
             />

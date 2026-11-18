@@ -385,9 +385,8 @@ const persenKategori = (v: number) => (ta.value ? Math.round((v / ta.value) * 10
           label="Bulan"
           class="max-w-[220px]"
         >
-          <UInput
+          <AppBulan
             v-model="bulanInput"
-            type="month"
             class="w-full"
           />
         </UFormField>

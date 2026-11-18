@@ -352,9 +352,8 @@ async function lihatBukti(fb: Feedback) {
           label="Bulan"
           class="max-w-44 [&_label]:sr-only"
         >
-          <UInput
+          <AppBulan
             v-model="periode.month"
-            type="month"
             class="w-full"
           />
         </UFormField>

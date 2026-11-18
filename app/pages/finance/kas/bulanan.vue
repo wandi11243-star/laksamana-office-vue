@@ -164,10 +164,9 @@ function kirimWhatsApp() {
         size="sm"
         class="w-40 print:hidden"
       />
-      <UInput
+      <AppBulan
         v-else
         v-model="periode"
-        type="month"
         size="sm"
         class="w-40 print:hidden"
       />

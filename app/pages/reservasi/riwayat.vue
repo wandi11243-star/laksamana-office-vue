@@ -201,9 +201,8 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
             v-if="mode === 'month'"
             label="Bulan"
           >
-            <UInput
+            <AppBulan
               v-model="bulan"
-              type="month"
               class="w-full"
             />
           </UFormField>

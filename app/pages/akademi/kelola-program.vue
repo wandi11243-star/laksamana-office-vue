@@ -403,9 +403,8 @@ const programBerjalan = computed(() => daftar.value.find(p => p.bulan === kunciB
       <div class="space-y-3">
         <div class="grid gap-3 sm:grid-cols-2">
           <UFormField label="Bulan">
-            <UInput
+            <AppBulan
               v-model="formBulan"
-              type="month"
               class="w-full"
               @change="onBulan"
             />

@@ -3,7 +3,10 @@
   payment status per closing event (Confirmed/Deal/Event Done only — F.16),
   Piutang vs Potensi, and official invoice requests to Finance
   (POST /finance/invoices/requests, idempotent per resId `mkt:<id>:dp|lunas`).
-  Recording a payment happens on the event's Finance tab; rows link there.
+  Payments are recorded right here (MarketingBayarSheet: Catat Pembayaran,
+  history with edit / delete — old addPayment / invBayarModal), stored at
+  once; the event's Finance tab stays one click away. Tabs (owner request,
+  Nov 2026): Upcoming first, then past events still owed, Semua, Sudah DP, Lunas.
 -->
 <script setup lang="ts">
 import type { EventMkt, KolomMkt } from '~/utils/marketing'
@@ -46,32 +49,38 @@ const namaClient = (id: string) => st.value.clients.find(c => c.id === id)?.nama
 const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ?? '—'
 
 // ---- tabs ----
-const tab = useState<TabBayarMkt>('mkt-inv-tab', () => 'semua')
+const tab = useState<TabBayarMkt>('mkt-inv-tab-v2', () => 'upcoming')
+const TAB_INV = ['upcoming', 'lewat', 'semua', 'dp', 'lunas'] as const
+const ringkasEv = (e: EventMkt) => ({ inv: inv(e), remaining: uang(e).remaining, paid: uang(e).paid, tanggal: String(e.tanggal ?? ''), hari })
 const jumlahTab = computed(() => {
-  const jumlah = { semua: tampil.value.length, lunas: 0, dp: 0, belum: 0 }
+  const jumlah = { upcoming: 0, lewat: 0, semua: 0, dp: 0, lunas: 0 }
   for (const e of tampil.value) {
-    const ringkas = { inv: inv(e), remaining: uang(e).remaining, paid: uang(e).paid }
-    for (const kelompok of ['lunas', 'dp', 'belum'] as const) {
-      if (kelompokBayarMkt(kelompok, ringkas)) jumlah[kelompok]++
+    const r = ringkasEv(e)
+    for (const k of TAB_INV) {
+      if (kelompokBayarMkt(k, r)) jumlah[k]++
     }
   }
   return jumlah
 })
 const opsiTab = computed(() => [
+  { value: 'upcoming' as const, label: `Upcoming (${jumlahTab.value.upcoming})` },
+  { value: 'lewat' as const, label: `Lewat, belum lunas (${jumlahTab.value.lewat})` },
   { value: 'semua' as const, label: `Semua (${jumlahTab.value.semua})` },
-  { value: 'lunas' as const, label: `Lunas (${jumlahTab.value.lunas})` },
   { value: 'dp' as const, label: `Sudah DP (${jumlahTab.value.dp})` },
-  { value: 'belum' as const, label: `Belum Payment (${jumlahTab.value.belum})` },
+  { value: 'lunas' as const, label: `Lunas (${jumlahTab.value.lunas})` },
 ])
-const daftar = computed(() => tampil.value.filter(e => kelompokBayarMkt(tab.value, { inv: inv(e), remaining: uang(e).remaining, paid: uang(e).paid })))
+const daftar = computed(() => tampil.value.filter(e => kelompokBayarMkt(tab.value, ringkasEv(e))))
 // First-load skeleton for the stat cards: while no billable invoice is in,
 // the grid shows placeholders; later refetches keep the old cards on screen.
 const statMemuat = computed(() => !tampil.value.length && (status.value === 'pending' || status.value === 'idle'))
-const kosongTab = computed(() => tab.value === 'lunas'
-  ? 'Belum ada tagihan yang tertutup penuh.'
-  : tab.value === 'dp'
-    ? 'Belum ada tagihan yang sudah menerima sebagian pembayaran.'
-    : 'Semua tagihan sudah menerima pembayaran — tidak ada yang kosong.')
+const kosongTab = computed(() => ({
+  upcoming: 'Tidak ada event mendatang yang perlu ditagih.',
+  lewat: 'Semua event yang sudah lewat sudah lunas.',
+  semua: 'Belum ada tagihan.',
+  dp: 'Belum ada tagihan yang sudah menerima sebagian pembayaran.',
+  lunas: 'Belum ada tagihan yang tertutup penuh.',
+  belum: 'Semua tagihan sudah menerima pembayaran.',
+})[tab.value])
 
 // ---- official-invoice statuses (muatInvMkt: one request for the whole list) ----
 const peta = ref<Record<string, StatusInvMkt>>({})
@@ -196,6 +205,7 @@ const lembar = computed<InvoiceSheetData | null>(() => {
   if (f.disc) totals.push({ label: 'Diskon', nilai: -f.disc })
   if (f.svcOn && f.service) totals.push({ label: 'Service charge', nilai: f.service })
   if (f.tax) totals.push({ label: `PB1 ${f.taxPct}%${f.taxInc ? ' (termasuk harga)' : ''}`, nilai: f.tax })
+  if (f.tambahan) totals.push({ label: 'Tambahan hari-H (open bill)', nilai: f.tambahan })
   totals.push({ label: 'Grand Total', nilai: f.grand, tebal: true })
   if (lunas) {
     for (const pay of (p.e.payments ?? []).filter(x => String(x.type ?? '') === 'DP')) {
@@ -304,7 +314,23 @@ const pdfKind = (e: EventMkt): 'INV_DP' | 'INV_LUNAS' | null => {
   if (peta.value[resIdInvMkt(e.id, 'dp')]?.status === 'DIBUAT') return 'INV_DP'
   return null
 }
-const bisaCatat = (e: EventMkt) => can('verify_payment') && uang(e).remaining > 0
+const bisaVerif = computed(() => can('verify_payment') || saya.value?.user.role === 'super_admin')
+// ---- payments sheet (catat / riwayat) ----
+const bayarEvId = ref<string | null>(null)
+const bayarMode = ref<'catat' | 'riwayat' | 'tambahan'>('catat')
+const bayarEv = computed(() => st.value.events.find(e => e.id === bayarEvId.value) ?? null)
+function bukaBayar(e: EventMkt, mode: 'catat' | 'riwayat' | 'tambahan') {
+  bayarMode.value = mode
+  bayarEvId.value = e.id
+}
+/** What each invoice status means, shown on hover (owner question, Nov 2026). */
+const ARTI_STATUS_INV: Record<string, string> = {
+  Draft: 'Invoice belum dikirim ke client',
+  Sent: 'Invoice sudah dikirim ke client lewat WhatsApp, belum ada pembayaran',
+  Pending: 'Sudah ada pembayaran (mis. DP), tapi belum lunas',
+  Paid: 'Lunas — tidak ada sisa tagihan',
+  Overdue: 'Belum ada pembayaran sama sekali dan acaranya kurang dari 7 hari lagi',
+}
 const cetak = () => cetakPdf(namaBerkas('Invoice', pdf.value?.berkas.no, pdf.value?.e.nama))
 </script>
 
@@ -404,31 +430,40 @@ const cetak = () => cetakPdf(namaBerkas('Invoice', pdf.value?.berkas.no, pdf.val
             :data="hal"
             :columns="[
               { id: 'nama', header: tbl.kepala('nama', 'Client / Event') },
-              { id: 'grand', header: tbl.kepala('grand', 'Grand Total') },
-              { id: 'bayar', header: tbl.kepala('bayar', 'Terbayar') },
-              { id: 'sisa', header: tbl.kepala('sisa', 'Sisa') },
-              { id: 'status', header: tbl.kepala('status', 'Status') },
-              { id: 'resmi', header: 'Invoice Resmi' },
-              { id: 'aksi', header: 'Aksi' },
+              { id: 'grand', header: tbl.kepala('grand', 'Grand Total'), meta: { class: { th: 'w-36', td: 'w-36' } } },
+              { id: 'bayar', header: tbl.kepala('bayar', 'Terbayar'), meta: { class: { th: 'w-40', td: 'w-40' } } },
+              { id: 'sisa', header: tbl.kepala('sisa', 'Sisa'), meta: { class: { th: 'w-36', td: 'w-36' } } },
+              { id: 'status', header: tbl.kepala('status', 'Status'), meta: { class: { th: 'w-28', td: 'w-28' } } },
+              { id: 'resmi', header: 'Invoice Resmi', meta: { class: { th: 'w-48', td: 'w-48' } } },
+              { id: 'aksi', header: 'Aksi', meta: { class: { th: 'w-40', td: 'w-40' } } },
             ]"
             class="hidden lg:block"
-            :ui="{ tr: 'cursor-pointer' }"
+            :ui="{ base: 'w-full table-fixed', th: 'whitespace-normal', td: 'whitespace-normal align-top', tr: 'cursor-pointer' }"
             @select="(_e: Event, r: { original: EventMkt }) => keFinance(r.original)"
           >
             <template #nama-cell="{ row }">
-              <p class="font-semibold text-highlighted">
+              <p class="font-semibold break-words text-highlighted">
                 {{ namaClient(row.original.clientId) }}
               </p>
-              <p class="text-xs text-muted">
+              <p class="text-xs break-words text-muted">
                 {{ row.original.nama }}
+              </p>
+              <p class="num text-xs text-muted">
+                {{ row.original.tanggal || '—' }}
               </p>
             </template>
             <template #grand-cell="{ row }">
               <span class="num">{{ rupiah(uang(row.original).grand) }}</span>
+              <p
+                v-if="uang(row.original).tambahan"
+                class="text-xs text-muted"
+              >
+                + open bill <span class="num">{{ rupiah(uang(row.original).tambahan) }}</span>
+              </p>
             </template>
             <template #bayar-cell="{ row }">
               <span class="num">{{ rupiah(uang(row.original).paid) }}</span>
-              <p class="max-w-36 text-xs whitespace-normal text-muted">
+              <p class="text-xs text-muted">
                 target {{ dpLabel(uang(row.original)) }}: <span class="num">{{ rupiah(uang(row.original).dp) }}</span>
               </p>
             </template>
@@ -436,13 +471,20 @@ const cetak = () => cetakPdf(namaBerkas('Invoice', pdf.value?.berkas.no, pdf.val
               <span class="num">{{ rupiah(uang(row.original).remaining) }}</span>
             </template>
             <template #status-cell="{ row }">
-              <AppStatus
-                :color="warnaInvoiceMkt(inv(row.original))"
-                :icon="ikonInvoiceMkt(inv(row.original))"
-                size="sm"
+              <UTooltip
+                :text="ARTI_STATUS_INV[inv(row.original)] ?? ''"
+                :delay-duration="0"
               >
-                {{ inv(row.original) }}
-              </AppStatus>
+                <span>
+                  <AppStatus
+                    :color="warnaInvoiceMkt(inv(row.original))"
+                    :icon="ikonInvoiceMkt(inv(row.original))"
+                    size="sm"
+                  >
+                    {{ inv(row.original) }}
+                  </AppStatus>
+                </span>
+              </UTooltip>
             </template>
             <template #resmi-cell="{ row }">
               <div
@@ -468,18 +510,65 @@ const cetak = () => cetakPdf(namaBerkas('Invoice', pdf.value?.berkas.no, pdf.val
               </div>
             </template>
             <template #aksi-cell="{ row }">
+              <!-- Icon-only, one row, named on hover. -->
               <div
-                class="flex gap-1"
+                class="flex flex-nowrap items-center gap-0.5"
                 @click.stop
               >
-                <UButton
-                  v-if="bisaCatat(row.original)"
-                  icon="i-lucide-banknote"
-                  size="xs"
-                  title="Catat pembayaran"
-                  aria-label="Catat pembayaran"
-                  @click="keFinance(row.original)"
-                />
+                <UTooltip
+                  v-if="bisaVerif"
+                  text="Catat pembayaran"
+                  :delay-duration="0"
+                >
+                  <UButton
+                    icon="i-lucide-banknote"
+                    size="sm"
+                    color="primary"
+                    variant="soft"
+                    aria-label="Catat pembayaran"
+                    @click="bukaBayar(row.original, 'catat')"
+                  />
+                </UTooltip>
+                <UTooltip
+                  v-if="bisaVerif"
+                  text="Tambah tagihan open bill"
+                  :delay-duration="0"
+                >
+                  <UButton
+                    icon="i-lucide-receipt"
+                    size="sm"
+                    color="neutral"
+                    variant="ghost"
+                    aria-label="Tambah tagihan open bill"
+                    @click="bukaBayar(row.original, 'tambahan')"
+                  />
+                </UTooltip>
+                <UTooltip
+                  text="Riwayat pembayaran"
+                  :delay-duration="0"
+                >
+                  <UButton
+                    icon="i-lucide-receipt-text"
+                    size="sm"
+                    color="neutral"
+                    variant="ghost"
+                    aria-label="Riwayat pembayaran"
+                    @click="bukaBayar(row.original, 'riwayat')"
+                  />
+                </UTooltip>
+                <UTooltip
+                  text="Buka tab Finance event"
+                  :delay-duration="0"
+                >
+                  <UButton
+                    icon="i-lucide-arrow-up-right"
+                    size="sm"
+                    color="neutral"
+                    variant="ghost"
+                    aria-label="Buka tab Finance event"
+                    @click="keFinance(row.original)"
+                  />
+                </UTooltip>
               </div>
             </template>
           </UTable>
@@ -506,7 +595,7 @@ const cetak = () => cetakPdf(namaBerkas('Invoice', pdf.value?.berkas.no, pdf.val
                   >{{ noResmiInvMkt(peta, e.id) }}</span>
                 </span>
               </NuxtLink>
-              <div class="mt-2 flex gap-1">
+              <div class="mt-2 flex flex-wrap gap-1">
                 <UButton
                   v-if="pdfKind(e)"
                   size="xs"
@@ -535,12 +624,28 @@ const cetak = () => cetakPdf(namaBerkas('Invoice', pdf.value?.berkas.no, pdf.val
                   />
                 </template>
                 <UButton
-                  v-if="bisaCatat(e)"
+                  v-if="bisaVerif"
+                  size="xs"
+                  icon="i-lucide-banknote"
+                  label="Catat"
+                  @click="bukaBayar(e, 'catat')"
+                />
+                <UButton
+                  v-if="bisaVerif"
                   size="xs"
                   color="neutral"
                   variant="outline"
-                  label="Catat"
-                  @click="keFinance(e)"
+                  icon="i-lucide-receipt"
+                  label="Open bill"
+                  @click="bukaBayar(e, 'tambahan')"
+                />
+                <UButton
+                  size="xs"
+                  color="neutral"
+                  variant="outline"
+                  icon="i-lucide-receipt-text"
+                  aria-label="Riwayat pembayaran"
+                  @click="bukaBayar(e, 'riwayat')"
                 />
               </div>
             </li>
@@ -551,6 +656,16 @@ const cetak = () => cetakPdf(namaBerkas('Invoice', pdf.value?.berkas.no, pdf.val
           />
         </template>
       </AppPanel>
+
+      <MarketingBayarSheet
+        :ev="bayarEv"
+        :mode="bayarMode"
+        :nama-client="bayarEv ? namaClient(bayarEv.clientId) : ''"
+        :settings="st.settings"
+        :bisa-verif="bisaVerif"
+        :saya-nama="saya?.user.name ?? ''"
+        @tutup="bayarEvId = null"
+      />
 
       <ResponsiveSheet
         v-model:open="mintaBuka"

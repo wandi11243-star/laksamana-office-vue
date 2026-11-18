@@ -52,9 +52,8 @@ function ekspor() {
     <MarketingGerbang layar="reports">
       <AppPanel>
         <UFormField label="Periode">
-          <UInput
+          <AppBulan
             v-model="bulan"
-            type="month"
             class="max-w-56"
           />
         </UFormField>

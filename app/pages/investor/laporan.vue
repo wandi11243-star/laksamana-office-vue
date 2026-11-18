@@ -435,9 +435,8 @@ const namaHapus = computed(() => JENIS_LAPOR.find(j => j.key === hapusTarget.val
           </p>
           <AppFilterGrid>
             <UFormField label="Bulan laporan">
-              <UInput
+              <AppBulan
                 v-model="formBulan"
-                type="month"
               />
             </UFormField>
             <UFormField label="Balance report (PDF)">

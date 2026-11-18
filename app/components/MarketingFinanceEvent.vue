@@ -274,6 +274,7 @@ const invLembar = computed(() => {
   if (uang.value.disc) totals.push({ label: 'Diskon', nilai: -uang.value.disc })
   if (uang.value.svcOn && uang.value.service) totals.push({ label: 'Service charge', nilai: uang.value.service })
   if (uang.value.tax) totals.push({ label: `PB1 ${uang.value.taxPct}%${uang.value.taxInc ? ' (termasuk harga)' : ''}`, nilai: uang.value.tax })
+  if (uang.value.tambahan) totals.push({ label: 'Tambahan hari-H (open bill)', nilai: uang.value.tambahan })
   totals.push({ label: 'Grand Total', nilai: uang.value.grand, tebal: true })
   if (lunas) {
     for (const pay of (evGabung.value.payments ?? []).filter(x => String(x.type ?? '') === 'DP')) {
@@ -817,6 +818,14 @@ async function simpanInvUbah() {
             <dd class="num text-right">
               {{ rupiah(uang.tax) }}
             </dd>
+            <template v-if="uang.tambahan">
+              <dt class="text-muted">
+                Tambahan hari-H (open bill)
+              </dt>
+              <dd class="num text-right">
+                + {{ rupiah(uang.tambahan) }}
+              </dd>
+            </template>
             <dt class="font-semibold">
               Grand total
             </dt>

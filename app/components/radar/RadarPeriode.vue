@@ -84,12 +84,11 @@ const geserMinggu = (n: number) => {
         @click="geserMinggu(7)"
       />
     </div>
-    <UInput
+    <AppBulan
       v-else
       :model-value="p.bln"
-      type="month"
       size="sm"
-      class="[&_input]:min-h-11"
+      class="min-h-11 w-40"
       aria-label="Bulan"
       @update:model-value="v => set('bln', String(v))"
     />

@@ -151,11 +151,10 @@ async function hapus() {
             title="Bulan sebelumnya"
             @click="geserBulan(-1)"
           />
-          <UInput
+          <AppBulan
             :model-value="bulanAktif(modePeriode)"
-            type="month"
             title="Pilih bulan"
-            class="w-auto"
+            class="w-44"
             @update:model-value="(v) => { if (v) aturPeriode(String(v)) }"
           />
           <UButton

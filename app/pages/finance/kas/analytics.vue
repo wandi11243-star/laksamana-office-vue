@@ -99,9 +99,8 @@ const labelBulan = computed(() => new Date(`${periode.value}-01T00:00:00`).toLoc
     description="Komposisi & sumber pendapatan."
   >
     <template #actions>
-      <UInput
+      <AppBulan
         v-model="periode"
-        type="month"
         size="sm"
         class="w-40"
       />
