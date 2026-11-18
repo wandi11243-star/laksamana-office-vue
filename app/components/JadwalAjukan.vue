@@ -129,9 +129,8 @@ async function kirim() {
         />
       </UFormField>
       <UFormField label="Tanggal">
-        <UInput
+        <AppTanggal
           v-model="tgl"
-          type="date"
           class="w-full"
         />
       </UFormField>

@@ -145,9 +145,8 @@ async function pilihBerkas(b: BuktiVipMkt, files: FileList | null) {
         label="Nominal pendapatan (Rp)"
         hint="Boleh dikosongkan dulu — diisi setelah acaranya selesai lewat tombol Isi Nominal di daftar. Nominalnya sudah termasuk tax & service."
       >
-        <UInput
+        <AppNominal
           v-model="f.nominal"
-          inputmode="numeric"
         />
       </UFormField>
       <div class="grid grid-cols-1 gap-2">
@@ -164,9 +163,8 @@ async function pilihBerkas(b: BuktiVipMkt, files: FileList | null) {
               label="Nominal (Rp)"
               required
             >
-              <UInput
+              <AppNominal
                 :model-value="String(b.nominal ?? '')"
-                inputmode="numeric"
                 @update:model-value="b.nominal = String($event).replace(/\D/g, '') === '' ? '' : +String($event).replace(/\D/g, '')"
               />
             </UFormField>
@@ -260,24 +258,21 @@ async function pilihBerkas(b: BuktiVipMkt, files: FileList | null) {
         label="Tanggal"
         required
       >
-        <UInput
+        <AppTanggal
           v-model="f.tanggal"
-          type="date"
         />
       </UFormField>
       <UFormField
         label="Jam kedatangan"
         required
       >
-        <UInput
+        <AppJam
           v-model="f.jamMulai"
-          type="time"
         />
       </UFormField>
       <UFormField label="Sampai jam">
-        <UInput
+        <AppJam
           v-model="f.jamSelesai"
-          type="time"
         />
       </UFormField>
       <UFormField

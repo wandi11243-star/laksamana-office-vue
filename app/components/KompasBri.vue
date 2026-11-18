@@ -1246,16 +1246,14 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
         />
         <div class="grid gap-3 sm:grid-cols-2">
           <UFormField label="Tanggal *">
-            <UInput
+            <AppTanggal
               v-model="tambah.tgl"
-              type="date"
               class="w-full"
             />
           </UFormField>
           <UFormField label="Jam (boleh kosong)">
-            <UInput
+            <AppJam
               v-model="tambah.jam"
-              type="time"
               class="w-full"
             />
           </UFormField>

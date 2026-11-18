@@ -264,9 +264,8 @@ const opsiWallet = computed(() => SEMUA_WADAH.map(k => ({ label: namaWallet(k), 
             />
           </UFormField>
           <UFormField label="Tanggal">
-            <UInput
+            <AppTanggal
               v-model="form.tgl"
-              type="date"
               class="w-full"
             />
           </UFormField>

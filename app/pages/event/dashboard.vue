@@ -298,9 +298,8 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
             title="Geser maju"
             @click="geser(1)"
           />
-          <UInput
+          <AppTanggal
             v-model="tglPick"
-            type="date"
             size="sm"
             title="Atau pilih satu tanggal"
             class="w-40"

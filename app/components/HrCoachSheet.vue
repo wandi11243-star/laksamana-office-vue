@@ -94,9 +94,8 @@ async function simpan() {
           />
         </UFormField>
         <UFormField label="Tanggal">
-          <UInput
+          <AppTanggal
             v-model="date"
-            type="date"
             class="w-full"
           />
         </UFormField>
@@ -117,9 +116,8 @@ async function simpan() {
       </UFormField>
       <div class="grid grid-cols-3 gap-3">
         <UFormField label="Deadline">
-          <UInput
+          <AppTanggal
             v-model="deadline"
-            type="date"
             class="w-full"
           />
         </UFormField>

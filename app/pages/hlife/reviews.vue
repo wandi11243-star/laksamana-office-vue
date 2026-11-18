@@ -332,9 +332,8 @@ function tanyaHapus(r: HlifeReview) {
           label="Minggu (pilih tanggal mana saja di minggu itu)"
           help="Otomatis dikelompokkan per minggu (Senin–Minggu) dan di-recap per bulan."
         >
-          <UInput
+          <AppTanggal
             v-model="form.weekStart"
-            type="date"
             size="xl"
             class="w-full"
           />

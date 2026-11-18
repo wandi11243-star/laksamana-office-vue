@@ -414,9 +414,8 @@ const opsiJenis = EVENT_TYPES.map(t => ({ value: t.value, label: t.label }))
         </UFormField>
         <div class="grid grid-cols-2 gap-3">
           <UFormField label="Tanggal">
-            <UInput
+            <AppTanggal
               v-model="form.date"
-              type="date"
               size="xl"
               class="w-full"
             />
@@ -432,17 +431,15 @@ const opsiJenis = EVENT_TYPES.map(t => ({ value: t.value, label: t.label }))
         </div>
         <div class="grid grid-cols-2 gap-3">
           <UFormField label="Mulai">
-            <UInput
+            <AppJam
               v-model="form.start"
-              type="time"
               size="xl"
               class="w-full"
             />
           </UFormField>
           <UFormField label="Selesai">
-            <UInput
+            <AppJam
               v-model="form.end"
-              type="time"
               size="xl"
               class="w-full"
             />

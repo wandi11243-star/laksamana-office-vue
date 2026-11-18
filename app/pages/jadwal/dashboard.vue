@@ -219,9 +219,8 @@ const muatUlang = () => Promise.all([refreshDasar(), refreshSel()])
             aria-label="Hari sebelumnya"
             @click="tgl = tambahHari(tgl, -1)"
           />
-          <UInput
+          <AppTanggal
             v-model="tgl"
-            type="date"
             size="sm"
             class="w-40"
           />

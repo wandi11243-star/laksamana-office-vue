@@ -579,9 +579,8 @@ const { jalan, lagi } = useSibuk()
             />
           </UFormField>
           <UFormField label="Deadline">
-            <UInput
+            <AppTanggal
               v-model="form.due"
-              type="date"
               size="xl"
               class="w-full"
             />

@@ -491,9 +491,8 @@ async function akLepas(i: InvestorBrankas) {
             />
           </UFormField>
           <UFormField label="Target selesai">
-            <UInput
+            <AppTanggal
               v-model="ivForm.target"
-              type="date"
               class="w-full"
             />
           </UFormField>
@@ -709,9 +708,8 @@ async function akLepas(i: InvestorBrankas) {
           </p>
           <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <UFormField label="Tanggal masuk">
-              <UInput
+              <AppTanggal
                 :model-value="d(String(i.id)).td"
-                type="date"
                 class="w-full"
                 @update:model-value="(v: string | number) => d(String(i.id)).td = String(v)"
               />
@@ -797,9 +795,8 @@ async function akLepas(i: InvestorBrankas) {
           <b class="text-sm text-highlighted">{{ rvSunting?.iv === String(i.id) ? 'Ubah pengembalian' : 'Catat pengembalian' }}</b>
           <div class="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <UFormField label="Tanggal bayar">
-              <UInput
+              <AppTanggal
                 :model-value="d(String(i.id)).rd"
-                type="date"
                 class="w-full"
                 @update:model-value="(v: string | number) => d(String(i.id)).rd = String(v)"
               />

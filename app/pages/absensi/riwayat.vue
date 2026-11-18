@@ -100,16 +100,14 @@ const kolom = computed<TableColumn<AbsensiHari>[]>(() => [
     <AppPanel title="Periode">
       <AppFilterGrid>
         <UFormField label="Dari">
-          <UInput
+          <AppTanggal
             v-model="dariDraft"
-            type="date"
             class="w-full"
           />
         </UFormField>
         <UFormField label="Sampai">
-          <UInput
+          <AppTanggal
             v-model="sampaiDraft"
-            type="date"
             class="w-full"
           />
         </UFormField>

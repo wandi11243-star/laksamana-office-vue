@@ -211,16 +211,14 @@ async function simpan() {
 
       <div class="grid grid-cols-2 gap-3">
         <UFormField label="Jam mulai">
-          <UInput
+          <AppJam
             v-model="m"
-            type="time"
             class="w-full"
           />
         </UFormField>
         <UFormField label="Jam selesai">
-          <UInput
+          <AppJam
             v-model="s"
-            type="time"
             class="w-full"
           />
         </UFormField>

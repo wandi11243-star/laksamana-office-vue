@@ -185,9 +185,8 @@ async function simpan() {
           />
         </UFormField>
         <UFormField label="Tanggal (perkiraan)">
-          <UInput
+          <AppTanggal
             v-model="f.tanggal"
-            type="date"
             class="w-full"
           />
         </UFormField>
@@ -221,9 +220,8 @@ async function simpan() {
         :help="`Otomatis +${+st.settings.fuNextDays || 3} hari (atur di Pengaturan). Kosongkan bila peluang sudah Deal/Lost.`"
         class="sm:col-span-2"
       >
-        <UInput
+        <AppTanggal
           v-model="f.next"
-          type="date"
           class="w-full"
         />
       </UFormField>

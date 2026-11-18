@@ -285,20 +285,20 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
           >
             <template #jam-cell="{ row }">
               <span class="flex items-center gap-1">
-                <UInput
+                <AppJam
                   v-model="row.original.time"
-                  type="time"
                   size="sm"
                   :disabled="!bolehUbah || terkunci"
-                  @change="simpanDetail(() => {}, 'Rundown disimpan')"
+                  class="w-24"
+                  @update:model-value="simpanDetail(() => {}, 'Rundown disimpan')"
                 />
                 <span class="text-muted">–</span>
-                <UInput
+                <AppJam
                   v-model="row.original.endtime"
-                  type="time"
                   size="sm"
                   :disabled="!bolehUbah || terkunci"
-                  @change="simpanDetail(() => {}, 'Rundown disimpan')"
+                  class="w-24"
+                  @update:model-value="simpanDetail(() => {}, 'Rundown disimpan')"
                 />
               </span>
             </template>
@@ -733,13 +733,12 @@ const STATUS_SEKSI = ['Pending', 'Confirmed', 'Paid']
                 class="hidden w-36 sm:block"
                 @change="simpanDetail(() => {}, 'Task diperbarui')"
               />
-              <UInput
+              <AppTanggal
                 v-model="t.due"
-                type="date"
                 size="sm"
                 :disabled="!bolehUbah || terkunci"
                 class="hidden w-36 md:block"
-                @change="simpanDetail(() => {}, 'Task diperbarui')"
+                @update:model-value="simpanDetail(() => {}, 'Task diperbarui')"
               />
               <UButton
                 v-if="bolehUbah && !terkunci"

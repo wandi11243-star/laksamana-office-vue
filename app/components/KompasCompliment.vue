@@ -264,9 +264,8 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
     >
       <template #actions>
         <UFormField label="Tanggal">
-          <UInput
+          <AppTanggal
             v-model="tanggal"
-            type="date"
           />
         </UFormField>
       </template>

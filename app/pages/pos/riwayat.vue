@@ -88,9 +88,8 @@ function cetakUlang(): void {
     >
       <template #head>
         <div class="flex flex-wrap items-center gap-2 px-4 py-3.5 lg:px-5">
-          <UInput
+          <AppTanggal
             v-model="tgl"
-            type="date"
             class="max-w-45"
           />
         </div>

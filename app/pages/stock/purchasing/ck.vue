@@ -556,9 +556,8 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
           />
         </UFormField>
         <UFormField label="Tanggal (opsional)">
-          <UInput
+          <AppTanggal
             v-model="form.tanggal"
-            type="date"
           />
         </UFormField>
         <UFormField label="Catatan (opsional)">

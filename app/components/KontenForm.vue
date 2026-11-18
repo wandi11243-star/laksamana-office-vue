@@ -223,6 +223,7 @@ async function simpan() {
         <div class="flex flex-wrap gap-2">
           <UCheckbox
             v-for="t in CONTENT_TYPES"
+            :id="`cb-kontenform-224-${String(t).replace(/\s+/g, '-')}`"
             :key="t"
             :model-value="f.contentTypes.includes(t)"
             :label="t"
@@ -240,6 +241,7 @@ async function simpan() {
         <div class="flex flex-wrap gap-2">
           <UCheckbox
             v-for="(ukuran, r) in PRINT_TYPES"
+            :id="`cb-kontenform-242-${String(r).replace(/\s+/g, '-')}`"
             :key="r"
             :model-value="f.printTypes.includes(String(r))"
             :label="String(r)"
@@ -362,23 +364,20 @@ async function simpan() {
         />
       </UFormField>
       <UFormField label="Deadline produksi">
-        <UInput
+        <AppTanggal
           v-model="f.deadline"
-          type="date"
           class="w-full"
         />
       </UFormField>
       <UFormField label="Tanggal tayang">
-        <UInput
+        <AppTanggal
           v-model="f.publishDate"
-          type="date"
           class="w-full"
         />
       </UFormField>
       <UFormField label="Jam tayang">
-        <UInput
+        <AppJam
           v-model="f.publishTime"
-          type="time"
           class="w-full"
         />
       </UFormField>
@@ -408,9 +407,8 @@ async function simpan() {
                 :label="`Deadline ${PROD_TYPES[k].short}`"
                 class="min-w-36 flex-1"
               >
-                <UInput
+                <AppTanggal
                   :model-value="prod[k]"
-                  type="date"
                   class="w-full"
                   @update:model-value="v => prod = { ...prod, [k]: String(v) }"
                 />

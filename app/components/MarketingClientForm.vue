@@ -134,16 +134,14 @@ async function simpan() {
         />
       </UFormField>
       <UFormField label="Tanggal Lahir (opsional)">
-        <UInput
+        <AppTanggal
           v-model="f.birthday"
-          type="date"
           class="w-full"
         />
       </UFormField>
       <UFormField label="Next Follow Up">
-        <UInput
+        <AppTanggal
           v-model="f.nextFU"
-          type="date"
           class="w-full"
         />
       </UFormField>

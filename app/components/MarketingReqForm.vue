@@ -148,9 +148,8 @@ function kirim() {
       label="Deadline pengerjaan"
       hint="Kapan hasilnya harus siap — bukan tanggal tayang."
     >
-      <UInput
+      <AppTanggal
         v-model="f.deadline"
-        type="date"
       />
     </UFormField>
     <div class="grid gap-3 lg:grid-cols-2">
@@ -188,6 +187,7 @@ function kirim() {
       <div class="flex flex-wrap gap-1.5">
         <UCheckbox
           v-for="p in DR_PLATFORM_MKT"
+          :id="`cb-marketingreqform-188-${String(p).replace(/\s+/g, '-')}`"
           :key="p"
           :model-value="f.platforms.includes(p)"
           :label="p"

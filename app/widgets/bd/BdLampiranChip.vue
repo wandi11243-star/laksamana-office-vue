@@ -18,6 +18,20 @@ watch(() => props.file.key, (k) => {
   if (gambar.value) urlLampiranBd(k).then(u => (pratinjau.value = u)).catch(() => {})
 }, { immediate: true })
 
+// Images preview in-app first (owner request, Nov 2026); other files open as before.
+const lihat = ref(false)
+function klik() {
+  if (gambar.value) lihat.value = true
+  else void bukaLampiranBd(props.file)
+}
+function unduh() {
+  if (!pratinjau.value) return
+  const a = document.createElement('a')
+  a.href = pratinjau.value
+  a.download = props.file.name || 'lampiran'
+  a.click()
+}
+
 const ikon = computed(() => {
   const m = String(props.file.mime || '')
   if (m === 'application/pdf') return 'i-lucide-file-text'
@@ -32,8 +46,8 @@ const ikon = computed(() => {
     <button
       type="button"
       class="flex min-w-0 items-center gap-2 text-left"
-      :title="`Buka ${file.name}`"
-      @click.stop="bukaLampiranBd(file)"
+      :title="gambar ? `Lihat ${file.name}` : `Buka ${file.name}`"
+      @click.stop="klik"
     >
       <img
         v-if="gambar && pratinjau"
@@ -65,4 +79,40 @@ const ikon = computed(() => {
       @click.stop="$emit('hapus')"
     />
   </span>
+
+  <ResponsiveSheet
+    v-model:open="lihat"
+    :title="file.name"
+    :description="ukuranLampiran(file.size)"
+    detail
+  >
+    <div class="grid min-h-48 place-items-center rounded-xl bg-muted p-2">
+      <img
+        v-if="pratinjau"
+        :src="pratinjau"
+        :alt="file.name"
+        class="max-h-[65vh] w-auto max-w-full rounded-lg object-contain"
+      >
+      <UIcon
+        v-else
+        name="i-lucide-loader-circle"
+        class="size-6 animate-spin text-muted"
+      />
+    </div>
+    <template #footer>
+      <UButton
+        label="Unduh"
+        icon="i-lucide-download"
+        color="neutral"
+        variant="outline"
+        :disabled="!pratinjau"
+        @click="unduh"
+      />
+      <UButton
+        label="Buka di tab baru"
+        icon="i-lucide-external-link"
+        @click="bukaLampiranBd(file)"
+      />
+    </template>
+  </ResponsiveSheet>
 </template>

@@ -214,7 +214,7 @@ const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ??
             >
               <p
                 class="num mb-1 text-xs"
-                :class="s.tgl === hari ? 'font-bold text-primary-700' : s.tgl ? 'text-muted' : 'text-dimmed'"
+                :class="s.tgl === hari ? 'font-bold text-primary-700' : s.tgl ? 'font-semibold text-default' : 'text-dimmed'"
               >
                 {{ s.d }}
               </p>
@@ -222,7 +222,7 @@ const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ??
                 v-for="e in evTgl(s.tgl)"
                 :key="e.id"
                 type="button"
-                class="mb-0.5 block w-full truncate rounded border-l-2 border-primary-400 bg-primary-100 px-1 py-0.5 text-left text-[10.5px] leading-tight text-primary-900 lg:text-[11px]"
+                class="mb-0.5 block w-full truncate rounded border-l-2 border-primary-400 bg-primary-100 px-1 py-0.5 text-left text-[10.5px] font-semibold leading-tight text-primary-900 lg:text-[11px]"
                 :title="`${e.nama} — ${jenisEvent(e)}${e.pax ? ` · ${e.pax} pax` : ''}`"
                 @click="evBuka = e"
               >
@@ -235,7 +235,7 @@ const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ??
                 v-for="x in emsTgl(s.tgl)"
                 :key="x.id"
                 type="button"
-                class="mb-0.5 block w-full truncate rounded border-l-2 border-vip bg-vip/12 px-1 py-0.5 text-left text-[10.5px] leading-tight text-vip lg:text-[11px]"
+                class="mb-0.5 block w-full truncate rounded border-l-2 border-vip bg-vip/12 px-1 py-0.5 text-left text-[10.5px] font-semibold leading-tight text-vip lg:text-[11px]"
                 :title="`Acara EMS: ${x.nama}`"
                 @click="emsBuka = x"
               >

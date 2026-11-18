@@ -18,8 +18,10 @@ export default defineAppConfig({
         { color: 'neutral', variant: 'outline', class: 'ring-default bg-default hover:bg-muted' },
       ],
     },
+    // Every field glows gold on hover, like AppTanggal / AppJam (owner request, Nov 2026).
+    // `enabled:` keeps disabled fields still.
     input: {
-      slots: { base: 'rounded-field' },
+      slots: { base: 'rounded-field transition-colors enabled:hover:ring-gold' },
     },
     // Dropdowns (every USelect / USelectMenu in the app): a roomy rounded panel
     // with a soft shadow, gold-tinted hover, the chosen item bold in deep gold
@@ -27,7 +29,7 @@ export default defineAppConfig({
     // while open. The panel may grow wider than its trigger so long names show.
     select: {
       slots: {
-        base: 'rounded-field hover:ring-accented data-[state=open]:ring-2 data-[state=open]:ring-gold',
+        base: 'rounded-field transition-colors enabled:hover:ring-gold data-[state=open]:ring-2 data-[state=open]:ring-gold',
         trailingIcon: 'transition-transform duration-200 group-data-[state=open]:rotate-180',
         content: 'w-auto min-w-(--reka-select-trigger-width) max-w-[min(26rem,92vw)] rounded-xl ring-1 ring-default shadow-xl shadow-ink-900/10',
         viewport: 'divide-y-0',
@@ -40,7 +42,7 @@ export default defineAppConfig({
     },
     selectMenu: {
       slots: {
-        base: 'rounded-field hover:ring-accented data-[state=open]:ring-2 data-[state=open]:ring-gold',
+        base: 'rounded-field transition-colors enabled:hover:ring-gold data-[state=open]:ring-2 data-[state=open]:ring-gold',
         trailingIcon: 'transition-transform duration-200 group-data-[state=open]:rotate-180',
         content: 'w-auto min-w-(--reka-combobox-trigger-width) max-w-[min(26rem,92vw)] rounded-xl ring-1 ring-default shadow-xl shadow-ink-900/10',
         input: 'border-b border-default',
@@ -52,7 +54,10 @@ export default defineAppConfig({
       variants: { size: { sm: { item: 'px-2.5 py-1.5 text-xs' }, md: { item: 'px-2.5 py-2 text-sm' } } },
     },
     textarea: {
-      slots: { base: 'rounded-field' },
+      slots: { base: 'rounded-field transition-colors enabled:hover:ring-gold' },
+    },
+    checkbox: {
+      slots: { base: 'transition-colors enabled:hover:ring-gold' },
     },
     formField: {
       // The hint wraps under a long label instead of pushing the field (and the

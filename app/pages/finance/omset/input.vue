@@ -198,9 +198,8 @@ async function jalanHapus() {
         >
           <div class="grid gap-4 sm:grid-cols-2">
             <UFormField label="Tanggal">
-              <UInput
+              <AppTanggal
                 v-model="tanggal"
-                type="date"
                 class="w-full"
               />
             </UFormField>

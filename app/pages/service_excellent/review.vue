@@ -496,9 +496,8 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
           label="Tanggal acuan"
           class="max-w-44 [&_label]:sr-only"
         >
-          <UInput
+          <AppTanggal
             v-model="periode.date"
-            type="date"
             class="w-full"
           />
         </UFormField>
@@ -833,9 +832,8 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
           />
         </UFormField>
         <UFormField label="Tanggal review">
-          <UInput
+          <AppTanggal
             v-model="klaim.tanggal"
-            type="date"
             size="xl"
             class="w-full"
           />

@@ -179,16 +179,14 @@ async function hapus() {
       </UFormField>
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField label="Mulai">
-          <UInput
+          <AppTanggal
             v-model="f.start"
-            type="date"
             class="w-full"
           />
         </UFormField>
         <UFormField label="Selesai">
-          <UInput
+          <AppTanggal
             v-model="f.end"
-            type="date"
             class="w-full"
           />
         </UFormField>

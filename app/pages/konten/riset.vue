@@ -123,15 +123,13 @@ async function simpanBank() {
           class="grid gap-2 md:grid-cols-2"
         >
           <UFormField label="Dari tanggal *">
-            <UInput
+            <AppTanggal
               v-model="dari"
-              type="date"
             />
           </UFormField>
           <UFormField label="Sampai tanggal *">
-            <UInput
+            <AppTanggal
               v-model="sampai"
-              type="date"
             />
           </UFormField>
         </div>

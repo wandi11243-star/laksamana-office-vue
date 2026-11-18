@@ -72,9 +72,8 @@ async function hapus() {
         />
       </UFormField>
       <UFormField label="Tanggal">
-        <UInput
+        <AppTanggal
           v-model="f.date"
-          type="date"
           class="w-full"
         />
       </UFormField>

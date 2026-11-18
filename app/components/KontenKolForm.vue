@@ -249,6 +249,7 @@ async function hapus() {
         <div class="flex flex-wrap gap-2">
           <UCheckbox
             v-for="c in KOL_CATEGORIES"
+            :id="`cb-kontenkolform-250-${String(c).replace(/\s+/g, '-')}`"
             :key="c"
             :model-value="f.categories.includes(c)"
             :label="c"

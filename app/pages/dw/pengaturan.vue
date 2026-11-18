@@ -306,18 +306,16 @@ async function jalanKosongkan() {
               class="w-40"
               @change="ubahJam(i, 'n', ($event.target as HTMLInputElement).value)"
             />
-            <UInput
+            <AppJam
               :model-value="j.m"
-              type="time"
               class="w-32"
-              @change="ubahJam(i, 'm', ($event.target as HTMLInputElement).value)"
+              @update:model-value="ubahJam(i, 'm', $event)"
             />
             <span class="text-muted">—</span>
-            <UInput
+            <AppJam
               :model-value="j.s"
-              type="time"
               class="w-32"
-              @change="ubahJam(i, 's', ($event.target as HTMLInputElement).value)"
+              @update:model-value="ubahJam(i, 's', $event)"
             />
             <span class="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted num">{{ durasiJamDw(j.m, j.s) }} jam</span>
             <div class="flex-1" />

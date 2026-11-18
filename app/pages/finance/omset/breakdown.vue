@@ -612,9 +612,8 @@ async function pulihkanSumber() {
     description="Isi omset per kasir, lalu potong untuk event marketing, Reservasi VIP & event internal."
   >
     <template #actions>
-      <UInput
+      <AppTanggal
         v-model="tanggal"
-        type="date"
         size="sm"
         class="w-40"
       />

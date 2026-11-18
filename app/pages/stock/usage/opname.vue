@@ -340,9 +340,8 @@ async function segarkan() {
 
       <AppFilterGrid>
         <UFormField label="Tanggal">
-          <UInput
+          <AppTanggal
             v-model="tanggal"
-            type="date"
             class="w-full"
           />
         </UFormField>

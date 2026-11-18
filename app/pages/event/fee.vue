@@ -342,14 +342,12 @@ const namaHari = (tgl: string) => new Date(`${tgl}T00:00:00`).toLocaleDateString
             :options="MODES"
           />
           <template v-if="mode === 'rentang'">
-            <UInput
+            <AppTanggal
               v-model="rentangDari"
-              type="date"
             />
             <span class="text-muted">–</span>
-            <UInput
+            <AppTanggal
               v-model="rentangSampai"
-              type="date"
             />
           </template>
           <template v-else>

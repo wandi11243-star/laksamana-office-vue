@@ -843,6 +843,7 @@ async function simpanTemplate() {
           <div class="flex flex-wrap gap-1">
             <UCheckbox
               v-for="(h, i) in HARI"
+              :id="`cb-database-844-${String(h).replace(/\s+/g, '-')}`"
               :key="h"
               :model-value="fv.tutupHari.includes(i)"
               :label="h"
@@ -949,6 +950,7 @@ async function simpanTemplate() {
           <div class="flex flex-wrap gap-1">
             <UCheckbox
               v-for="n in namaVendorSemua"
+              :id="`cb-database-951-${String(n).replace(/\s+/g, '-')}`"
               :key="n"
               :model-value="fp.cadangan.includes(n)"
               :label="n"
@@ -960,6 +962,7 @@ async function simpanTemplate() {
           <div class="flex flex-wrap gap-1">
             <UCheckbox
               v-for="s in SATUAN_TERSEDIA"
+              :id="`cb-database-963-${String(s).replace(/\s+/g, '-')}`"
               :key="s"
               :model-value="fp.satuan.includes(s)"
               :label="s"
@@ -984,6 +987,7 @@ async function simpanTemplate() {
           <div class="flex flex-wrap gap-1">
             <UCheckbox
               v-for="a in AREA"
+              :id="`cb-database-988-${String(a).replace(/\s+/g, '-')}`"
               :key="a"
               :model-value="fp.area.includes(a)"
               :label="a"

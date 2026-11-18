@@ -371,9 +371,8 @@ async function kirimRevisi() {
           <UInput v-model="form.noSurat" />
         </UFormField>
         <UFormField label="Berlaku sampai">
-          <UInput
+          <AppTanggal
             v-model="form.validUntil"
-            type="date"
           />
         </UFormField>
         <UFormField label="Catatan">

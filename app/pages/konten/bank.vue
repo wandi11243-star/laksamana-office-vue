@@ -133,18 +133,16 @@ async function hapus(b: IdeBank) {
             label="Dari data bukti (opsional)"
             help="Tanggal tayang postingan yang dibaca AI."
           >
-            <UInput
+            <AppTanggal
               v-model="genDataDari"
-              type="date"
             />
           </UFormField>
           <UFormField
             label="Sampai data bukti (opsional)"
             help="Wajib sepasang dengan Dari — kosongkan keduanya bila tanpa batas."
           >
-            <UInput
+            <AppTanggal
               v-model="genDataSampai"
-              type="date"
             />
           </UFormField>
         </div>
@@ -352,15 +350,13 @@ async function hapus(b: IdeBank) {
           />
         </UFormField>
         <UFormField label="Rencana tanggal">
-          <UInput
+          <AppTanggal
             v-model="form.tanggal"
-            type="date"
           />
         </UFormField>
         <UFormField label="Jam (WIB)">
-          <UInput
+          <AppJam
             v-model="form.jam"
-            type="time"
           />
         </UFormField>
         <UFormField label="Hook (3 detik pertama)">

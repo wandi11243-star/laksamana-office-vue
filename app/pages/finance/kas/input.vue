@@ -500,9 +500,8 @@ async function simpanSemua() {
               >
                 <tr class="border-b border-default align-top">
                   <td class="px-2 py-2">
-                    <UInput
+                    <AppTanggal
                       v-model="d.tgl"
-                      type="date"
                       size="sm"
                       class="w-full"
                     />
@@ -618,9 +617,8 @@ async function simpanSemua() {
           >
             <div class="grid grid-cols-2 gap-3">
               <UFormField label="Tanggal">
-                <UInput
+                <AppTanggal
                   v-model="d.tgl"
-                  type="date"
                   class="w-full"
                 />
               </UFormField>

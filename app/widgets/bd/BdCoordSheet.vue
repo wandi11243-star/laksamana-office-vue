@@ -156,9 +156,8 @@ async function hapus() {
           />
         </UFormField>
         <UFormField label="Due">
-          <UInput
+          <AppTanggal
             v-model="f.due"
-            type="date"
             class="w-full"
           />
         </UFormField>

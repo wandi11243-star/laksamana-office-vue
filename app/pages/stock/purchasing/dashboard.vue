@@ -617,9 +617,8 @@ function unduhCsv() {
                 class="size-3.5"
               />Tgl submit</span>
             </template>
-            <UInput
+            <AppTanggal
               v-model="tglSubmit"
-              type="date"
             />
           </UFormField>
           <UFormField label="Tgl kedatangan">
@@ -629,9 +628,8 @@ function unduhCsv() {
                 class="size-3.5"
               />Tgl kedatangan</span>
             </template>
-            <UInput
+            <AppTanggal
               v-model="tglDatang"
-              type="date"
             />
           </UFormField>
         </AppFilterGrid>

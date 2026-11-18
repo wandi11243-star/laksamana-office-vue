@@ -446,9 +446,8 @@ const lewat = (p: HlifeProject) => !!p.due && p.due < hari && stageAktif(p) !== 
             />
           </UFormField>
           <UFormField label="Deadline">
-            <UInput
+            <AppTanggal
               v-model="form.due"
-              type="date"
               size="xl"
               class="w-full"
             />

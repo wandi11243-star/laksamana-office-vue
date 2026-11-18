@@ -1693,9 +1693,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           v-if="filter.mode === 'day'"
           label="Tanggal"
         >
-          <UInput
+          <AppTanggal
             v-model="filter.date"
-            type="date"
             class="w-full"
           />
         </UFormField>
@@ -1721,16 +1720,14 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         </UFormField>
         <template v-if="filter.mode === 'range'">
           <UFormField label="Dari">
-            <UInput
+            <AppTanggal
               v-model="filter.from"
-              type="date"
               class="w-full"
             />
           </UFormField>
           <UFormField label="Sampai">
-            <UInput
+            <AppTanggal
               v-model="filter.to"
-              type="date"
               class="w-full"
             />
           </UFormField>
@@ -1742,9 +1739,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           v-if="filter.mode !== 'day'"
           label="Tanggal denah"
         >
-          <UInput
+          <AppTanggal
             v-model="tglDenah"
-            type="date"
             class="w-full"
           />
         </UFormField>
@@ -2793,9 +2789,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               label="Tanggal"
               class="max-w-44"
             >
-              <UInput
+              <AppTanggal
                 v-model="tanggalTambah"
-                type="date"
                 class="w-full"
               />
             </UFormField>

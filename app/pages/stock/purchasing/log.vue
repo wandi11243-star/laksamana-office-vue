@@ -141,16 +141,14 @@ function reset() {
         </template>
         <AppFilterGrid>
           <UFormField label="Dari">
-            <UInput
+            <AppTanggal
               v-model="dari"
-              type="date"
               class="w-full"
             />
           </UFormField>
           <UFormField label="Sampai">
-            <UInput
+            <AppTanggal
               v-model="ke"
-              type="date"
               class="w-full"
             />
           </UFormField>

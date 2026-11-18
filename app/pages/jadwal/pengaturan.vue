@@ -287,19 +287,17 @@ async function kosongkan() {
               title="Nama yang tampil di sel"
               @change="ubahShift(s.k, 'n', ($event.target as HTMLInputElement).value)"
             />
-            <UInput
+            <AppJam
               :model-value="s.def.m"
-              type="time"
               :disabled="!!s.def.libur"
               class="w-32"
-              @change="ubahShift(s.k, 'm', ($event.target as HTMLInputElement).value)"
+              @update:model-value="ubahShift(s.k, 'm', $event)"
             />
-            <UInput
+            <AppJam
               :model-value="s.def.s"
-              type="time"
               :disabled="!!s.def.libur"
               class="w-32"
-              @change="ubahShift(s.k, 's', ($event.target as HTMLInputElement).value)"
+              @update:model-value="ubahShift(s.k, 's', $event)"
             />
             <input
               type="color"
@@ -377,6 +375,7 @@ async function kosongkan() {
             <div class="flex flex-wrap gap-x-4 gap-y-2">
               <UCheckbox
                 v-for="u in kruDivisi(peranDraf, kru, d.k)"
+                :id="`cb-pengaturan-376-${String(u.id).replace(/\s+/g, '-')}`"
                 :key="u.id"
                 :model-value="(draf.heads[d.k] ?? []).includes(u.id)"
                 :label="u.name"

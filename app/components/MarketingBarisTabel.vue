@@ -101,9 +101,8 @@ const nominal = (v: unknown) => {
       <template v-if="kind === 'rundown'">
         <div class="grid grid-cols-3 gap-2">
           <UFormField label="Mulai">
-            <UInput
+            <AppJam
               :model-value="String(r.mulai ?? '')"
-              type="time"
               @update:model-value="ubahBaris(String(r._id), 'mulai', String($event))"
             />
           </UFormField>
@@ -116,9 +115,8 @@ const nominal = (v: unknown) => {
             />
           </UFormField>
           <UFormField label="Selesai">
-            <UInput
+            <AppJam
               :model-value="String(r.selesai ?? '')"
-              type="time"
               @update:model-value="ubahBaris(String(r._id), 'selesai', String($event))"
             />
           </UFormField>
@@ -161,9 +159,8 @@ const nominal = (v: unknown) => {
           label="Nominal (Rp)"
           :hint="nominal(r.nominal)"
         >
-          <UInput
+          <AppNominal
             :model-value="String(r.nominal ?? '')"
-            inputmode="numeric"
             @update:model-value="ubahBaris(String(r._id ?? r.nama), 'nominal', String($event).replace(/\D/g, ''))"
           />
         </UFormField>
@@ -178,16 +175,14 @@ const nominal = (v: unknown) => {
         </UFormField>
         <div class="grid grid-cols-[1fr_1fr_auto] items-end gap-2">
           <UFormField label="Tanggal">
-            <UInput
+            <AppTanggal
               :model-value="String(r.tgl ?? '')"
-              type="date"
               @update:model-value="ubahBaris(String(r._id ?? r.nama), 'tgl', String($event))"
             />
           </UFormField>
           <UFormField label="Jam">
-            <UInput
+            <AppJam
               :model-value="String(r.jam ?? '')"
-              type="time"
               @update:model-value="ubahBaris(String(r._id ?? r.nama), 'jam', String($event))"
             />
           </UFormField>

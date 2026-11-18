@@ -321,25 +321,22 @@ async function hapus() {
       </UFormField>
       <div class="grid gap-4 sm:grid-cols-3">
         <UFormField label="Tanggal">
-          <UInput
+          <AppTanggal
             v-model="f.date"
-            type="date"
             class="w-full"
             :disabled="!bolehUbah"
           />
         </UFormField>
         <UFormField label="Mulai (kosong = sepanjang hari)">
-          <UInput
+          <AppJam
             v-model="f.start"
-            type="time"
             class="w-full"
             :disabled="!bolehUbah"
           />
         </UFormField>
         <UFormField label="Selesai">
-          <UInput
+          <AppJam
             v-model="f.end"
-            type="time"
             class="w-full"
             :disabled="!bolehUbah"
           />

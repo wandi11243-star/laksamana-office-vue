@@ -300,13 +300,11 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
             v-if="rentangTop === 'Rentang…'"
             class="mt-2 flex gap-2"
           >
-            <UInput
+            <AppTanggal
               v-model="dariTop"
-              type="date"
             />
-            <UInput
+            <AppTanggal
               v-model="sampaiTop"
-              type="date"
             />
           </div>
         </template>
@@ -453,15 +451,13 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
           class="grid gap-2 md:grid-cols-2"
         >
           <UFormField label="Dari tanggal *">
-            <UInput
+            <AppTanggal
               v-model="usulanDari"
-              type="date"
             />
           </UFormField>
           <UFormField label="Sampai tanggal *">
-            <UInput
+            <AppTanggal
               v-model="usulanSampai"
-              type="date"
             />
           </UFormField>
         </div>
@@ -630,9 +626,8 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
           />
         </UFormField>
         <UFormField label="Tanggal konten tayang *">
-          <UInput
+          <AppTanggal
             v-model="form.tglTayang"
-            type="date"
           />
         </UFormField>
         <UFormField label="Metrik (opsional)">
