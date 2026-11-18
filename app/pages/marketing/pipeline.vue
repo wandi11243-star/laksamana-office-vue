@@ -126,12 +126,13 @@ const bisaRevisi = (e: EventMkt) => {
 // ---- Daftar Event (pipeIsiEvents / paintEvents, :6718-6922) ----
 const AKTIF = '__aktif__'
 const SEMUA = '__semua'
-// Opens on Upcoming with every status (owner request, Nov 2026): the table is a view,
-// so finished events count too; 'Bulan ini' and the month stepper narrow it.
-const fe = useState('mkt-ev-filter-v2', () => ({ periode: 'upcoming' as PeriodeEventMkt, bulan: '', status: '', q: '' }))
-const bawaan = computed(() => fe.value.periode === 'upcoming' && !fe.value.status && !fe.value.q && !pic.value)
+const TANPA_LOST = '__tanpa_lost'
+// Opens on Upcoming with every status except Lost (owner request, Nov 2026): the table
+// is a view, so finished events count too; the status box can bring Lost back.
+const fe = useState('mkt-ev-filter-v3', () => ({ periode: 'upcoming' as PeriodeEventMkt, bulan: '', status: TANPA_LOST, q: '' }))
+const bawaan = computed(() => fe.value.periode === 'upcoming' && fe.value.status === TANPA_LOST && !fe.value.q && !pic.value)
 function reset() {
-  fe.value = { periode: 'upcoming', bulan: '', status: '', q: '' }
+  fe.value = { periode: 'upcoming', bulan: '', status: TANPA_LOST, q: '' }
   pic.value = ''
 }
 const bulanAktif = computed(() => fe.value.bulan || hari.slice(0, 7))
@@ -149,7 +150,7 @@ function bulanIni() {
 const fStatus = computed({ get: () => fe.value.status || SEMUA, set: (v: string) => {
   fe.value.status = v === SEMUA ? '' : v
 } })
-const opsiStatus = [{ value: AKTIF, label: 'Semua kecuali selesai' }, { value: SEMUA, label: 'Semua status (termasuk selesai)' }, ...STATUS_EVENT_MKT.map(s => ({ value: s, label: s }))]
+const opsiStatus = [{ value: TANPA_LOST, label: 'Semua kecuali Lost' }, { value: AKTIF, label: 'Semua kecuali selesai' }, { value: SEMUA, label: 'Semua status (termasuk Lost)' }, ...STATUS_EVENT_MKT.map(s => ({ value: s, label: s }))]
 const periodeSeg = computed({ get: () => (fe.value.periode === 'pilih' ? 'bulan' : fe.value.periode), set: (v: PeriodeEventMkt) => {
   fe.value.periode = v
 } })
@@ -161,9 +162,11 @@ const seperiode = computed(() => {
   return r ? semua.filter(e => !!e.tanggal && e.tanggal >= r.a && e.tanggal <= r.b) : semua
 })
 const nSelesai = computed(() => seperiode.value.filter(e => e.status === 'Event Done').length)
+const nLost = computed(() => seperiode.value.filter(e => e.status === 'Lost').length)
 const daftar = computed(() => {
   let evs = seperiode.value
-  if (fe.value.status === AKTIF) evs = evs.filter(e => e.status !== 'Event Done')
+  if (fe.value.status === TANPA_LOST) evs = evs.filter(e => e.status !== 'Lost')
+  else if (fe.value.status === AKTIF) evs = evs.filter(e => e.status !== 'Event Done')
   else if (fe.value.status) evs = evs.filter(e => e.status === fe.value.status)
   const q = fe.value.q.trim().toLowerCase()
   if (q) evs = evs.filter(e => `${e.nama} ${namaClient(e.clientId)}`.toLowerCase().includes(q))
@@ -194,6 +197,7 @@ const hitung = computed(() => {
   return `${daftar.value.length} dari ${seperiode.value.length} event`
     + (fe.value.periode === 'upcoming' ? ` · mulai ${tglMkt(hari)}` : r ? ` · ${tglMkt(r.a)}${r.a !== r.b ? ` – ${tglMkt(r.b)}` : ''}` : '')
     + (fe.value.status === AKTIF && nSelesai.value ? ` · ${nSelesai.value} selesai disembunyikan` : '')
+    + (fe.value.status === TANPA_LOST && nLost.value ? ` · ${nLost.value} Lost disembunyikan` : '')
 })
 const kosong = computed(() => {
   const ada = !bawaan.value

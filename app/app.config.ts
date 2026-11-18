@@ -110,7 +110,8 @@ export default defineAppConfig({
         thead: 'bg-muted',
         th: 'text-muted text-xs font-semibold uppercase tracking-wide py-3 whitespace-nowrap',
         td: 'num py-3 text-default align-middle',
-        tr: 'border-b border-default hover:bg-muted/70',
+        // Hover only on body rows (rows with a td): on the head row it greyed the dark heads.
+        tr: 'border-b border-default [&:has(td)]:hover:bg-muted/70',
       },
     },
     badge: {

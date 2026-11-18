@@ -483,7 +483,7 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
               { id: 'aksi', header: 'Aksi', meta: { class: { th: 'w-32', td: 'w-32' } } },
             ]"
             class="hidden lg:block"
-            :ui="{ base: 'w-full table-fixed', thead: 'bg-table-head', th: 'text-table-head-text', td: 'whitespace-normal', tr: 'cursor-pointer' }"
+            :ui="{ base: 'w-full table-fixed', td: 'whitespace-normal', tr: 'cursor-pointer' }"
             @select="(_e: Event, r: { original: VipMkt }) => { lihatId = r.original.id }"
           >
             <!-- Old list (deploy/marketing :16586): date on top, jam below it. -->
