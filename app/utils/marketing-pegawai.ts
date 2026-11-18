@@ -121,8 +121,8 @@ export const JUDUL_VIEW_MKT: Record<string, string> = {
   dashboard: 'Dashboard', calendar: 'Kalender', pipeline: 'Sales Pipeline & Event', events: 'Input & Event',
   brief: 'Event Brief & Quotation', vip: 'Reservasi VIP', designreq: 'Request Design & Video', kalkulator: 'Menu Kalkulator',
   invoices: 'Invoice & Payment', approvals: 'Approval Flow', purchasing: 'Purchase Order', perfomset: 'Performa Omset & Bonus',
-  reports: 'Reporting', tasks: 'Task Divisi (Handover)', crm: 'Database Client', katalog: 'Katalog', templates: 'Template Task',
-  notifications: 'Notification Center', staff: 'Pegawai & Akses', settings: 'Pengaturan', timeline: 'Timeline & Audit Log',
+  reports: 'Reporting', crm: 'Database Client', katalog: 'Katalog',
+  notifications: 'Notification Center', staff: 'Kelola Akses', settings: 'Pengaturan', timeline: 'Log Activity',
   users: 'Kelola Role & Hak Akses',
 }
 export const LABEL_LEVEL_MKT = ['None', 'Lihat', 'Ubah'] as const

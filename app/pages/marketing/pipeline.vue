@@ -7,7 +7,7 @@
     column, F.11). A card opens in place (Client, Pax, Nilai, Buka Event).
     Dragging to another column asks "Pindahkan ke X?" first; Quotation Terkirim
     needs an approved offer letter (pindahBolehMkt, F.3). Moving up is never
-    blocked, only reminded (F.10). Moving to Deal opens the handover tasks.
+    blocked, only reminded (F.10). The divisional handover tasks were removed (owner request, Nov 2026).
     Drag & drop is the only way to move a card. Cards are only draggable with
     edit_event — without it the grip and the card visibly disable
     with a reason tooltip instead of silently doing nothing.
@@ -24,7 +24,7 @@ import type { TableColumn } from '@nuxt/ui'
 import type { EventMkt, KolomMkt, PeriodeEventMkt } from '~/utils/marketing'
 import {
   PERIODE_EVENT_MKT, PIPE_COLS_MKT, STATUS_EVENT_MKT, hMinusMkt, ingatTahapMkt, jenisEvent, kolomPipeMkt, menuFixMkt,
-  pindahBolehMkt, rentangPeriodeMkt, rentangTglMkt, tglMkt, timMarketing, tugasDealMkt,
+  pindahBolehMkt, rentangPeriodeMkt, rentangTglMkt, tglMkt, timMarketing,
 } from '~/utils/marketing'
 import { eventFinance } from '~/utils/marketing-uang'
 import { ikonStatusMkt, warnaJenisMkt, warnaStatusMkt } from '~/utils/status-marketing'
@@ -104,7 +104,6 @@ async function pindahkan() {
   const dari = e.status
   const ingat = ingatTahapMkt(e, ke)
   const ubah: Partial<EventMkt> = { pipeCol: ke, status: ke }
-  if (ke === 'Deal') ubah.tasks = tugasDealMkt(e, formatFbMkt(st.value))
   sibuk.value = true
   const ok = await mktSimpan(
     () => tambalMkt<EventMkt>('events', e.id, ubah, e.updatedAt),
@@ -114,7 +113,7 @@ async function pindahkan() {
   sibuk.value = false
   pindah.value = null
   if (!ok) return
-  if (ke === 'Deal') toast.add({ title: 'Deal!', description: `${e.nama} masuk tahap eksekusi & handover divisi.`, color: 'success' })
+  if (ke === 'Deal') toast.add({ title: 'Deal!', description: `${e.nama} masuk tahap eksekusi.`, color: 'success' })
   if (ingat) setTimeout(() => toast.add({ title: 'Data dasar belum lengkap', description: ingat, color: 'warning' }), 700)
 }
 /** Old open-card "+ Ajukan Revisi": submitted offer, not yet a deal. */
@@ -328,6 +327,7 @@ const kosong = computed(() => {
           drag-reason="Kamu tidak punya izin mengubah tahap event."
           layout="grid"
           empty-text="-"
+          list-class="max-h-[min(68dvh,640px)]"
           @move="pindahMinta"
         >
           <template #header="{ column }">
@@ -644,7 +644,7 @@ const kosong = computed(() => {
       >
         Tahapnya berubah dari <b>{{ kolomPipeMkt(pindah.e) }}</b> jadi <b>{{ pindah.ke }}</b>.
         <template v-if="pindah.ke === 'Deal'">
-          Task handover per divisi ikut dibuat.
+          Event masuk tahap eksekusi.
         </template>
         <template v-if="pindah.ke === 'Lost'">
           Event ini berhenti dihitung sebagai peluang aktif.

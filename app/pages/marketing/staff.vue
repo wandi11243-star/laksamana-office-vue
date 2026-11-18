@@ -182,7 +182,7 @@ const warnaLevel = (v: number) => (v === 2 ? 'success' : v === 1 ? 'info' : 'neu
 
 <template>
   <AppPage
-    title="Pegawai & akses"
+    title="Kelola akses"
     description="Satu daftar untuk semua orang: identitas pegawai otomatis mengikuti database user Office, dan di sini pula role & hak aksesnya diatur. Daftar ini jadi sumber pilihan PIC di Matriks PIC Hari-H, Template Task & papan to-do."
   >
     <MarketingGerbang layar="staff">

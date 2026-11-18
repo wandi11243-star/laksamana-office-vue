@@ -8,7 +8,7 @@
 // until it arrives the role defaults apply, exactly like the old client.
 //
 // Hidden rows (`events`, `brief`, `users`) are matrix rows, not menu items:
-// `events` merged into Sales Pipeline, `users` into Pegawai & Akses, and the
+// `events` merged into Sales Pipeline, `users` into Kelola Akses, and the
 // brief page is reached from the Internal/Client/Draft buttons (marketing.md C).
 // The event detail (`/marketing/event/<id>`) has no menu row either.
 import type { Me } from '~/composables/useMe'
@@ -35,12 +35,10 @@ export const LAYAR_MARKETING: Layar[] = [
   l('purchasing', 'Purchase Order', 'Kirim kebutuhan pembelian ke papan Purchasing BD OS', 'i-lucide-shopping-cart', 'Finance & Kontrol'),
   l('perfomset', 'Performa Omset & Bonus', 'Omset yang diakui tiap PIC berikut skema bonusnya — angkanya sama dengan panel Finance', 'i-lucide-trophy', 'Analitik'),
   l('reports', 'Reporting', 'Omset & jumlah event per kategori', 'i-lucide-chart-column', 'Analitik'),
-  l('tasks', 'Task Divisi (Handover)', 'Operational handover & kesiapan per divisi', 'i-lucide-list-checks', 'Sistem'),
   l('crm', 'Database Client', 'CRM — semua klien dari Lead sampai repeat customer', 'i-lucide-contact', 'Sistem'),
   l('katalog', 'Katalog', 'Materi presentasi venue — gambar & deskripsi, bisa dijalankan layar penuh', 'i-lucide-presentation', 'Sistem'),
-  l('templates', 'Template Task', 'Template job per divisi — Task, PIC, Deadline, Catatan', 'i-lucide-clipboard-list', 'Sistem'),
   l('notifications', 'Notification Center', 'Semua pengingat penting', 'i-lucide-bell', 'Sistem'),
-  l('staff', 'Pegawai & Akses', 'Data pegawai dari database user Office sekaligus role & hak aksesnya', 'i-lucide-users', 'Sistem'),
+  l('staff', 'Kelola Akses', 'Data pegawai dari database user Office sekaligus role & hak aksesnya', 'i-lucide-key-round', 'Sistem'),
   l('settings', 'Pengaturan', 'Aturan bisnis, tarif & data', 'i-lucide-settings', 'Sistem'),
-  l('timeline', 'Timeline & Audit Log', 'Jejak seluruh perubahan data', 'i-lucide-history', 'Sistem'),
+  l('timeline', 'Log Activity', 'Jejak seluruh perubahan data', 'i-lucide-history', 'Sistem'),
 ]

@@ -129,14 +129,15 @@ const terkirim = computed(() => poMarketingMkt(daftar.value ?? []))
         <p class="mt-4 mb-2 text-sm font-semibold">
           Daftar barang yang diminta
         </p>
-        <div class="hidden grid-cols-[minmax(10rem,1fr)_5rem_6.5rem_minmax(10rem,1fr)_10rem_2.5rem] gap-2 px-1 text-xs font-semibold text-muted lg:grid">
+        <div class="mb-2 hidden grid-cols-[minmax(10rem,1fr)_5rem_6.5rem_minmax(10rem,1fr)_10rem_2.5rem] gap-3 px-3 text-xs font-semibold uppercase tracking-wide text-muted lg:grid">
           <span>Nama item</span><span>Jumlah</span><span>Satuan</span><span>Alasan / kebutuhan</span><span>Perkiraan harga (Rp)</span><span />
         </div>
-        <div class="grid gap-3 lg:gap-2">
+        <!-- Each item row is its own card with room between the fields (owner request, Nov 2026). -->
+        <div class="grid gap-3">
           <div
             v-for="(b, i) in baris"
             :key="i"
-            class="grid grid-cols-[1fr_auto] gap-2 rounded-lg border bg-muted border-default p-2 lg:grid-cols-[minmax(10rem,1fr)_5rem_6.5rem_minmax(10rem,1fr)_10rem_2.5rem] lg:border-0 lg:p-0"
+            class="grid grid-cols-[1fr_auto] items-center gap-3 rounded-xl border border-default bg-muted p-3 lg:grid-cols-[minmax(10rem,1fr)_5rem_6.5rem_minmax(10rem,1fr)_10rem_2.5rem]"
           >
             <UInput
               v-model="b.item"
@@ -152,7 +153,7 @@ const terkirim = computed(() => poMarketingMkt(daftar.value ?? []))
               class="lg:order-last"
               @click="hapusBaris(i)"
             />
-            <div class="col-span-2 grid grid-cols-2 gap-2 sm:grid-cols-4 lg:col-span-1 lg:contents">
+            <div class="col-span-2 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:col-span-1 lg:contents">
               <UInput
                 v-model="b.qty"
                 type="number"

@@ -16,8 +16,8 @@
 <script setup lang="ts">
 import type { EventMkt, SettingsMkt } from '~/utils/marketing'
 import {
-  MENU_FIX_KOSONG_MKT, MENU_FIX_MKT, PIPE_COLS_MKT, TAHAP_TERBUKA_MKT, ingatTahapMkt, kategoriEventMkt, menuFixMkt, namaCocok,
-  pindahBolehMkt, rentangTglMkt, tglMkt, tugasDealMkt,
+  MENU_FIX_KOSONG_MKT, MENU_FIX_MKT, PIPE_COLS_MKT, TAHAP_TERBUKA_MKT, ingatTahapMkt, menuFixMkt, namaCocok,
+  pindahBolehMkt, rentangTglMkt, tglMkt,
 } from '~/utils/marketing'
 import type { DrafEventMkt } from '~/utils/marketing-event'
 import {
@@ -26,8 +26,6 @@ import {
   ringkasNilaiMkt, seqBerikutMkt, sinkronDpMkt, tabTerlihatMkt, terlihatSeksiMkt,
 } from '~/utils/marketing-event'
 import { dpLabel, eventFinance, rincianPenawaran } from '~/utils/marketing-uang'
-import type { TemplateTugasMkt } from '~/utils/marketing-tugas'
-import { progresDivMkt } from '~/utils/marketing-tugas'
 import { ikonStatusMkt, warnaStatusMkt } from '~/utils/status-marketing'
 import { formatFbMkt, getDokumenMkt, hapusMkt, lepasKunciMejaMkt, mktSimpan, simpanDokumenMkt, tambalMkt, useAksesMkt, useStateMkt, versiDokumenMkt } from '~/composables/useMarketing'
 import { rupiah } from '~/utils/format'
@@ -79,15 +77,6 @@ const bisaVerif = computed(() => can('verify_payment'))
 const terbuka = computed(() => !!ev.value && TAHAP_TERBUKA_MKT.includes(ev.value.status))
 const bentrok = computed(() => (ev.value ? bentrokJadwalMkt(ev.value, st.value.events) : []))
 const sisaApprovalLama = computed(() => st.value.approvals.some(a => a.eventId === id.value && a.status === 'Pending'))
-
-/** Kesiapan Divisi (taskProgress, :5403): mean of each category's job progress. */
-const kesiapan = computed(() => {
-  const e = ev.value
-  if (!e) return { pct: 0, siap: 0, n: 0 }
-  const tpl = st.value.taskTemplates as unknown as TemplateTugasMkt[]
-  const p = kategoriEventMkt(e, formatFbMkt(st.value)).map(k => progresDivMkt(e, k, tpl))
-  return { pct: p.length ? Math.round(p.reduce((a, b) => a + b, 0) / p.length) : 0, siap: p.filter(x => x >= 100).length, n: p.length }
-})
 
 // ---- draft ----
 const draf = ref<DrafEventMkt>({ atas: {}, detail: {}, payments: [] })
@@ -214,7 +203,6 @@ async function pindahTahap() {
   const dari = e.status
   const ingat = ingatTahapMkt(e, ke)
   const ubah: Partial<EventMkt> = { pipeCol: ke, status: ke }
-  if (ke === 'Deal') ubah.tasks = tugasDealMkt(e, formatFbMkt(st.value))
   tahapKe.value = null
   const ok = await mktSimpan(
     () => tambalMkt<EventMkt>('events', e.id, ubah, e.updatedAt),
@@ -222,7 +210,7 @@ async function pindahTahap() {
     { refType: 'event', refId: e.id, action: 'Tahap diubah', detail: `${dari} → ${ke}` },
   )
   if (!ok) return
-  if (ke === 'Deal') toast.add({ title: 'Deal!', description: `${e.nama} masuk tahap eksekusi & handover divisi.`, color: 'success' })
+  if (ke === 'Deal') toast.add({ title: 'Deal!', description: `${e.nama} masuk tahap eksekusi.`, color: 'success' })
   if (ingat) setTimeout(() => toast.add({ title: 'Data dasar belum lengkap', description: ingat, color: 'warning' }), 700)
 }
 
@@ -513,7 +501,7 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
       <AppStatGrid
         v-if="uang"
         :loading="statMemuat"
-        :count="4"
+        :count="3"
       >
         <AppStat
           label="Grand Total"
@@ -534,13 +522,6 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
           :sub="`terbayar ${rupiah(uang.paid)} dari ${rupiah(uang.grand)}`"
           icon="i-lucide-hourglass"
           :tone="uang.remaining > 0 ? 'error' : 'success'"
-        />
-        <AppStat
-          label="Kesiapan Divisi"
-          :value="`${kesiapan.pct}%`"
-          :sub="`${kesiapan.siap}/${kesiapan.n} kategori`"
-          icon="i-lucide-list-checks"
-          tone="info"
         />
       </AppStatGrid>
 
@@ -861,7 +842,7 @@ const sorot = computed(() => String((ev.value?.detail ?? {}).highlight ?? '').tr
         <p class="text-sm text-muted">
           Tahapnya berubah dari <b>{{ ev.status }}</b> jadi <b>{{ tahapKe }}</b>.
           <template v-if="tahapKe === 'Deal'">
-            Event masuk tahap eksekusi & task handover per divisi ikut dibuat.
+            Event masuk tahap eksekusi.
           </template>
           <template v-if="tahapKe === 'Lost'">
             Event ini berhenti dihitung sebagai peluang aktif.
