@@ -326,6 +326,7 @@ function tanyaHapus(r: HlifeReview) {
     <ResponsiveSheet
       v-model:open="sheet"
       :title="form.id ? 'Edit evaluasi' : 'Evaluasi mingguan'"
+      lebar="sedang"
     >
       <div class="space-y-4">
         <UFormField

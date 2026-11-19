@@ -84,6 +84,7 @@ function kosongkan() {
     v-model:open="open"
     :title="target?.nama ?? ''"
     :description="target ? fTgl(target.tgl) : ''"
+    lebar
   >
     <div class="space-y-4">
       <div>

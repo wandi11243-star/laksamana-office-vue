@@ -96,6 +96,7 @@ async function hapus() {
   <ResponsiveSheet
     v-model:open="open"
     :title="iklan ? 'Edit iklan — dana keluar' : 'Buat iklan — dana keluar'"
+    lebar="sedang"
   >
     <div class="grid gap-4 sm:grid-cols-2">
       <UFormField

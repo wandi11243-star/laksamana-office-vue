@@ -376,6 +376,7 @@ async function simpanEval() {
       <ResponsiveSheet
         v-model:open="sheetEval"
         :title="`Evaluasi ${ideEval?.name ?? ''}`"
+        lebar="sedang"
       >
         <div class="grid gap-3 lg:grid-cols-2">
           <UFormField label="Tanggal pelaksanaan">

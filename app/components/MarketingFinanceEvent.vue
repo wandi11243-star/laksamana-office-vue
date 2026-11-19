@@ -927,6 +927,7 @@ async function simpanInvUbah() {
       v-model:open="bayarBuka"
       :title="bayarId ? 'Ubah Pembayaran' : 'Catat Pembayaran'"
       :description="`${ev.nama} · ${namaClient}`"
+      lebar="sedang"
     >
       <div class="grid grid-cols-2 gap-3">
         <UFormField label="Jenis">

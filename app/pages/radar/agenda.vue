@@ -169,7 +169,7 @@ useSegarSenyap(refresh, () => buka.value)
             v-model="f.q"
             placeholder="Nama, tempat, jenis…"
             icon="i-lucide-search"
-            class="[&_input]:min-h-11 w-full"
+            class="w-full [&_input]:min-h-11 lg:[&_input]:min-h-9"
           />
         </UFormField>
         <UFormField label="Sumber">

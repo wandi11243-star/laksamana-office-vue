@@ -111,6 +111,7 @@ async function hapus() {
     v-model:open="open"
     :title="routine ? 'Edit routine' : 'Routine baru'"
     description="Task berulang & kepatuhannya."
+    lebar
   >
     <div class="grid grid-cols-1 gap-4">
       <UFormField label="Nama routine">

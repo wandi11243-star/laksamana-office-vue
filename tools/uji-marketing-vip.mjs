@@ -122,5 +122,13 @@ const MB = 1024 * 1024
 cek('foto total: hitung yang sudah ada', V.refFotoPenuhMkt([{ t: 'img', v: 'x'.repeat(8 * MB) }, { t: 'link', v: 'y'.repeat(9 * MB) }], 'z'.repeat(0.3 * MB)) === true && V.refFotoPenuhMkt([{ t: 'img', v: 'x'.repeat(7 * MB) }, { t: 'link', v: 'y'.repeat(9 * MB) }], 'z'.repeat(0.3 * MB)) === false)
 cek('link: https:// dipasang, kosong → ""', V.refLinkMkt(' ig.com/x ') === 'https://ig.com/x' && V.refLinkMkt('http://a.b') === 'http://a.b' && V.refLinkMkt('//a.b') === 'https://a.b' && V.refLinkMkt('mailto:a@b') === 'mailto:a@b' && V.refLinkMkt('  ') === '')
 
+console.log('\nmarketing-vip: sinkron ke Reservasi')
+{
+  const lama = { id: 'vip-v1', name: 'Lama', date: '2026-11-18', time: '19:30', table: '2', status: 'Datang', checkinAt: 123, arrivals: [{ n: 1 }], createdBy: 'kru', dps: [{ id: 'kru1', amount: 50 }] }
+  const v = { id: 'v1', nama: 'Baru', hp: '08', tanggal: '2026-11-19', jamMulai: '18:00', paxMin: 10, meja: ['3', '4'], bukti: [{ id: 'b1', nominal: 100, metode: 'BCA' }] }
+  const r = V.sinkronBarisReservasiVipMkt(lama, v, V.dpsVipMkt(v, 'x'), 'PT', 'Pic', 9)
+  cek('nama/tanggal/jam/meja ikut; status kru, kedatangan & DP kru tetap', r.name === 'Baru' && r.date === '2026-11-19' && r.time === '18:00' && r.table === '3, 4' && r.status === 'Datang' && r.checkinAt === 123 && r.arrivals.length === 1 && r.createdBy === 'kru' && r.dps.length === 2 && r.dpAmount === 150 && r.updatedAt === 9, JSON.stringify(r))
+}
+
 console.log(`\n${ok} OK, ${gagal} GAGAL`)
 if (gagal) process.exit(1)

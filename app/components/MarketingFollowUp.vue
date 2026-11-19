@@ -124,6 +124,7 @@ async function simpan() {
     v-model:open="open"
     title="Catat Follow Up"
     :description="client?.nama"
+    lebar="sedang"
   >
     <details
       v-if="riwayat.length"

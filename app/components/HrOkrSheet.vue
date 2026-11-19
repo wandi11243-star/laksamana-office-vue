@@ -89,6 +89,7 @@ async function simpan() {
   <ResponsiveSheet
     v-model:open="open"
     :title="okr ? 'Edit OKR' : 'OKR Baru'"
+    lebar="sedang"
   >
     <div class="space-y-3">
       <div class="grid grid-cols-2 gap-3">

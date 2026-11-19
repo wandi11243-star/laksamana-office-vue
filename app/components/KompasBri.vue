@@ -1233,6 +1233,7 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
     <ResponsiveSheet
       v-model:open="tambahOpen"
       title="Catat dana masuk"
+      lebar="sedang"
     >
       <div class="space-y-3">
         <UAlert

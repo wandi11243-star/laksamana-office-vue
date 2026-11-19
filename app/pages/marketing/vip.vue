@@ -5,6 +5,9 @@
   Regular never does. Cancelled keeps its trace; deleted removes it (unless
   the guest already arrived — then it is only marked cancelled).
   Orphan locks (in Reservasi, not here) are restored with Pulihkan.
+  Every save of a locked booking also updates its Reservasi row (name, date,
+  hour, pax, tables, DP — owner request, Nov 2026); a new date or hour is
+  checked for table clashes first. Tables can be changed from the list too.
 -->
 <script setup lang="ts">
 import type { KolomMkt, VipMkt } from '~/utils/marketing'
@@ -135,12 +138,40 @@ watch(formBuka, (buka) => {
 })
 async function simpanForm(v: VipMkt) {
   const lama = st.value.vip.find(x => x.id === v.id)
+  const terkunci = !!lama?.resId && !lama.batalAt
+  const gabung: VipMkt = { ...(lama ?? {}), ...v }
+  // A locked booking moving to another date or hour must not land on a table
+  // another guest holds then: checked BEFORE anything is saved.
+  if (terkunci && lama && (lama.tanggal !== gabung.tanggal || lama.jamMulai !== gabung.jamMulai)) {
+    try {
+      const bentrok = await bentrokMejaVip(gabung)
+      if (bentrok) {
+        toast.add({ title: 'Meja bentrok di waktu baru', description: `${bentrok} sudah dipesan tamu lain. Ganti meja lewat "Ubah meja" dulu, atau pilih waktu lain.`, color: 'error' })
+        return
+      }
+    }
+    catch (e) {
+      if (!confirm(`Modul Reservasi tidak bisa dicek (${apiErrorMessage(e)}), jadi bentrok meja di waktu baru belum dipastikan.
+
+Tetap simpan?`)) return
+    }
+  }
   const ok = lama
     ? await mktSimpan(() => tambalMkt<VipMkt>('vip', v.id, v, lama.updatedAt), 'Reservasi disimpan', { refType: 'vip', refId: v.id, action: 'Reservasi VIP diubah', detail: v.nama ?? '' })
     : await mktSimpan(() => buatMkt<VipMkt>('vip', v), 'Reservasi disimpan', { refType: 'vip', refId: v.id, action: 'Reservasi VIP dibuat', detail: v.nama ?? '' })
-  if (ok) {
-    formBuka.value = false
-    lihatId.value = v.id
+  if (!ok) return
+  formBuka.value = false
+  lihatId.value = v.id
+  if (terkunci) await kirimKeReservasi(gabung)
+}
+/** Push a saved booking to its Reservasi row; Marketing's save stands either way. */
+async function kirimKeReservasi(v: VipMkt) {
+  try {
+    await kirimVipKeReservasi(v, { perusahaan: perusahaan(v), namaPic: namaUser(v.mktPIC), oleh: saya.value?.user.name ?? '' })
+    toast.add({ title: 'Modul Reservasi ikut diperbarui', color: 'success' })
+  }
+  catch (e) {
+    toast.add({ title: 'Belum sampai ke Reservasi', description: `${apiErrorMessage(e)} — simpan lagi untuk mengulang.`, color: 'warning' })
   }
 }
 
@@ -160,11 +191,21 @@ watch(() => lihat.value?.resId, async (rid) => {
     rsvLihat.value = null
   }
 }, { immediate: true })
-async function kunciTersimpan(meja: string[], resId: string) {
-  const v = lihat.value
+async function kunciTersimpan(id: string, meja: string[], resId: string) {
+  const v = st.value.vip.find(x => x.id === id)
   if (!v) return
-  await mktSimpan(() => tambalMkt<VipMkt>('vip', v.id, { meja, resId }, v.updatedAt), 'Meja terkunci di Reservasi')
+  await mktSimpan(() => tambalMkt<VipMkt>('vip', v.id, { meja, resId }, v.updatedAt), 'Meja terkunci di Reservasi',
+    { refType: 'vip', refId: v.id, action: 'Meja Reservasi VIP diubah', detail: `${v.nama ?? ''} · meja ${meja.join(', ')}` })
 }
+// "Ubah meja" straight from the list: the lock sheet without the detail.
+const mejaId = ref<string | null>(null)
+const mejaVip = computed(() => st.value.vip.find(v => v.id === mejaId.value) ?? null)
+const mejaBuka = computed({
+  get: () => !!mejaVip.value,
+  set: (b) => {
+    if (!b) mejaId.value = null
+  },
+})
 
 // ---- Isi Nominal ----
 const nominalBuka = ref(false)
@@ -502,22 +543,25 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
             :data="hal"
             :columns="[
               { accessorKey: 'tanggal', header: tbl.kepala('tanggal', 'Tanggal'), meta: { class: { th: 'w-24', td: 'w-24' } } },
+              { id: 'jam', header: 'Jam', meta: { class: { th: 'w-24', td: 'w-24' } } },
               { id: 'nama', header: tbl.kepala('nama', 'Atas Nama') },
               { id: 'jenis', header: tbl.kepala('jenis', 'Jenis'), meta: { class: { th: 'w-28', td: 'w-28' } } },
-              { id: 'pax', header: tbl.kepala('pax', 'Orang'), meta: { class: { th: 'w-24', td: 'w-24' } } },
-              { id: 'meja', header: tbl.kepala('meja', 'Meja'), meta: { class: { th: 'w-32', td: 'w-32' } } },
+              { id: 'pax', header: tbl.kepala('pax', 'Orang'), meta: { class: { th: 'w-20', td: 'w-20' } } },
+              { id: 'meja', header: tbl.kepala('meja', 'Meja'), meta: { class: { th: 'w-24', td: 'w-24' } } },
               { id: 'bayar', header: tbl.kepala('bayar', 'Pembayaran'), meta: { class: { th: 'w-28', td: 'w-28' } } },
               { id: 'nominal', header: tbl.kepala('nominal', 'Nominal'), meta: { class: { th: 'w-32', td: 'w-32' } } },
-              { id: 'aksi', header: 'Aksi', meta: { class: { th: 'w-36', td: 'w-36' } } },
+              { id: 'aksi', header: 'Aksi', meta: { class: { th: 'w-44', td: 'w-44' } } },
             ]"
             class="hidden lg:block"
             :ui="{ base: 'w-full table-fixed', td: 'whitespace-normal', tr: 'cursor-pointer' }"
             @select="(_e: Event, r: { original: VipMkt }) => { lihatId = r.original.id }"
           >
-            <!-- Old list (deploy/marketing :16586): date on top, jam below it. -->
+            <!-- Date and hour in their own columns (owner request, Nov 2026). -->
             <template #tanggal-cell="{ row }">
-              <span class="num">{{ row.original.tanggal }}</span>
-              <span class="block text-xs text-muted">{{ [row.original.jamMulai, row.original.jamSelesai].filter(Boolean).join(' - ') || '—' }}</span>
+              <span class="num whitespace-nowrap">{{ row.original.tanggal }}</span>
+            </template>
+            <template #jam-cell="{ row }">
+              <span class="num whitespace-nowrap">{{ [row.original.jamMulai, row.original.jamSelesai].filter(Boolean).join(' – ') || '—' }}</span>
             </template>
             <template #nama-cell="{ row }">
               <!-- Long names wrap down to the next line, never truncated. -->
@@ -631,6 +675,20 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
                   </UTooltip>
                   <UTooltip
                     v-if="!row.original.batalAt"
+                    text="Ubah meja — dikunci di Reservasi"
+                    :delay-duration="0"
+                  >
+                    <UButton
+                      size="xs"
+                      color="neutral"
+                      variant="ghost"
+                      icon="i-lucide-armchair"
+                      aria-label="Ubah meja — dikunci di Reservasi"
+                      @click="mejaId = row.original.id"
+                    />
+                  </UTooltip>
+                  <UTooltip
+                    v-if="!row.original.batalAt"
                     text="Batalkan — meja dilepas, jejaknya tetap ada"
                     :delay-duration="0"
                   >
@@ -737,6 +795,18 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
         </template>
       </AppPanel>
 
+      <MarketingVipKunci
+        v-if="mejaVip && bisaUbah"
+        v-model:buka="mejaBuka"
+        tanpa-tombol
+        :vip="mejaVip"
+        :perusahaan="perusahaan(mejaVip)"
+        :nama-pic="namaUser(mejaVip.mktPIC)"
+        :oleh="saya?.user.name ?? ''"
+        :bisa-ubah="bisaUbah"
+        @kunci="(m: string[], r: string) => mejaVip && kunciTersimpan(mejaVip.id, m, r)"
+      />
+
       <ResponsiveSheet
         v-model:open="formBuka"
         :title="formAwal ? 'Ubah Reservasi VIP' : 'Reservasi VIP Baru'"
@@ -824,7 +894,7 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
             :nama-pic="namaUser(lihat.mktPIC)"
             :oleh="saya?.user.name ?? ''"
             :bisa-ubah="bisaUbah"
-            @kunci="kunciTersimpan"
+            @kunci="(m: string[], r: string) => lihat && kunciTersimpan(lihat.id, m, r)"
           />
         </div>
         <div

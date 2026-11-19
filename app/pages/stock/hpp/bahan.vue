@@ -435,6 +435,7 @@ async function impor(e: Event) {
     <ResponsiveSheet
       v-model:open="sheet"
       :title="editing ? 'Ubah bahan' : 'Tambah bahan'"
+      lebar="sedang"
     >
       <div class="flex flex-col gap-3">
         <UFormField label="Nama bahan">

@@ -122,6 +122,7 @@ async function hapus() {
   <ResponsiveSheet
     v-model:open="open"
     :title="visit ? 'Edit event kunjungan' : 'Buat event kunjungan'"
+    lebar="sedang"
   >
     <div class="grid gap-4 sm:grid-cols-2">
       <UFormField

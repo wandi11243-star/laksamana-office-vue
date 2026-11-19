@@ -1650,6 +1650,7 @@ async function segarkan() {
       v-model:open="sheetMo"
       :title="moOpname ? `Opname — ${moItem?.nama || ''}` : `Tambah stok — ${moItem?.nama || ''}`"
       description="Stok terkini menurut catatan"
+      lebar="sedang"
     >
       <div class="grid grid-cols-1 gap-4">
         <p class="rounded-xl border border-default bg-muted px-3.5 py-2.5 text-sm">

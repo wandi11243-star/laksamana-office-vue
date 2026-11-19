@@ -233,6 +233,7 @@ async function hapus() {
   <ResponsiveSheet
     v-model:open="open"
     :title="promo ? 'Ubah promo' : 'Promo baru'"
+    lebar="sedang"
   >
     <div class="grid grid-cols-1 gap-4">
       <UFormField label="Nama promo *">

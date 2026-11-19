@@ -380,6 +380,7 @@ const { jalan, lagi } = useSibuk()
       <ResponsiveSheet
         v-model:open="sheet"
         title="Edit project"
+        lebar="sedang"
       >
         <div class="space-y-4">
           <UFormField

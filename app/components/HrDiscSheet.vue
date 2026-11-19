@@ -76,6 +76,7 @@ async function simpan() {
   <ResponsiveSheet
     v-model:open="open"
     :title="v ? 'Edit pelanggaran' : 'Catat pelanggaran'"
+    lebar="sedang"
   >
     <div class="space-y-3">
       <div class="grid grid-cols-2 gap-3">

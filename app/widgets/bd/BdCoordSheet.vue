@@ -98,6 +98,7 @@ async function hapus() {
     v-model:open="open"
     :title="coord ? 'Edit request koordinasi' : 'Request ke divisi lain'"
     description="Catatan permintaan kita, bukan task divisi tujuan."
+    lebar
   >
     <div class="grid grid-cols-1 gap-4">
       <UFormField label="Judul request">

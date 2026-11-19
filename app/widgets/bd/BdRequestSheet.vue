@@ -17,7 +17,7 @@ const props = defineProps<{
 const open = defineModel<boolean>('open', { default: false })
 const toast = useToast()
 
-interface Baris { item: string, qty: number, unit: string, note: string, by: string, amount: number }
+interface Baris { item: string, qty: number, unit: string, note: string, by: string, amount: number | string }
 
 const f = reactive({ div: OWNER_DIVS[0]!, needBy: akhirMinggu(todayISO()), project: null as string | null })
 const baris = ref<Baris[]>([])
@@ -27,7 +27,7 @@ const opsiPeminta = computed(() => kru.value.map(p => ({ value: p.id, label: p.n
 const opsiProject = computed(() => opsiProjectBd(props.projects, f.project))
 
 function barisBaru(): Baris {
-  return { item: '', qty: 1, unit: 'Unit', note: '', by: props.aku?.id || '', amount: 0 }
+  return { item: '', qty: 1, unit: 'Unit', note: '', by: props.aku?.id || '', amount: '' }
 }
 
 watch(open, (o) => {
@@ -84,6 +84,7 @@ async function simpan() {
     v-model:open="open"
     title="Request order"
     description="Tulis semua kebutuhan sekaligus — satu baris per barang."
+    lebar
   >
     <div class="grid grid-cols-1 gap-4">
       <p class="rounded-panel border border-default bg-muted p-3 text-xs text-muted">
@@ -114,25 +115,18 @@ async function simpan() {
         </UFormField>
       </div>
 
-      <div class="grid grid-cols-1 gap-3">
+      <!-- Item rows laid out like Stock › Form Order Belanja (owner request,
+           Nov 2026): a tinted card per row, the item on top, then a qty
+           stepper, unit, requester, price and the delete button on one line,
+           and the dashed "add row" right under the last row. -->
+      <div class="flex flex-col gap-3">
         <div
           v-for="(b, i) in baris"
           :key="i"
-          class="rounded-panel border border-default p-3"
+          class="rounded-xl border border-default bg-muted p-3"
         >
-          <div class="mb-2 flex items-center justify-between">
-            <span class="text-[11px] font-bold uppercase tracking-wider text-muted">Baris {{ i + 1 }}</span>
-            <UButton
-              icon="i-lucide-trash-2"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              aria-label="Hapus baris"
-              @click="hapusBaris(i)"
-            />
-          </div>
-          <div class="grid gap-3 sm:grid-cols-2">
-            <UFormField label="Nama item">
+          <div class="grid gap-2 sm:grid-cols-2">
+            <UFormField :label="`Item ${i + 1}`">
               <UInput
                 v-model="b.item"
                 placeholder="Nama barang / jasa"
@@ -147,52 +141,97 @@ async function simpan() {
               />
             </UFormField>
           </div>
-          <div class="mt-3 grid gap-3 sm:grid-cols-4">
+          <div class="mt-2 flex flex-wrap items-end gap-2">
             <UFormField label="Jumlah">
-              <UInput
-                v-model.number="b.qty"
-                type="number"
-                min="1"
-                class="w-full"
-              />
+              <div
+                class="flex items-center gap-1.5"
+                role="group"
+                aria-label="Jumlah"
+              >
+                <UButton
+                  icon="i-lucide-minus"
+                  variant="outline"
+                  square
+                  class="size-10 justify-center lg:size-9"
+                  aria-label="Kurangi jumlah"
+                  @click="b.qty = Math.max(1, (Number(b.qty) || 1) - 1)"
+                />
+                <UInput
+                  v-model.number="b.qty"
+                  type="number"
+                  min="1"
+                  class="w-16"
+                  :ui="{ base: 'text-center font-bold' }"
+                  aria-label="Jumlah"
+                />
+                <UButton
+                  icon="i-lucide-plus"
+                  variant="outline"
+                  square
+                  class="size-10 justify-center lg:size-9"
+                  aria-label="Tambah jumlah"
+                  @click="b.qty = (Number(b.qty) || 0) + 1"
+                />
+              </div>
             </UFormField>
-            <UFormField label="Satuan">
+            <UFormField
+              label="Satuan"
+              class="min-w-24 flex-1"
+            >
               <UInput
                 v-model="b.unit"
                 placeholder="Pack / Orang"
                 class="w-full"
               />
             </UFormField>
-            <UFormField label="Request">
+            <UFormField
+              label="Request"
+              class="min-w-36 flex-1"
+            >
               <USelect
                 v-model="b.by"
                 :items="opsiPeminta"
                 class="w-full"
               />
             </UFormField>
-            <UFormField label="Perkiraan harga">
-              <UInput
-                v-model.number="b.amount"
-                type="number"
-                min="0"
-                placeholder="0"
+            <UFormField
+              label="Perkiraan harga"
+              class="min-w-40 flex-[1.5]"
+            >
+              <AppNominal
+                v-model="b.amount"
+                placeholder="Boleh kosong"
                 class="w-full"
               />
             </UFormField>
+            <UButton
+              icon="i-lucide-trash-2"
+              variant="ghost"
+              color="error"
+              square
+              class="size-10 justify-center lg:size-9"
+              aria-label="Hapus baris"
+              @click="hapusBaris(i)"
+            />
           </div>
         </div>
       </div>
 
       <div>
-        <UButton
-          label="Tambah baris"
-          icon="i-lucide-plus"
-          color="neutral"
-          variant="outline"
-          size="sm"
+        <button
+          type="button"
+          class="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-gold/40 text-sm font-semibold text-gold-deep transition-colors hover:border-gold hover:bg-gold-soft/40 lg:min-h-10"
           @click="tambahBaris"
-        />
-        <span class="ms-2 text-[11px] text-muted">Baris yang nama itemnya kosong diabaikan.</span>
+        >
+          <UIcon
+            name="i-lucide-plus"
+            class="size-4"
+          />
+          Tambah baris
+        </button>
+        <p class="mt-1.5 text-[11px] text-muted">
+          Baris yang nama itemnya kosong diabaikan.
+        </p>
       </div>
     </div>
 

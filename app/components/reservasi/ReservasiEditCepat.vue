@@ -209,6 +209,7 @@ async function simpan() {
   <ResponsiveSheet
     v-model:open="open"
     :title="`Edit cepat — ${r?.name ?? ''}`"
+    lebar="sedang"
   >
     <div
       v-if="r"

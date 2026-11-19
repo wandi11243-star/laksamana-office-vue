@@ -72,6 +72,7 @@ async function simpan() {
     v-model:open="open"
     :title="client ? 'Edit Client' : 'Client Baru'"
     :description="client ? client.nama : 'Tambah kontak ke CRM. Tahapan Lead→Deal hidup di event, bukan di client.'"
+    lebar="sedang"
   >
     <div class="grid gap-4 sm:grid-cols-2">
       <UFormField

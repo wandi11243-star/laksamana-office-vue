@@ -297,6 +297,7 @@ async function hapus() {
     v-model:open="open"
     :title="agenda ? (bolehUbah ? 'Edit agenda' : 'Detail agenda') : 'Agenda baru'"
     description="Agenda internal tim BD."
+    lebar
   >
     <p
       v-if="agenda && !bolehUbah"

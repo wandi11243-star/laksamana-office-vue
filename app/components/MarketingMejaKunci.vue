@@ -40,12 +40,11 @@ async function muat() {
   memuat.value = true
   galat.value = ''
   try {
-    const api = useApi()
     const [master, daftarRes] = await Promise.all([
-      api<Envelope<{ tables?: string[] }>>('/reservasi/master/tables').catch(() => null),
+      daftarMejaReservasi().catch(() => [] as string[]),
       daftarReservasiSemua(props.tanggal, props.tanggal).then(d => ({ data: d })),
     ])
-    daftar.value = master?.data?.tables ?? []
+    daftar.value = master
     const pakai: Record<string, string> = {}
     for (const r of daftarRes?.data ?? []) {
       if (String((r as Record<string, unknown>).id) === resIdKunciMkt(props.ev.id)) continue

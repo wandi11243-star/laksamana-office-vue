@@ -912,6 +912,7 @@ const opsiSub = computed(() => [
     <ResponsiveSheet
       v-model:open="sheetUbah"
       title="Ubah kiriman"
+      lebar="sedang"
     >
       <div class="flex flex-col gap-3">
         <UFormField label="Barang">
