@@ -542,18 +542,18 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
           <UTable
             :data="hal"
             :columns="[
-              { accessorKey: 'tanggal', header: tbl.kepala('tanggal', 'Tanggal'), meta: { class: { th: 'w-24', td: 'w-24' } } },
-              { id: 'jam', header: 'Jam', meta: { class: { th: 'w-24', td: 'w-24' } } },
-              { id: 'nama', header: tbl.kepala('nama', 'Atas Nama') },
-              { id: 'jenis', header: tbl.kepala('jenis', 'Jenis'), meta: { class: { th: 'w-28', td: 'w-28' } } },
-              { id: 'pax', header: tbl.kepala('pax', 'Orang'), meta: { class: { th: 'w-20', td: 'w-20' } } },
+              { accessorKey: 'tanggal', header: tbl.kepala('tanggal', 'Tanggal'), meta: { class: { th: 'w-24', td: 'w-24 whitespace-nowrap' } } },
+              { id: 'jam', header: 'Jam', meta: { class: { th: 'w-24', td: 'w-24 whitespace-nowrap' } } },
+              { id: 'nama', header: tbl.kepala('nama', 'Atas Nama'), meta: { class: { th: 'min-w-[160px]', td: 'min-w-[160px] max-w-[240px]' } } },
+              { id: 'jenis', header: tbl.kepala('jenis', 'Jenis'), meta: { class: { th: 'w-24', td: 'w-24 whitespace-nowrap' } } },
+              { id: 'pax', header: tbl.kepala('pax', 'Orang'), meta: { class: { th: 'w-16', td: 'w-16 whitespace-nowrap' } } },
               { id: 'meja', header: tbl.kepala('meja', 'Meja'), meta: { class: { th: 'w-24', td: 'w-24' } } },
-              { id: 'bayar', header: tbl.kepala('bayar', 'Pembayaran'), meta: { class: { th: 'w-28', td: 'w-28' } } },
-              { id: 'nominal', header: tbl.kepala('nominal', 'Nominal'), meta: { class: { th: 'w-32', td: 'w-32' } } },
-              { id: 'aksi', header: 'Aksi', meta: { class: { th: 'w-44', td: 'w-44' } } },
+              { id: 'bayar', header: tbl.kepala('bayar', 'Pembayaran'), meta: { class: { th: 'w-24', td: 'w-24' } } },
+              { id: 'nominal', header: tbl.kepala('nominal', 'Nominal'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
+              { id: 'aksi', header: 'Aksi', meta: { class: { th: 'w-32', td: 'w-32 whitespace-nowrap' } } },
             ]"
             class="hidden lg:block"
-            :ui="{ base: 'w-full table-fixed', td: 'whitespace-normal', tr: 'cursor-pointer' }"
+            :ui="{ root: 'overflow-x-auto', base: 'w-full table-auto', th: 'px-2.5 py-2.5 text-[11px] whitespace-nowrap', td: 'px-2.5 py-2.5 text-xs whitespace-normal align-top', tr: 'cursor-pointer' }"
             @select="(_e: Event, r: { original: VipMkt }) => { lihatId = r.original.id }"
           >
             <!-- Date and hour in their own columns (owner request, Nov 2026). -->

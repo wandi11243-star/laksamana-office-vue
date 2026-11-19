@@ -63,14 +63,13 @@ const data = computed(() => saringClientMkt(st.value.clients, st.value.events, f
 const urut = computed(() => tbl.susun(data.value))
 const hal = computed(() => tbl.potong(urut.value))
 const kolom: TableColumn<ClientMkt>[] = [
-  // Client + Peluang flex; the rest lock so the table fits without scrolling.
-  { id: 'nama', header: tbl.kepala('nama', 'Client') },
-  { id: 'kontak', header: tbl.kepala('kontak', 'Kontak'), meta: { class: { th: 'w-36', td: 'w-36' } } },
+  { id: 'nama', header: tbl.kepala('nama', 'Client'), meta: { class: { th: 'min-w-[160px]', td: 'min-w-[160px] max-w-[240px]' } } },
+  { id: 'kontak', header: tbl.kepala('kontak', 'Kontak'), meta: { class: { th: 'w-32', td: 'w-32' } } },
   { id: 'source', header: tbl.kepala('source', 'Source'), meta: { class: { th: 'w-24', td: 'w-24' } } },
   { id: 'pic', header: tbl.kepala('pic', 'Marketing PIC'), meta: { class: { th: 'w-28', td: 'w-28' } } },
-  { id: 'peluang', header: tbl.kepala('peluang', 'Peluang'), meta: { class: { th: 'w-48', td: 'w-48' } } },
-  { id: 'spend', header: tbl.kepala('spend', 'Total Spending'), meta: { class: { th: 'w-28', td: 'w-28' } } },
-  { id: 'fu', header: tbl.kepala('fu', 'Next FU'), meta: { class: { th: 'w-24', td: 'w-24' } } },
+  { id: 'peluang', header: tbl.kepala('peluang', 'Peluang'), meta: { class: { th: 'min-w-[140px]', td: 'min-w-[140px] max-w-[200px]' } } },
+  { id: 'spend', header: tbl.kepala('spend', 'Total Spending'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
+  { id: 'fu', header: tbl.kepala('fu', 'Next FU'), meta: { class: { th: 'w-24', td: 'w-24 whitespace-nowrap' } } },
   { id: 'buka', header: '', meta: { class: { th: 'w-10', td: 'w-10' } } },
 ]
 
@@ -243,7 +242,7 @@ async function terapkan() {
             :data="hal"
             :columns="kolom"
             class="hidden lg:block"
-            :ui="{ base: 'w-full table-fixed', thead: 'bg-table-head', th: 'text-table-head-text', td: 'whitespace-normal', tr: 'cursor-pointer' }"
+            :ui="{ root: 'overflow-x-auto', base: 'w-full table-auto', thead: 'bg-table-head', th: 'px-3 py-2.5 text-[11px] whitespace-nowrap text-table-head-text', td: 'px-3 py-2.5 text-xs whitespace-normal align-top', tr: 'cursor-pointer' }"
             @select="(_e: Event, r: { original: ClientMkt }) => lihat(r.original)"
           >
             <template #nama-cell="{ row }">
