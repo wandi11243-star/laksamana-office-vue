@@ -129,6 +129,7 @@ async function simpanOtomatis() {
     autoState.value = 'bersih'
     autoWaktu.value = new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })
     await refreshNuxtData('marketing-state')
+    siarkanTab('marketing-state')
   }
   catch {
     // Someone saved in between: stop auto, say so loudly, keep the typing.

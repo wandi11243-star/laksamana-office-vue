@@ -27,7 +27,7 @@ const inv = computed(() => props.peta[rid.value])
 </script>
 
 <template>
-  <div class="max-w-52 text-sm whitespace-normal">
+  <div class="max-w-44 text-xs leading-snug whitespace-normal">
     <p
       v-if="!siap"
       class="text-muted"
@@ -44,7 +44,7 @@ const inv = computed(() => props.peta[rid.value])
       v-else-if="inv === undefined"
       color="neutral"
       variant="outline"
-      size="sm"
+      size="xs"
       :label="`${label}: status ${galat ? 'gagal dibaca — coba lagi' : '…'}`"
       :title="galat || 'Status invoice belum terbaca dari modul Finance'"
       @click="emit('ulang')"
@@ -52,12 +52,12 @@ const inv = computed(() => props.peta[rid.value])
     <template v-else-if="inv && inv.status === 'DIBUAT'">
       <UButton
         icon="i-lucide-printer"
-        size="sm"
+        size="xs"
         :label="`${label} PDF`"
         :title="`Invoice resmi ${inv.no ?? ''} — bertanda tangan & cap perusahaan`"
         @click="emit('pdf')"
       />
-      <p class="num mt-1 text-xs text-muted">
+      <p class="num mt-0.5 text-[11px] text-muted">
         {{ inv.no ?? '' }}
       </p>
     </template>
@@ -83,14 +83,14 @@ const inv = computed(() => props.peta[rid.value])
           v-if="bisaMinta"
           color="neutral"
           variant="outline"
-          size="sm"
+          size="xs"
           label="Request ulang"
           :title="`Alasan: ${inv.catatan || '-'}`"
           @click="emit('minta')"
         />
         <p
           v-else
-          class="text-xs text-muted"
+          class="text-[11px] text-muted"
         >
           {{ inv.catatan ?? '' }}
         </p>
@@ -100,7 +100,7 @@ const inv = computed(() => props.peta[rid.value])
       v-else-if="bisaMinta"
       color="neutral"
       variant="outline"
-      size="sm"
+      size="xs"
       :label="`Request Invoice ${label}`"
       @click="emit('minta')"
     />
