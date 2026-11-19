@@ -8,7 +8,7 @@
 -->
 <script setup lang="ts">
 import type { BahanHpp, ResepHpp } from '~/utils/pohon-resep'
-import { getHppIngredients, getHppRecipes, hppSettings } from '~/composables/useStock'
+import { getHppBundle } from '~/composables/useStock'
 import { angka, persen, rupiah } from '~/utils/format'
 import {
   ambangOf,
@@ -21,9 +21,12 @@ import {
 
 definePageMeta({ access: ['hpp'] })
 
-const bahanQ = useAsyncData('hpp-dash-bahan', getHppIngredients, { default: () => ({ rows: [] as BahanHpp[] }) })
-const resepQ = useAsyncData('hpp-dash-resep', getHppRecipes, { default: () => ({ rows: [] as ResepHpp[] }) })
-const setQ = useAsyncData('hpp-dash-set', hppSettings, { default: () => ({ data: SET_DEFAULT, versi: undefined }) })
+const hppQ = useAsyncData('hpp-dash', () => getHppBundle(), {
+  default: () => ({ bahan: [] as BahanHpp[], resep: [] as ResepHpp[], setting: SET_DEFAULT, settingVersi: undefined, produk: [] }),
+})
+const bahanQ = { data: computed(() => ({ rows: hppQ.data.value?.bahan ?? [] })), refresh: hppQ.refresh }
+const resepQ = { data: computed(() => ({ rows: hppQ.data.value?.resep ?? [] })), refresh: hppQ.refresh }
+const setQ = { data: computed(() => ({ data: hppQ.data.value?.setting ?? SET_DEFAULT, versi: hppQ.data.value?.settingVersi })), refresh: hppQ.refresh }
 
 const set = computed(() => ({ ...SET_DEFAULT, ...(setQ.data.value?.data ?? {}) }))
 const ctx = computed<KonteksHpp>(() => buatKonteks(
@@ -99,7 +102,7 @@ const warnaCogs = (c: number | null, jenis: string) => {
         label="Segarkan"
         icon="i-lucide-refresh-cw"
         variant="outline"
-        @click="bahanQ.refresh(); resepQ.refresh(); setQ.refresh()"
+        @click="hppQ.refresh()"
       />
     </template>
 

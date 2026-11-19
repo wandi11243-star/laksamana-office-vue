@@ -9,8 +9,9 @@
   S.kalkHistori) is stored as the `documents/kalkHistori` document (G-09).
 -->
 <script setup lang="ts">
-import { getHppIngredients, getHppRecipes, getProducts, hppSettings } from '~/composables/useStock'
+import { getHppBundle } from '~/composables/useStock'
 import { apiErrorMessage } from '~/composables/useApi'
+import { cacheSegar } from '~/utils/cache'
 import { hppMesin } from '~/utils/hpp-mesin'
 import type { BarisKalkMkt, RiwayatKalkMkt } from '~/utils/marketing-kalk'
 import {
@@ -29,12 +30,8 @@ const { saya } = useAksesMkt()
 // kalkAdmin() = pfoAdminModul(): module admin, Superadmin, or the module's Super Admin role.
 const admin = computed(() => isAdminOf(me.value, 'marketing') || saya.value?.user.role === 'super_admin')
 
-const { data: hpp, status, error, refresh } = useAsyncData('mkt-kalk-hpp', async () => {
-  const [b, r, s] = await Promise.all([getHppIngredients(), getHppRecipes(), hppSettings()])
-  // Purchasing products only feed package-unit conversion of the COST — admins only;
-  // a failure there must not take the calculator down (old muatHppKalk).
-  const p = admin.value ? await getProducts().catch(() => ({ rows: [] })) : { rows: [] }
-  return { bahan: b.rows, resep: r.rows, setting: s.data, produk: p.rows }
+const { data: hpp, status, error, refresh } = useAsyncData('mkt-kalk-hpp', () => getHppBundle({ produk: true }), {
+  getCachedData: cacheSegar(),
 })
 
 const mesin = computed(() => {
