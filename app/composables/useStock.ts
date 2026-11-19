@@ -9,20 +9,22 @@ import type { BahanHpp, ResepHpp } from '~/utils/pohon-resep'
 import type { OpnameRingkas, ProdukCatat } from '~/utils/stock-catat'
 import { ifMatch, versiDari, type Versi } from '~/utils/versi'
 import { hasAccess, isAdminOf } from '~/composables/useMe'
+import { bacaCache, stempelCache } from '~/utils/cache'
 
 // ---------------------------------------------------------------- Pohon Resep (read-only panel, module `tree`)
 
 /** `GET /stock/hpp/ingredients` — flat or by-name; normalised to a list. */
+function normalisasiBahanHpp(data: BahanHpp[] | Record<string, BahanHpp>): BahanHpp[] {
+  return Array.isArray(data) ? data : Object.entries(data ?? {}).map(([nama, v]) => ({ nama, ...(v as Partial<BahanHpp>) }))
+}
+
 export async function getHppIngredients(): Promise<{ rows: BahanHpp[] }> {
   const r = await useApi()<Envelope<BahanHpp[] | Record<string, BahanHpp>>>('/stock/hpp/ingredients')
-  const d = r.data as BahanHpp[] | Record<string, BahanHpp>
-  const rows: BahanHpp[] = Array.isArray(d) ? d : Object.entries(d ?? {}).map(([nama, v]) => ({ nama, ...(v as Partial<BahanHpp>) }))
-  return { rows }
+  return { rows: normalisasiBahanHpp(r.data as BahanHpp[] | Record<string, BahanHpp>) }
 }
 
 /** `GET /stock/hpp/recipes` — flat, nested or by-id; normalised to a list. */
-export async function getHppRecipes(): Promise<{ rows: ResepHpp[], versions: Record<string, Versi> }> {
-  const r = await useApi()<Envelope<ResepHpp[] | Record<string, unknown>>>('/stock/hpp/recipes')
+function normalisasiResepHpp(data: ResepHpp[] | Record<string, unknown>): ResepHpp[] {
   const flat: ResepHpp[] = []
   const jalan = (v: unknown) => {
     if (Array.isArray(v)) {
@@ -34,8 +36,13 @@ export async function getHppRecipes(): Promise<{ rows: ResepHpp[], versions: Rec
       else for (const k of Object.keys(o)) jalan(o[k])
     }
   }
-  jalan(r.data)
-  return { rows: flat, versions: (r.meta?.versions ?? {}) as Record<string, Versi> }
+  jalan(data)
+  return flat
+}
+
+export async function getHppRecipes(): Promise<{ rows: ResepHpp[], versions: Record<string, Versi> }> {
+  const r = await useApi()<Envelope<ResepHpp[] | Record<string, unknown>>>('/stock/hpp/recipes')
+  return { rows: normalisasiResepHpp(r.data), versions: (r.meta?.versions ?? {}) as Record<string, Versi> }
 }
 
 // ---------------------------------------------------------------- Usage panel (module `usage`)
@@ -49,6 +56,10 @@ export interface ProdukStock extends ProdukCatat {
   sumber?: string
   /** Preferred CK stock display unit (`''` = automatic; CK goods only). */
   satuanTampil?: string
+}
+
+function normalisasiProdukStock(data: ProdukStock[] | Record<string, ProdukStock>): ProdukStock[] {
+  return Array.isArray(data) ? data : Object.entries(data ?? {}).map(([nama, v]) => ({ nama, ...(v as Partial<ProdukStock>) }))
 }
 
 export interface BarisItemUsage { item: string, qty: number, unit: string, note?: string }
@@ -104,9 +115,7 @@ export interface VersiMap { versions: Record<string, Versi> }
 /** `GET /stock/products` — a list; also accepts the legacy `{nama: {…}}` map. */
 export async function getProducts(): Promise<{ rows: ProdukStock[], versions: Record<string, Versi> }> {
   const r = await useApi()<Envelope<ProdukStock[] | Record<string, ProdukStock>>>('/stock/products')
-  const d = r.data as ProdukStock[] | Record<string, ProdukStock>
-  const rows: ProdukStock[] = Array.isArray(d) ? d : Object.entries(d ?? {}).map(([nama, v]) => ({ nama, ...(v as Partial<ProdukStock>) }))
-  return { rows, versions: (r.meta?.versions ?? {}) as Record<string, Versi> }
+  return { rows: normalisasiProdukStock(r.data as ProdukStock[] | Record<string, ProdukStock>), versions: (r.meta?.versions ?? {}) as Record<string, Versi> }
 }
 
 /**
@@ -1104,6 +1113,29 @@ export interface SettingHpp { targetFood: number, targetDrink: number, buffer: n
 export async function hppSettings() {
   const r = await useApi()<Envelope<SettingHpp>>('/stock/hpp/settings')
   return { data: r.data, versi: versiDari(r) }
+}
+
+/** Read the HPP masters together; products are optional because they only affect cost calculations. */
+export async function getHppBundle(opsi: { produk?: boolean } = {}): Promise<{
+  bahan: BahanHpp[]
+  resep: ResepHpp[]
+  setting: SettingHpp
+  settingVersi?: Versi
+  produk: ProdukStock[]
+}> {
+  const r = await useApi()<Envelope<{
+    ingredients: BahanHpp[] | Record<string, BahanHpp>
+    recipes: ResepHpp[] | Record<string, unknown>
+    settings: SettingHpp
+    products: ProdukStock[] | Record<string, ProdukStock> | null
+  }>>('/stock/hpp/bundle', { params: { products: opsi.produk ? '1' : undefined } })
+  return {
+    bahan: normalisasiBahanHpp(r.data.ingredients),
+    resep: normalisasiResepHpp(r.data.recipes),
+    setting: r.data.settings,
+    settingVersi: (r.meta?.settings_version ?? undefined) as Versi | undefined,
+    produk: r.data.products == null ? [] : normalisasiProdukStock(r.data.products),
+  }
 }
 
 /** `PATCH /stock/hpp/settings` — only the five keys, as numbers. */
