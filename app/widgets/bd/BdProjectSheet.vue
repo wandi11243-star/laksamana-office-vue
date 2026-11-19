@@ -134,6 +134,7 @@ async function hapus() {
     v-model:open="open"
     :title="project ? 'Edit project' : 'Project baru'"
     description="Pekerjaan besar berjangka + milestone."
+    lebar
   >
     <div class="grid grid-cols-1 gap-4">
       <UFormField label="Nama project">

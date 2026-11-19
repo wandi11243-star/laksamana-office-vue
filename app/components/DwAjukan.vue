@@ -197,6 +197,7 @@ function tutupKonfirm() {
     v-model:open="open"
     :title="`Ajukan DW — ${tgl ? fTgl(tgl) : ''}`"
     description="Masuk antrean HRD seperti biasa; modal tetap terbuka supaya bisa menambah orang berikutnya."
+    lebar="sedang"
   >
     <div class="space-y-4">
       <p

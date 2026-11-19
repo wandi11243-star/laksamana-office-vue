@@ -530,6 +530,7 @@ const { jalan, lagi } = useSibuk()
     <ResponsiveSheet
       v-model:open="sheet"
       :title="form.id ? 'Edit task' : 'Task baru'"
+      lebar="sedang"
     >
       <div class="space-y-4">
         <UFormField

@@ -135,6 +135,7 @@ async function simpan() {
     v-model:open="open"
     :title="`Input mingguan — ${p.nama}`"
     :description="`${fTglP(senin)} – ${fTglP(tambahHari(senin, 6))} · ${namaDivisiJadwal(div)}`"
+    lebar="sedang"
   >
     <div class="space-y-4">
       <div class="grid grid-cols-7 gap-1">

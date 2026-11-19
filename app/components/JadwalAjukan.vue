@@ -109,6 +109,7 @@ async function kirim() {
   <ResponsiveSheet
     v-model:open="open"
     title="Ajukan perubahan jadwal"
+    lebar
   >
     <div class="space-y-4">
       <UFormField

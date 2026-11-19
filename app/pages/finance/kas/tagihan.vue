@@ -710,6 +710,7 @@ const namaTagihan = (b: BayarTagihan) => tagihanDari(b.tagihanId)?.nama ?? `(tag
       v-model:open="formBuka"
       :title="formId === null ? 'Tambah tagihan' : `Ubah tagihan — ${form.nama}`"
       description="Mengubah nominal di sini tidak mengubah pembayaran yang sudah tercatat — total yang sudah dibayar tetap memakai angka saat dibayar."
+      lebar="sedang"
     >
       <div class="grid gap-3 sm:grid-cols-2">
         <UFormField
@@ -798,6 +799,7 @@ const namaTagihan = (b: BayarTagihan) => tagihanDari(b.tagihanId)?.nama ?? `(tag
     <ResponsiveSheet
       v-model:open="bayarBuka"
       :title="`Catat pembayaran — ${bayarT?.nama ?? ''}`"
+      lebar="sedang"
     >
       <div class="grid gap-3 sm:grid-cols-2">
         <UFormField label="Jatuh tempo yang dibayar">

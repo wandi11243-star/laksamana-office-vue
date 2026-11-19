@@ -73,6 +73,7 @@ function pilih(k: string | null) {
   <ResponsiveSheet
     v-model:open="open"
     :title="`Isi jadwal · ${total} sel`"
+    lebar
   >
     <div class="space-y-3 text-sm">
       <p class="text-muted">

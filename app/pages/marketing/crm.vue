@@ -414,6 +414,7 @@ async function terapkan() {
       v-model:open="imporBuka"
       title="Import Database Client"
       description="Periksa dulu sebelum diterapkan"
+      lebar
     >
       <template v-if="rencana">
         <UAlert

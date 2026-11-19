@@ -7,7 +7,9 @@
   - drag an empty slot = a new timed agenda (emitted, the page opens the form);
   - drag a block = move its time/day (written straight through the blob API);
   - drag a block's bottom edge = change its end;
-  - a timeless task chip can be dragged onto the grid to give it a time.
+  - a timeless chip (task or agenda) can be dragged onto the grid to give it a
+    time, or onto another day's strip to move only its date;
+  - a block dropped on the "tanpa jam" strip loses its time (owner request, Nov 2026).
   A tap without moving still opens the row (agenda detail / task form).
 
   Only the organiser, a module admin, or (for team agendas) anyone may move or
@@ -212,6 +214,8 @@ interface Seret {
   dur?: number
   /** From a timeless chip: a tap opens the form, only a real drag moves. */
   chip?: boolean
+  /** The pointer is over the "tanpa jam" strip: release = drop the time. */
+  keStrip?: boolean
   aktif: boolean
 }
 const seret = ref<Seret | null>(null)
@@ -223,6 +227,10 @@ let lepasAktifAt = 0
 function klikTanpaJam(t: BdTask) {
   if (Date.now() - lepasAktifAt < 350) return
   emit('buka-task', t)
+}
+function klikTanpaJamAgenda(e: BdAgenda) {
+  if (Date.now() - lepasAktifAt < 350) return
+  emit('buka-agenda', e)
 }
 
 function snap(m: number): number {
@@ -237,10 +245,14 @@ function menitDariTitik(clientX: number, clientY: number, hariIx: number): numbe
   return snap(menitMin.value + ((clientY - r.top) / HH) * 60)
 }
 
-function hariDariTitik(clientX: number, clientY: number): number {
-  const el = document.elementFromPoint(clientX, clientY)?.closest?.('[data-vgkol]')
-  const ix = el ? Number((el as HTMLElement).dataset.vgkol) : NaN
-  return Number.isInteger(ix) && ix >= 0 && ix < props.hari.length ? ix : (seret.value?.hariKini ?? seret.value?.hariIx ?? 0)
+/** The day under the pointer, and whether it is the timeless strip or the hour grid. */
+function sasaranDariTitik(clientX: number, clientY: number): { ix: number, strip: boolean } {
+  const el = document.elementFromPoint(clientX, clientY)?.closest?.('[data-vgkol], [data-tjkol]') as HTMLElement | null | undefined
+  const strip = !!el && el.dataset.tjkol !== undefined
+  const ix = el ? Number(strip ? el.dataset.tjkol : el.dataset.vgkol) : NaN
+  return Number.isInteger(ix) && ix >= 0 && ix < props.hari.length
+    ? { ix, strip }
+    : { ix: seret.value?.hariKini ?? seret.value?.hariIx ?? 0, strip: !!seret.value?.keStrip }
 }
 
 function mulaiTunggu(x: number, y: number, sentuh: boolean) {
@@ -293,13 +305,17 @@ function tekanTepi(e: PointerEvent, b: Blok, ix: number) {
   mulaiTunggu(e.clientX, e.clientY, e.pointerType !== 'mouse')
 }
 
-/** A timeless task chip: dragging it onto the grid gives it a time. */
-function tekanTanpaJam(e: PointerEvent, t: BdTask, ix: number) {
+/**
+ * A timeless chip (task or agenda): dragging it onto the grid gives it a time,
+ * onto another day's strip moves only its date (owner request, Nov 2026).
+ */
+function tekanTanpaJam(e: PointerEvent, x: BdTask | BdAgenda, jenis: 'task' | 'agenda', ix: number) {
   e.stopPropagation()
   if (seret.value || klikKanan(e)) return
+  const boleh = jenis === 'task' || agBisaUbah(x as BdAgenda, props.akuId, admin.value)
   seret.value = {
-    kind: 'pindah', boleh: true, hariIx: ix, asalMin: menitMin.value, minKini: menitMin.value, hariKini: ix,
-    ref: t, jenis: 'task', dur: 60, chip: true, aktif: e.pointerType === 'mouse',
+    kind: 'pindah', boleh, hariIx: ix, asalMin: menitMin.value, minKini: menitMin.value, hariKini: ix,
+    ref: x, jenis, dur: 60, chip: true, keStrip: true, aktif: e.pointerType === 'mouse',
   }
   mulaiTunggu(e.clientX, e.clientY, e.pointerType !== 'mouse')
 }
@@ -335,10 +351,25 @@ function gerak(e: PointerEvent) {
     if (m !== null) s.minKini = m
   }
   else {
-    s.hariKini = hariDariTitik(e.clientX, e.clientY)
-    const m = menitDariTitik(e.clientX, e.clientY, s.hariKini)
-    if (m !== null) s.minKini = m
+    const t = sasaranDariTitik(e.clientX, e.clientY)
+    s.hariKini = t.ix
+    // Only a move may leave the grid for the strip; a resize stays on the grid.
+    s.keStrip = s.kind === 'pindah' && t.strip
+    if (!s.keStrip) {
+      const m = menitDariTitik(e.clientX, e.clientY, s.hariKini)
+      if (m !== null) s.minKini = m
+    }
   }
+}
+
+/** The new RSVP state when an agenda's schedule moves: every invitee is asked again. */
+function undangUlang(e: BdAgenda) {
+  const now = Date.now()
+  const undang = { ...(e.undang || {}) }
+  for (const p of e.peserta || []) {
+    if (p in undang) undang[p] = { at: now, ubah: 1 }
+  }
+  return undang
 }
 
 async function lepas() {
@@ -368,28 +399,24 @@ async function lepas() {
   if (!s.boleh || !s.ref) return
   if (s.kind === 'pindah' && s.jenis === 'agenda') {
     const e = s.ref as BdAgenda
-    const baru = { date: props.hari[s.hariKini]!, start: menitKeJam(s.minKini), end: menitKeJam(s.minKini + (s.dur || 60)) }
+    // Dropped on the strip = a timeless agenda that day; on the grid = that hour.
+    const baru = s.keStrip
+      ? { date: props.hari[s.hariKini]!, start: '', end: '' }
+      : { date: props.hari[s.hariKini]!, start: menitKeJam(s.minKini), end: menitKeJam(s.minKini + (s.dur || 60)) }
     if (!jamAgendaBerubah(e, baru)) return
-    const now = Date.now()
-    const undang = { ...(e.undang || {}) }
     const resp: Record<string, RsvpNilai> = {}
-    for (const p of e.peserta || []) {
-      if (p in undang) {
-        undang[p] = { at: now, ubah: 1 }
-      }
-    }
     const ok = await bdTulisDiam(() => tambalBd<BdAgenda>(
       'agenda', e.id,
-      { date: baru.date, start: baru.start, end: baru.end, resp, undang },
+      { date: baru.date, start: baru.start, end: baru.end, resp, undang: undangUlang(e) },
       versiBaris(e),
     ))
     if (ok) toast.add({ title: 'Jadwal berubah — peserta diminta menjawab ulang', color: 'success' })
   }
   else if (s.kind === 'pindah' && s.jenis === 'task') {
     const t = s.ref as BdTask
-    const jam = menitKeJam(s.minKini)
+    const jam = s.keStrip ? '' : menitKeJam(s.minKini)
     const date = props.hari[s.hariKini]!
-    if (t.deadline === date && t.jam === jam) return
+    if (t.deadline === date && (t.jam || '') === jam) return
     await bdTulisDiam(() => tambalBd<BdTask>('tasks', t.id, { deadline: date, jam }, versiBaris(t)))
   }
   else if (s.kind === 'tepi' && s.jenis === 'agenda') {
@@ -397,14 +424,9 @@ async function lepas() {
     const asal = menitJam(e.start) ?? 0
     const end = menitKeJam(Math.max(s.minKini, asal + SNAP))
     if ((e.end || '') === end) return
-    const now = Date.now()
-    const undang = { ...(e.undang || {}) }
-    for (const p of e.peserta || []) {
-      if (p in undang) undang[p] = { at: now, ubah: 1 }
-    }
     const ok = await bdTulisDiam(() => tambalBd<BdAgenda>(
       'agenda', e.id,
-      { date: e.date, start: e.start || '', end, resp: {}, undang },
+      { date: e.date, start: e.start || '', end, resp: {}, undang: undangUlang(e) },
       versiBaris(e),
     ))
     if (ok) toast.add({ title: 'Jam selesai berubah — peserta diminta menjawab ulang', color: 'success' })
@@ -434,7 +456,7 @@ function tahanGulir(e: TouchEvent) {
 const gayaPratinjau = computed<Record<string, string> | null>(() => {
   const s = seret.value
   // A block I may not move shows no preview: the drag dies on release.
-  if (!s?.aktif || s.kind === 'buat' || !s.ref || !s.boleh) return null
+  if (!s?.aktif || s.kind === 'buat' || !s.ref || !s.boleh || s.keStrip) return null
   if (s.kind === 'pindah') {
     return {
       top: `${((s.minKini - menitMin.value) / 60) * HH}px`,
@@ -508,16 +530,18 @@ const hariIni = todayISO()
       <div
         v-for="(d, ix) in hari"
         :key="d"
-        class="flex min-w-0 flex-col gap-1.5 border-l border-default px-2 py-2"
+        class="flex min-w-0 flex-col gap-1.5 border-l border-default px-2 py-2 transition-colors"
+        :class="seret?.aktif && seret.keStrip && seret.boleh && seret.hariKini === ix ? 'bg-gold-soft ring-2 ring-inset ring-gold' : ''"
         data-tanpajam
+        :data-tjkol="ix"
       >
         <button
           v-for="t in tanpaJam[d]!.task"
           :key="t.id"
           type="button"
           class="block w-full cursor-grab truncate rounded-md border border-default border-l-[3px] border-l-error bg-default px-2 py-1 text-left text-[11px] font-medium text-highlighted shadow-xs hover:border-error/50"
-          :title="`Deadline — seret ke grid untuk memberi jam — ${t.name}`"
-          @pointerdown="tekanTanpaJam($event, t, ix)"
+          :title="`Deadline — seret ke hari lain atau ke grid untuk memberi jam — ${t.name}`"
+          @pointerdown="tekanTanpaJam($event, t, 'task', ix)"
           @click="klikTanpaJam(t)"
         >
           ◆ {{ t.name }}
@@ -527,8 +551,10 @@ const hariIni = todayISO()
           :key="e.id"
           type="button"
           class="block w-full truncate rounded-md border border-default border-l-[3px] border-l-yellow-deep bg-default px-2 py-1 text-left text-[11px] font-medium text-highlighted shadow-xs hover:border-accented"
-          :title="`${e.type || 'Agenda'} — ${e.title}`"
-          @click="emit('buka-agenda', e)"
+          :class="agBisaUbah(e, akuId, admin) ? 'cursor-grab' : ''"
+          :title="`${e.type || 'Agenda'} — ${e.title}${agBisaUbah(e, akuId, admin) ? ' (seret ke hari lain atau ke grid untuk memberi jam)' : ''}`"
+          @pointerdown="tekanTanpaJam($event, e, 'agenda', ix)"
+          @click="klikTanpaJamAgenda(e)"
         >
           {{ e.title }}
         </button>
@@ -623,7 +649,7 @@ const hariIni = todayISO()
       </div>
     </div>
     <div class="flex flex-wrap items-center gap-x-4 gap-y-1.5 border-t border-default px-3 py-2.5 text-xs text-muted">
-      <span>Seret slot kosong untuk membuat agenda berjam · seret blok untuk pindah · seret tepi bawah untuk ubah selesai (snap 15 menit).</span>
+      <span>Seret slot kosong untuk membuat agenda berjam · seret blok untuk pindah (ke baris “tanpa jam” untuk melepas jamnya) · seret tepi bawah untuk ubah selesai (snap 15 menit).</span>
       <span>Hanya penyelenggara, admin, atau agenda tim yang bisa menggeser agenda — jadwal bergeser = peserta menjawab ulang.</span>
     </div>
   </div>

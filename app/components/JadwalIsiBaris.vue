@@ -74,6 +74,7 @@ function simpan() {
   <ResponsiveSheet
     v-model:open="open"
     :title="`Isi satu baris — ${target?.nama ?? ''} · ${terisi}/7`"
+    lebar
   >
     <div class="space-y-3 text-sm">
       <div class="grid grid-cols-7 gap-1">

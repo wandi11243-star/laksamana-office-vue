@@ -170,6 +170,7 @@ async function kirim() {
   <ResponsiveSheet
     v-model:open="open"
     :title="edit ? 'Ubah permintaan' : 'Minta Daily Worker'"
+    lebar="sedang"
   >
     <div class="space-y-4">
       <p

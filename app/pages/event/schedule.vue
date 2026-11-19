@@ -862,6 +862,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
       <ResponsiveSheet
         v-model:open="sheetTambah"
         title="Tambah jadwal"
+        lebar="sedang"
       >
         <div class="grid grid-cols-1 gap-3">
           <p
@@ -948,6 +949,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
         v-model:open="sheetMinggu"
         title="Input mingguan"
         :description="labelMinggu"
+        lebar="sedang"
       >
         <div class="mb-3 flex items-center gap-2">
           <UButton
@@ -1051,6 +1053,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
       <ResponsiveSheet
         v-model:open="sheetRutin"
         title="Jadwal recurring"
+        lebar="sedang"
       >
         <div class="grid grid-cols-1 gap-3">
           <UFormField label="Cari talent">
@@ -1158,6 +1161,7 @@ const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
       <ResponsiveSheet
         v-model:open="sheetBulan"
         title="Generate bulanan"
+        lebar="sedang"
       >
         <div class="grid grid-cols-1 gap-3">
           <UFormField label="Talent (boleh banyak)">

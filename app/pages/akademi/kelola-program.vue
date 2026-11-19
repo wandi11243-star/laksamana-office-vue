@@ -399,6 +399,7 @@ const programBerjalan = computed(() => daftar.value.find(p => p.bulan === kunciB
     <ResponsiveSheet
       v-model:open="formOpen"
       :title="formId ? 'Edit Program Bulanan' : 'Buat Program Bulanan'"
+      lebar="sedang"
     >
       <div class="space-y-3">
         <div class="grid gap-3 sm:grid-cols-2">

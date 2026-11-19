@@ -399,6 +399,7 @@ const opsiJenis = EVENT_TYPES.map(t => ({ value: t.value, label: t.label }))
     <ResponsiveSheet
       v-model:open="sheet"
       :title="form.id ? 'Edit event' : 'Event baru'"
+      lebar="sedang"
     >
       <div class="space-y-4">
         <UFormField

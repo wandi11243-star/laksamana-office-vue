@@ -648,6 +648,7 @@ async function hapus() {
       v-model:open="sheet"
       :title="judulSheet"
       :description="deskripsiSheet"
+      lebar="sedang"
     >
       <div class="space-y-4">
         <div v-if="!isBd">

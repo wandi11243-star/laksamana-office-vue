@@ -146,6 +146,7 @@ async function hapus() {
   <ResponsiveSheet
     v-model:open="open"
     :title="`${task ? 'Edit' : 'Tambah'} ${p.label}`"
+    lebar="sedang"
   >
     <div class="grid gap-4 sm:grid-cols-2">
       <UFormField

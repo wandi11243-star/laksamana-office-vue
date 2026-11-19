@@ -510,6 +510,7 @@ const kolomGerak: TableColumn<CkMutasi>[] = [
     <ResponsiveSheet
       v-model:open="sheet"
       :title="form.id ? 'Ubah mutasi' : 'Catat mutasi manual'"
+      lebar="sedang"
     >
       <div class="flex flex-col gap-3">
         <UFormField :label="`Barang ${info.singkat}`">

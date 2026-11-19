@@ -249,6 +249,27 @@ export function barisReservasiVipMkt(v: VipMkt, dps: DpVipMkt[], perusahaan: str
   }
 }
 
+/**
+ * Update an EXISTING Reservasi row from its Marketing booking (owner request,
+ * Nov 2026: a renamed guest, a moved date or new tables never reached
+ * Reservasi). Only the fields Marketing owns are written — name, phone, date,
+ * time, pax, tables, notes, PIC and the Marketing DP rows (merged so the
+ * crew's own instalments and verifications stay). What the Reservasi crew
+ * records on the day (status, check-in, arrivals, follow-ups, actual pax)
+ * is never reset, unlike a fresh barisReservasiVipMkt.
+ */
+export function sinkronBarisReservasiVipMkt(lama: Record<string, unknown>, v: VipMkt, dpsBaru: DpVipMkt[], perusahaan: string, namaPic: string, kini = Date.now()) {
+  const dps = gabungDpsVipMkt((Array.isArray(lama.dps) ? lama.dps : []) as DpVipMkt[], dpsBaru)
+  const b = barisReservasiVipMkt(v, dps, perusahaan, namaPic, String(lama.createdBy ?? ''), kini)
+  return {
+    ...lama,
+    name: b.name, phone: b.phone, date: b.date, time: b.time, pax: b.pax, table: b.table,
+    notes: b.notes, picName: b.picName, vip: true, dps,
+    ...ringkasDpVipMkt(dps),
+    updatedAt: kini,
+  }
+}
+
 /** Rebuild the Marketing row from its Reservasi row (vipDariReservasi).
  * Assisted on any doubt: it demands a nominal, so a wrong guess shows up as
  * a visible bill — never as silently uncounted turnover. */

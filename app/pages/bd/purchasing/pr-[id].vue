@@ -708,30 +708,43 @@ const { jalan, lagi } = useSibuk()
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  /* Fit the page width: no sideways scroll box, no minimum column widths,
-     long words and amounts may wrap, smaller type and tighter cells. */
+  /* Fit the page width: no sideways scroll box, no minimum column widths.
+     Type stays readable (owner request, Nov 2026: the PDF came out tiny) and
+     an amount never breaks between "Rp" and its number — only the free-text
+     columns (item, reason) wrap. */
   .bd-cetak .overflow-x-auto {
     overflow: visible !important;
+  }
+  .bd-info {
+    grid-template-columns: auto 1fr auto 1fr auto 1fr !important;
+    font-size: 12px;
   }
   .bd-tabel {
     width: 100% !important;
     table-layout: auto;
-    font-size: 9.5px;
+    font-size: 12px;
   }
   .bd-tabel th,
   .bd-tabel td {
     min-width: 0 !important;
-    white-space: normal !important;
+    white-space: normal;
     overflow-wrap: break-word;
     border-color: var(--ui-text-dimmed);
-    padding: 0.3rem 0.4rem;
+    padding: 0.45rem 0.5rem;
   }
   .bd-tabel th {
-    font-size: 8px;
+    font-size: 9.5px;
     letter-spacing: 0;
+    white-space: nowrap;
+  }
+  .bd-tabel td.num,
+  .bd-tabel td.whitespace-nowrap,
+  .bd-tabel td .only-print {
+    white-space: nowrap !important;
+    overflow-wrap: normal;
   }
   .bd-tabel td .text-xs {
-    font-size: 8px;
+    font-size: 10px;
   }
   .bd-tabel tr {
     break-inside: avoid;

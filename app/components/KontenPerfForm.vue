@@ -76,6 +76,7 @@ async function simpan() {
   <ResponsiveSheet
     v-model:open="open"
     :title="`Performa: ${item?.title || '(tanpa judul)'}`"
+    lebar
   >
     <div class="space-y-4">
       <p class="text-sm text-muted">

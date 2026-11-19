@@ -380,6 +380,7 @@ const lewat = (p: HlifeProject) => !!p.due && p.due < hari && stageAktif(p) !== 
     <ResponsiveSheet
       v-model:open="sheet"
       :title="form.id ? 'Edit project' : 'Project baru'"
+      lebar="sedang"
     >
       <div class="space-y-4">
         <UFormField

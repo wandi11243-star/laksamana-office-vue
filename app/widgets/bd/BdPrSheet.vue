@@ -59,6 +59,7 @@ async function simpan() {
   <ResponsiveSheet
     v-model:open="open"
     :title="`Kepala surat PR-${pr?.no || '?'}`"
+    lebar
   >
     <div class="grid grid-cols-1 gap-4">
       <div class="grid gap-4 sm:grid-cols-2">

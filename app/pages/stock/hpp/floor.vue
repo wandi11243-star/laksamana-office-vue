@@ -222,6 +222,7 @@ async function hapus(b: BahanHpp) {
     <ResponsiveSheet
       v-model:open="sheet"
       title="Ubah harga"
+      lebar="sedang"
     >
       <div class="flex flex-col gap-3">
         <div class="grid grid-cols-3 gap-2">

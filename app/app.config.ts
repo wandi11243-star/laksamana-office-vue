@@ -1,5 +1,16 @@
 // Nuxt UI defaults for the Laksamana look (DESIGN.md): light, technical,
 // gold-accented. Change the look here, not in pages.
+// One field height per size, the same as AppTanggal / AppJam / AppBulan
+// (owner request, Nov 2026: a USelect next to an AppJam looked a size smaller).
+// Desktop only (lg+): phones keep Nuxt UI's own compact fields (owner, Nov 2026).
+const TINGGI_FIELD = {
+  xs: { base: 'lg:min-h-7' },
+  sm: { base: 'lg:min-h-8' },
+  md: { base: 'lg:min-h-9' },
+  lg: { base: 'lg:min-h-10' },
+  xl: { base: 'lg:min-h-12' },
+}
+
 export default defineAppConfig({
   ui: {
     colors: {
@@ -22,6 +33,11 @@ export default defineAppConfig({
     // `enabled:` keeps disabled fields still.
     input: {
       slots: { base: 'rounded-field transition-colors enabled:hover:ring-gold' },
+      variants: { size: TINGGI_FIELD },
+    },
+    inputMenu: {
+      slots: { base: 'rounded-field transition-colors enabled:hover:ring-gold' },
+      variants: { size: TINGGI_FIELD },
     },
     // Dropdowns (every USelect / USelectMenu in the app): a roomy rounded panel
     // with a soft shadow, gold-tinted hover, the chosen item bold in deep gold
@@ -38,7 +54,11 @@ export default defineAppConfig({
         item: 'before:rounded-lg data-highlighted:not-data-disabled:before:bg-gold-soft/60 data-[state=checked]:font-semibold data-[state=checked]:text-gold-deep',
         itemTrailingIcon: 'text-gold-deep',
       },
-      variants: { size: { sm: { item: 'px-2.5 py-1.5 text-xs' }, md: { item: 'px-2.5 py-2 text-sm' } } },
+      variants: { size: {
+        ...TINGGI_FIELD,
+        sm: { ...TINGGI_FIELD.sm, item: 'px-2.5 py-1.5 text-xs' },
+        md: { ...TINGGI_FIELD.md, item: 'px-2.5 py-2 text-sm' },
+      } },
     },
     selectMenu: {
       slots: {
@@ -51,7 +71,11 @@ export default defineAppConfig({
         item: 'before:rounded-lg data-highlighted:not-data-disabled:before:bg-gold-soft/60 data-[state=checked]:font-semibold data-[state=checked]:text-gold-deep',
         itemTrailingIcon: 'text-gold-deep',
       },
-      variants: { size: { sm: { item: 'px-2.5 py-1.5 text-xs' }, md: { item: 'px-2.5 py-2 text-sm' } } },
+      variants: { size: {
+        ...TINGGI_FIELD,
+        sm: { ...TINGGI_FIELD.sm, item: 'px-2.5 py-1.5 text-xs' },
+        md: { ...TINGGI_FIELD.md, item: 'px-2.5 py-2 text-sm' },
+      } },
     },
     textarea: {
       slots: { base: 'rounded-field transition-colors enabled:hover:ring-gold' },

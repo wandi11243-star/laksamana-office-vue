@@ -352,6 +352,7 @@ function keGcal(c: HlifeContent) {
     <ResponsiveSheet
       v-model:open="sheet"
       :title="form.id ? 'Edit konten' : 'Konten baru'"
+      lebar="sedang"
     >
       <div class="space-y-4">
         <UFormField

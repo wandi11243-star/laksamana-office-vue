@@ -205,6 +205,7 @@ async function hapus(p: PembayaranMkt) {
     v-model:open="buka"
     :title="tampilan === 'form' ? (ubahId ? 'Ubah Pembayaran' : 'Catat Pembayaran') : tampilan === 'tambahan' ? 'Tambahan Open Bill' : 'Pembayaran'"
     :description="ev ? `${ev.nama} · ${namaClient}` : ''"
+    lebar="sedang"
   >
     <template v-if="ev && uang">
       <!-- ---- history ---- -->

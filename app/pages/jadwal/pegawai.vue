@@ -444,6 +444,7 @@ async function jalanHapus() {
     <ResponsiveSheet
       v-model:open="formOpen"
       :title="formId ? `Ubah data diri — ${f.name}` : 'Tambah kru'"
+      lebar="sedang"
     >
       <div class="grid gap-3 lg:grid-cols-2">
         <UFormField

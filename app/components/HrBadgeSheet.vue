@@ -71,6 +71,7 @@ async function simpan() {
   <ResponsiveSheet
     v-model:open="open"
     title="Beri badge"
+    lebar="sedang"
   >
     <div class="space-y-3">
       <UFormField label="Kru">

@@ -146,6 +146,7 @@ async function hapus() {
   <ResponsiveSheet
     v-model:open="open"
     :title="po ? 'Edit purchase order' : 'Purchase order baru'"
+    lebar
   >
     <div class="grid grid-cols-1 gap-4">
       <p

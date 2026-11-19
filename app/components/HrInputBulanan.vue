@@ -76,6 +76,7 @@ async function simpan() {
   <ResponsiveSheet
     v-model:open="open"
     :title="`Input data bulanan, ${labelBulanJadwal(mk)}`"
+    lebar="sedang"
   >
     <div class="space-y-3">
       <p class="rounded-field bg-info/10 px-3 py-2 text-sm">

@@ -88,6 +88,7 @@ async function simpan() {
   <ResponsiveSheet
     v-model:open="open"
     :title="t ? `Catat hasil, ${t.title}` : 'Catat hasil'"
+    lebar="sedang"
   >
     <div
       v-if="t"

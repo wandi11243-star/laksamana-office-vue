@@ -576,6 +576,7 @@ async function segarkan() {
       v-model:open="sheetItem"
       title="Item baru"
       description="Item ini disimpan ke database produk dan langsung muncul di lembar hitung."
+      lebar="sedang"
     >
       <div class="space-y-3">
         <UFormField label="Nama item">

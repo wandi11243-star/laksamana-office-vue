@@ -86,6 +86,7 @@ async function simpan() {
     v-model:open="open"
     title="Event Baru"
     description="Pilih client dari CRM, atau buat client baru langsung di sini."
+    lebar="sedang"
   >
     <div class="grid gap-4 sm:grid-cols-2">
       <UFormField

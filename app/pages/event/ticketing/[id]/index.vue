@@ -1277,6 +1277,7 @@ function labelKursiTiket(sid?: string) {
       <ResponsiveSheet
         v-model:open="sheetKelas"
         :title="kelasId ? 'Edit kelas tiket' : 'Kelas tiket baru'"
+        lebar="sedang"
       >
         <div class="grid grid-cols-1 gap-3">
           <UFormField

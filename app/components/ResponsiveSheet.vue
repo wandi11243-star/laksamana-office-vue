@@ -13,6 +13,13 @@ defineProps<{
   description?: string
   /** Wider modal and bounded, independently scrollable body for long record details. */
   detail?: boolean
+  /**
+   * Wider dialog for a form whose fields sit side by side (owner request,
+   * Nov 2026: "Rabu, 18…" was cut in a 3-column row of the default 512px
+   * dialog). `true` = 896px for three or more columns; 'sedang' = 672px for two
+   * columns holding a date / hour field. Phones are unaffected (bottom sheet).
+   */
+  lebar?: boolean | 'sedang'
 }>()
 
 const open = defineModel<boolean>('open', { default: false })
@@ -29,7 +36,7 @@ const desktop = useMediaQuery('(min-width: 1024px)')
       content: 'max-w-4xl rounded-xl',
       body: 'max-h-[72vh] overflow-y-auto',
       footer: 'flex-wrap justify-end',
-    } : undefined"
+    } : lebar ? { content: lebar === 'sedang' ? 'max-w-2xl' : 'max-w-4xl' } : undefined"
   >
     <template
       v-if="$slots.title"
