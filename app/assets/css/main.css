@@ -177,6 +177,29 @@
   --color-seat-floor: #F7F6F4;
   --color-seat-ink: #2A2620;
   --color-seat-line: #D6CEBD;
+
+  /*
+    Table STATUS fills, the old Reservasi plan's own colours (owner request,
+    Nov 2026: "layoutnya saya lebih suka yang ada di office lama … warnanya
+    juga"). Since then a table's fill is its status; the zone keeps only its
+    shape (round green tables). Values copied from deploy/reservasi .seat.*.
+  */
+  --color-meja-kosong: #EFE6CE;
+  --color-meja-kosong-ink: #5A4A2A;
+  --color-meja-kosong-line: #D8C9A5;
+  --color-meja-pending: #E0A82E;
+  --color-meja-pending-ink: #3A2A00;
+  --color-meja-confirmed: #1F9D5F;
+  --color-meja-confirmed-line: #177A49;
+  --color-meja-datang: #C9432B;
+  --color-meja-sisa: #2F7FC4;
+  --color-meja-sharing: #7C5FC0;
+  --color-meja-dipesan: #DDEFF2;
+  --color-meja-dipesan-line: #2F7D8C;
+  --color-meja-dipesan-ink: #1B5A66;
+  --color-meja-lain: #6B6456;
+  --color-meja-note-sisa: #1B6FB8;
+  --color-meja-note-penuh: #A33526;
 }
 
 :root {

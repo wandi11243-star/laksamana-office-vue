@@ -46,10 +46,18 @@ const saldoQ = useAsyncData(`stock-gudang-saldo-${props.gudang}`, () => ckBalanc
 /** Stock tab search: item name or its category, case-insensitive. */
 const cariStok = ref('')
 const kategoriOf = (item: string) => String(produkQ.data.value?.rows.find(p => p.nama === item)?.kategori ?? '')
+// Minus first, then empty, then the rest A–Z (owner request, Nov 2026: what
+// ran out must be the first thing the crew sees, to be checked).
+const urutanStok = (n: number) => (n < 0 ? 0 : n === 0 ? 1 : 2)
 const saldoTampil = computed(() => {
   const q = cariStok.value.trim().toLowerCase()
-  return q ? saldo.value.filter(s => `${s.item} ${kategoriOf(s.item)}`.toLowerCase().includes(q)) : saldo.value
+  const rows = q ? saldo.value.filter(s => `${s.item} ${kategoriOf(s.item)}`.toLowerCase().includes(q)) : saldo.value
+  return rows.slice().sort((a, b) => urutanStok(a.saldo) - urutanStok(b.saldo)
+    || (a.saldo < 0 && b.saldo < 0 ? a.saldo - b.saldo : 0)
+    || a.item.localeCompare(b.item, 'id'))
 })
+const jumlahMinus = computed(() => saldoTampil.value.filter(s => s.saldo < 0).length)
+const jumlahHabis = computed(() => saldoTampil.value.filter(s => s.saldo === 0).length)
 // Only this warehouse's goods, even when the ledger still holds a moved product's old rows.
 const saldo = computed(() => saringSaldoGudang(saldoQ.data.value?.rows ?? [], produkQ.data.value?.rows ?? [], props.gudang))
 
@@ -466,6 +474,18 @@ const opsiSub = computed(() => [
           </UInput>
           <p class="text-sm text-muted">
             Angka besar = pack (atau satuan beli terkecil), angka kecil = satuan dasarnya.
+            <template v-if="jumlahMinus || jumlahHabis">
+              ·
+              <b
+                v-if="jumlahMinus"
+                class="text-error"
+              >{{ jumlahMinus }} minus</b><template v-if="jumlahMinus && jumlahHabis">
+                ,
+              </template><b
+                v-if="jumlahHabis"
+                class="text-error"
+              >{{ jumlahHabis }} habis</b> — ditaruh paling atas.
+            </template>
           </p>
         </div>
         <div class="hidden lg:block">
@@ -477,6 +497,15 @@ const opsiSub = computed(() => [
             <template #item-cell="{ row }">
               <div>
                 <b class="text-highlighted">{{ row.original.item }}</b>
+                <AppStatus
+                  v-if="row.original.saldo <= 0"
+                  color="error"
+                  :icon="row.original.saldo < 0 ? 'i-lucide-circle-minus' : 'i-lucide-package-x'"
+                  size="sm"
+                  class="ms-2"
+                >
+                  {{ row.original.saldo < 0 ? 'Minus' : 'Habis' }}
+                </AppStatus>
                 <p
                   v-if="stokTampil[row.original.item]?.ket"
                   class="text-xs text-dimmed"
@@ -489,7 +518,7 @@ const opsiSub = computed(() => [
               <div class="text-right">
                 <b
                   class="num text-base"
-                  :class="row.original.saldo < 0 ? 'text-error' : 'text-highlighted'"
+                  :class="row.original.saldo <= 0 ? 'text-error' : 'text-highlighted'"
                 >{{ stokTampil[row.original.item]?.utama }}</b>
                 <p
                   v-if="stokTampil[row.original.item]?.kecil"
@@ -515,6 +544,15 @@ const opsiSub = computed(() => [
           >
             <div>
               <b class="text-highlighted">{{ s.item }}</b>
+              <AppStatus
+                v-if="s.saldo <= 0"
+                color="error"
+                :icon="s.saldo < 0 ? 'i-lucide-circle-minus' : 'i-lucide-package-x'"
+                size="sm"
+                class="ms-2"
+              >
+                {{ s.saldo < 0 ? 'Minus' : 'Habis' }}
+              </AppStatus>
               <p
                 v-if="stokTampil[s.item]?.ket"
                 class="text-xs text-dimmed"
@@ -528,7 +566,7 @@ const opsiSub = computed(() => [
             <div class="text-right">
               <b
                 class="num text-lg"
-                :class="s.saldo < 0 ? 'text-error' : 'text-highlighted'"
+                :class="s.saldo <= 0 ? 'text-error' : 'text-highlighted'"
               >{{ stokTampil[s.item]?.utama }}</b>
               <p
                 v-if="stokTampil[s.item]?.kecil"

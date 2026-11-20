@@ -2,8 +2,9 @@
   Marketing › VIP table lock (vipSimpanKunci, :18062). Writes the
   `vip-<id>` Reservasi record through kirimVipKeReservasi — a new one whole
   (Confirmed, vip:true), an existing one updated in place so the crew's
-  check-in and own instalments survive — with the H-3 lock window. Occupied tables
-  come from that day's reservations; failures change nothing, loudly.
+  check-in and own instalments survive — with the H-3 lock window. Tables are
+  picked on the Reservasi plan itself (MarketingDenahPilih, owner request Nov
+  2026), with that day's bookings coloured; failures change nothing, loudly.
 -->
 <script setup lang="ts">
 import type { VipMkt } from '~/utils/marketing'
@@ -24,43 +25,15 @@ const emit = defineEmits<{ kunci: [meja: string[], resId: string] }>()
 const toast = useToast()
 
 const buka = defineModel<boolean>('buka', { default: false })
-const memuat = ref(false)
 const mengunci = ref(false)
-const daftar = ref<string[]>([])
-const terpakai = ref<Record<string, string>>({})
 const pilih = ref<string[]>([])
-const galat = ref('')
 const jam = computed(() => jamAtau00Mkt(props.vip.jamMulai))
+const denah = ref<{ muat: () => Promise<void> } | null>(null)
 
-async function muat() {
-  if (!props.vip.tanggal) {
-    galat.value = 'Isi tanggal dulu — meja dikunci per tanggal.'
-    return
-  }
-  memuat.value = true
-  galat.value = ''
-  try {
-    const [meja, pakai] = await Promise.all([daftarMejaReservasi(), mejaTerpakaiVip(props.vip)])
-    daftar.value = meja
-    terpakai.value = pakai
-    pilih.value = [...(props.vip.meja ?? [])]
-    if (!daftar.value.length) galat.value = 'Modul Reservasi belum punya daftar meja. Isi dulu di Master data Reservasi.'
-  }
-  catch (e) {
-    galat.value = `Reservasi tidak terjangkau: ${apiErrorMessage(e)}. Belum ada yang berubah — coba lagi.`
-  }
-  finally {
-    memuat.value = false
-  }
-}
+// Every opening starts from the booking's own tables.
 watch(buka, (v) => {
-  if (v) void muat()
+  if (v) pilih.value = [...(props.vip.meja ?? [])]
 }, { immediate: true })
-
-function toggle(m: string) {
-  if (terpakai.value[m] && !pilih.value.includes(m)) return
-  pilih.value = pilih.value.includes(m) ? pilih.value.filter(x => x !== m) : [...pilih.value, m]
-}
 
 async function simpanKunci() {
   if (!pilih.value.length) {
@@ -74,7 +47,7 @@ async function simpanKunci() {
     buka.value = false
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, muat))) toast.add({ title: 'Gagal mengunci di Reservasi', description: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, () => denah.value?.muat() ?? Promise.resolve()))) toast.add({ title: 'Gagal mengunci di Reservasi', description: apiErrorMessage(e), color: 'error' })
   }
   finally {
     mengunci.value = false
@@ -123,38 +96,27 @@ async function simpanKunci() {
       v-model:open="buka"
       title="Pilih & Kunci Meja"
       :description="`${vip.nama} · ${vip.tanggal || '(tanggal belum diisi)'} · kunci H-${VIP_LOCK_LEAD_MIN / 60} jam dari ${jam}`"
+      lebar="penuh"
     >
-      <p
-        v-if="memuat"
-        class="py-6 text-center text-sm text-muted"
-      >
-        Menghubungi modul Reservasi…
-      </p>
+      <UAlert
+        v-if="!vip.tanggal"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        description="Isi tanggal dulu — meja dikunci per tanggal."
+      />
       <template v-else>
-        <UAlert
-          v-if="galat"
-          color="warning"
-          variant="subtle"
-          icon="i-lucide-triangle-alert"
-          :description="galat"
-          class="mb-3"
-        />
         <p class="mb-2 text-xs text-muted">
-          Daftar meja dari modul Reservasi. Klik meja untuk mengunci — boleh lebih dari satu, dan boleh lintas lantai. Meja abu-abu sudah dipesan tamu lain.
+          Denah yang sama dengan modul Reservasi. Klik meja untuk mengunci — boleh lebih dari satu, dan boleh lintas lantai.
         </p>
-        <div class="flex flex-wrap gap-2">
-          <UButton
-            v-for="m in daftar"
-            :key="m"
-            :label="m"
-            size="sm"
-            :color="pilih.includes(m) ? 'primary' : 'neutral'"
-            :variant="pilih.includes(m) ? 'solid' : terpakai[m] ? 'soft' : 'outline'"
-            :disabled="!!terpakai[m] && !pilih.includes(m)"
-            :title="terpakai[m] ? `Dipesan ${terpakai[m]}` : m"
-            @click="toggle(m)"
-          />
-        </div>
+        <MarketingDenahPilih
+          ref="denah"
+          v-model="pilih"
+          :tanggal="vip.tanggal"
+          :jam="jam"
+          :kecuali-id="resIdVipMkt(vip)"
+          :pax="Number(vip.paxMax) || Number(vip.paxMin) || 0"
+        />
         <div class="mt-4 flex justify-end gap-2">
           <UButton
             label="Batal"

@@ -197,7 +197,8 @@ export const VENUE_LAYOUTS: Record<string, LayoutDenah> = {
       ...col(seq('M', 1, 10), 175, 40, 125, 46, 12, '2', 'blue'),
       ...col(seq('M', 31, 40), 1175, 40, 125, 46, 12, '2', 'blue'),
       ...col([71, 72, 73, 74, 75], 1430, 40, 95, 90, 22, '4', 'vip'),
-      ...row(seq('M', 11, 27), 175, 680, 68, 70, 9, '2', 'blue'),
+      // M11–M27 span exactly the middle "LAYOUT LANTAI 2" box (x 340–1160), not past it (owner, Nov 2026).
+      ...row(seq('M', 11, 27), 340, 680, 44, 70, 4.5, '2', 'blue'),
       { id: '61', x: 30, y: 780, w: 120, h: 85, cap: '4', zone: 'blue' },
       { id: '87', x: 1345, y: 800, w: 70, h: 70, cap: '2', zone: 'blue' },
       { id: '62', x: 30, y: 895, w: 100, h: 70, cap: '4', zone: 'blue' },
@@ -231,7 +232,8 @@ export const VENUE_LAYOUTS: Record<string, LayoutDenah> = {
       ...col(seq('M', 1, 10), 175, 40, 125, 46, 12, '2', 'blue'),
       ...col(seq('M', 31, 40), 1175, 40, 125, 46, 12, '2', 'blue'),
       ...col([71, 72, 73, 74, 75], 1430, 40, 95, 90, 22, '4', 'vip'),
-      ...row(seq('M', 11, 27), 175, 680, 68, 70, 9, '2', 'blue'),
+      // M11–M27 span exactly the middle "LAYOUT LANTAI 2" box (x 340–1160), not past it (owner, Nov 2026).
+      ...row(seq('M', 11, 27), 340, 680, 44, 70, 4.5, '2', 'blue'),
       { id: '61', x: 30, y: 780, w: 120, h: 85, cap: '4', zone: 'blue' },
       { id: '87', x: 1345, y: 800, w: 70, h: 70, cap: '2', zone: 'blue' },
       { id: '62', x: 30, y: 895, w: 100, h: 70, cap: '4', zone: 'blue' },

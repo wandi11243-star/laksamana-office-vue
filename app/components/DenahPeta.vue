@@ -11,9 +11,9 @@
     'pilih'   the booking form — clicking picks a table, and a table that is
               locked but overridable asks first.
 
-  A table's FILL is its zone, not its status: the zone is how the crew names a
-  table on the floor ("yang di area kayu"). Status rides on top as a dot, and
-  DenahLegenda names the colours.
+  A table's FILL is its STATUS, in the old Reservasi plan's colours (owner
+  request, Nov 2026), with the free chairs written under each table ("bisa 4-5
+  pax"). DenahLegenda names the colours with the old wording.
 
   Geometry is a fixed 1600x1160 canvas turned into percentages, so the plan
   follows any width without distorting — the same trick as the old
@@ -26,7 +26,7 @@ import type { LayoutDenah, MasterDenah } from '~/utils/venue-layouts'
 import { SEAT_W, SEAT_H, capMax } from '~/utils/venue-layouts'
 import {
   absMin, arrivedPax, canAddArrival, fmtMenit, harihOccupancy, hhmm, isSeated,
-  menitMenuju, occupiedMap, remainingPax, roomText, statusMeja, type StateMeja,
+  menitMenuju, occupiedMap, remainingPax, roomText, statusMeja,
 } from '~/utils/kunci-meja'
 
 const props = withDefaults(defineProps<{
@@ -59,7 +59,10 @@ const props = withDefaults(defineProps<{
   legenda?: boolean
   /** Fit the complete plan to its available width without an inner scroll area. */
   fit?: boolean
+  /** The "bisa 4-5 pax" line under each table. */
+  catatan?: boolean
 }>(), {
+  catatan: true,
   reservasi: () => [],
   mode: 'tampil',
   terpilih: () => [],
@@ -201,26 +204,72 @@ function subT(stat: ReturnType<typeof statusMeja>) {
   return ''
 }
 
-/** The dot in the corner: status as a colour, the words are in the legend. */
-const WARNA_STATUS: Record<string, string> = {
-  kosong: 'text-muted',
-  terpilih: 'text-highlighted',
-  sharing: 'text-highlighted',
-  pending: 'text-warning',
-  confirmed: 'text-success',
-  datang: 'text-error',
-  mepet: 'text-warning',
-  dipesan: 'text-muted',
-  terkunci: 'text-muted',
+/**
+ * The table's fill is its STATUS, in the old Reservasi plan's colours (owner
+ * request, Nov 2026 — deploy/reservasi .seat.*): cream free, yellow pending,
+ * green confirmed, red arrived, blue seated with seats left, purple sharing,
+ * dashed teal booked for later, solid green booked within the hour. The zone
+ * keeps only its shape (round green tables). DenahLegenda names every colour.
+ */
+function kelasT(s: ReturnType<typeof statusMeja>) {
+  const list = s.list
+  const r0 = list[0]
+  const k: string[] = []
+  if (s.state === 'terpilih') k.push('st-kosong', 'st-terpilih')
+  else if (s.state === 'sharing') k.push('st-sharing')
+  else if (r0) {
+    k.push(`st-${s.state}`)
+    // Seated with chairs to spare (a 4-5 table holding 2): blue, room for more.
+    if (props.mode === 'tampil' && s.fill.sisaMax > 0 && list.some(isSeated)) k.push('st-sisa')
+    // A party arriving in waves, not complete yet: a gold ring inside.
+    if (canAddArrival(r0) && remainingPax(r0) > 0) k.push('st-sebagian')
+    // The form: a booked table is either refused (seated / too close) or asks first.
+    if (props.mode === 'pilih') k.push(s.kunci ? 'st-mati' : 'st-tanya')
+  }
+  else k.push(`st-${s.state}`)
+  if (s.dipaksa) k.push('st-dipaksa')
+  if (s.over) k.push('seat-duduk')
+  return k
 }
 
-/** Locked tables are dimmed rather than recoloured: a locked table is still in its zone. */
-const kelasT = (s: StateMeja, dipaksa: boolean) => [
-  `seat-${s}`,
-  s === 'terkunci' || s === 'mepet' ? 'seat-mati' : '',
-  s === 'terpilih' ? 'seat-terpilih' : '',
-  dipaksa ? 'seat-dipaksa' : '',
-]
+/**
+ * Tables with room under them for the free-chairs line. In a tight column
+ * (M1–M10 on floor 2) the line would sit ON the next table, so it is left out
+ * there — the tooltip still says it.
+ */
+const adaRuangCatatan = computed(() => {
+  const ts = meja.value
+  return new Set(ts.filter((t) => {
+    const y0 = t.y + t.h
+    const y1 = y0 + 30
+    return !ts.some(o => o !== t && o.x < t.x + t.w && o.x + o.w > t.x && o.y < y1 && o.y + o.h > y0)
+  }).map(t => String(t.id)))
+})
+
+/** The padlock in front of the time: open = may be used after a question, shut = not now. */
+function gembok(s: ReturnType<typeof statusMeja>): string {
+  if (s.state === 'dipesan') return 'i-lucide-lock-open'
+  if (s.state === 'mepet') return 'i-lucide-lock'
+  if (props.mode === 'pilih' && s.list.length && s.state !== 'sharing' && s.state !== 'terpilih') {
+    return isSeated(s.list[0]!) ? 'i-lucide-utensils' : (s.kunci ? 'i-lucide-lock' : 'i-lucide-lock-open')
+  }
+  return ''
+}
+
+/**
+ * The line UNDER each table (old seatNote, :1950): the chairs still free.
+ * "bisa 4-5 pax" on a free table, "sisa 2 pax" on a shared one with room,
+ * "kursi penuh" when full — and "meja dikunci" on a booked table that is not
+ * shared, whose spare chairs nobody else may sell.
+ */
+function catatanT(t: { cap: string, w: number }, s: ReturnType<typeof statusMeja>): { txt: string, kls: string } | null {
+  if (!s.fill.max) return null
+  // A narrow table (a tight 2-pax row) has no room for "bisa": the number is enough.
+  if (!s.list.length) return { txt: t.w < 70 ? `${t.cap} pax` : `bisa ${t.cap} pax`, kls: '' }
+  if (s.state !== 'sharing') return { txt: 'meja dikunci', kls: 'note-penuh' }
+  if (s.fill.sisaMax > 0) return { txt: `sisa ${roomText(s.fill)} pax`, kls: 'note-sisa' }
+  return { txt: 'kursi penuh', kls: 'note-penuh' }
+}
 
 /** The tooltip carries everything the box is too small for. */
 function judul(stat: ReturnType<typeof statusMeja>, cap: string) {
@@ -318,7 +367,7 @@ function klik(mejaId: string) {
           :key="String(t.id)"
           type="button"
           class="seat"
-          :class="[kelasT(states.get(String(t.id))!.state, states.get(String(t.id))!.dipaksa), `seat-${t.zone}`, { 'seat-duduk': states.get(String(t.id))!.over }]"
+          :class="[kelasT(states.get(String(t.id))!), t.zone === 'green' ? 'bulat' : '']"
           :style="kotak(t)"
           :title="judul(states.get(String(t.id))!, t.cap)"
           :aria-label="judul(states.get(String(t.id))!, t.cap)"
@@ -327,26 +376,41 @@ function klik(mejaId: string) {
           <span class="sn">{{ t.id }}</span>
           <span class="sp">{{ labelT(states.get(String(t.id))!, t.cap) }}</span>
           <span
-            v-if="subT(states.get(String(t.id))!)"
+            v-if="subT(states.get(String(t.id))!) || gembok(states.get(String(t.id))!)"
             class="sub"
-          >{{ subT(states.get(String(t.id))!) }}</span>
+          >
+            <UIcon
+              v-if="gembok(states.get(String(t.id))!)"
+              :name="gembok(states.get(String(t.id))!)"
+              class="ikon"
+            />
+            {{ subT(states.get(String(t.id))!) }}
+          </span>
           <span
-            v-if="states.get(String(t.id))!.over"
-            class="titik"
-            :class="WARNA_STATUS.datang"
-            aria-hidden="true"
-          />
-          <span
-            v-else-if="states.get(String(t.id))!.state !== 'kosong'"
-            class="titik"
-            :class="WARNA_STATUS[states.get(String(t.id))!.state]"
-            aria-hidden="true"
-          />
+            v-if="states.get(String(t.id))!.lain"
+            class="multi"
+          >+{{ states.get(String(t.id))!.lain }}</span>
         </button>
+
+        <!-- Free chairs, written UNDER each table so they never cover the number or the guest. -->
+        <template v-if="catatan">
+          <div
+            v-for="t in meja.filter(x => adaRuangCatatan.has(String(x.id)))"
+            :key="`n${t.id}`"
+            class="note"
+            :class="catatanT(t, states.get(String(t.id))!)?.kls"
+            :style="kotak({ x: t.x, y: t.y + t.h + 3, w: t.w, h: 30 })"
+          >
+            <span>{{ catatanT(t, states.get(String(t.id))!)?.txt }}</span>
+          </div>
+        </template>
       </div>
     </div>
 
-    <DenahLegenda v-if="legenda" />
+    <DenahLegenda
+      v-if="legenda"
+      :mode="mode"
+    />
 
     <p
       v-if="adaDuduk && !timer"
@@ -476,6 +540,11 @@ function klik(mejaId: string) {
   transform: rotate(180deg);
 }
 
+/*
+  A table: its fill is its STATUS (the old plan's .seat.* colours, tokens in
+  main.css). Type follows the plan's width (clamp) like the old one — a plan
+  you can scale but not read is no use.
+*/
 .seat {
   position: absolute;
   display: flex;
@@ -486,33 +555,108 @@ function klik(mejaId: string) {
   padding: 0.125rem;
   overflow: hidden;
   line-height: 1.05;
-  color: var(--color-seat-ink);
-  border: 1.5px solid var(--color-seat-line);
-  border-radius: 0.375rem;
+  color: white;
+  background: var(--color-meja-lain);
+  border: 1.5px solid rgb(0 0 0 / 0.16);
+  border-radius: 0.4375rem;
   cursor: pointer;
-  transition: transform 0.1s;
+  transition: transform 0.1s, box-shadow 0.1s;
+  /* Type follows the table's own width too (cqw): a narrow 2-pax table in a
+     tight row still shows its whole number instead of "M…". */
+  container-type: size;
 }
 
 .seat:hover {
-  transform: scale(1.05);
+  transform: scale(1.06);
+  box-shadow: 0 5px 14px rgb(50 42 28 / 0.22);
   z-index: 5;
 }
 
-.seat-green {
-  background: var(--color-seat-green);
+.seat.bulat {
   border-radius: 9999px;
 }
 
-.seat-blue { background: var(--color-seat-blue); }
-.seat-wood { background: var(--color-seat-wood); }
-.seat-vip { background: var(--color-seat-vip); }
-.seat-dark { background: var(--color-seat-dark); }
-.seat-diamond { background: var(--color-seat-diamond); }
-.seat-ext { background: var(--color-seat-ext); }
+/* Free: cream, gold outline on hover. */
+.st-kosong {
+  background: var(--color-meja-kosong);
+  border-color: var(--color-meja-kosong-line);
+  color: var(--color-meja-kosong-ink);
+}
+
+.st-kosong:hover {
+  outline: 2px solid var(--color-gold);
+  outline-offset: 1px;
+}
+
+.st-pending {
+  background: var(--color-meja-pending);
+  color: var(--color-meja-pending-ink);
+}
+
+.st-confirmed { background: var(--color-meja-confirmed); }
+.st-datang { background: var(--color-meja-datang); }
+.st-sharing { background: var(--color-meja-sharing); }
+
+/* Seated with chairs left — after the status colours so it wins. */
+.seat.st-sisa {
+  background: var(--color-meja-sisa);
+  color: white;
+}
+
+/* A party not complete yet: a gold ring inside. */
+.st-sebagian {
+  box-shadow: inset 0 0 0 2.5px var(--color-meja-pending);
+}
+
+/* Free now, booked later: may be used after a question (open padlock). */
+.st-dipesan {
+  background: var(--color-meja-dipesan);
+  border: 2px dashed var(--color-meja-dipesan-line);
+  color: var(--color-meja-dipesan-ink);
+}
+
+/* Booked within the hour: drawn like a confirmed table, solid edge, shut padlock. */
+.st-mepet {
+  background: var(--color-meja-confirmed);
+  border: 2px solid var(--color-meja-confirmed-line);
+}
+
+/* The form: a booked table that asks first, and one that is refused outright. */
+.st-tanya {
+  opacity: 0.9;
+}
+
+.st-mati {
+  cursor: not-allowed;
+  filter: grayscale(0.75);
+  opacity: 0.6;
+}
+
+.st-mati:hover,
+.st-tanya:hover {
+  transform: none;
+  box-shadow: none;
+}
+
+/* Picked: a thick gold ring OUTSIDE the table (old .seat.sel). */
+.st-terpilih {
+  outline: 3px solid var(--color-gold);
+  outline-offset: 1px;
+  box-shadow: 0 0 0 5px rgb(169 121 31 / 0.22);
+  z-index: 6;
+}
+
+/* Forced with approval: a thick red edge, so it reads apart from the rest. */
+.st-dipaksa {
+  outline: 3px solid var(--color-meja-datang);
+  outline-offset: -3px;
+  opacity: 1;
+  filter: none;
+}
 
 .sn {
-  font-weight: 700;
-  font-size: clamp(0.5rem, 1.4vw, 0.95rem);
+  font-weight: 800;
+  font-size: min(clamp(0.55rem, 1.5vw, 1rem), 30cqw);
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -520,13 +664,13 @@ function klik(mejaId: string) {
 }
 
 .denah.fit .sn {
-  font-size: clamp(0.65rem, 1.4vw, 0.95rem);
+  font-size: min(clamp(0.65rem, 1.5vw, 1rem), 30cqw);
 }
 
 .sp {
-  font-size: clamp(0.4rem, 0.85vw, 0.65rem);
-  font-weight: 600;
-  opacity: 0.8;
+  font-size: min(clamp(0.4rem, 0.85vw, 0.65rem), 21cqw);
+  font-weight: 700;
+  opacity: 0.85;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -534,12 +678,16 @@ function klik(mejaId: string) {
 }
 
 .denah.fit .sp {
-  font-size: clamp(0.45rem, 0.85vw, 0.65rem);
+  font-size: min(clamp(0.45rem, 0.85vw, 0.65rem), 21cqw);
 }
 
 .sub {
-  font-size: clamp(0.35rem, 0.75vw, 0.6rem);
-  opacity: 0.7;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.15em;
+  margin-top: 1px;
+  font-size: min(clamp(0.4rem, 1.05vw, 0.7rem), 21cqw);
+  font-weight: 800;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -547,44 +695,54 @@ function klik(mejaId: string) {
 }
 
 .denah.fit .sub {
-  font-size: clamp(0.4rem, 0.75vw, 0.6rem);
+  font-size: min(clamp(0.45rem, 1.05vw, 0.7rem), 21cqw);
 }
 
-.titik {
+.ikon {
+  width: 1em;
+  height: 1em;
+  flex-shrink: 0;
+}
+
+/* More bookings on the same table: a count in the top-left corner. */
+.multi {
   position: absolute;
-  top: 0.2rem;
-  right: 0.2rem;
-  width: 0.4rem;
-  height: 0.4rem;
-  border-radius: 9999px;
-  background: currentcolor;
+  top: 2px;
+  left: 3px;
+  padding: 2px 4px;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  line-height: 1;
+  color: white;
+  background: rgb(20 14 0 / 0.45);
+  border-radius: 6px;
 }
 
-/* Locked and too close: dimmed, not recoloured — the zone must stay readable. */
-.seat-mati {
-  cursor: not-allowed;
-  opacity: 0.55;
+/* The free-chairs line under each table (old .seat-note). */
+.note {
+  position: absolute;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 1px;
+  text-align: center;
+  font-size: clamp(0.4rem, 0.82vw, 0.625rem);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--ui-text-muted);
+  pointer-events: none;
+  white-space: nowrap;
+  container-type: inline-size;
 }
 
-.seat-mati:hover {
-  transform: none;
+.note span {
+  font-size: min(clamp(0.4rem, 0.82vw, 0.625rem), 22cqw);
 }
 
-/* Picked: a thick yellow ring AROUND the table. The zone has to stay readable —
-   filling it yellow hides exactly the thing being checked before saving. */
-.seat-terpilih {
-  box-shadow: 0 0 0 3px var(--ui-primary);
-  opacity: 1;
-  z-index: 6;
-}
+.note-sisa { color: var(--color-meja-note-sisa); }
+.note-penuh { color: var(--color-meja-note-penuh); }
 
-.seat-dipaksa {
-  box-shadow: 0 0 0 3px var(--color-laksamana-600);
-}
-
-/* Seated past the expected stay: a dashed edge, not a colour of its own. The
-   red dot beside it is the warning (DESIGN.md: status is a dot + words), and a
-   border style reads the same in both themes without another token. */
+/* Seated past the expected stay: a dashed edge. */
 .seat-duduk {
   border-style: dashed;
   border-width: 2px;

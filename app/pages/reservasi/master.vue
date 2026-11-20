@@ -12,7 +12,7 @@
 import type { KruReservasi } from '~/composables/useReservasi'
 import { getMaster, listReservations, postAudit, putSection, useSection, useSectionVersi } from '~/composables/useReservasi'
 import {
-  BARIS_IZIN_RESERVASI, LAYAR_RESERVASI, ROLE_LABEL_RESERVASI, ROLE_RESERVASI,
+  BARIS_IZIN_RESERVASI, IKUT_MASTER, LAYAR_RESERVASI, ROLE_LABEL_RESERVASI, ROLE_RESERVASI,
   bolehAksi, bolehBuka, roleReservasi, seedPermsReservasi, type PeranMatrix, type RoleReservasi,
 } from '~/utils/layar/reservasi'
 import { fmtMenit } from '~/utils/kunci-meja'
@@ -167,6 +167,7 @@ const labelBaris = computed(() => {
 const barisMatriks = computed(() => {
   const keluar: { key: string, label: string, ekstra: boolean }[] = []
   for (const l of LAYAR_RESERVASI) {
+    if (IKUT_MASTER.has(l.key)) continue
     keluar.push({ key: l.key, label: labelBaris.value.get(l.key) ?? l.key, ekstra: false })
     for (const b of BARIS_IZIN_RESERVASI.filter(b => b.afterPage === l.key && b.key !== l.key)) {
       keluar.push({ key: b.key, label: b.label, ekstra: true })
