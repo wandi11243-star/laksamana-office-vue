@@ -160,7 +160,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
               class="w-44"
             />
           </UFormField>
-          <p class="min-w-0 flex-1 text-sm text-muted">
+          <p class="min-w-0 flex-1 text-base text-muted">
             Angkanya sama dengan <b>Performa Marketing</b> di panel Kas Kecil — dihitung oleh berkas yang sama.
           </p>
         </div>
@@ -191,7 +191,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
           />
           <p
             v-if="bolehSemua"
-            class="text-sm text-muted"
+            class="text-base text-muted"
           >
             <template v-if="akuHead">
               Anda tercatat <b>Head</b> di Tim/Keterangan Office, jadi bisa membuka tiap anggota tim.
@@ -202,7 +202,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
           </p>
           <p
             v-else-if="aku"
-            class="text-sm text-muted"
+            class="text-base text-muted"
           >
             Anda bisa membuka <b>capaian sendiri</b> dan <b>rekapan gabungan</b>. Capaian rekan tidak dibuka satu per satu — yang bisa membukanya hanya yang tercatat <b>Head</b> di Tim/Keterangan Office.
           </p>
@@ -255,7 +255,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
           :count="baris.length"
           flush
         >
-          <p class="px-4 pt-3 text-sm text-muted">
+          <p class="px-4 pt-3 text-base text-muted">
             {{ baris.length }} acara menurut modul ini (event closing + Reservasi VIP Assisted)<template v-if="belum">
               · <b>{{ belum }} belum diinput finance</b>
             </template>.
@@ -267,8 +267,8 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
             </template>
           </p>
 
-          <table class="mt-3 hidden w-full text-sm lg:table">
-            <thead class="bg-table-head text-left text-xs font-bold uppercase tracking-wide text-table-head-text">
+          <table class="mt-3 hidden w-full text-base lg:table">
+            <thead class="bg-table-head text-left text-sm font-bold uppercase tracking-wide text-table-head-text">
               <tr>
                 <th class="px-3 py-2">
                   Tanggal
@@ -308,21 +308,20 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
                   <span class="font-medium text-highlighted">{{ r.name }}</span>
                   <span
                     v-if="r.bd?.pic"
-                    class="text-xs text-muted"
+                    class="text-sm text-muted"
                   > · {{ r.bd.pic }}</span>
                 </td>
                 <td class="px-3 py-2 text-right">
                   <template v-if="r.hanyaBd">
                     <span class="text-dimmed">—</span>
-                    <span class="block text-xs text-muted">hanya ada di Breakdown</span>
+                    <span class="block text-sm text-muted">hanya ada di Breakdown</span>
                   </template>
                   <template v-else>
                     <UInput
                       v-if="bisaUbah(r)"
                       :model-value="nominalTeks(r.nominal)"
                       inputmode="numeric"
-                      size="sm"
-                      class="ml-auto w-36"
+                      class="ml-auto w-40"
                       :ui="{ base: 'text-right num' }"
                       @change="setNominal(r, ($event.target as HTMLInputElement).value)"
                     />
@@ -330,7 +329,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
                       v-else
                       class="num"
                     >{{ rupiah(r.nominal) }}</span>
-                    <span class="block text-xs text-muted">
+                    <span class="block text-sm text-muted">
                       <template v-if="r.timpa">
                         diubah manual · asalnya {{ rupiah(r.asal) }} ·
                         <UButton
@@ -361,16 +360,16 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
                     {{ rupiah(r.bd.porsi) }}
                     <span
                       v-if="bedaDiakuiPfoMkt(r) === 0"
-                      class="block text-xs text-muted"
+                      class="block text-sm text-muted"
                     >cocok</span>
                     <span
                       v-else-if="bedaDiakuiPfoMkt(r) != null"
-                      class="block text-xs text-error"
+                      class="block text-sm text-error"
                     >beda {{ bedaDiakuiPfoMkt(r)! > 0 ? '+' : '−' }}{{ rupiah(Math.abs(bedaDiakuiPfoMkt(r)!)) }}</span>
                   </template>
                   <template v-else>
                     <span class="text-dimmed">—</span>
-                    <span class="block text-xs text-muted">belum diinput finance</span>
+                    <span class="block text-sm text-muted">belum diinput finance</span>
                   </template>
                 </td>
                 <td class="px-3 py-2 text-right num">
@@ -383,7 +382,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
                   >belum ada omset</span>
                   <template v-else>
                     {{ kontribusi(r)!.toFixed(1).replace('.', ',') }}%
-                    <span class="block text-xs text-muted">dari omset hari itu</span>
+                    <span class="block text-sm text-muted">dari omset hari itu</span>
                   </template>
                 </td>
               </tr>
@@ -402,22 +401,22 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
             <li
               v-for="r in halaman"
               :key="r.srcId + r.date + r.name"
-              class="space-y-1.5 px-4 py-3 text-sm"
+              class="space-y-1.5 px-4 py-3 text-base"
             >
               <div class="flex items-start justify-between gap-2">
                 <div class="min-w-0">
                   <b class="block truncate text-highlighted">{{ r.name }}</b>
-                  <span class="text-xs text-muted">{{ tglPendek(r.date) }}<template v-if="r.bd?.pic"> · {{ r.bd.pic }}</template></span>
+                  <span class="text-sm text-muted">{{ tglPendek(r.date) }}<template v-if="r.bd?.pic"> · {{ r.bd.pic }}</template></span>
                 </div>
                 <div class="shrink-0 text-right">
-                  <span class="block text-xs text-muted">Diakui</span>
+                  <span class="block text-sm text-muted">Diakui</span>
                   <b
                     v-if="r.bd"
                     class="num text-highlighted"
                   >{{ rupiah(r.bd.porsi) }}</b>
                   <span
                     v-else
-                    class="text-xs text-dimmed"
+                    class="text-sm text-dimmed"
                   >belum diinput finance</span>
                 </div>
               </div>
@@ -425,7 +424,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
                 v-if="!r.hanyaBd"
                 class="flex items-center gap-2"
               >
-                <span class="text-xs text-muted">Nominal</span>
+                <span class="text-sm text-muted">Nominal</span>
                 <UInput
                   v-if="bisaUbah(r)"
                   :model-value="nominalTeks(r.nominal)"
@@ -447,7 +446,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
                   @click="setNominal(r, '')"
                 />
               </div>
-              <p class="text-xs text-muted">
+              <p class="text-sm text-muted">
                 <template v-if="r.hanyaBd">
                   hanya ada di Breakdown ·
                 </template>
@@ -466,7 +465,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
             </li>
             <li
               v-if="!halaman.length"
-              class="px-4 py-8 text-center text-sm text-dimmed"
+              class="px-4 py-8 text-center text-base text-dimmed"
             >
               Belum ada acara bulan ini.
             </li>
@@ -474,7 +473,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
 
           <div
             v-if="totalHal > 1"
-            class="flex flex-wrap items-center justify-between gap-2 border-t border-default px-4 py-2.5 text-sm text-muted"
+            class="flex flex-wrap items-center justify-between gap-2 border-t border-default px-4 py-2.5 text-base text-muted"
           >
             <UButton
               color="neutral"
@@ -485,7 +484,7 @@ async function setNominal(r: BarisPfoMkt, teks: string) {
               :disabled="kini <= 1"
               @click="hal = kini - 1"
             />
-            <span class="num text-xs">Baris {{ mulai + 1 }}–{{ Math.min(mulai + PER_HAL_PFO_MKT, baris.length) }} dari {{ baris.length }} · halaman {{ kini }}/{{ totalHal }}</span>
+            <span class="num text-sm">Baris {{ mulai + 1 }}–{{ Math.min(mulai + PER_HAL_PFO_MKT, baris.length) }} dari {{ baris.length }} · halaman {{ kini }}/{{ totalHal }}</span>
             <UButton
               color="neutral"
               variant="ghost"

@@ -17,9 +17,11 @@ defineProps<{
    * Wider dialog for a form whose fields sit side by side (owner request,
    * Nov 2026: "Rabu, 18…" was cut in a 3-column row of the default 512px
    * dialog). `true` = 896px for three or more columns; 'sedang' = 672px for two
-   * columns holding a date / hour field. Phones are unaffected (bottom sheet).
+   * columns holding a date / hour field; 'penuh' = the whole screen, for a
+   * table plan (owner request, Nov 2026: "denah langsung full screen").
+   * Phones are unaffected (bottom sheet).
    */
-  lebar?: boolean | 'sedang'
+  lebar?: boolean | 'sedang' | 'penuh'
 }>()
 
 const open = defineModel<boolean>('open', { default: false })
@@ -32,11 +34,13 @@ const desktop = useMediaQuery('(min-width: 1024px)')
     v-model:open="open"
     :title="title"
     :description="description"
+    :fullscreen="lebar === 'penuh'"
     :ui="detail ? {
       content: 'max-w-4xl rounded-xl',
       body: 'max-h-[72vh] overflow-y-auto',
       footer: 'flex-wrap justify-end',
-    } : lebar ? { content: lebar === 'sedang' ? 'max-w-2xl' : 'max-w-4xl' } : undefined"
+    } : lebar === 'penuh' ? { content: 'rounded-none', body: 'flex-1 overflow-y-auto' }
+      : lebar ? { content: lebar === 'sedang' ? 'max-w-2xl' : 'max-w-4xl' } : undefined"
   >
     <template
       v-if="$slots.title"

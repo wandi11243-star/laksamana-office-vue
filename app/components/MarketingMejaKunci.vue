@@ -3,7 +3,8 @@
   written when the tables are locked — straight into the Reservasi module as
   row `ev-<id>` — never by the tab Save button. Shows the chips + count, warns
   when the event moved dates after locking, and locks/releases through the
-  Reservasi endpoints with the old graceful failures.
+  Reservasi endpoints with the old graceful failures. Tables are picked on the
+  Reservasi plan itself (MarketingDenahPilih, owner request Nov 2026).
 -->
 <script setup lang="ts">
 import { kunciTanggalSalahMkt, mejaTerkunciMkt } from '~/utils/marketing-event'
@@ -25,52 +26,13 @@ const meja = computed(() => mejaTerkunciMkt(props.ev))
 const peringatan = computed(() => kunciTanggalSalahMkt(props.ev))
 
 const buka = ref(false)
-const memuat = ref(false)
 const mengunci = ref(false)
-const daftar = ref<string[]>([])
-const terpakai = ref<Record<string, string>>({})
 const pilih = ref<string[]>([])
-const galat = ref('')
-
-async function muat() {
-  if (!props.tanggal) {
-    galat.value = 'Isi Tanggal Event dulu — meja dikunci per tanggal.'
-    return
-  }
-  memuat.value = true
-  galat.value = ''
-  try {
-    const [master, daftarRes] = await Promise.all([
-      daftarMejaReservasi().catch(() => [] as string[]),
-      daftarReservasiSemua(props.tanggal, props.tanggal).then(d => ({ data: d })),
-    ])
-    daftar.value = master
-    const pakai: Record<string, string> = {}
-    for (const r of daftarRes?.data ?? []) {
-      if (String((r as Record<string, unknown>).id) === resIdKunciMkt(props.ev.id)) continue
-      const nama = String((r as Record<string, unknown>).name ?? '')
-      for (const m of String((r as Record<string, unknown>).table ?? '').split(',').map(s => s.trim()).filter(Boolean)) pakai[m] = nama
-    }
-    terpakai.value = pakai
-    pilih.value = meja.value.slice()
-    if (!daftar.value.length) galat.value = 'Modul Reservasi belum punya daftar meja. Isi dulu di sana.'
-  }
-  catch (e) {
-    galat.value = `Reservasi tidak terjangkau: ${apiErrorMessage(e)}. Belum ada yang berubah — coba lagi.`
-  }
-  finally {
-    memuat.value = false
-  }
-}
+const denah = ref<{ muat: () => Promise<void> } | null>(null)
 
 function bukaPilih() {
+  pilih.value = meja.value.slice()
   buka.value = true
-  void muat()
-}
-
-function toggle(m: string) {
-  if (terpakai.value[m] && !pilih.value.includes(m)) return
-  pilih.value = pilih.value.includes(m) ? pilih.value.filter(x => x !== m) : [...pilih.value, m]
 }
 
 async function simpanKunci() {
@@ -97,7 +59,7 @@ async function simpanKunci() {
     buka.value = false
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, muat))) toast.add({ title: 'Gagal mengunci di Reservasi', description: apiErrorMessage(e), color: 'error' })
+    if (!(await tanganiKonflik(e, () => denah.value?.muat() ?? Promise.resolve()))) toast.add({ title: 'Gagal mengunci di Reservasi', description: apiErrorMessage(e), color: 'error' })
   }
   finally {
     mengunci.value = false
@@ -172,38 +134,27 @@ async function lepas() {
       v-model:open="buka"
       title="Pilih & Kunci Meja"
       :description="`${ev.nama} · ${tanggal || '(tanggal belum diisi)'}${jam ? ` · ${jam}` : ''} · ${Number(ev.pax) || 0} pax`"
+      lebar="penuh"
     >
-      <p
-        v-if="memuat"
-        class="py-6 text-center text-sm text-muted"
-      >
-        Menghubungi modul Reservasi…
-      </p>
+      <UAlert
+        v-if="!tanggal"
+        color="warning"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        description="Isi Tanggal Event dulu — meja dikunci per tanggal."
+      />
       <template v-else>
-        <UAlert
-          v-if="galat"
-          color="warning"
-          variant="subtle"
-          icon="i-lucide-triangle-alert"
-          :description="galat"
-          class="mb-3"
-        />
         <p class="mb-2 text-xs text-muted">
-          Denah yang sama dengan modul Reservasi. Klik meja untuk mengunci — boleh lebih dari satu. Meja abu-abu sudah dipesan tamu lain.
+          Denah yang sama dengan modul Reservasi. Klik meja untuk mengunci — boleh lebih dari satu, dan boleh lintas lantai.
         </p>
-        <div class="flex flex-wrap gap-2">
-          <UButton
-            v-for="m in daftar"
-            :key="m"
-            :label="m"
-            size="sm"
-            :color="pilih.includes(m) ? 'primary' : 'neutral'"
-            :variant="pilih.includes(m) ? 'solid' : terpakai[m] ? 'soft' : 'outline'"
-            :disabled="!!terpakai[m] && !pilih.includes(m)"
-            :title="terpakai[m] ? `Dipesan ${terpakai[m]}` : m"
-            @click="toggle(m)"
-          />
-        </div>
+        <MarketingDenahPilih
+          ref="denah"
+          v-model="pilih"
+          :tanggal="tanggal"
+          :jam="jam"
+          :kecuali-id="resIdKunciMkt(ev.id)"
+          :pax="Number(ev.pax) || 0"
+        />
         <div class="mt-4 flex justify-end gap-2">
           <UButton
             label="Batal"

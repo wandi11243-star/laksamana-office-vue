@@ -111,11 +111,15 @@ export type PeranMatrix = NonNullable<PeranReservasi['perms']>
  * from the loosest bound action, rows without an action default to edit, and
  * viewer never rises above view. The master screen resets to this.
  */
+/** Screens that have no row of their own in the matrix: they follow Master data. */
+export const IKUT_MASTER = new Set(['denah'])
+
 export function seedPermsReservasi(): PeranMatrix {
   const seed: PeranMatrix = {}
   const induk = (row: string) => BARIS_IZIN_RESERVASI.find(b => b.key === row)?.page ?? row
   const baris: string[] = []
   for (const l of LAYAR_RESERVASI) {
+    if (IKUT_MASTER.has(l.key)) continue
     baris.push(l.key)
     for (const b of BARIS_IZIN_RESERVASI.filter(b => b.afterPage === l.key && b.key !== l.key)) baris.push(b.key)
   }
@@ -193,6 +197,10 @@ export const LAYAR_RESERVASI: Layar[] = [
   { key: 'finance', label: 'Dana masuk (DP)', desc: 'Cek uang DP yang benar-benar masuk.', icon: 'i-lucide-receipt', to: '/reservasi/finance', grup: 'Keuangan', boleh: bolehLayar('finance') },
   { key: 'riwayat', label: 'Riwayat', desc: 'Arsip reservasi yang sudah lewat, dasar CRM dan evaluasi.', icon: 'i-lucide-history', to: '/reservasi/riwayat', grup: 'Data & analisa', boleh: bolehLayar('riwayat') },
   { key: 'analitik', label: 'Analitik', desc: 'Insight bisnis dari seluruh data reservasi.', icon: 'i-lucide-chart-column', to: '/reservasi/analitik', grup: 'Data & analisa', boleh: bolehLayar('analitik') },
+  // Plan editing moved out of the dashboard into its own screen (owner request,
+  // Nov 2026). Opened by whoever may open Master data; editing needs the
+  // `master` edit right, checked on the page.
+  { key: 'denah', label: 'Atur denah & meja', desc: 'Editor denah, jadwal denah per tanggal, dan kapasitas tiap meja.', icon: 'i-lucide-map', to: '/reservasi/denah', grup: 'Kontrol', boleh: bolehLayar('master') },
   { key: 'master', label: 'Master data', desc: 'Kelola pilihan dropdown & pengaturan sistem.', icon: 'i-lucide-sliders-horizontal', to: '/reservasi/master', grup: 'Kontrol', boleh: bolehLayar('master') },
   { key: 'audit', label: 'Audit log', desc: 'Jejak seluruh aktivitas: siapa, kapan, apa yang diubah.', icon: 'i-lucide-shield', to: '/reservasi/audit', grup: 'Kontrol', boleh: bolehLayar('audit') },
 ]

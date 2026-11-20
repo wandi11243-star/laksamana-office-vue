@@ -406,10 +406,11 @@ const columns: TableColumn<Row>[] = [
       <AppList title="Denah · mode tampil (peta hari ini)">
         <div class="space-y-3 p-4">
           <p class="text-sm text-muted">
-            Satu komponen untuk denah hari ini dan untuk memilih meja di form. Isinya warna
-            <b>zona</b> (biru/hi hijau/kayu/VIP/gelap/diamond/extension) — itulah yang kru sebut di
-            lapangan — dan statusnya berupa titik + kata, sesuai DESIGN.md. Data di sini tiruan; tidak
-            ada panggilan API.
+            Satu komponen untuk denah hari ini, untuk memilih meja di form Reservasi, dan untuk
+            mengunci meja dari Marketing (Reservasi VIP &amp; Event). Warna meja = <b>status</b>, persis
+            office lama (kuning pending, hijau confirmed, merah datang, biru sisa kursi, ungu sharing,
+            krem kosong, teal putus-putus dipesan nanti), dan di bawah tiap meja tertulis kursi yang
+            masih bisa diisi. Data di sini tiruan; tidak ada panggilan API.
           </p>
           <div class="flex flex-wrap items-center gap-2">
             <UButton

@@ -4,6 +4,13 @@
   filter and the Source filter (SOURCES + any typed source in use). Columns
   KOL_CRM; a star marks a VIP client (spending on finished events above Rp20 juta).
 
+  On top (owner request, Nov 2026 — "kasih seperti di dashboard"): stat cards
+  for the filtered list and two rankings, Top omset (spending on finished
+  events, with the average per event) and Top jumlah event (events won:
+  Confirmed / Deal / Event Done). The company name leads each row — one
+  company can have several client PICs. The rankings are MONTHLY by default
+  (event date in the picked month); clearing the month = all time.
+
   Export follows the CURRENT filter, as before. Import reads the file into a
   preview first — nothing changes until "Terapkan"; rows match by ID, then
   phone, then name. Each change is its own versioned write; a refusal stops the
@@ -11,12 +18,12 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { ClientMkt, KolomMkt, RencanaImporMkt } from '~/utils/marketing'
+import type { ClientMkt, EventMkt, KolomMkt, RencanaImporMkt } from '~/utils/marketing'
 import {
   BATAS_VIP_MKT, KOLOM_CSV_CLIENT, OPSI_RELASI_MKT, SOURCE_CLIENT_MKT, TAHAP_TERBUKA_MKT, bacaCsvMkt, csvTeksMkt,
   eventsClientMkt, menangClientMkt, peluangClientMkt, rencanaImporClient, saringClientMkt, selesaiClientMkt, tglMkt,
 } from '~/utils/marketing'
-import { belanjaClientMkt } from '~/utils/marketing-uang'
+import { belanjaClientMkt, eventFinance } from '~/utils/marketing-uang'
 import { ikonStatusMkt, warnaStatusMkt } from '~/utils/status-marketing'
 import { hariIni, rupiah } from '~/utils/format'
 import { unduhCsv } from '~/utils/riwayat'
@@ -49,26 +56,90 @@ const tags = (id: string) => ({
   deal: menangClientMkt(st.value.events, id).length > 0,
 })
 
+/** The month the rankings look at (YYYY-MM); '' = all time. Default: this month. */
+const bulan = useState('mkt-crm-bulan', () => hariIni().slice(0, 7))
+const NAMA_BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
+const labelPeriode = computed(() => (bulan.value ? `${NAMA_BULAN[Number(bulan.value.slice(5, 7)) - 1] ?? ''} ${bulan.value.slice(0, 4)}` : 'semua waktu'))
+const diPeriode = (e: EventMkt) => !bulan.value || String(e.tanggal ?? '').startsWith(bulan.value)
+/** Omset of the client's FINISHED events in the period (all time = Total Spending). */
+const omsetP = (id: string) => (bulan.value
+  ? selesaiClientMkt(st.value.events, id).filter(diPeriode).reduce((a, e) => a + eventFinance(e, st.value.settings).grand, 0)
+  : belanja(id))
+/** Events this client made with us in the period (won: Confirmed / Deal / Event Done). */
+const jmlEvent = (id: string) => menangClientMkt(st.value.events, id).filter(diPeriode).length
+/** Omset per finished event in the period. */
+const rataEvent = (id: string) => {
+  const n = selesaiClientMkt(st.value.events, id).filter(diPeriode).length
+  return n ? Math.round(omsetP(id) / n) : 0
+}
+
 const KOL: KolomMkt<ClientMkt>[] = [
   { k: 'nama', t: 'Client', v: c => c.nama, def: true },
   { k: 'kontak', t: 'Kontak', v: c => c.hp },
   { k: 'source', t: 'Source', v: c => c.source },
   { k: 'pic', t: 'Marketing PIC', v: c => namaUser(c.mktPIC) },
   { k: 'peluang', t: 'Peluang', v: c => peluangClientMkt(st.value.events, c.id).length, turun: true },
-  { k: 'spend', t: 'Total Spending', v: c => belanja(c.id), turun: true },
+  { k: 'spend', t: 'Omset', v: c => omsetP(c.id), turun: true },
+  { k: 'jml', t: 'Jumlah Event', v: c => jmlEvent(c.id), turun: true },
   { k: 'fu', t: 'Next FU', v: c => c.nextFU },
 ]
-const tbl = useTabelMkt('crm', KOL, () => `${f.value.q}|${f.value.rel}|${f.value.source}`)
+const tbl = useTabelMkt('crm', KOL, () => `${f.value.q}|${f.value.rel}|${f.value.source}|${bulan.value}`)
 const data = computed(() => saringClientMkt(st.value.clients, st.value.events, f.value))
 const urut = computed(() => tbl.susun(data.value))
 const hal = computed(() => tbl.potong(urut.value))
+
+// ---- the rankings & stat cards (dashboard look) ----
+type ModeUrut = 'semua' | 'omset' | 'jumlah'
+const mode = computed<ModeUrut>({
+  get: () => {
+    const u = tbl.urut.value
+    if (u?.arah === -1 && u.k === 'spend') return 'omset'
+    if (u?.arah === -1 && u.k === 'jml') return 'jumlah'
+    return 'semua'
+  },
+  set: (v) => {
+    tbl.urut.value = v === 'omset' ? { k: 'spend', arah: -1 } : v === 'jumlah' ? { k: 'jml', arah: -1 } : { k: 'nama', arah: 1 }
+    tbl.hal.value = 1
+  },
+})
+/** The rank in front of a name while a Top ordering is on (only clients that score). */
+const peringkat = computed(() => {
+  const m = new Map<string, number>()
+  if (mode.value === 'semua') return m
+  urut.value.forEach((c, i) => {
+    if ((mode.value === 'omset' ? omsetP(c.id) : jmlEvent(c.id)) > 0) m.set(c.id, i + 1)
+  })
+  return m
+})
+const ringkas = computed(() => {
+  const rows = data.value
+  const pt = new Set(rows.map(c => (c.perusahaan ?? '').trim().toLowerCase()).filter(Boolean))
+  let omset = 0
+  let nSelesai = 0
+  let pernahDeal = 0
+  let topOmset: ClientMkt | null = null
+  let topJml: ClientMkt | null = null
+  for (const c of rows) {
+    const b = omsetP(c.id)
+    const j = jmlEvent(c.id)
+    omset += b
+    nSelesai += selesaiClientMkt(st.value.events, c.id).filter(diPeriode).length
+    if (j) pernahDeal++
+    if (b > 0 && (!topOmset || b > omsetP(topOmset.id))) topOmset = c
+    if (j > 0 && (!topJml || j > jmlEvent(topJml.id))) topJml = c
+  }
+  const perorangan = rows.filter(c => !(c.perusahaan ?? '').trim()).length
+  return { total: rows.length, pt: pt.size, perorangan, omset, nSelesai, pernahDeal, topOmset, topJml }
+})
+const namaTampil = (c: ClientMkt | null) => (c ? (c.perusahaan?.trim() ? `${c.perusahaan} · ${c.nama}` : c.nama) : '')
 const kolom: TableColumn<ClientMkt>[] = [
   { id: 'nama', header: tbl.kepala('nama', 'Client'), meta: { class: { th: 'min-w-[160px]', td: 'min-w-[160px] max-w-[240px]' } } },
   { id: 'kontak', header: tbl.kepala('kontak', 'Kontak'), meta: { class: { th: 'w-32', td: 'w-32' } } },
   { id: 'source', header: tbl.kepala('source', 'Source'), meta: { class: { th: 'w-24', td: 'w-24' } } },
   { id: 'pic', header: tbl.kepala('pic', 'Marketing PIC'), meta: { class: { th: 'w-28', td: 'w-28' } } },
   { id: 'peluang', header: tbl.kepala('peluang', 'Peluang'), meta: { class: { th: 'min-w-[140px]', td: 'min-w-[140px] max-w-[200px]' } } },
-  { id: 'spend', header: tbl.kepala('spend', 'Total Spending'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
+  // Omset of the picked month (all time = Total Spending), with the event count under it.
+  { id: 'spend', header: () => tbl.kepala('spend', bulan.value ? `Omset ${labelPeriode.value}` : 'Total Spending')(), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
   { id: 'fu', header: tbl.kepala('fu', 'Next FU'), meta: { class: { th: 'w-24', td: 'w-24 whitespace-nowrap' } } },
   { id: 'buka', header: '', meta: { class: { th: 'w-10', td: 'w-10' } } },
 ]
@@ -206,7 +277,61 @@ async function terapkan() {
         class="mb-5"
       />
 
+      <AppStatGrid :count="4">
+        <AppStat
+          label="Total Client"
+          :value="ringkas.total"
+          icon="i-lucide-users"
+          :sub="`${ringkas.pt} perusahaan · ${ringkas.perorangan} perorangan`"
+        />
+        <AppStat
+          :label="`Omset Client · ${labelPeriode}`"
+          :value="rupiah(ringkas.omset)"
+          icon="i-lucide-wallet"
+          tone="success"
+          :sub="`dari ${ringkas.nSelesai} event selesai · ${ringkas.pernahDeal} client buat event`"
+        />
+        <AppStat
+          :label="`Top Omset · ${labelPeriode}`"
+          :value="ringkas.topOmset ? rupiah(omsetP(ringkas.topOmset.id)) : '—'"
+          icon="i-lucide-trophy"
+          tone="gold"
+          :sub="ringkas.topOmset ? namaTampil(ringkas.topOmset) : `Belum ada event selesai di ${labelPeriode}`"
+          wrap
+        />
+        <AppStat
+          :label="`Top Jumlah Event · ${labelPeriode}`"
+          :value="ringkas.topJml ? jmlEvent(ringkas.topJml.id) : '—'"
+          :satuan="ringkas.topJml ? 'event' : undefined"
+          icon="i-lucide-calendar-heart"
+          tone="info"
+          :sub="ringkas.topJml ? namaTampil(ringkas.topJml) : `Belum ada event di ${labelPeriode}`"
+          wrap
+        />
+      </AppStatGrid>
+
       <AppPanel>
+        <div class="mb-3 flex flex-wrap items-center gap-3">
+          <AppBulan
+            v-model="bulan"
+            clearable
+            placeholder="Semua waktu"
+            class="w-48"
+            aria-label="Bulan"
+          />
+          <AppSeg
+            v-model="mode"
+            :options="[
+              { value: 'semua', label: 'Semua client', icon: 'i-lucide-list' },
+              { value: 'omset', label: 'Top omset', icon: 'i-lucide-trophy' },
+              { value: 'jumlah', label: 'Top jumlah event', icon: 'i-lucide-calendar-heart' },
+            ]"
+          />
+          <span
+            v-if="mode !== 'semua'"
+            class="text-sm text-muted"
+          >{{ mode === 'omset' ? `Omset event selesai terbesar · ${labelPeriode}.` : `Event terbanyak (Confirmed, Deal, Event Done) · ${labelPeriode}.` }}</span>
+        </div>
         <div class="flex flex-wrap items-center gap-3">
           <UInput
             v-model="f.q"
@@ -247,19 +372,27 @@ async function terapkan() {
           >
             <template #nama-cell="{ row }">
               <!-- Long names wrap down to the next line, never truncated. -->
-              <div class="min-w-0">
-                <p class="flex items-center gap-1 font-semibold break-words text-highlighted [overflow-wrap:anywhere]">
-                  {{ row.original.nama }}
-                  <UIcon
-                    v-if="belanja(row.original.id) > BATAS_VIP_MKT"
-                    name="i-lucide-star"
-                    class="size-3.5 shrink-0 text-primary-500"
-                    title="Klien VIP — total belanja di atas Rp20 juta"
-                  />
-                </p>
-                <p class="text-xs break-words text-muted [overflow-wrap:anywhere]">
-                  {{ row.original.perusahaan || 'Perorangan' }}
-                </p>
+              <!-- The company leads (bigger), the client PIC under it. Long names wrap, never truncated. -->
+              <div class="flex min-w-0 items-start gap-2">
+                <span
+                  v-if="peringkat.get(row.original.id)"
+                  class="num mt-0.5 grid size-6 shrink-0 place-items-center rounded-full text-xs font-bold"
+                  :class="peringkat.get(row.original.id)! <= 3 ? 'bg-primary text-white' : 'bg-muted text-highlighted'"
+                >{{ peringkat.get(row.original.id) }}</span>
+                <div class="min-w-0">
+                  <p class="flex items-center gap-1 text-base font-bold break-words text-highlighted [overflow-wrap:anywhere]">
+                    {{ row.original.perusahaan?.trim() || row.original.nama }}
+                    <UIcon
+                      v-if="belanja(row.original.id) > BATAS_VIP_MKT"
+                      name="i-lucide-star"
+                      class="size-3.5 shrink-0 text-primary-500"
+                      title="Klien VIP — total belanja di atas Rp20 juta"
+                    />
+                  </p>
+                  <p class="text-xs break-words text-muted [overflow-wrap:anywhere]">
+                    {{ row.original.perusahaan?.trim() ? row.original.nama : 'Perorangan' }}
+                  </p>
+                </div>
               </div>
             </template>
             <template #kontak-cell="{ row }">
@@ -323,7 +456,11 @@ async function terapkan() {
               </div>
             </template>
             <template #spend-cell="{ row }">
-              <span class="num whitespace-nowrap">{{ belanja(row.original.id) ? rupiah(belanja(row.original.id)) : '—' }}</span>
+              <span class="num block whitespace-nowrap">{{ omsetP(row.original.id) ? rupiah(omsetP(row.original.id)) : '—' }}</span>
+              <span
+                v-if="jmlEvent(row.original.id)"
+                class="num block text-xs whitespace-nowrap text-muted"
+              >{{ jmlEvent(row.original.id) }} event<template v-if="rataEvent(row.original.id)"> · ±{{ rupiah(rataEvent(row.original.id)) }}/event</template></span>
             </template>
             <template #fu-cell="{ row }">
               <span class="num whitespace-nowrap">{{ row.original.nextFU ? tglMkt(row.original.nextFU) : '—' }}</span>
@@ -346,15 +483,19 @@ async function terapkan() {
                 @click="lihat(c)"
               >
                 <span class="min-w-0">
-                  <span class="flex items-center gap-1 font-semibold text-highlighted">
-                    {{ c.nama }}
+                  <span class="flex items-center gap-1 text-base font-bold text-highlighted">
+                    <span
+                      v-if="peringkat.get(c.id)"
+                      class="num text-gold-deep"
+                    >#{{ peringkat.get(c.id) }}</span>
+                    {{ c.perusahaan?.trim() || c.nama }}
                     <UIcon
                       v-if="belanja(c.id) > BATAS_VIP_MKT"
                       name="i-lucide-star"
                       class="size-3.5 text-primary-500"
                     />
                   </span>
-                  <span class="block text-xs text-muted">{{ c.perusahaan || 'Perorangan' }} · {{ c.hp }}</span>
+                  <span class="block text-xs text-muted">{{ c.perusahaan?.trim() ? c.nama : 'Perorangan' }} · {{ c.hp }}</span>
                   <span class="block text-xs text-muted">{{ [c.source, namaUser(c.mktPIC)].filter(Boolean).join(' · ') }}</span>
                   <span class="mt-1 flex flex-wrap gap-1">
                     <AppStatus
@@ -367,7 +508,11 @@ async function terapkan() {
                   </span>
                 </span>
                 <span class="shrink-0 text-right text-xs">
-                  <span class="num block font-semibold">{{ belanja(c.id) ? rupiah(belanja(c.id)) : '—' }}</span>
+                  <span class="num block font-semibold">{{ omsetP(c.id) ? rupiah(omsetP(c.id)) : '—' }}</span>
+                  <span
+                    v-if="jmlEvent(c.id)"
+                    class="num block text-muted"
+                  >{{ jmlEvent(c.id) }} event</span>
                   <span
                     v-if="c.nextFU"
                     class="block text-muted"
