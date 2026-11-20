@@ -9,7 +9,8 @@
   events, with the average per event) and Top jumlah event (events won:
   Confirmed / Deal / Event Done). The company name leads each row — one
   company can have several client PICs. The rankings are MONTHLY by default
-  (event date in the picked month); clearing the month = all time.
+  (event date in the picked month); clearing the month = all time. The plain
+  list ("Semua client") and the total cards are always all time.
 
   Export follows the CURRENT filter, as before. Import reads the file into a
   preview first — nothing changes until "Terapkan"; rows match by ID, then
@@ -56,20 +57,38 @@ const tags = (id: string) => ({
   deal: menangClientMkt(st.value.events, id).length > 0,
 })
 
-/** The month the rankings look at (YYYY-MM); '' = all time. Default: this month. */
+/**
+ * The month the Top rankings look at (YYYY-MM); '' = all time. Default: this
+ * month. The plain client list ("Semua client") ignores it and is always all
+ * time (owner request, Nov 2026: "database client semua tanpa filter bulan").
+ */
 const bulan = useState('mkt-crm-bulan', () => hariIni().slice(0, 7))
+/** Rankings per month, or over every event the client ever made with us. */
+const rentang = useState<'bulan' | 'semua'>('mkt-crm-rentang', () => 'bulan')
+/** The month the rankings actually use ('' = all time). */
+const bulanTop = computed(() => (rentang.value === 'bulan' ? bulan.value : ''))
 const NAMA_BULAN = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des']
-const labelPeriode = computed(() => (bulan.value ? `${NAMA_BULAN[Number(bulan.value.slice(5, 7)) - 1] ?? ''} ${bulan.value.slice(0, 4)}` : 'semua waktu'))
-const diPeriode = (e: EventMkt) => !bulan.value || String(e.tanggal ?? '').startsWith(bulan.value)
+const namaPeriode = (p: string) => (p ? `${NAMA_BULAN[Number(p.slice(5, 7)) - 1] ?? ''} ${p.slice(0, 4)}` : 'selama buat event')
+const labelBulan = computed(() => namaPeriode(bulanTop.value))
+const diPeriode = (p: string) => (e: EventMkt) => !p || String(e.tanggal ?? '').startsWith(p)
+
+// ---- the list & rankings ----
+type ModeUrut = 'semua' | 'omset' | 'jumlah'
+/** The table's ordering, kept apart from the stored sort so `periode` can read it. */
+const urutTop = useState<ModeUrut>('mkt-crm-mode', () => 'semua')
+/** The period the TABLE shows: all time for the plain list, the picked month for a Top ranking. */
+const periode = computed(() => (urutTop.value === 'semua' ? '' : bulanTop.value))
+const labelPeriode = computed(() => namaPeriode(periode.value))
+
 /** Omset of the client's FINISHED events in the period (all time = Total Spending). */
-const omsetP = (id: string) => (bulan.value
-  ? selesaiClientMkt(st.value.events, id).filter(diPeriode).reduce((a, e) => a + eventFinance(e, st.value.settings).grand, 0)
+const omsetP = (id: string, p = periode.value) => (p
+  ? selesaiClientMkt(st.value.events, id).filter(diPeriode(p)).reduce((a, e) => a + eventFinance(e, st.value.settings).grand, 0)
   : belanja(id))
 /** Events this client made with us in the period (won: Confirmed / Deal / Event Done). */
-const jmlEvent = (id: string) => menangClientMkt(st.value.events, id).filter(diPeriode).length
+const jmlEvent = (id: string, p = periode.value) => menangClientMkt(st.value.events, id).filter(diPeriode(p)).length
 /** Omset per finished event in the period. */
 const rataEvent = (id: string) => {
-  const n = selesaiClientMkt(st.value.events, id).filter(diPeriode).length
+  const n = selesaiClientMkt(st.value.events, id).filter(diPeriode(periode.value)).length
   return n ? Math.round(omsetP(id) / n) : 0
 }
 
@@ -83,21 +102,19 @@ const KOL: KolomMkt<ClientMkt>[] = [
   { k: 'jml', t: 'Jumlah Event', v: c => jmlEvent(c.id), turun: true },
   { k: 'fu', t: 'Next FU', v: c => c.nextFU },
 ]
-const tbl = useTabelMkt('crm', KOL, () => `${f.value.q}|${f.value.rel}|${f.value.source}|${bulan.value}`)
+const tbl = useTabelMkt('crm', KOL, () => `${f.value.q}|${f.value.rel}|${f.value.source}|${periode.value}`)
 const data = computed(() => saringClientMkt(st.value.clients, st.value.events, f.value))
 const urut = computed(() => tbl.susun(data.value))
 const hal = computed(() => tbl.potong(urut.value))
 
-// ---- the rankings & stat cards (dashboard look) ----
-type ModeUrut = 'semua' | 'omset' | 'jumlah'
+// Follow a sort picked by clicking a column header too.
+watch(() => tbl.urut.value, (u) => {
+  urutTop.value = u?.arah === -1 && u.k === 'spend' ? 'omset' : u?.arah === -1 && u.k === 'jml' ? 'jumlah' : 'semua'
+}, { immediate: true })
 const mode = computed<ModeUrut>({
-  get: () => {
-    const u = tbl.urut.value
-    if (u?.arah === -1 && u.k === 'spend') return 'omset'
-    if (u?.arah === -1 && u.k === 'jml') return 'jumlah'
-    return 'semua'
-  },
+  get: () => urutTop.value,
   set: (v) => {
+    urutTop.value = v
     tbl.urut.value = v === 'omset' ? { k: 'spend', arah: -1 } : v === 'jumlah' ? { k: 'jml', arah: -1 } : { k: 'nama', arah: 1 }
     tbl.hal.value = 1
   },
@@ -119,17 +136,20 @@ const ringkas = computed(() => {
   let pernahDeal = 0
   let topOmset: ClientMkt | null = null
   let topJml: ClientMkt | null = null
+  let topOmsetN = 0
+  let topJmlN = 0
+  // Totals are all time (the client database); the two Top cards follow the picked month.
   for (const c of rows) {
-    const b = omsetP(c.id)
-    const j = jmlEvent(c.id)
-    omset += b
-    nSelesai += selesaiClientMkt(st.value.events, c.id).filter(diPeriode).length
-    if (j) pernahDeal++
-    if (b > 0 && (!topOmset || b > omsetP(topOmset.id))) topOmset = c
-    if (j > 0 && (!topJml || j > jmlEvent(topJml.id))) topJml = c
+    omset += omsetP(c.id, '')
+    nSelesai += selesaiClientMkt(st.value.events, c.id).length
+    if (jmlEvent(c.id, '')) pernahDeal++
+    const b = omsetP(c.id, bulanTop.value)
+    const j = jmlEvent(c.id, bulanTop.value)
+    if (b > topOmsetN) [topOmset, topOmsetN] = [c, b]
+    if (j > topJmlN) [topJml, topJmlN] = [c, j]
   }
   const perorangan = rows.filter(c => !(c.perusahaan ?? '').trim()).length
-  return { total: rows.length, pt: pt.size, perorangan, omset, nSelesai, pernahDeal, topOmset, topJml }
+  return { total: rows.length, pt: pt.size, perorangan, omset, nSelesai, pernahDeal, topOmset, topJml, topOmsetN, topJmlN }
 })
 const namaTampil = (c: ClientMkt | null) => (c ? (c.perusahaan?.trim() ? `${c.perusahaan} · ${c.nama}` : c.nama) : '')
 const kolom: TableColumn<ClientMkt>[] = [
@@ -139,7 +159,7 @@ const kolom: TableColumn<ClientMkt>[] = [
   { id: 'pic', header: tbl.kepala('pic', 'Marketing PIC'), meta: { class: { th: 'w-28', td: 'w-28' } } },
   { id: 'peluang', header: tbl.kepala('peluang', 'Peluang'), meta: { class: { th: 'min-w-[140px]', td: 'min-w-[140px] max-w-[200px]' } } },
   // Omset of the picked month (all time = Total Spending), with the event count under it.
-  { id: 'spend', header: () => tbl.kepala('spend', bulan.value ? `Omset ${labelPeriode.value}` : 'Total Spending')(), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
+  { id: 'spend', header: () => tbl.kepala('spend', periode.value ? `Omset ${labelPeriode.value}` : 'Total Spending')(), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
   { id: 'fu', header: tbl.kepala('fu', 'Next FU'), meta: { class: { th: 'w-24', td: 'w-24 whitespace-nowrap' } } },
   { id: 'buka', header: '', meta: { class: { th: 'w-10', td: 'w-10' } } },
 ]
@@ -285,40 +305,33 @@ async function terapkan() {
           :sub="`${ringkas.pt} perusahaan · ${ringkas.perorangan} perorangan`"
         />
         <AppStat
-          :label="`Omset Client · ${labelPeriode}`"
+          label="Total Omset Client"
           :value="rupiah(ringkas.omset)"
           icon="i-lucide-wallet"
           tone="success"
           :sub="`dari ${ringkas.nSelesai} event selesai · ${ringkas.pernahDeal} client buat event`"
         />
         <AppStat
-          :label="`Top Omset · ${labelPeriode}`"
-          :value="ringkas.topOmset ? rupiah(omsetP(ringkas.topOmset.id)) : '—'"
+          :label="`Top Omset · ${labelBulan}`"
+          :value="ringkas.topOmset ? rupiah(ringkas.topOmsetN) : '—'"
           icon="i-lucide-trophy"
           tone="gold"
-          :sub="ringkas.topOmset ? namaTampil(ringkas.topOmset) : `Belum ada event selesai di ${labelPeriode}`"
+          :sub="ringkas.topOmset ? namaTampil(ringkas.topOmset) : `Belum ada event selesai di ${labelBulan}`"
           wrap
         />
         <AppStat
-          :label="`Top Jumlah Event · ${labelPeriode}`"
-          :value="ringkas.topJml ? jmlEvent(ringkas.topJml.id) : '—'"
+          :label="`Top Jumlah Event · ${labelBulan}`"
+          :value="ringkas.topJml ? ringkas.topJmlN : '—'"
           :satuan="ringkas.topJml ? 'event' : undefined"
           icon="i-lucide-calendar-heart"
           tone="info"
-          :sub="ringkas.topJml ? namaTampil(ringkas.topJml) : `Belum ada event di ${labelPeriode}`"
+          :sub="ringkas.topJml ? namaTampil(ringkas.topJml) : `Belum ada event di ${labelBulan}`"
           wrap
         />
       </AppStatGrid>
 
       <AppPanel>
         <div class="mb-3 flex flex-wrap items-center gap-3">
-          <AppBulan
-            v-model="bulan"
-            clearable
-            placeholder="Semua waktu"
-            class="w-48"
-            aria-label="Bulan"
-          />
           <AppSeg
             v-model="mode"
             :options="[
@@ -327,6 +340,25 @@ async function terapkan() {
               { value: 'jumlah', label: 'Top jumlah event', icon: 'i-lucide-calendar-heart' },
             ]"
           />
+          <!-- The period only steers the Top rankings; the plain list is all time. -->
+          <template v-if="mode !== 'semua'">
+            <AppSeg
+              v-model="rentang"
+              :options="[
+                { value: 'bulan', label: 'Bulanan', icon: 'i-lucide-calendar' },
+                { value: 'semua', label: 'Selama buat event', icon: 'i-lucide-infinity' },
+              ]"
+            />
+            <div
+              v-if="rentang === 'bulan'"
+              class="w-48"
+            >
+              <AppBulan
+                v-model="bulan"
+                aria-label="Bulan peringkat"
+              />
+            </div>
+          </template>
           <span
             v-if="mode !== 'semua'"
             class="text-sm text-muted"
