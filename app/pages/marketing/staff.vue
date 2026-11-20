@@ -76,6 +76,7 @@ async function sinkronkan() {
     await logDenganCobaLagi(() => logMkt('user', '-', 'Data pegawai disinkronkan dari Office', `${baru} baru · ${ubah} diperbarui`))
     if (r.roleBerubah.length) await logDenganCobaLagi(() => logMkt('user', '-', 'Role menyesuaikan Tim di Office', r.roleBerubah.join(' · ')))
     await refreshNuxtData('marketing-state')
+    siarkanTab('marketing-state')
   }
   const pesan: string[] = []
   if (r.roleBerubah.length) pesan.push(`${r.roleBerubah.length} role disesuaikan dengan Tim di Office.`)

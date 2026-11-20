@@ -317,18 +317,18 @@ const warnaStatus = (r: RequestDesainMkt) => {
           <UTable
             :data="hal"
             :columns="[
-              { id: 'judul', header: tbl.kepala('judul', 'Permintaan') },
-              { id: 'jenis', header: tbl.kepala('jenis', 'Jenis'), meta: { class: { th: 'w-28', td: 'w-28' } } },
-              { id: 'brand', header: tbl.kepala('brand', 'Brand') },
-              { id: 'acara', header: tbl.kepala('acara', 'Untuk Acara') },
-              { id: 'dl', header: tbl.kepala('dl', 'Deadline'), meta: { class: { th: 'w-32', td: 'w-32' } } },
-              { id: 'prio', header: tbl.kepala('prio', 'Prioritas'), meta: { class: { th: 'w-32', td: 'w-32' } } },
-              { id: 'pic', header: tbl.kepala('pic', 'PIC Diminta') },
-              { id: 'status', header: tbl.kepala('status', 'Status'), meta: { class: { th: 'w-52', td: 'w-52' } } },
-              { id: 'aksi', header: 'Aksi', meta: { class: { th: 'w-28', td: 'w-28' } } },
+              { id: 'judul', header: tbl.kepala('judul', 'Permintaan'), meta: { class: { th: 'min-w-[170px]', td: 'min-w-[170px] max-w-[240px]' } } },
+              { id: 'jenis', header: tbl.kepala('jenis', 'Jenis'), meta: { class: { th: 'w-24', td: 'w-24' } } },
+              { id: 'brand', header: tbl.kepala('brand', 'Brand'), meta: { class: { th: 'min-w-[90px]', td: 'min-w-[90px]' } } },
+              { id: 'acara', header: tbl.kepala('acara', 'Untuk Acara'), meta: { class: { th: 'min-w-[120px]', td: 'min-w-[120px] max-w-[180px]' } } },
+              { id: 'dl', header: tbl.kepala('dl', 'Deadline'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
+              { id: 'prio', header: tbl.kepala('prio', 'Prioritas'), meta: { class: { th: 'w-24', td: 'w-24 whitespace-nowrap' } } },
+              { id: 'pic', header: tbl.kepala('pic', 'PIC Diminta'), meta: { class: { th: 'min-w-[90px]', td: 'min-w-[90px]' } } },
+              { id: 'status', header: tbl.kepala('status', 'Status'), meta: { class: { th: 'w-40', td: 'w-40' } } },
+              { id: 'aksi', header: 'Aksi', meta: { class: { th: 'w-24', td: 'w-24 whitespace-nowrap' } } },
             ]"
             class="hidden lg:block"
-            :ui="{ base: 'w-full table-fixed', th: 'whitespace-normal', td: 'whitespace-normal align-top', tr: 'cursor-pointer' }"
+            :ui="{ root: 'overflow-x-auto', base: 'w-full table-auto', th: 'px-2.5 py-2.5 text-[11px] whitespace-nowrap', td: 'px-2.5 py-2.5 text-xs whitespace-normal align-top', tr: 'cursor-pointer' }"
             @select="(_e: Event, r: { original: RequestDesainMkt }) => { lihatId = r.original.id }"
           >
             <template #judul-cell="{ row }">

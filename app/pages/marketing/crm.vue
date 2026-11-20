@@ -133,14 +133,14 @@ const ringkas = computed(() => {
 })
 const namaTampil = (c: ClientMkt | null) => (c ? (c.perusahaan?.trim() ? `${c.perusahaan} · ${c.nama}` : c.nama) : '')
 const kolom: TableColumn<ClientMkt>[] = [
-  // Client + Peluang flex; the rest lock so the table fits without scrolling.
-  { id: 'nama', header: tbl.kepala('nama', 'Client') },
-  { id: 'kontak', header: tbl.kepala('kontak', 'Kontak'), meta: { class: { th: 'w-36', td: 'w-36' } } },
+  { id: 'nama', header: tbl.kepala('nama', 'Client'), meta: { class: { th: 'min-w-[160px]', td: 'min-w-[160px] max-w-[240px]' } } },
+  { id: 'kontak', header: tbl.kepala('kontak', 'Kontak'), meta: { class: { th: 'w-32', td: 'w-32' } } },
   { id: 'source', header: tbl.kepala('source', 'Source'), meta: { class: { th: 'w-24', td: 'w-24' } } },
   { id: 'pic', header: tbl.kepala('pic', 'Marketing PIC'), meta: { class: { th: 'w-28', td: 'w-28' } } },
-  { id: 'peluang', header: tbl.kepala('peluang', 'Peluang'), meta: { class: { th: 'w-44', td: 'w-44' } } },
-  { id: 'spend', header: () => tbl.kepala('spend', bulan.value ? `Omset ${labelPeriode.value}` : 'Total Spending')(), meta: { class: { th: 'w-40', td: 'w-40' } } },
-  { id: 'fu', header: tbl.kepala('fu', 'Next FU'), meta: { class: { th: 'w-24', td: 'w-24' } } },
+  { id: 'peluang', header: tbl.kepala('peluang', 'Peluang'), meta: { class: { th: 'min-w-[140px]', td: 'min-w-[140px] max-w-[200px]' } } },
+  // Omset of the picked month (all time = Total Spending), with the event count under it.
+  { id: 'spend', header: () => tbl.kepala('spend', bulan.value ? `Omset ${labelPeriode.value}` : 'Total Spending')(), meta: { class: { th: 'w-40', td: 'w-40 whitespace-nowrap' } } },
+  { id: 'fu', header: tbl.kepala('fu', 'Next FU'), meta: { class: { th: 'w-24', td: 'w-24 whitespace-nowrap' } } },
   { id: 'buka', header: '', meta: { class: { th: 'w-10', td: 'w-10' } } },
 ]
 
@@ -367,7 +367,7 @@ async function terapkan() {
             :data="hal"
             :columns="kolom"
             class="hidden lg:block"
-            :ui="{ base: 'w-full table-fixed', thead: 'bg-table-head', th: 'text-table-head-text', td: 'whitespace-normal', tr: 'cursor-pointer' }"
+            :ui="{ root: 'overflow-x-auto', base: 'w-full table-auto', thead: 'bg-table-head', th: 'px-3 py-2.5 text-[11px] whitespace-nowrap text-table-head-text', td: 'px-3 py-2.5 text-xs whitespace-normal align-top', tr: 'cursor-pointer' }"
             @select="(_e: Event, r: { original: ClientMkt }) => lihat(r.original)"
           >
             <template #nama-cell="{ row }">

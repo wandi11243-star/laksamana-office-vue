@@ -35,6 +35,7 @@ import type { RiwayatKalkMkt } from '~/utils/marketing-kalk'
 import { UButton } from '#components'
 import type { Versi } from '~/utils/versi'
 import { ifMatch, tanganiKonflik } from '~/utils/versi'
+import { siarkanTab } from '~/utils/tab-sync'
 
 // ---------------------------------------------------------------- DP Event (Dana Masuk)
 // The tab is READ-ONLY: payments are verified in Marketing first, and land
@@ -348,6 +349,7 @@ export async function mktSimpan<T>(aksi: () => Promise<T>, sukses?: string, jeja
     if (sukses) toast?.add({ title: sukses, color: 'success' })
     await Promise.all((jejak ? [jejak].flat() : []).map(j => logDenganCobaLagi(() => logMkt(j.refType, j.refId ?? '-', j.action, j.detail))))
     await muatUlang()
+    siarkanTab('marketing-state')
     return true
   }
   catch (e) {
@@ -386,7 +388,10 @@ export function useTutupEventLewat() {
       }
       catch { /* see above */ }
     }
-    if (n) await refreshNuxtData('marketing-state')
+    if (n) {
+      await refreshNuxtData('marketing-state')
+      siarkanTab('marketing-state')
+    }
   }, { immediate: true })
 }
 
@@ -421,7 +426,7 @@ export function useTabelMkt<T>(key: string, kolom: KolomMkt<T>[], sidik?: () => 
     'variant': 'link',
     // The th's own colour (white on the dark Marketing heads, muted on light ones) — a fixed
     // white vanished on light heads (dashboard Upcoming Event, pipeline, invoices).
-    'class': '-mx-1 px-1 text-xs font-semibold tracking-wide uppercase text-inherit hover:text-inherit hover:opacity-80',
+    'class': '-mx-1 px-1 text-[11px] font-semibold tracking-wide uppercase whitespace-nowrap text-inherit hover:text-inherit hover:opacity-80',
     'trailingIcon': urut.value?.k === k ? (urut.value.arah === 1 ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down') : 'i-lucide-arrow-up-down',
     'aria-label': `Urutkan menurut ${t}`,
     'onClick': () => klik(k),

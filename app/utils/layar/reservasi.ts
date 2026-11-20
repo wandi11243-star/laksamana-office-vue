@@ -54,7 +54,7 @@ const ROLE_NAV: Record<RoleReservasi, string[]> = {
 const CAN_DEFAULT: Record<string, (role: RoleReservasi) => boolean> = {
   input: r => ['host', 'marketing', 'manager', 'admin'].includes(r),
   editStatus: r => ['host', 'marketing', 'manager', 'admin'].includes(r),
-  deleteReservation: r => ['manager', 'admin'].includes(r),
+  deleteReservation: r => ['marketing', 'manager', 'admin'].includes(r),
   deleteReview: r => ['manager', 'admin'].includes(r),
   master: r => ['manager', 'admin'].includes(r),
   audit: r => ['manager', 'admin'].includes(r),
@@ -151,7 +151,8 @@ export function roleReservasi(me: Me | null): RoleReservasi {
   const kru = users.find(u => u.id === me.id)
     ?? users.find(u => String(u.name).toLowerCase() === me.name.toLowerCase())
   const role = kru?.role as RoleReservasi | undefined
-  return role && role in ROLE_LABEL_RESERVASI ? role : 'host'
+  if (role && role in ROLE_LABEL_RESERVASI) return role
+  return me.modules.includes('marketing') ? 'marketing' : 'host'
 }
 
 /**
@@ -162,10 +163,13 @@ export function roleReservasi(me: Me | null): RoleReservasi {
  */
 export function pagePerm(page: string, role: RoleReservasi): 0 | 1 | 2 {
   if (role === 'admin') return 2
-  const tersimpan = usePeranReservasi().value.perms?.[page]?.[role]
+  const perms = usePeranReservasi().value.perms
+  const tersimpan = perms?.[page]?.[role]
   const nilai = typeof tersimpan === 'number'
     ? tersimpan as 0 | 1 | 2
-    : (ROLE_NAV[role].includes(page) ? 1 : 0)
+    : perms === null
+      ? ((seedPermsReservasi()[page]?.[role] ?? 0) as 0 | 1 | 2)
+      : (ROLE_NAV[role].includes(page) ? 1 : 0)
   return role === 'viewer' && nilai > 1 ? 1 : nilai
 }
 

@@ -379,8 +379,8 @@ const cetak = () => cetakPdf(namaBerkas('Invoice', pdf.value?.berkas.no, pdf.val
         color="warning"
         variant="subtle"
         class="mb-4"
-        :title="`${nDraft.length} event Deal / Event Done tidak ditampilkan karena invoice-nya masih Draft`"
-        :description="`Lengkapi dari tab Finance event-nya — begitu terbit, barisnya muncul di sini: ${nDraft.slice(0, 8).map(e => e.nama || namaClient(e.clientId)).join(', ')}${nDraft.length > 8 ? ' …' : ''}`"
+        :title="`${nDraft.length} event Deal / Event Done belum ditampilkan (invoice masih Draft)`"
+        :description="`Lengkapi dari tab Finance event-nya: ${nDraft.slice(0, 4).map(e => e.nama || namaClient(e.clientId)).join(', ')}${nDraft.length > 4 ? ` (+${nDraft.length - 4} lainnya)` : ''}`"
       />
 
       <AppPanel
@@ -405,6 +405,7 @@ const cetak = () => cetakPdf(namaBerkas('Invoice', pdf.value?.berkas.no, pdf.val
         <template #head>
           <AppSeg
             v-model="tab"
+            size="sm"
             :options="opsiTab"
           />
         </template>
@@ -429,46 +430,46 @@ const cetak = () => cetakPdf(namaBerkas('Invoice', pdf.value?.berkas.no, pdf.val
           <UTable
             :data="hal"
             :columns="[
-              { id: 'nama', header: tbl.kepala('nama', 'Client / Event') },
-              { id: 'grand', header: tbl.kepala('grand', 'Grand Total'), meta: { class: { th: 'w-36', td: 'w-36' } } },
-              { id: 'bayar', header: tbl.kepala('bayar', 'Terbayar'), meta: { class: { th: 'w-40', td: 'w-40' } } },
-              { id: 'sisa', header: tbl.kepala('sisa', 'Sisa'), meta: { class: { th: 'w-36', td: 'w-36' } } },
-              { id: 'status', header: tbl.kepala('status', 'Status'), meta: { class: { th: 'w-28', td: 'w-28' } } },
-              { id: 'resmi', header: 'Invoice Resmi', meta: { class: { th: 'w-48', td: 'w-48' } } },
-              { id: 'aksi', header: 'Aksi', meta: { class: { th: 'w-40', td: 'w-40' } } },
+              { id: 'nama', header: tbl.kepala('nama', 'Client / Event'), meta: { class: { th: 'min-w-[180px]', td: 'min-w-[180px] max-w-[260px]' } } },
+              { id: 'grand', header: tbl.kepala('grand', 'Grand Total'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
+              { id: 'bayar', header: tbl.kepala('bayar', 'Terbayar'), meta: { class: { th: 'w-32', td: 'w-32' } } },
+              { id: 'sisa', header: tbl.kepala('sisa', 'Sisa'), meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
+              { id: 'status', header: tbl.kepala('status', 'Status'), meta: { class: { th: 'w-24', td: 'w-24 whitespace-nowrap' } } },
+              { id: 'resmi', header: 'Invoice Resmi', meta: { class: { th: 'w-40', td: 'w-40' } } },
+              { id: 'aksi', header: 'Aksi', meta: { class: { th: 'w-28', td: 'w-28 whitespace-nowrap' } } },
             ]"
             class="hidden lg:block"
-            :ui="{ base: 'w-full table-fixed', th: 'whitespace-normal', td: 'whitespace-normal align-top', tr: 'cursor-pointer' }"
+            :ui="{ root: 'overflow-x-auto', base: 'w-full table-auto', th: 'px-3 py-2.5 text-[11px] whitespace-nowrap', td: 'px-3 py-2.5 text-xs whitespace-normal align-top', tr: 'cursor-pointer' }"
             @select="(_e: Event, r: { original: EventMkt }) => keFinance(r.original)"
           >
             <template #nama-cell="{ row }">
-              <p class="font-semibold break-words text-highlighted">
+              <p class="text-sm leading-snug font-semibold break-words text-highlighted">
                 {{ namaClient(row.original.clientId) }}
               </p>
-              <p class="text-xs break-words text-muted">
+              <p class="text-xs leading-snug break-words text-muted">
                 {{ row.original.nama }}
               </p>
-              <p class="num text-xs text-muted">
+              <p class="num text-[11px] text-muted">
                 {{ row.original.tanggal || '—' }}
               </p>
             </template>
             <template #grand-cell="{ row }">
-              <span class="num">{{ rupiah(uang(row.original).grand) }}</span>
+              <span class="num text-xs font-medium whitespace-nowrap">{{ rupiah(uang(row.original).grand) }}</span>
               <p
                 v-if="uang(row.original).tambahan"
-                class="text-xs text-muted"
+                class="text-[11px] text-muted"
               >
                 + open bill <span class="num">{{ rupiah(uang(row.original).tambahan) }}</span>
               </p>
             </template>
             <template #bayar-cell="{ row }">
-              <span class="num">{{ rupiah(uang(row.original).paid) }}</span>
-              <p class="text-xs text-muted">
+              <span class="num text-xs font-medium whitespace-nowrap">{{ rupiah(uang(row.original).paid) }}</span>
+              <p class="text-[11px] leading-snug text-muted">
                 target {{ dpLabel(uang(row.original)) }}: <span class="num">{{ rupiah(uang(row.original).dp) }}</span>
               </p>
             </template>
             <template #sisa-cell="{ row }">
-              <span class="num">{{ rupiah(uang(row.original).remaining) }}</span>
+              <span class="num text-xs font-medium whitespace-nowrap">{{ rupiah(uang(row.original).remaining) }}</span>
             </template>
             <template #status-cell="{ row }">
               <UTooltip
@@ -488,7 +489,7 @@ const cetak = () => cetakPdf(namaBerkas('Invoice', pdf.value?.berkas.no, pdf.val
             </template>
             <template #resmi-cell="{ row }">
               <div
-                class="grid grid-cols-1 gap-1.5"
+                class="grid grid-cols-1 gap-1"
                 @click.stop
               >
                 <MarketingSlotInv
@@ -522,7 +523,7 @@ const cetak = () => cetakPdf(namaBerkas('Invoice', pdf.value?.berkas.no, pdf.val
                 >
                   <UButton
                     icon="i-lucide-banknote"
-                    size="sm"
+                    size="xs"
                     color="primary"
                     variant="soft"
                     aria-label="Catat pembayaran"
@@ -536,7 +537,7 @@ const cetak = () => cetakPdf(namaBerkas('Invoice', pdf.value?.berkas.no, pdf.val
                 >
                   <UButton
                     icon="i-lucide-receipt"
-                    size="sm"
+                    size="xs"
                     color="neutral"
                     variant="ghost"
                     aria-label="Tambah tagihan open bill"
@@ -549,7 +550,7 @@ const cetak = () => cetakPdf(namaBerkas('Invoice', pdf.value?.berkas.no, pdf.val
                 >
                   <UButton
                     icon="i-lucide-receipt-text"
-                    size="sm"
+                    size="xs"
                     color="neutral"
                     variant="ghost"
                     aria-label="Riwayat pembayaran"
@@ -562,7 +563,7 @@ const cetak = () => cetakPdf(namaBerkas('Invoice', pdf.value?.berkas.no, pdf.val
                 >
                   <UButton
                     icon="i-lucide-arrow-up-right"
-                    size="sm"
+                    size="xs"
                     color="neutral"
                     variant="ghost"
                     aria-label="Buka tab Finance event"

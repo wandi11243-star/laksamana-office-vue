@@ -43,6 +43,7 @@ export async function logout(): Promise<void> {
     useToken().value = null
     useMe().value = null
     clearNuxtData()
+    siarkanTab('auth-logout')
     await navigateTo('/login')
   }
 }
