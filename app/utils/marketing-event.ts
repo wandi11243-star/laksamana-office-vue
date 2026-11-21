@@ -39,6 +39,8 @@ export interface FieldEventMkt {
   help?: string
   full?: boolean
   desc?: string
+  /** `files` only: images only, shown inline (no PDF). */
+  img?: boolean
 }
 
 export interface SeksiEventMkt {
@@ -73,7 +75,7 @@ const D1: FieldEventMkt[] = [
   { k: 'areaLain', l: 'Lantai / Area — tulis sendiri', t: 'text', cond: { k: 'area', v: 'Lainnya' } },
   { k: 'highlight', l: 'Poin Penting', t: 'ta', full: true },
   { k: 'rundown', l: 'Rundown Acara', t: 'rundown', help: 'Isi per baris: jam mulai, durasi & kegiatan. Ketik durasi → jam selesai terhitung sendiri.', req: true, full: true },
-  { k: 'rundownFiles', l: 'Lampiran Rundown', t: 'files', full: true, help: 'Unggah foto/PDF rundown. Gambar langsung tampil di bawah.' },
+  { k: 'rundownFiles', l: 'Lampiran Rundown', t: 'files', img: true, full: true, help: 'Unggah gambar rundown (PNG, JPG, WEBP). Langsung tampil di halaman, tidak perlu diunduh.' },
   { k: '_hLoading', l: 'Jadwal Loading', t: 'head', desc: 'Kapan dekorasi & barang masuk-keluar. Dipakai juga oleh Security (D.5).', full: true },
   { k: 'loadDekorTgl', l: 'Loading Dekorasi — Tanggal', t: 'date' },
   { k: 'loadDekorJam', l: 'Loading Dekorasi — Waktu', t: 'time' },
@@ -634,7 +636,7 @@ export function berkasOv(v: unknown): BerkasOv[] {
 }
 
 export function berkasGambarOv(name: string): boolean {
-  return /\.(png|jpe?g|webp|gif)$/i.test(name)
+  return /\.(png|jpe?g|webp|gif|bmp|avif)$/i.test(name)
 }
 
 export interface GrupMenuOv { nama: string, jam: string, qty: string, rows: { kat: string, menu: string, qty: string, jam: string }[] }
@@ -715,8 +717,30 @@ export type ModeBriefMkt = 'internal' | 'client' | 'quote'
 
 const escHtml = (s: unknown) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
 
-/** Keys that never print on the client version (internalNote, highlight). */
-export const KUNCI_INTERNAL_MKT = ['internalNote', 'highlight']
+/**
+ * The client version is an allowlist, like the old CLIENT_FIELDS: only what the
+ * client has to confirm (basics, rundown, menu, publishing consent, layout).
+ * Anything else — internal notes, PICs, vendors, kitchen/bar operations — stays
+ * out, so a field added later is hidden from the client until listed here.
+ */
+export const KUNCI_CLIENT_MKT: ReadonlySet<string> = new Set([
+  // Informasi dasar
+  'nama', 'jenis', 'tanggal', 'tamuDatang', 'selesai', 'pax', 'area', 'rundown',
+  'decorJenis', 'decorJenisLain', 'entJenis', 'entDok',
+  // Food & beverage, bar
+  'fbFormat', 'fbFormatLain', 'menuFinal', 'dietary', 'komponen', 'barMenu', 'barJam',
+  // Floor
+  'floorTambah', 'penyajianBar', 'penandaTamu',
+  // Design / publishing consent
+  'izinIG', 'izinTT', 'izinTag', 'izinTagAkun', 'dokEvent', 'hashtag', 'materiDesain',
+  // Layout and rundown images: what the client asks about most
+  'layoutFile', 'layoutImgs', 'areaImgs', 'rundownFiles', 'highlight',
+])
+
+export const tampilDiClientMkt = (k: string): boolean => KUNCI_CLIENT_MKT.has(k)
+
+/** Payment terms printed under "Ketentuan Pembayaran" on the client version (old buildBriefDoc). */
+export const KETENTUAN_BAYAR_CLIENT_MKT = 'DP maks. 3 hari setelah disetujui · Pelunasan maks. H-7 · Semua sajian 100% non-alkohol.'
 
 /**
  * The brief/quotation paper (buildBriefDoc, :11811): an HTML string the page
@@ -750,7 +774,7 @@ export function buildBriefDocMkt(ev: EventMkt, namaClient: string, st: SettingsM
     const baris: string[] = []
     for (const fld of s.fields) {
       if (fld.t === 'head' || fld.t === 'mirror' || fld.t === 'salinlayout' || fld.t === 'mejalock') continue
-      if (mode === 'client' && KUNCI_INTERNAL_MKT.includes(fld.k)) continue
+      if (mode === 'client' && !tampilDiClientMkt(fld.k)) continue
       const teks = ringkasNilaiMkt(fld.t, d[fld.k] ?? (ev as unknown as Detail)[fld.k])
       if (teks) baris.push(`<tr><td>${escHtml(fld.l)}</td><td>${escHtml(teks).replace(/\n/g, '<br>')}</td></tr>`)
     }
@@ -762,7 +786,7 @@ export function buildBriefDocMkt(ev: EventMkt, namaClient: string, st: SettingsM
     if (pics.length) h.push(`<p>PIC: ${escHtml(pics.map(String).join(' · '))}</p>`)
   }
   else {
-    h.push(`<h2>Ketentuan Pembayaran</h2><p>Sistem: ${escHtml(String(d.sistemBayar ?? ''))} · DP: ${rp(f.dp)} · Sisa: ${rp(f.remaining)}</p>`)
+    h.push(`<h2>Ketentuan Pembayaran</h2><p>Sistem: ${escHtml(String(d.sistemBayar ?? ''))} · DP: ${rp(f.dp)} · Sisa: ${rp(f.remaining)}</p><p>${escHtml(KETENTUAN_BAYAR_CLIENT_MKT)}</p>`)
   }
   return h.join('\n')
 }

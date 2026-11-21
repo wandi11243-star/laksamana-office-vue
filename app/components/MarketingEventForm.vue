@@ -11,7 +11,7 @@
 import type { EventMkt } from '~/utils/marketing'
 import type { DrafEventMkt, FieldEventMkt, SeksiEventMkt } from '~/utils/marketing-event'
 import {
-  KUNCI_ATAS_EVENT_MKT, MAKS_BERKAS_MKT, condTerpenuhiMkt, progresSeksiMkt, ringkasNilaiMkt,
+  KUNCI_ATAS_EVENT_MKT, MAKS_BERKAS_MKT, berkasGambarOv, condTerpenuhiMkt, progresSeksiMkt, ringkasNilaiMkt,
 } from '~/utils/marketing-event'
 import { berkasKeBase64, bukaBerkasMkt, unggahBerkasMkt } from '~/composables/useMarketing'
 import { ynBool } from '~/utils/marketing-uang'
@@ -71,6 +71,10 @@ async function pilihBerkas(f: FieldEventMkt, files: FileList | null) {
   try {
     const lama = Array.isArray(baca(f.k)) ? [...(baca(f.k) as Record<string, string>[])] : []
     for (const file of [...files]) {
+      if (f.img && !file.type.startsWith('image/') && !berkasGambarOv(file.name)) {
+        toast.add({ title: 'Hanya gambar', description: `${file.name}: ${f.l} hanya menerima gambar (PNG, JPG, WEBP). Ubah PDF jadi gambar dulu.`, color: 'error' })
+        continue
+      }
       if (file.size > MAKS_BERKAS_MKT) {
         toast.add({ title: 'File terlalu besar', description: `${file.name}: maksimal 8MB per berkas.`, color: 'error' })
         continue
@@ -388,29 +392,38 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                 <div
                   v-for="b in berkas(f)"
                   :key="b.key"
-                  class="flex items-center gap-2 text-sm"
+                  class="grid grid-cols-1 gap-1.5"
                 >
-                  <UIcon
-                    name="i-lucide-paperclip"
-                    class="size-4 flex-none text-muted"
-                  />
-                  <UButton
-                    color="neutral"
-                    variant="link"
-                    size="xs"
-                    class="min-w-0 flex-1 justify-start truncate px-0 text-primary-700 underline"
-                    @click="bukaBerkasMkt(b.key)"
-                  >
-                    {{ b.name }}
-                  </UButton>
-                  <UButton
-                    v-if="bisaUbah"
-                    icon="i-lucide-x"
-                    color="neutral"
-                    variant="ghost"
-                    size="xs"
-                    aria-label="Hapus berkas"
-                    @click="hapusBerkas(f, b.key)"
+                  <div class="flex items-center gap-2 text-sm">
+                    <UIcon
+                      name="i-lucide-paperclip"
+                      class="size-4 flex-none text-muted"
+                    />
+                    <UButton
+                      color="neutral"
+                      variant="link"
+                      size="xs"
+                      class="min-w-0 flex-1 justify-start truncate px-0 text-primary-700 underline"
+                      @click="bukaBerkasMkt(b.key)"
+                    >
+                      {{ b.name }}
+                    </UButton>
+                    <UButton
+                      v-if="bisaUbah"
+                      icon="i-lucide-x"
+                      color="neutral"
+                      variant="ghost"
+                      size="xs"
+                      aria-label="Hapus berkas"
+                      @click="hapusBerkas(f, b.key)"
+                    />
+                  </div>
+                  <!-- Image-only fields show the picture right here, so an upload is visibly confirmed. -->
+                  <MarketingGambar
+                    v-if="f.img && berkasGambarOv(b.name)"
+                    :file-key="b.key"
+                    :alt="b.name"
+                    img-class="min-h-16 max-h-48 w-full rounded border border-default bg-muted object-contain"
                   />
                 </div>
                 <UInput
@@ -418,7 +431,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                   size="lg"
                   type="file"
                   multiple
-                  accept="image/*,application/pdf"
+                  :accept="f.img ? 'image/*' : 'image/*,application/pdf'"
                   :disabled="mengunggah === f.k"
                   class="w-full"
                   @change="pilihBerkas(f, ($event.target as HTMLInputElement).files); ($event.target as HTMLInputElement).value = ''"
