@@ -10,11 +10,12 @@
 <script setup lang="ts">
 import type { ModeBriefMkt } from '~/utils/marketing-event'
 import {
-  KUNCI_INTERNAL_MKT,
+  KETENTUAN_BAYAR_CLIENT_MKT,
   SEKSI_EVENT_MKT,
   adaIsiOverviewMkt,
   progresSeksiMkt,
   ringkasNilaiMkt,
+  tampilDiClientMkt,
 } from '~/utils/marketing-event'
 import type { EventMkt, KolomMkt } from '~/utils/marketing'
 import { rentangTglMkt, tglMkt } from '~/utils/marketing'
@@ -79,7 +80,7 @@ const seksiDok = computed<SeksiDok[]>(() => {
     const baris: BarisDok[] = []
     for (const f of s.fields) {
       if (LEWAT_TIPE.includes(f.t)) continue
-      if (mode.value === 'client' && KUNCI_INTERNAL_MKT.includes(f.k)) continue
+      if (mode.value === 'client' && !tampilDiClientMkt(f.k)) continue
       const raw = tas.value[f.k] ?? (e as unknown as TasBrief)[f.k]
       const t = f.k === 'rincianItem' ? 'rincitbl' : f.t
       const isi = t === 'rincitbl' ? tagihan.value : raw
@@ -351,6 +352,12 @@ function cetak() {
                     </dd>
                   </div>
                 </dl>
+                <p
+                  v-if="mode === 'client'"
+                  class="mt-2 text-xs text-muted"
+                >
+                  {{ KETENTUAN_BAYAR_CLIENT_MKT }}
+                </p>
               </section>
             </template>
 

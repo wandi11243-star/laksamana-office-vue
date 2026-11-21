@@ -19,6 +19,8 @@ const props = defineProps<{ baris: BarisOverview[], ev: EventMkt, settings: Sett
 const RICH = ['rundown', 'files', 'menutbl', 'barangtbl', 'itemtbl', 'rincitbl']
 const tampil = computed(() => props.baris.filter(b => adaIsiOverviewMkt(b.t, b.raw, b.ringkas)))
 const kaya = (b: BarisOverview) => RICH.includes(b.t)
+const gambarOv = (raw: unknown) => berkasOv(raw).filter(f => berkasGambarOv(f.name))
+const lainOv = (raw: unknown) => berkasOv(raw).filter(f => !berkasGambarOv(f.name))
 
 const tagihan = computed(() => rincianPenawaran(props.ev, props.settings))
 const grand = computed(() => eventFinance(props.ev, props.settings).grand)
@@ -98,33 +100,43 @@ const grand = computed(() => eventFinance(props.ev, props.settings).grand)
           </tbody>
         </table>
 
-        <!-- Lampiran / layout: images centred, other files as links (all via Bearer blob) -->
+        <!-- Lampiran / layout: images drawn right here (one = full width, several = two per row,
+          like the old overview); other files stay links. All via Bearer blob. -->
         <div
           v-else-if="b.t === 'files'"
           class="grid grid-cols-1 gap-2"
         >
           <div
-            v-for="f in berkasOv(b.raw)"
-            :key="f.key"
-            :class="berkasGambarOv(f.name) ? 'flex justify-center' : ''"
+            v-if="gambarOv(b.raw).length"
+            class="grid grid-cols-1 gap-2.5"
+            :class="gambarOv(b.raw).length > 1 ? 'sm:grid-cols-2 print:grid-cols-2' : ''"
           >
-            <MarketingGambar
-              v-if="berkasGambarOv(f.name)"
-              :file-key="f.key"
-              :alt="f.name"
-              img-class="mx-auto max-h-96 rounded border border-default"
-            />
-            <UButton
-              v-else
-              color="neutral"
-              variant="link"
-              size="xs"
-              class="px-0 text-primary-700 underline"
-              @click="bukaBerkasMkt(f.key)"
+            <figure
+              v-for="f in gambarOv(b.raw)"
+              :key="f.key"
+              class="m-0 min-w-0 break-inside-avoid"
             >
-              {{ f.name }}
-            </UButton>
+              <MarketingGambar
+                :file-key="f.key"
+                :alt="f.name"
+                :img-class="`min-h-24 w-full rounded border border-default bg-muted object-contain ${gambarOv(b.raw).length > 1 ? 'max-h-[340px]' : 'max-h-[520px]'}`"
+              />
+              <figcaption class="mt-1 truncate text-[11px] text-muted">
+                {{ f.name }}
+              </figcaption>
+            </figure>
           </div>
+          <UButton
+            v-for="f in lainOv(b.raw)"
+            :key="f.key"
+            color="neutral"
+            variant="link"
+            size="xs"
+            class="justify-start px-0 text-primary-700 underline"
+            @click="bukaBerkasMkt(f.key)"
+          >
+            {{ f.name }}
+          </UButton>
         </div>
 
         <!-- Menu berkelompok (Menu Final) / daftar (Bar) -->
