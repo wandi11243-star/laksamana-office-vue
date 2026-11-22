@@ -51,6 +51,7 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
+const { mulai: mulaiProses } = useProses()
 
 /** Money in: the instalment total wins over the flat field, like the table's DP cell. */
 const dpNominal = computed(() => dpTotal(props.r) || props.r.dpAmount || 0)
@@ -81,6 +82,7 @@ async function hapusGelombang(idx: number) {
   const paxHapus = Number(target.pax) || 0
   const total = arrivalsOf(r).filter((_, i) => i !== idx).reduce((a, x) => a + (Number(x.pax) || 0), 0)
   if (!window.confirm(`Hapus catatan ${paxHapus} orang masuk? Total masuk jadi ${total} dari ${r.pax} pax.`)) return
+  const selesaiProses = mulaiProses(`Menghapus catatan ${paxHapus} orang masuk`)
   try {
     // Fresh row first: drop by position only when nothing changed in between.
     const env = await getReservation(r.id)
@@ -114,6 +116,9 @@ async function hapusGelombang(idx: number) {
     if (!(await tanganiKonflik(e, async () => emit('berubah')))) {
       toast.add({ title: apiErrorMessage(e), color: 'error' })
     }
+  }
+  finally {
+    selesaiProses()
   }
 }
 const badgeTf = (s: string): 'success' | 'error' | 'warning' => (s === 'verified' ? 'success' : s === 'rejected' ? 'error' : 'warning')

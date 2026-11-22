@@ -42,6 +42,7 @@ const emit = defineEmits<{
 
 const open = defineModel<boolean>('open', { default: false })
 const toast = useToast()
+const { mulai: mulaiProses } = useProses()
 
 const walkin = reactive({
   meja: '',
@@ -160,6 +161,7 @@ async function simpanWalkin() {
   const izinWalkin = dipaksaAktif.length ? buatIzinTumpang(mejaSimpan, props.tglDenah, jam, null, props.namaSaya) : null
 
   menyimpan.value = true
+  const selesaiProses = mulaiProses(`Menyimpan walk-in di meja ${mejaSimpan}`)
   try {
     await createReservation({
       id: uid(),
@@ -210,6 +212,7 @@ async function simpanWalkin() {
     if (!(await tanganiKonflik(e, async () => emit('konflik')))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
   finally {
+    selesaiProses()
     menyimpan.value = false
   }
 }

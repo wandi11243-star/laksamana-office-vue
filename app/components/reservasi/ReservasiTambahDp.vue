@@ -37,6 +37,7 @@ const emit = defineEmits<{
 
 const open = defineModel<boolean>('open', { default: false })
 const toast = useToast()
+const { mulai: mulaiProses } = useProses()
 const me = useMe()
 const namaSaya = computed(() => me.value?.name ?? '')
 const { data: dpMethods } = useSection<string[]>('dpMethods')
@@ -94,6 +95,7 @@ async function simpan() {
     return
   }
   menyimpan.value = true
+  const selesaiProses = mulaiProses(`Menyimpan DP ${props.r?.name ?? ''}`)
   try {
     const dataUri = await bacaBerkas(berkas.value)
     const namaFile = berkas.value.name
@@ -135,6 +137,7 @@ async function simpan() {
     }
   }
   finally {
+    selesaiProses()
     menyimpan.value = false
   }
 }

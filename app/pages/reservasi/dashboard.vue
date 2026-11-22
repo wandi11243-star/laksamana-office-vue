@@ -737,6 +737,7 @@ async function simpanAntrean() {
   }
   sheetAntrean.value = false
   sedangSimpan.value = true
+  const selesaiProses = mulaiProses(`Menambah ${w.name} ke waiting list`)
   try {
     await putSectionItem('waitlist', w.id, w, versiWaitlist.value)
     await refreshWaitlist()
@@ -747,6 +748,7 @@ async function simpanAntrean() {
     if (!(await tanganiKonflik(e, refreshWaitlist))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
   finally {
+    selesaiProses()
     sedangSimpan.value = false
   }
 }
@@ -793,6 +795,7 @@ async function simpanDudukkan(): Promise<boolean> {
     : ''
   const notes = [catatanTunggu, catatanSementara].filter(Boolean).join('\n')
   sedangSimpan.value = true
+  const selesaiProses = mulaiProses(`Mendudukkan ${w.name} di meja ${dudukkanMeja.value}`)
   try {
     await createReservation({
       id: recId,
@@ -845,6 +848,7 @@ async function simpanDudukkan(): Promise<boolean> {
     return false
   }
   finally {
+    selesaiProses()
     sedangSimpan.value = false
   }
 }
@@ -853,6 +857,7 @@ async function simpanDudukkan(): Promise<boolean> {
  *  same, and a queue has no trace of its own to lose. */
 async function batalkanAntrean(w: Waitlist) {
   sedangSimpan.value = true
+  const selesaiProses = mulaiProses(`Mengeluarkan ${w.name} dari antrean`)
   try {
     await putSectionItem('waitlist', w.id, { ...w, status: 'cancelled', cancelledAt: Date.now() }, versiWaitlist.value)
     await refreshWaitlist()
@@ -863,6 +868,7 @@ async function batalkanAntrean(w: Waitlist) {
     if (!(await tanganiKonflik(e, refreshWaitlist))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
   finally {
+    selesaiProses()
     sedangSimpan.value = false
   }
 }
@@ -873,6 +879,7 @@ async function panggil(w: Waitlist) {
     return
   }
   sedangSimpan.value = true
+  const selesaiProses = mulaiProses(`Memanggil ${w.name}`)
   try {
     await putSectionItem('waitlist', w.id, { ...w, calledAt: Date.now() }, versiWaitlist.value)
     await refreshWaitlist()
@@ -881,6 +888,7 @@ async function panggil(w: Waitlist) {
     if (!(await tanganiKonflik(e, refreshWaitlist))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
   finally {
+    selesaiProses()
     sedangSimpan.value = false
   }
   await waKirim(w.phone, teksPanggilAntrean(w.name, w.pax))
@@ -892,8 +900,28 @@ const baris = (id: string) => (semuaHari.value ?? []).find(r => r.id === id) ?? 
 
 /** Every write from the map is a shallow merge of one row, with that row's version. */
 const sedangSimpan = ref(false)
+const { mulai: mulaiProses } = useProses()
+
+/** What the "Memproses…" pill says while a row write runs, read from what is being written. */
+function teksProses(r: Reservasi, f: Partial<Reservasi>): string {
+  if (f.status === 'Datang' || f.arrivals) return `Mencatat kedatangan ${r.name}`
+  if (f.status) return `Mengubah status ${r.name} jadi ${f.status}`
+  if (f.leftAt) return `Menandai ${r.name} selesai`
+  if (f.table !== undefined) {
+    const lama = tablesOf(r)
+    const baru = String(f.table).split(',').map(s => s.trim()).filter(Boolean)
+    return baru.length > lama.length && lama.every(m => baru.includes(m))
+      ? `Menambah meja ${r.name} → ${f.table}`
+      : `Memindah meja ${r.name} → ${f.table}`
+  }
+  if (f.sharing !== undefined) return f.sharing ? `Menjadikan meja ${r.name} sharing` : `Membatalkan sharing ${r.name}`
+  if (f.followups) return `Menyimpan catatan follow up ${r.name}`
+  return `Menyimpan perubahan ${r.name}`
+}
+
 async function patch(r: Reservasi, fields: Partial<Reservasi>, pesan: string) {
   sedangSimpan.value = true
+  const selesaiProses = mulaiProses(teksProses(r, fields))
   try {
     await patchReservation(r.id, { ...fields, updatedAt: Date.now() }, versiBaris(r))
     await muatUlang()
@@ -905,6 +933,7 @@ async function patch(r: Reservasi, fields: Partial<Reservasi>, pesan: string) {
     return false
   }
   finally {
+    selesaiProses()
     sedangSimpan.value = false
   }
 }
@@ -1371,10 +1400,12 @@ const tujuanKoord = computed(() => (waTargets.value ?? []).filter(t => t.type ==
 
 async function kirimKoord(t: WaTarget) {
   sedangSimpan.value = true
+  const selesaiProses = mulaiProses(`Mencatat koordinasi ke ${t.name}`)
   try {
     await catat(`${t.name}${labelRentang.value ? `, ${labelRentang.value}` : ''}`, undefined, 'Kirim Koordinasi')
   }
   finally {
+    selesaiProses()
     sedangSimpan.value = false
   }
   // A group has no number: the text goes to the clipboard and wa.me opens so the

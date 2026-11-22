@@ -33,6 +33,7 @@ const emit = defineEmits<{
 
 const open = defineModel<boolean>('open', { default: false })
 const toast = useToast()
+const { mulai: mulaiProses } = useProses()
 const { data: categories } = useSection<string[]>('categories')
 
 const nama = ref('')
@@ -143,6 +144,7 @@ async function simpan() {
     return
   }
   menyimpan.value = true
+  const selesaiProses = mulaiProses(`Menyimpan edit cepat ${asal.name}`)
   try {
     // Fresh row first: the detail underneath may be stale.
     const env = await getReservation(asal.id)
@@ -200,6 +202,7 @@ async function simpan() {
     }
   }
   finally {
+    selesaiProses()
     menyimpan.value = false
   }
 }
