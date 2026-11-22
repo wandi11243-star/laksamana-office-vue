@@ -60,13 +60,13 @@ const props = withDefaults(defineProps<{
   /** Fit the complete plan to its available width without an inner scroll area. */
   fit?: boolean
   /**
-   * The "bisa 4-5 pax" line under each table. Off by default (owner request,
-   * Nov 2026): the pax is already written INSIDE the table, and saying it twice
-   * — once in the box, once under it — only crowds the plan.
+   * The "bisa 4-5 pax" line under each table. On by default (owner request,
+   * Nov 2026): the pax lives UNDER the table only, not inside the box too. A
+   * table with no room below (another table right under it) keeps it inside.
    */
   catatan?: boolean
 }>(), {
-  catatan: false,
+  catatan: true,
   reservasi: () => [],
   mode: 'tampil',
   terpilih: () => [],
@@ -197,12 +197,18 @@ const fmtJamDetik = (ms: number) => {
 /** The booking's own moment on the local clock, for a seconds-exact late counter. */
 const msPesan = (r: Reservasi) => new Date(`${r.date}T00:00:00`).getTime() + toMin(r.time) * 60000
 
-const jamSitting = (cin: number) => fmtJamDetik(now.value - cin)
+/** Sitting time "1:05" — hours and minutes; the seconds were noise here (owner request, Nov 2026). */
+const jamSitting = (cin: number) => {
+  const m = Math.max(0, Math.floor((now.value - cin) / 60000))
+  return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
+}
 
 /** The line under the table number. The old markup's wording, kept (`:2286-2330`). */
-function labelT(stat: ReturnType<typeof statusMeja>, cap: string) {
+function labelT(stat: ReturnType<typeof statusMeja>, cap: string, id: string) {
   const list = stat.list
-  if (stat.state === 'terpilih') return `${cap} pax`
+  // The pax goes under the box when there is room for it there.
+  const paxDiBawah = props.catatan && adaRuangCatatan.value.has(id)
+  if (stat.state === 'terpilih') return paxDiBawah ? '' : `${cap} pax`
   if (stat.state === 'sharing') return `Gabung · ${list.length} grup`
   if (list.length) {
     const r = list[0]!
@@ -213,7 +219,7 @@ function labelT(stat: ReturnType<typeof statusMeja>, cap: string) {
     return namaDepan(r)
   }
   if (stat.next) return namaDepan(stat.next)
-  return `${cap} pax`
+  return paxDiBawah ? '' : `${cap} pax`
 }
 
 /** The line under that: the time, or the sitting counter. */
@@ -222,7 +228,7 @@ function subT(stat: ReturnType<typeof statusMeja>) {
   if (stat.state === 'terpilih' || stat.state === 'sharing') return ''
   if (list.length) {
     const r = list[0]!
-    if (isSeated(r)) return r.checkinAt ? `Duduk ${jamSitting(r.checkinAt)}` : 'Sedang duduk'
+    if (isSeated(r)) return r.checkinAt ? jamSitting(r.checkinAt) : ''
     return jamR(r)
   }
   // Booked for later: the padlock (open / shut) and the booking time, as the old
@@ -460,7 +466,10 @@ function klik(mejaId: string) {
           @click="klik(String(t.id))"
         >
           <span class="sn">{{ t.id }}</span>
-          <span class="sp">{{ labelT(states.get(String(t.id))!, t.cap) }}</span>
+          <span
+            v-if="labelT(states.get(String(t.id))!, t.cap, String(t.id))"
+            class="sp"
+          >{{ labelT(states.get(String(t.id))!, t.cap, String(t.id)) }}</span>
           <span
             v-if="subT(states.get(String(t.id))!) || gembok(states.get(String(t.id))!)"
             class="sub"

@@ -25,7 +25,7 @@ export default {
           + 'di sini dan ikut mengunci mejanya. Jadi daftar di modul ini adalah gambaran lengkap '
           + 'satu malam, bukan cuma booking yang diketik host.' },
         { t: 'daftar', isi: [
-          '*Dashboard & Recap*, papan utama: daftar booking, kalender, denah meja, dan waiting list.',
+          '*Dashboard & Recap*, papan utama: daftar booking, kalender, dan denah meja.',
           '*Input Reservasi*, tempat mencatat booking baru.',
           '*Dana Masuk (DP)*, tempat memeriksa dan memverifikasi bukti transfer DP.',
           '*Riwayat*, booking yang sudah lewat.',
@@ -36,13 +36,13 @@ export default {
         { t: 'gambar', berkas: 'reservasi/dashboard.png',
           teks: 'Dashboard & Recap: kartu ringkasan di atas, baris penyaring, lalu tab isinya.',
           tandai: [
-            'Kartu ringkasan: jumlah booking, tamu, dan antrean waiting list hari itu.',
+            'Kartu ringkasan: jumlah booking, tamu, DP, dan yang perlu di-follow up hari itu.',
             'Baris penyaring: tanggal, status, dan kata kunci. Satu baris ini dipakai semua tab.',
-            'Tab Tabel, Kalender, Denah Meja, dan Waiting List.',
+            'Tab Tabel, Kalender, dan Denah Meja.',
           ] },
         { t: 'catatan', nada: 'info', judul: 'Penyaringnya satu untuk semua tab',
-          isi: 'Tab *Denah Meja* dan *Waiting List* hanya bisa menggambarkan SATU tanggal, jadi '
-            + 'keduanya mengikuti tanggal yang sedang dipilih di baris penyaring. Kalau denahnya '
+          isi: 'Tab *Denah Meja* hanya bisa menggambarkan SATU tanggal, jadi '
+            + 'denahnya mengikuti tanggal yang sedang dipilih di baris penyaring. Kalau denahnya '
             + 'terlihat kosong, periksa dulu tanggal di penyaring sebelum menyimpulkan datanya hilang.' },
       ],
     },
@@ -147,7 +147,7 @@ export default {
     },
 
     {
-      id: 'denah', judul: 'Denah Meja & Waiting List',
+      id: 'denah', judul: 'Denah Meja',
       isi: [
         { t: 'teks', isi: 'Tab *Denah Meja* menggambar susunan meja untuk satu tanggal. Meja yang '
           + 'sudah dipesan ditandai, dan yang masih bebas bisa langsung dipilih.' },
@@ -163,9 +163,6 @@ export default {
           'Denah khusus satu tanggal bisa dibuat kalau malam itu susunannya diubah untuk sebuah acara.',
           'Denah diatur di menu *Master Data*, bukan di halaman ini.',
         ] },
-        { t: 'teks', isi: 'Tab *Waiting List* untuk tamu yang datang tanpa booking saat semua meja '
-          + 'penuh. Catat nama dan jumlah orangnya; begitu ada meja kosong, tamu bisa '
-          + 'didudukkan dari daftar itu dan lama menunggunya ikut tercatat.' },
         { t: 'tanya', isi: [
           { t: 'Kenapa meja yang sudah dibatalkan masih terlihat terkunci?',
             j: 'Periksa jam yang sedang dipakai penyaring. Kuncian meja mengikuti jendela jam '
