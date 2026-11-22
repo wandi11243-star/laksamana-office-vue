@@ -51,6 +51,7 @@ const emit = defineEmits<{
 }>()
 
 const toast = useToast()
+const { mulai: mulaiProses } = useProses()
 
 /** Money in: the instalment total wins over the flat field, like the table's DP cell. */
 const dpNominal = computed(() => dpTotal(props.r) || props.r.dpAmount || 0)
@@ -81,6 +82,7 @@ async function hapusGelombang(idx: number) {
   const paxHapus = Number(target.pax) || 0
   const total = arrivalsOf(r).filter((_, i) => i !== idx).reduce((a, x) => a + (Number(x.pax) || 0), 0)
   if (!window.confirm(`Hapus catatan ${paxHapus} orang masuk? Total masuk jadi ${total} dari ${r.pax} pax.`)) return
+  const selesaiProses = mulaiProses(`Menghapus catatan ${paxHapus} orang masuk`)
   try {
     // Fresh row first: drop by position only when nothing changed in between.
     const env = await getReservation(r.id)
@@ -114,6 +116,9 @@ async function hapusGelombang(idx: number) {
     if (!(await tanganiKonflik(e, async () => emit('berubah')))) {
       toast.add({ title: apiErrorMessage(e), color: 'error' })
     }
+  }
+  finally {
+    selesaiProses()
   }
 }
 const badgeTf = (s: string): 'success' | 'error' | 'warning' => (s === 'verified' ? 'success' : s === 'rejected' ? 'error' : 'warning')
@@ -187,51 +192,51 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
       </AppStatus>
     </div>
 
-    <div class="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+    <div class="info-grid grid gap-2.5 sm:grid-cols-2">
       <div>
-        <p class="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-muted">
+        <p class="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-muted">
           <UIcon
             name="i-lucide-phone"
-            class="size-3.5"
+            class="size-4"
           />No. HP
         </p>
         <a
           :href="`https://wa.me/${normPhone(r.phone)}`"
           target="_blank"
           rel="noopener"
-          class="text-sm font-semibold text-primary-700 underline"
+          class="text-base font-semibold text-primary-700 underline"
         >{{ tampilPhone(r.phone) || '—' }}</a>
       </div>
-      <div>
-        <p class="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-muted">
+      <div class="sorot">
+        <p class="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-muted">
           <UIcon
             name="i-lucide-calendar"
-            class="size-3.5"
+            class="size-4"
           />Tanggal
         </p>
-        <p class="text-sm text-default">
+        <p class="text-base text-default">
           {{ tglPanjang(r.date) }}
         </p>
       </div>
-      <div>
-        <p class="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-muted">
+      <div class="sorot">
+        <p class="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-muted">
           <UIcon
             name="i-lucide-clock"
-            class="size-3.5"
+            class="size-4"
           />Jam
         </p>
-        <p class="text-sm text-default">
+        <p class="text-base text-default">
           {{ r.time }} WIB
         </p>
       </div>
-      <div>
-        <p class="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-muted">
+      <div class="sorot">
+        <p class="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-muted">
           <UIcon
             name="i-lucide-users"
-            class="size-3.5"
+            class="size-4"
           />Pax
         </p>
-        <p class="text-sm text-default">
+        <p class="text-base text-default">
           {{ r.pax }} orang
           <span
             v-if="duduk"
@@ -239,25 +244,25 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
           > · masuk {{ arrivedPax(r) }}<template v-if="remainingPax(r)"> · sisa {{ remainingPax(r) }}</template></span>
         </p>
       </div>
-      <div>
-        <p class="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-muted">
+      <div class="sorot">
+        <p class="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-muted">
           <UIcon
             name="i-lucide-armchair"
-            class="size-3.5"
+            class="size-4"
           />Meja
         </p>
-        <p class="text-sm text-default">
+        <p class="text-base text-default">
           {{ r.table || '—' }}
         </p>
       </div>
       <div>
-        <p class="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-muted">
+        <p class="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-muted">
           <UIcon
             name="i-lucide-tag"
-            class="size-3.5"
+            class="size-4"
           />Jenis reservasi
         </p>
-        <p class="text-sm text-default">
+        <p class="text-base text-default">
           <AppStatus
             v-if="r.category"
             color="gold"
@@ -269,43 +274,43 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
         </p>
       </div>
       <div>
-        <p class="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-muted">
+        <p class="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-muted">
           <UIcon
             name="i-lucide-megaphone"
-            class="size-3.5"
+            class="size-4"
           />Sumber
         </p>
-        <p class="text-sm text-default">
+        <p class="text-base text-default">
           {{ r.source || '—' }}
         </p>
       </div>
       <div>
-        <p class="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-muted">
+        <p class="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-muted">
           <UIcon
             name="i-lucide-user-round"
-            class="size-3.5"
+            class="size-4"
           />PIC
         </p>
-        <p class="text-sm text-default">
+        <p class="text-base text-default">
           {{ r.picName || '—' }}<span v-if="r.picType === 'Marketing'"> (Marketing)</span>
         </p>
       </div>
       <div>
-        <p class="flex items-center gap-1 text-[11px] font-bold uppercase tracking-wide text-muted">
+        <p class="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-muted">
           <UIcon
             name="i-lucide-history"
-            class="size-3.5"
+            class="size-4"
           />Tipe tamu
         </p>
         <p
           v-if="profil"
-          class="text-sm text-default"
+          class="text-base text-default"
         >
           {{ profil.tipe }}, {{ profil.kunjungan }}× kunjungan<span v-if="profil.kunjunganTerakhir">, terakhir {{ tglPendek(profil.kunjunganTerakhir) }}</span>
         </p>
         <p
           v-else
-          class="text-sm text-default"
+          class="text-base text-default"
         >
           —
         </p>
@@ -319,20 +324,20 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
         title="Menu request"
         icon="i-lucide-utensils"
       />
-      <div class="grid gap-3 sm:grid-cols-2">
+      <div class="info-grid grid gap-2.5 sm:grid-cols-2">
         <div v-if="r.foodReq">
-          <p class="text-xs font-semibold text-muted">
+          <p class="text-sm font-semibold text-muted">
             Makanan
           </p>
-          <p class="text-sm text-default">
+          <p class="text-base text-default">
             {{ r.foodReq }}
           </p>
         </div>
         <div v-if="r.drinkReq">
-          <p class="text-xs font-semibold text-muted">
+          <p class="text-sm font-semibold text-muted">
             Minuman
           </p>
-          <p class="text-sm text-default">
+          <p class="text-base text-default">
             {{ r.drinkReq }}
           </p>
         </div>
@@ -344,14 +349,14 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
         title="Down payment"
         icon="i-lucide-wallet"
       />
-      <div class="rounded-lg border border-default p-3 text-sm">
+      <div class="rounded-lg border border-default p-3 text-base">
         <div class="flex items-center justify-between gap-2">
           <span class="text-muted">Total DP masuk</span>
           <b class="text-highlighted">{{ dpNominal ? rupiah(dpNominal) : 'Belum DP' }}</b>
         </div>
         <p
           v-if="dpNominal"
-          class="mt-1 text-xs text-muted"
+          class="mt-1 text-sm text-muted"
         >
           {{ rekeningDp(r).join(' · ') || 'rekening belum diisi' }}<template v-if="(r.dps?.length ?? 0) > 1">
             · dicicil {{ r.dps.length }}×
@@ -385,7 +390,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
           <div
             v-for="(p, i) in cicilan"
             :key="p.id || i"
-            class="rounded-lg bg-muted p-2.5 text-sm"
+            class="rounded-lg bg-muted p-2.5 text-base"
           >
             <p class="flex flex-wrap items-center gap-1.5">
               <b class="text-highlighted">DP {{ i + 1 }} · {{ rupiah(Number(p.amount) || 0) }}</b>
@@ -396,7 +401,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
                 {{ teksTf(p.tfStatus) }}
               </AppStatus>
             </p>
-            <p class="mt-0.5 text-xs text-muted">
+            <p class="mt-0.5 text-sm text-muted">
               {{ p.method || '—' }}{{ p.tfName ? ` · a.n. ${p.tfName}` : '' }}{{ p.tfDate ? ` · ${p.tfDate}${p.tfTime ? ` ${p.tfTime}` : ''}` : '' }} · dicatat {{ p.by || '—' }}{{ p.at ? `, ${capWaktu(p.at)}` : '' }}
             </p>
             <div class="mt-1.5">
@@ -412,11 +417,11 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
               />
               <span
                 v-else
-                class="text-xs text-muted"
+                class="text-sm text-muted"
               >tanpa bukti</span>
             </div>
           </div>
-          <p class="text-xs text-muted">
+          <p class="text-sm text-muted">
             Verifikasi dan koreksi transfer di halaman Dana Masuk (DP).
           </p>
           <UButton
@@ -433,9 +438,9 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
 
     <div
       v-if="r.notes"
-      class="rounded-lg border border-default p-3 text-sm"
+      class="rounded-lg border border-default p-3 text-base"
     >
-      <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted">
+      <p class="mb-1 text-xs font-bold uppercase tracking-wide text-muted">
         Catatan khusus
       </p>
       <p class="whitespace-pre-wrap text-default">
@@ -444,9 +449,9 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
     </div>
     <div
       v-if="r.docReqData"
-      class="rounded-lg border border-default p-3 text-sm"
+      class="rounded-lg border border-default p-3 text-base"
     >
-      <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-muted">
+      <p class="mb-1 text-xs font-bold uppercase tracking-wide text-muted">
         Dokumen special request
       </p>
       <UButton
@@ -465,13 +470,13 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
         title="Gelombang kedatangan"
         icon="i-lucide-users"
       />
-      <div class="space-y-1.5 text-sm">
+      <div class="space-y-1.5 text-base">
         <div
           v-for="(g, i) in gelombang"
           :key="i"
           class="flex items-center justify-between gap-2 border-b border-default pb-1.5"
         >
-          <span><b class="text-highlighted">{{ g.pax }} orang</b> masuk <span class="text-xs text-muted">{{ g.waktu }}{{ g.oleh ? ` · ${g.oleh}` : '' }}</span></span>
+          <span><b class="text-highlighted">{{ g.pax }} orang</b> masuk <span class="text-sm text-muted">{{ g.waktu }}{{ g.oleh ? ` · ${g.oleh}` : '' }}</span></span>
           <UButton
             v-if="bolehUbahGelombang"
             icon="i-lucide-trash-2"
@@ -484,7 +489,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
             @click="hapusGelombang(i)"
           />
         </div>
-        <p class="text-xs text-muted">
+        <p class="text-sm text-muted">
           Total masuk: <b class="text-highlighted">{{ arrivedPax(r) }}</b> dari {{ r.pax }} pax<template v-if="remainingPax(r)">
             — sisa <b class="text-highlighted">{{ remainingPax(r) }}</b> orang
           </template><template v-else>
@@ -499,7 +504,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
         title="Riwayat follow up"
         icon="i-lucide-phone"
       />
-      <div class="space-y-1.5 text-sm">
+      <div class="space-y-1.5 text-base">
         <div
           v-for="(f, i) in r.followups"
           :key="i"
@@ -508,7 +513,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
           <p class="text-default">
             {{ f.note }}
           </p>
-          <p class="mt-0.5 text-xs text-muted">
+          <p class="mt-0.5 text-sm text-muted">
             {{ f.by }}, {{ capWaktu(f.ts) }}
           </p>
         </div>
@@ -520,7 +525,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
         title="Jejak & waktu duduk"
         icon="i-lucide-history"
       />
-      <div class="space-y-1.5 text-sm">
+      <div class="space-y-1.5 text-base">
         <div class="flex justify-between gap-3 border-b border-default pb-1.5">
           <span class="text-muted">Diinput oleh</span>
           <span class="text-right">{{ r.createdBy || '—' }}{{ r.createdAt ? `, ${capWaktu(r.createdAt)}` : '' }}</span>
@@ -555,7 +560,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
         </div>
         <p
           v-if="r.datangDiasumsikan"
-          class="text-xs text-muted"
+          class="text-sm text-muted"
         >
           Tidak pernah ditandai datang satu per satu — dianggap datang penuh saat tutup malam.
         </p>
@@ -564,9 +569,9 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
 
     <div
       v-if="r.cancelReason"
-      class="rounded-lg border border-error/40 p-3 text-sm"
+      class="rounded-lg border border-error/40 p-3 text-base"
     >
-      <p class="mb-1 text-[11px] font-bold uppercase tracking-wide text-error">
+      <p class="mb-1 text-xs font-bold uppercase tracking-wide text-error">
         Alasan batal
       </p>
       <p class="text-default">
@@ -581,7 +586,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
       />
       <p
         v-if="!(r.log ?? []).length"
-        class="rounded-lg bg-muted p-3 text-sm text-muted"
+        class="rounded-lg bg-muted p-3 text-base text-muted"
       >
         Belum ada aktivitas yang tercatat untuk reservasi ini.
       </p>
@@ -594,7 +599,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
           size="sm"
           to="/reservasi/audit"
         />
-        <div class="mt-2 space-y-1.5 text-sm">
+        <div class="mt-2 space-y-1.5 text-base">
           <div
             v-for="(l, i) in r.log"
             :key="i"
@@ -609,7 +614,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
             >
               {{ l.detail }}
             </p>
-            <p class="mt-0.5 text-xs text-muted">
+            <p class="mt-0.5 text-sm text-muted">
               {{ l.by || '—' }}{{ l.role ? ` (${l.role})` : '' }}, {{ capWaktu(l.ts) }}
             </p>
           </div>
@@ -624,13 +629,13 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
   >
     <p
       v-if="buktiMemuat"
-      class="text-sm text-muted"
+      class="text-base text-muted"
     >
       Memuat bukti…
     </p>
     <p
       v-else-if="buktiGalat"
-      class="text-sm"
+      class="text-base"
     >
       {{ buktiGalat }}
     </p>
@@ -657,3 +662,30 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
     </template>
   </ResponsiveSheet>
 </template>
+
+<style scoped>
+/*
+  Each detail is its own small tile with room between label and value, so the
+  facts do not run together (owner request, Nov 2026). Date, time, pax and table
+  — what the crew reads first at the door — get the gold wash.
+*/
+.info-grid > div {
+  border-radius: 0.625rem;
+  background: var(--ui-bg-muted);
+  padding: 0.625rem 0.875rem;
+}
+
+.info-grid > div > p:first-child {
+  margin-bottom: 0.25rem;
+}
+
+.info-grid > div > :not(:first-child) {
+  font-weight: 600;
+  color: var(--ui-text-highlighted);
+}
+
+.info-grid > div.sorot {
+  background: var(--color-gold-soft);
+  box-shadow: inset 3px 0 0 var(--color-gold);
+}
+</style>

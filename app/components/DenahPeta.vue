@@ -23,10 +23,10 @@
 <script setup lang="ts">
 import type { Reservasi } from '~/composables/useReservasi'
 import type { LayoutDenah, MasterDenah } from '~/utils/venue-layouts'
-import { SEAT_W, SEAT_H, capMax } from '~/utils/venue-layouts'
+import { SEAT_W, SEAT_H, capMax, cariMeja } from '~/utils/venue-layouts'
 import {
   absMin, arrivedPax, canAddArrival, fmtMenit, harihOccupancy, hhmm, isSeated,
-  menitMenuju, occupiedMap, remainingPax, roomText, statusMeja,
+  menitMenuju, occupiedMap, remainingPax, roomText, sedangDialihkan, statusMeja, toMin,
 } from '~/utils/kunci-meja'
 
 const props = withDefaults(defineProps<{
@@ -59,10 +59,14 @@ const props = withDefaults(defineProps<{
   legenda?: boolean
   /** Fit the complete plan to its available width without an inner scroll area. */
   fit?: boolean
-  /** The "bisa 4-5 pax" line under each table. */
+  /**
+   * The "bisa 4-5 pax" line under each table. Off by default (owner request,
+   * Nov 2026): the pax is already written INSIDE the table, and saying it twice
+   * — once in the box, once under it — only crowds the plan.
+   */
   catatan?: boolean
 }>(), {
-  catatan: true,
+  catatan: false,
   reservasi: () => [],
   mode: 'tampil',
   terpilih: () => [],
@@ -95,6 +99,14 @@ const emit = defineEmits<{
   buka: [resId: string]
   /** A locked table was clicked: the caller shows `pesan` and answers. */
   tumpang: [p: PermintaanTumpang]
+  /**
+   * Day-of map: a free table booked for LATER (more than an hour away) was
+   * clicked. The old app offers two ways out here (26 Sep 2026): open the
+   * booker's reservation (they arrived early) or seat a new walk-in for a while.
+   */
+  dipesan: [p: { meja: string, res: Reservasi, lain: number }]
+  /** Day-of map: a sharing table was clicked — manage its parties (old sharingTableAction). */
+  sharing: [meja: string]
 }>()
 
 const rows = computed(() => props.reservasi.filter(r => r.date && r.time))
@@ -102,7 +114,8 @@ const dineEst = computed(() => (Number(props.master?.dineEstMin) > 0 ? Number(pr
 
 /** A plan is never "no tables": if it is, the crew is looking at the wrong thing. */
 const meja = computed(() => props.layout?.tables ?? [])
-const fix = computed(() => props.layout?.fixed ?? [])
+/** Background blocks switched off in the editor (`hidden`) are kept in the data but never drawn. */
+const fix = computed(() => (props.layout?.fixed ?? []).filter(f => !f.hidden))
 
 const peta = computed(() => {
   if (props.mode === 'pilih') {
@@ -116,7 +129,15 @@ const peta = computed(() => {
 const occ = computed(() => peta.value.occ)
 const later = computed(() => peta.value.later)
 
-const capOf = (id: string) => capMax(meja.value.find(t => String(t.id) === String(id))?.cap)
+/**
+ * A table's capacity by id. One booking may use tables from another floor or
+ * plan, so a table that is not on THIS plan is looked up across every template
+ * (old capOfTableId) — otherwise its share of a multi-table party is wrong.
+ */
+const capOf = (id: string) => {
+  const t = meja.value.find(x => String(x.id) === String(id)) ?? cariMeja(props.master, id)?.t
+  return capMax(t?.cap)
+}
 
 const states = computed(() => new Map(meja.value.map(t => [
   String(t.id),
@@ -137,14 +158,18 @@ const states = computed(() => new Map(meja.value.map(t => [
 // The clock only ticks while something is actually counting.
 const now = ref(Date.now())
 const adaDuduk = computed(() => [...occ.value.values()].some(l => l.some(isSeated)))
+/** Today's map with a guest still to come: the late / follow-up flash must switch on by itself. */
+const adaMenunggu = computed(() => props.mode === 'tampil' && props.hariIni && later.value.size > 0)
 let jeda: ReturnType<typeof setInterval> | undefined
 const nyalakan = () => {
   clearInterval(jeda)
-  jeda = props.timer && adaDuduk.value ? setInterval(() => (now.value = Date.now()), 1000) : undefined
+  const detik = props.timer && adaDuduk.value
+  // Every second: the sitting and late counters show seconds.
+  jeda = detik || adaMenunggu.value ? setInterval(() => (now.value = Date.now()), 1000) : undefined
 }
 onMounted(nyalakan)
 onBeforeUnmount(() => clearInterval(jeda))
-watch([() => props.timer, adaDuduk], nyalakan)
+watch([() => props.timer, adaDuduk, adaMenunggu], nyalakan)
 
 // --- geometry ---------------------------------------------------------------
 
@@ -162,10 +187,17 @@ const namaDepan = (r?: Reservasi | null) => String(r?.name ?? '').split(' ')[0] 
 
 const jamR = (r: Reservasi) => (r.date === props.tanggal ? r.time : `${hhmm(absMin(r.date, r.time))} (${r.date.slice(8, 10)})`)
 
-const jamSitting = (cin: number) => {
-  const m = Math.floor((now.value - cin) / 60000)
-  return m < 1 ? 'baru saja' : `${fmtMenit(m)}`
+/** A running clock "1:05:23" — hours, minutes, seconds (owner request, Nov 2026). */
+const fmtJamDetik = (ms: number) => {
+  const s = Math.max(0, Math.floor(ms / 1000))
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${Math.floor(s / 3600)}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`
 }
+
+/** The booking's own moment on the local clock, for a seconds-exact late counter. */
+const msPesan = (r: Reservasi) => new Date(`${r.date}T00:00:00`).getTime() + toMin(r.time) * 60000
+
+const jamSitting = (cin: number) => fmtJamDetik(now.value - cin)
 
 /** The line under the table number. The old markup's wording, kept (`:2286-2330`). */
 function labelT(stat: ReturnType<typeof statusMeja>, cap: string) {
@@ -193,16 +225,48 @@ function subT(stat: ReturnType<typeof statusMeja>) {
     if (isSeated(r)) return r.checkinAt ? `Duduk ${jamSitting(r.checkinAt)}` : 'Sedang duduk'
     return jamR(r)
   }
-  if (stat.next) {
-    const m = menitMenuju(stat.next, now.value)
-    if (m < 0) return `Telat ${fmtMenit(-m)}`
-    return stat.state === 'mepet' ? `Mepet · ${jamR(stat.next)}` : jamR(stat.next)
-  }
+  // Booked for later: the padlock (open / shut) and the booking time, as the old
+  // map. Lateness is its own tag below, so the time stays readable.
+  if (stat.next) return jamR(stat.next)
   // The waiting count belongs in the tooltip only (`:2331`). Printed under every
   // empty table it repeats the same number across the whole plan and trains the
   // eye to skip the line.
   return ''
 }
+
+/** "telat 25 m" — the booker's time has passed and they have not arrived (old seat-telat, 26 Sep 2026). */
+function telatT(stat: ReturnType<typeof statusMeja>): string {
+  if (stat.list.length || !stat.next) return ''
+  const lewat = now.value - msPesan(stat.next)
+  return lewat > 0 && Number.isFinite(lewat) ? `telat ${fmtJamDetik(lewat)}` : ''
+}
+
+/**
+ * The flash on today's map (old updateHarihTimers, fu-warn / fu-late): a booker
+ * due within 10 minutes pulses gold ("follow up"), one whose time has passed and
+ * who has not arrived turns yellow and blinks until they come, cancel or no-show.
+ */
+function fuT(stat: ReturnType<typeof statusMeja>): 'telat' | 'fu' | '' {
+  if (props.mode !== 'tampil' || !props.hariIni || stat.list.length || !stat.next) return ''
+  if (!['Pending', 'Confirmed'].includes(stat.next.status)) return ''
+  const m = menitMenuju(stat.next, now.value)
+  if (m < 0) return 'telat'
+  return m <= 10 ? 'fu' : ''
+}
+
+/** Bookings still to come on a booked table: the ones after the first, plus those booked later (old `lain`). */
+function lainT(id: string, stat: ReturnType<typeof statusMeja>): number {
+  if (!stat.list.length || stat.state === 'sharing') return stat.lain
+  return stat.list.length - 1 + (later.value.get(id)?.length ?? 0)
+}
+
+/** The guest at this table was moved here for now; their own table is another one (old 🔁 tag). */
+const nebengT = (stat: ReturnType<typeof statusMeja>) =>
+  stat.state !== 'sharing' && !!stat.list[0] && sedangDialihkan(stat.list[0])
+
+/** Seated while the next booking on the table is close or late: someone has to move. */
+const alihT = (stat: ReturnType<typeof statusMeja>) =>
+  props.mode === 'tampil' && stat.alih.length > 0 && stat.list.some(isSeated)
 
 /**
  * The table's fill is its STATUS, in the old Reservasi plan's colours (owner
@@ -229,6 +293,9 @@ function kelasT(s: ReturnType<typeof statusMeja>) {
   else k.push(`st-${s.state}`)
   if (s.dipaksa) k.push('st-dipaksa')
   if (s.over) k.push('seat-duduk')
+  if (alihT(s)) k.push('st-alih')
+  const fu = fuT(s)
+  if (fu) k.push(`st-fu-${fu}`)
   return k
 }
 
@@ -282,8 +349,15 @@ function judul(stat: ReturnType<typeof statusMeja>, cap: string) {
       : `${r.name}, ${jamR(r)}, ${r.status}, ${r.pax} pax`)
   }
   if (stat.fill.sisaMax > 0) baris.push(`Kursi: terisi ${stat.fill.terisi} dari ${cap} pax, masih muat ${roomText(stat.fill)} orang lagi.`)
-  if (stat.lain) baris.push(`Ada ${stat.lain} reservasi lain di meja ini.`)
-  if (stat.next) baris.push(`Dipesan ${stat.next.name} jam ${jamR(stat.next)}.`)
+  if (stat.list.length && stat.state !== 'sharing') {
+    const nanti = [...stat.list.slice(1), ...(later.value.get(id) ?? [])]
+    if (nanti.length) baris.push(`Berikutnya di meja ini: ${nanti.map(x => `${x.name} ${jamR(x)}`).join(', ')}`)
+  }
+  else if (stat.lain) baris.push(`Ada ${stat.lain} reservasi lain di meja ini.`)
+  if (stat.next) {
+    const m = menitMenuju(stat.next, now.value)
+    baris.push(`Kosong sekarang. Dipesan ${stat.next.name} jam ${jamR(stat.next)} (${m > 0 ? `${fmtMenit(m)} lagi` : `jamnya sudah lewat ${fmtMenit(-m)}`}, ${stat.next.pax} pax).`)
+  }
   if (!stat.list.length && !stat.next) {
     baris.push('Kosong. Klik untuk ' + (props.nunggu
       ? `pilih tamu dari waiting list (${props.nunggu} menunggu) atau catat walk-in.`
@@ -292,8 +366,11 @@ function judul(stat: ReturnType<typeof statusMeja>, cap: string) {
   else if (!stat.list.length) {
     baris.push(props.mode === 'pilih'
       ? 'Klik kalau tetap mau memakainya — kamu akan ditanya dulu.'
-      : 'Masih boleh dipakai walk-in / duduk sementara. Klik untuk isi tamu — kamu akan ditanya dulu.')
+      : stat.state === 'mepet'
+        ? `TERKUNCI untuk walk-in — mejanya disiapkan untuk ${stat.next?.name}. Klik untuk mengubah status ${stat.next?.name} (Datang, Batal, No-show…).`
+        : 'Masih boleh dipakai walk-in / duduk sementara. Klik untuk buka reservasi pemesan atau isi walk-in.')
   }
+  if (nebengT(stat)) baris.push(`Dialihkan sementara dari meja ${stat.list[0]!.tableAsli} — kembalikan ke sana kalau sudah bebas.`)
   if (stat.over) baris.push('Sudah duduk melewati estimasi — meja tetap terisi sampai ditandai Selesai.')
   if (stat.alih.length) baris.push(`${stat.alih.map(x => `${x.name} jam ${x.time}`).join(', ')} sudah dekat — meja masih terisi, alihkan sementara ke meja lain.`)
   return baris.join('\n')
@@ -332,8 +409,17 @@ function klik(mejaId: string) {
     return emit('pilih', mejaId)
   }
 
+  // Day-of map (old seatMapMarkup 'view' + seatEmptyClick):
+  //   sharing table       -> manage its parties
+  //   booked / seated     -> open that booking
+  //   booked within 1 h   -> locked for walk-ins, opens the BOOKER (Datang, Batal, No-show)
+  //   booked later        -> choose: open the booker, or a walk-in for a while
+  //   free                -> walk-in (or the waiting list)
+  if (stat.state === 'sharing') return emit('sharing', mejaId)
   if (stat.list.length) return emit('buka', stat.list[0]!.id)
+  if (stat.next && stat.state === 'mepet') return emit('buka', stat.next.id)
   if (props.saringAktif) return
+  if (stat.next) return emit('dipesan', { meja: mejaId, res: stat.next, lain: stat.lain })
   emit('pilih', mejaId)
 }
 </script>
@@ -387,9 +473,33 @@ function klik(mejaId: string) {
             {{ subT(states.get(String(t.id))!) }}
           </span>
           <span
-            v-if="states.get(String(t.id))!.lain"
+            v-if="telatT(states.get(String(t.id))!)"
+            class="telat"
+          >{{ telatT(states.get(String(t.id))!) }}</span>
+          <span
+            v-else-if="fuT(states.get(String(t.id))!) === 'fu'"
+            class="telat telat-fu"
+          >follow up</span>
+          <span
+            v-if="lainT(String(t.id), states.get(String(t.id))!)"
             class="multi"
-          >+{{ states.get(String(t.id))!.lain }}</span>
+          >+{{ lainT(String(t.id), states.get(String(t.id))!) }}</span>
+          <span
+            v-if="alihT(states.get(String(t.id))!)"
+            class="tag tag-alih"
+            title="Reservasi berikutnya sudah dekat tapi meja masih terisi — alihkan sementara"
+          ><UIcon
+            name="i-lucide-triangle-alert"
+            class="ikon"
+          /></span>
+          <span
+            v-else-if="mode === 'tampil' && nebengT(states.get(String(t.id))!)"
+            class="tag tag-nebeng"
+            :title="`Menumpang sementara, meja asli ${states.get(String(t.id))!.list[0]!.tableAsli}`"
+          ><UIcon
+            name="i-lucide-repeat"
+            class="ikon"
+          /></span>
         </button>
 
         <!-- Free chairs, written UNDER each table so they never cover the number or the guest. -->
@@ -488,6 +598,7 @@ function klik(mejaId: string) {
   text-align: center;
   font-weight: 700;
   line-height: 1.1;
+  overflow-wrap: anywhere;
   color: var(--color-seat-ink);
   border-radius: 0.375rem;
   pointer-events: none;
@@ -498,6 +609,13 @@ function klik(mejaId: string) {
   color: var(--color-seat-ink);
   font-size: clamp(0.7rem, 2.1vw, 1.6rem);
   letter-spacing: 0.06em;
+}
+
+.fix-videotron {
+  background: var(--color-seat-dark);
+  color: var(--color-seat-ink);
+  font-size: clamp(0.6rem, 1.6vw, 1.2rem);
+  letter-spacing: 0.08em;
 }
 
 .fix-floor2 {
@@ -654,54 +772,63 @@ function klik(mejaId: string) {
   filter: none;
 }
 
+/* The table number shrinks to fit its table (cqw) rather than ending in "…". */
 .sn {
   font-weight: 800;
-  font-size: min(clamp(0.55rem, 1.5vw, 1rem), 30cqw);
+  font-size: min(clamp(0.55rem, 1.5vw, 1rem), 26cqw);
   max-width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .denah.fit .sn {
-  font-size: min(clamp(0.65rem, 1.5vw, 1rem), 30cqw);
+  font-size: min(clamp(0.65rem, 1.5vw, 1rem), 26cqw);
+}
+
+/*
+  The guest line and the time line WRAP instead of ending in "…" (owner request,
+  Nov 2026: a cut-off name is no name). Two lines at most, broken anywhere so a
+  long single word still shows whole on a narrow table.
+*/
+.sp,
+.sub {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  text-align: center;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .sp {
-  font-size: min(clamp(0.4rem, 0.85vw, 0.65rem), 21cqw);
+  font-size: min(clamp(0.4rem, 0.85vw, 0.65rem), 17cqw);
   font-weight: 700;
   opacity: 0.85;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .denah.fit .sp {
-  font-size: min(clamp(0.45rem, 0.85vw, 0.65rem), 21cqw);
+  font-size: min(clamp(0.45rem, 0.85vw, 0.65rem), 17cqw);
 }
 
 .sub {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.15em;
   margin-top: 1px;
-  font-size: min(clamp(0.4rem, 1.05vw, 0.7rem), 21cqw);
+  font-size: min(clamp(0.4rem, 1.05vw, 0.7rem), 17cqw);
   font-weight: 800;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .denah.fit .sub {
-  font-size: min(clamp(0.45rem, 1.05vw, 0.7rem), 21cqw);
+  font-size: min(clamp(0.45rem, 1.05vw, 0.7rem), 17cqw);
 }
 
 .ikon {
+  display: inline-block;
   width: 1em;
   height: 1em;
-  flex-shrink: 0;
+  margin-right: 0.15em;
+  vertical-align: -0.12em;
 }
 
 /* More bookings on the same table: a count in the top-left corner. */
@@ -741,6 +868,95 @@ function klik(mejaId: string) {
 
 .note-sisa { color: var(--color-meja-note-sisa); }
 .note-penuh { color: var(--color-meja-note-penuh); }
+
+/* The booker is late (old .seat-telat): a small red tag under the time. */
+.telat {
+  display: block;
+  max-width: 100%;
+  margin-top: 1px;
+  padding: 0 4px;
+  white-space: nowrap;
+  font-size: min(clamp(0.4rem, 0.7vw, 0.625rem), 14cqw);
+  font-weight: 800;
+  line-height: 1.4;
+  color: white;
+  background: var(--color-meja-datang);
+  border-radius: 4px;
+}
+
+.telat-fu {
+  background: var(--color-meja-pending);
+  color: var(--color-meja-pending-ink);
+}
+
+/*
+  Today's map, a booker still to come (old .fu-warn / .fu-late): within 10
+  minutes the table pulses gold; past the time and not arrived it turns yellow
+  and blinks. After the status colours so it wins.
+*/
+.seat.st-fu-fu {
+  z-index: 4;
+  animation: fu-denyut 1.1s ease-in-out infinite;
+}
+
+.seat.st-fu-telat {
+  z-index: 4;
+  background: var(--color-meja-telat);
+  border-color: var(--color-meja-pending);
+  color: var(--color-meja-pending-ink);
+  animation: telat-kedip 1.2s ease-in-out infinite;
+}
+
+@keyframes fu-denyut {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-meja-pending) 70%, transparent); }
+  50% { box-shadow: 0 0 0 7px transparent; }
+}
+
+@keyframes telat-kedip {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-meja-telat) 80%, transparent); opacity: 1; }
+  50% { box-shadow: 0 0 0 8px transparent; opacity: 0.6; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seat.st-fu-fu,
+  .seat.st-fu-telat {
+    animation: none;
+  }
+}
+
+/* Corner tag: someone has to move (alih), or a guest moved here for now (nebeng). */
+.tag {
+  position: absolute;
+  top: 2px;
+  right: 3px;
+  display: inline-flex;
+  padding: 2px 3px;
+  font-size: 0.5625rem;
+  line-height: 1;
+  color: white;
+  border-radius: 6px;
+}
+
+.tag-alih { background: var(--color-meja-sharing); }
+.tag-nebeng { background: var(--color-meja-confirmed); }
+
+/* Seated while the next booking is close (old .seat-alih): a pulsing ring. */
+.seat.st-alih {
+  z-index: 5;
+  animation: alih-denyut 1.2s ease-in-out infinite;
+}
+
+@keyframes alih-denyut {
+  0%, 100% { box-shadow: inset 0 0 0 2.5px var(--color-meja-sharing), 0 0 0 0 color-mix(in srgb, var(--color-meja-sharing) 85%, transparent); }
+  50% { box-shadow: inset 0 0 0 2.5px var(--color-meja-sharing), 0 0 0 8px transparent; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seat.st-alih {
+    animation: none;
+    box-shadow: inset 0 0 0 2.5px var(--color-meja-sharing);
+  }
+}
 
 /* Seated past the expected stay: a dashed edge. */
 .seat-duduk {

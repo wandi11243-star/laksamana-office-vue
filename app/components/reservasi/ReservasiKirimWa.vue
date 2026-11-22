@@ -11,7 +11,7 @@
 import type { Reservasi, WaTarget } from '~/composables/useReservasi'
 import { useSection } from '~/composables/useReservasi'
 import { dpsTampilan, dpTotal, normPhone } from '~/utils/dp-reservasi'
-import { rupiah } from '~/utils/format'
+import { rupiah, tglPanjang } from '~/utils/format'
 import { waKirim, waSalin } from '~/utils/wa'
 
 const props = defineProps<{
@@ -73,6 +73,34 @@ function teksWA(r: Reservasi, fields: string[]): string {
   return L.join('\n')
 }
 
+/**
+ * The confirmation for the GUEST (owner request, Nov 2026): "Kirim WA" is first
+ * of all how the crew tells the guest their booking is confirmed. Prefilled and
+ * editable; copied, or opened straight in a chat with the guest's number.
+ */
+function teksKonfirmasi(r: Reservasi): string {
+  const L = [
+    `Halo Kak ${r.name} 👋`,
+    '',
+    'Terima kasih sudah reservasi di *Laksamana Muda* ⚓',
+    'Reservasi Kakak sudah kami *konfirmasi*:',
+    '',
+    `📅 ${tglPanjang(r.date)}`,
+    `🕗 Jam ${r.time} WIB`,
+    `👥 ${r.pax} orang`,
+  ]
+  if (r.table) L.push(`🪑 Meja ${r.table}`)
+  if (r.dpStatus === 'Sudah') L.push(`💰 DP diterima ${rupiah(dpTotal(r) || r.dpAmount)}`)
+  L.push('', 'Kalau ada perubahan jam atau jumlah orang, kabari kami lewat chat ini ya Kak. Sampai jumpa! 🙏', '', '_Sail to Good Taste, Stay for the Vibes_')
+  return L.join('\n')
+}
+
+const teksTamu = ref('')
+watch([open, () => props.r], ([o, r]) => {
+  if (o && r) teksTamu.value = teksKonfirmasi(r)
+}, { immediate: true })
+const adaNomorTamu = computed(() => normPhone(props.r?.phone ?? '').length >= 8)
+
 const teksUntuk = (t: WaTarget) => (props.r ? teksWA(props.r, t.fields ?? []) : '')
 const teksCustom = computed(() => (props.r ? teksWA(props.r, centang.value) : ''))
 
@@ -91,13 +119,57 @@ async function kirim(tujuan: string | null, teks: string) {
 <template>
   <ResponsiveSheet
     v-model:open="open"
-    title="Kirim notifikasi WhatsApp"
+    title="Kirim WhatsApp"
     :description="r ? `${r.name} · ${r.date} ${r.time}` : ''"
   >
     <div
       v-if="r"
       class="space-y-3"
     >
+      <div class="rounded-lg border-2 border-success/50 p-3">
+        <p class="flex items-center gap-2 font-semibold text-highlighted">
+          <UIcon
+            name="i-lucide-message-circle"
+            class="size-5 text-success"
+          />Konfirmasi ke tamu
+        </p>
+        <p class="text-sm text-muted">
+          {{ adaNomorTamu ? `Dikirim ke ${r.name} · ${r.phone}` : 'Nomor tamu belum diisi — salin pesannya lalu kirim manual.' }}
+          Pesan bisa diubah dulu sebelum dikirim.
+        </p>
+        <UTextarea
+          v-model="teksTamu"
+          :rows="10"
+          autoresize
+          class="my-2 w-full"
+        />
+        <div class="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          <UButton
+            label="Kirim ke WhatsApp tamu"
+            icon="i-lucide-send"
+            color="success"
+            size="lg"
+            class="justify-center"
+            :disabled="!adaNomorTamu"
+            loading-auto
+            @click="kirim(r.phone, teksTamu)"
+          />
+          <UButton
+            label="Salin pesan"
+            icon="i-lucide-copy"
+            color="neutral"
+            variant="soft"
+            size="lg"
+            class="justify-center"
+            loading-auto
+            @click="salin(teksTamu)"
+          />
+        </div>
+      </div>
+
+      <p class="pt-2 text-xs font-bold uppercase tracking-wide text-muted">
+        Notifikasi ke tim
+      </p>
       <p
         v-if="!(waTargets ?? []).length"
         class="rounded-lg border border-default bg-default p-3 text-sm text-muted"

@@ -28,7 +28,7 @@ import { usePollReservasi } from '~/composables/usePollReservasi'
 import { createReservation, exportReservationsCsv, listReservationsHalaman, patchReservation, postAudit, putSectionItem, useDaftarReservasi, useDenah, useRingkasanTamu, useSection, useSectionVersi } from '~/composables/useReservasi'
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
 import { profilTamuGabung, kelompokBarisTamu, normStatus, unduhBlob } from '~/utils/riwayat'
-import { arrivedPax, buatIzinTumpang, canAddArrival, fmtMenit, harihOccupancy, isSeated, occupiedMap, remainingPax, sedangDialihkan, tableFill, tablesOf } from '~/utils/kunci-meja'
+import { arrivedPax, bookingBerikut, buatIzinTumpang, canAddArrival, fmtMenit, harihOccupancy, isSeated, mepetKah, menitMenuju, occupiedMap, partiesAt, remainingPax, sedangDialihkan, tableFill, tablesOf } from '~/utils/kunci-meja'
 import { dpTotal, normPhone, rekeningDp, tampilPhone, uid } from '~/utils/dp-reservasi'
 import {
   capMax, cariMeja, dayTypeLayout, dayTypeLayout2, getLayout, jejakDenah, kapasitasTanggal,
@@ -679,6 +679,15 @@ const layerMap = ref<1 | 2>(1)
 const kunciL1 = computed(() => dayTypeLayout(master.value, tglDenah.value))
 const kunciL2 = computed(() => dayTypeLayout2(master.value, tglDenah.value))
 const denahTerpilih = computed(() => getLayout(master.value, layerMap.value === 2 ? kunciL2.value : kunciL1.value))
+/**
+ * The plan for MOVING a booking follows that booking's own date, not the date
+ * the map is showing (old b11b48a, 22 Oct 2026): a Wednesday booking opened from
+ * the list while the map shows Saturday must pick from Wednesday's plan.
+ */
+const denahPindah = computed(() => {
+  const d = aksi.value?.date || tglDenah.value
+  return getLayout(master.value, layerMap.value === 2 ? dayTypeLayout2(master.value, d) : dayTypeLayout(master.value, d))
+})
 const namaDenah = computed(() => layoutName(master.value, layerMap.value === 2 ? kunciL2.value : kunciL1.value))
 
 /** What is really taken now, and what is merely booked later (`:2129-2183`). */
@@ -728,6 +737,7 @@ async function simpanAntrean() {
   }
   sheetAntrean.value = false
   sedangSimpan.value = true
+  const selesaiProses = mulaiProses(`Menambah ${w.name} ke waiting list`)
   try {
     await putSectionItem('waitlist', w.id, w, versiWaitlist.value)
     await refreshWaitlist()
@@ -738,6 +748,7 @@ async function simpanAntrean() {
     if (!(await tanganiKonflik(e, refreshWaitlist))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
   finally {
+    selesaiProses()
     sedangSimpan.value = false
   }
 }
@@ -767,13 +778,24 @@ function bukaDudukkan(w: Waitlist) {
 /** Seat a queued guest: a walk-in booking first, then the queue entry is linked to
  *  it (`:1961-1992`). In that order, so a failed booking leaves the guest waiting
  *  rather than marked as seated with nothing to show. */
-async function simpanDudukkan() {
+async function simpanDudukkan(): Promise<boolean> {
   const w = dudukkan.value
-  if (!w || !dudukkanMeja.value) return
+  if (!w || !dudukkanMeja.value) return false
+  const nx = berikutDi(dudukkanMeja.value)
+  if (nx && mepetKah(nx.menit)) {
+    toast.add({ title: `Meja ${dudukkanMeja.value} terkunci — ${nx.res.name} ${tglPendek(nx.res.date)} jam ${nx.res.time} (${sisaWaktu(nx.menit)})`, color: 'error' })
+    return false
+  }
   const now = Date.now()
   const jam = normTime(`${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`)
   const recId = uid()
+  const catatanTunggu = `Dari waiting list${w.note ? ` — ${w.note}` : ''}`
+  const catatanSementara = nx
+    ? `Walk-in sementara — meja ${dudukkanMeja.value} dipesan ${nx.res.name} jam ${jamPesan(nx.res)}`
+    : ''
+  const notes = [catatanTunggu, catatanSementara].filter(Boolean).join('\n')
   sedangSimpan.value = true
+  const selesaiProses = mulaiProses(`Mendudukkan ${w.name} di meja ${dudukkanMeja.value}`)
   try {
     await createReservation({
       id: recId,
@@ -799,7 +821,7 @@ async function simpanDudukkan() {
       picName: namaSaya.value,
       member: false,
       memberNo: '',
-      notes: `Dari waiting list${w.note ? ` — ${w.note}` : ''}`,
+      notes,
       vip: false,
       status: 'Datang',
       actualPax: w.pax,
@@ -819,11 +841,14 @@ async function simpanDudukkan() {
     await Promise.all([refreshWaitlist(), muatUlang()])
     sheetDudukkan.value = false
     toast.add({ title: `${w.name} duduk di ${dudukkanMeja.value}`, color: 'success' })
+    return true
   }
   catch (e) {
     if (!(await tanganiKonflik(e, refreshWaitlist))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+    return false
   }
   finally {
+    selesaiProses()
     sedangSimpan.value = false
   }
 }
@@ -832,6 +857,7 @@ async function simpanDudukkan() {
  *  same, and a queue has no trace of its own to lose. */
 async function batalkanAntrean(w: Waitlist) {
   sedangSimpan.value = true
+  const selesaiProses = mulaiProses(`Mengeluarkan ${w.name} dari antrean`)
   try {
     await putSectionItem('waitlist', w.id, { ...w, status: 'cancelled', cancelledAt: Date.now() }, versiWaitlist.value)
     await refreshWaitlist()
@@ -842,6 +868,7 @@ async function batalkanAntrean(w: Waitlist) {
     if (!(await tanganiKonflik(e, refreshWaitlist))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
   finally {
+    selesaiProses()
     sedangSimpan.value = false
   }
 }
@@ -852,6 +879,7 @@ async function panggil(w: Waitlist) {
     return
   }
   sedangSimpan.value = true
+  const selesaiProses = mulaiProses(`Memanggil ${w.name}`)
   try {
     await putSectionItem('waitlist', w.id, { ...w, calledAt: Date.now() }, versiWaitlist.value)
     await refreshWaitlist()
@@ -860,6 +888,7 @@ async function panggil(w: Waitlist) {
     if (!(await tanganiKonflik(e, refreshWaitlist))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
   finally {
+    selesaiProses()
     sedangSimpan.value = false
   }
   await waKirim(w.phone, teksPanggilAntrean(w.name, w.pax))
@@ -871,8 +900,28 @@ const baris = (id: string) => (semuaHari.value ?? []).find(r => r.id === id) ?? 
 
 /** Every write from the map is a shallow merge of one row, with that row's version. */
 const sedangSimpan = ref(false)
+const { mulai: mulaiProses } = useProses()
+
+/** What the "Memproses…" pill says while a row write runs, read from what is being written. */
+function teksProses(r: Reservasi, f: Partial<Reservasi>): string {
+  if (f.status === 'Datang' || f.arrivals) return `Mencatat kedatangan ${r.name}`
+  if (f.status) return `Mengubah status ${r.name} jadi ${f.status}`
+  if (f.leftAt) return `Menandai ${r.name} selesai`
+  if (f.table !== undefined) {
+    const lama = tablesOf(r)
+    const baru = String(f.table).split(',').map(s => s.trim()).filter(Boolean)
+    return baru.length > lama.length && lama.every(m => baru.includes(m))
+      ? `Menambah meja ${r.name} → ${f.table}`
+      : `Memindah meja ${r.name} → ${f.table}`
+  }
+  if (f.sharing !== undefined) return f.sharing ? `Menjadikan meja ${r.name} sharing` : `Membatalkan sharing ${r.name}`
+  if (f.followups) return `Menyimpan catatan follow up ${r.name}`
+  return `Menyimpan perubahan ${r.name}`
+}
+
 async function patch(r: Reservasi, fields: Partial<Reservasi>, pesan: string) {
   sedangSimpan.value = true
+  const selesaiProses = mulaiProses(teksProses(r, fields))
   try {
     await patchReservation(r.id, { ...fields, updatedAt: Date.now() }, versiBaris(r))
     await muatUlang()
@@ -884,6 +933,7 @@ async function patch(r: Reservasi, fields: Partial<Reservasi>, pesan: string) {
     return false
   }
   finally {
+    selesaiProses()
     sedangSimpan.value = false
   }
 }
@@ -1135,71 +1185,120 @@ async function simpanPindah() {
 // --- walk-in at a free table (`:1944-1975`) -------------------------------------
 
 const sheetWalkin = ref(false)
-const walkin = reactive({ meja: '', nama: '', phone: '', pax: 1, sharing: false })
-
-function bukaWalkin(mejaId: string) {
-  Object.assign(walkin, { meja: mejaId, nama: '', phone: '', pax: 1, sharing: false })
+const walkinInit = reactive({ meja: '', sharing: false, pax: 2 })
+/** The walk-in form (old walkInSeat). `sharing` + `pax` come prefilled when a guest is added to a sharing table. */
+function bukaWalkin(mejaId: string, sharing = false, pax = 2) {
+  if (!bolehEdit.value) {
+    toast.add({ title: 'Anda tidak punya akses menambah reservasi.', color: 'error' })
+    return
+  }
+  if (saringBerlaku.value) return
+  Object.assign(walkinInit, { meja: mejaId, sharing, pax: Number(pax) > 0 ? Number(pax) : 2 })
   sheetWalkin.value = true
 }
 
-async function simpanWalkin() {
-  const n = Number(walkin.pax) || 0
-  if (n < 1) {
-    toast.add({ title: 'Jumlah orang wajib diisi', color: 'error' })
+// --- clicking a table on the day-of map (old seatEmptyClick, :6695-6846) ---------------
+
+/** The booking waiting for a table — the same one the map, the form ribbon and the note name. */
+const berikutDi = (meja: string) => bookingBerikut(semuaHari.value ?? [], meja, { date: tglDenah.value, hariIni: hariIniMap.value, dineEst: dineEst.value })
+const sisaWaktu = (m: number) => (m > 0 ? `${fmtMenit(m)} lagi` : `jamnya sudah lewat ${fmtMenit(-m)}`)
+/** "19:00", or "02:10 (27 Sep)" when the booking is on another day than the map. */
+const jamPesan = (r: Reservasi) => (r.date === tglDenah.value ? r.time : `${r.time} (${tglPendek(r.date)})`)
+
+/**
+ * A free table booked for LATER: two ways out, not one yes/no question (old
+ * pilihMejaDipesan, 26 Sep 2026: "pilihan, masukin tamu walk-in baru atau buka
+ * detail reservasi di jam terdekat"). Before, the only way from this table was a
+ * walk-in, and a booker who arrived early had to be looked up in the list first.
+ */
+const sheetDipesan = ref(false)
+const mejaDipesan = ref<{ meja: string, res: Reservasi, lain: number, menit: number } | null>(null)
+
+function onMejaDipesan(p: { meja: string, res: Reservasi, lain: number }) {
+  const nx = berikutDi(p.meja)
+  const res = nx?.res ?? p.res
+  mejaDipesan.value = { meja: p.meja, res, lain: nx?.lain ?? p.lain, menit: nx?.menit ?? menitMenuju(res) }
+  sheetDipesan.value = true
+}
+
+function bukaPemesan(resId: string) {
+  const r = baris(resId)
+  sheetDipesan.value = false
+  if (r) bukaAksi(r)
+}
+
+function walkinDariDipesan(meja: string) {
+  sheetDipesan.value = false
+  if (meja) lanjutWalkin(meja)
+}
+
+/**
+ * The real walk-in path (old lanjutWalkIn) — straight from a free table, and from
+ * "Walk-in baru" above. The H-1h guard stays HERE: the choice can sit open for
+ * minutes and the time can slip into the lock window before the button is pressed.
+ * With guests waiting for this date, the queue is offered first.
+ */
+function lanjutWalkin(meja: string) {
+  if (!bolehEdit.value) {
+    toast.add({ title: 'Anda tidak punya akses menambah reservasi.', color: 'error' })
     return
   }
-  const now = Date.now()
-  const jam = normTime(`${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`)
-  const nama = walkin.nama.trim() || 'Walkin' // a nameless quick entry is all called "Walkin"
-  sheetWalkin.value = false
-  sedangSimpan.value = true
-  try {
-    await createReservation({
-      id: uid(),
-      name: nama,
-      phone: normPhone(walkin.phone),
-      date: tglDenah.value,
-      time: jam,
-      pax: n,
-      table: walkin.meja,
-      sharing: walkin.sharing,
-      category: 'Tamu Umum',
-      foodReq: '',
-      drinkReq: '',
-      dpStatus: 'Belum',
-      dpMethod: '',
-      dpAmount: 0,
-      dpProofData: '',
-      dpProofName: '',
-      docReqData: '',
-      docReqName: '',
-      source: 'Walk-in',
-      picType: 'Host/Captain',
-      picName: namaSaya.value,
-      member: false,
-      memberNo: '',
-      notes: '',
-      vip: false,
-      status: 'Datang',
-      actualPax: n,
-      checkinAt: now,
-      leftAt: 0,
-      arrivals: [{ ts: now, pax: n, by: namaSaya.value }],
-      createdBy: namaSaya.value,
-      createdAt: now,
-      updatedAt: now,
-      followups: [],
-      _audit: { action: 'Walk-in', detail: `${nama} (${n} pax) di meja ${walkin.meja}` },
-    } as Partial<Reservasi> & { _audit: { action: string, detail: string } })
-    await muatUlang()
-    toast.add({ title: `${nama} duduk di ${walkin.meja}`, color: 'success' })
+  if (saringBerlaku.value) return
+  const nx = berikutDi(meja)
+  if (nx && mepetKah(nx.menit)) {
+    toast.add({ title: `Meja ${meja} terkunci — ${nx.res.name} ${tglPendek(nx.res.date)} jam ${nx.res.time} (${sisaWaktu(nx.menit)})`, color: 'error' })
+    return
   }
-  catch (e) {
-    if (!(await tanganiKonflik(e, muatUlang))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  if (calon.value.length) {
+    tawarMeja.value = meja
+    sheetTawar.value = true
+    return
   }
-  finally {
-    sedangSimpan.value = false
+  bukaWalkin(meja)
+}
+
+/** A free table and guests waiting: pick one from the queue, or a new walk-in (old offerWaitlist, :2043-2075). */
+const sheetTawar = ref(false)
+const tawarMeja = ref('')
+const tawarBooking = computed(() => (tawarMeja.value ? berikutDi(tawarMeja.value) : null))
+
+async function dudukkanDariTawar(w: Waitlist) {
+  dudukkanId.value = w.id
+  dudukkanMeja.value = tawarMeja.value
+  dudukkanSharing.value = false
+  const ok = await simpanDudukkan()
+  if (ok) sheetTawar.value = false
+}
+
+function walkinDariTawar(meja: string) {
+  sheetTawar.value = false
+  bukaWalkin(meja)
+}
+
+/** A sharing table: its parties, and adding one more (old sharingTableAction, :7031-7063). */
+const sheetSharing = ref(false)
+const mejaSharing = ref('')
+const partaiSharing = computed(() => mejaSharing.value
+  ? partiesAt(occupiedMap(semuaHari.value ?? [], { date: tglDenah.value, realita: hariIniMap.value, dineEst: dineEst.value }), mejaSharing.value)
+  : [])
+
+function onMejaSharing(meja: string) {
+  mejaSharing.value = meja
+  if (!partaiSharing.value.length) {
+    if (!saringBerlaku.value) bukaWalkin(meja, true)
+    return
   }
+  sheetSharing.value = true
+}
+
+function kelolaPartai(r: Reservasi) {
+  sheetSharing.value = false
+  bukaAksi(r)
+}
+
+function tambahKeSharing(meja: string, sisa: number) {
+  sheetSharing.value = false
+  bukaWalkin(meja, true, sisa || 1)
 }
 
 // --- the plan for one date ---------------------------------------------------------
@@ -1301,10 +1400,12 @@ const tujuanKoord = computed(() => (waTargets.value ?? []).filter(t => t.type ==
 
 async function kirimKoord(t: WaTarget) {
   sedangSimpan.value = true
+  const selesaiProses = mulaiProses(`Mencatat koordinasi ke ${t.name}`)
   try {
     await catat(`${t.name}${labelRentang.value ? `, ${labelRentang.value}` : ''}`, undefined, 'Kirim Koordinasi')
   }
   finally {
+    selesaiProses()
     sedangSimpan.value = false
   }
   // A group has no number: the text goes to the clipboard and wa.me opens so the
@@ -1323,6 +1424,7 @@ function pollDitunda() {
   if (sheetFU.value || sheetNoShow.value || sheetAntrean.value || sheetDudukkan.value
     || sheetAksi.value || sheetTambahDp.value || sheetEditCepat.value || sheetKirimWa.value
     || sheetDatang.value || sheetBatal.value || sheetPindah.value || sheetWalkin.value
+    || sheetDipesan.value || sheetTawar.value || sheetSharing.value
     || sheetWA.value || tanyaPindah.value) return true
   if (sedangSimpan.value) return true
   const el = document.activeElement as HTMLElement | null
@@ -2187,7 +2289,9 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         :saring-aktif="saringBerlaku"
         :master="masterKunci"
         @buka="(resId) => { const r = baris(resId); if (r) bukaAksi(r) }"
-        @pilih="(mejaId) => { if (bolehEdit) bukaWalkin(mejaId) }"
+        @pilih="lanjutWalkin"
+        @dipesan="onMejaDipesan"
+        @sharing="onMejaSharing"
       />
     </div>
 
@@ -2508,7 +2612,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
             v-if="aksi"
             :color="statusWarna[aksi.status] ?? 'neutral'"
             :icon="statusIkon[aksi.status]"
-            size="sm"
+            size="md"
           >
             {{ aksi.status }}
           </AppStatus>
@@ -2542,8 +2646,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :icon="statusIkon['Pending']"
               :color="statusWarna['Pending']"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-center whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-center whitespace-normal"
               loading-auto
               @click="ubahStatus(aksi, 'Pending')"
             />
@@ -2553,8 +2657,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :icon="statusIkon['Confirmed']"
               :color="statusWarna['Confirmed']"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-center whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-center whitespace-normal"
               loading-auto
               @click="ubahStatus(aksi, 'Confirmed')"
             />
@@ -2564,8 +2668,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :icon="statusIkon['Datang']"
               :color="statusWarna['Datang']"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-center whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-center whitespace-normal"
               @click="bukaDatang(aksi, true)"
             />
             <UButton
@@ -2574,8 +2678,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :icon="statusIkon['Cancelled']"
               :color="statusWarna['Cancelled']"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-center whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-center whitespace-normal"
               @click="bukaBatal(aksi)"
             />
             <UButton
@@ -2584,8 +2688,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :icon="statusIkon['No-show']"
               :color="statusWarna['No-show']"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-center whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-center whitespace-normal"
               @click="bukaNoShow(aksi)"
             />
           </div>
@@ -2603,8 +2707,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               icon="i-lucide-phone"
               color="success"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-start whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-start whitespace-normal"
               loading-auto
               @click="followUp(aksi)"
             />
@@ -2613,8 +2717,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :label="`Tamu datang lagi (sisa ${remainingPax(aksi)})`"
               color="neutral"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-start whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-start whitespace-normal"
               @click="bukaDatang(aksi, false)"
             />
             <UButton
@@ -2623,8 +2727,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               icon="i-lucide-check"
               color="neutral"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-start whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-start whitespace-normal"
               loading-auto
               @click="selesai(aksi)"
             />
@@ -2633,8 +2737,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :label="`Kembali ke meja asli (${aksi.tableAsli})`"
               color="neutral"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-start whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-start whitespace-normal"
               loading-auto
               @click="kembaliKeAsli(aksi)"
             />
@@ -2644,8 +2748,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               icon="i-lucide-handshake"
               color="neutral"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-start whitespace-normal bg-vip/12 text-vip"
+              size="lg"
+              class="min-h-12 text-base justify-start whitespace-normal bg-vip/12 text-vip"
               loading-auto
               @click="toggleSharing(aksi)"
             />
@@ -2655,8 +2759,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               icon="i-lucide-arrow-right-left"
               color="warning"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-start whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-start whitespace-normal"
               @click="bukaPindah(aksi, 'move')"
             />
             <UButton
@@ -2665,8 +2769,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               icon="i-lucide-armchair"
               color="info"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-start whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-start whitespace-normal"
               @click="bukaPindah(aksi, 'add')"
             />
             <UButton
@@ -2674,8 +2778,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               icon="i-lucide-square-pen"
               color="primary"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-start whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-start whitespace-normal"
               :to="`/reservasi/input?id=${aksi.id}`"
             />
           </div>
@@ -2697,7 +2801,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           @click="sheetAksi = false; sheetTambahDp = true"
         />
         <UButton
-          label="Kirim WA"
+          label="Kirim WA ke tamu"
           icon="i-lucide-message-circle"
           color="success"
           size="xl"
@@ -2793,8 +2897,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           menampilkan meja terpakai sebagai kosong.
         </p>
         <DenahPeta
-          v-else-if="denahTerpilih"
-          :layout="denahTerpilih"
+          v-else-if="denahPindah"
+          :layout="denahPindah"
           :reservasi="semuaHari ?? []"
           :tanggal="aksi?.date ?? tglDenah"
           :jam="normTime(aksi?.time ?? '')"
@@ -2838,62 +2942,44 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
       </template>
     </ResponsiveSheet>
 
-    <ResponsiveSheet
+    <ReservasiDenahAksiSheets
+      v-model:open-dipesan="sheetDipesan"
+      v-model:open-tawar="sheetTawar"
+      v-model:open-sharing="sheetSharing"
+      :meja-dipesan="mejaDipesan"
+      :tawar-meja="tawarMeja"
+      :tawar-booking="tawarBooking"
+      :calon="calon"
+      :meja-sharing="mejaSharing"
+      :partai-sharing="partaiSharing"
+      :master="master"
+      :boleh-edit="bolehEdit"
+      :saring-aktif="saringBerlaku"
+      @buka-pemesan="bukaPemesan"
+      @walkin-dari-dipesan="walkinDariDipesan"
+      @dudukkan-dari-tawar="dudukkanDariTawar"
+      @walkin-dari-tawar="walkinDariTawar"
+      @kelola-partai="kelolaPartai"
+      @tambah-ke-sharing="tambahKeSharing"
+    />
+
+    <ReservasiWalkinSheet
       v-model:open="sheetWalkin"
-      :title="`Walk-in di meja ${walkin.meja}`"
-      description="Tamu tanpa nama tetap dicatat sebagai “Walkin”."
-    >
-      <div class="grid grid-cols-1 gap-3">
-        <UFormField label="Nama (opsional)">
-          <UInput
-            v-model="walkin.nama"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="No. WhatsApp (opsional)">
-          <UInput
-            v-model="walkin.phone"
-            inputmode="numeric"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          label="Jumlah orang"
-          required
-        >
-          <UInput
-            v-model.number="walkin.pax"
-            type="number"
-            :min="1"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-        <label class="flex items-center gap-2 text-sm">
-          <input
-            v-model="walkin.sharing"
-            type="checkbox"
-          > Sharing table
-        </label>
-      </div>
-      <template #footer>
-        <UButton
-          label="Simpan walk-in"
-          size="xl"
-          loading-auto
-          @click="simpanWalkin"
-        />
-        <UButton
-          label="Batal"
-          color="neutral"
-          variant="soft"
-          size="xl"
-          @click="sheetWalkin = false"
-        />
-      </template>
-    </ResponsiveSheet>
+      :meja="walkinInit.meja"
+      :initial-sharing="walkinInit.sharing"
+      :initial-pax="walkinInit.pax"
+      :tgl-denah="tglDenah"
+      :hari-ini-map="hariIniMap"
+      :dine-est="dineEst"
+      :denah-terpilih="denahTerpilih"
+      :semua-hari="semuaHari ?? []"
+      :master="master"
+      :master-kunci="masterKunci"
+      :saring-aktif="saringBerlaku"
+      :nama-saya="namaSaya"
+      @tersimpan="muatUlang"
+      @konflik="muatUlang"
+    />
 
     <ResponsiveSheet
       v-model:open="sheetFU"

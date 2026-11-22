@@ -32,6 +32,7 @@ const TAMPIL: Baris[] = [
   { kotak: 'bg-meja-kosong ring-1 ring-inset ring-meja-kosong-line', teks: 'Kosong (available) → klik utk walk-in' },
   { kotak: 'bg-meja-dipesan border-2 border-dashed border-meja-dipesan-line', ikon: 'i-lucide-lock-open', teks: 'Dipesan nanti —', tebal: 'bisa dipakai', sisa: ', tapi ditanya dulu' },
   { kotak: 'bg-meja-confirmed border-2 border-meja-confirmed-line', ikon: 'i-lucide-lock', teks: 'Dipesan ≤1 jam lagi —', tebal: 'TERKUNCI', sisa: 'untuk walk-in — klik untuk ubah status pemesannya' },
+  { kotak: 'bg-meja-telat animate-pulse', ikon: 'i-lucide-alarm-clock', teks: 'Pemesan', tebal: 'telat', sisa: '(lewat jamnya, belum datang) — berkedip; ≤10 menit lagi berdenyut emas, follow up' },
 ]
 
 const PILIH: Baris[] = [

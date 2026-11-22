@@ -35,6 +35,22 @@ export const LABEL_ZONA: Record<ZonaMeja, string> = {
   ext: 'Extension',
 }
 
+/**
+ * Kinds of background block the Editor Denah can place (owner request, Nov 2026:
+ * entrance, DJ, videotron, stairs… have to be set per plan, not only switched
+ * off). The kind only picks the look; the label is free text.
+ */
+export const JENIS_LATAR: { value: string, label: string, bawaan: string }[] = [
+  { value: 'stage', label: 'Stage', bawaan: 'STAGE' },
+  { value: 'videotron', label: 'Videotron', bawaan: 'VIDEOTRON' },
+  { value: 'dj', label: 'Meja DJ', bawaan: 'MEJA DJ' },
+  { value: 'entrance', label: 'Entrance (tulisan tegak)', bawaan: 'ENTRANCE IN / OUT' },
+  { value: 'tangga', label: 'Tangga', bawaan: 'TANGGA' },
+  { value: 'foh', label: 'FOH / bar (gelap)', bawaan: 'FOH' },
+  { value: 'viproom', label: 'Ruang (garis putus)', bawaan: 'VIP ROOM' },
+  { value: 'floor2', label: 'Area (garis tipis)', bawaan: 'AREA' },
+]
+
 export interface MejaDenah {
   id: string
   x: number
@@ -47,13 +63,20 @@ export interface MejaDenah {
 }
 
 export interface FixDenah {
-  /** 'stage' | 'entrance' | 'dj' | 'tangga' | 'foh' | 'floor2' — a label block, not a table. */
+  /** A JENIS_LATAR value ('stage', 'videotron', 'entrance', 'dj', 'tangga', …) — a label block, not a table. */
   t: string
   label: string
   x: number
   y: number
   w: number
   h: number
+  /**
+   * Switched off in the plan editor for this plan (old app, 23 Oct 2026). Kept,
+   * not deleted, so it can be switched back on: a deleted block loses its
+   * coordinates, and the night without a DJ may be followed by one with a DJ.
+   * Every renderer skips it; only the editor still draws it, faded.
+   */
+  hidden?: boolean
 }
 
 export interface LayoutDenah {
@@ -80,6 +103,12 @@ export interface MasterDenah {
   layoutOverrides2?: Record<string, string>
   /** { "tgl:<date>:<lt>": <whole plan> } — a plan stored for ONE date. */
   layoutTanggal?: Record<string, LayoutDenah>
+  /**
+   * Which days use the WEEKEND plan, as getDay() numbers 0..6 (old app,
+   * 21 Oct 2026, set in Master Data). Not set = Friday/Saturday/Sunday. An
+   * EMPTY list is valid (every day uses Weekday) and must not fall back.
+   */
+  hariWeekend?: number[]
 }
 
 const row = (ids: (number | string)[], x0: number, y: number, w: number, h: number, gap: number, cap: string, zone: ZonaMeja): MejaDenah[] =>
@@ -359,26 +388,39 @@ export function lantaiMap(master?: MasterDenah): Map<string, 0 | 1 | 2> {
 
 // --- which plan applies on a date ------------------------------------------
 
-/** JUMAT, SABTU, MINGGU count as weekend (`:1282-1285`). Friday was added on 21 July 2026: Friday night is already busy and the plan is set up like an end of week. This is only the DEFAULT; a date can still be overridden, and an already-overridden date never changes because of it. */
-export const hariAkhirPekan = (date: string) => {
-  const dg = new Date(`${date}T00:00:00`).getDay()
-  return dg === 0 || dg === 5 || dg === 6
+/** Friday, Saturday, Sunday — the weekend days until Master Data says otherwise (old app `HARI_WEEKEND_BAWAAN`). */
+export const HARI_WEEKEND_BAWAAN = [0, 5, 6]
+
+/**
+ * The days that use the weekend plan (old `hariWeekend()`, 21 Oct 2026). Stored
+ * in `master.hariWeekend`, the same blob as the plans, so Reservasi, Service
+ * Excellent and Marketing read one setting. Never set = Fri/Sat/Sun; an empty
+ * list is a real choice (no weekend day) and does not fall back.
+ */
+export function hariWeekend(master?: MasterDenah): number[] {
+  const v = master?.hariWeekend
+  if (!Array.isArray(v)) return [...HARI_WEEKEND_BAWAAN]
+  return v.map(Number).filter(n => Number.isInteger(n) && n >= 0 && n <= 6)
 }
+
+/** Does this date use the weekend plan? Only the DEFAULT: a date can still be scheduled differently, and a scheduled date never changes because of this. */
+export const hariAkhirPekan = (date: string, master?: MasterDenah) =>
+  hariWeekend(master).includes(new Date(`${date}T00:00:00`).getDay())
 
 /** The built-in plan of a floor on a date, before any schedule. */
-export function defaultDayTypeLt(date: string, lt: number): string {
+export function defaultDayTypeLt(date: string, lt: number, master?: MasterDenah): string {
   const c = ltCfg(lt)
-  return hariAkhirPekan(date) ? c.we : c.wd
+  return hariAkhirPekan(date, master) ? c.we : c.wd
 }
 
-export const defaultDayType = (date: string) => defaultDayTypeLt(date, 1)
+export const defaultDayType = (date: string, master?: MasterDenah) => defaultDayTypeLt(date, 1, master)
 
 /** The plan in force: a plan stored for that date wins over everything, then the date's schedule, then the built-in of the day. The ONLY function allowed to answer "which plan applies" (`:1289-1297`). */
 export function dayTypeLayoutLt(master: MasterDenah | undefined, date: string, lt: number): string {
   const kt = keyTanggal(date, lt)
   if (layoutTanggal(master)[kt]) return kt
   const ov = ovLantai(master, lt)[date]
-  return (ov && getLayout(master, ov)) ? ov : defaultDayTypeLt(date, lt)
+  return (ov && getLayout(master, ov)) ? ov : defaultDayTypeLt(date, lt, master)
 }
 
 export const dayTypeLayout = (master: MasterDenah | undefined, date: string) => dayTypeLayoutLt(master, date, 1)

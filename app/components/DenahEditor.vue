@@ -18,8 +18,8 @@
 -->
 <script setup lang="ts">
 import { useMediaQuery } from '@vueuse/core'
-import type { LayoutDenah, MejaDenah, ZonaMeja } from '~/utils/venue-layouts'
-import { LABEL_ZONA, SEAT_W, SEAT_H, ZONA_MEJA, kapasitasLayout } from '~/utils/venue-layouts'
+import type { FixDenah, LayoutDenah, MejaDenah, ZonaMeja } from '~/utils/venue-layouts'
+import { JENIS_LATAR, LABEL_ZONA, SEAT_W, SEAT_H, ZONA_MEJA, kapasitasLayout } from '~/utils/venue-layouts'
 
 const props = withDefaults(defineProps<{
   /** The plan being edited. Cloned inside; the caller's object is never touched. */
@@ -46,11 +46,17 @@ const lebar = useMediaQuery('(min-width: 1024px)')
 const bolehUbah = computed(() => props.bisaUbah && lebar.value)
 
 const data = ref<LayoutDenah>(structuredClone(toRaw(props.layout)))
-watch(() => props.layout, l => (data.value = structuredClone(toRaw(l))))
-
 const sel = ref<number | null>(null)
+const selF = ref<number | null>(null)
 const kotor = ref(false)
 const pita = ref<HTMLDivElement | null>(null)
+
+watch(() => props.layout, (l) => {
+  data.value = structuredClone(toRaw(l))
+  sel.value = null
+  selF.value = null
+  kotor.value = false
+})
 
 const meja = computed<MejaDenah[]>(() => data.value.tables ?? [])
 const total = computed(() => kapasitasLayout(data.value))
@@ -71,22 +77,32 @@ const kotak = (o: { x: number, y: number, w: number, h: number }) => ({
 // Pointer events only, no drag library: one table, one pointer, and the canvas
 // box is all the maths needs (`leDragStart`/`leDragMove`, `:6288-6305`).
 
-let seret: { i: number, sx: number, sy: number, ox: number, oy: number, rw: number, rh: number, geser: boolean } | null = null
+// A background block (stage, DJ, entrance…) is dragged the same way as a table;
+// `latar` says which list the index points into.
+let seret: { i: number, latar: boolean, sx: number, sy: number, ox: number, oy: number, rw: number, rh: number, geser: boolean } | null = null
 
-function mulai(e: PointerEvent, i: number) {
+function mulai(e: PointerEvent, i: number, latar = false) {
   if (!bolehUbah.value) return
-  sel.value = i
+  if (latar) {
+    selF.value = i
+    sel.value = null
+  }
+  else {
+    sel.value = i
+    selF.value = null
+  }
   const kotakPita = pita.value?.getBoundingClientRect()
   if (!kotakPita) return
-  const t = meja.value[i]!
-  seret = { i, sx: e.clientX, sy: e.clientY, ox: t.x, oy: t.y, rw: kotakPita.width, rh: kotakPita.height, geser: false }
+  const t = latar ? data.value.fixed?.[i] : meja.value[i]
+  if (!t) return
+  seret = { i, latar, sx: e.clientX, sy: e.clientY, ox: t.x, oy: t.y, rw: kotakPita.width, rh: kotakPita.height, geser: false }
   window.addEventListener('pointermove', geserMeja)
   window.addEventListener('pointerup', lepasMeja, { once: true })
 }
 
 function geserMeja(e: PointerEvent) {
   if (!seret) return
-  const t = meja.value[seret.i]
+  const t = seret.latar ? data.value.fixed?.[seret.i] : meja.value[seret.i]
   if (!t) return
   let nx = seret.ox + (e.clientX - seret.sx) / seret.rw * SEAT_W
   let ny = seret.oy + (e.clientY - seret.sy) / seret.rh * SEAT_H
@@ -120,6 +136,64 @@ function set(prop: 'id' | 'cap' | 'zone' | 'w' | 'h', v: string) {
 }
 
 /** Next free "T<n>" id, so a new table never silently takes an existing number. */
+/**
+ * Background blocks (stage, DJ, entrance…) are switched off per plan, not
+ * deleted: `hidden` keeps the coordinates so the block can come back next week
+ * (old app, 23 Oct 2026). Saved with the same Save button as the tables.
+ */
+function latar(i: number, tampil: boolean) {
+  const f = data.value.fixed?.[i]
+  if (!f) return
+  if (tampil) delete f.hidden
+  else f.hidden = true
+  kotor.value = true
+}
+
+// --- background blocks: move, resize, rename, add, delete (owner request, Nov 2026) ---
+
+const latarTerpilih = computed<FixDenah | null>(() => (selF.value === null ? null : data.value.fixed?.[selF.value] ?? null))
+
+function setLatar(prop: 'label' | 't' | 'w' | 'h', v: string) {
+  const f = latarTerpilih.value
+  if (!f) return
+  if (prop === 'w' || prop === 'h') {
+    const maks = prop === 'w' ? SEAT_W : SEAT_H
+    f[prop] = Math.max(20, Math.min(maks, Number(v) || 20))
+    // Keep the block on the canvas after it grows.
+    if (prop === 'w') f.x = Math.min(f.x, SEAT_W - f.w)
+    else f.y = Math.min(f.y, SEAT_H - f.h)
+  }
+  else {
+    // Changing the kind of a block still named after the old kind renames it too.
+    if (prop === 't') {
+      const lama = JENIS_LATAR.find(j => j.value === f.t)?.bawaan
+      const baru = JENIS_LATAR.find(j => j.value === v)?.bawaan
+      if (baru && (!f.label || f.label === lama)) f.label = baru
+    }
+    f[prop] = v
+  }
+  kotor.value = true
+}
+
+function tambahLatar(t = 'dj') {
+  const j = JENIS_LATAR.find(x => x.value === t) ?? JENIS_LATAR[0]!
+  const tegak = j.value === 'entrance'
+  const f: FixDenah = { t: j.value, label: j.bawaan, x: Math.round(SEAT_W / 2 - 75), y: Math.round(SEAT_H / 2 - 35), w: tegak ? 44 : 150, h: tegak ? 180 : 70 }
+  data.value.fixed = [...(data.value.fixed ?? []), f]
+  selF.value = data.value.fixed.length - 1
+  sel.value = null
+  kotor.value = true
+}
+
+const jenisBaru = ref('dj')
+
+function hapusLatar() {
+  if (selF.value === null) return
+  data.value.fixed = (data.value.fixed ?? []).filter((_, i) => i !== selF.value)
+  selF.value = null
+  kotor.value = true
+}
+
 function idBerikut() {
   const pakai = new Set(meja.value.map(t => String(t.id)))
   let n = 1
@@ -130,6 +204,7 @@ function idBerikut() {
 function tambah() {
   data.value.tables = [...meja.value, { id: idBerikut(), x: Math.round(SEAT_W / 2 - 45), y: Math.round(SEAT_H / 2 - 40), w: 90, h: 80, cap: '4', zone: 'green' }]
   sel.value = data.value.tables.length - 1
+  selF.value = null
   kotor.value = true
 }
 
@@ -183,8 +258,10 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
           v-for="(f, i) in data.fixed ?? []"
           :key="`f${i}`"
           class="fix"
-          :class="`fix-${f.t}`"
+          :class="[`fix-${f.t}`, { 'fix-mati': f.hidden, 'fix-ubah': bolehUbah, 'sel': selF === i }]"
           :style="kotak(f)"
+          :title="f.hidden ? 'Disembunyikan — nyalakan lagi di panel Latar denah' : (bolehUbah ? 'Seret untuk memindah, klik untuk mengubah' : undefined)"
+          @pointerdown="mulai($event, i, true)"
         >
           {{ f.label }}
         </div>
@@ -204,7 +281,7 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
 
     <p class="mt-2 text-sm text-muted">
       <template v-if="bolehUbah">
-        Seret meja untuk memindah, klik untuk mengubah.
+        Seret meja atau latar (stage, DJ, entrance…) untuk memindah, klik untuk mengubah.
       </template>
       <template v-else>
         Denah hanya bisa dilihat di layar ini.
@@ -312,6 +389,128 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
       </div>
 
       <div class="rounded-xl bg-default p-4">
+        <p class="font-semibold text-highlighted">
+          Latar denah
+        </p>
+        <template v-if="data.fixed?.length">
+          <p class="mt-1 mb-2 text-sm text-muted">
+            Centang yang ditampilkan — yang dimatikan tetap tersimpan. Klik nama (atau bloknya di denah) untuk mengatur posisi, ukuran & tulisan.
+          </p>
+          <div class="grid gap-2 sm:grid-cols-2">
+            <div
+              v-for="(f, i) in data.fixed"
+              :key="`l${i}`"
+              class="flex items-center gap-2 rounded-lg px-2 py-1"
+              :class="selF === i ? 'bg-gold-soft' : ''"
+            >
+              <UCheckbox
+                :model-value="!f.hidden"
+                :aria-label="`Tampilkan ${f.label || f.t}`"
+                @update:model-value="(v) => latar(i, !!v)"
+              />
+              <button
+                type="button"
+                class="min-w-0 flex-1 truncate text-left text-sm text-default hover:underline"
+                @click="selF = i; sel = null"
+              >
+                {{ f.label || f.t || 'Latar' }}
+              </button>
+            </div>
+          </div>
+        </template>
+        <p
+          v-else
+          class="mt-1 text-sm text-muted"
+        >
+          Denah ini belum punya latar (stage, meja DJ, entrance, tangga, dsb).
+        </p>
+
+        <div
+          v-if="latarTerpilih"
+          class="mt-4 border-t border-default pt-4"
+        >
+          <p class="mb-3 font-semibold text-highlighted">
+            Latar: {{ latarTerpilih.label || latarTerpilih.t }}
+          </p>
+          <div class="grid gap-3 sm:grid-cols-2">
+            <UFormField label="Tulisan">
+              <UInput
+                :model-value="latarTerpilih.label"
+                size="xl"
+                class="w-full"
+                @update:model-value="setLatar('label', String($event))"
+              />
+            </UFormField>
+            <UFormField label="Jenis / tampilan">
+              <USelect
+                :model-value="latarTerpilih.t"
+                :items="JENIS_LATAR.map(j => ({ value: j.value, label: j.label }))"
+                size="xl"
+                class="w-full"
+                @update:model-value="setLatar('t', String($event))"
+              />
+            </UFormField>
+            <UFormField label="Lebar">
+              <UInput
+                type="number"
+                :model-value="latarTerpilih.w"
+                size="xl"
+                class="w-full"
+                @update:model-value="setLatar('w', String($event))"
+              />
+            </UFormField>
+            <UFormField label="Tinggi">
+              <UInput
+                type="number"
+                :model-value="latarTerpilih.h"
+                size="xl"
+                class="w-full"
+                @update:model-value="setLatar('h', String($event))"
+              />
+            </UFormField>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <UButton
+              label="Hapus latar"
+              color="error"
+              variant="soft"
+              size="xl"
+              @click="hapusLatar"
+            />
+            <UButton
+              label="Selesai"
+              color="neutral"
+              variant="soft"
+              size="xl"
+              @click="selF = null"
+            />
+          </div>
+        </div>
+
+        <div class="mt-4 flex flex-wrap items-end gap-2">
+          <UFormField
+            label="Tambah latar"
+            class="min-w-48 flex-1"
+          >
+            <USelect
+              v-model="jenisBaru"
+              :items="JENIS_LATAR.map(j => ({ value: j.value, label: j.label }))"
+              size="xl"
+              class="w-full"
+            />
+          </UFormField>
+          <UButton
+            label="Tambah"
+            icon="i-lucide-plus"
+            color="neutral"
+            variant="soft"
+            size="xl"
+            @click="tambahLatar(jenisBaru)"
+          />
+        </div>
+      </div>
+
+      <div class="rounded-xl bg-default p-4">
         <p class="mb-2 font-semibold text-highlighted">
           Nama denah
         </p>
@@ -401,6 +600,30 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
   color: var(--color-seat-ink);
   border-radius: 0.375rem;
   pointer-events: none;
+}
+
+.fix.fix-ubah {
+  pointer-events: auto;
+  cursor: grab;
+  touch-action: none;
+}
+
+.fix.sel {
+  box-shadow: 0 0 0 3px var(--ui-primary);
+  z-index: 6;
+}
+
+.fix-videotron {
+  background: var(--color-seat-dark);
+  color: var(--color-seat-ink);
+  font-size: clamp(0.6rem, 1.6vw, 1.2rem);
+  letter-spacing: 0.08em;
+}
+
+/* Switched off: still drawn in the editor, faded and dashed, so it can be found again. */
+.fix.fix-mati {
+  opacity: 0.22;
+  border: 1px dashed var(--color-seat-line);
 }
 
 .fix-stage {

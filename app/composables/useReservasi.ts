@@ -183,6 +183,8 @@ export interface Master {
   layoutOverrides?: Record<string, string>
   layoutOverrides2?: Record<string, string>
   layoutTanggal?: Record<string, LayoutDenah>
+  /** getDay() numbers that use the weekend plan; see hariWeekend() in venue-layouts. */
+  hariWeekend?: number[]
   waitlist?: Waitlist[]
   reviews?: unknown[]
   reviewCfg?: unknown
@@ -712,16 +714,16 @@ export const putFile = (key: string, data: string) =>
   useApi()<{ ok: true }>(`/reservasi/files/${key}`, { method: 'PUT', body: { data } })
 
 // ---------------------------------------------------------------- the table plan
-// Four master sections, each with its own content-hash version, so two people
+// Five master sections, each with its own content-hash version, so two people
 // editing the plan and the per-date schedule never collide. The rules that read
 // them (which plan applies on a date, which floor a template belongs to) and the
 // editor's data helpers live in app/utils/venue-layouts.ts — this is transport.
 
-export const SECTION_LAYOUT = ['layouts', 'layoutOverrides', 'layoutOverrides2', 'layoutTanggal'] as const
+export const SECTION_LAYOUT = ['layouts', 'layoutOverrides', 'layoutOverrides2', 'layoutTanggal', 'hariWeekend'] as const
 export type SectionLayout = typeof SECTION_LAYOUT[number]
 
 /**
- * The four plan sections with their versions, in one read.
+ * The plan sections (and the weekend days) with their versions, in one read.
  * The envelope is kept whole, because a section write needs its own version and
  * `useAsyncData` throws the `meta` away.
  */
@@ -731,6 +733,7 @@ export const useDenah = () => {
     layoutOverrides: useSectionVersi<Record<string, string>>('layoutOverrides'),
     layoutOverrides2: useSectionVersi<Record<string, string>>('layoutOverrides2'),
     layoutTanggal: useSectionVersi<Record<string, LayoutDenah>>('layoutTanggal'),
+    hariWeekend: useSectionVersi<number[]>('hariWeekend'),
   }
 
   const master = computed<Master>(() => ({
@@ -738,6 +741,7 @@ export const useDenah = () => {
     layoutOverrides: sections.layoutOverrides.data.value?.data,
     layoutOverrides2: sections.layoutOverrides2.data.value?.data,
     layoutTanggal: sections.layoutTanggal.data.value?.data,
+    hariWeekend: sections.hariWeekend.data.value?.data ?? undefined,
   }))
 
   /** Each section's own version, for `putDenah(section, value, versi)`. */
@@ -746,6 +750,7 @@ export const useDenah = () => {
     layoutOverrides: versiDari(sections.layoutOverrides.data.value),
     layoutOverrides2: versiDari(sections.layoutOverrides2.data.value),
     layoutTanggal: versiDari(sections.layoutTanggal.data.value),
+    hariWeekend: versiDari(sections.hariWeekend.data.value),
   }))
 
   const status = computed(() => (Object.values(sections).some(s => s.status.value === 'pending') ? 'pending' : 'success'))
