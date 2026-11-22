@@ -26,7 +26,7 @@ import type { LayoutDenah, MasterDenah } from '~/utils/venue-layouts'
 import { SEAT_W, SEAT_H, capMax, cariMeja } from '~/utils/venue-layouts'
 import {
   absMin, arrivedPax, canAddArrival, fmtMenit, harihOccupancy, hhmm, isSeated,
-  menitMenuju, occupiedMap, remainingPax, roomText, sedangDialihkan, statusMeja,
+  menitMenuju, occupiedMap, remainingPax, roomText, sedangDialihkan, statusMeja, toMin,
 } from '~/utils/kunci-meja'
 
 const props = withDefaults(defineProps<{
@@ -59,10 +59,14 @@ const props = withDefaults(defineProps<{
   legenda?: boolean
   /** Fit the complete plan to its available width without an inner scroll area. */
   fit?: boolean
-  /** The "bisa 4-5 pax" line under each table. */
+  /**
+   * The "bisa 4-5 pax" line under each table. Off by default (owner request,
+   * Nov 2026): the pax is already written INSIDE the table, and saying it twice
+   * — once in the box, once under it — only crowds the plan.
+   */
   catatan?: boolean
 }>(), {
-  catatan: true,
+  catatan: false,
   reservasi: () => [],
   mode: 'tampil',
   terpilih: () => [],
@@ -160,7 +164,8 @@ let jeda: ReturnType<typeof setInterval> | undefined
 const nyalakan = () => {
   clearInterval(jeda)
   const detik = props.timer && adaDuduk.value
-  jeda = detik || adaMenunggu.value ? setInterval(() => (now.value = Date.now()), detik ? 1000 : 15000) : undefined
+  // Every second: the sitting and late counters show seconds.
+  jeda = detik || adaMenunggu.value ? setInterval(() => (now.value = Date.now()), 1000) : undefined
 }
 onMounted(nyalakan)
 onBeforeUnmount(() => clearInterval(jeda))
@@ -182,10 +187,17 @@ const namaDepan = (r?: Reservasi | null) => String(r?.name ?? '').split(' ')[0] 
 
 const jamR = (r: Reservasi) => (r.date === props.tanggal ? r.time : `${hhmm(absMin(r.date, r.time))} (${r.date.slice(8, 10)})`)
 
-const jamSitting = (cin: number) => {
-  const m = Math.floor((now.value - cin) / 60000)
-  return m < 1 ? 'baru saja' : `${fmtMenit(m)}`
+/** A running clock "1:05:23" — hours, minutes, seconds (owner request, Nov 2026). */
+const fmtJamDetik = (ms: number) => {
+  const s = Math.max(0, Math.floor(ms / 1000))
+  const p = (n: number) => String(n).padStart(2, '0')
+  return `${Math.floor(s / 3600)}:${p(Math.floor((s % 3600) / 60))}:${p(s % 60)}`
 }
+
+/** The booking's own moment on the local clock, for a seconds-exact late counter. */
+const msPesan = (r: Reservasi) => new Date(`${r.date}T00:00:00`).getTime() + toMin(r.time) * 60000
+
+const jamSitting = (cin: number) => fmtJamDetik(now.value - cin)
 
 /** The line under the table number. The old markup's wording, kept (`:2286-2330`). */
 function labelT(stat: ReturnType<typeof statusMeja>, cap: string) {
@@ -225,8 +237,8 @@ function subT(stat: ReturnType<typeof statusMeja>) {
 /** "telat 25 m" — the booker's time has passed and they have not arrived (old seat-telat, 26 Sep 2026). */
 function telatT(stat: ReturnType<typeof statusMeja>): string {
   if (stat.list.length || !stat.next) return ''
-  const m = menitMenuju(stat.next, now.value)
-  return m < 0 ? `telat ${fmtMenit(-m)}` : ''
+  const lewat = now.value - msPesan(stat.next)
+  return lewat > 0 && Number.isFinite(lewat) ? `telat ${fmtJamDetik(lewat)}` : ''
 }
 
 /**

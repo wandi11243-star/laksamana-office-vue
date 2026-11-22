@@ -2770,7 +2770,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           @click="sheetAksi = false; sheetTambahDp = true"
         />
         <UButton
-          label="Kirim WA"
+          label="Kirim WA ke tamu"
           icon="i-lucide-message-circle"
           color="success"
           size="xl"

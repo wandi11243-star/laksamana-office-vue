@@ -455,7 +455,7 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
           />
           <UButton
             v-if="detail"
-            label="Kirim WA"
+            label="Kirim WA ke tamu"
             icon="i-lucide-message-circle"
             color="success"
             size="xl"

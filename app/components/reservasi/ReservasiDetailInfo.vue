@@ -187,7 +187,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
       </AppStatus>
     </div>
 
-    <div class="grid gap-x-4 gap-y-3 sm:grid-cols-2">
+    <div class="info-grid grid gap-2.5 sm:grid-cols-2">
       <div>
         <p class="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-muted">
           <UIcon
@@ -202,7 +202,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
           class="text-base font-semibold text-primary-700 underline"
         >{{ tampilPhone(r.phone) || '—' }}</a>
       </div>
-      <div>
+      <div class="sorot">
         <p class="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-muted">
           <UIcon
             name="i-lucide-calendar"
@@ -213,7 +213,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
           {{ tglPanjang(r.date) }}
         </p>
       </div>
-      <div>
+      <div class="sorot">
         <p class="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-muted">
           <UIcon
             name="i-lucide-clock"
@@ -224,7 +224,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
           {{ r.time }} WIB
         </p>
       </div>
-      <div>
+      <div class="sorot">
         <p class="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-muted">
           <UIcon
             name="i-lucide-users"
@@ -239,7 +239,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
           > · masuk {{ arrivedPax(r) }}<template v-if="remainingPax(r)"> · sisa {{ remainingPax(r) }}</template></span>
         </p>
       </div>
-      <div>
+      <div class="sorot">
         <p class="flex items-center gap-1 text-xs font-bold uppercase tracking-wide text-muted">
           <UIcon
             name="i-lucide-armchair"
@@ -319,7 +319,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
         title="Menu request"
         icon="i-lucide-utensils"
       />
-      <div class="grid gap-3 sm:grid-cols-2">
+      <div class="info-grid grid gap-2.5 sm:grid-cols-2">
         <div v-if="r.foodReq">
           <p class="text-sm font-semibold text-muted">
             Makanan
@@ -657,3 +657,30 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
     </template>
   </ResponsiveSheet>
 </template>
+
+<style scoped>
+/*
+  Each detail is its own small tile with room between label and value, so the
+  facts do not run together (owner request, Nov 2026). Date, time, pax and table
+  — what the crew reads first at the door — get the gold wash.
+*/
+.info-grid > div {
+  border-radius: 0.625rem;
+  background: var(--ui-bg-muted);
+  padding: 0.625rem 0.875rem;
+}
+
+.info-grid > div > p:first-child {
+  margin-bottom: 0.25rem;
+}
+
+.info-grid > div > :not(:first-child) {
+  font-weight: 600;
+  color: var(--ui-text-highlighted);
+}
+
+.info-grid > div.sorot {
+  background: var(--color-gold-soft);
+  box-shadow: inset 3px 0 0 var(--color-gold);
+}
+</style>
