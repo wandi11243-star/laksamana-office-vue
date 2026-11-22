@@ -41,7 +41,7 @@ const masterKunci = computed(() => ({
 
 const lantai = ref<1 | 2>(1)
 const layout = computed(() => getLayout(master.value, dayTypeLayoutLt(master.value, props.tanggal, lantai.value))
-  ?? getLayout(master.value, defaultDayTypeLt(props.tanggal, lantai.value)))
+  ?? getLayout(master.value, defaultDayTypeLt(props.tanggal, lantai.value, master.value)))
 const peta = computed(() => lantaiMap(master.value))
 const adaLantai2 = computed(() => [...peta.value.values()].some(l => l === 2))
 

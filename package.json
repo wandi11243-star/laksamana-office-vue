@@ -18,6 +18,7 @@
     "uji:kompas": "node tools/uji-kompas.mjs",
     "uji:stock-catat": "node tools/uji-stock-catat.mjs",
     "uji:analytics": "node tools/uji-analytics.mjs",
+    "uji:denah": "node tools/uji-denah.mjs",
     "uji:dw": "node tools/uji-dw.mjs",
     "uji:event": "node tools/uji-event.mjs",
     "uji:event-refund": "node tools/uji-event-refund.mjs",

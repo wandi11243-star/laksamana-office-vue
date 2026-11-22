@@ -356,6 +356,36 @@ export function nextBookingAt(later: Map<string, Reservasi[]>, id: string): { re
 }
 
 /**
+ * The NEAREST booking on a table whose guest has NOT arrived yet (old
+ * `bookingBerikut`, `:6796-6825`) — the walk-in form, the map and the walk-in's
+ * own note all name this one, so the time they quote can never differ.
+ *
+ * It follows the DATE of the map being looked at (26 Sep 2026): today's map
+ * measures from now and does not name tomorrow's bookings (the map does not draw
+ * them either); another date's map measures from the start of that day, up to
+ * that day. A booking whose time has passed but whose guest has not come is kept
+ * — 19:00 not here at 19:30 is exactly the one to name — until its own lock
+ * window ends, so yesterday's bookings are not carried along.
+ * A seated guest is left out on purpose: their table never reaches the walk-in path.
+ */
+export function bookingBerikut(list: Reservasi[], tableId: string, opts: { date: string, hariIni: boolean, dineEst?: number, now?: number }): { res: Reservasi, menit: number, lain: number } | null {
+  const ids = String(tableId ?? '').split(',').map(s => s.trim()).filter(Boolean)
+  if (!ids.length) return null
+  const { date, hariIni, dineEst = 180, now = Date.now() } = opts
+  const acuan = hariIni ? absNow(now) : absMin(date, '00:00')
+  const cal = list.filter((r) => {
+    if (!r.date || !r.time) return false
+    if (date && r.date > date) return false
+    if (STATUS_BEBAS.includes(r.status)) return false
+    if (r.leftAt || isSeated(r)) return false
+    if (!tablesOf(r).some(t => ids.includes(t))) return false
+    return lockEnd(r, dineEst) >= acuan
+  }).sort((a, b) => absMin(a.date, a.time) - absMin(b.date, b.time))
+  if (!cal.length) return null
+  return { res: cal[0]!, menit: menitMenuju(cal[0]!, now), lain: cal.length - 1 }
+}
+
+/**
  * The table that needs action: a guest still SITTING while the next booking on
  * that table is close (within the threshold) or already late (`:1647-1660`).
  *

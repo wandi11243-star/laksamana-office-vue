@@ -56,7 +56,7 @@ const catat = async (action: string, detail: string) => {
 const tgl = ref(hariIni())
 const lantai = ref<1 | 2>(1)
 const kunci = computed(() => dayTypeLayoutLt(master.value, tgl.value, lantai.value))
-const denah = computed(() => getLayout(master.value, kunci.value) ?? getLayout(master.value, defaultDayTypeLt(tgl.value, lantai.value)))
+const denah = computed(() => getLayout(master.value, kunci.value) ?? getLayout(master.value, defaultDayTypeLt(tgl.value, lantai.value, master.value)))
 const jejak = computed(() => jejakDenah(denah.value))
 
 // --- editor ------------------------------------------------------------------------
@@ -67,7 +67,7 @@ const editorTemplat = computed(() => {
   const p = editorTanggal.value
   if (!p) return kunci.value
   const terjadwal = ovLantai(master.value, p.lt)[p.date]
-  return (terjadwal && getLayout(master.value, terjadwal)) ? terjadwal : defaultDayTypeLt(p.date, p.lt)
+  return (terjadwal && getLayout(master.value, terjadwal)) ? terjadwal : defaultDayTypeLt(p.date, p.lt, master.value)
 })
 
 const sibuk = ref(false)
@@ -124,7 +124,7 @@ const { penuh, bisa: bisaPenuh, alihkan: layarPenuh } = useLayarPenuh(kanvas)
 const ovLt = computed(() => ovLantai(master.value, lantai.value))
 const BAWAAN = '__bawaan'
 const opsiTemplat = computed(() => [
-  { value: BAWAAN, label: `Bawaan hari (${layoutName(master.value, defaultDayTypeLt(tgl.value, lantai.value))})` },
+  { value: BAWAAN, label: `Bawaan hari (${layoutName(master.value, defaultDayTypeLt(tgl.value, lantai.value, master.value))})` },
   ...allLayoutKeys(master.value)
     .filter(k => !parseKeyTanggal(k) && lantaiLayout(master.value, k) === lantai.value)
     .map(k => ({ value: k, label: layoutName(master.value, k) })),
@@ -134,13 +134,36 @@ watch([tgl, lantai, ovLt], () => {
   pilihTemplat.value = ovLt.value[tgl.value] ?? BAWAAN
 }, { immediate: true })
 
+/**
+ * A date's OWN plan always wins over a scheduled template (dayTypeLayoutLt). Until
+ * 23 Oct 2026 the old app only wrote the schedule, so the choice was saved but
+ * never seen ("24 Okt sudah dipindah ke Weekend tapi denahnya tidak berubah").
+ * Now the crew is asked, and the date's plan is dropped in the same write.
+ * Returns false when they cancel — then nothing changes.
+ */
+function bolehBuangDenahTanggal(d: string, lt: number) {
+  if (!adaDenahTanggal(master.value, d, lt)) return true
+  return window.confirm(`Tanggal ${tglPendek(d)} (${ltCfg(lt).nama}) punya DENAH KHUSUS yang digeser sendiri, dan denah khusus selalu menang atas template.
+
+Supaya pilihan ini berlaku, denah khusus tanggal itu dibuang. Lanjutkan?`)
+}
+
 function simpanJadwal(d: string, templat: string) {
   const lt = lantai.value
   const key = lt === 2 ? 'layoutOverrides2' : 'layoutOverrides'
+  if (!bolehBuangDenahTanggal(d, lt)) return
+  const buangTgl = adaDenahTanggal(master.value, d, lt)
   const ov = Object.fromEntries(Object.entries(ovLt.value).filter(([k]) => k !== d))
   if (templat !== BAWAAN && getLayout(master.value, templat)) ov[d] = templat
   return tulis(
-    () => putDenah(key, ov, versi.value[key]),
+    async () => {
+      if (buangTgl) {
+        const { [keyTanggal(d, lt)]: _buang, ...sisa } = layoutTanggal(master.value)
+        await putDenah('layoutTanggal', sisa, versi.value.layoutTanggal)
+        await catat('Hapus Denah Tanggal', `${tglPendek(d)} Lt.${lt} (diganti template)`)
+      }
+      await putDenah(key, ov, versi.value[key])
+    },
     templat !== BAWAAN ? `${ltCfg(lt).nama} ${tglPendek(d)} memakai ${layoutName(master.value, templat)}` : `${ltCfg(lt).nama} ${tglPendek(d)} kembali ke bawaan hari`,
     [templat !== BAWAAN ? 'Set Denah Tanggal' : 'Reset Denah Tanggal', `${ltCfg(lt).nama} · ${tglPendek(d)} → ${templat !== BAWAAN ? layoutName(master.value, templat) : 'bawaan'}`],
   )

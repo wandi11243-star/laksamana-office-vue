@@ -448,6 +448,8 @@ const columns: TableColumn<Row>[] = [
             @pilih="onPilih"
             @buka="(id) => toast.add({ title: 'Klik meja', description: `Booking ${id} — di layar nyata ini membuka detail reservasi.` })"
             @tumpang="onTumpang"
+            @dipesan="(p) => toast.add({ title: `Meja ${p.meja} dipesan ${p.res.name}`, description: 'Di layar nyata ini menawarkan: buka reservasi pemesan atau walk-in sementara.' })"
+            @sharing="(m) => toast.add({ title: `Meja ${m} sharing`, description: 'Di layar nyata ini membuka daftar grup di meja itu.' })"
           />
         </div>
       </AppList>

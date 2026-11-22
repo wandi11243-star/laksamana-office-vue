@@ -120,6 +120,19 @@ function set(prop: 'id' | 'cap' | 'zone' | 'w' | 'h', v: string) {
 }
 
 /** Next free "T<n>" id, so a new table never silently takes an existing number. */
+/**
+ * Background blocks (stage, DJ, entrance…) are switched off per plan, not
+ * deleted: `hidden` keeps the coordinates so the block can come back next week
+ * (old app, 23 Oct 2026). Saved with the same Save button as the tables.
+ */
+function latar(i: number, tampil: boolean) {
+  const f = data.value.fixed?.[i]
+  if (!f) return
+  if (tampil) delete f.hidden
+  else f.hidden = true
+  kotor.value = true
+}
+
 function idBerikut() {
   const pakai = new Set(meja.value.map(t => String(t.id)))
   let n = 1
@@ -183,8 +196,9 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
           v-for="(f, i) in data.fixed ?? []"
           :key="`f${i}`"
           class="fix"
-          :class="`fix-${f.t}`"
+          :class="[`fix-${f.t}`, { 'fix-mati': f.hidden }]"
           :style="kotak(f)"
+          :title="f.hidden ? 'Disembunyikan — nyalakan lagi di panel Latar denah' : undefined"
         >
           {{ f.label }}
         </div>
@@ -312,6 +326,32 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
       </div>
 
       <div class="rounded-xl bg-default p-4">
+        <p class="font-semibold text-highlighted">
+          Latar denah
+        </p>
+        <template v-if="data.fixed?.length">
+          <p class="mt-1 mb-2 text-sm text-muted">
+            Centang yang ditampilkan. Yang dimatikan tetap tersimpan dan bisa dinyalakan lagi.
+          </p>
+          <div class="grid gap-2 sm:grid-cols-2">
+            <UCheckbox
+              v-for="(f, i) in data.fixed"
+              :key="`l${i}`"
+              :model-value="!f.hidden"
+              :label="f.label || f.t || 'Latar'"
+              @update:model-value="(v) => latar(i, !!v)"
+            />
+          </div>
+        </template>
+        <p
+          v-else
+          class="mt-1 text-sm text-muted"
+        >
+          Denah ini tidak punya latar (stage, meja DJ, dsb).
+        </p>
+      </div>
+
+      <div class="rounded-xl bg-default p-4">
         <p class="mb-2 font-semibold text-highlighted">
           Nama denah
         </p>
@@ -401,6 +441,12 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
   color: var(--color-seat-ink);
   border-radius: 0.375rem;
   pointer-events: none;
+}
+
+/* Switched off: still drawn in the editor, faded and dashed, so it can be found again. */
+.fix.fix-mati {
+  opacity: 0.22;
+  border: 1px dashed var(--color-seat-line);
 }
 
 .fix-stage {
