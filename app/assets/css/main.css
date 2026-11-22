@@ -356,3 +356,14 @@ h1, h2, h3, .font-display {
     animation: none !important;
   }
 }
+
+/*
+  Titles in Title Case (owner request, Nov 2026): page, panel, section and
+  dialog titles capitalise every word. The copy in the code stays sentence case;
+  a heading that must keep its own casing takes `normal-case`.
+*/
+@layer base {
+  h1, h2, h3, h4 {
+    text-transform: capitalize;
+  }
+}

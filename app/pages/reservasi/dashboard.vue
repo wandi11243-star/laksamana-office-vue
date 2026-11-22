@@ -1,5 +1,5 @@
 <!--
-  Dashboard & Recap — one page, four tabs, one filter row (`:5205-5290`).
+  Dashboard & Recap — one page, three tabs (the waiting list tab was dropped, owner request Nov 2026), one filter row (`:5205-5290`).
   The old screen split this into two pages (Dashboard + Recap) with the same
   filters and the same data, so filtering in one and switching lost it. Kept as
   one page here.
@@ -23,25 +23,25 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { useMediaQuery } from '@vueuse/core'
-import type { Reservasi, Waitlist, WaTarget } from '~/composables/useReservasi'
+import type { Reservasi, WaTarget } from '~/composables/useReservasi'
 import { usePollReservasi } from '~/composables/usePollReservasi'
-import { createReservation, exportReservationsCsv, listReservationsHalaman, patchReservation, postAudit, putSectionItem, useDaftarReservasi, useDenah, useRingkasanTamu, useSection, useSectionVersi } from '~/composables/useReservasi'
+import { exportReservationsCsv, listReservationsHalaman, patchReservation, postAudit, useDaftarReservasi, useDenah, useRingkasanTamu, useSection } from '~/composables/useReservasi'
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
 import { profilTamuGabung, kelompokBarisTamu, normStatus, unduhBlob } from '~/utils/riwayat'
 import { arrivedPax, bookingBerikut, buatIzinTumpang, canAddArrival, fmtMenit, harihOccupancy, isSeated, mepetKah, menitMenuju, occupiedMap, partiesAt, remainingPax, sedangDialihkan, tableFill, tablesOf } from '~/utils/kunci-meja'
-import { dpTotal, normPhone, rekeningDp, tampilPhone, uid } from '~/utils/dp-reservasi'
+import { dpTotal, normPhone, rekeningDp, tampilPhone } from '~/utils/dp-reservasi'
 import {
   capMax, cariMeja, dayTypeLayout, dayTypeLayout2, getLayout, jejakDenah, kapasitasTanggal,
   lantaiMap, layoutName,
 } from '~/utils/venue-layouts'
 import { angka, fmtRupiah, hariIni, normTime, rupiah, tglPanjang, tglPendek, tambahHari } from '~/utils/format'
-import { teksPanggilAntrean, waKirim, waSalin } from '~/utils/wa'
+import { waKirim, waSalin } from '~/utils/wa'
 
 definePageMeta({ access: ['reservasi'] })
 
 const me = useMe()
 const toast = useToast()
-const { master, status: statusDenah } = useDenah()
+const { master, status: statusDenah, layouts: denahLayouts, layoutOverrides: denahOv1, layoutOverrides2: denahOv2, layoutTanggal: denahTanggal } = useDenah()
 const namaSaya = computed(() => me.value?.name ?? '')
 const role = computed(() => roleReservasi(me.value))
 const bolehEdit = computed(() => bolehAksi('input', role.value))
@@ -79,8 +79,8 @@ const filter = reactive({
 const cari = ref('')
 /** The map and the waiting list can only ever show ONE date. */
 const tglDenah = ref(hariIni())
-const tab = ref<'list' | 'calendar' | 'map' | 'wait'>('list')
-const perTanggal = computed(() => tab.value === 'map' || tab.value === 'wait')
+const tab = ref<'list' | 'calendar' | 'map'>('list')
+const perTanggal = computed(() => tab.value === 'map')
 
 /** The calendar tab reads a whole month, so its first day joins the window while
  *  that tab is open — otherwise most of the grid would be empty (`:5296`). */
@@ -139,7 +139,7 @@ const muatUlang = () => (adaSaring.value ? Promise.all([refreshTersaring(), muat
  *  grid shows skeleton cells instead. Old rows stay visible on refetch, so a
  *  filter change never blanks the cards. */
 const statMemuat = computed(() => !((semua.value?.length) || (semuaHari.value?.length))
-  && [status.value, statusHari.value, statusDenah.value, statusAntrean.value].some(s => s === 'pending' || s === 'idle'))
+  && [status.value, statusHari.value, statusDenah.value].some(s => s === 'pending' || s === 'idle'))
 
 /** Whole-history guest map for the guest-type filter, before the loaded window (`dari`). */
 const { data: ringkasan } = useRingkasanTamu(dari, 'reservasi-tamu-dashboard')
@@ -524,31 +524,40 @@ const kelasBaris = (r: Reservasi) => (telat(r) ? 'bg-warning/15 hover:bg-warning
 // --- follow up and no-show (`:7577-7622`) ---------------------------------------
 
 const sheetFU = ref(false)
-const catatanFU = ref('')
-const PILIHAN_FU = [
-  { value: 'Tamu konfirmasi hadir tepat waktu', label: 'Hadir' },
-  { value: 'Tamu konfirmasi telat ~15 menit', label: 'Telat' },
-  { value: 'Tamu membatalkan', label: 'Batal' },
-  { value: 'Belum ada balasan', label: 'Belum dibalas' },
-]
+const teksFU = ref('')
 
-/** Opens WhatsApp with the confirmation text, then asks what the guest said. */
-async function followUp(r: Reservasi) {
+/**
+ * Follow up = a message to the guest (owner request, Nov 2026): a sheet with the
+ * prefilled, editable text, to copy or to open straight in the guest's chat.
+ * Nothing is asked afterwards — the crew no longer logs the guest's reply.
+ */
+function followUp(r: Reservasi) {
   aksiId.value = r.id
   sheetAksi.value = false
-  const teks = `Halo Kak ${r.name} \u{1F44B}\n\nKami dari *Laksamana Muda* ingin mengonfirmasi reservasi Anda hari ini:\n\u{1F4C5} ${tglPanjang(r.date)}\n\u{1F557} Jam ${r.time} WIB\n\u{1F465} ${r.pax} pax${r.table ? `\n\u{1FA91} ${r.table}` : ''}\n\nApakah Kakak jadi hadir? Ditunggu kedatangannya ya \u2693\n\n_Sail to Good Taste, Stay for the Vibes_`
-  await waKirim(r.phone, teks)
-  catatanFU.value = ''
+  teksFU.value = `Halo Kak ${r.name} 👋
+
+Kami dari *Laksamana Muda* ingin mengonfirmasi reservasi Anda hari ini:
+📅 ${tglPanjang(r.date)}
+🕗 Jam ${r.time} WIB
+👥 ${r.pax} pax${r.table
+  ? `
+🪑 ${r.table}`
+  : ''}
+
+Apakah Kakak jadi hadir? Ditunggu kedatangannya ya ⚓
+
+_Sail to Good Taste, Stay for the Vibes_`
   sheetFU.value = true
 }
-
-async function simpanFU() {
-  const r = baris(aksiId.value)
-  const note = catatanFU.value.trim()
+const fuAdaNomor = computed(() => normPhone(aksi.value?.phone ?? '').length >= 8)
+async function kirimFU() {
+  if (!aksi.value) return
+  await waKirim(aksi.value.phone, teksFU.value)
   sheetFU.value = false
-  if (!r || !note) return
-  const ok = await patch(r, { followups: [...(r.followups ?? []), { ts: Date.now(), by: namaSaya.value, note }] }, 'Catatan follow up tersimpan')
-  if (ok) await catat(`${r.name}: ${note}`, r.id, 'Follow Up')
+}
+async function salinFU() {
+  const ok = await waSalin(teksFU.value)
+  toast.add({ title: ok ? 'Pesan follow up disalin' : 'Gagal menyalin — salin manual dari kotak pesan', color: ok ? 'success' : 'error' })
 }
 
 const sheetNoShow = ref(false)
@@ -661,10 +670,6 @@ const DOW = ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']
 
 const { data: dineEstMin } = useSection<number>('dineEstMin')
 const { data: clashLeadMin } = useSection<number>('clashLeadMin')
-// The envelope is kept, not just the value: a queue write needs the SECTION's
-// own version, and a section write replaces the whole list.
-const { data: waitlist, refresh: refreshWaitlist, status: statusAntrean } = useSectionVersi<Waitlist[]>('waitlist')
-const versiWaitlist = computed(() => versiDari(waitlist.value))
 
 /** The master bits the seat rules need — never the 180/10 default by accident. */
 const masterKunci = computed(() => ({
@@ -684,216 +689,24 @@ const denahTerpilih = computed(() => getLayout(master.value, layerMap.value === 
  * the map is showing (old b11b48a, 22 Oct 2026): a Wednesday booking opened from
  * the list while the map shows Saturday must pick from Wednesday's plan.
  */
+/**
+ * Its floor is picked inside the move sheet (owner request, Nov 2026: a guest
+ * can move between Lantai 1 and Lantai 2), and the plan is the one in force on
+ * that date — a plan edited for that date only wins (dayTypeLayoutLt).
+ */
+const lantaiPindah = ref<1 | 2>(1)
 const denahPindah = computed(() => {
   const d = aksi.value?.date || tglDenah.value
-  return getLayout(master.value, layerMap.value === 2 ? dayTypeLayout2(master.value, d) : dayTypeLayout(master.value, d))
+  return getLayout(master.value, lantaiPindah.value === 2 ? dayTypeLayout2(master.value, d) : dayTypeLayout(master.value, d))
+})
+const namaDenahPindah = computed(() => {
+  const d = aksi.value?.date || tglDenah.value
+  return layoutName(master.value, lantaiPindah.value === 2 ? dayTypeLayout2(master.value, d) : dayTypeLayout(master.value, d))
 })
 const namaDenah = computed(() => layoutName(master.value, layerMap.value === 2 ? kunciL2.value : kunciL1.value))
 
 /** What is really taken now, and what is merely booked later (`:2129-2183`). */
 const petaHari = computed(() => harihOccupancy(semuaHari.value ?? [], { date: tglDenah.value, hariIni: hariIniMap.value, dineEst: dineEst.value }))
-const antreanHari = computed(() => (waitlist.value?.data ?? [])
-  .filter(w => w.status === 'waiting' && w.date === tglDenah.value)
-  .sort((a, b) => (a.addedAt || 0) - (b.addedAt || 0)))
-const tunggu = (w: Waitlist) => Math.max(0, Math.round((Date.now() - (w.addedAt || 0)) / 60000))
-const paxAntrean = computed(() => antreanHari.value.reduce((a, w) => a + (Number(w.pax) || 0), 0))
-
-/** Queue entries on other dates, so a guest who is waiting tomorrow is not lost. */
-const antreanLain = computed(() => (waitlist.value?.data ?? [])
-  .filter(w => w.status === 'waiting' && w.date !== tglDenah.value)
-  .sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.addedAt || 0) - (b.addedAt || 0)))
-
-// --- the queue (`:1921-1996`) --------------------------------------------------
-
-const sheetAntrean = ref(false)
-const antreanBaru = reactive({ nama: '', phone: '', pax: 1, note: '' })
-
-function bukaAntrean() {
-  Object.assign(antreanBaru, { nama: '', phone: '', pax: 1, note: '' })
-  sheetAntrean.value = true
-}
-
-async function simpanAntrean() {
-  const n = Number(antreanBaru.pax) || 0
-  if (n < 1) {
-    toast.add({ title: 'Jumlah orang wajib diisi', color: 'error' })
-    return
-  }
-  const w: Waitlist = {
-    id: uid(),
-    // A nameless quick entry is all recorded as "Walkin" (:1944).
-    name: antreanBaru.nama.trim() || 'Walkin',
-    phone: normPhone(antreanBaru.phone),
-    pax: n,
-    note: antreanBaru.note.trim(),
-    date: tglDenah.value,
-    addedAt: Date.now(),
-    by: namaSaya.value,
-    status: 'waiting',
-    seatedAt: 0,
-    table: '',
-    resId: '',
-    calledAt: 0,
-  }
-  sheetAntrean.value = false
-  sedangSimpan.value = true
-  const selesaiProses = mulaiProses(`Menambah ${w.name} ke waiting list`)
-  try {
-    await putSectionItem('waitlist', w.id, w, versiWaitlist.value)
-    await refreshWaitlist()
-    await catat(`${w.name} (${w.pax} pax) masuk antrean`, undefined, 'Waiting List')
-    toast.add({ title: `${w.name} masuk waiting list`, color: 'success' })
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, refreshWaitlist))) toast.add({ title: apiErrorMessage(e), color: 'error' })
-  }
-  finally {
-    selesaiProses()
-    sedangSimpan.value = false
-  }
-}
-
-const sheetDudukkan = ref(false)
-const dudukkanId = ref('')
-const dudukkanMeja = ref('')
-const dudukkanSharing = ref(false)
-const calon = computed(() => (waitlist.value?.data ?? []).filter(w => w.status === 'waiting' && w.date === tglDenah.value))
-const dudukkan = computed(() => calon.value.find(w => w.id === dudukkanId.value) ?? null)
-
-/** Does the party fit? They are listed first when they do, but the host may
- *  still override it (`:1926-1929`). */
-const kapasitasMeja = computed(() => {
-  const me = cariMeja(master.value, dudukkanMeja.value)
-  return me ? capMax(me.t.cap) : 0
-})
-const dudukkanMuat = computed(() => !kapasitasMeja.value || (dudukkan.value?.pax ?? 0) <= kapasitasMeja.value)
-
-function bukaDudukkan(w: Waitlist) {
-  dudukkanId.value = w.id
-  dudukkanMeja.value = ''
-  dudukkanSharing.value = false
-  sheetDudukkan.value = true
-}
-
-/** Seat a queued guest: a walk-in booking first, then the queue entry is linked to
- *  it (`:1961-1992`). In that order, so a failed booking leaves the guest waiting
- *  rather than marked as seated with nothing to show. */
-async function simpanDudukkan(): Promise<boolean> {
-  const w = dudukkan.value
-  if (!w || !dudukkanMeja.value) return false
-  const nx = berikutDi(dudukkanMeja.value)
-  if (nx && mepetKah(nx.menit)) {
-    toast.add({ title: `Meja ${dudukkanMeja.value} terkunci — ${nx.res.name} ${tglPendek(nx.res.date)} jam ${nx.res.time} (${sisaWaktu(nx.menit)})`, color: 'error' })
-    return false
-  }
-  const now = Date.now()
-  const jam = normTime(`${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`)
-  const recId = uid()
-  const catatanTunggu = `Dari waiting list${w.note ? ` — ${w.note}` : ''}`
-  const catatanSementara = nx
-    ? `Walk-in sementara — meja ${dudukkanMeja.value} dipesan ${nx.res.name} jam ${jamPesan(nx.res)}`
-    : ''
-  const notes = [catatanTunggu, catatanSementara].filter(Boolean).join('\n')
-  sedangSimpan.value = true
-  const selesaiProses = mulaiProses(`Mendudukkan ${w.name} di meja ${dudukkanMeja.value}`)
-  try {
-    await createReservation({
-      id: recId,
-      name: w.name,
-      phone: w.phone,
-      date: tglDenah.value,
-      time: jam,
-      pax: w.pax,
-      table: dudukkanMeja.value,
-      sharing: dudukkanSharing.value,
-      category: 'Tamu Umum',
-      foodReq: '',
-      drinkReq: '',
-      dpStatus: 'Belum',
-      dpMethod: '',
-      dpAmount: 0,
-      dpProofData: '',
-      dpProofName: '',
-      docReqData: '',
-      docReqName: '',
-      source: 'Walk-in',
-      picType: 'Host/Captain',
-      picName: namaSaya.value,
-      member: false,
-      memberNo: '',
-      notes,
-      vip: false,
-      status: 'Datang',
-      actualPax: w.pax,
-      checkinAt: now,
-      leftAt: 0,
-      // A guest from the queue walks in complete: one wave, all of them.
-      arrivals: [{ ts: now, pax: w.pax, by: namaSaya.value }],
-      createdBy: namaSaya.value,
-      createdAt: now,
-      updatedAt: now,
-      followups: [],
-      _audit: { action: 'Waiting List', detail: `${w.name} (${w.pax} pax) didudukkan di ${dudukkanMeja.value}, menunggu ${fmtMenit(tunggu(w))}` },
-    } as Partial<Reservasi> & { _audit: { action: string, detail: string } })
-
-    const baru: Waitlist = { ...w, status: 'seated', seatedAt: now, table: dudukkanMeja.value, resId: recId, calledAt: w.calledAt }
-    await putSectionItem('waitlist', w.id, baru, versiWaitlist.value)
-    await Promise.all([refreshWaitlist(), muatUlang()])
-    sheetDudukkan.value = false
-    toast.add({ title: `${w.name} duduk di ${dudukkanMeja.value}`, color: 'success' })
-    return true
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, refreshWaitlist))) toast.add({ title: apiErrorMessage(e), color: 'error' })
-    return false
-  }
-  finally {
-    selesaiProses()
-    sedangSimpan.value = false
-  }
-}
-
-/** Leaving the queue keeps the row with status 'cancelled': the old client did the
- *  same, and a queue has no trace of its own to lose. */
-async function batalkanAntrean(w: Waitlist) {
-  sedangSimpan.value = true
-  const selesaiProses = mulaiProses(`Mengeluarkan ${w.name} dari antrean`)
-  try {
-    await putSectionItem('waitlist', w.id, { ...w, status: 'cancelled', cancelledAt: Date.now() }, versiWaitlist.value)
-    await refreshWaitlist()
-    await catat(`${w.name} keluar dari antrean`, undefined, 'Waiting List')
-    toast.add({ title: 'Dikeluarkan dari antrean' })
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, refreshWaitlist))) toast.add({ title: apiErrorMessage(e), color: 'error' })
-  }
-  finally {
-    selesaiProses()
-    sedangSimpan.value = false
-  }
-}
-
-async function panggil(w: Waitlist) {
-  if (!w.phone) {
-    toast.add({ title: 'Nomor WhatsApp kosong — panggil manual', color: 'error' })
-    return
-  }
-  sedangSimpan.value = true
-  const selesaiProses = mulaiProses(`Memanggil ${w.name}`)
-  try {
-    await putSectionItem('waitlist', w.id, { ...w, calledAt: Date.now() }, versiWaitlist.value)
-    await refreshWaitlist()
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, refreshWaitlist))) toast.add({ title: apiErrorMessage(e), color: 'error' })
-  }
-  finally {
-    selesaiProses()
-    sedangSimpan.value = false
-  }
-  await waKirim(w.phone, teksPanggilAntrean(w.name, w.pax))
-}
-
 /** A row's own version is its `updatedAt` (the list sends no meta.version). */
 const versiBaris = (r: Reservasi) => r.updatedAt
 const baris = (id: string) => (semuaHari.value ?? []).find(r => r.id === id) ?? null
@@ -1139,7 +952,13 @@ function bukaPindah(r: Reservasi, mode: 'move' | 'add') {
   pindahMode.value = mode
   pindahSels.value = mode === 'add' ? tablesOf(r) : []
   dipaksaPindah.value = []
+  // Start on the floor of the booking's own table; else the floor the map shows.
+  const lt = tablesOf(r).map(id => petaLantai.value.get(id)).find(Boolean)
+  lantaiPindah.value = lt === 2 ? 2 : lt === 1 ? 1 : layerMap.value
   sheetPindah.value = true
+  // The plan may have been edited for this date since the page loaded: pull the
+  // latest before the crew picks, so the move follows the newest tables.
+  segarkanDenah()
 }
 
 function onTumpangPindah(p: { meja: string, pesan: string, kunci: boolean }) {
@@ -1185,15 +1004,19 @@ async function simpanPindah() {
 // --- walk-in at a free table (`:1944-1975`) -------------------------------------
 
 const sheetWalkin = ref(false)
-const walkinInit = reactive({ meja: '', sharing: false, pax: 2 })
-/** The walk-in form (old walkInSeat). `sharing` + `pax` come prefilled when a guest is added to a sharing table. */
-function bukaWalkin(mejaId: string, sharing = false, pax = 2) {
+const walkinInit = reactive({ meja: '', sharing: false, pax: 0 })
+/**
+ * The walk-in form (old walkInSeat). `sharing` + `pax` come prefilled when a guest
+ * is added to a sharing table; otherwise the head count starts empty and must be
+ * typed (owner request, Nov 2026).
+ */
+function bukaWalkin(mejaId: string, sharing = false, pax = 0) {
   if (!bolehEdit.value) {
     toast.add({ title: 'Anda tidak punya akses menambah reservasi.', color: 'error' })
     return
   }
   if (saringBerlaku.value) return
-  Object.assign(walkinInit, { meja: mejaId, sharing, pax: Number(pax) > 0 ? Number(pax) : 2 })
+  Object.assign(walkinInit, { meja: mejaId, sharing, pax: Number(pax) > 0 ? Number(pax) : 0 })
   sheetWalkin.value = true
 }
 
@@ -1203,7 +1026,6 @@ function bukaWalkin(mejaId: string, sharing = false, pax = 2) {
 const berikutDi = (meja: string) => bookingBerikut(semuaHari.value ?? [], meja, { date: tglDenah.value, hariIni: hariIniMap.value, dineEst: dineEst.value })
 const sisaWaktu = (m: number) => (m > 0 ? `${fmtMenit(m)} lagi` : `jamnya sudah lewat ${fmtMenit(-m)}`)
 /** "19:00", or "02:10 (27 Sep)" when the booking is on another day than the map. */
-const jamPesan = (r: Reservasi) => (r.date === tglDenah.value ? r.time : `${r.time} (${tglPendek(r.date)})`)
 
 /**
  * A free table booked for LATER: two ways out, not one yes/no question (old
@@ -1236,7 +1058,6 @@ function walkinDariDipesan(meja: string) {
  * The real walk-in path (old lanjutWalkIn) — straight from a free table, and from
  * "Walk-in baru" above. The H-1h guard stays HERE: the choice can sit open for
  * minutes and the time can slip into the lock window before the button is pressed.
- * With guests waiting for this date, the queue is offered first.
  */
 function lanjutWalkin(meja: string) {
   if (!bolehEdit.value) {
@@ -1249,29 +1070,6 @@ function lanjutWalkin(meja: string) {
     toast.add({ title: `Meja ${meja} terkunci — ${nx.res.name} ${tglPendek(nx.res.date)} jam ${nx.res.time} (${sisaWaktu(nx.menit)})`, color: 'error' })
     return
   }
-  if (calon.value.length) {
-    tawarMeja.value = meja
-    sheetTawar.value = true
-    return
-  }
-  bukaWalkin(meja)
-}
-
-/** A free table and guests waiting: pick one from the queue, or a new walk-in (old offerWaitlist, :2043-2075). */
-const sheetTawar = ref(false)
-const tawarMeja = ref('')
-const tawarBooking = computed(() => (tawarMeja.value ? berikutDi(tawarMeja.value) : null))
-
-async function dudukkanDariTawar(w: Waitlist) {
-  dudukkanId.value = w.id
-  dudukkanMeja.value = tawarMeja.value
-  dudukkanSharing.value = false
-  const ok = await simpanDudukkan()
-  if (ok) sheetTawar.value = false
-}
-
-function walkinDariTawar(meja: string) {
-  sheetTawar.value = false
   bukaWalkin(meja)
 }
 
@@ -1421,10 +1219,10 @@ async function kirimKoord(t: WaTarget) {
 /** Skip a poll tick while the user is mid-edit: an open sheet/confirm owns the
  *  data, a save is in flight, or focus sits in an editable field. */
 function pollDitunda() {
-  if (sheetFU.value || sheetNoShow.value || sheetAntrean.value || sheetDudukkan.value
+  if (sheetFU.value || sheetNoShow.value
     || sheetAksi.value || sheetTambahDp.value || sheetEditCepat.value || sheetKirimWa.value
     || sheetDatang.value || sheetBatal.value || sheetPindah.value || sheetWalkin.value
-    || sheetDipesan.value || sheetTawar.value || sheetSharing.value
+    || sheetDipesan.value || sheetSharing.value
     || sheetWA.value || tanyaPindah.value) return true
   if (sedangSimpan.value) return true
   const el = document.activeElement as HTMLElement | null
@@ -1448,6 +1246,14 @@ watch([dari, sampai, saring], () => {
   pollDaftar.setel()
 })
 
+/** A plan edited for one date (Master Data / Denah) shows on the map without a page reload. */
+function segarkanDenah() {
+  void Promise.all([denahLayouts.refresh(), denahOv1.refresh(), denahOv2.refresh(), denahTanggal.refresh()])
+}
+watch([tab, tglDenah], ([t]) => {
+  if (t === 'map') segarkanDenah()
+})
+
 watch(tab, (baru, lama) => {
   // The map-tab interval only pulls the day slot, so the table slot freezes
   // while the map is open — refresh it on return, not on every tick.
@@ -1460,16 +1266,13 @@ const saringBerlaku = computed(() => !!(filter.fromHour || filter.toHour || sari
 
 const tglPanjangLama = (tgl: string) => new Date(`${tgl}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })
 
-/** The queue count used in the map's header line. */
-const ants = computed(() => antreanHari.value)
-
 const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arrivedPax(r)}/${r.pax} · sisa ${remainingPax(r)}` : String(r.pax || 0))
 </script>
 
 <template>
   <AppPage
     title="Dashboard & recap"
-    description="Satu halaman: data reservasi, denah meja, dan antrean. Klik meja untuk aksi cepat."
+    description="Satu halaman: data reservasi dan denah meja. Klik meja untuk aksi cepat."
   >
     <template #actions>
       <UButton
@@ -1529,13 +1332,6 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         :value="angka(perluFollowUp)"
         sub="belum konfirmasi hari ini"
       />
-      <AppStat
-        label="Waiting list"
-        icon="i-lucide-hourglass"
-        :tone="antreanHari.length ? 'warning' : 'gold'"
-        :value="angka(antreanHari.length)"
-        :sub="antreanHari.length ? `menunggu meja · ${tglPendek(tglDenah)}` : 'antrean kosong'"
-      />
     </AppStatGrid>
 
     <AppPanel>
@@ -1547,7 +1343,6 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               { value: 'list', label: 'Tabel', icon: 'i-lucide-table' },
               { value: 'calendar', label: 'Kalender', icon: 'i-lucide-calendar-days' },
               { value: 'map', label: 'Denah meja', icon: 'i-lucide-map' },
-              { value: 'wait', label: 'Waiting list', icon: 'i-lucide-hourglass', badge: antreanHari.length },
             ]"
           />
           <UInput
@@ -2243,9 +2038,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           @click="layerMap = l"
         />
         <span class="text-sm text-muted">
-          {{ tglPanjangLama(tglDenah) }} · {{ namaDenah }} · {{ ants.length }} di antrean<template
-            v-if="ants.length"
-          >, terlama {{ fmtMenit(tunggu(ants[0]!)) }}</template>
+          {{ tglPanjangLama(tglDenah) }} · {{ namaDenah }}
         </span>
         <UButton
           v-if="bisaPenuhDenah"
@@ -2285,7 +2078,6 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         :tanggal="tglDenah"
         :hari-ini="hariIniMap"
         :timer="true"
-        :nunggu="ants.length"
         :saring-aktif="saringBerlaku"
         :master="masterKunci"
         @buka="(resId) => { const r = baris(resId); if (r) bukaAksi(r) }"
@@ -2294,207 +2086,6 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         @sharing="onMejaSharing"
       />
     </div>
-
-    <template v-else-if="tab === 'wait'">
-      <div class="mb-3 flex flex-wrap items-center gap-2">
-        <UButton
-          v-if="bolehEdit"
-          label="Tambah ke waiting list"
-          size="xl"
-          @click="bukaAntrean"
-        />
-        <span class="text-sm text-muted">
-          {{ tglPanjangLama(tglDenah) }} · {{ ants.length }} orang menunggu · {{ angka(paxAntrean) }} pax
-        </span>
-      </div>
-
-      <AppList title="Antrean">
-        <AppListRow
-          v-for="(w, i) in ants"
-          :key="w.id"
-          :title="`${i + 1}. ${w.name} — ${w.pax} orang`"
-          :description="`menunggu ${fmtMenit(tunggu(w))}${w.phone ? ` · ${w.phone}` : ''}${w.note ? ` · ${w.note}` : ''}`"
-          icon="i-lucide-hourglass"
-        >
-          <template #trailing>
-            <AppStatus
-              :color="w.calledAt ? 'success' : 'neutral'"
-            >
-              {{ w.calledAt ? 'Sudah diberi tahu' : 'Belum diberi tahu' }}
-            </AppStatus>
-          </template>
-        </AppListRow>
-        <div
-          v-if="ants.length && bolehEdit"
-          class="flex flex-wrap gap-2 p-4"
-        >
-          <UButton
-            v-for="w in ants"
-            :key="`a-${w.id}`"
-            :label="`Dudukkan ${w.name}`"
-            color="neutral"
-            variant="soft"
-            size="sm"
-            @click="bukaDudukkan(w)"
-          />
-          <UButton
-            v-for="w in ants.filter(x => x.phone)"
-            :key="`b-${w.id}`"
-            :label="`Kabari ${w.name}`"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            @click="panggil(w)"
-          />
-          <UButton
-            v-for="w in ants"
-            :key="`c-${w.id}`"
-            :label="`Keluarkan ${w.name}`"
-            color="error"
-            variant="ghost"
-            size="sm"
-            loading-auto
-            @click="batalkanAntrean(w)"
-          />
-        </div>
-        <p
-          v-if="!ants.length"
-          class="px-4 py-3 text-muted"
-        >
-          Antrean kosong.
-        </p>
-      </AppList>
-
-      <AppList
-        v-if="antreanLain.length"
-        title="Antrean tanggal lain"
-      >
-        <AppListRow
-          v-for="w in antreanLain"
-          :key="w.id"
-          :title="`${w.name} — ${w.pax} orang`"
-          :description="`${tglPendek(w.date)} · menunggu ${fmtMenit(tunggu(w))}`"
-          icon="i-lucide-hourglass"
-          dim
-        />
-      </AppList>
-    </template>
-
-    <ResponsiveSheet
-      v-model:open="sheetAntrean"
-      title="Tambah ke waiting list"
-      :description="tglPanjangLama(tglDenah)"
-    >
-      <div class="grid grid-cols-1 gap-3">
-        <UFormField
-          label="Nama"
-          help="Kosongkan untuk walk-in cepat — tercatat sebagai “Walkin”"
-        >
-          <UInput
-            v-model="antreanBaru.nama"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="No. WhatsApp (opsional)">
-          <UInput
-            v-model="antreanBaru.phone"
-            inputmode="numeric"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          label="Jumlah orang"
-          required
-        >
-          <UInput
-            v-model.number="antreanBaru.pax"
-            type="number"
-            :min="1"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Catatan (opsional)">
-          <UInput
-            v-model="antreanBaru.note"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-      </div>
-      <template #footer>
-        <UButton
-          label="Simpan ke antrean"
-          size="xl"
-          loading-auto
-          @click="simpanAntrean"
-        />
-        <UButton
-          label="Batal"
-          color="neutral"
-          variant="soft"
-          size="xl"
-          @click="sheetAntrean = false"
-        />
-      </template>
-    </ResponsiveSheet>
-
-    <ResponsiveSheet
-      v-model:open="sheetDudukkan"
-      :title="`Dudukkan ${dudukkan?.name ?? ''}`"
-      :description="dudukkan ? `${dudukkan.pax} orang · menunggu ${fmtMenit(tunggu(dudukkan))}` : ''"
-    >
-      <div class="space-y-3">
-        <p
-          v-if="saringBerlaku"
-          class="text-sm text-muted"
-        >
-          Bersihkan filter dulu: meja tujuan dipilih dari denah, dan denah tersaring bisa
-          menampilkan meja terpakai sebagai kosong.
-        </p>
-        <p
-          v-if="dudukkan && !dudukkanMuat && dudukkanMeja"
-          class="rounded-lg border border-default bg-default p-3 text-sm text-muted"
-        >
-          {{ dudukkan.name }} berjumlah {{ dudukkan.pax }} orang, sedangkan meja
-          {{ dudukkanMeja }} kapasitasnya {{ kapasitasMeja }}. Tetap didudukkan?
-        </p>
-        <DenahPeta
-          v-else-if="denahTerpilih"
-          :layout="denahTerpilih"
-          :reservasi="semuaHari ?? []"
-          :tanggal="tglDenah"
-          mode="pilih"
-          :terpilih="dudukkanMeja ? [dudukkanMeja] : []"
-          :master="masterKunci"
-          :legenda="false"
-          @pilih="(m) => (dudukkanMeja = m)"
-        />
-        <label class="flex items-center gap-2 text-sm">
-          <input
-            v-model="dudukkanSharing"
-            type="checkbox"
-          > Sharing table
-        </label>
-      </div>
-      <template #footer>
-        <UButton
-          label="Dudukkan"
-          size="xl"
-          :disabled="!dudukkanMeja"
-          @click="simpanDudukkan"
-        />
-        <UButton
-          label="Batal"
-          color="neutral"
-          variant="soft"
-          size="xl"
-          @click="sheetDudukkan = false"
-        />
-      </template>
-    </ResponsiveSheet>
 
     <ResponsiveSheet
       v-model:open="sheetWA"
@@ -2622,79 +2213,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         v-if="aksi"
         class="space-y-4"
       >
-        <ReservasiDetailInfo
-          :r="aksi"
-          :profil="aksiProfil"
-          :boleh-minta-kwitansi="bolehFinance"
-          :boleh-langsung-kwitansi="bolehMaster"
-          :boleh-ubah-gelombang="bolehEdit"
-          :boleh-tambah-dp="bolehEdit"
-          :show-reservation-status="false"
-          @berubah="refresh"
-          @tambah-dp="sheetAksi = false; sheetTambahDp = true"
-        />
-
-        <div v-if="bolehEdit">
-          <AppSectionTitle
-            title="Ubah status"
-            icon="i-lucide-arrow-left-right"
-          />
-          <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
-            <UButton
-              v-if="aksi.status !== 'Pending'"
-              label="Pending"
-              :icon="statusIkon['Pending']"
-              :color="statusWarna['Pending']"
-              variant="soft"
-              size="lg"
-              class="min-h-12 text-base justify-center whitespace-normal"
-              loading-auto
-              @click="ubahStatus(aksi, 'Pending')"
-            />
-            <UButton
-              v-if="aksi.status !== 'Confirmed'"
-              label="Confirmed"
-              :icon="statusIkon['Confirmed']"
-              :color="statusWarna['Confirmed']"
-              variant="soft"
-              size="lg"
-              class="min-h-12 text-base justify-center whitespace-normal"
-              loading-auto
-              @click="ubahStatus(aksi, 'Confirmed')"
-            />
-            <UButton
-              v-if="aksi.status !== 'Datang'"
-              label="Datang"
-              :icon="statusIkon['Datang']"
-              :color="statusWarna['Datang']"
-              variant="soft"
-              size="lg"
-              class="min-h-12 text-base justify-center whitespace-normal"
-              @click="bukaDatang(aksi, true)"
-            />
-            <UButton
-              v-if="aksi.status !== 'Cancelled'"
-              label="Cancelled"
-              :icon="statusIkon['Cancelled']"
-              :color="statusWarna['Cancelled']"
-              variant="soft"
-              size="lg"
-              class="min-h-12 text-base justify-center whitespace-normal"
-              @click="bukaBatal(aksi)"
-            />
-            <UButton
-              v-if="aksi.status !== 'No-show'"
-              label="No-show"
-              :icon="statusIkon['No-show']"
-              :color="statusWarna['No-show']"
-              variant="soft"
-              size="lg"
-              class="min-h-12 text-base justify-center whitespace-normal"
-              @click="bukaNoShow(aksi)"
-            />
-          </div>
-        </div>
-
+        <!-- Actions first (owner request, Nov 2026): reachable without scrolling. -->
         <div>
           <AppSectionTitle
             title="Aksi operasional"
@@ -2706,7 +2225,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :label="aksiTelat ? 'Follow up tamu (telat)' : 'Follow up tamu'"
               icon="i-lucide-phone"
               color="success"
-              variant="soft"
+              variant="solid"
+              :ui="{ label: 'whitespace-normal text-left' }"
               size="lg"
               class="min-h-12 text-base justify-start whitespace-normal"
               loading-auto
@@ -2715,8 +2235,10 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
             <UButton
               v-if="bolehEdit && canAddArrival(aksi)"
               :label="`Tamu datang lagi (sisa ${remainingPax(aksi)})`"
-              color="neutral"
-              variant="soft"
+              icon="i-lucide-user-plus"
+              color="success"
+              variant="solid"
+              :ui="{ label: 'whitespace-normal text-left' }"
               size="lg"
               class="min-h-12 text-base justify-start whitespace-normal"
               @click="bukaDatang(aksi, false)"
@@ -2725,8 +2247,9 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               v-if="bolehEdit && aksiDuduk"
               label="Selesai (tamu pulang)"
               icon="i-lucide-check"
-              color="neutral"
-              variant="soft"
+              color="success"
+              variant="solid"
+              :ui="{ label: 'whitespace-normal text-left' }"
               size="lg"
               class="min-h-12 text-base justify-start whitespace-normal"
               loading-auto
@@ -2736,7 +2259,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               v-if="bolehEdit && sedangDialihkan(aksi)"
               :label="`Kembali ke meja asli (${aksi.tableAsli})`"
               color="neutral"
-              variant="soft"
+              variant="outline"
+              :ui="{ leadingIcon: 'text-warning', label: 'whitespace-normal text-left' }"
               size="lg"
               class="min-h-12 text-base justify-start whitespace-normal"
               loading-auto
@@ -2747,9 +2271,10 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :label="aksi.sharing ? 'Batalkan sharing' : 'Jadikan sharing'"
               icon="i-lucide-handshake"
               color="neutral"
-              variant="soft"
+              variant="outline"
+              :ui="{ leadingIcon: 'text-vip', label: 'whitespace-normal text-left' }"
               size="lg"
-              class="min-h-12 text-base justify-start whitespace-normal bg-vip/12 text-vip"
+              class="min-h-12 text-base justify-start whitespace-normal"
               loading-auto
               @click="toggleSharing(aksi)"
             />
@@ -2757,8 +2282,9 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               v-if="bolehEdit && aksi.table"
               label="Pindah meja"
               icon="i-lucide-arrow-right-left"
-              color="warning"
-              variant="soft"
+              color="neutral"
+              variant="outline"
+              :ui="{ leadingIcon: 'text-info', label: 'whitespace-normal text-left' }"
               size="lg"
               class="min-h-12 text-base justify-start whitespace-normal"
               @click="bukaPindah(aksi, 'move')"
@@ -2767,8 +2293,9 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               v-if="bolehEdit && aksi.table"
               label="Tambah meja"
               icon="i-lucide-armchair"
-              color="info"
-              variant="soft"
+              color="neutral"
+              variant="outline"
+              :ui="{ leadingIcon: 'text-vip', label: 'whitespace-normal text-left' }"
               size="lg"
               class="min-h-12 text-base justify-start whitespace-normal"
               @click="bukaPindah(aksi, 'add')"
@@ -2776,8 +2303,9 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
             <UButton
               label="Buka & sunting"
               icon="i-lucide-square-pen"
-              color="primary"
-              variant="soft"
+              color="neutral"
+              variant="outline"
+              :ui="{ leadingIcon: 'text-primary', label: 'whitespace-normal text-left' }"
               size="lg"
               class="min-h-12 text-base justify-start whitespace-normal"
               :to="`/reservasi/input?id=${aksi.id}`"
@@ -2790,6 +2318,84 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
             Meja {{ sisaMejaAksi.id }} masih punya {{ sisaMejaAksi.sisa }} kursi kosong.
           </p>
         </div>
+
+        <div v-if="bolehEdit">
+          <AppSectionTitle
+            title="Ubah status"
+            icon="i-lucide-arrow-left-right"
+          />
+          <div class="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap">
+            <UButton
+              v-if="aksi.status !== 'Pending'"
+              label="Pending"
+              :icon="statusIkon['Pending']"
+              color="neutral"
+              variant="outline"
+              :ui="{ leadingIcon: 'text-warning', label: 'whitespace-normal text-left' }"
+              size="lg"
+              class="min-h-12 text-base justify-center whitespace-normal"
+              loading-auto
+              @click="ubahStatus(aksi, 'Pending')"
+            />
+            <UButton
+              v-if="aksi.status !== 'Confirmed'"
+              label="Confirmed"
+              :icon="statusIkon['Confirmed']"
+              color="neutral"
+              variant="outline"
+              :ui="{ leadingIcon: 'text-info', label: 'whitespace-normal text-left' }"
+              size="lg"
+              class="min-h-12 text-base justify-center whitespace-normal"
+              loading-auto
+              @click="ubahStatus(aksi, 'Confirmed')"
+            />
+            <UButton
+              v-if="aksi.status !== 'Datang'"
+              label="Datang"
+              :icon="statusIkon['Datang']"
+              color="success"
+              variant="solid"
+              :ui="{ label: 'whitespace-normal text-left' }"
+              size="lg"
+              class="min-h-12 text-base justify-center whitespace-normal"
+              @click="bukaDatang(aksi, true)"
+            />
+            <UButton
+              v-if="aksi.status !== 'Cancelled'"
+              label="Cancelled"
+              :icon="statusIkon['Cancelled']"
+              color="error"
+              variant="solid"
+              :ui="{ label: 'whitespace-normal text-left' }"
+              size="lg"
+              class="min-h-12 text-base justify-center whitespace-normal"
+              @click="bukaBatal(aksi)"
+            />
+            <UButton
+              v-if="aksi.status !== 'No-show'"
+              label="No-show"
+              :icon="statusIkon['No-show']"
+              color="error"
+              variant="solid"
+              :ui="{ label: 'whitespace-normal text-left' }"
+              size="lg"
+              class="min-h-12 text-base justify-center whitespace-normal"
+              @click="bukaNoShow(aksi)"
+            />
+          </div>
+        </div>
+
+        <ReservasiDetailInfo
+          :r="aksi"
+          :profil="aksiProfil"
+          :boleh-minta-kwitansi="bolehFinance"
+          :boleh-langsung-kwitansi="bolehMaster"
+          :boleh-ubah-gelombang="bolehEdit"
+          :boleh-tambah-dp="bolehEdit"
+          :show-reservation-status="false"
+          @berubah="refresh"
+          @tambah-dp="sheetAksi = false; sheetTambahDp = true"
+        />
       </div>
       <template #footer>
         <UButton
@@ -2885,6 +2491,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
 
     <ResponsiveSheet
       v-model:open="sheetPindah"
+      lebar="besar"
       :title="pindahMode === 'add' ? 'Tambah meja' : 'Pindah meja'"
       :description="aksi ? `${aksi.name} — ${pindahSels.length ? pindahSels.join(', ') : 'pilih meja tujuan'}` : ''"
     >
@@ -2896,8 +2503,23 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           Bersihkan filter dulu: meja tujuan dipilih dari denah, dan denah tersaring bisa
           menampilkan meja terpakai sebagai kosong.
         </p>
+        <div
+          v-if="!saringBerlaku"
+          class="flex flex-wrap items-center gap-2"
+        >
+          <UButton
+            v-for="l in ([1, 2] as const)"
+            :key="l"
+            :label="`Lantai ${l}`"
+            :color="lantaiPindah === l ? 'primary' : 'neutral'"
+            :variant="lantaiPindah === l ? 'solid' : 'outline'"
+            size="lg"
+            @click="lantaiPindah = l"
+          />
+          <span class="text-sm text-muted">{{ namaDenahPindah }}</span>
+        </div>
         <DenahPeta
-          v-else-if="denahPindah"
+          v-if="!saringBerlaku && denahPindah"
           :layout="denahPindah"
           :reservasi="semuaHari ?? []"
           :tanggal="aksi?.date ?? tglDenah"
@@ -2944,12 +2566,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
 
     <ReservasiDenahAksiSheets
       v-model:open-dipesan="sheetDipesan"
-      v-model:open-tawar="sheetTawar"
       v-model:open-sharing="sheetSharing"
       :meja-dipesan="mejaDipesan"
-      :tawar-meja="tawarMeja"
-      :tawar-booking="tawarBooking"
-      :calon="calon"
       :meja-sharing="mejaSharing"
       :partai-sharing="partaiSharing"
       :master="master"
@@ -2957,8 +2575,6 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
       :saring-aktif="saringBerlaku"
       @buka-pemesan="bukaPemesan"
       @walkin-dari-dipesan="walkinDariDipesan"
-      @dudukkan-dari-tawar="dudukkanDariTawar"
-      @walkin-dari-tawar="walkinDariTawar"
       @kelola-partai="kelolaPartai"
       @tambah-ke-sharing="tambahKeSharing"
     />
@@ -2983,33 +2599,40 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
 
     <ResponsiveSheet
       v-model:open="sheetFU"
-      title="Catat hasil follow up"
-      :description="aksi ? `WhatsApp terbuka ke ${aksi.name} (${tampilPhone(aksi.phone)}). Catat hasilnya:` : ''"
+      title="Follow up tamu"
+      :description="aksi ? (fuAdaNomor ? `Ke ${aksi.name} · ${tampilPhone(aksi.phone)} — pesan bisa diubah dulu.` : `Nomor ${aksi.name} belum diisi — salin pesannya lalu kirim manual.`) : ''"
     >
-      <UFormField label="Hasil / catatan">
-        <UTextarea
-          v-model="catatanFU"
-          :rows="3"
-          placeholder="mis. Tamu konfirmasi telat 15 menit / Tamu batal / Belum dibalas"
-          class="w-full"
-        />
-      </UFormField>
-      <AppChips
-        v-model="catatanFU"
-        class="mt-3"
-        :options="PILIHAN_FU"
+      <UTextarea
+        v-model="teksFU"
+        :rows="10"
+        autoresize
+        class="w-full"
       />
       <template #footer>
         <UButton
-          label="Nanti saja"
-          color="neutral"
-          variant="outline"
-          @click="sheetFU = false"
+          label="Kirim ke WhatsApp tamu"
+          icon="i-lucide-send"
+          color="success"
+          size="xl"
+          :disabled="!fuAdaNomor"
+          loading-auto
+          @click="kirimFU"
         />
         <UButton
-          label="Simpan catatan"
-          :disabled="!catatanFU.trim()"
-          @click="simpanFU"
+          label="Salin pesan"
+          icon="i-lucide-copy"
+          color="neutral"
+          variant="soft"
+          size="xl"
+          loading-auto
+          @click="salinFU"
+        />
+        <UButton
+          label="Tutup"
+          color="neutral"
+          variant="outline"
+          size="xl"
+          @click="sheetFU = false"
         />
       </template>
     </ResponsiveSheet>

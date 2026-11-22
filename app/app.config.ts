@@ -20,7 +20,9 @@ export default defineAppConfig({
       neutral: 'ink',
     },
     button: {
-      slots: { base: 'font-semibold rounded-field' },
+      // Every word capitalised on buttons (owner request, Nov 2026); the source
+      // copy stays sentence case. Opt out with `normal-case` on the button.
+      slots: { base: 'font-semibold rounded-field capitalize' },
       compoundVariants: [
         // Gold action button: white on deep gold, a shade darker on hover.
         { color: 'primary', variant: 'solid', class: 'text-white bg-primary shadow-md shadow-laksamana-600/25 hover:bg-laksamana-700 active:bg-laksamana-800' },

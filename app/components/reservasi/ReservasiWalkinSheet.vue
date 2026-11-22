@@ -30,7 +30,7 @@ const props = withDefaults(defineProps<{
   namaSaya: string
 }>(), {
   initialSharing: false,
-  initialPax: 2,
+  initialPax: 0,
   denahTerpilih: null,
   saringAktif: false,
 })
@@ -48,7 +48,7 @@ const walkin = reactive({
   meja: '',
   nama: '',
   phone: '',
-  pax: 2,
+  pax: undefined as number | undefined,
   sharing: false,
   tambahan: [] as string[],
 })
@@ -57,6 +57,8 @@ const dipaksaWalkin = ref<string[]>([])
 const tanyaWalkin = ref<{ meja: string, pesan: string } | null>(null)
 const jamWalkin = ref('')
 const menyimpan = ref(false)
+/** Set by the first save press, so the empty-pax error shows only after it. */
+const cobaSimpan = ref(false)
 
 /** Reset the form each time the sheet opens for a (new) starting table. */
 watch(
@@ -67,13 +69,14 @@ watch(
       meja: props.meja,
       nama: '',
       phone: '',
-      pax: Number(props.initialPax) > 0 ? Number(props.initialPax) : 2,
+      pax: Number(props.initialPax) > 0 ? Number(props.initialPax) : undefined,
       sharing: props.initialSharing,
       tambahan: [],
     })
     pilihMejaWalkin.value = false
     dipaksaWalkin.value = []
     tanyaWalkin.value = null
+    cobaSimpan.value = false
   },
   { immediate: true },
 )
@@ -128,8 +131,12 @@ function izinkanWalkin() {
   pilihWalkin(m)
 }
 
+/** The head count is required: no default number the crew could save without looking. */
+const paxKosong = computed(() => !(Number(walkin.pax) >= 1))
+
 async function simpanWalkin() {
   if (menyimpan.value) return
+  cobaSimpan.value = true
   const n = Number(walkin.pax) || 0
   if (n < 1) {
     toast.add({ title: 'Jumlah orang wajib diisi', color: 'error' })
@@ -221,7 +228,7 @@ async function simpanWalkin() {
 <template>
   <ResponsiveSheet
     v-model:open="open"
-    :detail="pilihMejaWalkin"
+    :lebar="pilihMejaWalkin ? 'besar' : undefined"
     :title="`Walk-in di meja ${mejaWalkin.join(', ')}`"
     description="Tamu tanpa nama tetap dicatat sebagai “Walkin”."
   >
@@ -260,11 +267,14 @@ async function simpanWalkin() {
       <UFormField
         label="Jumlah orang"
         required
+        :error="paxKosong && cobaSimpan ? 'Jumlah orang wajib diisi' : false"
       >
         <UInput
           v-model.number="walkin.pax"
           type="number"
           :min="1"
+          inputmode="numeric"
+          placeholder="Wajib diisi"
           size="xl"
           class="w-full"
         />
@@ -367,6 +377,7 @@ async function simpanWalkin() {
       <UButton
         label="Simpan walk-in"
         size="xl"
+        :disabled="paxKosong"
         :loading="menyimpan"
         @click="simpanWalkin"
       />

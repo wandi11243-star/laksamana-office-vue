@@ -24,7 +24,8 @@ Hard rules:
   app is light-only: color mode is pinned to light in `nuxt.config.ts` and there is no theme picker — do not add `dark:` styles
   or a toggle. Pointing the dev server at the dev API (`dev-api.laksamanamuda.id`) is fine, writes included;
   never point it at production (`api.laksamanamuda.id`). Read-only mocks are optional.
-- UI copy in Indonesian, sentence case. Code comments in English.
+- UI copy in Indonesian, sentence case in the source. Buttons and headings (h1–h4, `AppSectionTitle`) are shown in Title Case by CSS
+  (`capitalize` in `app.config.ts` button + `main.css` base) — owner request, Nov 2026; opt out with `normal-case`. Code comments in English.
 - No new dependencies without asking. Before finishing: `npm run lint && npm run typecheck`.
 - `../laksamana-office` is the old app: read-only reference (menus, flows). Never edit it.
 - No AI attribution: Never add `Co-Authored-By: Claude …` (or any AI co-author trailer) to a commit, and never write "Generated with Claude Code", 🤖, or any other mention of Claude/AI in PR, issue or review text. Commits and PRs appear as the developer's own work.

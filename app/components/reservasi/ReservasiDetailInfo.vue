@@ -350,9 +350,9 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
         icon="i-lucide-wallet"
       />
       <div class="rounded-lg border border-default p-3 text-base">
-        <div class="flex items-center justify-between gap-2">
-          <span class="text-muted">Total DP masuk</span>
-          <b class="text-highlighted">{{ dpNominal ? rupiah(dpNominal) : 'Belum DP' }}</b>
+        <div class="flex items-center justify-between gap-2 rounded-md bg-gold-soft px-3 py-2 shadow-[inset_3px_0_0_var(--color-gold)]">
+          <span class="font-semibold text-muted">Total DP masuk</span>
+          <b class="text-lg text-highlighted">{{ dpNominal ? rupiah(dpNominal) : 'Belum DP' }}</b>
         </div>
         <p
           v-if="dpNominal"
@@ -366,10 +366,10 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
           v-if="bolehTambahDp"
           label="Tambah bukti TF DP"
           icon="i-lucide-plus"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          class="mt-2 min-h-11"
+          color="primary"
+          variant="solid"
+          size="lg"
+          class="mt-3 min-h-12 w-full justify-center text-base sm:w-auto"
           @click="emit('tambahDp')"
         />
         <div
@@ -390,7 +390,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
           <div
             v-for="(p, i) in cicilan"
             :key="p.id || i"
-            class="rounded-lg bg-muted p-2.5 text-base"
+            class="rounded-lg border border-default bg-muted p-3 text-base"
           >
             <p class="flex flex-wrap items-center gap-1.5">
               <b class="text-highlighted">DP {{ i + 1 }} · {{ rupiah(Number(p.amount) || 0) }}</b>
@@ -404,21 +404,25 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
             <p class="mt-0.5 text-sm text-muted">
               {{ p.method || '—' }}{{ p.tfName ? ` · a.n. ${p.tfName}` : '' }}{{ p.tfDate ? ` · ${p.tfDate}${p.tfTime ? ` ${p.tfTime}` : ''}` : '' }} · dicatat {{ p.by || '—' }}{{ p.at ? `, ${capWaktu(p.at)}` : '' }}
             </p>
-            <div class="mt-1.5">
+            <div class="mt-2">
               <UButton
                 v-if="p.proofData"
-                label="Lihat bukti"
+                label="Lihat bukti transfer"
                 icon="i-lucide-image"
-                color="neutral"
-                variant="ghost"
-                size="xs"
+                color="info"
+                variant="solid"
+                size="lg"
+                class="min-h-12 w-full justify-center text-base sm:w-auto"
                 loading-auto
                 @click="lihatBukti(p.proofData, p.proofName)"
               />
               <span
                 v-else
-                class="text-sm text-muted"
-              >tanpa bukti</span>
+                class="inline-flex items-center gap-1.5 rounded-md bg-warning/15 px-2.5 py-1.5 text-sm font-semibold text-warning"
+              ><UIcon
+                name="i-lucide-image-off"
+                class="size-4"
+              />Belum ada bukti transfer</span>
             </div>
           </div>
           <p class="text-sm text-muted">
@@ -428,8 +432,8 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
             label="Cek di Dana Masuk"
             icon="i-lucide-arrow-up-right"
             color="neutral"
-            variant="ghost"
-            size="xs"
+            variant="outline"
+            size="md"
             :to="urlDanaMasuk"
           />
         </div>
@@ -457,9 +461,10 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
       <UButton
         :label="`Lihat (${r.docReqName || 'dokumen'})`"
         icon="i-lucide-file-text"
-        color="neutral"
-        variant="ghost"
-        size="xs"
+        color="info"
+        variant="solid"
+        size="lg"
+        class="min-h-12 max-w-full justify-center text-base"
         loading-auto
         @click="lihatBukti(r.docReqData, r.docReqName)"
       />
@@ -595,8 +600,8 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
           label="Lihat di Audit Log"
           icon="i-lucide-arrow-up-right"
           color="neutral"
-          variant="ghost"
-          size="sm"
+          variant="outline"
+          size="md"
           to="/reservasi/audit"
         />
         <div class="mt-2 space-y-1.5 text-base">
