@@ -154,14 +154,17 @@ const states = computed(() => new Map(meja.value.map(t => [
 // The clock only ticks while something is actually counting.
 const now = ref(Date.now())
 const adaDuduk = computed(() => [...occ.value.values()].some(l => l.some(isSeated)))
+/** Today's map with a guest still to come: the late / follow-up flash must switch on by itself. */
+const adaMenunggu = computed(() => props.mode === 'tampil' && props.hariIni && later.value.size > 0)
 let jeda: ReturnType<typeof setInterval> | undefined
 const nyalakan = () => {
   clearInterval(jeda)
-  jeda = props.timer && adaDuduk.value ? setInterval(() => (now.value = Date.now()), 1000) : undefined
+  const detik = props.timer && adaDuduk.value
+  jeda = detik || adaMenunggu.value ? setInterval(() => (now.value = Date.now()), detik ? 1000 : 15000) : undefined
 }
 onMounted(nyalakan)
 onBeforeUnmount(() => clearInterval(jeda))
-watch([() => props.timer, adaDuduk], nyalakan)
+watch([() => props.timer, adaDuduk, adaMenunggu], nyalakan)
 
 // --- geometry ---------------------------------------------------------------
 
@@ -226,6 +229,19 @@ function telatT(stat: ReturnType<typeof statusMeja>): string {
   return m < 0 ? `telat ${fmtMenit(-m)}` : ''
 }
 
+/**
+ * The flash on today's map (old updateHarihTimers, fu-warn / fu-late): a booker
+ * due within 10 minutes pulses gold ("follow up"), one whose time has passed and
+ * who has not arrived turns yellow and blinks until they come, cancel or no-show.
+ */
+function fuT(stat: ReturnType<typeof statusMeja>): 'telat' | 'fu' | '' {
+  if (props.mode !== 'tampil' || !props.hariIni || stat.list.length || !stat.next) return ''
+  if (!['Pending', 'Confirmed'].includes(stat.next.status)) return ''
+  const m = menitMenuju(stat.next, now.value)
+  if (m < 0) return 'telat'
+  return m <= 10 ? 'fu' : ''
+}
+
 /** Bookings still to come on a booked table: the ones after the first, plus those booked later (old `lain`). */
 function lainT(id: string, stat: ReturnType<typeof statusMeja>): number {
   if (!stat.list.length || stat.state === 'sharing') return stat.lain
@@ -266,6 +282,8 @@ function kelasT(s: ReturnType<typeof statusMeja>) {
   if (s.dipaksa) k.push('st-dipaksa')
   if (s.over) k.push('seat-duduk')
   if (alihT(s)) k.push('st-alih')
+  const fu = fuT(s)
+  if (fu) k.push(`st-fu-${fu}`)
   return k
 }
 
@@ -447,6 +465,10 @@ function klik(mejaId: string) {
             class="telat"
           >{{ telatT(states.get(String(t.id))!) }}</span>
           <span
+            v-else-if="fuT(states.get(String(t.id))!) === 'fu'"
+            class="telat telat-fu"
+          >follow up</span>
+          <span
             v-if="lainT(String(t.id), states.get(String(t.id))!)"
             class="multi"
           >+{{ lainT(String(t.id), states.get(String(t.id))!) }}</span>
@@ -564,6 +586,7 @@ function klik(mejaId: string) {
   text-align: center;
   font-weight: 700;
   line-height: 1.1;
+  overflow-wrap: anywhere;
   color: var(--color-seat-ink);
   border-radius: 0.375rem;
   pointer-events: none;
@@ -574,6 +597,13 @@ function klik(mejaId: string) {
   color: var(--color-seat-ink);
   font-size: clamp(0.7rem, 2.1vw, 1.6rem);
   letter-spacing: 0.06em;
+}
+
+.fix-videotron {
+  background: var(--color-seat-dark);
+  color: var(--color-seat-ink);
+  font-size: clamp(0.6rem, 1.6vw, 1.2rem);
+  letter-spacing: 0.08em;
 }
 
 .fix-floor2 {
@@ -730,54 +760,63 @@ function klik(mejaId: string) {
   filter: none;
 }
 
+/* The table number shrinks to fit its table (cqw) rather than ending in "…". */
 .sn {
   font-weight: 800;
-  font-size: min(clamp(0.55rem, 1.5vw, 1rem), 30cqw);
+  font-size: min(clamp(0.55rem, 1.5vw, 1rem), 26cqw);
   max-width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .denah.fit .sn {
-  font-size: min(clamp(0.65rem, 1.5vw, 1rem), 30cqw);
+  font-size: min(clamp(0.65rem, 1.5vw, 1rem), 26cqw);
+}
+
+/*
+  The guest line and the time line WRAP instead of ending in "…" (owner request,
+  Nov 2026: a cut-off name is no name). Two lines at most, broken anywhere so a
+  long single word still shows whole on a narrow table.
+*/
+.sp,
+.sub {
+  display: -webkit-box;
+  max-width: 100%;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  white-space: normal;
+  text-align: center;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
 }
 
 .sp {
-  font-size: min(clamp(0.4rem, 0.85vw, 0.65rem), 21cqw);
+  font-size: min(clamp(0.4rem, 0.85vw, 0.65rem), 17cqw);
   font-weight: 700;
   opacity: 0.85;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .denah.fit .sp {
-  font-size: min(clamp(0.45rem, 0.85vw, 0.65rem), 21cqw);
+  font-size: min(clamp(0.45rem, 0.85vw, 0.65rem), 17cqw);
 }
 
 .sub {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.15em;
   margin-top: 1px;
-  font-size: min(clamp(0.4rem, 1.05vw, 0.7rem), 21cqw);
+  font-size: min(clamp(0.4rem, 1.05vw, 0.7rem), 17cqw);
   font-weight: 800;
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .denah.fit .sub {
-  font-size: min(clamp(0.45rem, 1.05vw, 0.7rem), 21cqw);
+  font-size: min(clamp(0.45rem, 1.05vw, 0.7rem), 17cqw);
 }
 
 .ikon {
+  display: inline-block;
   width: 1em;
   height: 1em;
-  flex-shrink: 0;
+  margin-right: 0.15em;
+  vertical-align: -0.12em;
 }
 
 /* More bookings on the same table: a count in the top-left corner. */
@@ -821,14 +860,56 @@ function klik(mejaId: string) {
 /* The booker is late (old .seat-telat): a small red tag under the time. */
 .telat {
   display: block;
+  max-width: 100%;
   margin-top: 1px;
   padding: 0 4px;
-  font-size: clamp(0.4rem, 0.7vw, 0.625rem);
+  white-space: nowrap;
+  font-size: min(clamp(0.4rem, 0.7vw, 0.625rem), 14cqw);
   font-weight: 800;
   line-height: 1.4;
   color: white;
   background: var(--color-meja-datang);
   border-radius: 4px;
+}
+
+.telat-fu {
+  background: var(--color-meja-pending);
+  color: var(--color-meja-pending-ink);
+}
+
+/*
+  Today's map, a booker still to come (old .fu-warn / .fu-late): within 10
+  minutes the table pulses gold; past the time and not arrived it turns yellow
+  and blinks. After the status colours so it wins.
+*/
+.seat.st-fu-fu {
+  z-index: 4;
+  animation: fu-denyut 1.1s ease-in-out infinite;
+}
+
+.seat.st-fu-telat {
+  z-index: 4;
+  background: var(--color-meja-telat);
+  border-color: var(--color-meja-pending);
+  color: var(--color-meja-pending-ink);
+  animation: telat-kedip 1.2s ease-in-out infinite;
+}
+
+@keyframes fu-denyut {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-meja-pending) 70%, transparent); }
+  50% { box-shadow: 0 0 0 7px transparent; }
+}
+
+@keyframes telat-kedip {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-meja-telat) 80%, transparent); opacity: 1; }
+  50% { box-shadow: 0 0 0 8px transparent; opacity: 0.6; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .seat.st-fu-fu,
+  .seat.st-fu-telat {
+    animation: none;
+  }
 }
 
 /* Corner tag: someone has to move (alih), or a guest moved here for now (nebeng). */

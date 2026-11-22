@@ -1144,7 +1144,7 @@ async function simpanPindah() {
 // --- walk-in at a free table (`:1944-1975`) -------------------------------------
 
 const sheetWalkin = ref(false)
-const walkin = reactive({ meja: '', nama: '', phone: '', pax: 2, sharing: false })
+const walkin = reactive({ meja: '', nama: '', phone: '', pax: 2, sharing: false, tambahan: [] as string[] })
 /** The walk-in form (old walkInSeat). `sharing` + `pax` come prefilled when a guest is added to a sharing table. */
 function bukaWalkin(mejaId: string, sharing = false, pax = 2) {
   if (!bolehEdit.value) {
@@ -1152,8 +1152,54 @@ function bukaWalkin(mejaId: string, sharing = false, pax = 2) {
     return
   }
   if (saringBerlaku.value) return
-  Object.assign(walkin, { meja: mejaId, nama: '', phone: '', pax: Number(pax) > 0 ? Number(pax) : 2, sharing })
+  Object.assign(walkin, { meja: mejaId, nama: '', phone: '', pax: Number(pax) > 0 ? Number(pax) : 2, sharing, tambahan: [] })
+  pilihMejaWalkin.value = false
+  dipaksaWalkin.value = []
+  tanyaWalkin.value = null
   sheetWalkin.value = true
+}
+
+/*
+ * A walk-in party bigger than one table (owner request, Nov 2026): more tables
+ * are picked on the same plan, right inside the walk-in form, and saved as one
+ * row "12, 13" — the same shape "Tambah meja" writes for a booking.
+ */
+const pilihMejaWalkin = ref(false)
+const dipaksaWalkin = ref<string[]>([])
+const tanyaWalkin = ref<{ meja: string, pesan: string } | null>(null)
+const mejaWalkin = computed(() => [walkin.meja, ...walkin.tambahan].filter(Boolean))
+const jamKini = () => normTime(`${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`)
+const jamWalkin = ref('')
+const kapasitasWalkin = computed(() => mejaWalkin.value.reduce((n, id) => n + capMax(cariMeja(master.value, id)?.t.cap), 0))
+
+function bukaPilihMejaWalkin() {
+  jamWalkin.value = jamKini()
+  pilihMejaWalkin.value = !pilihMejaWalkin.value
+  tanyaWalkin.value = null
+}
+
+function pilihWalkin(mejaId: string) {
+  // The table the walk-in started from stays: it is the one the guest is standing at.
+  if (mejaId === walkin.meja) return
+  walkin.tambahan = walkin.tambahan.includes(mejaId)
+    ? walkin.tambahan.filter(m => m !== mejaId)
+    : [...walkin.tambahan, mejaId]
+}
+
+function onTumpangWalkin(p: { meja: string, pesan: string, kunci: boolean }) {
+  if (p.kunci) {
+    toast.add({ title: p.pesan, color: 'error' })
+    return
+  }
+  tanyaWalkin.value = { meja: p.meja, pesan: p.pesan }
+}
+
+function izinkanWalkin() {
+  const m = tanyaWalkin.value?.meja
+  tanyaWalkin.value = null
+  if (!m) return
+  if (!dipaksaWalkin.value.includes(m)) dipaksaWalkin.value = [...dipaksaWalkin.value, m]
+  pilihWalkin(m)
 }
 
 // --- clicking a table on the day-of map (old seatEmptyClick, :6695-6846) ---------------
@@ -1284,10 +1330,16 @@ async function simpanWalkin() {
     return
   }
   const now = Date.now()
-  const jam = normTime(`${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`)
+  const jam = jamKini()
   const nama = walkin.nama.trim() || 'Walkin' // a nameless quick entry is all called "Walkin"
-  const nxW = berikutDi(walkin.meja)
-  const catatanWalkin = nxW ? `Walk-in sementara — meja dipesan ${nxW.res.name} jam ${jamPesan(nxW.res)}` : ''
+  const mejaSimpan = mejaWalkin.value.join(', ')
+  // Every table that is booked for later goes into the note, not only the first.
+  const catatanWalkin = mejaWalkin.value
+    .map(m => ({ m, nx: berikutDi(m) }))
+    .filter(x => x.nx)
+    .map(x => `Walk-in sementara — meja ${x.m} dipesan ${x.nx!.res.name} jam ${jamPesan(x.nx!.res)}`)
+    .join('\n')
+  const izinWalkin = dipaksaWalkin.value.length ? buatIzinTumpang(mejaSimpan, tglDenah.value, jam, null, namaSaya.value) : null
   sheetWalkin.value = false
   sedangSimpan.value = true
   try {
@@ -1298,7 +1350,8 @@ async function simpanWalkin() {
       date: tglDenah.value,
       time: jam,
       pax: n,
-      table: walkin.meja,
+      table: mejaSimpan,
+      ...(izinWalkin ? { izinTumpang: izinWalkin } : {}),
       sharing: walkin.sharing,
       category: 'Tamu Umum',
       foodReq: '',
@@ -1329,10 +1382,10 @@ async function simpanWalkin() {
       createdAt: now,
       updatedAt: now,
       followups: [],
-      _audit: { action: 'Walk-in', detail: `${nama} (${n} pax) di meja ${walkin.meja}` },
+      _audit: { action: 'Walk-in', detail: `${nama} (${n} pax) di meja ${mejaSimpan}` },
     } as Partial<Reservasi> & { _audit: { action: string, detail: string } })
     await muatUlang()
-    toast.add({ title: `${nama} duduk di ${walkin.meja}`, color: 'success' })
+    toast.add({ title: `${nama} duduk di ${mejaSimpan}`, color: 'success' })
   }
   catch (e) {
     if (!(await tanganiKonflik(e, muatUlang))) toast.add({ title: apiErrorMessage(e), color: 'error' })
@@ -2650,7 +2703,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
             v-if="aksi"
             :color="statusWarna[aksi.status] ?? 'neutral'"
             :icon="statusIkon[aksi.status]"
-            size="sm"
+            size="md"
           >
             {{ aksi.status }}
           </AppStatus>
@@ -2684,8 +2737,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :icon="statusIkon['Pending']"
               :color="statusWarna['Pending']"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-center whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-center whitespace-normal"
               loading-auto
               @click="ubahStatus(aksi, 'Pending')"
             />
@@ -2695,8 +2748,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :icon="statusIkon['Confirmed']"
               :color="statusWarna['Confirmed']"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-center whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-center whitespace-normal"
               loading-auto
               @click="ubahStatus(aksi, 'Confirmed')"
             />
@@ -2706,8 +2759,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :icon="statusIkon['Datang']"
               :color="statusWarna['Datang']"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-center whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-center whitespace-normal"
               @click="bukaDatang(aksi, true)"
             />
             <UButton
@@ -2716,8 +2769,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :icon="statusIkon['Cancelled']"
               :color="statusWarna['Cancelled']"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-center whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-center whitespace-normal"
               @click="bukaBatal(aksi)"
             />
             <UButton
@@ -2726,8 +2779,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :icon="statusIkon['No-show']"
               :color="statusWarna['No-show']"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-center whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-center whitespace-normal"
               @click="bukaNoShow(aksi)"
             />
           </div>
@@ -2745,8 +2798,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               icon="i-lucide-phone"
               color="success"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-start whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-start whitespace-normal"
               loading-auto
               @click="followUp(aksi)"
             />
@@ -2755,8 +2808,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :label="`Tamu datang lagi (sisa ${remainingPax(aksi)})`"
               color="neutral"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-start whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-start whitespace-normal"
               @click="bukaDatang(aksi, false)"
             />
             <UButton
@@ -2765,8 +2818,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               icon="i-lucide-check"
               color="neutral"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-start whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-start whitespace-normal"
               loading-auto
               @click="selesai(aksi)"
             />
@@ -2775,8 +2828,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               :label="`Kembali ke meja asli (${aksi.tableAsli})`"
               color="neutral"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-start whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-start whitespace-normal"
               loading-auto
               @click="kembaliKeAsli(aksi)"
             />
@@ -2786,8 +2839,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               icon="i-lucide-handshake"
               color="neutral"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-start whitespace-normal bg-vip/12 text-vip"
+              size="lg"
+              class="min-h-12 text-base justify-start whitespace-normal bg-vip/12 text-vip"
               loading-auto
               @click="toggleSharing(aksi)"
             />
@@ -2797,8 +2850,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               icon="i-lucide-arrow-right-left"
               color="warning"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-start whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-start whitespace-normal"
               @click="bukaPindah(aksi, 'move')"
             />
             <UButton
@@ -2807,8 +2860,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               icon="i-lucide-armchair"
               color="info"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-start whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-start whitespace-normal"
               @click="bukaPindah(aksi, 'add')"
             />
             <UButton
@@ -2816,8 +2869,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               icon="i-lucide-square-pen"
               color="primary"
               variant="soft"
-              size="sm"
-              class="min-h-11 justify-start whitespace-normal"
+              size="lg"
+              class="min-h-12 text-base justify-start whitespace-normal"
               :to="`/reservasi/input?id=${aksi.id}`"
             />
           </div>
@@ -3057,7 +3110,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
             <template #trailing>
               <UButton
                 label="Dudukkan"
-                size="sm"
+                size="lg"
                 loading-auto
                 @click="dudukkanDariTawar(c.w)"
               />
@@ -3098,7 +3151,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           <template #trailing>
             <UButton
               label="Kelola"
-              size="sm"
+              size="lg"
               color="neutral"
               variant="soft"
               @click="kelolaPartai(r)"
@@ -3125,7 +3178,8 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
 
     <ResponsiveSheet
       v-model:open="sheetWalkin"
-      :title="`Walk-in di meja ${walkin.meja}`"
+      :detail="pilihMejaWalkin"
+      :title="`Walk-in di meja ${mejaWalkin.join(', ')}`"
       description="Tamu tanpa nama tetap dicatat sebagai “Walkin”."
     >
       <div class="grid grid-cols-1 gap-3">
@@ -3171,6 +3225,93 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
             class="w-full"
           />
         </UFormField>
+
+        <div class="rounded-lg border border-default p-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="text-sm text-muted">Meja:</span>
+            <UBadge
+              :label="walkin.meja"
+              color="primary"
+              variant="soft"
+              size="lg"
+            />
+            <UBadge
+              v-for="m in walkin.tambahan"
+              :key="m"
+              color="info"
+              variant="soft"
+              size="lg"
+              class="cursor-pointer"
+              :title="`Lepas meja ${m}`"
+              @click="pilihWalkin(m)"
+            >
+              {{ m }}
+              <UIcon
+                name="i-lucide-x"
+                class="size-3.5"
+              />
+            </UBadge>
+            <span class="text-sm text-muted">· muat {{ kapasitasWalkin }} orang</span>
+          </div>
+          <p
+            v-if="kapasitasWalkin && Number(walkin.pax) > kapasitasWalkin"
+            class="mt-2 text-sm text-warning"
+          >
+            {{ walkin.pax }} orang lebih banyak dari kapasitas meja — tambah meja lagi?
+          </p>
+          <UButton
+            :label="pilihMejaWalkin ? 'Selesai pilih meja' : 'Tambah meja (lebih dari 1 meja)'"
+            :icon="pilihMejaWalkin ? 'i-lucide-check' : 'i-lucide-armchair'"
+            color="info"
+            variant="soft"
+            size="lg"
+            class="mt-3"
+            :disabled="saringBerlaku"
+            @click="bukaPilihMejaWalkin"
+          />
+          <div
+            v-if="pilihMejaWalkin && denahTerpilih"
+            class="mt-3 space-y-2"
+          >
+            <p class="text-sm text-muted">
+              Klik meja kosong untuk menambah, klik lagi untuk melepas.
+            </p>
+            <DenahPeta
+              :layout="denahTerpilih"
+              :reservasi="semuaHari ?? []"
+              :tanggal="tglDenah"
+              :jam="jamWalkin"
+              mode="pilih"
+              :terpilih="mejaWalkin"
+              :dipaksa="dipaksaWalkin"
+              :master="masterKunci"
+              :legenda="false"
+              @pilih="pilihWalkin"
+              @tumpang="onTumpangWalkin"
+            />
+            <div
+              v-if="tanyaWalkin"
+              class="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-default"
+            >
+              <p>{{ tanyaWalkin.pesan }}</p>
+              <div class="mt-2 flex flex-wrap gap-2">
+                <UButton
+                  label="Tetap pakai meja"
+                  size="lg"
+                  @click="izinkanWalkin"
+                />
+                <UButton
+                  label="Batal"
+                  color="neutral"
+                  variant="soft"
+                  size="lg"
+                  @click="tanyaWalkin = null"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <label class="flex items-center gap-2 text-sm">
           <input
             v-model="walkin.sharing"

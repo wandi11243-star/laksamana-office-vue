@@ -35,6 +35,22 @@ export const LABEL_ZONA: Record<ZonaMeja, string> = {
   ext: 'Extension',
 }
 
+/**
+ * Kinds of background block the Editor Denah can place (owner request, Nov 2026:
+ * entrance, DJ, videotron, stairs… have to be set per plan, not only switched
+ * off). The kind only picks the look; the label is free text.
+ */
+export const JENIS_LATAR: { value: string, label: string, bawaan: string }[] = [
+  { value: 'stage', label: 'Stage', bawaan: 'STAGE' },
+  { value: 'videotron', label: 'Videotron', bawaan: 'VIDEOTRON' },
+  { value: 'dj', label: 'Meja DJ', bawaan: 'MEJA DJ' },
+  { value: 'entrance', label: 'Entrance (tulisan tegak)', bawaan: 'ENTRANCE IN / OUT' },
+  { value: 'tangga', label: 'Tangga', bawaan: 'TANGGA' },
+  { value: 'foh', label: 'FOH / bar (gelap)', bawaan: 'FOH' },
+  { value: 'viproom', label: 'Ruang (garis putus)', bawaan: 'VIP ROOM' },
+  { value: 'floor2', label: 'Area (garis tipis)', bawaan: 'AREA' },
+]
+
 export interface MejaDenah {
   id: string
   x: number
@@ -47,7 +63,7 @@ export interface MejaDenah {
 }
 
 export interface FixDenah {
-  /** 'stage' | 'entrance' | 'dj' | 'tangga' | 'foh' | 'floor2' — a label block, not a table. */
+  /** A JENIS_LATAR value ('stage', 'videotron', 'entrance', 'dj', 'tangga', …) — a label block, not a table. */
   t: string
   label: string
   x: number
