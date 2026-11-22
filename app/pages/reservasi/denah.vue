@@ -157,12 +157,16 @@ function simpanJadwal(d: string, templat: string) {
   if (templat !== BAWAAN && getLayout(master.value, templat)) ov[d] = templat
   return tulis(
     async () => {
+      // Two sections, two writes: the schedule goes FIRST. If the second write fails
+      // the date's own plan is still there (and still wins), so nothing is lost and
+      // the crew can simply try again; the other way round would drop the plan
+      // without the template ever being scheduled.
+      await putDenah(key, ov, versi.value[key])
       if (buangTgl) {
         const { [keyTanggal(d, lt)]: _buang, ...sisa } = layoutTanggal(master.value)
         await putDenah('layoutTanggal', sisa, versi.value.layoutTanggal)
         await catat('Hapus Denah Tanggal', `${tglPendek(d)} Lt.${lt} (diganti template)`)
       }
-      await putDenah(key, ov, versi.value[key])
     },
     templat !== BAWAAN ? `${ltCfg(lt).nama} ${tglPendek(d)} memakai ${layoutName(master.value, templat)}` : `${ltCfg(lt).nama} ${tglPendek(d)} kembali ke bawaan hari`,
     [templat !== BAWAAN ? 'Set Denah Tanggal' : 'Reset Denah Tanggal', `${ltCfg(lt).nama} · ${tglPendek(d)} → ${templat !== BAWAAN ? layoutName(master.value, templat) : 'bawaan'}`],

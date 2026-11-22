@@ -370,7 +370,7 @@ async function backupJson() {
         <p class="px-4 pb-3 text-sm text-muted">
           Hari yang dicentang otomatis memakai denah <b>Weekend</b> (Lantai 1 &amp; Lantai 2), selain itu <b>Weekday</b>.
           Sekarang: <b>{{ namaHari(weekendTersimpan).join(', ') || 'tidak ada — semua hari Weekday' }}</b>.
-          Tanggal yang sudah dijadwalkan denahnya sendiri tidak ikut berubah. Berlaku juga di Marketing (Reservasi VIP) dan Service Excellent.
+          Tanggal yang sudah dijadwalkan denahnya sendiri tidak ikut berubah. Berlaku juga di Marketing (pilih meja Reservasi VIP).
         </p>
       </AppList>
 
