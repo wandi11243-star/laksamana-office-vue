@@ -776,12 +776,22 @@ function bukaDudukkan(w: Waitlist) {
 /** Seat a queued guest: a walk-in booking first, then the queue entry is linked to
  *  it (`:1961-1992`). In that order, so a failed booking leaves the guest waiting
  *  rather than marked as seated with nothing to show. */
-async function simpanDudukkan() {
+async function simpanDudukkan(): Promise<boolean> {
   const w = dudukkan.value
-  if (!w || !dudukkanMeja.value) return
+  if (!w || !dudukkanMeja.value) return false
+  const nx = berikutDi(dudukkanMeja.value)
+  if (nx && mepetKah(nx.menit)) {
+    toast.add({ title: `Meja ${dudukkanMeja.value} terkunci — ${nx.res.name} ${tglPendek(nx.res.date)} jam ${nx.res.time} (${sisaWaktu(nx.menit)})`, color: 'error' })
+    return false
+  }
   const now = Date.now()
   const jam = normTime(`${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`)
   const recId = uid()
+  const catatanTunggu = `Dari waiting list${w.note ? ` — ${w.note}` : ''}`
+  const catatanSementara = nx
+    ? `Walk-in sementara — meja ${dudukkanMeja.value} dipesan ${nx.res.name} jam ${jamPesan(nx.res)}`
+    : ''
+  const notes = [catatanTunggu, catatanSementara].filter(Boolean).join('\n')
   sedangSimpan.value = true
   try {
     await createReservation({
@@ -808,7 +818,7 @@ async function simpanDudukkan() {
       picName: namaSaya.value,
       member: false,
       memberNo: '',
-      notes: `Dari waiting list${w.note ? ` — ${w.note}` : ''}`,
+      notes,
       vip: false,
       status: 'Datang',
       actualPax: w.pax,
@@ -828,9 +838,11 @@ async function simpanDudukkan() {
     await Promise.all([refreshWaitlist(), muatUlang()])
     sheetDudukkan.value = false
     toast.add({ title: `${w.name} duduk di ${dudukkanMeja.value}`, color: 'success' })
+    return true
   }
   catch (e) {
     if (!(await tanganiKonflik(e, refreshWaitlist))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+    return false
   }
   finally {
     sedangSimpan.value = false
@@ -1144,7 +1156,7 @@ async function simpanPindah() {
 // --- walk-in at a free table (`:1944-1975`) -------------------------------------
 
 const sheetWalkin = ref(false)
-const walkin = reactive({ meja: '', nama: '', phone: '', pax: 2, sharing: false, tambahan: [] as string[] })
+const walkinInit = reactive({ meja: '', sharing: false, pax: 2 })
 /** The walk-in form (old walkInSeat). `sharing` + `pax` come prefilled when a guest is added to a sharing table. */
 function bukaWalkin(mejaId: string, sharing = false, pax = 2) {
   if (!bolehEdit.value) {
@@ -1152,54 +1164,8 @@ function bukaWalkin(mejaId: string, sharing = false, pax = 2) {
     return
   }
   if (saringBerlaku.value) return
-  Object.assign(walkin, { meja: mejaId, nama: '', phone: '', pax: Number(pax) > 0 ? Number(pax) : 2, sharing, tambahan: [] })
-  pilihMejaWalkin.value = false
-  dipaksaWalkin.value = []
-  tanyaWalkin.value = null
+  Object.assign(walkinInit, { meja: mejaId, sharing, pax: Number(pax) > 0 ? Number(pax) : 2 })
   sheetWalkin.value = true
-}
-
-/*
- * A walk-in party bigger than one table (owner request, Nov 2026): more tables
- * are picked on the same plan, right inside the walk-in form, and saved as one
- * row "12, 13" — the same shape "Tambah meja" writes for a booking.
- */
-const pilihMejaWalkin = ref(false)
-const dipaksaWalkin = ref<string[]>([])
-const tanyaWalkin = ref<{ meja: string, pesan: string } | null>(null)
-const mejaWalkin = computed(() => [walkin.meja, ...walkin.tambahan].filter(Boolean))
-const jamKini = () => normTime(`${String(new Date().getHours()).padStart(2, '0')}:${String(new Date().getMinutes()).padStart(2, '0')}`)
-const jamWalkin = ref('')
-const kapasitasWalkin = computed(() => mejaWalkin.value.reduce((n, id) => n + capMax(cariMeja(master.value, id)?.t.cap), 0))
-
-function bukaPilihMejaWalkin() {
-  jamWalkin.value = jamKini()
-  pilihMejaWalkin.value = !pilihMejaWalkin.value
-  tanyaWalkin.value = null
-}
-
-function pilihWalkin(mejaId: string) {
-  // The table the walk-in started from stays: it is the one the guest is standing at.
-  if (mejaId === walkin.meja) return
-  walkin.tambahan = walkin.tambahan.includes(mejaId)
-    ? walkin.tambahan.filter(m => m !== mejaId)
-    : [...walkin.tambahan, mejaId]
-}
-
-function onTumpangWalkin(p: { meja: string, pesan: string, kunci: boolean }) {
-  if (p.kunci) {
-    toast.add({ title: p.pesan, color: 'error' })
-    return
-  }
-  tanyaWalkin.value = { meja: p.meja, pesan: p.pesan }
-}
-
-function izinkanWalkin() {
-  const m = tanyaWalkin.value?.meja
-  tanyaWalkin.value = null
-  if (!m) return
-  if (!dipaksaWalkin.value.includes(m)) dipaksaWalkin.value = [...dipaksaWalkin.value, m]
-  pilihWalkin(m)
 }
 
 // --- clicking a table on the day-of map (old seatEmptyClick, :6695-6846) ---------------
@@ -1209,12 +1175,6 @@ const berikutDi = (meja: string) => bookingBerikut(semuaHari.value ?? [], meja, 
 const sisaWaktu = (m: number) => (m > 0 ? `${fmtMenit(m)} lagi` : `jamnya sudah lewat ${fmtMenit(-m)}`)
 /** "19:00", or "02:10 (27 Sep)" when the booking is on another day than the map. */
 const jamPesan = (r: Reservasi) => (r.date === tglDenah.value ? r.time : `${r.time} (${tglPendek(r.date)})`)
-
-/** The ribbon on the walk-in form; its colour follows how close the booking is. */
-const pitaWalkin = computed(() => {
-  const nx = walkin.meja ? berikutDi(walkin.meja) : null
-  return nx ? { ...nx, mepet: mepetKah(nx.menit) } : null
-})
 
 /**
  * A free table booked for LATER: two ways out, not one yes/no question (old
@@ -1232,16 +1192,15 @@ function onMejaDipesan(p: { meja: string, res: Reservasi, lain: number }) {
   sheetDipesan.value = true
 }
 
-function bukaPemesan() {
-  const r = mejaDipesan.value ? baris(mejaDipesan.value.res.id) : null
+function bukaPemesan(resId: string) {
+  const r = baris(resId)
   sheetDipesan.value = false
   if (r) bukaAksi(r)
 }
 
-function walkinDariDipesan() {
-  const m = mejaDipesan.value?.meja
+function walkinDariDipesan(meja: string) {
   sheetDipesan.value = false
-  if (m) lanjutWalkin(m)
+  if (meja) lanjutWalkin(meja)
 }
 
 /**
@@ -1272,27 +1231,19 @@ function lanjutWalkin(meja: string) {
 /** A free table and guests waiting: pick one from the queue, or a new walk-in (old offerWaitlist, :2043-2075). */
 const sheetTawar = ref(false)
 const tawarMeja = ref('')
-const kapasitasTawar = computed(() => {
-  const me = cariMeja(master.value, tawarMeja.value)
-  return me ? capMax(me.t.cap) : 0
-})
-/** Those who fit first, then the longest waiting. */
-const calonTawar = computed(() => calon.value
-  .map(w => ({ w, muat: !kapasitasTawar.value || (Number(w.pax) || 0) <= kapasitasTawar.value }))
-  .sort((a, b) => (a.muat === b.muat ? (a.w.addedAt || 0) - (b.w.addedAt || 0) : a.muat ? -1 : 1)))
+const tawarBooking = computed(() => (tawarMeja.value ? berikutDi(tawarMeja.value) : null))
 
 async function dudukkanDariTawar(w: Waitlist) {
   dudukkanId.value = w.id
   dudukkanMeja.value = tawarMeja.value
   dudukkanSharing.value = false
-  sheetTawar.value = false
-  await simpanDudukkan()
+  const ok = await simpanDudukkan()
+  if (ok) sheetTawar.value = false
 }
 
-function walkinDariTawar() {
-  const m = tawarMeja.value
+function walkinDariTawar(meja: string) {
   sheetTawar.value = false
-  bukaWalkin(m)
+  bukaWalkin(meja)
 }
 
 /** A sharing table: its parties, and adding one more (old sharingTableAction, :7031-7063). */
@@ -1301,14 +1252,13 @@ const mejaSharing = ref('')
 const partaiSharing = computed(() => mejaSharing.value
   ? partiesAt(occupiedMap(semuaHari.value ?? [], { date: tglDenah.value, realita: hariIniMap.value, dineEst: dineEst.value }), mejaSharing.value)
   : [])
-const sisaSharing = computed(() => {
-  const me = cariMeja(master.value, mejaSharing.value)
-  return me ? tableFill(me.t, partaiSharing.value, id => capMax(cariMeja(master.value, id)?.t.cap)).sisaMax : 0
-})
 
 function onMejaSharing(meja: string) {
   mejaSharing.value = meja
-  if (!partaiSharing.value.length) return bukaWalkin(meja, true)
+  if (!partaiSharing.value.length) {
+    if (!saringBerlaku.value) bukaWalkin(meja, true)
+    return
+  }
   sheetSharing.value = true
 }
 
@@ -1317,82 +1267,9 @@ function kelolaPartai(r: Reservasi) {
   bukaAksi(r)
 }
 
-function tambahKeSharing() {
-  const m = mejaSharing.value
+function tambahKeSharing(meja: string, sisa: number) {
   sheetSharing.value = false
-  bukaWalkin(m, true, sisaSharing.value || 1)
-}
-
-async function simpanWalkin() {
-  const n = Number(walkin.pax) || 0
-  if (n < 1) {
-    toast.add({ title: 'Jumlah orang wajib diisi', color: 'error' })
-    return
-  }
-  const now = Date.now()
-  const jam = jamKini()
-  const nama = walkin.nama.trim() || 'Walkin' // a nameless quick entry is all called "Walkin"
-  const mejaSimpan = mejaWalkin.value.join(', ')
-  // Every table that is booked for later goes into the note, not only the first.
-  const catatanWalkin = mejaWalkin.value
-    .map(m => ({ m, nx: berikutDi(m) }))
-    .filter(x => x.nx)
-    .map(x => `Walk-in sementara — meja ${x.m} dipesan ${x.nx!.res.name} jam ${jamPesan(x.nx!.res)}`)
-    .join('\n')
-  const izinWalkin = dipaksaWalkin.value.length ? buatIzinTumpang(mejaSimpan, tglDenah.value, jam, null, namaSaya.value) : null
-  sheetWalkin.value = false
-  sedangSimpan.value = true
-  try {
-    await createReservation({
-      id: uid(),
-      name: nama,
-      phone: normPhone(walkin.phone),
-      date: tglDenah.value,
-      time: jam,
-      pax: n,
-      table: mejaSimpan,
-      ...(izinWalkin ? { izinTumpang: izinWalkin } : {}),
-      sharing: walkin.sharing,
-      category: 'Tamu Umum',
-      foodReq: '',
-      drinkReq: '',
-      dpStatus: 'Belum',
-      dpMethod: '',
-      dpAmount: 0,
-      dpProofData: '',
-      dpProofName: '',
-      docReqData: '',
-      docReqName: '',
-      source: 'Walk-in',
-      picType: 'Host/Captain',
-      picName: namaSaya.value,
-      member: false,
-      memberNo: '',
-      // The note names the booking waiting for this table: once the sheet is closed
-      // its ribbon is gone, and whoever opens this row tomorrow has no other way to
-      // know the guest was seated at a booked table (old catatanWalkIn).
-      notes: catatanWalkin,
-      vip: false,
-      status: 'Datang',
-      actualPax: n,
-      checkinAt: now,
-      leftAt: 0,
-      arrivals: [{ ts: now, pax: n, by: namaSaya.value }],
-      createdBy: namaSaya.value,
-      createdAt: now,
-      updatedAt: now,
-      followups: [],
-      _audit: { action: 'Walk-in', detail: `${nama} (${n} pax) di meja ${mejaSimpan}` },
-    } as Partial<Reservasi> & { _audit: { action: string, detail: string } })
-    await muatUlang()
-    toast.add({ title: `${nama} duduk di ${mejaSimpan}`, color: 'success' })
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, muatUlang))) toast.add({ title: apiErrorMessage(e), color: 'error' })
-  }
-  finally {
-    sedangSimpan.value = false
-  }
+  bukaWalkin(meja, true, sisa || 1)
 }
 
 // --- the plan for one date ---------------------------------------------------------
@@ -1516,6 +1393,7 @@ function pollDitunda() {
   if (sheetFU.value || sheetNoShow.value || sheetAntrean.value || sheetDudukkan.value
     || sheetAksi.value || sheetTambahDp.value || sheetEditCepat.value || sheetKirimWa.value
     || sheetDatang.value || sheetBatal.value || sheetPindah.value || sheetWalkin.value
+    || sheetDipesan.value || sheetTawar.value || sheetSharing.value
     || sheetWA.value || tanyaPindah.value) return true
   if (sedangSimpan.value) return true
   const el = document.activeElement as HTMLElement | null
@@ -3033,308 +2911,44 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
       </template>
     </ResponsiveSheet>
 
-    <ResponsiveSheet
-      v-model:open="sheetDipesan"
-      :title="`Meja ${mejaDipesan?.meja ?? ''} — sudah dipesan`"
-    >
-      <div
-        v-if="mejaDipesan"
-        class="space-y-3"
-      >
-        <p class="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-default">
-          Dipesan <b>{{ mejaDipesan.res.name }}</b> — {{ tglPendek(mejaDipesan.res.date) }} jam <b>{{ mejaDipesan.res.time }}</b>,
-          {{ mejaDipesan.res.pax }} pax ({{ sisaWaktu(mejaDipesan.menit) }}){{ mejaDipesan.lain ? ` · +${mejaDipesan.lain} reservasi lain di meja ini` : '' }}.
-          Mejanya masih kosong. Terkunci sendiri begitu tinggal {{ fmtMenit(60) }} menjelang jamnya.
-        </p>
-        <UButton
-          block
-          size="xl"
-          icon="i-lucide-clipboard-list"
-          class="justify-start"
-          @click="bukaPemesan"
-        >
-          <span class="text-left">
-            <b>Buka reservasi {{ mejaDipesan.res.name }}</b><br>
-            <span class="text-sm font-normal">Tamu pemesan datang lebih cepat — tandai Datang langsung di meja ini</span>
-          </span>
-        </UButton>
-        <UButton
-          v-if="bolehEdit"
-          block
-          size="xl"
-          color="neutral"
-          variant="soft"
-          icon="i-lucide-footprints"
-          class="justify-start"
-          @click="walkinDariDipesan"
-        >
-          <span class="text-left">
-            <b>Walk-in baru (duduk sementara)</b><br>
-            <span class="text-sm font-normal">Tamu lain, harus selesai sebelum jam {{ mejaDipesan.res.time }}</span>
-          </span>
-        </UButton>
-      </div>
-      <template #footer>
-        <UButton
-          label="Batal"
-          color="neutral"
-          variant="soft"
-          size="xl"
-          @click="sheetDipesan = false"
-        />
-      </template>
-    </ResponsiveSheet>
+    <ReservasiDenahAksiSheets
+      v-model:open-dipesan="sheetDipesan"
+      v-model:open-tawar="sheetTawar"
+      v-model:open-sharing="sheetSharing"
+      :meja-dipesan="mejaDipesan"
+      :tawar-meja="tawarMeja"
+      :tawar-booking="tawarBooking"
+      :calon="calon"
+      :meja-sharing="mejaSharing"
+      :partai-sharing="partaiSharing"
+      :master="master"
+      :boleh-edit="bolehEdit"
+      :saring-aktif="saringBerlaku"
+      @buka-pemesan="bukaPemesan"
+      @walkin-dari-dipesan="walkinDariDipesan"
+      @dudukkan-dari-tawar="dudukkanDariTawar"
+      @walkin-dari-tawar="walkinDariTawar"
+      @kelola-partai="kelolaPartai"
+      @tambah-ke-sharing="tambahKeSharing"
+    />
 
-    <ResponsiveSheet
-      v-model:open="sheetTawar"
-      :title="`Meja ${tawarMeja} kosong — pilih tamu dari antrean`"
-    >
-      <div class="space-y-3">
-        <p class="text-sm text-muted">
-          Kapasitas <b>{{ tawarMeja }}</b>: <b>{{ kapasitasTawar || '-' }} orang</b>.
-          <template v-if="calonTawar.some(c => c.muat)">
-            <b>{{ calonTawar.filter(c => c.muat).length }}</b> tamu di antrean muat di meja ini (paling atas). Yang paling lama menunggu didahulukan.
-          </template>
-          <template v-else>
-            Tidak ada tamu antrean yang muat. Kamu tetap bisa memaksa mendudukkan atau pakai walk-in baru.
-          </template>
-        </p>
-        <AppList title="Antrean">
-          <AppListRow
-            v-for="(c, i) in calonTawar"
-            :key="c.w.id"
-            :title="`${i + 1}. ${c.w.name} — ${c.w.pax} orang`"
-            :description="`menunggu ${fmtMenit(tunggu(c.w))}${c.w.phone ? ` · ${c.w.phone}` : ''}${c.w.note ? ` · ${c.w.note}` : ''}${c.muat ? '' : ` · lebih dari kapasitas (${kapasitasTawar})`}`"
-            :icon="c.muat ? 'i-lucide-circle-check' : 'i-lucide-triangle-alert'"
-          >
-            <template #trailing>
-              <UButton
-                label="Dudukkan"
-                size="lg"
-                loading-auto
-                @click="dudukkanDariTawar(c.w)"
-              />
-            </template>
-          </AppListRow>
-        </AppList>
-      </div>
-      <template #footer>
-        <UButton
-          label="Walk-in baru (bukan dari antrean)"
-          color="neutral"
-          variant="soft"
-          size="xl"
-          @click="walkinDariTawar"
-        />
-        <UButton
-          label="Tutup"
-          color="neutral"
-          variant="ghost"
-          size="xl"
-          @click="sheetTawar = false"
-        />
-      </template>
-    </ResponsiveSheet>
-
-    <ResponsiveSheet
-      v-model:open="sheetSharing"
-      :title="`Meja ${mejaSharing}, sharing (${partaiSharing.length} grup)`"
-    >
-      <AppList title="Grup di meja ini">
-        <AppListRow
-          v-for="r in partaiSharing"
-          :key="r.id"
-          :title="r.name"
-          :description="`${r.time}, ${r.pax} pax · ${r.status}${isSeated(r) ? ' · sedang duduk' : ''}`"
-          icon="i-lucide-users"
-        >
-          <template #trailing>
-            <UButton
-              label="Kelola"
-              size="lg"
-              color="neutral"
-              variant="soft"
-              @click="kelolaPartai(r)"
-            />
-          </template>
-        </AppListRow>
-      </AppList>
-      <template #footer>
-        <UButton
-          v-if="bolehEdit"
-          :label="`Tambah tamu (walk-in)${sisaSharing ? ` · sisa ${sisaSharing} kursi` : ''}`"
-          size="xl"
-          @click="tambahKeSharing"
-        />
-        <UButton
-          label="Tutup"
-          color="neutral"
-          variant="ghost"
-          size="xl"
-          @click="sheetSharing = false"
-        />
-      </template>
-    </ResponsiveSheet>
-
-    <ResponsiveSheet
+    <ReservasiWalkinSheet
       v-model:open="sheetWalkin"
-      :detail="pilihMejaWalkin"
-      :title="`Walk-in di meja ${mejaWalkin.join(', ')}`"
-      description="Tamu tanpa nama tetap dicatat sebagai “Walkin”."
-    >
-      <div class="grid grid-cols-1 gap-3">
-        <p
-          v-if="pitaWalkin"
-          class="rounded-lg border p-3 text-sm"
-          :class="pitaWalkin.mepet ? 'border-error/40 bg-error/10 text-error' : 'border-warning/40 bg-warning/10 text-default'"
-        >
-          Meja ini <b>sudah dipesan</b> {{ pitaWalkin.res.name }} jam
-          <b>{{ tglPendek(pitaWalkin.res.date) }} {{ pitaWalkin.res.time }}</b>
-          ({{ sisaWaktu(pitaWalkin.menit) }}, {{ pitaWalkin.res.pax }} pax){{ pitaWalkin.lain ? ` · +${pitaWalkin.lain} reservasi lain` : '' }}.
-          <template v-if="pitaWalkin.mepet">
-            <b>Jamnya sudah dekat.</b> Kalau tamu ini didudukkan di sini, pastikan ia selesai sebelum jamnya — atau siapkan meja lain untuk dialihkan.
-          </template>
-          <template v-else>
-            Masih bisa dipakai duduk sementara. Pastikan mejanya kosong lagi sebelum jam {{ pitaWalkin.res.time }}.
-          </template>
-        </p>
-        <UFormField label="Nama (opsional)">
-          <UInput
-            v-model="walkin.nama"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="No. WhatsApp (opsional)">
-          <UInput
-            v-model="walkin.phone"
-            inputmode="numeric"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField
-          label="Jumlah orang"
-          required
-        >
-          <UInput
-            v-model.number="walkin.pax"
-            type="number"
-            :min="1"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-
-        <div class="rounded-lg border border-default p-3">
-          <div class="flex flex-wrap items-center gap-2">
-            <span class="text-sm text-muted">Meja:</span>
-            <UBadge
-              :label="walkin.meja"
-              color="primary"
-              variant="soft"
-              size="lg"
-            />
-            <UBadge
-              v-for="m in walkin.tambahan"
-              :key="m"
-              color="info"
-              variant="soft"
-              size="lg"
-              class="cursor-pointer"
-              :title="`Lepas meja ${m}`"
-              @click="pilihWalkin(m)"
-            >
-              {{ m }}
-              <UIcon
-                name="i-lucide-x"
-                class="size-3.5"
-              />
-            </UBadge>
-            <span class="text-sm text-muted">· muat {{ kapasitasWalkin }} orang</span>
-          </div>
-          <p
-            v-if="kapasitasWalkin && Number(walkin.pax) > kapasitasWalkin"
-            class="mt-2 text-sm text-warning"
-          >
-            {{ walkin.pax }} orang lebih banyak dari kapasitas meja — tambah meja lagi?
-          </p>
-          <UButton
-            :label="pilihMejaWalkin ? 'Selesai pilih meja' : 'Tambah meja (lebih dari 1 meja)'"
-            :icon="pilihMejaWalkin ? 'i-lucide-check' : 'i-lucide-armchair'"
-            color="info"
-            variant="soft"
-            size="lg"
-            class="mt-3"
-            :disabled="saringBerlaku"
-            @click="bukaPilihMejaWalkin"
-          />
-          <div
-            v-if="pilihMejaWalkin && denahTerpilih"
-            class="mt-3 space-y-2"
-          >
-            <p class="text-sm text-muted">
-              Klik meja kosong untuk menambah, klik lagi untuk melepas.
-            </p>
-            <DenahPeta
-              :layout="denahTerpilih"
-              :reservasi="semuaHari ?? []"
-              :tanggal="tglDenah"
-              :jam="jamWalkin"
-              mode="pilih"
-              :terpilih="mejaWalkin"
-              :dipaksa="dipaksaWalkin"
-              :master="masterKunci"
-              :legenda="false"
-              @pilih="pilihWalkin"
-              @tumpang="onTumpangWalkin"
-            />
-            <div
-              v-if="tanyaWalkin"
-              class="rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-default"
-            >
-              <p>{{ tanyaWalkin.pesan }}</p>
-              <div class="mt-2 flex flex-wrap gap-2">
-                <UButton
-                  label="Tetap pakai meja"
-                  size="lg"
-                  @click="izinkanWalkin"
-                />
-                <UButton
-                  label="Batal"
-                  color="neutral"
-                  variant="soft"
-                  size="lg"
-                  @click="tanyaWalkin = null"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <label class="flex items-center gap-2 text-sm">
-          <input
-            v-model="walkin.sharing"
-            type="checkbox"
-          > Sharing table
-        </label>
-      </div>
-      <template #footer>
-        <UButton
-          label="Simpan walk-in"
-          size="xl"
-          loading-auto
-          @click="simpanWalkin"
-        />
-        <UButton
-          label="Batal"
-          color="neutral"
-          variant="soft"
-          size="xl"
-          @click="sheetWalkin = false"
-        />
-      </template>
-    </ResponsiveSheet>
+      :meja="walkinInit.meja"
+      :initial-sharing="walkinInit.sharing"
+      :initial-pax="walkinInit.pax"
+      :tgl-denah="tglDenah"
+      :hari-ini-map="hariIniMap"
+      :dine-est="dineEst"
+      :denah-terpilih="denahTerpilih"
+      :semua-hari="semuaHari ?? []"
+      :master="master"
+      :master-kunci="masterKunci"
+      :saring-aktif="saringBerlaku"
+      :nama-saya="namaSaya"
+      @tersimpan="muatUlang"
+      @konflik="muatUlang"
+    />
 
     <ResponsiveSheet
       v-model:open="sheetFU"

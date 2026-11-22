@@ -403,7 +403,7 @@ function klik(mejaId: string) {
   //   booked within 1 h   -> locked for walk-ins, opens the BOOKER (Datang, Batal, No-show)
   //   booked later        -> choose: open the booker, or a walk-in for a while
   //   free                -> walk-in (or the waiting list)
-  if (stat.state === 'sharing') return props.saringAktif ? undefined : emit('sharing', mejaId)
+  if (stat.state === 'sharing') return emit('sharing', mejaId)
   if (stat.list.length) return emit('buka', stat.list[0]!.id)
   if (stat.next && stat.state === 'mepet') return emit('buka', stat.next.id)
   if (props.saringAktif) return

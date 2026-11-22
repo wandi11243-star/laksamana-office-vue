@@ -46,11 +46,17 @@ const lebar = useMediaQuery('(min-width: 1024px)')
 const bolehUbah = computed(() => props.bisaUbah && lebar.value)
 
 const data = ref<LayoutDenah>(structuredClone(toRaw(props.layout)))
-watch(() => props.layout, l => (data.value = structuredClone(toRaw(l))))
-
 const sel = ref<number | null>(null)
+const selF = ref<number | null>(null)
 const kotor = ref(false)
 const pita = ref<HTMLDivElement | null>(null)
+
+watch(() => props.layout, (l) => {
+  data.value = structuredClone(toRaw(l))
+  sel.value = null
+  selF.value = null
+  kotor.value = false
+})
 
 const meja = computed<MejaDenah[]>(() => data.value.tables ?? [])
 const total = computed(() => kapasitasLayout(data.value))
@@ -145,7 +151,6 @@ function latar(i: number, tampil: boolean) {
 
 // --- background blocks: move, resize, rename, add, delete (owner request, Nov 2026) ---
 
-const selF = ref<number | null>(null)
 const latarTerpilih = computed<FixDenah | null>(() => (selF.value === null ? null : data.value.fixed?.[selF.value] ?? null))
 
 function setLatar(prop: 'label' | 't' | 'w' | 'h', v: string) {
