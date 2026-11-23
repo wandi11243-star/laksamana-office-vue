@@ -174,7 +174,7 @@ async function kirim(tujuan: string | null, teks: string) {
         v-if="!(waTargets ?? []).length"
         class="rounded-lg border border-default bg-default p-3 text-sm text-muted"
       >
-        Belum ada tujuan WhatsApp di Master Data — pesan custom di bawah tetap bisa dipakai.
+        Belum ada tujuan WhatsApp di Kelola Akses — pesan custom di bawah tetap bisa dipakai.
       </p>
       <div
         v-for="t in (waTargets ?? [])"

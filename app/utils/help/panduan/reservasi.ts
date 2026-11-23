@@ -30,7 +30,7 @@ export default {
           '*Dana Masuk (DP)*, tempat memeriksa dan memverifikasi bukti transfer DP.',
           '*Riwayat*, booking yang sudah lewat.',
           '*Analitik*, ringkasan jumlah tamu dan pemakaian meja.',
-          '*Master Data*, daftar meja, denah, dan pengaturan.',
+          '*Kelola Akses*, pilihan dropdown, role kru, dan hak akses.',
           '*Log Activity*, catatan siapa mengubah apa.',
         ] },
         { t: 'gambar', berkas: 'reservasi/dashboard.png',
@@ -161,7 +161,7 @@ export default {
         { t: 'daftar', isi: [
           'Denah bisa berbeda antara hari kerja dan akhir pekan, karena susunan mejanya memang berbeda.',
           'Denah khusus satu tanggal bisa dibuat kalau malam itu susunannya diubah untuk sebuah acara.',
-          'Denah diatur di menu *Master Data*, bukan di halaman ini.',
+          'Denah diatur di menu *Atur Denah & Meja*, bukan di halaman ini.',
         ] },
         { t: 'tanya', isi: [
           { t: 'Kenapa meja yang sudah dibatalkan masih terlihat terkunci?',

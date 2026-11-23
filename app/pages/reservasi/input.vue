@@ -226,16 +226,9 @@ function setLayer(l: 1 | 2) {
   layer.value = l
 }
 
-/** The three plan buttons (Weekday / Weekend / Lantai 2). Leaving floor 2 first
- *  lets the date watcher settle, then draws the chosen floor-1 plan. */
-async function pilihDenah(v?: string) {
-  if (!v) return
-  if (v === 'lt2') return setLayer(2)
-  if (layer.value !== 1) {
-    setLayer(1)
-    await nextTick()
-  }
-  layoutKey.value = v
+/** The floor buttons. Which plan is drawn is decided by the date (template per weekday / per date), not picked here. */
+function pilihDenah(v?: string) {
+  if (v) setLayer(v === 'lt2' ? 2 : 1)
 }
 
 // --- the rows around the date, and the row being edited ---------------------
@@ -969,11 +962,10 @@ async function hapus() {
               <span class="font-normal text-muted">(wajib, klik meja pada denah)</span>
             </span>
             <AppSeg
-              :model-value="layer === 2 ? 'lt2' : layoutKey"
+              :model-value="layer === 2 ? 'lt2' : 'lt1'"
               size="sm"
               :options="[
-                { value: 'weekday', label: 'Weekday' },
-                { value: 'weekend', label: 'Weekend' },
+                { value: 'lt1', label: 'Lantai 1' },
                 { value: 'lt2', label: 'Lantai 2' },
               ]"
               @update:model-value="pilihDenah"
@@ -1125,30 +1117,6 @@ async function hapus() {
             disabled
           />
         </UFormField>
-        <UFormField label="Status member">
-          <AppPilihan
-            v-model="form.member"
-            name="member"
-            :options="[
-              { value: 'ya', label: 'Ya' },
-              { value: 'tidak', label: 'Tidak' },
-            ]"
-          />
-        </UFormField>
-        <UFormField
-          v-if="form.member === 'ya'"
-          label="No. member"
-        >
-          <UInput
-            v-model="form.memberNo"
-            size="xl"
-            class="w-full"
-          />
-        </UFormField>
-        <div
-          v-else
-          class="hidden lg:block"
-        />
         <div
           v-if="profilNomor && profilNomor.totalBaris > 0"
           class="col-span-full flex items-start gap-2 rounded-xl bg-info/10 p-3 text-sm text-default"

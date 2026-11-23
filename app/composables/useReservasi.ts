@@ -719,7 +719,7 @@ export const putFile = (key: string, data: string) =>
 // them (which plan applies on a date, which floor a template belongs to) and the
 // editor's data helpers live in app/utils/venue-layouts.ts — this is transport.
 
-export const SECTION_LAYOUT = ['layouts', 'layoutOverrides', 'layoutOverrides2', 'layoutTanggal', 'hariWeekend'] as const
+export const SECTION_LAYOUT = ['layouts', 'layoutOverrides', 'layoutOverrides2', 'layoutTanggal', 'hariWeekend', 'layoutHari'] as const
 export type SectionLayout = typeof SECTION_LAYOUT[number]
 
 /**
@@ -734,6 +734,7 @@ export const useDenah = () => {
     layoutOverrides2: useSectionVersi<Record<string, string>>('layoutOverrides2'),
     layoutTanggal: useSectionVersi<Record<string, LayoutDenah>>('layoutTanggal'),
     hariWeekend: useSectionVersi<number[]>('hariWeekend'),
+    layoutHari: useSectionVersi<Record<string, unknown>>('layoutHari'),
   }
 
   const master = computed<Master>(() => ({
@@ -742,6 +743,7 @@ export const useDenah = () => {
     layoutOverrides2: sections.layoutOverrides2.data.value?.data,
     layoutTanggal: sections.layoutTanggal.data.value?.data,
     hariWeekend: sections.hariWeekend.data.value?.data ?? undefined,
+    layoutHari: sections.layoutHari.data.value?.data ?? undefined,
   }))
 
   /** Each section's own version, for `putDenah(section, value, versi)`. */
@@ -751,6 +753,7 @@ export const useDenah = () => {
     layoutOverrides2: versiDari(sections.layoutOverrides2.data.value),
     layoutTanggal: versiDari(sections.layoutTanggal.data.value),
     hariWeekend: versiDari(sections.hariWeekend.data.value),
+    layoutHari: versiDari(sections.layoutHari.data.value),
   }))
 
   const status = computed(() => (Object.values(sections).some(s => s.status.value === 'pending') ? 'pending' : 'success'))

@@ -141,10 +141,12 @@ const tglPanjangPendek = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateSt
 const bolehEdit = computed(() => bolehAksi('input', role.value))
 const bolehFinance = computed(() => bolehAksi('finance', role.value))
 const bolehMaster = computed(() => bolehAksi('master', role.value))
+const bolehHapus = computed(() => bolehAksi('deleteReservation', role.value))
 
 const detailId = ref('')
 const sheetDetail = ref(false)
 const sheetTambahDp = ref(false)
+const sheetHapus = ref(false)
 const sheetEditCepat = ref(false)
 const sheetKirimWa = ref(false)
 const detail = computed(() => (semua.value ?? []).find(r => r.id === detailId.value) ?? null)
@@ -471,6 +473,15 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
             @click="sheetEditCepat = true"
           />
           <UButton
+            v-if="bolehHapus && detail"
+            label="Hapus"
+            icon="i-lucide-trash-2"
+            color="error"
+            variant="soft"
+            size="xl"
+            @click="sheetDetail = false; sheetHapus = true"
+          />
+          <UButton
             label="Tutup"
             color="neutral"
             variant="soft"
@@ -479,6 +490,13 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
           />
         </template>
       </ResponsiveSheet>
+
+      <ReservasiHapus
+        v-model:open="sheetHapus"
+        :r="detail"
+        @terhapus="refresh"
+        @konflik="refresh"
+      />
 
       <ReservasiTambahDp
         v-model:open="sheetTambahDp"

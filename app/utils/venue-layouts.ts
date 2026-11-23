@@ -81,6 +81,15 @@ export interface FixDenah {
 
 export interface LayoutDenah {
   name: string
+  /**
+   * The floor this template is for, set when it is created from the template
+   * list (owner, Nov 2026). Older templates have none and fall back to the
+   * name ("Lantai 2", "Lt 2"…), see lantaiLayout().
+   */
+  lantai?: 1 | 2
+  /** The template group (Lantai 1 + Lantai 2 under one name) this plan belongs to, and that group's name. */
+  grup?: string
+  grupNama?: string
   fixed?: FixDenah[]
   tables: MejaDenah[]
   /**
@@ -109,6 +118,13 @@ export interface MasterDenah {
    * EMPTY list is valid (every day uses Weekday) and must not fall back.
    */
   hariWeekend?: number[]
+  /**
+   * The template each day of the week uses, per floor (owner, Nov 2026: "daftar
+   * template ini bisa disetting di hari apa saja"). { "1": [7 keys], "2": [...] },
+   * indexed by getDay() (0 = Sunday). An empty or unknown key = the built-in
+   * weekday/weekend plan of that day, so a deleted template never blanks a day.
+   */
+  layoutHari?: Record<string, unknown>
 }
 
 const row = (ids: (number | string)[], x0: number, y: number, w: number, h: number, gap: number, cap: string, zone: ZonaMeja): MejaDenah[] =>
@@ -215,21 +231,21 @@ export const VENUE_LAYOUTS: Record<string, LayoutDenah> = {
   lantai2: {
     name: 'Lantai 2 (Weekday)',
     fixed: [
-      { t: 'stage', label: 'VIDEOTRON', x: 340, y: 35, w: 895, h: 70 },
-      { t: 'floor2', label: 'LAYOUT LANTAI 2', x: 340, y: 120, w: 895, h: 475 },
+      { t: 'stage', label: 'VIDEOTRON', x: 300, y: 35, w: 975, h: 70 },
+      { t: 'floor2', label: 'LAYOUT LANTAI 2', x: 300, y: 120, w: 975, h: 475 },
       { t: 'tangga', label: 'TANGGA MASUK', x: 25, y: 600, w: 120, h: 78 },
       { t: 'tangga', label: 'TANGGA KELUAR', x: 1455, y: 600, w: 120, h: 78 },
       { t: 'foh', label: 'FOH', x: 560, y: 895, w: 180, h: 150 },
     ],
     tables: [
       ...col([51, 52, 53, 54, 55], 25, 40, 95, 90, 22, '4', 'vip'),
-      ...col(seq('M', 1, 10), 175, 40, 125, 46, 12, '2', 'blue'),
-      ...col(seq('M', 31, 40), 1275, 40, 125, 46, 12, '2', 'blue'),
+      ...col(seq('M', 1, 10), 175, 40, 95, 46, 12, '2', 'blue'),
+      ...col(seq('M', 31, 40), 1305, 40, 95, 46, 12, '2', 'blue'),
       ...col([71, 72, 73, 74, 75], 1430, 40, 95, 90, 22, '4', 'vip'),
-      // M11–M27 span exactly the middle "LAYOUT LANTAI 2" box (x 340–1235), not past it. M31–M40
-      // sit 30 from 71–75 so the box (and this row) gets the freed width; the row keeps
-      // real gaps between tables instead of touching (owner, Nov 2026).
-      ...row(seq('M', 11, 27), 340, 625, 45, 100, 8.125, '2', 'blue'),
+      // M11–M27 span exactly the middle "LAYOUT LANTAI 2" box (x 300–1275), not past it. M1–M10 and
+      // M31–M40 are narrower (95) and pushed out so the box, and each table in this row, gets wider
+      // with readable numbers and real gaps (owner, Nov 2026).
+      ...row(seq('M', 11, 27), 300, 625, 52, 100, 5.6875, '2', 'blue'),
       { id: '61', x: 30, y: 780, w: 120, h: 85, cap: '4', zone: 'blue' },
       // 87: same size as 81–86, pushed to the right wall in line with 86 (owner, Nov 2026).
       { id: '87', x: 1445, y: 765, w: 120, h: 100, cap: '2', zone: 'blue' },
@@ -253,21 +269,21 @@ export const VENUE_LAYOUTS: Record<string, LayoutDenah> = {
   lantai2_weekend: {
     name: 'Lantai 2 (Weekend)',
     fixed: [
-      { t: 'stage', label: 'VIDEOTRON', x: 340, y: 35, w: 895, h: 70 },
-      { t: 'floor2', label: 'LAYOUT LANTAI 2', x: 340, y: 120, w: 895, h: 475 },
+      { t: 'stage', label: 'VIDEOTRON', x: 300, y: 35, w: 975, h: 70 },
+      { t: 'floor2', label: 'LAYOUT LANTAI 2', x: 300, y: 120, w: 975, h: 475 },
       { t: 'tangga', label: 'TANGGA MASUK', x: 25, y: 600, w: 120, h: 78 },
       { t: 'tangga', label: 'TANGGA KELUAR', x: 1455, y: 600, w: 120, h: 78 },
       { t: 'foh', label: 'FOH', x: 560, y: 895, w: 180, h: 150 },
     ],
     tables: [
       ...col([51, 52, 53, 54, 55], 25, 40, 95, 90, 22, '4', 'vip'),
-      ...col(seq('M', 1, 10), 175, 40, 125, 46, 12, '2', 'blue'),
-      ...col(seq('M', 31, 40), 1275, 40, 125, 46, 12, '2', 'blue'),
+      ...col(seq('M', 1, 10), 175, 40, 95, 46, 12, '2', 'blue'),
+      ...col(seq('M', 31, 40), 1305, 40, 95, 46, 12, '2', 'blue'),
       ...col([71, 72, 73, 74, 75], 1430, 40, 95, 90, 22, '4', 'vip'),
-      // M11–M27 span exactly the middle "LAYOUT LANTAI 2" box (x 340–1235), not past it. M31–M40
-      // sit 30 from 71–75 so the box (and this row) gets the freed width; the row keeps
-      // real gaps between tables instead of touching (owner, Nov 2026).
-      ...row(seq('M', 11, 27), 340, 625, 45, 100, 8.125, '2', 'blue'),
+      // M11–M27 span exactly the middle "LAYOUT LANTAI 2" box (x 300–1275), not past it. M1–M10 and
+      // M31–M40 are narrower (95) and pushed out so the box, and each table in this row, gets wider
+      // with readable numbers and real gaps (owner, Nov 2026).
+      ...row(seq('M', 11, 27), 300, 625, 52, 100, 5.6875, '2', 'blue'),
       { id: '61', x: 30, y: 780, w: 120, h: 85, cap: '4', zone: 'blue' },
       // 87: same size as 81–86, pushed to the right wall in line with 86 (owner, Nov 2026).
       { id: '87', x: 1445, y: 765, w: 120, h: 100, cap: '2', zone: 'blue' },
@@ -374,6 +390,8 @@ export function lantaiLayout(master: MasterDenah | undefined, key: string): 1 | 
   if (p) return p.lt
   if (key === 'weekday' || key === 'weekend') return 1
   if (key === 'lantai2' || key === 'lantai2_weekend') return 2
+  const lt = customLayouts(master)[key]?.lantai
+  if (lt === 1 || lt === 2) return lt
   const m = layoutName(master, key).toLowerCase().match(/(?:lantai|lt\.?|floor)\s*(\d+)/)
   return m ? (Number(m[1]) === 2 ? 2 : 1) : 1
 }
@@ -413,10 +431,43 @@ export function hariWeekend(master?: MasterDenah): number[] {
 export const hariAkhirPekan = (date: string, master?: MasterDenah) =>
   hariWeekend(master).includes(new Date(`${date}T00:00:00`).getDay())
 
-/** The built-in plan of a floor on a date, before any schedule. */
-export function defaultDayTypeLt(date: string, lt: number, master?: MasterDenah): string {
+export const NAMA_HARI = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu']
+/** Monday first, the way the crew reads a week. */
+export const URUT_HARI = [1, 2, 3, 4, 5, 6, 0]
+
+/**
+ * The template set for each day of the week on one floor: 7 entries indexed by
+ * getDay(), '' = not set (the built-in weekday/weekend plan). The API may hand a
+ * list back as an object ({"0": …}) or an empty object as `[]`; both read the same.
+ */
+export function templatHari(master: MasterDenah | undefined, lt: number): string[] {
+  const semua = master?.layoutHari
+  const v = semua && typeof semua === 'object' && !Array.isArray(semua) ? (semua as Record<string, unknown>)[String(lt === 2 ? 2 : 1)] : undefined
+  const out = ['', '', '', '', '', '', '']
+  if (!v || typeof v !== 'object') return out
+  for (let i = 0; i < 7; i++) {
+    const k = (v as Record<string, unknown>)[i]
+    if (typeof k === 'string') out[i] = k
+  }
+  return out
+}
+
+/** The built-in plan of a floor's day, from the weekend days only (ignores the per-day templates). */
+export function bawaanHariLt(date: string, lt: number, master?: MasterDenah): string {
   const c = ltCfg(lt)
   return hariAkhirPekan(date, master) ? c.we : c.wd
+}
+
+/**
+ * The plan a date gets before any per-date schedule: the template set for its
+ * day of the week, else the built-in weekday/weekend plan. A day pointing at a
+ * template that no longer exists, a date plan, or one of the other floor, falls
+ * back instead of drawing an empty or wrong floor.
+ */
+export function defaultDayTypeLt(date: string, lt: number, master?: MasterDenah): string {
+  const k = templatHari(master, lt)[new Date(`${date}T00:00:00`).getDay()]
+  if (k && !parseKeyTanggal(k) && getLayout(master, k) && lantaiLayout(master, k) === (lt === 2 ? 2 : 1)) return k
+  return bawaanHariLt(date, lt, master)
 }
 
 export const defaultDayType = (date: string, master?: MasterDenah) => defaultDayTypeLt(date, 1, master)
@@ -520,3 +571,55 @@ export const denahTanggalBaru = (data: LayoutDenah, date: string, lt: number): L
   tables: (data.tables ?? []).map(t => ({ ...t })),
   fixed: (data.fixed ?? []).map(f => ({ ...f })),
 })
+
+/** A key for a new custom template that cannot collide with a built-in, a date key or another template. */
+export function kunciTemplatBaru(master: MasterDenah | undefined, nama: string): string {
+  const dasar = `tpl_${String(nama).toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '').slice(0, 24) || 'denah'}`
+  const ada = new Set(allLayoutKeys(master))
+  let k = dasar
+  for (let n = 2; ada.has(k); n++) k = `${dasar}_${n}`
+  return k
+}
+
+// --- template groups (owner, Nov 2026: "kalau add dia langsung add lantai 1 dan lantai 2, jangan dipisah") ---
+
+/**
+ * One template as the crew sees it: a plan for Lantai 1 and one for Lantai 2
+ * under one name. The built-ins pair up as Weekday and Weekend; a custom group
+ * is the layouts carrying the same `grup` id. An older custom template without
+ * one stands alone with only its own floor.
+ */
+export interface GrupTemplat {
+  id: string
+  nama: string
+  bawaan: boolean
+  lt1?: string
+  lt2?: string
+}
+
+export const GRUP_BAWAAN: GrupTemplat[] = [
+  { id: 'weekday', nama: 'Weekday', bawaan: true, lt1: 'weekday', lt2: 'lantai2' },
+  { id: 'weekend', nama: 'Weekend', bawaan: true, lt1: 'weekend', lt2: 'lantai2_weekend' },
+]
+
+export function grupTemplat(master?: MasterDenah): GrupTemplat[] {
+  const out = GRUP_BAWAAN.map(g => ({ ...g }))
+  const per = new Map<string, GrupTemplat>()
+  for (const [k, l] of Object.entries(customLayouts(master))) {
+    if (isBuiltinLayout(k) || parseKeyTanggal(k) || !l || !Array.isArray(l.tables)) continue
+    const id = l.grup || k
+    let g = per.get(id)
+    if (!g) {
+      g = { id, nama: l.grupNama || l.name || k, bawaan: false }
+      per.set(id, g)
+      out.push(g)
+    }
+    if (lantaiLayout(master, k) === 2) g.lt2 ??= k
+    else g.lt1 ??= k
+  }
+  return out
+}
+
+/** The group a layout key belongs to, or undefined. */
+export const grupDari = (master: MasterDenah | undefined, key: string) =>
+  grupTemplat(master).find(g => g.lt1 === key || g.lt2 === key)

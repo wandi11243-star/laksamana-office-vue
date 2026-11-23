@@ -55,7 +55,6 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     subjudul: 'Reservasi',
     layar: LAYAR_RESERVASI,
     cari: { placeholder: 'Cari nama tamu, no. HP…', to: '/reservasi/dashboard' },
-    tambah: { label: 'Reservasi baru', to: '/reservasi/input' },
     lonceng: { label: 'Kedatangan hari ini', to: '/reservasi/dashboard?tab=denah' },
     peran: me => ROLE_LABEL_RESERVASI[roleReservasi(me)],
     lencana: () => useLencanaReservasi(),

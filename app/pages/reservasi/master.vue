@@ -1,5 +1,5 @@
 <!--
-  Master Data — dropdown options, seating estimate, crew roles, the
+  Kelola Akses (route /reservasi/master) — dropdown options, crew roles, the
   View/Edit matrix, backup. Every section writes with ITS OWN loaded version
   (§2.7); a change in between reloads the section instead of overwriting it.
 
@@ -15,8 +15,6 @@ import {
   BARIS_IZIN_RESERVASI, IKUT_MASTER, LAYAR_RESERVASI, ROLE_LABEL_RESERVASI, ROLE_RESERVASI,
   bolehAksi, bolehBuka, roleReservasi, seedPermsReservasi, type PeranMatrix, type RoleReservasi,
 } from '~/utils/layar/reservasi'
-import { fmtMenit } from '~/utils/kunci-meja'
-import { HARI_WEEKEND_BAWAAN, hariWeekend } from '~/utils/venue-layouts'
 import { hariIni } from '~/utils/format'
 import { apiErrorMessage } from '~/composables/useApi'
 import { tanganiKonflik, versiDari } from '~/utils/versi'
@@ -29,70 +27,6 @@ const role = computed(() => roleReservasi(me.value))
 const kelolaOrang = computed(() => bolehAksi('manageUsers', role.value))
 
 const catat = (action: string, detail: string) => postAudit({ action, detail })
-
-// --- seating estimate ------------------------------------------------------------
-// After this many minutes a table counts as free for the next booking — so one
-// guest forgotten at "Selesai" does not block the table for days.
-
-const dineEst = useSectionVersi<number>('dineEstMin')
-const estimasi = ref<number>(180)
-watch(() => dineEst.data.value, (v) => {
-  if (typeof v?.data === 'number') estimasi.value = v.data
-}, { immediate: true })
-
-async function simpanEstimasi() {
-  const n = Number(estimasi.value) || 0
-  if (!n || n < 30) {
-    toast.add({ title: 'Estimasi lama duduk minimal 30 menit', color: 'error' })
-    return
-  }
-  try {
-    await putSection('dineEstMin', n, versiDari(dineEst.data.value))
-    await dineEst.refresh()
-    await catat('Master', `Estimasi lama duduk → ${fmtMenit(n)}`)
-    toast.add({ title: `Estimasi lama duduk disetel ${fmtMenit(n)}`, color: 'success' })
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, () => dineEst.refresh()))) toast.add({ title: apiErrorMessage(e), color: 'error' })
-  }
-}
-
-// --- weekend plan days -------------------------------------------------------------
-// Which days use the WEEKEND plan on both floors (old app, 21 Oct 2026). Stored
-// in master.hariWeekend, the same blob as the plans, so Reservasi, Service
-// Excellent and Marketing VIP read one setting. Monday first, because that is
-// how people read a week; the stored values stay getDay() numbers.
-
-const HARI_PILIH: [number, string][] = [[1, 'Senin'], [2, 'Selasa'], [3, 'Rabu'], [4, 'Kamis'], [5, 'Jumat'], [6, 'Sabtu'], [0, 'Minggu']]
-const secWeekend = useSectionVersi<number[]>('hariWeekend')
-const weekendTersimpan = computed(() => hariWeekend({ hariWeekend: secWeekend.data.value?.data ?? undefined }))
-const weekendDraf = ref<number[]>([])
-watch(weekendTersimpan, v => (weekendDraf.value = [...v]), { immediate: true })
-const namaHari = (hari: number[]) => HARI_PILIH.filter(([n]) => hari.includes(n)).map(x => x[1])
-
-function centangHari(n: number, on: boolean) {
-  weekendDraf.value = on ? [...new Set([...weekendDraf.value, n])] : weekendDraf.value.filter(x => x !== n)
-}
-
-async function simpanHariWeekend(hari: number[], ket: string) {
-  try {
-    await putSection('hariWeekend', hari, versiDari(secWeekend.data.value))
-    await secWeekend.refresh()
-    await catat('Master', `Hari denah weekend → ${ket}`)
-    toast.add({ title: 'Hari denah weekend disimpan', color: 'success' })
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, () => secWeekend.refresh()))) toast.add({ title: apiErrorMessage(e), color: 'error' })
-  }
-}
-
-function simpanWeekend() {
-  const hari = HARI_PILIH.map(([n]) => n).filter(n => weekendDraf.value.includes(n))
-  if (!hari.length && !window.confirm('Tidak ada hari yang dicentang — semua tanggal akan memakai denah Weekday. Lanjutkan?')) return
-  return simpanHariWeekend(hari, namaHari(hari).join(', ') || '(tidak ada)')
-}
-
-const resetWeekend = () => simpanHariWeekend([...HARI_WEEKEND_BAWAAN], 'Jumat, Sabtu, Minggu (bawaan)')
 
 // --- dropdown lists ----------------------------------------------------------------
 // One section each, written immediately like the old screen (no save button).
@@ -287,8 +221,8 @@ async function backupJson() {
 
 <template>
   <AppPage
-    title="Master data"
-    description="Kelola pilihan dropdown & pengaturan sistem."
+    title="Kelola akses"
+    description="Kelola pilihan dropdown, role kru, dan hak akses."
   >
     <template v-if="bolehBuka('master', role)">
       <div class="mb-3 flex flex-wrap gap-2">
@@ -301,78 +235,6 @@ async function backupJson() {
           @click="backupJson"
         />
       </div>
-
-      <AppList title="Estimasi lama tamu duduk">
-        <div class="flex flex-wrap items-end gap-2 px-4 py-3">
-          <UFormField
-            label="Lama duduk (menit)"
-            class="max-w-36"
-          >
-            <UInput
-              v-model.number="estimasi"
-              type="number"
-              :min="30"
-              step="15"
-              size="xl"
-              class="w-full"
-            />
-          </UFormField>
-          <UButton
-            label="Simpan"
-            size="xl"
-            loading-auto
-            @click="simpanEstimasi"
-          />
-          <div class="flex gap-1">
-            <UButton
-              v-for="v in [90, 120, 150, 180, 240, 300]"
-              :key="v"
-              :label="fmtMenit(v)"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              @click="estimasi = v"
-            />
-          </div>
-        </div>
-        <p class="px-4 pb-3 text-sm text-muted">
-          Setelah tamu duduk selama ini, mejanya otomatis dianggap bebas untuk booking berikutnya.
-          Sekarang: <b>{{ fmtMenit(Number(dineEst.data.value?.data) || 0) }}</b>.
-        </p>
-      </AppList>
-
-      <AppList title="Hari denah Weekend">
-        <div class="flex flex-wrap gap-x-4 gap-y-2 px-4 py-3">
-          <UCheckbox
-            v-for="[n, label] in HARI_PILIH"
-            :key="n"
-            :model-value="weekendDraf.includes(n)"
-            :label="label"
-            @update:model-value="(v) => centangHari(n, !!v)"
-          />
-        </div>
-        <div class="flex flex-wrap gap-2 px-4 pb-3">
-          <UButton
-            label="Simpan"
-            size="xl"
-            loading-auto
-            @click="simpanWeekend"
-          />
-          <UButton
-            label="Bawaan (Jumat, Sabtu, Minggu)"
-            color="neutral"
-            variant="ghost"
-            size="xl"
-            loading-auto
-            @click="resetWeekend"
-          />
-        </div>
-        <p class="px-4 pb-3 text-sm text-muted">
-          Hari yang dicentang otomatis memakai denah <b>Weekend</b> (Lantai 1 &amp; Lantai 2), selain itu <b>Weekday</b>.
-          Sekarang: <b>{{ namaHari(weekendTersimpan).join(', ') || 'tidak ada — semua hari Weekday' }}</b>.
-          Tanggal yang sudah dijadwalkan denahnya sendiri tidak ikut berubah. Berlaku juga di Marketing (pilih meja Reservasi VIP).
-        </p>
-      </AppList>
 
       <AppList
         v-for="d in DAFTAR"

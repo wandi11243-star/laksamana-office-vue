@@ -2,12 +2,16 @@
   Reservasi › Atur denah & meja (owner request, Nov 2026: "kalau mau edit meja
   itu bisa di setting di side bar baru saja, jadi di dashboard tidak perlu
   ada"). Everything that CHANGES the plan lives here, out of the day-of
-  dashboard, which only reads it:
-    - Editor denah — move / add / resize tables of the plan in force on a date
-      and floor; save into its template or for that date only (the old editor
-      rules, see DenahEditor);
-    - Jadwal denah — which template a date uses, per floor, and the dates that
-      deviate from their built-in plan;
+  dashboard, which only reads it. Three tabs (?tab=templat|tanggal|meja), so
+  editing a TEMPLATE and editing ONE DATE are never mixed up (owner, Nov 2026):
+    - Template denah — every template (a Lantai 1 + Lantai 2 pair), which days
+      use it; add one (both floors at once, copied), delete an unused custom
+      one; "Template per hari" sets which template each day of the week uses
+      (`master.layoutHari`); Lt.1 / Lt.2 opens the template editor, which saves
+      into the template only (every day and date using it changes);
+    - Denah per tanggal — pick a date + floor; swap the template that date uses
+      (and the list of special dates), or move tables for that date only. The
+      editor here saves the date's own plan only; the template is not touched;
     - Database meja — every table of every plan in one list, with its
       capacity (min–max). A capacity saved here goes into EVERY template and
       date plan that holds the table, and the master `tables` list is rewritten
@@ -20,11 +24,11 @@ import type { TableColumn } from '@nuxt/ui'
 import { useMediaQuery } from '@vueuse/core'
 import { postAudit, putDenah, putSection, useDenah, useSectionVersi } from '~/composables/useReservasi'
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
-import type { LayoutDenah, MejaDenah } from '~/utils/venue-layouts'
+import type { GrupTemplat, LayoutDenah, MejaDenah } from '~/utils/venue-layouts'
 import {
-  LABEL_ZONA, adaDenahTanggal, allLayoutKeys, capDenah, capMax, capMin, dayTypeLayoutLt,
-  defaultDayTypeLt, denahTanggalBaru, getLayout, jejakDenah, keyTanggal, lantaiLayout,
-  layoutName, layoutTanggal, ltCfg, ovLantai, parseKeyTanggal,
+  LABEL_ZONA, NAMA_HARI, URUT_HARI, adaDenahTanggal, allLayoutKeys, capDenah, capMax, capMin, dayTypeLayoutLt,
+  defaultDayTypeLt, denahTanggalBaru, getLayout, GRUP_BAWAAN, grupDari, grupTemplat, hariWeekend, jejakDenah, kapasitasLayout,
+  keyTanggal, kunciTemplatBaru, lantaiLayout, layoutName, layoutTanggal, ltCfg, ovLantai, parseKeyTanggal, templatHari,
 } from '~/utils/venue-layouts'
 import { hariIni, tglPanjang, tglPendek } from '~/utils/format'
 import { tanganiKonflik, versiDari } from '~/utils/versi'
@@ -38,9 +42,9 @@ const role = computed(() => roleReservasi(me.value))
 const bolehUbah = computed(() => bolehAksi('master', role.value))
 const namaSaya = computed(() => me.value?.name ?? '')
 
-const { master, versi, layouts: secLayouts, layoutOverrides: secOv1, layoutOverrides2: secOv2, layoutTanggal: secTgl, status } = useDenah()
+const { master, versi, layouts: secLayouts, layoutOverrides: secOv1, layoutOverrides2: secOv2, layoutTanggal: secTgl, layoutHari: secHari, status } = useDenah()
 const secTables = useSectionVersi<string[]>('tables')
-const muatUlang = () => Promise.all([secLayouts.refresh(), secOv1.refresh(), secOv2.refresh(), secTgl.refresh(), secTables.refresh()])
+const muatUlang = () => Promise.all([secLayouts.refresh(), secOv1.refresh(), secOv2.refresh(), secTgl.refresh(), secHari.refresh(), secTables.refresh()])
 
 const catat = async (action: string, detail: string) => {
   try {
@@ -53,21 +57,55 @@ const catat = async (action: string, detail: string) => {
 
 // --- date & floor ----------------------------------------------------------------
 
+// --- tabs (kept in the URL: ?tab=templat|tanggal|meja) ---------------------------------
+
+const route = useRoute()
+const router = useRouter()
+const TAB = ['templat', 'tanggal', 'meja'] as const
+type TabDenah = typeof TAB[number]
+const tab = computed<TabDenah>(() => {
+  const q = String(route.query.tab ?? '')
+  return (TAB as readonly string[]).includes(q) ? q as TabDenah : 'templat'
+})
+function pilihTab(v?: string) {
+  if (!v || v === tab.value) return
+  router.replace({ query: { ...route.query, tab: v } })
+}
+
+// --- date & floor (tab "Denah per tanggal") ---------------------------------------------
+
 const tgl = ref(hariIni())
 const lantai = ref<1 | 2>(1)
-const kunci = computed(() => dayTypeLayoutLt(master.value, tgl.value, lantai.value))
-const denah = computed(() => getLayout(master.value, kunci.value) ?? getLayout(master.value, defaultDayTypeLt(tgl.value, lantai.value, master.value)))
-const jejak = computed(() => jejakDenah(denah.value))
+const kunciTanggal = computed(() => dayTypeLayoutLt(master.value, tgl.value, lantai.value))
+
+/**
+ * A template opened from the template list (tab "Template denah"): the editor then
+ * edits THAT template (every day and date using it). null = nothing opened.
+ * Independent of the date tab, which always shows its own date's plan.
+ */
+const editTemplat = ref<string | null>(null)
+const denahTemplat = computed(() => (editTemplat.value ? getLayout(master.value, editTemplat.value) : null))
+const jejakTemplat = computed(() => jejakDenah(denahTemplat.value))
+const denahTanggal = computed(() => getLayout(master.value, kunciTanggal.value) ?? getLayout(master.value, defaultDayTypeLt(tgl.value, lantai.value, master.value)))
+const jejakTanggal = computed(() => jejakDenah(denahTanggal.value))
+watch(denahTemplat, (d) => {
+  // The template being deleted ends template mode.
+  if (editTemplat.value && !d) editTemplat.value = null
+})
 
 // --- editor ------------------------------------------------------------------------
 
-const editorTanggal = computed(() => parseKeyTanggal(kunci.value))
-/** The template that would cover the date if its own plan were not there. */
-const editorTemplat = computed(() => {
-  const p = editorTanggal.value
-  if (!p) return kunci.value
-  const terjadwal = ovLantai(master.value, p.lt)[p.date]
-  return (terjadwal && getLayout(master.value, terjadwal)) ? terjadwal : defaultDayTypeLt(p.date, p.lt, master.value)
+/** The date has its own plan (tables moved for that date only). */
+const punyaDenahTanggal = computed(() => adaDenahTanggal(master.value, tgl.value, lantai.value))
+/** The template that covers the date when its own plan is not there. */
+const templatTanggal = computed(() => {
+  const terjadwal = ovLantai(master.value, lantai.value)[tgl.value]
+  return (terjadwal && getLayout(master.value, terjadwal)) ? terjadwal : defaultDayTypeLt(tgl.value, lantai.value, master.value)
+})
+const sumberTanggal = computed(() => {
+  if (punyaDenahTanggal.value) return 'meja digeser khusus tanggal ini'
+  const terjadwal = ovLantai(master.value, lantai.value)[tgl.value]
+  return terjadwal && getLayout(master.value, terjadwal) ? 'template, dijadwalkan khusus' : 'template per hari'
 })
 
 const sibuk = ref(false)
@@ -91,9 +129,10 @@ async function tulis(aksi: () => Promise<unknown>, sukses: string, jejakAudit: [
 
 /** Save into the covering template: every date that uses it changes. */
 function simpanKeTemplat(data: LayoutDenah) {
-  const key = editorTemplat.value
+  const key = editTemplat.value
   if (!key || parseKeyTanggal(key)) return
-  const cap = capDenah(data, namaSaya.value)
+  // Keep the floor the template was made for, whatever its name says now.
+  const cap = capDenah({ ...data, lantai: lantaiLayout(master.value, key) }, namaSaya.value)
   return tulis(
     () => putDenah('layouts', { ...(secLayouts.data.value?.data ?? {}), [key]: cap }, versi.value.layouts),
     `Template ${layoutName(master.value, key)} disimpan — berlaku untuk semua tanggal yang memakainya`,
@@ -111,6 +150,163 @@ function simpanUntukTanggal(data: LayoutDenah) {
     () => putDenah('layoutTanggal', { ...(secTgl.data.value?.data ?? {}), [key]: cap }, versi.value.layoutTanggal),
     `Denah ${tglPendek(d)} disimpan — template tidak ikut berubah`,
     ['Simpan Denah Tanggal', `${tglPendek(d)} Lt.${lt} (${cap.tables.length} meja)`],
+  )
+}
+
+/** Drop the date's own plan only; a scheduled template (if any) stays. */
+function hapusDenahTanggal() {
+  const d = tgl.value
+  const lt = lantai.value
+  // Meja moved by hand for this date are lost for good; ask first.
+  if (!window.confirm(`Buang denah khusus ${tglPendek(d)} (${ltCfg(lt).nama}) dan kembali ke template ${layoutName(master.value, templatTanggal.value)}?`)) return
+  const { [keyTanggal(d, lt)]: _buang, ...sisa } = layoutTanggal(master.value)
+  return tulis(
+    () => putDenah('layoutTanggal', sisa, versi.value.layoutTanggal),
+    `Denah khusus ${tglPendek(d)} dihapus — kembali ke ${layoutName(master.value, templatTanggal.value)}`,
+    ['Hapus Denah Tanggal', `${tglPendek(d)} Lt.${lt}`],
+  )
+}
+
+// --- template list (owner, Nov 2026: "bisa buka daftar template denahnya apa saja") ---
+// A template is a GROUP: one name, a plan for Lantai 1 and one for Lantai 2
+// ("kalau add dia langsung add lantai 1 dan lantai 2, jangan dipisah").
+
+const hariWe = computed(() => hariWeekend(master.value))
+const grup = computed(() => grupTemplat(master.value))
+
+/** The group each day of the week ends up with (from Lantai 1's setting, else Lantai 2's), '' = built-in of the day. */
+const grupHariTersimpan = computed(() => {
+  const s1 = templatHari(master.value, 1)
+  const s2 = templatHari(master.value, 2)
+  return [0, 1, 2, 3, 4, 5, 6].map((d) => {
+    const g = (s1[d] && grupDari(master.value, s1[d]!)) || (s2[d] && grupDari(master.value, s2[d]!))
+    return g ? g.id : ''
+  })
+})
+
+interface BarisGrup extends GrupTemplat {
+  meja: number
+  pax: number
+  hari: string
+}
+
+const daftarGrup = computed<BarisGrup[]>(() => grup.value.map((g) => {
+  const l1 = g.lt1 ? getLayout(master.value, g.lt1) : null
+  const l2 = g.lt2 ? getLayout(master.value, g.lt2) : null
+  const pakai = (d: number) => grupHariTersimpan.value[d] === g.id
+    || (!grupHariTersimpan.value[d] && g.bawaan && g.id === (hariWe.value.includes(d) ? 'weekend' : 'weekday'))
+  const hari = URUT_HARI.filter(pakai).map(d => NAMA_HARI[d]!.slice(0, 3))
+  return {
+    ...g,
+    meja: (l1?.tables?.length ?? 0) + (l2?.tables?.length ?? 0),
+    pax: kapasitasLayout(l1 ?? undefined) + kapasitasLayout(l2 ?? undefined),
+    hari: hari.length === 7 ? 'setiap hari' : hari.join(', '),
+  }
+}))
+
+/** Open one floor of a group in the editor below. */
+function bukaTemplat(k: string) {
+  editTemplat.value = k
+  nextTick(() => document.getElementById('editor-denah')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+}
+
+const formBaru = ref(false)
+const namaBaru = ref('')
+const dariGrup = ref('weekday')
+
+/** A new group: Lantai 1 AND Lantai 2, each copied from the chosen group (or that floor's Weekday plan when it has none). */
+async function buatTemplat() {
+  const nama = namaBaru.value.trim()
+  if (!nama) return toast.add({ title: 'Isi nama template dulu', color: 'error' })
+  if (grup.value.some(g => g.nama.toLowerCase() === nama.toLowerCase())) return toast.add({ title: `Nama "${nama}" sudah dipakai`, color: 'error' })
+  const asal = grup.value.find(g => g.id === dariGrup.value) ?? GRUP_BAWAAN[0]!
+  const idGrup = kunciTemplatBaru(master.value, nama)
+  const k1 = `${idGrup}_lt1`
+  const k2 = `${idGrup}_lt2`
+  const salin = (src: string, lt: 1 | 2): LayoutDenah => {
+    const s = getLayout(master.value, src) ?? getLayout(master.value, ltCfg(lt).wd)!
+    return capDenah({
+      name: lt === 2 ? `${nama} (Lantai 2)` : nama,
+      lantai: lt,
+      grup: idGrup,
+      grupNama: nama,
+      tables: (s.tables ?? []).map(t => ({ ...t })),
+      fixed: (s.fixed ?? []).map(f => ({ ...f })),
+    }, namaSaya.value)
+  }
+  const ok = await tulis(
+    () => putDenah('layouts', {
+      ...(secLayouts.data.value?.data ?? {}),
+      [k1]: salin(asal.lt1 ?? 'weekday', 1),
+      [k2]: salin(asal.lt2 ?? 'lantai2', 2),
+    }, versi.value.layouts),
+    `Template ${nama} dibuat untuk Lantai 1 & Lantai 2 — silakan atur mejanya`,
+    ['Buat Template Denah', `${nama} (Lt.1 & Lt.2, salinan ${asal.nama})`],
+  )
+  if (ok) {
+    namaBaru.value = ''
+    formBaru.value = false
+    bukaTemplat(k1)
+  }
+}
+
+/** Where a layout key is still in use: days of the week and dates from today on. */
+function dipakaiDi(k: string): string[] {
+  const out: string[] = []
+  for (const lt of [1, 2]) {
+    templatHari(master.value, lt).forEach((v, d) => {
+      if (v === k) out.push(NAMA_HARI[d]!)
+    })
+    for (const [d, v] of Object.entries(ovLantai(master.value, lt))) {
+      if (v === k && d >= hariIni()) out.push(`${tglPendek(d)} (Lt.${lt})`)
+    }
+  }
+  return out
+}
+
+/** Only a custom group can go, both floors at once, and only when no day or coming date points at it. */
+function hapusTemplat(g: BarisGrup) {
+  if (g.bawaan) return
+  const kunciGrup = [g.lt1, g.lt2].filter((k): k is string => !!k)
+  const pakai = [...new Set(kunciGrup.flatMap(dipakaiDi))]
+  if (pakai.length) return toast.add({ title: `${g.nama} masih dipakai`, description: `Ganti dulu di: ${pakai.join(', ')}`, color: 'error' })
+  if (!window.confirm(`Hapus template ${g.nama} (Lantai 1 & Lantai 2)? Tindakan ini tidak bisa dibatalkan.`)) return
+  const sisa = Object.fromEntries(Object.entries(secLayouts.data.value?.data ?? {}).filter(([k]) => !kunciGrup.includes(k)))
+  if (editTemplat.value && kunciGrup.includes(editTemplat.value)) editTemplat.value = null
+  return tulis(
+    () => putDenah('layouts', sisa, versi.value.layouts),
+    `Template ${g.nama} dihapus`,
+    ['Hapus Template Denah', g.nama],
+  )
+}
+
+// --- template per day of the week (owner, Nov 2026: "bisa disetting, di hari apa saja") ---
+// One choice per day sets BOTH floors: the group's Lantai 1 and Lantai 2 plans.
+
+/** Reka's Select forbids an empty value, so "not set" is a sentinel in the UI and '' in storage. */
+const BAWAAN_HARI = '__bawaan'
+const draftHari = ref<string[]>(['', '', '', '', '', '', ''])
+watch(grupHariTersimpan, (v) => {
+  draftHari.value = [...v]
+}, { immediate: true })
+
+const opsiHari = (d: number) => [
+  { value: BAWAAN_HARI, label: `Bawaan (${hariWe.value.includes(d) ? 'Weekend' : 'Weekday'})` },
+  ...grup.value.map(g => ({ value: g.id, label: g.nama })),
+]
+const hariBerubah = computed(() => JSON.stringify(draftHari.value) !== JSON.stringify(grupHariTersimpan.value))
+
+function simpanHari() {
+  const semua = master.value.layoutHari
+  const dasar = semua && typeof semua === 'object' && !Array.isArray(semua) ? { ...semua } : {}
+  const g = (d: number) => grup.value.find(x => x.id === draftHari.value[d])
+  const isi1 = [0, 1, 2, 3, 4, 5, 6].map(d => g(d)?.lt1 ?? '')
+  const isi2 = [0, 1, 2, 3, 4, 5, 6].map(d => g(d)?.lt2 ?? '')
+  const ringkas = URUT_HARI.map(d => `${NAMA_HARI[d]!.slice(0, 3)}=${g(d)?.nama ?? 'bawaan'}`).join(', ')
+  return tulis(
+    () => putDenah('layoutHari', { ...dasar, 1: isi1, 2: isi2 }, versi.value.layoutHari),
+    'Template per hari disimpan (Lantai 1 & Lantai 2)',
+    ['Set Template Per Hari', ringkas],
   )
 }
 
@@ -332,7 +528,7 @@ const kolom: TableColumn<BarisMeja>[] = [
 <template>
   <AppPage
     title="Atur denah & meja"
-    description="Editor denah, jadwal denah per tanggal, dan database meja beserta kapasitasnya."
+    description="Template denah, denah khusus per tanggal, dan database meja."
   >
     <p
       v-if="!bolehUbah"
@@ -341,263 +537,527 @@ const kolom: TableColumn<BarisMeja>[] = [
       Peranmu hanya bisa melihat. Minta manager/admin Reservasi untuk mengubah denah atau kapasitas meja.
     </p>
 
-    <!-- Date & floor: what the editor and the schedule below act on. -->
-    <div class="mb-4 flex flex-wrap items-center gap-3">
-      <AppTanggal
-        v-model="tgl"
-        :clearable="false"
-        class="w-60"
-      />
-      <AppSeg
-        :model-value="String(lantai)"
-        :options="[{ value: '1', label: 'Lantai 1' }, { value: '2', label: 'Lantai 2' }]"
-        @update:model-value="(v?: string) => { lantai = v === '2' ? 2 : 1 }"
-      />
-      <span class="text-sm text-muted">
-        Denah berlaku: <b class="text-highlighted">{{ layoutName(master, kunci) }}</b>
-        <template v-if="editorTanggal"> (khusus tanggal ini)</template>
-      </span>
-    </div>
+    <AppSeg
+      class="mb-4"
+      :model-value="tab"
+      :options="[
+        { value: 'templat', label: 'Template denah' },
+        { value: 'tanggal', label: 'Denah per tanggal' },
+        { value: 'meja', label: 'Database meja' },
+      ]"
+      @update:model-value="pilihTab"
+    />
 
-    <AppPanel
-      title="Editor denah"
-      icon="i-lucide-map"
-      :description="editorTanggal
-        ? `Denah ${tglPanjang(tgl)} digeser sendiri. Menyimpan ke template mengubah ${layoutName(master, editorTemplat)}.`
-        : `Simpan ke template = semua tanggal yang memakai ${layoutName(master, editorTemplat)} ikut berubah. Simpan untuk tanggal ini saja = hanya ${tglPanjang(tgl)}.`"
-    >
-      <template #actions>
-        <UButton
-          v-if="bisaPenuh"
-          :icon="penuh ? 'i-lucide-minimize' : 'i-lucide-maximize'"
-          :label="penuh ? 'Keluar layar penuh' : 'Layar penuh'"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          @click="layarPenuh"
-        />
-      </template>
-      <div
-        ref="kanvas"
-        class="bg-default"
-        :class="penuh ? 'overflow-auto p-6' : ''"
-      >
-        <!-- In full screen the panel's own button is outside: a way back, inside. -->
-        <UButton
-          v-if="penuh"
-          icon="i-lucide-minimize"
-          label="Keluar layar penuh"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          class="mb-3"
-          @click="layarPenuh"
-        />
-        <p
-          v-if="status === 'pending' && !denah"
-          class="py-10 text-center text-sm text-muted"
+    <!-- Tab 1: templates (affect every day that uses them). -->
+    <template v-if="tab === 'templat'">
+      <div class="mb-4 grid gap-4 xl:grid-cols-2">
+        <AppPanel
+          title="Daftar template denah"
+          icon="i-lucide-layout-template"
+          :count="daftarGrup.length"
+          description="Satu template berisi denah Lantai 1 dan Lantai 2. Klik Lt.1 / Lt.2 untuk mengedit denah lantai itu."
         >
-          Memuat denah…
-        </p>
-        <DenahEditor
-          v-else-if="denah"
-          :key="`${kunci}-${tgl}`"
-          :layout="denah"
-          :konteks="tglPanjang(tgl)"
-          :tanggal="{ date: tgl, lt: lantai }"
-          :template-tanggal="layoutName(master, editorTemplat)"
-          :bisa-ubah="bolehUbah && !sibuk"
-          :jejak="jejak"
-          @simpan-templat="simpanKeTemplat"
-          @simpan-tanggal="simpanUntukTanggal"
-        />
-      </div>
-    </AppPanel>
-
-    <AppPanel
-      title="Jadwal denah per tanggal"
-      icon="i-lucide-calendar-cog"
-      :description="`${ltCfg(lantai).nama}: tanggal lain otomatis kembali ke bawaan hari. Lantai 1 dan Lantai 2 dijadwalkan sendiri-sendiri.`"
-    >
-      <div class="grid gap-4 lg:grid-cols-2">
-        <div class="space-y-3">
-          <UFormField :label="`Denah ${ltCfg(lantai).nama} untuk ${tglPanjang(tgl)}`">
-            <USelect
-              v-model="pilihTemplat"
-              :items="opsiTemplat"
-              :disabled="!bolehUbah"
-              class="w-full"
-            />
-          </UFormField>
-          <div class="flex flex-wrap items-end gap-2">
+          <template #actions>
             <UButton
-              label="Terapkan ke tanggal ini"
-              icon="i-lucide-check"
-              :disabled="!bolehUbah"
-              loading-auto
-              @click="simpanJadwal(tgl, pilihTemplat)"
+              v-if="bolehUbah"
+              label="Tambah template"
+              icon="i-lucide-plus"
+              size="sm"
+              @click="formBaru = !formBaru"
             />
-          </div>
-          <div class="flex flex-wrap items-end gap-2 border-t border-default pt-3">
+          </template>
+          <div
+            v-if="formBaru && bolehUbah"
+            class="mb-3 flex flex-wrap items-end gap-2 rounded-xl bg-default p-3"
+          >
             <UFormField
-              label="Pakai template yang sama di tanggal lain"
-              class="w-60"
+              label="Nama template"
+              class="min-w-44 flex-1"
             >
-              <AppTanggal
-                v-model="tglLain"
-                :min="hariIni()"
+              <UInput
+                v-model="namaBaru"
+                placeholder="mis. Event Live Music"
+                autofocus
+                class="w-full"
+                @keydown.enter="buatTemplat"
+              />
+            </UFormField>
+            <UFormField
+              label="Salin dari"
+              class="min-w-36 flex-1"
+            >
+              <USelect
+                v-model="dariGrup"
+                :items="grup.map(g => ({ value: g.id, label: g.nama }))"
                 class="w-full"
               />
             </UFormField>
             <UButton
-              label="Tambahkan tanggal"
-              color="neutral"
-              variant="outline"
-              :disabled="!bolehUbah"
+              label="Buat"
+              icon="i-lucide-check"
               loading-auto
-              @click="terapkanKeTanggalLain"
+              @click="buatTemplat"
             />
-          </div>
-        </div>
-        <div>
-          <AppSectionTitle :title="`Tanggal khusus ${ltCfg(lantai).nama} (hari ini ke depan)`" />
-          <p
-            v-if="!tanggalKhusus.length"
-            class="text-sm text-muted"
-          >
-            Belum ada tanggal khusus — semua tanggal memakai bawaan harinya.
-          </p>
-          <div
-            v-for="t in tanggalKhusus"
-            :key="`${t.tgl}-${t.nama}`"
-            class="flex items-center justify-between gap-2 border-b border-default py-2 text-sm last:border-b-0"
-          >
-            <button
-              type="button"
-              class="text-left hover:text-gold-deep"
-              @click="tgl = t.tgl"
-            >
-              <b>{{ tglPendek(t.tgl) }}</b> → {{ t.nama }}
-            </button>
             <UButton
-              label="Kembalikan ke bawaan"
+              label="Batal"
               color="neutral"
               variant="ghost"
+              @click="formBaru = false"
+            />
+            <p class="w-full text-xs text-muted">
+              Denah Lantai 1 dan Lantai 2 langsung dibuat bersamaan.
+            </p>
+          </div>
+          <div
+            v-for="g in daftarGrup"
+            :key="g.id"
+            class="flex flex-wrap items-center justify-between gap-2 border-b border-default py-2.5 last:border-b-0"
+            :class="editTemplat && (editTemplat === g.lt1 || editTemplat === g.lt2) ? 'rounded-lg bg-gold-soft px-2' : ''"
+          >
+            <div class="min-w-0">
+              <p class="font-semibold text-highlighted">
+                {{ g.nama }}
+                <UBadge
+                  v-if="g.bawaan"
+                  label="Bawaan"
+                  color="neutral"
+                  variant="soft"
+                  size="sm"
+                  class="ml-1 align-middle"
+                />
+              </p>
+              <p class="text-xs text-muted">
+                {{ g.meja }} meja · {{ g.pax }} pax · {{ g.hari ? 'dipakai ' + g.hari : 'belum dipakai hari apa pun' }}
+              </p>
+            </div>
+            <div class="flex gap-1">
+              <UButton
+                v-for="k in ([[1, g.lt1], [2, g.lt2]] as const)"
+                :key="k[0]"
+                icon="i-lucide-pencil"
+                :label="`Lt.${k[0]}`"
+                :color="editTemplat && editTemplat === k[1] ? 'primary' : 'neutral'"
+                :variant="editTemplat && editTemplat === k[1] ? 'solid' : 'outline'"
+                size="sm"
+                :disabled="!k[1]"
+                :title="k[1] ? `Edit denah Lantai ${k[0]} ${g.nama}` : `Template ini belum punya denah Lantai ${k[0]}`"
+                @click="k[1] && bukaTemplat(k[1])"
+              />
+              <UButton
+                v-if="!g.bawaan"
+                icon="i-lucide-trash-2"
+                color="error"
+                variant="ghost"
+                size="sm"
+                :aria-label="'Hapus ' + g.nama"
+                :disabled="!bolehUbah"
+                loading-auto
+                @click="hapusTemplat(g)"
+              />
+            </div>
+          </div>
+        </AppPanel>
+
+        <AppPanel
+          title="Template per hari"
+          icon="i-lucide-calendar-range"
+          description="Tiap minggu, hari itu otomatis memakai template yang dipilih untuk Lantai 1 dan Lantai 2. Tanggal khusus tetap menang."
+        >
+          <template #actions>
+            <UButton
+              label="Simpan"
+              icon="i-lucide-save"
               size="sm"
-              :disabled="!bolehUbah"
+              :disabled="!bolehUbah || !hariBerubah"
               loading-auto
-              @click="bersihkanTanggal(t.tgl)"
+              @click="simpanHari"
+            />
+          </template>
+          <div class="grid gap-2">
+            <div
+              v-for="d in URUT_HARI"
+              :key="d"
+              class="grid grid-cols-[5.5rem_1fr] items-center gap-2"
+            >
+              <span class="text-sm font-semibold text-highlighted">{{ NAMA_HARI[d] }}</span>
+              <USelect
+                :model-value="draftHari[d] || BAWAAN_HARI"
+                :items="opsiHari(d)"
+                :disabled="!bolehUbah"
+                class="w-full"
+                @update:model-value="(v) => { draftHari[d] = v && v !== BAWAAN_HARI ? String(v) : '' }"
+              />
+            </div>
+          </div>
+        </AppPanel>
+      </div>
+
+      <p
+        v-if="!editTemplat || !denahTemplat"
+        class="mb-4 rounded-xl bg-default p-4 text-sm text-muted"
+      >
+        Klik Lt.1 atau Lt.2 di daftar template untuk mengedit denahnya.
+      </p>
+      <template v-else>
+        <div class="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-xl bg-gold-soft p-4">
+          <div class="flex min-w-0 items-start gap-3">
+            <UIcon
+              name="i-lucide-layout-template"
+              class="mt-0.5 size-5 shrink-0 text-gold-deep"
+            />
+            <div class="min-w-0">
+              <p class="font-semibold text-gold-deep">
+                Kamu sedang mengedit template {{ layoutName(master, editTemplat) }}
+              </p>
+              <p class="mt-0.5 text-sm text-default">
+                Perubahan berlaku untuk semua hari &amp; tanggal yang memakai template ini ({{ daftarGrup.find(g => g.lt1 === editTemplat || g.lt2 === editTemplat)?.hari || 'belum dipakai' }}). Untuk mengubah satu tanggal saja, pakai tab Denah per tanggal.
+              </p>
+            </div>
+          </div>
+          <UButton
+            label="Tutup editor"
+            icon="i-lucide-x"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            @click="editTemplat = null"
+          />
+        </div>
+
+        <AppPanel
+          id="editor-denah"
+          :title="`Editor template: ${layoutName(master, editTemplat)}`"
+          icon="i-lucide-map"
+          class="mb-4"
+        >
+          <template #actions>
+            <UButton
+              v-if="bisaPenuh"
+              :icon="penuh ? 'i-lucide-minimize' : 'i-lucide-maximize'"
+              :label="penuh ? 'Keluar layar penuh' : 'Layar penuh'"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              @click="layarPenuh"
+            />
+          </template>
+          <div
+            ref="kanvas"
+            class="bg-default"
+            :class="penuh ? 'overflow-auto p-6' : ''"
+          >
+            <!-- In full screen the panel's own button is outside: a way back, inside. -->
+            <UButton
+              v-if="penuh"
+              icon="i-lucide-minimize"
+              label="Keluar layar penuh"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              class="mb-3"
+              @click="layarPenuh"
+            />
+            <DenahEditor
+              :key="`tpl-${editTemplat}`"
+              mode="templat"
+              :layout="denahTemplat"
+              :bisa-ubah="bolehUbah && !sibuk"
+              :jejak="jejakTemplat"
+              @simpan-templat="simpanKeTemplat"
             />
           </div>
-        </div>
-      </div>
-    </AppPanel>
-
-    <AppPanel
-      title="Database meja"
-      icon="i-lucide-armchair"
-      :count="database.length"
-      :description="`Semua meja dari semua denah, total ±${totalKursi} kursi. Kapasitas yang disimpan di sini berlaku di semua denah yang memuat meja itu, dan dipakai untuk menghitung sisa kursi.`"
-    >
-      <template #actions>
-        <UButton
-          :label="jumlahUbah ? `Simpan ${jumlahUbah} perubahan` : 'Samakan daftar meja'"
-          icon="i-lucide-save"
-          :disabled="!bolehUbah || (!jumlahUbah && !daftarLama)"
-          loading-auto
-          @click="simpanDatabase"
-        />
+        </AppPanel>
       </template>
-      <p
-        v-if="daftarLama"
-        class="mb-3 rounded-xl bg-warning/10 p-3 text-sm text-warning"
-      >
-        Daftar meja tersimpan ({{ (secTables.data.value?.data ?? []).length }} meja) belum sama dengan denah
-        ({{ database.length }} meja). Tekan <b>Samakan daftar meja</b> supaya Marketing &amp; modul lain membaca meja yang sama.
+    </template>
+
+    <!-- Tab 2: the plan of ONE date. -->
+    <template v-else-if="tab === 'tanggal'">
+      <div class="mb-2 flex flex-wrap items-center gap-3">
+        <AppTanggal
+          v-model="tgl"
+          :clearable="false"
+          class="w-60"
+        />
+        <AppSeg
+          :model-value="String(lantai)"
+          :options="[{ value: '1', label: 'Lantai 1' }, { value: '2', label: 'Lantai 2' }]"
+          @update:model-value="(v?: string) => { lantai = v === '2' ? 2 : 1 }"
+        />
+      </div>
+      <p class="mb-4 text-sm text-muted">
+        Tanggal ini memakai: <b class="text-highlighted">{{ layoutName(master, kunciTanggal) }}</b> ({{ sumberTanggal }})
       </p>
-      <UInput
-        v-model="cariMeja"
-        icon="i-lucide-search"
-        placeholder="Cari meja…"
-        class="mb-3 w-full sm:w-64"
-      />
-      <UTable
-        v-if="desktop"
-        :data="baris"
-        :columns="kolom"
-        class="table-fixed"
+
+      <AppPanel
+        title="Ganti template untuk tanggal ini"
+        class="mb-4"
+        icon="i-lucide-calendar-cog"
+        :description="`${ltCfg(lantai).nama}: tanggal lain otomatis kembali ke bawaan hari. Lantai 1 dan Lantai 2 dijadwalkan sendiri-sendiri.`"
       >
-        <template #id-cell="{ row }">
-          <b class="text-highlighted">{{ row.original.id }}</b>
-        </template>
-        <template #min-cell="{ row }">
-          <UInput
-            :model-value="kapasitas(row.original).min"
-            type="number"
-            min="0"
-            size="sm"
-            class="w-24"
-            :disabled="!bolehUbah"
-            @update:model-value="setKapasitas(row.original, 'min', $event)"
-          />
-        </template>
-        <template #maks-cell="{ row }">
-          <UInput
-            :model-value="kapasitas(row.original).maks"
-            type="number"
-            min="1"
-            size="sm"
-            class="w-24"
-            :color="kapasitas(row.original).maks < 1 ? 'error' : undefined"
-            :highlight="kapasitas(row.original).maks < 1"
-            :disabled="!bolehUbah"
-            @update:model-value="setKapasitas(row.original, 'maks', $event)"
-          />
-        </template>
-        <template #denah-cell="{ row }">
-          <span
-            class="block truncate text-muted"
-            :title="row.original.denah.join(', ')"
-          >{{ row.original.denah.join(', ') }}</span>
-        </template>
-      </UTable>
-      <div
-        v-else
-        class="flex flex-col gap-2"
-      >
-        <div
-          v-for="b in baris"
-          :key="b.id"
-          class="rounded-xl border border-default p-3"
-        >
-          <div class="flex items-center justify-between gap-2">
-            <b class="text-highlighted">Meja {{ b.id }}</b>
-            <span class="text-xs text-muted">Lantai {{ b.lantai }} · {{ b.zona }}</span>
+        <div class="grid gap-4 lg:grid-cols-2">
+          <div class="space-y-3">
+            <UFormField :label="`Denah ${ltCfg(lantai).nama} untuk ${tglPanjang(tgl)}`">
+              <USelect
+                v-model="pilihTemplat"
+                :items="opsiTemplat"
+                :disabled="!bolehUbah"
+                class="w-full"
+              />
+            </UFormField>
+            <div class="flex flex-wrap items-end gap-2">
+              <UButton
+                label="Terapkan ke tanggal ini"
+                icon="i-lucide-check"
+                :disabled="!bolehUbah"
+                loading-auto
+                @click="simpanJadwal(tgl, pilihTemplat)"
+              />
+            </div>
+            <div class="flex flex-wrap items-end gap-2 border-t border-default pt-3">
+              <UFormField
+                label="Pakai template yang sama di tanggal lain"
+                class="w-60"
+              >
+                <AppTanggal
+                  v-model="tglLain"
+                  :min="hariIni()"
+                  class="w-full"
+                />
+              </UFormField>
+              <UButton
+                label="Tambahkan tanggal"
+                color="neutral"
+                variant="outline"
+                :disabled="!bolehUbah"
+                loading-auto
+                @click="terapkanKeTanggalLain"
+              />
+            </div>
           </div>
-          <div class="mt-2 grid grid-cols-2 gap-2">
-            <UFormField label="Kapasitas min">
-              <UInput
-                :model-value="kapasitas(b).min"
-                type="number"
-                min="0"
-                class="w-full"
+          <div>
+            <AppSectionTitle :title="`Tanggal khusus ${ltCfg(lantai).nama} (hari ini ke depan)`" />
+            <p
+              v-if="!tanggalKhusus.length"
+              class="text-sm text-muted"
+            >
+              Belum ada tanggal khusus — semua tanggal memakai bawaan harinya.
+            </p>
+            <div
+              v-for="t in tanggalKhusus"
+              :key="`${t.tgl}-${t.nama}`"
+              class="flex items-center justify-between gap-2 border-b border-default py-2 text-sm last:border-b-0"
+            >
+              <button
+                type="button"
+                class="text-left hover:text-gold-deep"
+                @click="tgl = t.tgl"
+              >
+                <b>{{ tglPendek(t.tgl) }}</b> → {{ t.nama }}
+              </button>
+              <UButton
+                label="Kembalikan ke bawaan"
+                color="neutral"
+                variant="ghost"
+                size="sm"
                 :disabled="!bolehUbah"
-                @update:model-value="setKapasitas(b, 'min', $event)"
+                loading-auto
+                @click="bersihkanTanggal(t.tgl)"
               />
-            </UFormField>
-            <UFormField label="Kapasitas maks">
-              <UInput
-                :model-value="kapasitas(b).maks"
-                type="number"
-                min="1"
-                class="w-full"
-                :disabled="!bolehUbah"
-                @update:model-value="setKapasitas(b, 'maks', $event)"
-              />
-            </UFormField>
+            </div>
           </div>
         </div>
+      </AppPanel>
+
+      <div class="mb-4 flex flex-wrap items-start justify-between gap-3 rounded-xl bg-info/10 p-4">
+        <div class="flex min-w-0 items-start gap-3">
+          <UIcon
+            name="i-lucide-calendar-check"
+            class="mt-0.5 size-5 shrink-0 text-info"
+          />
+          <div class="min-w-0">
+            <p class="font-semibold text-info">
+              Kamu sedang mengubah denah khusus {{ tglPanjang(tgl) }} · {{ ltCfg(lantai).nama }}
+            </p>
+            <p class="mt-0.5 text-sm text-default">
+              Template {{ layoutName(master, templatTanggal) }} tidak ikut berubah. Besoknya denah kembali ke template.
+            </p>
+          </div>
+        </div>
+        <UButton
+          v-if="punyaDenahTanggal"
+          label="Kembalikan ke template"
+          icon="i-lucide-undo-2"
+          color="neutral"
+          variant="outline"
+          size="sm"
+          :disabled="!bolehUbah"
+          loading-auto
+          @click="hapusDenahTanggal"
+        />
       </div>
-    </AppPanel>
+
+      <AppPanel
+        id="editor-denah"
+        title="Ubah meja khusus tanggal ini"
+        icon="i-lucide-map"
+        class="mb-4"
+        :description="`Denah ${tglPanjang(tgl)} · ${ltCfg(lantai).nama}. Hanya tanggal ini yang berubah.`"
+      >
+        <template #actions>
+          <UButton
+            v-if="bisaPenuh"
+            :icon="penuh ? 'i-lucide-minimize' : 'i-lucide-maximize'"
+            :label="penuh ? 'Keluar layar penuh' : 'Layar penuh'"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            @click="layarPenuh"
+          />
+        </template>
+        <div
+          ref="kanvas"
+          class="bg-default"
+          :class="penuh ? 'overflow-auto p-6' : ''"
+        >
+          <!-- In full screen the panel's own button is outside: a way back, inside. -->
+          <UButton
+            v-if="penuh"
+            icon="i-lucide-minimize"
+            label="Keluar layar penuh"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            class="mb-3"
+            @click="layarPenuh"
+          />
+          <p
+            v-if="status === 'pending' && !denahTanggal"
+            class="py-10 text-center text-sm text-muted"
+          >
+            Memuat denah…
+          </p>
+          <DenahEditor
+            v-else-if="denahTanggal"
+            :key="`${kunciTanggal}-${tgl}`"
+            mode="tanggal"
+            :layout="denahTanggal"
+            :tanggal="{ date: tgl, lt: lantai }"
+            :bisa-ubah="bolehUbah && !sibuk"
+            :jejak="jejakTanggal"
+            @simpan-tanggal="simpanUntukTanggal"
+          />
+        </div>
+      </AppPanel>
+    </template>
+
+    <!-- Tab 3: table database. -->
+    <template v-else>
+      <AppPanel
+        title="Database meja"
+        icon="i-lucide-armchair"
+        :count="database.length"
+        :description="`Semua meja dari semua denah, total ±${totalKursi} kursi. Kapasitas yang disimpan di sini berlaku di semua denah yang memuat meja itu, dan dipakai untuk menghitung sisa kursi.`"
+      >
+        <template #actions>
+          <UButton
+            :label="jumlahUbah ? `Simpan ${jumlahUbah} perubahan` : 'Samakan daftar meja'"
+            icon="i-lucide-save"
+            :disabled="!bolehUbah || (!jumlahUbah && !daftarLama)"
+            loading-auto
+            @click="simpanDatabase"
+          />
+        </template>
+        <p
+          v-if="daftarLama"
+          class="mb-3 rounded-xl bg-warning/10 p-3 text-sm text-warning"
+        >
+          Daftar meja tersimpan ({{ (secTables.data.value?.data ?? []).length }} meja) belum sama dengan denah
+          ({{ database.length }} meja). Tekan <b>Samakan daftar meja</b> supaya Marketing &amp; modul lain membaca meja yang sama.
+        </p>
+        <UInput
+          v-model="cariMeja"
+          icon="i-lucide-search"
+          placeholder="Cari meja…"
+          class="mb-3 w-full sm:w-64"
+        />
+        <UTable
+          v-if="desktop"
+          :data="baris"
+          :columns="kolom"
+          class="table-fixed"
+        >
+          <template #id-cell="{ row }">
+            <b class="text-highlighted">{{ row.original.id }}</b>
+          </template>
+          <template #min-cell="{ row }">
+            <UInput
+              :model-value="kapasitas(row.original).min"
+              type="number"
+              min="0"
+              size="sm"
+              class="w-24"
+              :disabled="!bolehUbah"
+              @update:model-value="setKapasitas(row.original, 'min', $event)"
+            />
+          </template>
+          <template #maks-cell="{ row }">
+            <UInput
+              :model-value="kapasitas(row.original).maks"
+              type="number"
+              min="1"
+              size="sm"
+              class="w-24"
+              :color="kapasitas(row.original).maks < 1 ? 'error' : undefined"
+              :highlight="kapasitas(row.original).maks < 1"
+              :disabled="!bolehUbah"
+              @update:model-value="setKapasitas(row.original, 'maks', $event)"
+            />
+          </template>
+          <template #denah-cell="{ row }">
+            <span
+              class="block truncate text-muted"
+              :title="row.original.denah.join(', ')"
+            >{{ row.original.denah.join(', ') }}</span>
+          </template>
+        </UTable>
+        <div
+          v-else
+          class="flex flex-col gap-2"
+        >
+          <div
+            v-for="b in baris"
+            :key="b.id"
+            class="rounded-xl border border-default p-3"
+          >
+            <div class="flex items-center justify-between gap-2">
+              <b class="text-highlighted">Meja {{ b.id }}</b>
+              <span class="text-xs text-muted">Lantai {{ b.lantai }} · {{ b.zona }}</span>
+            </div>
+            <div class="mt-2 grid grid-cols-2 gap-2">
+              <UFormField label="Kapasitas min">
+                <UInput
+                  :model-value="kapasitas(b).min"
+                  type="number"
+                  min="0"
+                  class="w-full"
+                  :disabled="!bolehUbah"
+                  @update:model-value="setKapasitas(b, 'min', $event)"
+                />
+              </UFormField>
+              <UFormField label="Kapasitas maks">
+                <UInput
+                  :model-value="kapasitas(b).maks"
+                  type="number"
+                  min="1"
+                  class="w-full"
+                  :disabled="!bolehUbah"
+                  @update:model-value="setKapasitas(b, 'maks', $event)"
+                />
+              </UFormField>
+            </div>
+          </div>
+        </div>
+      </AppPanel>
+    </template>
   </AppPage>
 </template>
