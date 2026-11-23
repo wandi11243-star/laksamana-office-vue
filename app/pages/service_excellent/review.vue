@@ -940,7 +940,7 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
       title="Hapus catatan review"
     >
       <p class="text-sm text-muted">
-        Hapus catatan ini? Tindakan ini tercatat di audit log.
+        Hapus catatan ini? Tindakan ini tercatat di Log Activity.
       </p>
       <template #footer>
         <UButton

@@ -29,6 +29,7 @@ import { fmtRupiah, hariIni, normTime, rupiahVal, tambahHari, tglPendek } from '
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
 import { parseDate, type DateValue } from '@internationalized/date'
 import { usePollReservasi } from '~/composables/usePollReservasi'
+import { buktiKeDataUri, namaBukti, tolakBukti } from '~/utils/berkas-ringan'
 
 definePageMeta({ access: ['reservasi'] })
 
@@ -301,27 +302,24 @@ watch([dpMethods, () => form.dpMethod], ([list, m]) => {
 
 const buktiDpBaru = ref<File | null>(null)
 const buktiDocBaru = ref<File | null>(null)
-const MAKS_BUKTI = 5 * 1024 * 1024
-
 const ukuran = (n: number) => (n >= 1024 * 1024 ? `${Math.round(n / 1024 / 1024)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`)
 
-/** 5 MB is a hard limit: a bigger photo cannot be matched against a bank row. */
+/** Photos are shrunk on save (old app's downscaleImage); only huge photos or PDFs over 5 MB are refused. */
 function pilihBukti(f: File | null | undefined, ke: 'dp' | 'doc') {
   if (!f) return
-  if (f.size > MAKS_BUKTI) {
-    toast.add({ title: 'File terlalu besar (maks 5MB)', color: 'error' })
+  const alasan = tolakBukti(f)
+  if (alasan) {
+    toast.add({ title: alasan, color: 'error' })
     return
   }
   if (ke === 'dp') buktiDpBaru.value = f
   else buktiDocBaru.value = f
 }
 
-const jadiDataUri = (f: File) => new Promise<string>((resolve, reject) => {
-  const fr = new FileReader()
-  fr.onload = () => resolve(String(fr.result))
-  fr.onerror = () => reject(fr.error)
-  fr.readAsDataURL(f)
-})
+const jadiBukti = async (f: File) => {
+  const data = await buktiKeDataUri(f)
+  return { data, name: namaBukti(f, data) }
+}
 
 /** What is stored for a deposit proof right now: the new upload, or the one already in the row. */
 const buktiTersimpan = computed(() => !!buktiDpBaru.value || adaBuktiDp(lama.value))
@@ -539,12 +537,9 @@ interface Bukti {
 }
 
 const bacaBukti = (): Promise<Bukti> => Promise.all([
-  buktiDpBaru.value ? jadiDataUri(buktiDpBaru.value) : Promise.resolve(undefined),
-  buktiDocBaru.value ? jadiDataUri(buktiDocBaru.value) : Promise.resolve(undefined),
-]).then(([dp, doc]) => ({
-  dp: dp ? { data: dp, name: buktiDpBaru.value!.name } : undefined,
-  doc: doc ? { data: doc, name: buktiDocBaru.value!.name } : undefined,
-}))
+  buktiDpBaru.value ? jadiBukti(buktiDpBaru.value) : Promise.resolve(undefined),
+  buktiDocBaru.value ? jadiBukti(buktiDocBaru.value) : Promise.resolve(undefined),
+]).then(([dp, doc]) => ({ dp, doc }))
 
 /** Everything the form owns EXCEPT the deposit: who, when, which table, the notes. */
 type FieldForm = Pick<Reservasi,
@@ -1077,7 +1072,7 @@ async function hapus() {
                 :model-value="buktiDpBaru"
                 accept="image/*,application/pdf"
                 label="Pilih bukti transfer"
-                description="Gambar atau PDF, maks 5 MB"
+                description="Foto dikecilkan otomatis; PDF maks 5 MB"
                 @update:model-value="(f) => pilihBukti(f, 'dp')"
               />
               <p
@@ -1205,7 +1200,7 @@ async function hapus() {
             :model-value="buktiDocBaru"
             accept="image/*,application/pdf"
             label="Pilih dokumen"
-            description="Gambar atau PDF, maks 5 MB"
+            description="Foto dikecilkan otomatis; PDF maks 5 MB"
             layout="list"
             @update:model-value="(f) => pilihBukti(f, 'doc')"
           />

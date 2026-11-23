@@ -27,7 +27,7 @@ export default {
             ['Kontrol', 'Approval, Publishing, Input Performa, Performa Konten, Performa Desain', 'Menyetujui, menayangkan, lalu mengukur.'],
             ['Promosi', 'KOL & Medpar, Ads Management, Report Percakapan', 'Iklan dan kerja sama.'],
             ['Brand', 'Brand Management', 'Data induk brand.'],
-            ['Sistem', 'Activity Log, Pengaturan', 'Riwayat, kru, dan hak akses.'],
+            ['Sistem', 'Log Activity, Pengaturan', 'Riwayat, kru, dan hak akses.'],
           ] },
         { t: 'catatan', nada: 'info', judul: 'Yang sudah selesai diarsipkan sendiri',
           isi: 'Content Planning dan ketiga antrian produksi terbuka di *Aktif* — yang sudah '

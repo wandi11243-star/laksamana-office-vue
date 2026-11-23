@@ -91,7 +91,7 @@ function reset() {
 
 <template>
   <AppPage
-    title="Log Aktivitas"
+    title="Log activity"
     description="Siapa mengubah apa di modul Stock — terbaru dulu"
   >
     <template
@@ -113,7 +113,7 @@ function reset() {
       icon="i-lucide-lock"
     >
       <p class="text-sm text-muted">
-        Log Aktivitas hanya untuk admin Purchasing.
+        Log Activity hanya untuk admin Purchasing.
       </p>
     </AppPanel>
 

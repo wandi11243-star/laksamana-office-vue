@@ -84,7 +84,7 @@ export const LAYAR_STOCK: Layar[] = [
 
   // ── Sistem: one Kelola Akses for Ordering + Purchasing, one Log for all of Stock (owner request, Nov 2026) ──
   { key: 'stock_akses', label: 'Kelola Akses', desc: 'Kru Ordering & Purchasing beserta perannya', icon: 'i-lucide-key-round', to: '/stock/akses', grup: 'Sistem', boleh: me => isAdminOf(me, 'ordering') || isAdminOf(me, 'purchasing') },
-  { key: 'purchasing_log', label: 'Log Aktivitas', desc: 'Siapa mengubah apa di modul Stock', icon: 'i-lucide-scroll-text', to: '/stock/purchasing/log', grup: 'Sistem', boleh: adminPurchasing },
+  { key: 'purchasing_log', label: 'Log Activity', desc: 'Siapa mengubah apa di modul Stock', icon: 'i-lucide-history', to: '/stock/purchasing/log', grup: 'Sistem', boleh: adminPurchasing },
 ]
 
 /** The line under the user's name in the module chrome. */

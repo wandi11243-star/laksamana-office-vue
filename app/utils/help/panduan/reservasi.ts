@@ -31,7 +31,7 @@ export default {
           '*Riwayat*, booking yang sudah lewat.',
           '*Analitik*, ringkasan jumlah tamu dan pemakaian meja.',
           '*Master Data*, daftar meja, denah, dan pengaturan.',
-          '*Audit Log*, catatan siapa mengubah apa.',
+          '*Log Activity*, catatan siapa mengubah apa.',
         ] },
         { t: 'gambar', berkas: 'reservasi/dashboard.png',
           teks: 'Dashboard & Recap: kartu ringkasan di atas, baris penyaring, lalu tab isinya.',
@@ -201,7 +201,7 @@ export default {
               'Minta admin modul Reservasi menaikkan hakmu jadi Ubah untuk halaman itu.'],
           ] },
         { t: 'catatan', nada: 'info', judul: 'Semua perubahan tercatat',
-          isi: 'Menu *Audit Log* menyimpan siapa mengubah apa dan kapan. Kalau sebuah reservasi '
+          isi: 'Menu *Log Activity* menyimpan siapa mengubah apa dan kapan. Kalau sebuah reservasi '
             + 'terlihat berbeda dari yang kamu ingat, cek di sana dulu sebelum menyimpulkan datanya '
             + 'hilang sendiri.' },
       ],

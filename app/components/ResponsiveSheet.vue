@@ -40,6 +40,9 @@ const desktop = useMediaQuery('(min-width: 1024px)')
     :fullscreen="lebar === 'penuh'"
     :ui="detail ? {
       content: 'max-w-4xl rounded-xl',
+      // Big name + status title: room around it and a clear gap to the date line (owner, Nov 2026).
+      header: 'shrink-0 px-4 pt-5 pb-4 sm:px-6',
+      description: 'mt-2.5',
       body: 'max-h-[72vh] overflow-y-auto',
       footer: 'flex-wrap justify-end',
     } : lebar === 'penuh' ? { content: 'rounded-none', body: 'flex-1 overflow-y-auto' }
@@ -76,7 +79,8 @@ const desktop = useMediaQuery('(min-width: 1024px)')
     :ui="detail || lebar === 'besar' ? {
       content: 'max-h-[92dvh]',
       container: 'h-[92dvh] max-h-[92dvh] gap-0 overflow-hidden p-0',
-      header: 'px-4 pt-4 pb-3 sm:px-6',
+      header: 'shrink-0 px-4 pt-5 pb-4 sm:px-6',
+      description: 'mt-2.5',
       body: 'min-h-0 flex-1 overflow-y-auto px-4 py-3',
       footer: 'shrink-0 border-t border-default bg-default px-4 pt-3 pb-[calc(1rem+env(safe-area-inset-bottom))]',
     } : undefined"

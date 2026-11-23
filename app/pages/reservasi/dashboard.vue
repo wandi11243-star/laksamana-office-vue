@@ -173,13 +173,13 @@ const saringan = computed(() => {
   })
   if (F.q) {
     const q = F.q.toLowerCase()
-    r = r.filter(x => x.name.toLowerCase().includes(q) || x.phone.includes(q))
+    r = r.filter(x => String(x.name ?? '').toLowerCase().includes(q) || String(x.phone ?? '').includes(q))
   }
   // This tab's search also matches the TABLE NUMBER — on the floor that is what
   // gets typed most (`:5797-5801`).
   if (cariLower.value) {
-    r = r.filter(x => x.name.toLowerCase().includes(cariLower.value)
-      || x.phone.includes(cariLower.value)
+    r = r.filter(x => String(x.name ?? '').toLowerCase().includes(cariLower.value)
+      || String(x.phone ?? '').includes(cariLower.value)
       || tablesOf(x).some(t => t.toLowerCase().includes(cariLower.value)))
   }
   // Floor LAST: it is the only filter that has to look at the table->floor map,
@@ -684,6 +684,37 @@ const layerMap = ref<1 | 2>(1)
 const kunciL1 = computed(() => dayTypeLayout(master.value, tglDenah.value))
 const kunciL2 = computed(() => dayTypeLayout2(master.value, tglDenah.value))
 const denahTerpilih = computed(() => getLayout(master.value, layerMap.value === 2 ? kunciL2.value : kunciL1.value))
+
+/**
+ * The search box on the map tab (owner, Nov 2026): the tables of the matching
+ * guests (name / phone) or a matching table number light up, the rest dim.
+ * null = no search, so the map draws as usual.
+ */
+const sorotDenah = computed<string[] | null>(() => {
+  const q = cariLower.value
+  if (!q) return null
+  const ids = new Set<string>()
+  for (const r of semuaHari.value ?? []) {
+    // No date check: the map also carries yesterday's late or still-seated guests.
+    if (['Cancelled', 'No-show'].includes(normStatus(r.status))) continue
+    if (String(r.name ?? '').toLowerCase().includes(q) || String(r.phone ?? '').includes(q)) tablesOf(r).forEach(t => ids.add(t))
+  }
+  for (const k of [kunciL1.value, kunciL2.value]) {
+    for (const t of getLayout(master.value, k)?.tables ?? []) {
+      if (String(t.id).toLowerCase() === q) ids.add(String(t.id))
+    }
+  }
+  return [...ids]
+})
+
+/** Jump to the floor that holds the match when the current one has none. */
+watch(sorotDenah, (ids) => {
+  if (!ids?.length || tab.value !== 'map') return
+  const di = (lt: 1 | 2) => new Set((getLayout(master.value, lt === 2 ? kunciL2.value : kunciL1.value)?.tables ?? []).map(t => String(t.id)))
+  if (ids.some(id => di(layerMap.value).has(id))) return
+  const lain: 1 | 2 = layerMap.value === 1 ? 2 : 1
+  if (ids.some(id => di(lain).has(id))) layerMap.value = lain
+})
 /**
  * The plan for MOVING a booking follows that booking's own date, not the date
  * the map is showing (old b11b48a, 22 Oct 2026): a Wednesday booking opened from
@@ -2079,6 +2110,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         :hari-ini="hariIniMap"
         :timer="true"
         :saring-aktif="saringBerlaku"
+        :sorot="sorotDenah"
         :master="masterKunci"
         @buka="(resId) => { const r = baris(resId); if (r) bukaAksi(r) }"
         @pilih="lanjutWalkin"
@@ -2197,13 +2229,14 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
       :description="aksi ? `${tglPendek(aksi.date)} · ${aksi.time} · meja ${aksi.table || '—'} · ${aksi.pax} pax` : ''"
     >
       <template #title>
-        <span class="flex flex-wrap items-center gap-x-2 gap-y-1">
-          <span>{{ aksi?.name ?? 'Detail reservasi' }}</span>
+        <!-- Name and status big enough to read the current state at a glance (owner, Nov 2026). -->
+        <span class="flex flex-wrap items-center gap-x-3 gap-y-2">
+          <span class="font-display text-xl font-bold text-highlighted sm:text-2xl">{{ aksi?.name ?? 'Detail reservasi' }}</span>
           <AppStatus
             v-if="aksi"
             :color="statusWarna[aksi.status] ?? 'neutral'"
             :icon="statusIkon[aksi.status]"
-            size="md"
+            size="lg"
           >
             {{ aksi.status }}
           </AppStatus>

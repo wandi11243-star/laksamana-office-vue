@@ -30,7 +30,7 @@ export default {
             ['Kinerja', 'Kehadiran, KPI Divisi, OKR & Target, Performance Review'],
             ['Pengembangan', 'Training Center, Competency Matrix, Coaching Log, Career & Succession'],
             ['Budaya', 'Reward & Recognition, Disiplin, Engagement'],
-            ['Data', 'Kru, Kalender HR, Pengaturan, Audit Log'],
+            ['Data', 'Kru, Kalender HR, Pengaturan, Log Activity'],
           ] },
       ],
     },

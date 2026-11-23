@@ -215,8 +215,8 @@ export const VENUE_LAYOUTS: Record<string, LayoutDenah> = {
   lantai2: {
     name: 'Lantai 2 (Weekday)',
     fixed: [
-      { t: 'stage', label: 'VIDEOTRON', x: 340, y: 35, w: 820, h: 70 },
-      { t: 'floor2', label: 'LAYOUT LANTAI 2', x: 340, y: 120, w: 820, h: 475 },
+      { t: 'stage', label: 'VIDEOTRON', x: 340, y: 35, w: 895, h: 70 },
+      { t: 'floor2', label: 'LAYOUT LANTAI 2', x: 340, y: 120, w: 895, h: 475 },
       { t: 'tangga', label: 'TANGGA MASUK', x: 25, y: 600, w: 120, h: 78 },
       { t: 'tangga', label: 'TANGGA KELUAR', x: 1455, y: 600, w: 120, h: 78 },
       { t: 'foh', label: 'FOH', x: 560, y: 895, w: 180, h: 150 },
@@ -224,12 +224,15 @@ export const VENUE_LAYOUTS: Record<string, LayoutDenah> = {
     tables: [
       ...col([51, 52, 53, 54, 55], 25, 40, 95, 90, 22, '4', 'vip'),
       ...col(seq('M', 1, 10), 175, 40, 125, 46, 12, '2', 'blue'),
-      ...col(seq('M', 31, 40), 1175, 40, 125, 46, 12, '2', 'blue'),
+      ...col(seq('M', 31, 40), 1275, 40, 125, 46, 12, '2', 'blue'),
       ...col([71, 72, 73, 74, 75], 1430, 40, 95, 90, 22, '4', 'vip'),
-      // M11–M27 span exactly the middle "LAYOUT LANTAI 2" box (x 340–1160), not past it (owner, Nov 2026).
-      ...row(seq('M', 11, 27), 340, 680, 44, 70, 4.5, '2', 'blue'),
+      // M11–M27 span exactly the middle "LAYOUT LANTAI 2" box (x 340–1235), not past it. M31–M40
+      // sit 30 from 71–75 so the box (and this row) gets the freed width; the row keeps
+      // real gaps between tables instead of touching (owner, Nov 2026).
+      ...row(seq('M', 11, 27), 340, 625, 45, 100, 8.125, '2', 'blue'),
       { id: '61', x: 30, y: 780, w: 120, h: 85, cap: '4', zone: 'blue' },
-      { id: '87', x: 1345, y: 800, w: 70, h: 70, cap: '2', zone: 'blue' },
+      // 87: same size as 81–86, pushed to the right wall in line with 86 (owner, Nov 2026).
+      { id: '87', x: 1445, y: 765, w: 120, h: 100, cap: '2', zone: 'blue' },
       { id: '62', x: 30, y: 895, w: 100, h: 70, cap: '4', zone: 'blue' },
       { id: '63', x: 30, y: 975, w: 100, h: 70, cap: '4', zone: 'blue' },
       { id: '64', x: 150, y: 895, w: 100, h: 70, cap: '4', zone: 'blue' },
@@ -250,8 +253,8 @@ export const VENUE_LAYOUTS: Record<string, LayoutDenah> = {
   lantai2_weekend: {
     name: 'Lantai 2 (Weekend)',
     fixed: [
-      { t: 'stage', label: 'VIDEOTRON', x: 340, y: 35, w: 820, h: 70 },
-      { t: 'floor2', label: 'LAYOUT LANTAI 2', x: 340, y: 120, w: 820, h: 475 },
+      { t: 'stage', label: 'VIDEOTRON', x: 340, y: 35, w: 895, h: 70 },
+      { t: 'floor2', label: 'LAYOUT LANTAI 2', x: 340, y: 120, w: 895, h: 475 },
       { t: 'tangga', label: 'TANGGA MASUK', x: 25, y: 600, w: 120, h: 78 },
       { t: 'tangga', label: 'TANGGA KELUAR', x: 1455, y: 600, w: 120, h: 78 },
       { t: 'foh', label: 'FOH', x: 560, y: 895, w: 180, h: 150 },
@@ -259,12 +262,15 @@ export const VENUE_LAYOUTS: Record<string, LayoutDenah> = {
     tables: [
       ...col([51, 52, 53, 54, 55], 25, 40, 95, 90, 22, '4', 'vip'),
       ...col(seq('M', 1, 10), 175, 40, 125, 46, 12, '2', 'blue'),
-      ...col(seq('M', 31, 40), 1175, 40, 125, 46, 12, '2', 'blue'),
+      ...col(seq('M', 31, 40), 1275, 40, 125, 46, 12, '2', 'blue'),
       ...col([71, 72, 73, 74, 75], 1430, 40, 95, 90, 22, '4', 'vip'),
-      // M11–M27 span exactly the middle "LAYOUT LANTAI 2" box (x 340–1160), not past it (owner, Nov 2026).
-      ...row(seq('M', 11, 27), 340, 680, 44, 70, 4.5, '2', 'blue'),
+      // M11–M27 span exactly the middle "LAYOUT LANTAI 2" box (x 340–1235), not past it. M31–M40
+      // sit 30 from 71–75 so the box (and this row) gets the freed width; the row keeps
+      // real gaps between tables instead of touching (owner, Nov 2026).
+      ...row(seq('M', 11, 27), 340, 625, 45, 100, 8.125, '2', 'blue'),
       { id: '61', x: 30, y: 780, w: 120, h: 85, cap: '4', zone: 'blue' },
-      { id: '87', x: 1345, y: 800, w: 70, h: 70, cap: '2', zone: 'blue' },
+      // 87: same size as 81–86, pushed to the right wall in line with 86 (owner, Nov 2026).
+      { id: '87', x: 1445, y: 765, w: 120, h: 100, cap: '2', zone: 'blue' },
       { id: '62', x: 30, y: 895, w: 100, h: 70, cap: '4', zone: 'blue' },
       { id: '63', x: 30, y: 975, w: 100, h: 70, cap: '4', zone: 'blue' },
       { id: '64', x: 150, y: 895, w: 100, h: 70, cap: '4', zone: 'blue' },

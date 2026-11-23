@@ -597,7 +597,7 @@ async function lihatBukti(dataRef: string | undefined, nama: string | undefined)
       </p>
       <template v-else>
         <UButton
-          label="Lihat di Audit Log"
+          label="Lihat di Log Activity"
           icon="i-lucide-arrow-up-right"
           color="neutral"
           variant="outline"
