@@ -36,7 +36,7 @@ const kolom: TableColumn<AktivitasAkademi>[] = [
 
 <template>
   <AppPage
-    title="Log Aktivitas"
+    title="Log activity"
     description="Jejak audit training (500 terakhir)"
   >
     <AppPanel

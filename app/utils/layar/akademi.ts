@@ -25,6 +25,6 @@ export const LAYAR_AKADEMI: Layar[] = [
   { key: 'kelolaMateri', label: 'Kelola Materi', desc: 'Tambah / edit video, modul, SOP, menu baru, dan kuis.', icon: 'i-lucide-folder-cog', to: '/akademi/kelola-materi', grup: 'Kontrol', boleh: bolehAdmin },
   { key: 'kelolaProgram', label: 'Kelola Program', desc: 'Susun training bulanan: materi baru + refresher lama.', icon: 'i-lucide-calendar-cog', to: '/akademi/kelola-program', grup: 'Kontrol', boleh: bolehAdmin },
   { key: 'kelolaKru', label: 'Kelola Kru', desc: 'Divisi dan peran kru. Akun & login dikelola di Office.', icon: 'i-lucide-anchor', to: '/akademi/kelola-kru', grup: 'Kontrol', boleh: bolehAdmin },
-  { key: 'log', label: 'Log Aktivitas', desc: 'Jejak audit training (500 terakhir).', icon: 'i-lucide-clock', to: '/akademi/log', grup: 'Kontrol', boleh: bolehAdmin },
+  { key: 'log', label: 'Log Activity', desc: 'Jejak audit training (500 terakhir).', icon: 'i-lucide-history', to: '/akademi/log', grup: 'Kontrol', boleh: bolehAdmin },
   { key: 'sync', label: 'Sinkronisasi & Backup', desc: 'Status data & unduh backup. Data tersimpan di server.', icon: 'i-lucide-cloud', to: '/akademi/sync', grup: 'Kontrol', boleh: bolehAdmin },
 ]

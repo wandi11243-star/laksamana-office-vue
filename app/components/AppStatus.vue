@@ -7,7 +7,8 @@
 withDefaults(defineProps<{
   color?: 'success' | 'warning' | 'error' | 'info' | 'vip' | 'neutral' | 'gold'
   icon?: string
-  size?: 'sm' | 'md'
+  /** lg: the headline status of a detail sheet, readable at a glance. */
+  size?: 'sm' | 'md' | 'lg'
 }>(), { color: 'neutral', size: 'md' })
 
 const tone = {
@@ -24,12 +25,12 @@ const tone = {
 <template>
   <span
     class="inline-flex items-center gap-1 whitespace-nowrap rounded-md font-semibold"
-    :class="[tone[color], size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-1 text-xs']"
+    :class="[tone[color], { sm: 'px-2 py-0.5 text-[11px]', md: 'px-2.5 py-1 text-xs', lg: 'px-3 py-1.5 text-base font-bold ring-1 ring-inset ring-current/30' }[size]]"
   >
     <UIcon
       v-if="icon"
       :name="icon"
-      :class="size === 'sm' ? 'size-3' : 'size-3.5'"
+      :class="{ sm: 'size-3', md: 'size-3.5', lg: 'size-4.5' }[size]"
     />
     <slot />
   </span>

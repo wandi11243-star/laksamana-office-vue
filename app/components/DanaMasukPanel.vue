@@ -39,6 +39,7 @@ import {
 } from '~/utils/dp-reservasi'
 import { OCR_BANK, jam24, jamRagu, jamSeharusnya, tglSeharusnya } from '~/utils/ocr-transfer'
 import { angka, fmtRupiah, hariIni, rupiahVal, tglPendek } from '~/utils/format'
+import { buktiKeDataUri, namaBukti, tolakBukti } from '~/utils/berkas-ringan'
 import { usePollReservasi } from '~/composables/usePollReservasi'
 
 const props = withDefaults(defineProps<{
@@ -720,9 +721,11 @@ async function muatUlangTambah() {
 }
 
 function pilihBerkas(f: File | null | undefined) {
-  // The 5 MB gate runs BEFORE reading (F1): a bigger file never becomes a data URI.
-  if (f && f.size > 5 * 1024 * 1024) {
-    toast.add({ title: 'Bukti melebihi 5 MB — kecilkan dulu', color: 'error' })
+  // Size gate runs BEFORE reading (F1). Photos are shrunk on save, so only a
+  // huge photo or a PDF over 5 MB is refused.
+  const alasan = f ? tolakBukti(f) : ''
+  if (alasan) {
+    toast.add({ title: alasan, color: 'error' })
     tambah.berkas = null
     tambah.namaBerkas = ''
     return
@@ -730,13 +733,6 @@ function pilihBerkas(f: File | null | undefined) {
   tambah.berkas = f ?? null
   tambah.namaBerkas = f ? f.name : ''
 }
-
-const bacaBerkas = (f: File): Promise<string> => new Promise((resolve, reject) => {
-  const fr = new FileReader()
-  fr.onload = () => resolve(String(fr.result))
-  fr.onerror = () => reject(fr.error)
-  fr.readAsDataURL(f)
-})
 
 async function simpanTambah() {
   if (!bolehVerifikasi) return
@@ -751,7 +747,7 @@ async function simpanTambah() {
   }
   aksiAktif.value++
   try {
-    const dataUri = await bacaBerkas(tambah.berkas)
+    const dataUri = await buktiKeDataUri(tambah.berkas)
     const dasarR = tambah.dasarR
     if (!dasarR || dasarR.id !== tambah.resId) {
       toast.add({ title: 'Data di layar berubah — daftar dimuat ulang', color: 'error' })
@@ -765,7 +761,7 @@ async function simpanTambah() {
       amount: nominal,
       method: tambah.metode,
       proofData: dataUri,
-      proofName: tambah.berkas.name,
+      proofName: namaBukti(tambah.berkas, dataUri),
     }
     dps.push(p)
     // Money in flips a Pending booking to Confirmed — but only from Pending:
@@ -797,7 +793,7 @@ function hapusDp(x: TxDanaMasuk) {
   // Frozen now: the confirm box states this, and the write carries this version.
   const d = dasarDari(x)
   mintaKonfirmasi('Hapus transaksi dana masuk',
-    `Hapus transaksi dana masuk ${rp(txNominal(x))} (${x.p.method || '-'}) milik "${x.r.name}"? Catatan uang masuk ini akan hilang. Tindakan ini tercatat di audit log.`,
+    `Hapus transaksi dana masuk ${rp(txNominal(x))} (${x.p.method || '-'}) milik "${x.r.name}"? Catatan uang masuk ini akan hilang. Tindakan ini tercatat di Log Activity.`,
     'Hapus', async () => {
       const dps = dpsKerja(d)
       const idx = cariCicilan(dps, x.p.id, x.ke)
@@ -819,7 +815,7 @@ async function hapusDemo() {
     return
   }
   mintaKonfirmasi('Hapus data demo',
-    `Hapus ${demo.value.length} data DEMO/contoh ini secara permanen? ${demo.value.slice(0, 3).map(r => r.name).join(', ')}${demo.value.length > 3 ? ', dll' : ''}. Data ini ikut hilang dari Dashboard, Riwayat & Analitik, bukan cuma dari Dana Masuk. Tindakan ini tercatat di audit log.`,
+    `Hapus ${demo.value.length} data DEMO/contoh ini secara permanen? ${demo.value.slice(0, 3).map(r => r.name).join(', ')}${demo.value.length > 3 ? ', dll' : ''}. Data ini ikut hilang dari Dashboard, Riwayat & Analitik, bukan cuma dari Dana Masuk. Tindakan ini tercatat di Log Activity.`,
     `Hapus ${demo.value.length} data demo`, async () => {
       for (const r of demo.value) {
         await deleteReservation(r.id, r.updatedAt)
@@ -2188,7 +2184,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
       <div class="space-y-2 text-sm">
         <p class="rounded-lg border border-default bg-default p-3 text-muted">
           Kamu menyatakan uang ini <b>benar-benar sudah masuk</b> ke rekening.
-          Pernyataan ini dipakai halaman lain sebagai fakta dan tercatat atas namamu di audit log.
+          Pernyataan ini dipakai halaman lain sebagai fakta dan tercatat atas namamu di Log Activity.
         </p>
         <div class="flex justify-between gap-3 border-b border-default py-1.5">
           <span class="text-muted">Tanggal transfer</span>
@@ -2335,7 +2331,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
             :model-value="tambah.berkas"
             accept="image/*,application/pdf"
             label="Pilih bukti"
-            description="Gambar atau PDF, maks 5 MB"
+            description="Foto dikecilkan otomatis; PDF maks 5 MB"
             @update:model-value="pilihBerkas"
           >
             <p

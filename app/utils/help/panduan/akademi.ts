@@ -27,7 +27,7 @@ export default {
             ['Progress & Sertifikat', 'semua', 'Capaianmu sendiri.'],
             ['Progress Tim', 'head & HRD', 'Capaian seluruh anggota tim.'],
             ['Anjungan', 'HRD', 'Papan pengelola.'],
-            ['Log Aktivitas', 'HRD', 'Riwayat.'],
+            ['Log Activity', 'HRD', 'Riwayat.'],
             ['Sinkronisasi & Backup', 'HRD', 'Perawatan data.'],
           ] },
       ],

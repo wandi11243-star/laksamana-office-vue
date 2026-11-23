@@ -31,7 +31,7 @@ const TAMPIL: Baris[] = [
   { kotak: 'bg-meja-sharing', ikon: 'i-lucide-handshake', teks: 'Sharing (bisa gabung)' },
   { kotak: 'bg-meja-kosong ring-1 ring-inset ring-meja-kosong-line', teks: 'Kosong (available) → klik utk walk-in' },
   { kotak: 'bg-meja-dipesan border-2 border-dashed border-meja-dipesan-line', ikon: 'i-lucide-lock-open', teks: 'Dipesan nanti —', tebal: 'bisa dipakai', sisa: ', tapi ditanya dulu' },
-  { kotak: 'bg-meja-confirmed border-2 border-meja-confirmed-line', ikon: 'i-lucide-lock', teks: 'Dipesan ≤1 jam lagi —', tebal: 'TERKUNCI', sisa: 'untuk walk-in — klik untuk ubah status pemesannya' },
+  { kotak: 'bg-meja-confirmed border-2 border-meja-confirmed-line', ikon: 'i-lucide-lock', teks: 'Dipesan ≤1 jam lagi —', tebal: 'TERKUNCI', sisa: 'untuk walk-in (kuning bila masih Pending) — klik untuk ubah status pemesannya' },
   { kotak: 'bg-meja-telat animate-pulse', ikon: 'i-lucide-alarm-clock', teks: 'Pemesan', tebal: 'telat', sisa: '(lewat jamnya, belum datang) — berkedip; ≤10 menit lagi berdenyut emas, follow up' },
 ]
 
@@ -81,7 +81,7 @@ const baris = computed(() => props.mode === 'pilih' ? PILIH.slice(props.zona ? 0
       />
       <b class="text-highlighted">Tulisan di bawah tiap meja = kursi yang masih bisa diisi.</b>{{ " " }}
       <b class="text-meja-note-sisa">sisa 2-4 pax</b> (dipesan/diduduki sebagian, masih muat),
-      <b class="text-meja-note-penuh">kursi penuh</b>, atau <b>bisa 4-5 pax</b> (meja kosong).
+      <b class="text-meja-note-penuh">kursi penuh</b>, atau <b>4 - 5 pax</b> (meja kosong).
       Kursi dihitung terpakai begitu <b>dipesan</b>, walau tamunya belum datang.
     </p>
   </div>

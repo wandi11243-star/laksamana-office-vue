@@ -38,7 +38,7 @@ export const LAYAR_KONTEN: Layar[] = [
   l('ads', 'Ads Management', 'Kelola & pantau Meta / Google / TikTok Ads', 'i-lucide-megaphone', 'Promosi'),
   l('chats', 'Report Percakapan', 'Rekap chat / percakapan hasil dari iklan', 'i-lucide-message-circle', 'Promosi'),
   l('brands', 'Brand Management', 'Master data & pedoman brand', 'i-lucide-anchor', 'Brand'),
-  l('activity', 'Activity Log', 'Jejak audit seluruh aktivitas', 'i-lucide-clock', 'Sistem'),
+  l('activity', 'Log Activity', 'Jejak audit seluruh aktivitas', 'i-lucide-history', 'Sistem'),
   l('settings', 'Pengaturan', 'Konfigurasi sistem, daftar kru & hak akses', 'i-lucide-settings', 'Sistem'),
   // Panel Analytics baru (#133, deploy/konten/analytics/): akun TikTok/IG,
   // insight, kalender posting & riset tren. Route `analytics`/`calendar` sudah

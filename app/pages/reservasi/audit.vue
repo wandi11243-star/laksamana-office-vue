@@ -66,7 +66,7 @@ const kolom = computed<TableColumn<AuditRow>[]>(() => [
 
 <template>
   <AppPage
-    title="Audit log"
+    title="Log activity"
     description="Jejak seluruh aktivitas: siapa, kapan, apa yang diubah. Untuk akuntabilitas & kontrol data DP."
   >
     <template v-if="bolehBuka('audit', role)">

@@ -86,7 +86,7 @@ export function rencanaSinkronKru(members: MemberOffice[], users: UserKonten[]) 
 /** Matrix labels (old MODULE_LABELS). */
 export const LABEL_MODUL_KONTEN: Record<string, string> = {
   brands: 'Brand', content: 'Konten', approve: 'Approval', assets: 'Aset', shooting: 'Shooting', design: 'Design', editing: 'Editing',
-  publish: 'Publishing', ads: 'Ads Management', kol: 'KOL & Medpar Management', team: 'Tim', analytics: 'Analytics', activity: 'Activity Log',
+  publish: 'Publishing', ads: 'Ads Management', kol: 'KOL & Medpar Management', team: 'Tim', analytics: 'Analytics', activity: 'Log Activity',
   settings: 'Pengaturan',
 }
 export const LEVEL_KONTEN = ['None', 'Lihat', 'Ubah'] as const

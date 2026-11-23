@@ -29,7 +29,7 @@ const waktu = (at: string) => String(at || '').slice(0, 16).replace('T', ' ')
 
 <template>
   <AppPage
-    title="Audit log"
+    title="Log activity"
     description="Jejak aksi terbaru."
   >
     <p

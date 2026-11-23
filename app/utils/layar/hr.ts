@@ -72,7 +72,7 @@ export const LAYAR_HR: Layar[] = [
   { key: 'emp', label: 'Kru', desc: 'Data kru & profil kinerja', icon: 'i-lucide-users', to: '/hr/emp', grup: 'Operasional', boleh: me => bolehLayarHr('emp', me) },
   { key: 'cal', label: 'Kalender HR', desc: 'Agenda HR & tanggal penting', icon: 'i-lucide-calendar-days', to: '/hr/cal', grup: 'Operasional', boleh: me => bolehLayarHr('cal', me) },
   { key: 'settings', label: 'Pengaturan', desc: 'Bobot skor, grade, aturan kehadiran', icon: 'i-lucide-settings', to: '/hr/settings', grup: 'Sistem', boleh: me => bolehLayarHr('settings', me) },
-  { key: 'audit', label: 'Audit Log', desc: 'Jejak aksi terbaru', icon: 'i-lucide-scroll-text', to: '/hr/audit', grup: 'Sistem', boleh: me => bolehLayarHr('audit', me) },
+  { key: 'audit', label: 'Log Activity', desc: 'Jejak aksi terbaru', icon: 'i-lucide-history', to: '/hr/audit', grup: 'Sistem', boleh: me => bolehLayarHr('audit', me) },
 ]
 
 /** Footer role line (`ROLE_LABEL`, :675) — the in-app role, not the Office key. */

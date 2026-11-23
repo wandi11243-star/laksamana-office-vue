@@ -21,6 +21,7 @@ import { tanganiKonflik } from '~/utils/versi'
 import {
   cerminDp, dpsTampilan, dpBaru, dpMetodeBawaan, dpTotal, opsiDpMetode, pastikanDps,
 } from '~/utils/dp-reservasi'
+import { buktiKeDataUri, namaBukti, tolakBukti } from '~/utils/berkas-ringan'
 import { fmtRupiah, rupiah, rupiahVal, tglPendek } from '~/utils/format'
 
 const props = withDefaults(defineProps<{
@@ -64,9 +65,11 @@ const info = computed(() => (props.r
   : ''))
 
 function pilihBerkas(f: File | null | undefined) {
-  // The 5 MB gate runs BEFORE reading (F1): a bigger file never becomes a data URI.
-  if (f && f.size > 5 * 1024 * 1024) {
-    toast.add({ title: 'Bukti melebihi 5 MB — kecilkan dulu', color: 'error' })
+  // Size gate runs BEFORE reading (F1). Photos are shrunk on save, so only a
+  // huge photo or a PDF over 5 MB is refused.
+  const alasan = f ? tolakBukti(f) : ''
+  if (alasan) {
+    toast.add({ title: alasan, color: 'error' })
     berkas.value = null
     namaBerkas.value = ''
     return
@@ -74,13 +77,6 @@ function pilihBerkas(f: File | null | undefined) {
   berkas.value = f ?? null
   namaBerkas.value = f ? f.name : ''
 }
-
-const bacaBerkas = (f: File): Promise<string> => new Promise((resolve, reject) => {
-  const fr = new FileReader()
-  fr.onload = () => resolve(String(fr.result))
-  fr.onerror = () => reject(fr.error)
-  fr.readAsDataURL(f)
-})
 
 async function simpan() {
   const asal = props.r
@@ -97,8 +93,8 @@ async function simpan() {
   menyimpan.value = true
   const selesaiProses = mulaiProses(`Menyimpan DP ${props.r?.name ?? ''}`)
   try {
-    const dataUri = await bacaBerkas(berkas.value)
-    const namaFile = berkas.value.name
+    const dataUri = await buktiKeDataUri(berkas.value)
+    const namaFile = namaBukti(berkas.value, dataUri)
     // Fresh row first: the detail underneath may predate newer transfers.
     const env = await getReservation(asal.id)
     const segar = env.data
@@ -198,7 +194,7 @@ async function simpan() {
           :model-value="berkas"
           accept="image/*,application/pdf"
           label="Pilih bukti"
-          description="Gambar atau PDF, maks 5 MB"
+          description="Foto dikecilkan otomatis; PDF maks 5 MB"
           @update:model-value="pilihBerkas"
         />
         <p

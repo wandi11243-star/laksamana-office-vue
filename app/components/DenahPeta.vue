@@ -12,7 +12,7 @@
               locked but overridable asks first.
 
   A table's FILL is its STATUS, in the old Reservasi plan's colours (owner
-  request, Nov 2026), with the free chairs written under each table ("bisa 4-5
+  request, Nov 2026), with the free chairs written under each table ("4 - 5
   pax"). DenahLegenda names the colours with the old wording.
 
   Geometry is a fixed 1600x1160 canvas turned into percentages, so the plan
@@ -24,6 +24,7 @@
 import type { Reservasi } from '~/composables/useReservasi'
 import type { LayoutDenah, MasterDenah } from '~/utils/venue-layouts'
 import { SEAT_W, SEAT_H, capMax, cariMeja } from '~/utils/venue-layouts'
+import { normStatus } from '~/utils/riwayat'
 import {
   absMin, arrivedPax, canAddArrival, fmtMenit, harihOccupancy, hhmm, isSeated,
   menitMenuju, occupiedMap, remainingPax, roomText, sedangDialihkan, statusMeja, toMin,
@@ -49,6 +50,8 @@ const props = withDefaults(defineProps<{
   hariIni?: boolean
   /** A filter is hiding part of the rows, so the map may not be used to pick. */
   saringAktif?: boolean
+  /** Tables lit by the search box (the rest dim); null = no search. */
+  sorot?: string[] | null
   /** `dineEstMin` & `clashLeadMin` from the master. */
   master?: MasterDenah & { dineEstMin?: number, clashLeadMin?: number }
   /** The "sitting since" counter under a seated guest's name. */
@@ -60,7 +63,7 @@ const props = withDefaults(defineProps<{
   /** Fit the complete plan to its available width without an inner scroll area. */
   fit?: boolean
   /**
-   * The "bisa 4-5 pax" line under each table. On by default (owner request,
+   * The "4 - 5 pax" line under each table. On by default (owner request,
    * Nov 2026): the pax lives UNDER the table only, not inside the box too. A
    * table with no room below (another table right under it) keeps it inside.
    */
@@ -74,6 +77,7 @@ const props = withDefaults(defineProps<{
   kecualiId: null,
   hariIni: false,
   saringAktif: false,
+  sorot: null,
   timer: false,
   nunggu: 0,
   legenda: true,
@@ -139,6 +143,25 @@ const capOf = (id: string) => {
   return capMax(t?.cap)
 }
 
+// --- search highlight (owner, Nov 2026) ----------------------------------------
+
+const denahEl = ref<HTMLElement | null>(null)
+const sorotSet = computed(() => (props.sorot ? new Set(props.sorot) : null))
+
+/** Lit when the search matches the table, dimmed when a search is on and it does not. */
+function kelasSorot(id: string) {
+  if (!sorotSet.value) return ''
+  return sorotSet.value.has(id) ? 'st-sorot' : 'st-redup'
+}
+
+/** Bring the first lit table into view, once the floor holding it is drawn. */
+watch([() => props.sorot, () => props.layout], async () => {
+  if (!sorotSet.value?.size) return
+  await nextTick()
+  const el = [...(denahEl.value?.querySelectorAll<HTMLElement>('.seat.st-sorot') ?? [])][0]
+  el?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'smooth' })
+})
+
 const states = computed(() => new Map(meja.value.map(t => [
   String(t.id),
   statusMeja(t, {
@@ -203,12 +226,15 @@ const jamSitting = (cin: number) => {
   return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`
 }
 
+/** "4-5" -> "4 - 5 pax": a spaced range reads at a glance. */
+const paxTeks = (cap: string) => `${String(cap).replace(/\s*-\s*/g, ' - ')} pax`
+
 /** The line under the table number. The old markup's wording, kept (`:2286-2330`). */
 function labelT(stat: ReturnType<typeof statusMeja>, cap: string, id: string) {
   const list = stat.list
   // The pax goes under the box when there is room for it there.
   const paxDiBawah = props.catatan && adaRuangCatatan.value.has(id)
-  if (stat.state === 'terpilih') return paxDiBawah ? '' : `${cap} pax`
+  if (stat.state === 'terpilih') return paxDiBawah ? '' : paxTeks(cap)
   if (stat.state === 'sharing') return `Gabung · ${list.length} grup`
   if (list.length) {
     const r = list[0]!
@@ -219,7 +245,7 @@ function labelT(stat: ReturnType<typeof statusMeja>, cap: string, id: string) {
     return namaDepan(r)
   }
   if (stat.next) return namaDepan(stat.next)
-  return paxDiBawah ? '' : `${cap} pax`
+  return paxDiBawah ? '' : paxTeks(cap)
 }
 
 /** The line under that: the time, or the sitting counter. */
@@ -296,7 +322,12 @@ function kelasT(s: ReturnType<typeof statusMeja>) {
     // The form: a booked table is either refused (seated / too close) or asks first.
     if (props.mode === 'pilih') k.push(s.kunci ? 'st-mati' : 'st-tanya')
   }
-  else k.push(`st-${s.state}`)
+  else {
+    k.push(`st-${s.state}`)
+    // Booked within the hour: the fill follows the booker's status, so a
+    // Pending booking does not look Confirmed (owner, Nov 2026).
+    if (s.state === 'mepet' && s.next && normStatus(s.next.status) === 'Pending') k.push('st-mepet-pending')
+  }
   if (s.dipaksa) k.push('st-dipaksa')
   if (s.over) k.push('seat-duduk')
   if (alihT(s)) k.push('st-alih')
@@ -331,14 +362,14 @@ function gembok(s: ReturnType<typeof statusMeja>): string {
 
 /**
  * The line UNDER each table (old seatNote, :1950): the chairs still free.
- * "bisa 4-5 pax" on a free table, "sisa 2 pax" on a shared one with room,
+ * "4 - 5 pax" on a free table, "sisa 2 pax" on a shared one with room,
  * "kursi penuh" when full — and "meja dikunci" on a booked table that is not
  * shared, whose spare chairs nobody else may sell.
  */
 function catatanT(t: { cap: string, w: number }, s: ReturnType<typeof statusMeja>): { txt: string, kls: string } | null {
   if (!s.fill.max) return null
-  // A narrow table (a tight 2-pax row) has no room for "bisa": the number is enough.
-  if (!s.list.length) return { txt: t.w < 70 ? `${t.cap} pax` : `bisa ${t.cap} pax`, kls: '' }
+  // Just the seats, no "bisa" (owner request, Nov 2026): "4-5" reads as "4 - 5 pax".
+  if (!s.list.length) return { txt: paxTeks(t.cap), kls: '' }
   if (s.state !== 'sharing') return { txt: 'meja dikunci', kls: 'note-penuh' }
   if (s.fill.sisaMax > 0) return { txt: `sisa ${roomText(s.fill)} pax`, kls: 'note-sisa' }
   return { txt: 'kursi penuh', kls: 'note-penuh' }
@@ -440,6 +471,7 @@ function klik(mejaId: string) {
     </p>
 
     <div
+      ref="denahEl"
       class="denah"
       :class="{ fit }"
     >
@@ -459,8 +491,9 @@ function klik(mejaId: string) {
           :key="String(t.id)"
           type="button"
           class="seat"
-          :class="[kelasT(states.get(String(t.id))!), t.zone === 'green' ? 'bulat' : '']"
-          :style="kotak(t)"
+          :class="[kelasT(states.get(String(t.id))!), t.zone === 'green' ? 'bulat' : '', kelasSorot(String(t.id))]"
+          :data-meja="String(t.id)"
+          :style="[kotak(t), { '--n': String(t.id).length }]"
           :title="judul(states.get(String(t.id))!, t.cap)"
           :aria-label="judul(states.get(String(t.id))!, t.cap)"
           @click="klik(String(t.id))"
@@ -703,6 +736,28 @@ function klik(mejaId: string) {
   border-radius: 9999px;
 }
 
+/* A round table clipped the corner badges ("+1" cut off, owner Nov 2026):
+   it lets them hang outside the circle like a notification dot instead. The
+   text lines keep their own max-width/clamp, so nothing else spills. */
+.seat.bulat {
+  overflow: visible;
+}
+
+.seat.bulat .multi {
+  top: -5px;
+  left: -5px;
+  z-index: 1;
+  background: rgb(20 14 0 / 0.75);
+  box-shadow: 0 0 0 1.5px white;
+}
+
+.seat.bulat .tag {
+  top: -5px;
+  right: -5px;
+  z-index: 1;
+  box-shadow: 0 0 0 1.5px white;
+}
+
 /* Free: cream, gold outline on hover. */
 .st-kosong {
   background: var(--color-meja-kosong);
@@ -748,6 +803,23 @@ function klik(mejaId: string) {
   border: 2px solid var(--color-meja-confirmed-line);
 }
 
+/* Search: matches get a thick gold ring and stay on top, the rest fade. */
+.seat.st-redup {
+  opacity: 0.25;
+}
+
+.seat.st-sorot {
+  z-index: 6;
+  outline: 3px solid var(--color-gold);
+  outline-offset: 2px;
+}
+
+.st-mepet.st-mepet-pending {
+  background: var(--color-meja-pending);
+  border-color: var(--color-meja-pending-ink);
+  color: var(--color-meja-pending-ink);
+}
+
 /* The form: a booked table that asks first, and one that is refused outright. */
 .st-tanya {
   opacity: 0.9;
@@ -784,14 +856,16 @@ function klik(mejaId: string) {
 /* The table number shrinks to fit its table (cqw) rather than ending in "…". */
 .sn {
   font-weight: 800;
-  font-size: min(clamp(0.55rem, 1.5vw, 1rem), 26cqw);
+  /* A short number in a narrow box (M11 in the Lantai 2 strip) may grow past
+     26cqw: --n is the id length, so a long "EXT 10" still fits on one line. */
+  font-size: min(clamp(0.55rem, 1.5vw, 1rem), max(26cqw, calc(125cqw / var(--n, 5))));
   max-width: 100%;
   overflow: hidden;
   white-space: nowrap;
 }
 
 .denah.fit .sn {
-  font-size: min(clamp(0.65rem, 1.5vw, 1rem), 26cqw);
+  font-size: min(clamp(0.65rem, 1.5vw, 1rem), max(26cqw, calc(125cqw / var(--n, 5))));
 }
 
 /*
