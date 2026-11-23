@@ -23,7 +23,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { useMediaQuery } from '@vueuse/core'
-import type { Reservasi, WaTarget } from '~/composables/useReservasi'
+import type { Reservasi } from '~/composables/useReservasi'
 import { usePollReservasi } from '~/composables/usePollReservasi'
 import { exportReservationsCsv, listReservationsHalaman, patchReservation, postAudit, useDaftarReservasi, useDenah, useRingkasanTamu, useSection } from '~/composables/useReservasi'
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
@@ -47,6 +47,7 @@ const role = computed(() => roleReservasi(me.value))
 const bolehEdit = computed(() => bolehAksi('input', role.value))
 const bolehFinance = computed(() => bolehAksi('finance', role.value))
 const bolehMaster = computed(() => bolehAksi('master', role.value))
+const bolehHapus = computed(() => bolehAksi('deleteReservation', role.value))
 
 // --- the window ---------------------------------------------------------------
 // The dashboard always draws the day-of map, so that date has to be inside the
@@ -79,6 +80,12 @@ const filter = reactive({
 const cari = ref('')
 /** The map and the waiting list can only ever show ONE date. */
 const tglDenah = ref(hariIni())
+// In Daily mode the map's date IS the filter's date (the "Tanggal denah" field is
+// hidden then). Without this, picking Besok / another day moved the list but left
+// the map, and so the plan shown (Weekday vs Weekend), on the old date.
+watch(() => [filter.mode, filter.date] as const, ([mode, date]) => {
+  if (mode === 'day') tglDenah.value = date
+})
 const tab = ref<'list' | 'calendar' | 'map'>('list')
 const perTanggal = computed(() => tab.value === 'map')
 
@@ -787,6 +794,7 @@ async function patch(r: Reservasi, fields: Partial<Reservasi>, pesan: string) {
 const aksiId = ref('')
 const sheetAksi = ref(false)
 const sheetTambahDp = ref(false)
+const sheetHapus = ref(false)
 const sheetEditCepat = ref(false)
 const sheetKirimWa = ref(false)
 const aksi = computed(() => baris(aksiId.value))
@@ -819,6 +827,12 @@ const sisaMejaAksi = computed(() => {
 function bukaAksi(r: Reservasi) {
   aksiId.value = r.id
   sheetAksi.value = true
+}
+
+/** The trash icon in a table row: the same confirm sheet as the detail's Hapus button. */
+function bukaHapus(r: Reservasi) {
+  aksiId.value = r.id
+  sheetHapus.value = true
 }
 
 /** Arrival waves. The upper bound sits ABOVE the whole venue (453 seats) on
@@ -1141,7 +1155,6 @@ const jejakPlan = computed(() => jejakDenah(getLayout(master.value, layerMap.val
 const sheetWA = ref(false)
 const coordDari = ref(SEMUA)
 const coordSampai = ref(SEMUA)
-const { data: waTargets } = useSection<WaTarget[]>('waTargets')
 
 /** 30-minute steps, the old dropdown's granularity (`:4033-4036`). */
 const opsiJam = Array.from({ length: 48 }, (_, i) => `${String(Math.floor(i / 2)).padStart(2, '0')}:${i % 2 ? '30' : '00'}`)
@@ -1220,18 +1233,18 @@ const teksKasir = computed(() => {
 const dpMethodPendek = (r: Reservasi) =>
   (r.dpStatus !== 'Sudah' || !r.dpMethod ? '-' : r.dpMethod.replace(/^Transfer\s+/i, ''))
 
-/** A target from `master.waTargets`: the DP flag decides which of the two
- *  formats the group receives — the old screen hard-coded both cards, the flag
- *  on the target said the same thing. */
-const teksUntuk = (t: WaTarget) => (t.includeDP ? teksKasir.value : teksKoordinasi.value)
+/** The two recaps, always drawn — like the old screen, which hard-coded both cards.
+ *  They used to hang off `master.waTargets`, so an empty list left the sheet with no recap at all. */
+const kartuKoord = computed(() => [
+  { id: 'koord', nama: 'Grup Koordinasi', ket: 'Fokus seating dan jumlah tamu, untuk tim floor/host.', teks: teksKoordinasi.value },
+  { id: 'kasir', nama: 'Grup Kasir', ket: 'Fokus DP dan metode bayar, total DP otomatis dijumlah.', teks: teksKasir.value },
+])
 
-const tujuanKoord = computed(() => (waTargets.value ?? []).filter(t => t.type === 'group'))
-
-async function kirimKoord(t: WaTarget) {
+async function kirimKoord(t: { nama: string, teks: string }) {
   sedangSimpan.value = true
-  const selesaiProses = mulaiProses(`Mencatat koordinasi ke ${t.name}`)
+  const selesaiProses = mulaiProses(`Mencatat koordinasi ke ${t.nama}`)
   try {
-    await catat(`${t.name}${labelRentang.value ? `, ${labelRentang.value}` : ''}`, undefined, 'Kirim Koordinasi')
+    await catat(`${t.nama}${labelRentang.value ? `, ${labelRentang.value}` : ''}`, undefined, 'Kirim Koordinasi')
   }
   finally {
     selesaiProses()
@@ -1240,7 +1253,7 @@ async function kirimKoord(t: WaTarget) {
   // A group has no number: the text goes to the clipboard and wa.me opens so the
   // coordinator picks the group and pastes — the same limitation the old client
   // worked around with saved invite links (:7762-7770).
-  await waKirim(t.type === 'group' ? null : t.detail, teksUntuk(t))
+  await waKirim(null, t.teks)
 }
 
 // --- the poll (`:3089-3156`) ------------------------------------------------------
@@ -1648,7 +1661,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         :data="barisTampil"
         :columns="kolom"
         :column-visibility="kolomTampil"
-        :ui="{ th: 'px-2.5 whitespace-normal leading-tight', td: 'px-2.5 text-[13px]' }"
+        :ui="{ th: 'px-2 whitespace-normal leading-tight', td: 'px-2 text-[13px]' }"
         :loading="pakaiServer ? statusServer === 'pending' : status === 'pending'"
         :meta="{ class: { tr: (row: { original: Reservasi }) => `cursor-pointer ${kelasBaris(row.original)}` } }"
         empty="Tidak ada reservasi untuk saringan ini."
@@ -1853,7 +1866,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         </template>
         <template #aksi-cell="{ row }">
           <div
-            class="flex w-[146px] flex-wrap gap-1.5"
+            class="flex w-max flex-nowrap items-center gap-1"
             @click.stop
           >
             <template v-if="bolehEdit && belumDatang(row.original)">
@@ -1865,12 +1878,13 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
                 @click="bukaDatang(row.original, true)"
               />
               <UButton
-                label="Follow up"
                 icon="i-lucide-phone"
                 color="success"
                 variant="soft"
                 size="xs"
                 loading-auto
+                aria-label="Follow up tamu"
+                title="Follow up tamu"
                 @click="followUp(row.original)"
               />
               <UButton
@@ -1908,6 +1922,16 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               aria-label="Sunting reservasi"
               title="Sunting reservasi"
               :to="`/reservasi/input?id=${row.original.id}`"
+            />
+            <UButton
+              v-if="bolehHapus"
+              icon="i-lucide-trash-2"
+              color="error"
+              variant="soft"
+              size="xs"
+              aria-label="Hapus reservasi"
+              title="Hapus reservasi"
+              @click="bukaHapus(row.original)"
             />
             <AppStatus
               v-if="row.original.followups?.length"
@@ -2166,23 +2190,17 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           Tidak ada reservasi pada rentang jam ini — longgarkan rentangnya.
         </p>
         <div
-          v-for="t in tujuanKoord"
+          v-for="t in kartuKoord"
           :key="t.id"
           class="rounded-lg border border-default p-3"
         >
           <p class="font-semibold text-highlighted">
-            {{ t.name }}
-            <AppStatus
-              class="ms-1"
-              :color="t.includeDP ? 'success' : 'neutral'"
-            >
-              {{ t.includeDP ? 'fokus DP' : 'tanpa DP' }}
-            </AppStatus>
+            {{ t.nama }}
           </p>
           <p class="text-sm text-muted">
-            {{ t.type === 'group' ? 'Grup — salin pesan lalu tempel di grupnya' : `Nomor: ${t.detail || 'belum diisi'}` }}
+            {{ t.ket }} Grup tidak punya nomor: salin pesan lalu tempel di grupnya.
           </p>
-          <pre class="my-2 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-2 text-xs">{{ teksUntuk(t) }}</pre>
+          <pre class="my-2 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-md bg-muted p-2 text-xs">{{ t.teks }}</pre>
           <div class="flex flex-wrap gap-2">
             <UButton
               label="Salin pesan"
@@ -2190,7 +2208,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
               variant="soft"
               size="sm"
               @click="(async () => {
-                const ok = await waSalin(teksUntuk(t))
+                const ok = await waSalin(t.teks)
                 toast.add({ title: ok ? 'Pesan disalin' : 'Gagal menyalin — pakai “Buka WhatsApp”', color: ok ? 'success' : 'error' })
               })()"
             />
@@ -2204,12 +2222,6 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
             />
           </div>
         </div>
-        <p
-          v-if="!tujuanKoord.length"
-          class="text-sm text-muted"
-        >
-          <code>master.waTargets</code> kosong — grup tidak ada yang bisa dituju. Pesannya tetap bisa disalin di bawah.
-        </p>
       </div>
       <template #footer>
         <UButton
@@ -2456,6 +2468,15 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           @click="sheetEditCepat = true"
         />
         <UButton
+          v-if="bolehHapus"
+          label="Hapus"
+          icon="i-lucide-trash-2"
+          color="error"
+          variant="soft"
+          size="xl"
+          @click="sheetAksi = false; sheetHapus = true"
+        />
+        <UButton
           label="Tutup"
           color="neutral"
           variant="soft"
@@ -2465,6 +2486,12 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
       </template>
     </ResponsiveSheet>
 
+    <ReservasiHapus
+      v-model:open="sheetHapus"
+      :r="aksi"
+      @terhapus="refresh"
+      @konflik="refresh"
+    />
     <ReservasiTambahDp
       v-model:open="sheetTambahDp"
       :r="aksi"

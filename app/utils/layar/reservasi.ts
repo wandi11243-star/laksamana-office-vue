@@ -98,7 +98,7 @@ export const BARIS_IZIN_RESERVASI: BarisIzin[] = [
   { key: 'inputDelete', label: 'Hapus Reservasi', page: 'input', afterPage: 'input' },
   { key: 'finance', label: 'Dana Masuk (DP)', page: 'finance', afterPage: 'finance' },
   { key: 'financeDelete', label: 'Hapus Catatan DP', page: 'finance', afterPage: 'finance' },
-  { key: 'master', label: 'Master Data', page: 'master', afterPage: 'master' },
+  { key: 'master', label: 'Kelola Akses', page: 'master', afterPage: 'master' },
   { key: 'audit', label: 'Log Activity', page: 'audit', afterPage: 'audit' },
 ]
 
@@ -201,6 +201,6 @@ export const LAYAR_RESERVASI: Layar[] = [
   // Nov 2026). Opened by whoever may open Master data; editing needs the
   // `master` edit right, checked on the page.
   { key: 'denah', label: 'Atur denah & meja', desc: 'Editor denah, jadwal denah per tanggal, dan kapasitas tiap meja.', icon: 'i-lucide-map', to: '/reservasi/denah', grup: 'Kontrol', boleh: bolehLayar('master') },
-  { key: 'master', label: 'Master data', desc: 'Kelola pilihan dropdown & pengaturan sistem.', icon: 'i-lucide-sliders-horizontal', to: '/reservasi/master', grup: 'Kontrol', boleh: bolehLayar('master') },
+  { key: 'master', label: 'Kelola Akses', desc: 'Kelola pilihan dropdown, role kru & hak akses.', icon: 'i-lucide-sliders-horizontal', to: '/reservasi/master', grup: 'Kontrol', boleh: bolehLayar('master') },
   { key: 'audit', label: 'Log Activity', desc: 'Jejak seluruh aktivitas: siapa, kapan, apa yang diubah.', icon: 'i-lucide-history', to: '/reservasi/audit', grup: 'Kontrol', boleh: bolehLayar('audit') },
 ]

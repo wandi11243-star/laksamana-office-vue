@@ -6,9 +6,9 @@
 
   Two rules that are not negotiable, from the old editor (`:6288-6310`,
   `:6262-6280`):
-    - "Save for this date only" is offered SEPARATELY from "save to template".
-      Saving a date into its template is what used to shift the plan of every
-      weekday at once.
+    - Saving a template and saving one date are SEPARATE modes with one button
+      each (`mode`). Saving a date into its template is what used to shift the
+      plan of every weekday at once.
     - A plan stored for one date is not a template: it must not appear in the
       template picker, and cannot be deleted as one.
 
@@ -17,26 +17,24 @@
   accident from a fingertip is worse than no edit at all.
 -->
 <script setup lang="ts">
-import { useMediaQuery } from '@vueuse/core'
+import { useEventListener, useMediaQuery } from '@vueuse/core'
 import type { FixDenah, LayoutDenah, MejaDenah, ZonaMeja } from '~/utils/venue-layouts'
 import { JENIS_LATAR, LABEL_ZONA, SEAT_W, SEAT_H, ZONA_MEJA, kapasitasLayout } from '~/utils/venue-layouts'
 
 const props = withDefaults(defineProps<{
   /** The plan being edited. Cloned inside; the caller's object is never touched. */
   layout: LayoutDenah
-  /** "Plan for 12 Aug · F2" — set when the editor edits one date. */
-  konteks?: string
-  /** The plan is stored for ONE date: "save to template" points at its template. */
+  /** `templat` = edits a template (every date using it); `tanggal` = edits the plan of ONE date. */
+  mode?: 'templat' | 'tanggal'
+  /** The date being edited, in `tanggal` mode. */
   tanggal?: { date: string, lt: 1 | 2 } | null
-  /** The template that would cover this date, shown next to the date. */
-  templateTanggal?: string | null
   /** Allow dragging & editing. Off on phones. */
   bisaUbah?: boolean
   /** Who last edited this plan, and when — shown ABOVE the plan, not below (`:6222-6229`). */
   jejak?: string
-}>(), { bisaUbah: true, tanggal: null, templateTanggal: null, jejak: '' })
+}>(), { bisaUbah: true, mode: 'templat', tanggal: null, jejak: '' })
 
-/** `simpanTemplat` = save into the covering template (every date that uses it). `simpanTanggal` = this date only. */
+/** `simpanTemplat` (mode templat) = save into the template. `simpanTanggal` (mode tanggal) = this date only. */
 const emit = defineEmits<{
   simpanTemplat: [data: LayoutDenah]
   simpanTanggal: [data: LayoutDenah]
@@ -56,6 +54,86 @@ watch(() => props.layout, (l) => {
   sel.value = null
   selF.value = null
   kotor.value = false
+  mundur.value = []
+  maju.value = []
+  awal = JSON.stringify(data.value)
+})
+
+// --- undo / redo (owner, Nov 2026: "kalau ada salah edit bisa ctrl + z") ------
+// Whole-plan snapshots: a plan is a few KB, so 100 steps cost nothing and every
+// kind of change (drag, inspector, background, name) undoes the same way.
+// Typing into one field within a second is ONE step, not one per keystroke.
+
+const BATAS_UNDO = 100
+const mundur = ref<string[]>([])
+const maju = ref<string[]>([])
+let awal = JSON.stringify(data.value)
+let gabung = { kunci: '', waktu: 0 }
+
+function simpanLangkah(snap: string) {
+  mundur.value.push(snap)
+  if (mundur.value.length > BATAS_UNDO) mundur.value.shift()
+  maju.value = []
+}
+
+/** Call BEFORE a change. Same `kunci` within 1 s = the same step (typing). */
+function catatLangkah(kunci = '') {
+  const kini = Date.now()
+  if (kunci && kunci === gabung.kunci && kini - gabung.waktu < 1000) {
+    gabung.waktu = kini
+    return
+  }
+  gabung = { kunci, waktu: kini }
+  simpanLangkah(JSON.stringify(data.value))
+}
+
+function pulihkan(snap: string) {
+  data.value = JSON.parse(snap) as LayoutDenah
+  if (sel.value !== null && sel.value >= meja.value.length) sel.value = null
+  if (selF.value !== null && selF.value >= (data.value.fixed?.length ?? 0)) selF.value = null
+  kotor.value = snap !== awal
+  gabung = { kunci: '', waktu: 0 }
+}
+
+function urungkan() {
+  const snap = mundur.value.pop()
+  if (snap === undefined) return
+  maju.value.push(JSON.stringify(data.value))
+  pulihkan(snap)
+}
+
+function ulangi() {
+  const snap = maju.value.pop()
+  if (snap === undefined) return
+  mundur.value.push(JSON.stringify(data.value))
+  pulihkan(snap)
+}
+
+/** Ctrl/Cmd+Z undoes, Ctrl+Y or Ctrl+Shift+Z redoes. Inside a text field the browser's own undo of that text wins. */
+useEventListener(window, 'keydown', (e: KeyboardEvent) => {
+  if (!bolehUbah.value || !(e.ctrlKey || e.metaKey) || e.altKey) return
+  const el = e.target as HTMLElement | null
+  if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return
+  const k = e.key.toLowerCase()
+  if (k === 'z' && !e.shiftKey) {
+    e.preventDefault()
+    urungkan()
+  }
+  else if (k === 'y' || (k === 'z' && e.shiftKey)) {
+    e.preventDefault()
+    ulangi()
+  }
+})
+
+/** Delete / Backspace removes the selected table or fixture (Ctrl+Z brings it back). Typing in a field keeps its own keys. */
+useEventListener(window, 'keydown', (e: KeyboardEvent) => {
+  if (!bolehUbah.value || (e.key !== 'Delete' && e.key !== 'Backspace') || e.ctrlKey || e.metaKey || e.altKey) return
+  const el = e.target as HTMLElement | null
+  if (el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName))) return
+  if (sel.value === null && selF.value === null) return
+  e.preventDefault()
+  if (selF.value !== null) hapusLatar()
+  else hapus()
 })
 
 const meja = computed<MejaDenah[]>(() => data.value.tables ?? [])
@@ -79,7 +157,7 @@ const kotak = (o: { x: number, y: number, w: number, h: number }) => ({
 
 // A background block (stage, DJ, entrance…) is dragged the same way as a table;
 // `latar` says which list the index points into.
-let seret: { i: number, latar: boolean, sx: number, sy: number, ox: number, oy: number, rw: number, rh: number, geser: boolean } | null = null
+let seret: { i: number, latar: boolean, sx: number, sy: number, ox: number, oy: number, rw: number, rh: number, geser: boolean, pra: string } | null = null
 
 function mulai(e: PointerEvent, i: number, latar = false) {
   if (!bolehUbah.value) return
@@ -95,7 +173,7 @@ function mulai(e: PointerEvent, i: number, latar = false) {
   if (!kotakPita) return
   const t = latar ? data.value.fixed?.[i] : meja.value[i]
   if (!t) return
-  seret = { i, latar, sx: e.clientX, sy: e.clientY, ox: t.x, oy: t.y, rw: kotakPita.width, rh: kotakPita.height, geser: false }
+  seret = { i, latar, sx: e.clientX, sy: e.clientY, ox: t.x, oy: t.y, rw: kotakPita.width, rh: kotakPita.height, geser: false, pra: JSON.stringify(data.value) }
   window.addEventListener('pointermove', geserMeja)
   window.addEventListener('pointerup', lepasMeja, { once: true })
 }
@@ -115,7 +193,11 @@ function geserMeja(e: PointerEvent) {
 
 function lepasMeja() {
   window.removeEventListener('pointermove', geserMeja)
-  if (seret?.geser) kotor.value = true
+  if (seret?.geser) {
+    simpanLangkah(seret.pra)
+    gabung = { kunci: '', waktu: 0 }
+    kotor.value = true
+  }
   seret = null
 }
 
@@ -128,6 +210,7 @@ const terpilih = computed(() => (sel.value === null ? null : meja.value[sel.valu
 function set(prop: 'id' | 'cap' | 'zone' | 'w' | 'h', v: string) {
   const t = terpilih.value
   if (!t) return
+  catatLangkah(`t:${sel.value}:${prop}`)
   if (prop === 'w' || prop === 'h') v = String(Math.max(20, Math.min(prop === 'w' ? SEAT_W : SEAT_H, Number(v) || 20)))
   // Assigning through the selected object keeps its identity, so the table on
   // the plan moves with the number typed into the inspector.
@@ -144,6 +227,7 @@ function set(prop: 'id' | 'cap' | 'zone' | 'w' | 'h', v: string) {
 function latar(i: number, tampil: boolean) {
   const f = data.value.fixed?.[i]
   if (!f) return
+  catatLangkah()
   if (tampil) delete f.hidden
   else f.hidden = true
   kotor.value = true
@@ -156,6 +240,7 @@ const latarTerpilih = computed<FixDenah | null>(() => (selF.value === null ? nul
 function setLatar(prop: 'label' | 't' | 'w' | 'h', v: string) {
   const f = latarTerpilih.value
   if (!f) return
+  catatLangkah(`f:${selF.value}:${prop}`)
   if (prop === 'w' || prop === 'h') {
     const maks = prop === 'w' ? SEAT_W : SEAT_H
     f[prop] = Math.max(20, Math.min(maks, Number(v) || 20))
@@ -177,6 +262,7 @@ function setLatar(prop: 'label' | 't' | 'w' | 'h', v: string) {
 
 function tambahLatar(t = 'dj') {
   const j = JENIS_LATAR.find(x => x.value === t) ?? JENIS_LATAR[0]!
+  catatLangkah()
   const tegak = j.value === 'entrance'
   const f: FixDenah = { t: j.value, label: j.bawaan, x: Math.round(SEAT_W / 2 - 75), y: Math.round(SEAT_H / 2 - 35), w: tegak ? 44 : 150, h: tegak ? 180 : 70 }
   data.value.fixed = [...(data.value.fixed ?? []), f]
@@ -189,6 +275,7 @@ const jenisBaru = ref('dj')
 
 function hapusLatar() {
   if (selF.value === null) return
+  catatLangkah()
   data.value.fixed = (data.value.fixed ?? []).filter((_, i) => i !== selF.value)
   selF.value = null
   kotor.value = true
@@ -202,6 +289,7 @@ function idBerikut() {
 }
 
 function tambah() {
+  catatLangkah()
   data.value.tables = [...meja.value, { id: idBerikut(), x: Math.round(SEAT_W / 2 - 45), y: Math.round(SEAT_H / 2 - 40), w: 90, h: 80, cap: '4', zone: 'green' }]
   sel.value = data.value.tables.length - 1
   selF.value = null
@@ -210,12 +298,19 @@ function tambah() {
 
 function hapus() {
   if (sel.value === null) return
+  catatLangkah()
   data.value.tables = meja.value.filter((_, i) => i !== sel.value)
   sel.value = null
   kotor.value = true
 }
 
 const gantiZona = (v: ZonaMeja) => set('zone', v)
+
+function ubahNama(v: unknown) {
+  catatLangkah('nama')
+  data.value.name = String(v ?? '')
+  kotor.value = true
+}
 </script>
 
 <template>
@@ -270,15 +365,45 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
           :key="`${t.id}-${i}`"
           class="seat"
           :class="[`seat-${t.zone}`, { sel: sel === i }]"
-          :style="kotak(t)"
+          :style="[kotak(t), { '--n': String(t.id).length }]"
           @pointerdown="mulai($event, i)"
         >
           <span class="sn">{{ t.id }}</span>
-          <span class="sp">{{ t.cap }} pax</span>
+          <!-- A narrow table stacks "2" over "pax" so both stay readable. -->
+          <span
+            class="sp"
+            :class="{ 'sp-sempit': t.w < 60 }"
+          >{{ t.cap }}<span :class="t.w < 60 ? 'block' : ''"> pax</span></span>
         </div>
       </div>
     </div>
 
+    <div
+      v-if="bolehUbah"
+      class="mt-2 flex flex-wrap items-center gap-2"
+    >
+      <UButton
+        icon="i-lucide-undo-2"
+        label="Urungkan"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        :disabled="!mundur.length"
+        title="Ctrl + Z"
+        @click="urungkan"
+      />
+      <UButton
+        icon="i-lucide-redo-2"
+        label="Ulangi"
+        color="neutral"
+        variant="outline"
+        size="sm"
+        :disabled="!maju.length"
+        title="Ctrl + Y"
+        @click="ulangi"
+      />
+      <span class="text-xs text-muted">Ctrl + Z untuk membatalkan langkah terakhir, Ctrl + Y untuk mengulanginya. Pilih meja lalu tekan Delete untuk menghapusnya.</span>
+    </div>
     <p class="mt-2 text-sm text-muted">
       <template v-if="bolehUbah">
         Seret meja atau latar (stage, DJ, entrance…) untuk memindah, klik untuk mengubah.
@@ -511,43 +636,40 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
       </div>
 
       <div class="rounded-xl bg-default p-4">
-        <p class="mb-2 font-semibold text-highlighted">
-          Nama denah
-        </p>
-        <UFormField
-          label="Nama"
-          help="Sebut “Lantai 2” kalau denah ini untuk lantai atas — dari situlah lantainya dikenali."
-        >
-          <UInput
-            v-model="data.name"
-            size="xl"
-            class="w-full"
-            @update:model-value="kotor = true"
-          />
-        </UFormField>
+        <template v-if="mode === 'templat'">
+          <p class="mb-2 font-semibold text-highlighted">
+            Nama denah
+          </p>
+          <UFormField
+            label="Nama"
+            help="Sebut “Lantai 2” kalau denah ini untuk lantai atas — dari situlah lantainya dikenali."
+          >
+            <UInput
+              :model-value="data.name"
+              size="xl"
+              class="w-full"
+              @update:model-value="ubahNama"
+            />
+          </UFormField>
+        </template>
 
-        <p
-          v-if="konteks"
-          class="mt-3 text-sm text-muted"
+        <div
+          class="flex flex-wrap gap-2"
+          :class="mode === 'templat' ? 'mt-4' : ''"
         >
-          Denah untuk tanggal {{ konteks }}. Menyimpan ke template
-          <b>{{ templateTanggal ?? '-' }}</b> berlaku untuk semua tanggal yang memakainya.
-        </p>
-
-        <div class="mt-4 flex flex-wrap gap-2">
           <UButton
-            v-if="konteks"
-            label="Simpan ke template"
-            color="neutral"
-            variant="soft"
+            v-if="mode === 'templat'"
+            label="Simpan template"
+            :disabled="!kotor"
             size="xl"
             @click="emit('simpanTemplat', data)"
           />
           <UButton
-            :label="konteks ? 'Simpan untuk tanggal ini saja' : 'Simpan'"
-            :disabled="!kotor && !konteks"
+            v-else
+            label="Simpan untuk tanggal ini"
+            :disabled="!kotor"
             size="xl"
-            @click="konteks ? emit('simpanTanggal', data) : emit('simpanTemplat', data)"
+            @click="emit('simpanTanggal', data)"
           />
         </div>
       </div>
@@ -683,6 +805,9 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
   border-radius: 0.375rem;
   cursor: grab;
   touch-action: none;
+  /* Type follows the table's own width (cqw), like the day-of map: a narrow
+     table in the Lantai 2 strip shows "M11", not "M…" (owner, Nov 2026). */
+  container-type: size;
 }
 
 .seat-green {
@@ -704,20 +829,28 @@ const gantiZona = (v: ZonaMeja) => set('zone', v)
 
 .sn {
   font-weight: 700;
-  font-size: clamp(0.5rem, 1.4vw, 0.95rem);
+  /* --n is the id length: "M11" may grow past 26cqw, a long "EXT 10" still fits. */
+  /* 48cqh: a short, wide table (M1 column) leaves room for the pax line below. */
+  font-size: min(clamp(0.5rem, 1.4vw, 0.95rem), max(26cqw, calc(125cqw / var(--n, 5))), 48cqh);
   max-width: 100%;
   overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .sp {
-  font-size: clamp(0.4rem, 0.85vw, 0.65rem);
+  font-size: min(clamp(0.4rem, 0.85vw, 0.65rem), 19cqw, 32cqh);
+  text-align: center;
   font-weight: 600;
   opacity: 0.8;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Narrow table: "2" over "pax", each line big enough to read. */
+.sp.sp-sempit {
+  font-size: min(clamp(0.4rem, 0.85vw, 0.65rem), 30cqw);
+  line-height: 1.1;
 }
 </style>

@@ -46,6 +46,34 @@ cek('nilai sampah dibuang', V.hariWeekend({ hariWeekend: [1, 9, -1, 2.5, '3'] })
 cek('jadwal tanggal tetap menang', V.dayTypeLayoutLt({ hariWeekend: [], layoutOverrides: { '2026-11-23': 'weekend' } }, '2026-11-23', 1), 'weekend')
 cek('tanpa jadwal ikut setelan', V.dayTypeLayoutLt({ hariWeekend: [1] }, '2026-11-23', 1), 'weekend')
 
+// --- template per day of the week (master.layoutHari) -------------------------------
+
+const tplLive = { name: 'Live Music', lantai: 1, tables: [{ id: '1', x: 0, y: 0, w: 50, h: 50, cap: '4', zone: 'green' }] }
+const tplAtas = { name: 'Event Atas', lantai: 2, tables: [] }
+const mHari = { layouts: { tpl_live: tplLive, tpl_atas: tplAtas }, layoutHari: { 1: ['', 'tpl_live', '', '', '', '', 'tpl_hilang'], 2: { 1: 'tpl_atas' } } }
+cek('per hari: Senin Lt.1 pakai template', V.dayTypeLayoutLt(mHari, '2026-11-23', 1), 'tpl_live')
+cek('per hari: Lt.2 (bentuk objek) Senin', V.dayTypeLayoutLt(mHari, '2026-11-23', 2), 'tpl_atas')
+cek('per hari: template hilang jatuh ke bawaan', V.dayTypeLayoutLt(mHari, '2026-11-21', 1), 'weekend')
+cek('per hari: kosong = bawaan', V.dayTypeLayoutLt(mHari, '2026-11-22', 1), 'weekend')
+cek('per hari: template lantai lain ditolak', V.dayTypeLayoutLt({ ...mHari, layoutHari: { 1: ['', 'tpl_atas'] } }, '2026-11-23', 1), 'weekday')
+cek('per hari: jadwal tanggal tetap menang', V.dayTypeLayoutLt({ ...mHari, layoutOverrides: { '2026-11-23': 'weekend' } }, '2026-11-23', 1), 'weekend')
+cek('per hari: denah tanggal tetap menang', V.dayTypeLayoutLt({ ...mHari, layoutTanggal: { 'tgl:2026-11-23:1': tplLive } }, '2026-11-23', 1), 'tgl:2026-11-23:1')
+cek('per hari: data rusak dibaca kosong', V.templatHari({ layoutHari: [] }, 1), ['', '', '', '', '', '', ''])
+cek('lantai dari field, bukan nama', V.lantaiLayout(mHari, 'tpl_atas'), 2)
+cek('kunci template baru tidak bentrok', V.kunciTemplatBaru({ layouts: { tpl_live_music: tplLive } }, 'Live Music!'), 'tpl_live_music_2')
+
+const mGrup = { layouts: {
+  weekday: tplLive,
+  tpl_ev_lt1: { ...tplLive, name: 'Ev', grup: 'tpl_ev', grupNama: 'Ev' },
+  tpl_ev_lt2: { ...tplAtas, name: 'Ev (Lantai 2)', grup: 'tpl_ev', grupNama: 'Ev' },
+  tpl_lama: { name: 'Lama Lt 2', tables: [] },
+} }
+cek('grup: bawaan + grup Lt.1/Lt.2 + template lama', V.grupTemplat(mGrup).map(g => [g.id, g.nama, g.lt1 ?? '', g.lt2 ?? '']), [
+  ['weekday', 'Weekday', 'weekday', 'lantai2'], ['weekend', 'Weekend', 'weekend', 'lantai2_weekend'],
+  ['tpl_ev', 'Ev', 'tpl_ev_lt1', 'tpl_ev_lt2'], ['tpl_lama', 'Lama Lt 2', '', 'tpl_lama'],
+])
+cek('grup dari kunci Lt.2', V.grupDari(mGrup, 'tpl_ev_lt2')?.id, 'tpl_ev')
+
 // --- nearest booking on a table ---------------------------------------------------
 
 const now = new Date('2026-11-22T18:00:00').getTime()
