@@ -91,6 +91,12 @@ export interface Reservasi {
   phone: string
   date: string
   time: string
+  /**
+   * End of a booked window, set by Marketing's VIP booking ("17:00–22:00").
+   * Rows with it hold their table until that hour instead of time + 3 hours,
+   * and nobody else is seated inside the window (owner request, Nov 2026).
+   */
+  timeEnd?: string
   pax: number
   table: string
   sharing: boolean

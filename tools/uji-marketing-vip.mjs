@@ -10,6 +10,7 @@ register('data:text/javascript,' + encodeURIComponent(`
   import path from 'node:path'
   export async function resolve(spec, ctx, next) {
     if (spec.startsWith('~/')) return next(pathToFileURL(path.resolve('app', spec.slice(2) + '.ts')).href, ctx)
+    if ((spec.startsWith('./') || spec.startsWith('../')) && !path.extname(spec) && ctx.parentURL?.endsWith('.ts')) return next(spec + '.ts', ctx)
     return next(spec, ctx)
   }
 `))
@@ -128,6 +129,27 @@ console.log('\nmarketing-vip: sinkron ke Reservasi')
   const v = { id: 'v1', nama: 'Baru', hp: '08', tanggal: '2026-11-19', jamMulai: '18:00', paxMin: 10, meja: ['3', '4'], bukti: [{ id: 'b1', nominal: 100, metode: 'BCA' }] }
   const r = V.sinkronBarisReservasiVipMkt(lama, v, V.dpsVipMkt(v, 'x'), 'PT', 'Pic', 9)
   cek('nama/tanggal/jam/meja ikut; status kru, kedatangan & DP kru tetap', r.name === 'Baru' && r.date === '2026-11-19' && r.time === '18:00' && r.table === '3, 4' && r.status === 'Datang' && r.checkinAt === 123 && r.arrivals.length === 1 && r.createdBy === 'kru' && r.dps.length === 2 && r.dpAmount === 150 && r.updatedAt === 9, JSON.stringify(r))
+}
+
+console.log('\nJam selesai VIP mengunci meja di Reservasi')
+{
+  const K = await import('../app/utils/kunci-meja.ts')
+  const vip = { id: 'vip-v9', name: 'PT Jendela', date: '2026-11-20', time: '17:00', timeEnd: '22:00', table: 'A1', status: 'Confirmed', vip: true, pax: 10 }
+  const biasa = { id: 'r1', name: 'Biasa', date: '2026-11-20', time: '17:00', table: 'A2', status: 'Confirmed', pax: 2 }
+  cek('baris VIP membawa timeEnd dari jamSelesai', V.barisReservasiVipMkt({ id: 'v9', tanggal: '2026-11-20', jamMulai: '17:00', jamSelesai: '22:00' }, [], '', '', '').timeEnd === '22:00')
+  cek('sinkron membawa timeEnd baru', V.sinkronBarisReservasiVipMkt({ id: 'vip-v9' }, { id: 'v9', jamMulai: '17:00', jamSelesai: '21:30' }, [], '', '').timeEnd === '21:30')
+  cek('jamSelesai pulih dari baris Reservasi', V.vipDariReservasiMkt(vip).jamSelesai === '22:00')
+  cek('jam 21:30 masih bentrok (dulu bebas setelah 20:00)', !!K.conflictCheck([vip], { date: '2026-11-20', table: 'A1', time: '21:30' }))
+  cek('jam 22:30 sudah bebas', !K.conflictCheck([vip], { date: '2026-11-20', table: 'A1', time: '22:30' }))
+  cek('reservasi biasa tetap H+3 jam (21:30 bebas)', !K.conflictCheck([biasa], { date: '2026-11-20', table: 'A2', time: '21:30' }))
+  cek('walk-in di dalam jendela VIP ditolak', !!K.conflictCheck([vip], { date: '2026-11-20', table: 'A1', time: '20:00', loose: true }))
+  const p = K.periksaTumpang(vip, 'A1', '2026-11-20', '20:00')
+  cek('di dalam jendela: terkunci, tidak bisa dipaksa', p.boleh === false && p.kunci === true, JSON.stringify(p))
+  const q = K.periksaTumpang(vip, 'A1', '2026-11-20', '15:00')
+  cek('sebelum jam mulai: masih bisa ditanya seperti biasa', q.boleh === false && q.kunci === false, JSON.stringify(q))
+  const malam = { ...vip, time: '21:00', timeEnd: '01:00' }
+  cek('jendela lewat tengah malam: 00:30 esoknya bentrok', !!K.conflictCheck([malam], { date: '2026-11-21', table: 'A1', time: '00:30' }))
+  cek('peta meja Marketing ikut jendela VIP', V.mejaTerpakaiVipMkt([vip], '2026-11-20', '21:30').A1 === 'PT Jendela')
 }
 
 console.log(`\n${ok} OK, ${gagal} GAGAL`)

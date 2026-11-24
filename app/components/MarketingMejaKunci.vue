@@ -134,7 +134,7 @@ async function lepas() {
       v-model:open="buka"
       title="Pilih & Kunci Meja"
       :description="`${ev.nama} · ${tanggal || '(tanggal belum diisi)'}${jam ? ` · ${jam}` : ''} · ${Number(ev.pax) || 0} pax`"
-      lebar="penuh"
+      lebar="besar"
     >
       <UAlert
         v-if="!tanggal"

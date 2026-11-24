@@ -127,15 +127,12 @@ function baru() {
 }
 function ubah(v: VipMkt) {
   // Close the detail sheet first: two open sheets fight over focus and the
-  // form ends up behind the detail. The watcher below reopens the detail
-  // if the form is closed without saving.
+  // form ends up behind the detail. Closing the form (Esc / Batal) goes back
+  // to the list, not to the detail (owner request, Nov 2026).
   lihatId.value = null
   formAwal.value = v
   formBuka.value = true
 }
-watch(formBuka, (buka) => {
-  if (!buka && formAwal.value && !lihatId.value) lihatId.value = formAwal.value.id
-})
 async function simpanForm(v: VipMkt) {
   const lama = st.value.vip.find(x => x.id === v.id)
   const terkunci = !!lama?.resId && !lama.batalAt
@@ -208,15 +205,19 @@ const mejaBuka = computed({
 })
 
 // ---- Isi Nominal ----
+// Its own booking id: reusing the detail's would open the detail sheet behind
+// the nominal one (owner request, Nov 2026).
+const nominalId = ref<string | null>(null)
+const nominalVip = computed(() => st.value.vip.find(v => v.id === nominalId.value) ?? null)
 const nominalBuka = ref(false)
 const nominalNilai = ref('')
 function bukaNominal(v: VipMkt) {
-  lihatId.value = v.id
+  nominalId.value = v.id
   nominalNilai.value = String(v.nominal ?? '')
   nominalBuka.value = true
 }
 async function simpanNominal() {
-  const v = lihat.value
+  const v = nominalVip.value
   if (!v) return
   const ok = await mktSimpan(
     () => tambalMkt<VipMkt>('vip', v.id, { nominal: nominalNilai.value === '' ? '' : +nominalNilai.value || 0 }, v.updatedAt),
@@ -945,7 +946,7 @@ const hal = computed(() => tbl.potong(tbl.susun(daftar.value)))
       <ResponsiveSheet
         v-model:open="nominalBuka"
         title="Isi Nominal"
-        :description="lihat?.nama ?? ''"
+        :description="nominalVip?.nama ?? ''"
       >
         <UFormField
           label="Nominal pendapatan (Rp)"

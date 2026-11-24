@@ -305,7 +305,7 @@ async function pilihBerkas(b: BuktiVipMkt, files: FileList | null) {
       />
     </div>
     <UFormField label="Catatan">
-      <UTextarea
+      <AppCatatan
         v-model="f.catatan"
         autoresize
       />

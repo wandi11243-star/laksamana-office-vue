@@ -93,42 +93,48 @@ const nominal = (v: unknown) => {
     v-if="kind !== 'menu'"
     class="grid grid-cols-1 gap-2"
   >
+    <!-- Rundown: one line per row with the column names once on top, so a
+         long rundown does not eat the page (owner request, Nov 2026). -->
+    <div
+      v-if="kind === 'rundown' && baris.length"
+      class="hidden gap-2 px-1.5 text-xs font-semibold text-muted sm:grid sm:grid-cols-[8rem_6.5rem_8rem_minmax(0,1fr)_2.25rem]"
+    >
+      <span>Mulai</span><span>Durasi (mnt)</span><span>Selesai</span><span>Kegiatan</span><span />
+    </div>
     <div
       v-for="r in baris"
       :key="String(r._id ?? r.nama ?? r.menu ?? Math.random())"
-      class="grid gap-2 rounded-xl border border-default bg-default p-2.5"
+      :class="kind === 'rundown'
+        ? 'grid grid-cols-3 items-center gap-2 rounded-lg border border-default bg-default p-1.5 sm:grid-cols-[8rem_6.5rem_8rem_minmax(0,1fr)_2.25rem]'
+        : 'grid gap-2 rounded-xl border border-default bg-default p-2.5'"
     >
       <template v-if="kind === 'rundown'">
-        <div class="grid grid-cols-3 gap-2">
-          <UFormField label="Mulai">
-            <AppJam
-              :model-value="String(r.mulai ?? '')"
-              @update:model-value="ubahBaris(String(r._id), 'mulai', String($event))"
-            />
-          </UFormField>
-          <UFormField label="Durasi (mnt)">
-            <UInput
-              :model-value="String(r.durasi ?? '')"
-              inputmode="numeric"
-              placeholder="30"
-              @update:model-value="ubahBaris(String(r._id), 'durasi', String($event))"
-            />
-          </UFormField>
-          <UFormField label="Selesai">
-            <AppJam
-              :model-value="String(r.selesai ?? '')"
-              @update:model-value="ubahBaris(String(r._id), 'selesai', String($event))"
-            />
-          </UFormField>
-        </div>
-        <div class="grid grid-cols-[1fr_auto] items-end gap-2">
-          <UFormField label="Kegiatan">
-            <UInput
-              :model-value="String(r.kegiatan ?? '')"
-              placeholder="Sambutan, makan malam…"
-              @update:model-value="ubahBaris(String(r._id), 'kegiatan', String($event))"
-            />
-          </UFormField>
+        <AppJam
+          :model-value="String(r.mulai ?? '')"
+          aria-label="Mulai"
+          title="Mulai"
+          @update:model-value="ubahBaris(String(r._id), 'mulai', String($event))"
+        />
+        <UInput
+          :model-value="String(r.durasi ?? '')"
+          inputmode="numeric"
+          placeholder="Durasi"
+          aria-label="Durasi (menit)"
+          @update:model-value="ubahBaris(String(r._id), 'durasi', String($event))"
+        />
+        <AppJam
+          :model-value="String(r.selesai ?? '')"
+          aria-label="Selesai"
+          title="Selesai"
+          @update:model-value="ubahBaris(String(r._id), 'selesai', String($event))"
+        />
+        <div class="col-span-3 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:col-span-2">
+          <UInput
+            :model-value="String(r.kegiatan ?? '')"
+            placeholder="Kegiatan: sambutan, makan malam…"
+            aria-label="Kegiatan"
+            @update:model-value="ubahBaris(String(r._id), 'kegiatan', String($event))"
+          />
           <UButton
             icon="i-lucide-trash-2"
             color="error"

@@ -242,7 +242,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                   :value="n"
                 />
               </datalist>
-              <UTextarea
+              <AppCatatan
                 v-else-if="f.t === 'ta'"
                 size="lg"
                 :model-value="String(baca(f.k) ?? '')"
@@ -352,7 +352,7 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                   :class="['shrink-0', bisaUbah ? '' : 'pointer-events-none opacity-70']"
                   @update:model-value="ynnoteSet(f, $event as boolean | undefined, ynnoteN(f))"
                 />
-                <UTextarea
+                <AppCatatan
                   size="lg"
                   :model-value="ynnoteN(f)"
                   placeholder="Catatan / detail (opsional) — boleh beberapa baris"
@@ -418,13 +418,21 @@ function rentangSet(f: FieldEventMkt, i: number, v: string) {
                       @click="hapusBerkas(f, b.key)"
                     />
                   </div>
-                  <!-- Image-only fields show the picture right here, so an upload is visibly confirmed. -->
-                  <MarketingGambar
-                    v-if="f.img && berkasGambarOv(b.name)"
-                    :file-key="b.key"
-                    :alt="b.name"
-                    img-class="min-h-16 max-h-48 w-full rounded border border-default bg-muted object-contain"
-                  />
+                  <!-- Every image attachment shows the picture right here, not only a
+                       link to click first (owner request, Nov 2026); a tap opens it full size. -->
+                  <button
+                    v-if="berkasGambarOv(b.name)"
+                    type="button"
+                    class="block w-full cursor-zoom-in"
+                    :title="`Buka ${b.name} ukuran penuh`"
+                    @click="bukaBerkasMkt(b.key)"
+                  >
+                    <MarketingGambar
+                      :file-key="b.key"
+                      :alt="b.name"
+                      img-class="min-h-16 max-h-72 w-full rounded border border-default bg-muted object-contain"
+                    />
+                  </button>
                 </div>
                 <UInput
                   v-if="bisaUbah"

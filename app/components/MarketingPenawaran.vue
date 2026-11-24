@@ -376,7 +376,7 @@ async function kirimRevisi() {
           />
         </UFormField>
         <UFormField label="Catatan">
-          <UTextarea
+          <AppCatatan
             v-model="form.note"
             autoresize
           />

@@ -647,7 +647,7 @@ async function simpanInvUbah() {
               label="Fasilitas termasuk (FREE)"
               class="lg:col-span-2"
             >
-              <UTextarea
+              <AppCatatan
                 size="lg"
                 :model-value="String(draft.detail.itemFree ?? '')"
                 :disabled="!bisaUbah"
@@ -660,7 +660,7 @@ async function simpanInvUbah() {
               label="Item belum pasti harganya (TBC)"
               class="lg:col-span-2"
             >
-              <UTextarea
+              <AppCatatan
                 size="lg"
                 :model-value="String(draft.detail.itemTbc ?? '')"
                 :disabled="!bisaUbah"

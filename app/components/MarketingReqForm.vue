@@ -208,7 +208,7 @@ function kirim() {
       required
       hint="Tulis selengkap mungkin — tim Konten membacanya dari antrian mereka."
     >
-      <UTextarea
+      <AppCatatan
         v-model="f.brief"
         :rows="5"
         autoresize

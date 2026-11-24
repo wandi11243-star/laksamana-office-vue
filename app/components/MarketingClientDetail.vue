@@ -221,7 +221,7 @@ async function hapus() {
           </p>
           <p
             v-if="f.note"
-            class="text-muted"
+            class="whitespace-pre-line text-muted"
           >
             {{ f.note }}
           </p>

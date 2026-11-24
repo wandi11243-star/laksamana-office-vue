@@ -150,7 +150,7 @@ async function simpan() {
         label="Catatan"
         class="sm:col-span-2"
       >
-        <UTextarea
+        <AppCatatan
           v-model="f.catatan"
           placeholder="Preferensi, sensitivitas harga, dsb."
           class="w-full"

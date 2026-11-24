@@ -96,7 +96,7 @@ async function simpanKunci() {
       v-model:open="buka"
       title="Pilih & Kunci Meja"
       :description="`${vip.nama} · ${vip.tanggal || '(tanggal belum diisi)'} · kunci H-${VIP_LOCK_LEAD_MIN / 60} jam dari ${jam}`"
-      lebar="penuh"
+      lebar="besar"
     >
       <UAlert
         v-if="!vip.tanggal"
