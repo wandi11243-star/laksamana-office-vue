@@ -7,8 +7,8 @@
 import type { BdCoord, BdPerson, BdPo, BdProject, BdTask } from '~/composables/useBd'
 import { bdSimpan, buatBd, hapusBd, tambalBd, ubahBd, versiBaris } from '~/composables/useBd'
 import { PROJ_HEALTH, PROJ_STAGES, bacaMilestone, divisiBawaan, inDays, opsiDivisi, setPics, tasksPerluDitutup, todayISO, tulisMilestone } from '~/utils/bd-rumus'
-import { PILIHAN_WARNA_KATEGORI } from '~/utils/kategori-warna'
-import BdProjectGroup from '~/widgets/bd/BdProjectGroup.vue'
+import { PILIHAN_WARNA_KATEGORI, warnaKategori } from '~/utils/kategori-warna'
+import BdBusinessGroupPicker from '~/widgets/bd/BdBusinessGroupPicker.vue'
 import { LABEL_HEALTH } from '~/utils/status-bd'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdPicPicker from '~/widgets/bd/BdPicPicker.vue'
@@ -30,20 +30,18 @@ const toast = useToast()
  * drops out of the select even when no crew carries it any more. */
 const opsiDiv = computed(() => opsiDivisi([...props.people, { div: props.project?.div }]))
 const grupBaru = ref<string[]>([])
-const grupMenuTerbuka = ref(false)
 const grupBisnis = computed(() => [...new Set([...props.projects
   .map(p => p.businessGroup?.trim() ?? '')
   .filter(Boolean), ...grupBaru.value, ...(props.project?.businessGroup ? [props.project.businessGroup.trim()] : [])]
   .sort((a, b) => a.localeCompare(b, 'id')))])
 const opsiGrupBisnis = computed(() => [
   { label: 'Tanpa grup bisnis', value: '' },
-  ...grupBisnis.value.map(nama => ({ label: nama, value: nama })),
+  ...grupBisnis.value.map(nama => ({ label: nama, value: nama, color: warnaTersimpan(nama) })),
 ])
 
 const f = reactive({
   name: '',
   businessGroup: '',
-  businessGroupColor: 'auto',
   desc: '',
   div: '',
   type: 'Internal',
@@ -56,6 +54,24 @@ const f = reactive({
   health: 'on-track',
   ms: '',
 })
+// Keep existing group colours. Allocate the least-used palette colour to a new group.
+function warnaTersimpan(nama: string) {
+  const projects = [...props.projects].sort((a, b) => (b.updatedAt ?? 0) - (a.updatedAt ?? 0))
+  const group = projects.find(p => p.businessGroup?.trim().toLocaleLowerCase('id') === nama.trim().toLocaleLowerCase('id'))
+  if (group) return group.businessGroupColor || 'auto'
+  const groups = new Map<string, string>()
+  for (const p of projects) {
+    const key = p.businessGroup?.trim().toLocaleLowerCase('id')
+    if (key && !groups.has(key)) groups.set(key, warnaKategori(key, p.businessGroupColor))
+  }
+  return [...PILIHAN_WARNA_KATEGORI].sort((a, b) => {
+    const usage = (value: string) => [...groups.values()].filter(c => c === warnaKategori(nama, value)).length
+    return usage(a.value) - usage(b.value)
+  })[0]!.value
+}
+function pilihGrupBisnis(value: unknown) {
+  f.businessGroup = typeof value === 'string' ? value.trim() : ''
+}
 const hapusMau = ref(false)
 const opsiHealth = PROJ_HEALTH.map(k => ({ value: k, label: LABEL_HEALTH[k] || k }))
 
@@ -63,7 +79,6 @@ watch(open, (o) => {
   if (!o) return
   const p = props.project
   f.businessGroup = p?.businessGroup || ''
-  f.businessGroupColor = p?.businessGroupColor || 'auto'
   if (p) {
     f.name = p.name
     f.desc = p.desc || ''
@@ -103,8 +118,7 @@ function tambahGrupBisnis(teks: string) {
   }
   const ada = grupBisnis.value.find(g => g.toLocaleLowerCase('id') === nama.toLocaleLowerCase('id'))
   if (!ada) grupBaru.value.push(nama)
-  f.businessGroup = ada ?? nama
-  grupMenuTerbuka.value = false
+  pilihGrupBisnis(ada ?? nama)
 }
 
 async function simpan() {
@@ -116,7 +130,7 @@ async function simpan() {
   const body: Partial<BdProject> = {
     name: f.name.trim(),
     businessGroup: f.businessGroup.trim(),
-    businessGroupColor: f.businessGroup.trim() ? f.businessGroupColor : 'auto',
+    businessGroupColor: f.businessGroup.trim() ? warnaTersimpan(f.businessGroup) : 'auto',
     desc: f.desc.trim(),
     div: f.div,
     type: f.type.trim() || 'Internal',
@@ -173,38 +187,14 @@ async function hapus() {
           class="w-full"
         />
       </UFormField>
-      <div class="grid gap-4 sm:grid-cols-2">
-        <UFormField label="Grup bisnis">
-          <USelectMenu
-            v-model="f.businessGroup"
-            v-model:open="grupMenuTerbuka"
-            :items="opsiGrupBisnis"
-            create-item="always"
-            value-key="value"
-            placeholder="Pilih grup bisnis"
-            :search-input="{ placeholder: 'Cari grup bisnis...' }"
-            class="w-full"
-            @create="tambahGrupBisnis"
-          >
-            <template #create-item-label="{ item }">
-              Tambahkan grup bisnis "{{ item }}"
-            </template>
-          </USelectMenu>
-        </UFormField>
-        <UFormField label="Warna grup bisnis">
-          <USelect
-            v-model="f.businessGroupColor"
-            :items="[{ label: 'Otomatis', value: 'auto' }, ...PILIHAN_WARNA_KATEGORI]"
-            :disabled="!f.businessGroup.trim()"
-            class="w-full"
-          />
-          <BdProjectGroup
-            class="mt-2"
-            :nama="f.businessGroup.trim()"
-            :warna="f.businessGroupColor"
-          />
-        </UFormField>
-      </div>
+      <UFormField label="Grup bisnis">
+        <BdBusinessGroupPicker
+          :model-value="f.businessGroup"
+          :items="opsiGrupBisnis"
+          @update:model-value="pilihGrupBisnis"
+          @create="tambahGrupBisnis"
+        />
+      </UFormField>
       <UFormField label="Deskripsi">
         <UTextarea
           v-model="f.desc"
