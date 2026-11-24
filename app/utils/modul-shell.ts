@@ -230,8 +230,6 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
   event: {
     subjudul: 'Event',
     layar: LAYAR_EVENT,
-    cari: { placeholder: 'Cari event, venue, PIC…', to: '/event/events' },
-    tambah: { label: 'Rencana baru', to: '/event/planning?baru=1' },
     lonceng: { label: 'Antrean approval', to: '/event/approval' },
     peran: me => PERAN_LABEL_EVENT[peranEvent(me)],
     lencana: () => useLencanaEvent(),

@@ -27,7 +27,7 @@ export const PERAN_LABEL_EVENT: Record<PeranEvent, string> = {
 
 export const EMS_HALAMAN_LABEL: Record<string, string> = {
   dashboard: 'Dashboard',
-  calendar: 'Event Calendar',
+  calendar: 'Kalender',
   talents: 'Talent Management',
   schedule: 'Talent Schedule',
   fee: 'Fee & Pembayaran',
@@ -43,6 +43,7 @@ export const EMS_HALAMAN_LABEL: Record<string, string> = {
   performa: 'Event Performance',
   report: 'Report & Analytics',
   perfomset: 'Performa Omset & Bonus',
+  jamtalent: 'Jam talent',
 }
 
 export type MatriksEvent = Record<string, Record<PeranEvent, 0 | 1 | 2>>
@@ -58,6 +59,8 @@ export function permBawaanEvent(): MatriksEvent {
   p.fee!.kasir = 0
   p.fee!.lihat = 0
   p.akses = { manajemen: 2, event: 0, kasir: 0, lihat: 0 }
+  // default hours of the roster: management and the event team edit, nobody else sees it
+  p.jamtalent = { manajemen: 2, event: 2, kasir: 0, lihat: 0 }
   p.ticketing!.kasir = 2
   p.checkin!.kasir = 2
   return p
@@ -105,18 +108,18 @@ export const bolehLayarEvent = (key: string) => (me: Me) => bolehBukaEvent(key, 
  *  as tabs of Perencanaan (`:2036,5852`). */
 export const LAYAR_EVENT: Layar[] = [
   { key: 'dashboard', label: 'Dashboard', desc: 'Ringkasan operasional event.', icon: 'i-lucide-layout-dashboard', to: '/event/dashboard', grup: 'Utama', boleh: bolehLayarEvent('dashboard') },
-  { key: 'calendar', label: 'Event calendar', desc: 'Kalender terpadu multi-sumber.', icon: 'i-lucide-calendar-days', to: '/event/calendar', grup: 'Utama', boleh: bolehLayarEvent('calendar') },
+  { key: 'calendar', label: 'Kalender', desc: 'Kalender terpadu multi-sumber.', icon: 'i-lucide-calendar-days', to: '/event/calendar', grup: 'Utama', boleh: bolehLayarEvent('calendar') },
   { key: 'talents', label: 'Talent management', desc: 'Kelola profil, jadwal & fee talent.', icon: 'i-lucide-users', to: '/event/talents', grup: 'Talent', boleh: bolehLayarEvent('talents') },
   { key: 'schedule', label: 'Talent schedule', desc: 'Kalender jadwal, anti double-booking.', icon: 'i-lucide-clock', to: '/event/schedule', grup: 'Talent', boleh: bolehLayarEvent('schedule') },
   { key: 'fee', label: 'Fee & pembayaran', desc: 'Rekap otomatis show done × fee.', icon: 'i-lucide-banknote', to: '/event/fee', grup: 'Talent', boleh: bolehLayarEvent('fee') },
   { key: 'pipeline', label: 'Event pipeline', desc: 'Geser kartu antar tahap.', icon: 'i-lucide-kanban-square', to: '/event/pipeline', grup: 'Event', boleh: bolehLayarEvent('pipeline') },
-  { key: 'planning', label: 'Perencanaan event', desc: 'Rencana yang belum disetujui manajemen.', icon: 'i-lucide-lightbulb', to: '/event/planning', grup: 'Event', boleh: bolehLayarEvent('planning') },
-  { key: 'events', label: 'Event management', desc: 'Event yang sudah disetujui manajemen.', icon: 'i-lucide-party-popper', to: '/event/events', grup: 'Event', boleh: bolehLayarEvent('events') },
+  { key: 'events', label: 'Event management', desc: 'Perencanaan, daftar event, dan riwayat.', icon: 'i-lucide-party-popper', to: '/event/events', grup: 'Event', boleh: me => bolehLayarEvent('events')(me) || bolehLayarEvent('planning')(me) },
   { key: 'ticketing', label: 'Ticketing', desc: 'Event ber-tiket yang sudah disetujui.', icon: 'i-lucide-ticket', to: '/event/ticketing', grup: 'Event', boleh: bolehLayarEvent('ticketing') },
   { key: 'checkin', label: 'Check-in', desc: 'Scan QR, kursi terisi langsung.', icon: 'i-lucide-scan-line', to: '/event/checkin', grup: 'Event', boleh: bolehLayarEvent('checkin') },
   { key: 'approval', label: 'Approval flow', desc: 'Meja putusan manajemen.', icon: 'i-lucide-check-check', to: '/event/approval', grup: 'Event', boleh: bolehLayarEvent('approval') },
   { key: 'performa', label: 'Event performance', desc: 'Ukur hasil event & talent secara objektif.', icon: 'i-lucide-chart-column', to: '/event/performa', grup: 'Analitik', boleh: bolehLayarEvent('performa') },
   { key: 'perfomset', label: 'Performa omset & bonus', desc: 'Omset yang diakui tiap PIC event berikut skema bonusnya.', icon: 'i-lucide-award', to: '/event/perfomset', grup: 'Analitik', boleh: bolehLayarEvent('perfomset') },
   { key: 'report', label: 'Report & analytics', desc: 'Laporan omzet, tiket & kehadiran.', icon: 'i-lucide-file-chart-column', to: '/event/report', grup: 'Analitik', boleh: bolehLayarEvent('report') },
+  { key: 'jamtalent', label: 'Jam talent', desc: 'Jam bawaan talent per kategori, untuk mengisi Talent Schedule otomatis.', icon: 'i-lucide-timer', to: '/event/jam-talent', grup: 'Pengaturan', boleh: bolehLayarEvent('jamtalent') },
   { key: 'akses', label: 'Hak akses', desc: 'Siapa berperan apa, dan peran itu boleh membuka apa.', icon: 'i-lucide-shield', to: '/event/akses', grup: 'Pengaturan', boleh: bolehLayarEvent('akses') },
 ]

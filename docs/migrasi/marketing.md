@@ -156,6 +156,7 @@ Kelompok `NAV_DEF` (`:4747-4843`), judul dari `TITLES` (`:4867`), dispatch rende
 - **Catatan:** tersembunyi dari sidebar tapi tetap dituju tombol Internal/Client/Draft di detail event & daftar (`:4779-4790`).
 
 ### D.6 calendar — Kalender
+- **Vue (24 Nov 2026):** kisi, kartu, dan warna kini komponen bersama `KalenderBulan`/`KalenderKartu`/`kalender-warna.ts` (dipakai juga Kalender Event). Perilaku tetap (klik hari → Event Baru, geser + konfirmasi, saringan status, popup). Kartu tetap berwarna sumber (Marketing emas muda, EMS ungu muda, Reservasi hijau muda); event Deal/Confirmed dan acara EMS Upcoming/Today hanya diberi titik hijau di depan judul, legenda "Deal / pasti jalan".
 - **Tampilan:** kepala + select status (`Semua status`/`Lead`/`Prospect`/`Quotation Terkirim`/`Deal`/`Event Done`/`Lost`) + navigasi `←` `Hari Ini` `→` (`:12254-12258`). Legenda 3 warna: Event Marketing (emas), Acara EMS (violet), Reservasi (teal); total `"<n> pax bulan ini"` (`:12264-12284`). Kisi bulan dengan pitanya: event Marketing (`--gold`), acara EMS (`ev-ems`), reservasi (`ev-rsv`) (`:12287-12328`).
 - **Aksi:** klik pita event → `calEventPopup(id)` (ringkas); `emsEventPopup`; `rsvHariPopup` (`:12304-12325`).
 - **Perhitungan:** `eventPadaTgl` menangani event lintas hari (`:3424-3431`); `calTotalPax` jumlah pax bulan ini dengan penyaring status sama (`:12334-12341`).

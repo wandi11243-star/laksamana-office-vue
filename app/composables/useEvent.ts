@@ -19,6 +19,7 @@
 import type { Versi } from '~/utils/versi'
 import { ifMatch } from '~/utils/versi'
 import { statusPengajuan } from '~/utils/event-hitung'
+import type { JamTalentDoc, SusunanBatch } from '~/utils/event-jadwal'
 
 /** The twelve record collections of `GET /state`. */
 export type ResourceEvent
@@ -87,8 +88,10 @@ export interface JadwalTalent {
   performance_type: string
   fee: number
   status: string
-  /** where the row came from: manual / mingguan / recurring / monthly_generator */
+  /** where the row came from: manual / mingguan / recurring / monthly_generator / roster */
   source?: string
+  /** Free note of the roster editor (no older reader uses a note on schedules). */
+  notes?: string
   recurring_rule_id?: string | null
   createdAt: number
   updatedAt: number
@@ -135,11 +138,15 @@ export interface TagihanTalent {
   [key: string]: unknown
 }
 
+/** Uploaded poster of an event. */
+export interface PosterEvent { key: string, name?: string, size?: number, type?: string }
+
 /** An event row (`eventForm :6284`, `saveEvent :6313`). */
 export interface Acara {
   id: string
   title: string
-  poster_img?: string
+  /** {key,name,size,type} (new rows); old rows may hold a bare key string. */
+  poster_img?: PosterEvent | string | null
   category: string
   theme: string
   venue: string
@@ -451,6 +458,30 @@ export const batalCheckin = (body: { batalDari: string, ticket_id?: string, id?:
 /** PUT /event/settings/{key} — body `{"value": …}`. Version required. */
 export const putSetting = (key: string, value: unknown, versi?: Versi) =>
   useApi()<Envelope<unknown>>(`/event/settings/${key}`, { method: 'PUT', body: { value }, headers: kepala(versi) })
+
+/** GET /event/settings/jamTalent — default hours per category and per talent
+ *  (`{kategori, talent}`); `meta.version` is what the next PUT must send. The
+ *  setting is outside `GET /settings` and `/state`. */
+export const getJamTalent = () =>
+  useApi()<Envelope<JamTalentDoc>>('/event/settings/jamTalent')
+
+/** PUT /event/settings/jamTalent — body `{"value": …}`, version required.
+ *  422 `validation_failed` lists the problems in `details.errors` (strings). */
+export const putJamTalent = (value: JamTalentDoc, versi?: Versi) =>
+  useApi()<Envelope<JamTalentDoc>>('/event/settings/jamTalent', { method: 'PUT', body: { value }, headers: kepala(versi) })
+
+/** Answer of the schedule batch: the rows written, and the new version of each. */
+export interface HasilBatchJadwal {
+  data: { created: JadwalTalent[], updated: JadwalTalent[], deleted: string[] }
+  meta: { versions: Record<string, Versi> }
+}
+
+/** POST /event/schedules/batch — create / update / delete up to 300 schedules in
+ *  ONE transaction (all or nothing). Order on the server: update, delete, create.
+ *  409 `version_conflict` {id, current}, 409 `jadwal_bentrok` {bentrok:[…]},
+ *  422 `validation_failed` {baris:[{index, operation, reason}]}, 404 {id, index, operation}. */
+export const batchJadwal = (body: Pick<SusunanBatch, 'create' | 'update' | 'delete'>) =>
+  useApi()<HasilBatchJadwal>('/event/schedules/batch', { method: 'POST', body })
 
 /** POST /event/files — images (jpg/png/webp/gif) or PDF, at most 8 MB. */
 export const uploadFileEvent = (body: { dataBase64: string, fileName: string, mimeType: string }) =>

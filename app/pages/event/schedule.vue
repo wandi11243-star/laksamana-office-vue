@@ -1,1239 +1,695 @@
 <!--
-  Talent Schedule — month calendar with per-category chips, weekly input,
-  recurring rules and monthly generation (`event/index.html:2703-3869`).
+  Event › Talent Schedule — two views of one roster:
+    Kalender        the month grid (KalenderBulan) with cards in category colour;
+    Tabel › Minggu  the roster sheet (EventTalentLembar): talents × Monday–Sunday;
+    Tabel › Bulan   the monthly attendance table (EventTalentBulan).
 
-  Anti double-booking (F.4): the whole sheet is conflict-checked BEFORE a
-  single row is written. One talent also may not appear twice on the same day
-  of a weekly sheet (F.5). Daily Entertainment Rules is sleeping code
-  (`:3848`) — not revived without an owner decision.
+  Everything a person does is a DRAFT (`app/utils/event-jadwal.ts`): a new row,
+  a change to a saved row, or the deletion of one. Drafts survive switching
+  weeks, months and views, and are written together by "Simpan jadwal"
+  (`POST /event/schedules/batch`, all or nothing, at most 300). Leaving the page
+  with drafts asks first. Clashes (same talent, same date, overlapping hours,
+  across EVERY loaded day) are painted red and block saving; the server checks
+  them again.
+
+  Data is loaded by the date range the view needs (`useJadwalRentang`), not by
+  month, so a week that crosses a month is whole.
+
+  Default hours come from the `jamTalent` setting. Only SAVED hours are used;
+  the suggestion shown on the Jam talent screen is never applied here. When the
+  setting is missing (404) or empty the page works with no defaults.
+
+  The old Input mingguan, Recurring and Generate bulanan are gone (their
+  weekday picker was off by one day); "Isi otomatis" and "Salin minggu lalu"
+  replace them and also only produce drafts. A drag in the calendar moves one
+  saved row to another day after a confirmation (written at once, with the
+  clash check); Done and Cancelled rows are locked.
 -->
 <script setup lang="ts">
-import type { JadwalTalent, Talent } from '~/composables/useEvent'
-import { createEvent, patchEvent, removeEvent, useDaftarEvent } from '~/composables/useEvent'
-import { bentrokJadwal, feeAngka, fmtTglEms, TAL_CATS } from '~/utils/event-hitung'
+import type { Acara, Talent } from '~/composables/useEvent'
+import { batchJadwal, getJamTalent, useDaftarEvent } from '~/composables/useEvent'
+import { useJadwalRentang } from '~/composables/useJadwalRentang'
+import type { BarisEf, Draf, HasilIsi, NilaiJadwal, SusunanBatch } from '~/utils/event-jadwal'
+import {
+  STATUS_TERKUNCI, bacaGalatBatch, barisEfektif, barisHidup, bentrokDengan, bentrokEf, buangSatu, dokumenAdaIsi, dokumenKosong,
+  daftarKategori, draftBerjam, hapusBaris, hitungDraf, idBarisEms, jamBawaan, jamSlotKedua, nilaiBaru, pesanBatch, rapikanDokumen,
+  ringkasDraf, rentangTercakup, salinMingguLalu, seninEms, setNilai, sudahAdaSel, susunBatch, susunGrup, tambahBaru, tandaiBasi, tujuhHariEms,
+} from '~/utils/event-jadwal'
+import { TAL_CATS, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
-import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
-import { hariIni, rupiah, tglPendek } from '~/utils/format'
+import { bolehBukaEvent, bolehUbahEvent, peranEvent } from '~/utils/layar/event'
+import { fTglP, hariIni, tglPendek } from '~/utils/format'
+import { geserTgl, hariKe, rentangBulan, tglDariHariKe } from '~/utils/kalender'
+import { GAYA_NADA, gayaNada } from '~/utils/kalender-warna'
 import { nadaKategori } from '~/utils/status-event'
-import { tanganiKonflik } from '~/utils/versi'
+import { isVersiWajib } from '~/utils/versi'
 
 definePageMeta({ access: ['event'] })
 
 const toast = useToast()
 const me = useMe()
-const bolehUbah = computed(() => bolehUbahEvent('schedule', peranEvent(me.value)))
+const route = useRoute()
+const router = useRouter()
+const peran = computed(() => peranEvent(me.value))
+const bolehUbah = computed(() => bolehUbahEvent('schedule', peran.value))
+const bolehAturJam = computed(() => bolehBukaEvent('jamtalent', peran.value))
+
+// ---------------------------------------------------------------- view + navigation
+type Tampilan = 'kalender' | 'tabel'
+type Tabel = 'minggu' | 'bulan'
+const KUNCI_TAMPIL = 'event-jadwal-tampilan'
+/** Remembered per device; storage can be blocked, so every access is guarded. */
+function bacaTampil(): { tampilan: Tampilan, tabel: Tabel } {
+  try {
+    const s = JSON.parse(localStorage.getItem(KUNCI_TAMPIL) ?? '{}')
+    return { tampilan: s.tampilan === 'tabel' ? 'tabel' : 'kalender', tabel: s.tabel === 'bulan' ? 'bulan' : 'minggu' }
+  }
+  catch {
+    return { tampilan: 'kalender', tabel: 'minggu' }
+  }
+}
+const awal = bacaTampil()
+const tampilan = ref<Tampilan>(awal.tampilan)
+const tabel = ref<Tabel>(awal.tabel)
+watch([tampilan, tabel], () => {
+  try {
+    localStorage.setItem(KUNCI_TAMPIL, JSON.stringify({ tampilan: tampilan.value, tabel: tabel.value }))
+  }
+  catch { /* private window or blocked storage: the choice just is not remembered */ }
+})
+const modeMinggu = computed(() => tampilan.value === 'tabel' && tabel.value === 'minggu')
 
 const bulan = ref(hariIni().slice(0, 7))
-// renderSchedule header: `${MONTHS[m]} ${y}`
-const BULAN_PENDEK = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Ags', 'Sep', 'Okt', 'Nov', 'Des']
-const labelBulan = computed(() => `${BULAN_PENDEK[Number(bulan.value.slice(5, 7)) - 1]} ${bulan.value.slice(0, 4)}`)
-function geserBulan(n: number) {
-  const [y, m] = bulan.value.split('-').map(Number)
-  const d = new Date(y!, m! - 1 + n, 1)
-  bulan.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
-const dari = computed(() => `${bulan.value}-01`)
-const sampai = computed(() => {
-  const [y, m] = bulan.value.split('-').map(Number)
-  return `${bulan.value}-${String(new Date(y!, m!, 0).getDate()).padStart(2, '0')}`
-})
-
-const query = computed<Record<string, string>>(() => ({ from: dari.value, to: sampai.value }))
-const { data: daftar, refresh } = useDaftarEvent<JadwalTalent>('schedules', query, 'event-schedule')
-const { data: daftarTalent } = useDaftarEvent<Talent>('talents', {}, 'event-schedule-talents')
-
-const jadwal = computed(() => daftar.value.rows)
-const namaTalent = (id: string) => daftarTalent.value.rows.find(t => t.id === id)?.name ?? '—'
-const katTalent = (id: string) => daftarTalent.value.rows.find(t => t.id === id)?.category ?? ''
-/** Legend shows only categories of active talents, like the old client. */
-const katAktif = computed(() => {
-  const ada = [...new Set(daftarTalent.value.rows.filter(t => t.status === 'Active').map(t => t.category).filter(Boolean))]
-  return ada.length ? ada : [...TAL_CATS]
-})
-/** Smart talent order: active first, most-shown in the loaded window first, then name. */
-const talentUrut = computed(() => {
-  const hitung = new Map<string, number>()
-  for (const j of jadwal.value) hitung.set(j.talent_id, (hitung.get(j.talent_id) ?? 0) + 1)
-  return [...daftarTalent.value.rows]
-    .filter(t => t.status === 'Active')
-    .sort((a, b) => ((hitung.get(b.id) ?? 0) - (hitung.get(a.id) ?? 0)) || a.name.localeCompare(b.name))
-})
-
-const perTanggal = computed(() => {
-  const m = new Map<string, JadwalTalent[]>()
-  for (const j of jadwal.value) {
-    const l = m.get(j.date) ?? []
-    l.push(j)
-    m.set(j.date, l)
-  }
-  for (const l of m.values()) l.sort((a, b) => String(a.start_time ?? '').localeCompare(String(b.start_time ?? '')))
-  return m
-})
-
-const DOW = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
-const selBulan = computed(() => {
-  const [y, m] = bulan.value.split('-').map(Number)
-  const mundur = new Date(y!, m! - 1, 1).getDay()
-  const jumlah = new Date(y!, m!, 0).getDate()
-  const sel: { tgl: string, num: number, dalam: boolean }[] = []
-  const tambah = (t: Date, dalam: boolean) => {
-    sel.push({
-      tgl: `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`,
-      num: t.getDate(),
-      dalam,
-    })
-  }
-  for (let i = mundur; i > 0; i--) {
-    const d = new Date(y!, m! - 1, 0)
-    d.setDate(d.getDate() - i + 1)
-    tambah(d, false)
-  }
-  for (let d = 1; d <= jumlah; d++) tambah(new Date(y!, m! - 1, d), true)
-  const sisa = (7 - (sel.length % 7)) % 7
-  for (let d = 1; d <= sisa; d++) tambah(new Date(y!, m!, d), false)
-  return sel
-})
-
-// --- chip info sheet (`schedInfo :2856`) ---
-const infoId = ref('')
-const info = computed(() => jadwal.value.find(j => j.id === infoId.value) ?? null)
-const sheetInfo = computed({ get: () => infoId.value !== '', set: v => (infoId.value = v ? infoId.value : '') })
-
-async function setStatus(st: string) {
-  const j = info.value
-  if (!j || j.status === st) return
-  const lama = j.status
-  try {
-    await patchEvent('schedules', j.id, { status: st, updatedAt: Date.now() }, daftar.value.versions[j.id])
-    toast.add({ title: `${namaTalent(j.talent_id)}: ${lama} → ${st}`, color: 'success' })
-    await refresh()
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
-  }
-}
-// ubahJamSched (:3001): only the times change — fee, status, source and
-// recurring_rule_id stay; the row itself is excluded from the clash check.
-const jamInfo = ref({ mulai: '', selesai: '' })
-watch(info, (j) => {
-  jamInfo.value = { mulai: j?.start_time ?? '', selesai: j?.end_time ?? '' }
-}, { immediate: true })
-async function ubahJam() {
-  const j = info.value
-  if (!j) return
-  const { mulai: st, selesai: et } = jamInfo.value
-  if (!st || !et) {
-    toast.add({ title: 'Jam mulai & selesai wajib diisi.', color: 'error' })
-    return
-  }
-  if (st >= et) {
-    toast.add({ title: 'Jam selesai harus > jam mulai.', color: 'error' })
-    return
-  }
-  if (st === j.start_time && et === j.end_time) {
-    toast.add({ title: 'Jamnya tidak berubah.', color: 'warning' })
-    return
-  }
-  if (j.status !== 'Cancelled' && bentrokJadwal(jadwal.value, j.talent_id, j.date, st, et, j.id)) {
-    toast.add({ title: `Bentrok: ${namaTalent(j.talent_id)} sudah punya jadwal lain di jam itu pada ${tglPendek(j.date)}.`, color: 'error' })
-    return
-  }
-  const lama = `${j.start_time}–${j.end_time}`
-  try {
-    await patchEvent('schedules', j.id, { start_time: st, end_time: et, updatedAt: Date.now() }, daftar.value.versions[j.id])
-    toast.add({ title: `Jam diubah: ${lama} → ${st}–${et}`, color: 'success' })
-    await refresh()
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
-  }
-}
-async function hapusJadwal() {
-  const j = info.value
-  if (!j) return
-  try {
-    await removeEvent('schedules', j.id, daftar.value.versions[j.id])
-    sheetInfo.value = false
-    toast.add({ title: 'Jadwal dihapus', color: 'success' })
-    await refresh()
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
-  }
-}
-
-// --- add form (`scheduleForm :3412`, `saveSchedule :3497`) ---
-const sheetTambah = ref(false)
-const f = ref({ tanggal: hariIni(), tipe: TAL_CATS[0] as string, mulai: '20:00', selesai: '23:00' })
-const pilihTalent = ref<string[]>([])
-const feeBaris = ref<Record<string, number>>({})
-
-function bukaTambah(tgl?: string) {
-  f.value = { tanggal: tgl ?? hariIni(), tipe: TAL_CATS[0]!, mulai: '20:00', selesai: '23:00' }
-  pilihTalent.value = []
-  feeBaris.value = {}
-  sheetTambah.value = true
-}
-const feeDefault = (id: string) => feeAngka(daftarTalent.value.rows.find(t => t.id === id)?.default_fee) || 0
-
-async function simpanTambah() {
-  if (!pilihTalent.value.length) {
-    toast.add({ title: 'Pilih minimal satu talent dulu.', color: 'error' })
-    return
-  }
-  if (f.value.selesai <= f.value.mulai) {
-    toast.add({ title: 'Jam selesai harus > jam mulai.', color: 'error' })
-    return
-  }
-  const bentrok = pilihTalent.value.filter(id => bentrokJadwal(jadwal.value, id, f.value.tanggal, f.value.mulai, f.value.selesai))
-  if (bentrok.length) {
-    toast.add({ title: `Bentrok di ${tglPendek(f.value.tanggal)}: ${bentrok.map(namaTalent).join(', ')}`, color: 'error' })
-    return
-  }
-  sheetTambah.value = false
-  const tglSimpan = f.value.tanggal
-  try {
-    for (const id of pilihTalent.value) {
-      await createEvent('schedules', {
-        talent_id: id,
-        event_id: null,
-        date: f.value.tanggal,
-        performance_type: f.value.tipe,
-        start_time: f.value.mulai,
-        end_time: f.value.selesai,
-        fee: feeBaris.value[id] ?? feeDefault(id),
-        status: 'Scheduled',
-        recurring_rule_id: null,
-        source: 'manual',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      })
+const senin = ref(seninEms(hariIni()))
+/** One value for ‹ Hari Ini ›: the Monday in week mode, the month otherwise; the other one follows. */
+const nav = computed({
+  get: () => (modeMinggu.value ? senin.value : bulan.value),
+  set: (v: string) => {
+    if (modeMinggu.value) {
+      senin.value = v
+      bulan.value = geserTgl(v, 3).slice(0, 7)
     }
-    toast.add({ title: `${pilihTalent.value.length} jadwal disimpan`, color: 'success' })
-    // Follow the saved date: the calendar jumps to its month.
-    bulan.value = tglSimpan.slice(0, 7)
-    await refresh()
+    else {
+      bulan.value = v
+      senin.value = v === hariIni().slice(0, 7) ? seninEms(hariIni()) : seninEms(`${v}-01`)
+    }
+  },
+})
+const hariMinggu = computed(() => tujuhHariEms(senin.value))
+const labelMinggu = computed(() => `Minggu ${fTglP(hariMinggu.value[0])} – ${fTglP(hariMinggu.value[6])} ${hariMinggu.value[6]!.slice(0, 4)}`)
+const rentangLihat = computed(() => (modeMinggu.value ? { a: hariMinggu.value[0]!, b: hariMinggu.value[6]! } : rentangBulan(bulan.value)))
+
+// ---------------------------------------------------------------- data
+const { data: dataTalent } = useDaftarEvent<Talent>('talents', {}, 'event-schedule-talents')
+const { data: dataAcara } = useDaftarEvent<Acara>('events', {}, 'event-schedule-acara')
+const pool = useJadwalRentang()
+watch(rentangLihat, r => pool.pastikan(r.a, r.b), { immediate: true })
+
+const talents = computed(() => dataTalent.value.rows)
+const talentById = computed(() => new Map(talents.value.map(t => [t.id, t])))
+const namaTalent = (id: string) => talentById.value.get(id)?.name ?? '(talent terhapus)'
+const urutKategori = computed(() => daftarKategori(TAL_CATS, talents.value))
+const talentAktif = computed(() => talents.value.filter(t => t.status === 'Active'))
+/** Legend: categories of active talents, like the old page. */
+const katLegenda = computed(() => {
+  const ada = new Set(talentAktif.value.map(t => t.category).filter(Boolean))
+  const l = urutKategori.value.filter(k => ada.has(k))
+  return l.length ? l : [...TAL_CATS]
+})
+const acaraPilihan = computed(() => dataAcara.value.rows
+  .map(a => ({ id: a.id, title: a.title, tgl: tglWIB(a.start_datetime) }))
+  .sort((a, b) => b.tgl.localeCompare(a.tgl)))
+
+// default hours (only what is SAVED is used)
+const doc = ref(dokumenKosong())
+const docMuat = ref(false)
+const docGalat = ref('')
+async function muatDoc() {
+  docGalat.value = ''
+  try {
+    doc.value = rapikanDokumen((await getJamTalent()).data)
   }
   catch (e) {
-    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+    doc.value = dokumenKosong()
+    // 404 = the API has no such setting yet: work with empty defaults, say nothing.
+    if ((e as { statusCode?: number })?.statusCode !== 404) docGalat.value = apiErrorMessage(e)
+  }
+  finally {
+    docMuat.value = true
+  }
+}
+onMounted(muatDoc)
+const petunjukJam = computed(() => docMuat.value && !dokumenAdaIsi(doc.value))
+
+// category filter
+const SEMUA = '__semua'
+const fKat = ref(SEMUA)
+const katAktifFilter = computed(() => (fKat.value === SEMUA ? '' : fKat.value))
+const opsiKat = computed(() => [{ value: SEMUA, label: 'Semua kategori' }, ...urutKategori.value.map(k => ({ value: k, label: k }))])
+const katBaris = (r: Pick<BarisEf, 'talent_id' | 'performance_type'>) => talentById.value.get(r.talent_id)?.category ?? r.performance_type
+
+// ---------------------------------------------------------------- drafts
+const draf = ref<Draf[]>([])
+const ef = computed(() => barisEfektif(pool.rows.value, draf.value))
+const efTampil = computed(() => (katAktifFilter.value ? ef.value.filter(r => katBaris(r) === katAktifFilter.value) : ef.value))
+const bentrokLokal = computed(() => bentrokEf(ef.value, draf.value))
+const tandaServer = ref(new Set<string>())
+watch(draf, () => {
+  if (tandaServer.value.size) tandaServer.value = new Set()
+})
+const tanda = computed(() => new Set([...bentrokLokal.value, ...tandaServer.value]))
+const ringkas = computed(() => (draf.value.length ? ringkasDraf(draf.value) : ''))
+
+const dalamRentang = (r: { date: string }) => r.date >= rentangLihat.value.a && r.date <= rentangLihat.value.b
+const efLihat = computed(() => efTampil.value.filter(dalamRentang))
+const jumlah = computed(() => barisHidup(efLihat.value).length)
+const rowsBulanTersimpan = computed(() => pool.rows.value.filter(j => j.date >= rentangBulan(bulan.value).a && j.date <= rentangBulan(bulan.value).b
+  && (!katAktifFilter.value || katBaris(j) === katAktifFilter.value)))
+
+const grupMinggu = computed(() => susunGrup(
+  katAktifFilter.value ? talents.value.filter(t => t.category === katAktifFilter.value) : talents.value,
+  efLihat.value, hariMinggu.value, urutKategori.value,
+))
+const grupAktif = computed(() => susunGrup(talentAktif.value, [], [], urutKategori.value))
+
+const savedInfo = (kunci: string) => {
+  const baris = pool.rows.value.find(j => String(j.id) === kunci)
+  return baris ? { baris, versi: pool.versi.value[kunci] } : undefined
+}
+const nilaiDari = (r: BarisEf): NilaiJadwal => ({
+  talent_id: r.talent_id, date: r.date, start_time: r.start_time, end_time: r.end_time, performance_type: r.performance_type,
+  fee: r.fee, status: r.status, event_id: r.event_id, notes: r.notes,
+})
+const barisByKunci = (kunci: string) => ef.value.find(r => r.kunci === kunci)
+
+function tambahDraf(n: NilaiJadwal) {
+  draf.value = tambahBaru(draf.value, n, idBarisEms())
+}
+
+/** An empty cell: fill with the default hours at once; no default → the editor with empty hours. */
+function isiSel(talentId: string, tgl: string) {
+  const t = talentById.value.get(talentId)
+  if (!t || !bolehUbah.value) return
+  const j = jamBawaan(doc.value, t.id, t.category, tgl)
+  if (j) tambahDraf(nilaiBaru(t, tgl, j.mulai, j.selesai))
+  else editorBaru.value = nilaiBaru(t, tgl, '', '')
+}
+/** `+`: a second show on the same day, in the first category slot that does not overlap. */
+function tambahKedua(talentId: string, tgl: string) {
+  const t = talentById.value.get(talentId)
+  if (!t || !bolehUbah.value) return
+  const j = jamSlotKedua(doc.value, t.id, t.category, tgl, ef.value)
+  if (j) tambahDraf(nilaiBaru(t, tgl, j.mulai, j.selesai))
+  else editorBaru.value = nilaiBaru(t, tgl, '', '')
+}
+/** Day sheet chip: first show = default hours, next ones = free slot; empty hours when nothing fits. */
+function tambahDiHari(talentId: string, tgl: string) {
+  const t = talentById.value.get(talentId)
+  if (!t || !bolehUbah.value) return
+  const j = sudahAdaSel(ef.value, talentId, tgl)
+    ? jamSlotKedua(doc.value, t.id, t.category, tgl, ef.value)
+    : jamBawaan(doc.value, t.id, t.category, tgl)
+  tambahDraf(nilaiBaru(t, tgl, j?.mulai ?? '', j?.selesai ?? ''))
+}
+function ubahJamHari(kunci: string, mulai: string, selesai: string) {
+  const r = barisByKunci(kunci)
+  if (!r || !bolehUbah.value) return
+  draf.value = setNilai(draf.value, kunci, { ...nilaiDari(r), start_time: mulai, end_time: selesai }, savedInfo(kunci))
+}
+function hapusBarisHari(kunci: string) {
+  draf.value = hapusBaris(draf.value, kunci, savedInfo(kunci))
+}
+function pulihBaris(kunci: string) {
+  draf.value = buangSatu(draf.value, kunci)
+}
+
+// ---------------------------------------------------------------- editor
+const editorKunci = ref<string | null>(null)
+/** An empty cell without default hours: not a draft until "Terapkan". */
+const editorBaru = ref<NilaiJadwal | null>(null)
+const sheetEditor = computed({
+  get: () => editorKunci.value !== null || editorBaru.value !== null,
+  set: (v: boolean) => {
+    if (!v) {
+      editorKunci.value = null
+      editorBaru.value = null
+    }
+  },
+})
+const targetEditor = computed(() => {
+  if (editorBaru.value) return { kunci: '', nilai: editorBaru.value, baru: true, draf: null, basi: false }
+  const r = editorKunci.value ? barisByKunci(editorKunci.value) : undefined
+  return r ? { kunci: r.kunci, nilai: nilaiDari(r), baru: false, draf: r.draf, basi: r.basi } : null
+})
+function bukaBaris(kunci: string) {
+  const r = barisByKunci(kunci)
+  if (!r) return
+  if (r.draf === 'hapus') {
+    if (bolehUbah.value) {
+      pulihBaris(kunci)
+      toast.add({ title: 'Penghapusan dibatalkan', color: 'neutral' })
+    }
+    return
+  }
+  editorKunci.value = kunci
+}
+function terapkanEditor(n: NilaiJadwal) {
+  if (editorBaru.value) {
+    tambahDraf(n)
+    return
+  }
+  const k = editorKunci.value
+  if (k) draf.value = setNilai(draf.value, k, n, savedInfo(k))
+}
+function hapusEditor() {
+  const k = editorKunci.value
+  if (k) draf.value = hapusBaris(draf.value, k, savedInfo(k))
+}
+function buangEditor() {
+  if (editorKunci.value) pulihBaris(editorKunci.value)
+}
+
+// ---------------------------------------------------------------- day sheet
+const hariBuka = ref<string | null>(null)
+const sheetHari = computed({ get: () => hariBuka.value !== null, set: (v: boolean) => {
+  if (!v) hariBuka.value = null
+} })
+const rowsHari = computed(() => (hariBuka.value ? ef.value.filter(r => r.date === hariBuka.value) : []))
+
+// ---------------------------------------------------------------- bulk helpers
+async function salinLalu() {
+  const a = geserTgl(senin.value, -7)
+  const b = geserTgl(senin.value, -1)
+  await pool.pastikan(a, b)
+  if (!rentangTercakup(pool.dimuat.value, a, b)) {
+    toast.add({ title: 'Jadwal minggu lalu belum bisa dimuat', description: 'Coba lagi sebentar.', color: 'error' })
+    return
+  }
+  const h = salinMingguLalu(ef.value, talents.value, senin.value, katAktifFilter.value)
+  terapkanIsi(h, `dari minggu lalu${katAktifFilter.value ? ` (${katAktifFilter.value})` : ''}`)
+}
+function terapkanIsi(h: HasilIsi, asal: string) {
+  if (h.baru.length) draf.value = [...draf.value, ...h.baru.map(nilai => ({ kunci: idBarisEms(), nilai }))]
+  const bagian = [
+    `${h.baru.length} draf ${asal}`,
+    h.dilewati ? `${h.dilewati} dilewati (sudah ada jadwal)` : '',
+    h.tanpaJam ? `${h.tanpaJam} dilewati (tanpa jam bawaan)` : '',
+    h.nonaktif ? `${h.nonaktif} dilewati (talent nonaktif)` : '',
+  ].filter(Boolean)
+  toast.add({ title: bagian.join(' · '), description: h.baru.length ? 'Belum tersimpan: tekan Simpan jadwal.' : undefined, color: h.baru.length ? 'success' : 'warning' })
+}
+const sheetOtomatis = ref(false)
+const rentangOtomatis = computed(() => ({ dari: modeMinggu.value ? senin.value : rentangBulan(bulan.value).a, sampai: rentangBulan(bulan.value).b }))
+
+// ---------------------------------------------------------------- save
+const menyimpan = ref(false)
+
+async function simpan() {
+  if (!bolehUbah.value || !draf.value.length || menyimpan.value) return
+  if (draf.value.some(d => d.basi)) {
+    toast.add({ title: 'Ada baris yang diubah orang lain', description: 'Buka barisnya (bertanda !) lalu tekan Terapkan, atau buang perubahannya.', color: 'warning' })
+    return
+  }
+  const jamSalah = draftBerjam(ef.value)
+  if (jamSalah.length) {
+    const r = barisByKunci(jamSalah[0]!.kunci)
+    toast.add({ title: `${r ? `${namaTalent(r.talent_id)}, ${tglPendek(r.date)}` : 'Satu baris'}: ${jamSalah[0]!.pesan}`, description: jamSalah.length > 1 ? `Dan ${jamSalah.length - 1} baris lain.` : undefined, color: 'error' })
+    return
+  }
+  if (tanda.value.size) {
+    toast.add({ title: 'Masih ada jadwal yang bentrok', description: 'Baris bertanda merah harus dibereskan dulu.', color: 'error' })
+    return
+  }
+  const susunan = susunBatch(draf.value, Date.now())
+  const p = pesanBatch(susunan)
+  if (p) {
+    toast.add({ title: p, color: 'error' })
+    return
+  }
+  menyimpan.value = true
+  try {
+    await batchJadwal({ create: susunan.create, update: susunan.update, delete: susunan.delete })
+    const n = susunan.total
+    draf.value = []
+    sheetHari.value = false
+    toast.add({ title: `${n} perubahan jadwal tersimpan`, color: 'success' })
+    await pool.muatUlang()
+  }
+  catch (e) {
+    await tanganiGalat(e, susunan)
+  }
+  finally {
+    menyimpan.value = false
   }
 }
 
-// --- weekly input (`mgBuka :3225`, `mgSimpan :3364`) ---
-const sheetMinggu = ref(false)
-const mg = ref({ mulai: '20:00', selesai: '23:00', tipe: TAL_CATS[0] as string })
-const mgPilih = ref<Record<string, string[]>>({})
-/** Week offset from the current week; ‹ › move it. */
-const mgGeser = ref(0)
-function bukaMinggu() {
-  mg.value = { mulai: '20:00', selesai: '23:00', tipe: TAL_CATS[0]! }
-  mgPilih.value = {}
-  mgGeser.value = 0
-  sheetMinggu.value = true
-}
-const tglMinggu = computed(() => {
-  const h = hariIni()
-  const d = new Date(`${h}T00:00:00`)
-  const senin = new Date(d)
-  senin.setDate(d.getDate() - ((d.getDay() + 6) % 7) + mgGeser.value * 7)
-  return Array.from({ length: 7 }, (_, i) => {
-    const t = new Date(senin)
-    t.setDate(senin.getDate() + i)
-    return `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`
-  })
-})
-const labelMinggu = computed(() => {
-  const t = tglMinggu.value
-  return `${tglPendek(t[0]!)} – ${tglPendek(t[6]!)}`
-})
-/** Already scheduled that day (faded in the picker): clashes are skipped, never rewritten. */
-const sudahAda = (tgl: string) => jadwal.value.filter(j => j.date === tgl)
-/** New rows only: picks minus what is already there. */
-const barisMinggu = computed(() => {
-  const keluar: { tgl: string, id: string }[] = []
-  for (const [tgl, ids] of Object.entries(mgPilih.value)) {
-    const ada = new Set(sudahAda(tgl).map(j => j.talent_id))
-    for (const id of [...new Set(ids)]) {
-      if (!ada.has(id)) keluar.push({ tgl, id })
-    }
+/** A refused batch: drafts stay; the page says which row, refreshes, and marks cells. */
+async function tanganiGalat(e: unknown, s?: SusunanBatch) {
+  const g = bacaGalatBatch(e, s)
+  const nama = (id?: string) => {
+    const r = id ? barisByKunci(id) : undefined
+    const j = id ? pool.rows.value.find(x => String(x.id) === id) : undefined
+    const t = r?.talent_id ?? j?.talent_id
+    const d = r?.date ?? j?.date
+    return t ? `${namaTalent(t)}, ${d ? tglPendek(d) : ''}` : 'Satu baris'
   }
-  return keluar
-})
-function toggleMg(tgl: string, id: string) {
-  const l = mgPilih.value[tgl] ?? []
-  mgPilih.value[tgl] = l.includes(id) ? l.filter(x => x !== id) : [...l, id]
-}
-async function simpanMinggu() {
-  if (mg.value.selesai <= mg.value.mulai) {
-    toast.add({ title: 'Jam selesai harus lebih dari jam mulai.', color: 'error' })
-    return
-  }
-  const baris = barisMinggu.value
-  if (!baris.length) {
-    toast.add({ title: 'Belum ada baris baru untuk disimpan.', color: 'error' })
-    return
-  }
-  const bentrokNyata = baris.filter(b => bentrokJadwal(jadwal.value, b.id, b.tgl, mg.value.mulai, mg.value.selesai))
-  const bersih = baris.filter(b => !bentrokJadwal(jadwal.value, b.id, b.tgl, mg.value.mulai, mg.value.selesai))
-  if (!bersih.length) {
-    toast.add({ title: `Bentrok: ${bentrokNyata.map(b => `${namaTalent(b.id)} ${tglPendek(b.tgl)}`).join(', ')}`, color: 'error' })
-    return
-  }
-  sheetMinggu.value = false
-  try {
-    for (const b of bersih) {
-      await createEvent('schedules', {
-        talent_id: b.id,
-        event_id: null,
-        date: b.tgl,
-        performance_type: mg.value.tipe,
-        start_time: mg.value.mulai,
-        end_time: mg.value.selesai,
-        fee: feeDefault(b.id),
-        status: 'Scheduled',
-        recurring_rule_id: null,
-        source: 'mingguan',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      })
+  if (g.kode === 'version_conflict' || isVersiWajib(e)) {
+    const sebut = nama(g.id)
+    await pool.muatUlang()
+    if (g.id) {
+      const segar = savedInfo(g.id)
+      draf.value = tandaiBasi(draf.value, g.id, segar ?? null)
     }
     toast.add({
-      title: bersih.length === baris.length
-        ? `${bersih.length} jadwal disimpan`
-        : `${bersih.length} tersimpan · ${baris.length - bersih.length} dilewati: ${bentrokNyata.map(b => `${namaTalent(b.id)} ${tglPendek(b.tgl)}`).join(', ')}`,
-      color: 'success',
+      title: `${sebut} sudah diubah orang lain`,
+      description: 'Tidak ada yang tersimpan. Draf Anda tetap ada dan jadwal dimuat ulang: periksa baris itu (bertanda !), terapkan lagi, lalu simpan.',
+      color: 'warning',
     })
-    await refresh()
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
-  }
-}
-
-// --- recurring (`recurringModal :3539`, `genRecurring :3604`) ---
-const sheetRutin = ref(false)
-const rt = ref({ tipe: TAL_CATS[0] as string, fee: 0, mulai: '20:00', selesai: '23:00', dari: hariIni(), sampai: hariIni() })
-const rtTalent = ref<string[]>([])
-const rtHari = ref<number[]>([5])
-const cariRt = ref('')
-function bukaRutin() {
-  rt.value = { tipe: TAL_CATS[0]!, fee: 0, mulai: '20:00', selesai: '23:00', dari: hariIni(), sampai: akhirBulanDepan() }
-  rtTalent.value = []
-  rtHari.value = [5]
-  cariRt.value = ''
-  sheetRutin.value = true
-}
-/** Default end: last day of next month. */
-function akhirBulanDepan() {
-  const h = hariIni()
-  const d = new Date(Number(h.slice(0, 4)), Number(h.slice(5, 7)) + 1, 0)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-const rtCocok = computed(() => {
-  const q = cariRt.value.trim().toLowerCase()
-  if (!q) return talentUrut.value
-  return talentUrut.value.filter(t => t.name.toLowerCase().includes(q))
-})
-async function simpanRutin() {
-  if (!rtTalent.value.length) {
-    toast.add({ title: 'Pilih minimal satu talent.', color: 'error' })
     return
   }
-  if (!rtHari.value.length) {
-    toast.add({ title: 'Pilih minimal satu hari.', color: 'error' })
+  if (g.kode === 'jadwal_bentrok') {
+    tandaServer.value = new Set(g.tanda)
+    toast.add({ title: 'Bentrok dengan jadwal lain di server', description: 'Tidak ada yang tersimpan. Baris yang bentrok ditandai merah.', color: 'error' })
+    await pool.muatUlang()
     return
   }
-  const tgls: string[] = []
-  const a = new Date(`${rt.value.dari}T00:00:00`)
-  const b = new Date(`${rt.value.sampai}T00:00:00`)
-  for (let d = new Date(a); d <= b; d.setDate(d.getDate() + 1)) {
-    if (rtHari.value.includes((d.getDay() + 6) % 7)) {
-      tgls.push(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`)
-    }
-  }
-  const baris: { tgl: string, id: string }[] = []
-  for (const tgl of tgls) {
-    for (const id of rtTalent.value) {
-      if (!bentrokJadwal(jadwal.value, id, tgl, rt.value.mulai, rt.value.selesai)) baris.push({ tgl, id })
-    }
-  }
-  sheetRutin.value = false
-  try {
-    const aturan = new Map<string, string>()
-    for (const tid of rtTalent.value) {
-      const rid = `r${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`
-      aturan.set(tid, rid)
-      await createEvent('recurring-rules', {
-        id: rid,
-        talent_id: tid,
-        // the picker numbers Monday = 0; the stored rule uses getDay() (Sunday = 0)
-        days_of_week: rtHari.value.map(h => (h + 1) % 7),
-        start_time: rt.value.mulai,
-        end_time: rt.value.selesai,
-        valid_from: rt.value.dari,
-        valid_to: rt.value.sampai,
-        performance_type: rt.value.tipe,
-        // empty fee = EACH talent's own default fee (one flat number for three rates is wrong)
-        fee: rt.value.fee || feeDefault(tid),
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      })
-    }
-    for (const r of baris) {
-      await createEvent('schedules', {
-        talent_id: r.id,
-        event_id: null,
-        date: r.tgl,
-        performance_type: rt.value.tipe,
-        start_time: rt.value.mulai,
-        end_time: rt.value.selesai,
-        fee: rt.value.fee || feeDefault(r.id),
-        status: 'Scheduled',
-        recurring_rule_id: aturan.get(r.id) ?? null,
-        source: 'recurring',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      })
-    }
-    toast.add({ title: `${baris.length} jadwal rutin dibuat`, color: 'success' })
-    await refresh()
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
-  }
-}
-
-// --- monthly generate (`monthlyGenModal :3657`, `genMonthly :3766`) ---
-const sheetBulan = ref(false)
-const bl = ref({ tipe: TAL_CATS[0] as string, mulai: '20:00', selesai: '23:00' })
-const blTalent = ref<string[]>([])
-const blHari = ref<number[]>([5])
-function bukaBulan() {
-  bl.value = { tipe: TAL_CATS[0]!, mulai: '20:00', selesai: '23:00' }
-  blTalent.value = []
-  blHari.value = [5]
-  sheetBulan.value = true
-}
-const rencanaBulan = computed(() => {
-  const [y, m] = bulan.value.split('-').map(Number)
-  const jumlah = new Date(y!, m!, 0).getDate()
-  const tgls: string[] = []
-  for (let d = 1; d <= jumlah; d++) {
-    const dt = new Date(y!, m! - 1, d)
-    if (blHari.value.includes((dt.getDay() + 6) % 7)) {
-      tgls.push(`${bulan.value}-${String(d).padStart(2, '0')}`)
-    }
-  }
-  return tgls
-})
-/** Rows that survive the clash check — the pill counts what will be written, not wishes. */
-const barisBulan = computed(() => {
-  const keluar: { tgl: string, id: string }[] = []
-  for (const tgl of rencanaBulan.value) {
-    for (const id of blTalent.value) {
-      if (!bentrokJadwal(jadwal.value, id, tgl, bl.value.mulai, bl.value.selesai)) keluar.push({ tgl, id })
-    }
-  }
-  return keluar
-})
-async function simpanBulan() {
-  if (!blTalent.value.length) {
-    toast.add({ title: 'Pilih minimal satu talent.', color: 'error' })
+  if (g.kode === 'not_found') {
+    const sebut = nama(g.id)
+    if (g.id) draf.value = tandaiBasi(draf.value, g.id, null)
+    await pool.muatUlang()
+    toast.add({ title: `${sebut} sudah dihapus orang lain`, description: 'Draf untuk baris itu dibuang. Sisanya belum tersimpan.', color: 'warning' })
     return
   }
-  const baris = barisBulan.value
-  if (!baris.length) {
-    toast.add({ title: 'Semua bentrok — tidak ada jadwal dibuat.', color: 'error' })
-    return
-  }
-  sheetBulan.value = false
-  try {
-    for (const r of baris) {
-      await createEvent('schedules', {
-        talent_id: r.id,
-        event_id: null,
-        date: r.tgl,
-        performance_type: bl.value.tipe,
-        start_time: bl.value.mulai,
-        end_time: bl.value.selesai,
-        fee: feeDefault(r.id),
-        status: 'Scheduled',
-        recurring_rule_id: null,
-        source: 'monthly_generator',
-        createdAt: Date.now(),
-        updatedAt: Date.now(),
-      })
-    }
-    toast.add({ title: `${baris.length} jadwal dibuat`, color: 'success' })
-    await refresh()
-  }
-  catch (e) {
-    if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' })
-  }
-}
-
-function togglePilih(list: string[], id: string) {
-  return list.includes(id) ? list.filter(x => x !== id) : [...list, id]
-}
-
-// --- attendance sheet (`lembarTalentHTML :2848`): talent × day grid for the viewed month ---
-/** Rows: talents with shows this month (plus deleted ones), then day cells. Cancelled is drawn, never counted. */
-const barisHadir = computed(() => {
-  const [y, m] = bulan.value.split('-').map(Number)
-  const jumlah = new Date(y!, m!, 0).getDate()
-  const tgls = Array.from({ length: jumlah }, (_, i) => `${bulan.value}-${String(i + 1).padStart(2, '0')}`)
-  const perTalent = new Map<string, JadwalTalent[]>()
-  for (const j of jadwal.value) {
-    const l = perTalent.get(j.talent_id) ?? []
-    l.push(j)
-    perTalent.set(j.talent_id, l)
-  }
-  const baris: { id: string, nama: string, hapus: boolean, tampil: number, selesai: number, fee: number, sel: Map<string, JadwalTalent[]> }[] = []
-  for (const [tid, rows] of perTalent) {
-    const hidup = rows.filter(j => j.status !== 'Cancelled')
-    const t = daftarTalent.value.rows.find(x => x.id === tid)
-    baris.push({
-      id: tid,
-      nama: t?.name ?? 'Talent terhapus',
-      hapus: !t,
-      tampil: hidup.length,
-      selesai: hidup.filter(j => j.status === 'Done').length,
-      fee: hidup.reduce((a, j) => a + feeAngka(j.fee), 0),
-      sel: new Map(tgls.map(d => [d, rows.filter(j => j.date === d)] as [string, JadwalTalent[]])),
+  if (g.kode === 'validation_failed' && g.baris.length) {
+    tandaServer.value = new Set(g.tanda)
+    const b = g.baris[0]!
+    toast.add({
+      title: `${b.kunci ? nama(b.kunci) : 'Satu baris'}: ${b.alasan}`,
+      description: g.baris.length > 1 ? `Dan ${g.baris.length - 1} baris lain.` : undefined,
+      color: 'error',
     })
+    return
   }
-  // talentUrut (:2496): most shows first, then the latest show, then name
-  const akhir = (b: typeof baris[number]) => [...b.sel.values()].flat().filter(j => j.status !== 'Cancelled').map(j => j.date).sort().pop() ?? ''
-  baris.sort((a, b) => (b.tampil - a.tampil) || akhir(b).localeCompare(akhir(a)) || a.nama.localeCompare(b.nama))
-  return { tgls, baris }
+  toast.add({ title: apiErrorMessage(e), color: 'error' })
+}
+
+function buangSemua() {
+  if (!draf.value.length) return
+  if (!window.confirm(`Buang semua draf (${ringkasDraf(draf.value)})? Jadwal yang sudah tersimpan tidak berubah.`)) return
+  draf.value = []
+}
+
+// ---------------------------------------------------------------- calendar view
+const MAKS_KARTU = 4
+const efKalender = computed(() => barisHidup(efLihat.value))
+const kartuHari = (tgl: string) => efKalender.value.filter(r => r.date === tgl).sort((a, b) => a.start_time.localeCompare(b.start_time))
+const gayaKartu = (r: BarisEf) => (tanda.value.has(r.kunci)
+  ? `${GAYA_NADA.error!.kartu} ring-1 ring-error`
+  : gayaNada(nadaKategori(katBaris(r), urutKategori.value)).kartu)
+const bisaGeser = (r: BarisEf) => bolehUbah.value && !r.draf && !STATUS_TERKUNCI.includes(r.status)
+const judulKartu = (r: BarisEf) => `${namaTalent(r.talent_id)} · ${r.start_time ? `${r.start_time}–${r.end_time}` : 'jam belum diisi'} · ${r.performance_type} · ${r.status}${r.draf ? ' · draf' : ''}`
+
+/** Drag a saved card to another day: confirmed, clash-checked, written at once. */
+async function pindah({ id, dari, ke }: { id: string, dari: string, ke: string }) {
+  const r = barisByKunci(id)
+  if (!r || ke === dari || !bisaGeser(r)) return
+  const b = bentrokDengan(ef.value, r.talent_id, ke, r.start_time, r.end_time, r.kunci)
+  if (b) {
+    toast.add({ title: `Bentrok: ${namaTalent(r.talent_id)} sudah punya jadwal ${b.start_time}–${b.end_time} di ${tglPendek(ke)}.`, color: 'error' })
+    return
+  }
+  if (!window.confirm(`Pindahkan ${namaTalent(r.talent_id)} (${r.start_time}–${r.end_time}) dari ${tglPendek(dari)} ke ${tglPendek(ke)}? Jam dan fee tidak berubah.`)) return
+  try {
+    await batchJadwal({ create: [], update: [{ id, version: pool.versi.value[id] as string | number, fields: { date: ke } }], delete: [] })
+    toast.add({ title: `${namaTalent(r.talent_id)} dipindah ke ${tglPendek(ke)}`, color: 'success' })
+    await pool.muatUlang()
+  }
+  catch (e) {
+    await tanganiGalat(e)
+  }
+}
+
+// ---------------------------------------------------------------- ?tgl=YYYY-MM-DD
+function bukaTanggal(v: unknown) {
+  const t = Array.isArray(v) ? v[0] : v
+  if (typeof t !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(t) || tglDariHariKe(hariKe(t)) !== t) return
+  bulan.value = t.slice(0, 7)
+  senin.value = seninEms(t)
+  hariBuka.value = t
+  router.replace({ query: {} })
+}
+onMounted(() => bukaTanggal(route.query.tgl))
+watch(() => route.query.tgl, v => v && bukaTanggal(v))
+
+// ---------------------------------------------------------------- leaving with drafts
+function cegahTutup(e: BeforeUnloadEvent) {
+  if (draf.value.length) e.preventDefault()
+}
+onMounted(() => window.addEventListener('beforeunload', cegahTutup))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', cegahTutup))
+onBeforeRouteLeave(() => {
+  if (draf.value.length && !window.confirm(`Ada draf jadwal yang belum disimpan (${ringkasDraf(draf.value)}). Tinggalkan halaman ini? Draf akan hilang.`)) return false
 })
-/** Shows per day (non-cancelled), and the month totals. */
-const kakiHadir = computed(() => barisHadir.value.tgls.map(d => jadwal.value.filter(j => j.date === d && j.status !== 'Cancelled').length))
-const totalKakiHadir = computed(() => {
-  const sah = jadwal.value.filter(j => j.status !== 'Cancelled')
-  return { tampil: sah.length, selesai: jadwal.value.filter(j => j.status === 'Done').length, fee: sah.reduce((a, j) => a + feeAngka(j.fee), 0) }
-})
-const HURUF_STATUS: Record<string, string> = { Scheduled: 'S', Confirmed: 'C', Done: '✓', Cancelled: '×' }
-const WARNA_HURUF: Record<string, string> = { Scheduled: 'bg-primary-500 text-white', Confirmed: 'bg-info text-white', Done: 'bg-success text-white', Cancelled: 'bg-muted text-muted' }
-const HARI3 = ['MIN', 'SEN', 'SEL', 'RAB', 'KAM', 'JUM', 'SAB']
-const hariDari = (tgl: string) => new Date(`${tgl}T00:00:00`).getDay()
+const jumlahBentrok = computed(() => tanda.value.size)
+const hitung = computed(() => hitungDraf(draf.value))
 </script>
 
 <template>
   <EventGerbang lihat="schedule">
     <AppPage
       title="Talent schedule"
-      description="Kalender jadwal · anti double-booking"
+      description="Kalender dan lembar roster · anti double-booking"
     >
       <template #actions>
-        <UButton
-          v-if="bolehUbah"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-calendar-plus"
-          @click="bukaMinggu()"
-        >
-          Input mingguan
-        </UButton>
-        <UButton
-          v-if="bolehUbah"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-repeat"
-          @click="bukaRutin()"
-        >
-          Recurring
-        </UButton>
-        <UButton
-          v-if="bolehUbah"
-          color="neutral"
-          variant="outline"
-          icon="i-lucide-calendar-days"
-          @click="bukaBulan()"
-        >
-          Generate bulanan
-        </UButton>
-        <UButton
-          v-if="bolehUbah"
-          color="primary"
-          icon="i-lucide-plus"
-          @click="bukaTambah()"
-        >
-          Jadwal
-        </UButton>
+        <AppSeg
+          v-model="tampilan"
+          size="sm"
+          :options="[{ value: 'kalender', label: 'Kalender', icon: 'i-lucide-calendar-days' }, { value: 'tabel', label: 'Tabel', icon: 'i-lucide-table' }]"
+        />
+        <AppSeg
+          v-if="tampilan === 'tabel'"
+          v-model="tabel"
+          size="sm"
+          :options="[{ value: 'minggu', label: 'Minggu' }, { value: 'bulan', label: 'Bulan' }]"
+        />
+        <USelect
+          v-model="fKat"
+          :items="opsiKat"
+          class="w-44"
+          aria-label="Kategori talent"
+        />
+        <KalenderNav
+          v-model="nav"
+          :mode="modeMinggu ? 'minggu' : 'bulan'"
+        />
       </template>
 
-      <AppPanel class="mb-4">
-        <div class="flex flex-wrap items-center gap-2">
-          <UButton
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-chevron-left"
-            @click="geserBulan(-1)"
-          />
-          <b class="min-w-32 text-center text-highlighted">{{ labelBulan }}</b>
-          <UButton
-            color="neutral"
-            variant="outline"
-            icon="i-lucide-chevron-right"
-            @click="geserBulan(1)"
-          />
-          <UButton
-            color="neutral"
-            variant="outline"
-            @click="bulan = hariIni().slice(0, 7)"
-          >
-            Hari ini
-          </UButton>
-          <span class="rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold num">{{ jadwal.length }} jadwal bulan ini</span>
-        </div>
-        <div class="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+      <UAlert
+        v-if="pool.galat.value"
+        color="error"
+        variant="soft"
+        :title="apiErrorMessage(pool.galat.value)"
+        class="mb-4"
+        :actions="[{ label: 'Coba lagi', onClick: () => pool.muatUlang() }]"
+      />
+      <UAlert
+        v-if="docGalat"
+        color="warning"
+        variant="soft"
+        title="Jam bawaan tidak terbaca"
+        :description="`${docGalat} Klik sel kosong akan membuka editor tanpa jam.`"
+        class="mb-4"
+        :actions="[{ label: 'Coba lagi', onClick: () => muatDoc() }]"
+      />
+      <UAlert
+        v-else-if="petunjukJam && bolehUbah"
+        color="info"
+        variant="soft"
+        title="Jam bawaan belum diatur"
+        description="Selama belum ada, mengklik sel kosong membuka editor dengan jam kosong. Atur jam per kategori agar sel terisi otomatis."
+        class="mb-4"
+        :actions="bolehAturJam ? [{ label: 'Buka Jam talent', to: '/event/jam-talent' }] : []"
+      />
+
+      <div
+        v-if="bolehUbah"
+        class="mb-4 flex flex-wrap items-center gap-2"
+      >
+        <UButton
+          v-if="modeMinggu"
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-copy"
+          @click="salinLalu()"
+        >
+          Salin minggu lalu
+        </UButton>
+        <UButton
+          color="neutral"
+          variant="outline"
+          icon="i-lucide-wand-sparkles"
+          @click="sheetOtomatis = true"
+        >
+          Isi otomatis
+        </UButton>
+        <UButton
+          v-if="bolehAturJam"
+          color="neutral"
+          variant="ghost"
+          icon="i-lucide-timer"
+          to="/event/jam-talent"
+        >
+          Jam talent
+        </UButton>
+        <span
+          v-if="pool.memuat.value"
+          class="text-xs text-muted"
+        >Memuat jadwal…</span>
+      </div>
+
+      <KalenderBulan
+        v-if="tampilan === 'kalender'"
+        :bulan="bulan"
+        boleh-klik
+        :boleh-seret="bolehUbah"
+        :judul-klik="bolehUbah ? 'Klik untuk membuka dan mengatur jadwal hari itu' : 'Klik untuk melihat jadwal hari itu'"
+        @klik-tgl="hariBuka = $event"
+        @lepas="pindah"
+      >
+        <template #legenda>
           <span
-            v-for="c in katAktif"
-            :key="c"
-            class="rounded-full px-2 py-0.5 font-semibold"
-            :class="nadaKategori(c, TAL_CATS) === 'info' ? 'bg-info/12 text-info' : nadaKategori(c, TAL_CATS) === 'vip' ? 'bg-vip/12 text-vip' : nadaKategori(c, TAL_CATS) === 'success' ? 'bg-success/12 text-success' : nadaKategori(c, TAL_CATS) === 'warning' ? 'bg-warning/12 text-warning' : nadaKategori(c, TAL_CATS) === 'error' ? 'bg-error/12 text-error' : 'bg-muted text-muted'"
-          >
-            {{ c }}
-          </span>
-        </div>
-        <p class="mt-2 text-xs text-muted">
-          Warna = kategori talent · status (Scheduled / Confirmed / Done) muncul saat balonnya diklik · yang dicoret = dibatalkan
-        </p>
-      </AppPanel>
-
-      <AppPanel flush>
-        <div class="grid grid-cols-7 border-b border-default">
-          <div
-            v-for="d in DOW"
-            :key="d"
-            class="px-1 py-2 text-center text-[11px] font-bold uppercase tracking-wide text-muted"
-          >
-            {{ d }}
-          </div>
-        </div>
-        <div class="grid grid-cols-7">
-          <div
-            v-for="sel in selBulan"
-            :key="sel.tgl"
-            class="min-h-20 border-b border-e border-default p-1 align-top"
-            :class="sel.dalam ? '' : 'bg-muted/50'"
-          >
-            <div
-              v-if="sel.dalam"
-              class="flex items-center justify-between"
-            >
-              <span
-                class="text-xs font-semibold num"
-                :class="sel.tgl === hariIni() ? 'rounded-full bg-primary px-1.5 py-0.5 text-white' : 'text-muted'"
-              >{{ sel.num }}</span>
-              <UButton
-                v-if="bolehUbah && sel.dalam"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                icon="i-lucide-plus"
-                class="!px-1"
-                @click="bukaTambah(sel.tgl)"
-              />
-            </div>
-            <ul
-              v-if="sel.dalam"
-              class="mt-1 space-y-0.5"
-            >
-              <li
-                v-for="j in (perTanggal.get(sel.tgl) ?? [])"
-                :key="j.id"
-              >
-                <button
-                  type="button"
-                  class="block w-full truncate rounded px-1 py-0.5 text-left text-[11px] font-medium"
-                  :class="[nadaKategori(katTalent(j.talent_id), TAL_CATS) === 'info' ? 'bg-info/12 text-info' : nadaKategori(katTalent(j.talent_id), TAL_CATS) === 'vip' ? 'bg-vip/12 text-vip' : nadaKategori(katTalent(j.talent_id), TAL_CATS) === 'success' ? 'bg-success/12 text-success' : nadaKategori(katTalent(j.talent_id), TAL_CATS) === 'warning' ? 'bg-warning/12 text-warning' : nadaKategori(katTalent(j.talent_id), TAL_CATS) === 'error' ? 'bg-error/12 text-error' : 'bg-muted text-muted', j.status === 'Cancelled' ? 'opacity-60 line-through' : '']"
-                  :title="`${tglPendek(j.date)} ${j.start_time}–${j.end_time}`"
-                  @click="infoId = j.id"
-                >
-                  {{ j.start_time }} {{ namaTalent(j.talent_id) }}
-                </button>
-              </li>
-            </ul>
-          </div>
-        </div>
-      </AppPanel>
-
-      <AppPanel
-        :title="jadwal.length ? `Kehadiran Talent · ${labelBulan}` : 'Kehadiran Talent'"
-        icon="i-lucide-clipboard-list"
-        class="mt-4"
-      >
-        <p
-          v-if="!jadwal.length"
-          class="py-4 text-center text-sm text-muted"
-        >
-          Belum ada jadwal talent di {{ labelBulan }}.
-        </p>
-        <template v-else>
-          <p class="mb-2 text-xs text-muted">
-            S = terjadwal · C = dikonfirmasi · ✓ = selesai · × = batal. Klik selnya untuk membuka jadwalnya.
-          </p>
-          <div class="overflow-x-auto">
-            <table class="w-full border-collapse text-xs">
-              <thead>
-                <tr class="border-b border-default">
-                  <th class="sticky left-0 bg-default px-2 py-1.5 text-left font-bold text-highlighted">
-                    Talent
-                  </th>
-                  <th
-                    v-for="(d, i) in barisHadir.tgls"
-                    :key="d"
-                    class="min-w-7 px-0.5 py-1 text-center font-bold num"
-                    :class="[0, 6].includes(hariDari(d)) ? 'bg-muted/60' : ''"
-                  >
-                    <span class="block text-[9px] font-semibold text-muted">{{ HARI3[hariDari(d)] }}</span>{{ i + 1 }}
-                  </th>
-                  <th class="px-2 py-1.5 text-right font-bold text-highlighted">
-                    Tampil
-                  </th>
-                  <th class="px-2 py-1.5 text-right font-bold text-highlighted">
-                    Selesai
-                  </th>
-                  <th class="px-2 py-1.5 text-right font-bold text-highlighted">
-                    Fee
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="b in barisHadir.baris"
-                  :key="b.id"
-                  class="border-b border-default"
-                >
-                  <td class="sticky left-0 whitespace-nowrap bg-default px-2 py-1.5 font-semibold text-highlighted">
-                    {{ b.hapus ? '(talent terhapus)' : b.nama }}
-                  </td>
-                  <td
-                    v-for="d in barisHadir.tgls"
-                    :key="d"
-                    class="px-0.5 py-1 text-center"
-                    :class="[0, 6].includes(hariDari(d)) ? 'bg-muted/60' : ''"
-                  >
-                    <button
-                      v-for="j in (b.sel.get(d) ?? [])"
-                      :key="j.id"
-                      type="button"
-                      class="mx-auto block size-5 rounded text-[11px] font-bold leading-5"
-                      :class="WARNA_HURUF[j.status] ?? 'bg-muted text-muted'"
-                      :title="`${b.nama} · ${tglPendek(d)} · ${j.start_time ?? ''} · ${j.status}`"
-                      @click="infoId = j.id"
-                    >
-                      {{ HURUF_STATUS[j.status] ?? '?' }}
-                    </button>
-                  </td>
-                  <td class="px-2 py-1.5 text-right font-bold num">
-                    {{ b.tampil }}
-                  </td>
-                  <td class="px-2 py-1.5 text-right num">
-                    {{ b.selesai }}
-                  </td>
-                  <td class="whitespace-nowrap px-2 py-1.5 text-right num">
-                    {{ rupiah(b.fee) }}
-                  </td>
-                </tr>
-              </tbody>
-              <tfoot>
-                <tr>
-                  <td class="sticky left-0 bg-default px-2 py-1.5 font-bold text-highlighted">
-                    Penampil / hari
-                  </td>
-                  <td
-                    v-for="(k, i) in kakiHadir"
-                    :key="i"
-                    class="px-0.5 py-1 text-center num"
-                    :class="[0, 6].includes(hariDari(barisHadir.tgls[i]!)) ? 'bg-muted/60' : ''"
-                  >
-                    {{ k || '' }}
-                  </td>
-                  <td class="px-2 py-1.5 text-right font-bold num">
-                    {{ totalKakiHadir.tampil }}
-                  </td>
-                  <td class="px-2 py-1.5 text-right num">
-                    {{ totalKakiHadir.selesai }}
-                  </td>
-                  <td class="whitespace-nowrap px-2 py-1.5 text-right font-bold num">
-                    {{ rupiah(totalKakiHadir.fee) }}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
-          </div>
+            v-for="k in katLegenda"
+            :key="k"
+            class="flex items-center gap-1.5"
+          ><span
+            class="h-3 w-1 rounded-none"
+            :class="gayaNada(nadaKategori(k, urutKategori)).swatch"
+          />{{ k }}</span>
+          <span class="flex items-center gap-1.5 text-muted"><span class="size-2.5 rounded-sm outline-1 -outline-offset-1 outline-dashed outline-muted" />Draf</span>
         </template>
-      </AppPanel>
-
-      <ResponsiveSheet
-        v-model:open="sheetInfo"
-        :title="info ? namaTalent(info.talent_id) : 'Jadwal'"
-      >
-        <div
-          v-if="info"
-          class="text-sm"
-        >
-          <dl class="grid grid-cols-[5.5rem_1fr] items-center gap-x-3 gap-y-2">
-            <dt class="text-muted">
-              Tanggal
-            </dt>
-            <dd>{{ fmtTglEms(info.date) }}</dd>
-            <dt class="text-muted">
-              Jam
-            </dt>
-            <dd class="flex flex-wrap items-center gap-1.5">
-              <AppJam
-                v-model="jamInfo.mulai"
-                :disabled="!bolehUbah"
-                class="w-28"
-              />
-              <span>–</span>
-              <AppJam
-                v-model="jamInfo.selesai"
-                :disabled="!bolehUbah"
-                class="w-28"
-              />
-              <UButton
-                v-if="bolehUbah"
-                color="neutral"
-                variant="outline"
-                size="sm"
-                loading-auto
-                @click="ubahJam()"
-              >
-                Simpan jam
-              </UButton>
-            </dd>
-            <dt class="text-muted">
-              Tipe
-            </dt>
-            <dd>{{ info.performance_type || '—' }}</dd>
-            <dt class="text-muted">
-              Fee
-            </dt>
-            <dd class="num">
-              {{ rupiah(Number(info.fee) || 0) }}
-            </dd>
-            <dt class="text-muted">
-              Source
-            </dt>
-            <dd>
-              <span class="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold">{{ info.source || '—' }}</span>
-            </dd>
-          </dl>
-          <div class="mt-4">
-            <p class="mb-1.5 text-xs font-semibold text-muted">
-              Status
-            </p>
-            <AppSeg
-              :model-value="String(info.status)"
-              :options="['Scheduled', 'Confirmed', 'Done', 'Cancelled'].map(st => ({ value: st, label: st }))"
-              @update:model-value="(v?: string) => { if (bolehUbah && v) setStatus(v) }"
-            />
-            <p class="mt-1.5 text-xs text-muted">
-              Langsung tersimpan begitu ditekan.
-            </p>
-          </div>
-        </div>
-        <template #footer>
-          <UButton
-            v-if="bolehUbah"
-            color="error"
-            variant="outline"
-            icon="i-lucide-trash-2"
-            loading-auto
-            @click="hapusJadwal()"
-          >
-            Hapus
-          </UButton>
-          <UButton
-            color="neutral"
-            variant="outline"
-            @click="sheetInfo = false"
-          >
-            Tutup
-          </UButton>
+        <template #total>
+          {{ jumlah }} jadwal bulan ini
         </template>
-      </ResponsiveSheet>
-
-      <ResponsiveSheet
-        v-model:open="sheetTambah"
-        title="Tambah jadwal"
-        lebar="sedang"
-      >
-        <div class="grid grid-cols-1 gap-3">
+        <template #sel="{ tgl }">
+          <KalenderKartu
+            v-for="r in kartuHari(tgl).slice(0, MAKS_KARTU)"
+            :key="r.kunci"
+            :gaya="gayaKartu(r)"
+            :draf="!!r.draf"
+            :judul="`${r.start_time || '--:--'} ${namaTalent(r.talent_id)}`"
+            :dicoret="r.status === 'Cancelled'"
+            :title="judulKartu(r)"
+            :seret-id="bisaGeser(r) ? r.kunci : ''"
+            :tgl="tgl"
+            @klik="bukaBaris(r.kunci)"
+          />
           <p
-            v-if="jadwal.some(j => j.date === f.tanggal)"
-            class="rounded-lg border border-default bg-default p-2.5 text-xs text-muted"
+            v-if="kartuHari(tgl).length > MAKS_KARTU"
+            class="px-1 text-[11px] text-muted num"
           >
-            Sudah dijadwalkan hari ini: {{ jadwal.filter(j => j.date === f.tanggal).map(j => `${j.start_time} ${namaTalent(j.talent_id)}`).join(' · ') }}
+            +{{ kartuHari(tgl).length - MAKS_KARTU }} lagi
           </p>
-          <UFormField label="Talent (boleh banyak)">
-            <div class="flex max-h-44 flex-wrap gap-1.5 overflow-y-auto rounded-panel border border-default p-2">
-              <button
-                v-for="t in talentUrut"
-                :key="t.id"
-                type="button"
-                class="rounded-full border px-2.5 py-1 text-xs font-semibold"
-                :class="pilihTalent.includes(t.id) ? 'border-primary-400 bg-primary-100 text-primary-800' : 'border-default text-muted'"
-                @click="pilihTalent = togglePilih(pilihTalent, t.id)"
-              >
-                {{ t.name }}
-              </button>
-            </div>
-          </UFormField>
-          <div class="grid grid-cols-2 gap-3">
-            <UFormField label="Tanggal">
-              <AppTanggal
-                v-model="f.tanggal"
-                class="w-full"
-              />
-            </UFormField>
-            <UFormField label="Tipe performance">
-              <USelect
-                v-model="f.tipe"
-                :items="TAL_CATS.map(c => ({ value: c, label: c }))"
-                class="w-full"
-              />
-            </UFormField>
-            <UFormField label="Jam mulai">
-              <AppJam
-                v-model="f.mulai"
-                class="w-full"
-              />
-            </UFormField>
-            <UFormField label="Jam selesai">
-              <AppJam
-                v-model="f.selesai"
-                class="w-full"
-              />
-            </UFormField>
-          </div>
-          <div
-            v-for="id in pilihTalent"
-            :key="id"
-          >
-            <UFormField :label="`Fee ${namaTalent(id)}`">
-              <UInput
-                v-model.number="feeBaris[id]"
-                type="number"
-                min="0"
-                :placeholder="String(feeDefault(id))"
-                class="w-full"
-              />
-            </UFormField>
-          </div>
-        </div>
-        <template #footer>
-          <UButton
-            color="primary"
-            loading-auto
-            @click="simpanTambah()"
-          >
-            Simpan {{ pilihTalent.length }} jadwal
-          </UButton>
-          <UButton
-            color="neutral"
-            variant="outline"
-            @click="sheetTambah = false"
-          >
-            Batal
-          </UButton>
         </template>
-      </ResponsiveSheet>
+      </KalenderBulan>
 
-      <ResponsiveSheet
-        v-model:open="sheetMinggu"
-        title="Input mingguan"
-        :description="labelMinggu"
-        lebar="sedang"
+      <EventTalentLembar
+        v-else-if="tabel === 'minggu'"
+        :hari="hariMinggu"
+        :grup="grupMinggu"
+        :rows="efLihat"
+        :doc="doc"
+        :bentrok="tanda"
+        :urut-kategori="urutKategori"
+        :boleh-ubah="bolehUbah"
+        :judul="labelMinggu"
+        :jumlah="jumlah"
+        @kosong="isiSel"
+        @pilih="bukaBaris"
+        @tambah="tambahKedua"
+        @hari="hariBuka = $event"
+      />
+
+      <EventTalentBulan
+        v-else
+        :bulan="bulan"
+        :rows="rowsBulanTersimpan"
+        :talents="talents"
+        @pilih="bukaBaris"
+      />
+
+      <!-- draft bar -->
+      <div
+        v-if="bolehUbah && draf.length"
+        class="sticky bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-panel bg-default px-4 py-3 shadow-panel ring-1 ring-default lg:bottom-4"
+        role="region"
+        aria-label="Draf jadwal"
       >
-        <div class="mb-3 flex items-center gap-2">
-          <UButton
-            color="neutral"
-            variant="outline"
-            size="sm"
-            icon="i-lucide-chevron-left"
-            aria-label="Minggu sebelumnya"
-            @click="mgGeser--"
-          />
-          <b class="flex-1 text-center text-sm text-highlighted">{{ labelMinggu }}</b>
-          <UButton
-            color="neutral"
-            variant="outline"
-            size="sm"
-            icon="i-lucide-chevron-right"
-            aria-label="Minggu berikutnya"
-            @click="mgGeser++"
-          />
-        </div>
-        <div class="grid grid-cols-3 gap-3">
-          <UFormField label="Jam mulai">
-            <AppJam
-              v-model="mg.mulai"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Jam selesai">
-            <AppJam
-              v-model="mg.selesai"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Tipe">
-            <USelect
-              v-model="mg.tipe"
-              :items="TAL_CATS.map(c => ({ value: c, label: c }))"
-              class="w-full"
-            />
-          </UFormField>
-        </div>
-        <div class="mt-3 grid gap-3 lg:grid-cols-2">
-          <div
-            v-for="(tgl, i) in tglMinggu"
-            :key="tgl"
-            class="rounded-panel border border-default p-2"
-          >
-            <p class="mb-1.5 flex items-center justify-between gap-2 text-xs font-bold text-highlighted">
-              <span>{{ DOW[i] }}, {{ tglPendek(tgl) }}</span>
-              <button
-                v-if="(mgPilih[tgl] ?? []).length"
-                type="button"
-                class="font-semibold text-muted hover:text-error"
-                title="Kosongkan hari ini"
-                @click="mgPilih[tgl] = []"
-              >
-                Kosongkan
-              </button>
-            </p>
-            <p
-              v-if="sudahAda(tgl).length"
-              class="mb-1.5 text-[11px] text-muted"
-            >
-              Sudah ada: {{ sudahAda(tgl).map(j => namaTalent(j.talent_id)).join(', ') }} — tidak ditulis ulang.
-            </p>
-            <div class="flex flex-wrap gap-1">
-              <button
-                v-for="t in talentUrut"
-                :key="t.id"
-                type="button"
-                class="rounded-full border px-2 py-0.5 text-[11px] font-semibold"
-                :class="(mgPilih[tgl] ?? []).includes(t.id) ? 'border-primary-400 bg-primary-100 text-primary-800' : 'border-default text-muted'"
-                @click="toggleMg(tgl, t.id)"
-              >
-                {{ t.name }}
-              </button>
-            </div>
-          </div>
-        </div>
-        <p class="mt-2 text-xs text-muted num">
-          {{ barisMinggu.length }} baris baru
+        <p class="min-w-0 flex-1 text-sm">
+          <b class="num text-highlighted">{{ hitung.baru }} baru · {{ hitung.ubah }} diubah · {{ hitung.hapus }} dihapus</b>
+          <span class="block text-xs text-muted">Belum tersimpan.<template v-if="jumlahBentrok">
+            <b class="text-error"> {{ jumlahBentrok }} baris bentrok: bereskan dulu.</b></template></span>
         </p>
-        <template #footer>
-          <UButton
-            color="primary"
-            :disabled="!barisMinggu.length"
-            @click="simpanMinggu()"
-          >
-            Simpan jadwal minggu ini
-          </UButton>
-          <UButton
-            color="neutral"
-            variant="outline"
-            @click="sheetMinggu = false"
-          >
-            Batal
-          </UButton>
-        </template>
-      </ResponsiveSheet>
+        <UButton
+          color="neutral"
+          variant="outline"
+          :disabled="menyimpan"
+          @click="buangSemua()"
+        >
+          Buang
+        </UButton>
+        <UButton
+          color="primary"
+          icon="i-lucide-save"
+          :loading="menyimpan"
+          @click="simpan()"
+        >
+          Simpan jadwal
+        </UButton>
+      </div>
 
-      <ResponsiveSheet
-        v-model:open="sheetRutin"
-        title="Jadwal recurring"
-        lebar="sedang"
-      >
-        <div class="grid grid-cols-1 gap-3">
-          <UFormField label="Cari talent">
-            <UInput
-              v-model="cariRt"
-              placeholder="Ketik nama…"
-              icon="i-lucide-search"
-              class="w-full"
-            />
-          </UFormField>
-          <UFormField label="Talent (boleh banyak)">
-            <div class="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto rounded-panel border border-default p-2">
-              <button
-                v-for="t in rtCocok"
-                :key="t.id"
-                type="button"
-                class="rounded-full border px-2.5 py-1 text-xs font-semibold"
-                :class="rtTalent.includes(t.id) ? 'border-primary-400 bg-primary-100 text-primary-800' : 'border-default text-muted'"
-                @click="rtTalent = togglePilih(rtTalent, t.id)"
-              >
-                {{ t.name }}
-              </button>
-              <p
-                v-if="!rtCocok.length"
-                class="text-xs text-muted"
-              >
-                Tidak ada talent yang cocok.
-              </p>
-            </div>
-          </UFormField>
-          <UFormField label="Hari">
-            <div class="flex flex-wrap gap-1.5">
-              <button
-                v-for="(d, i) in DOW"
-                :key="d"
-                type="button"
-                class="rounded-full border px-2.5 py-1 text-xs font-semibold"
-                :class="rtHari.includes(i) ? 'border-primary-400 bg-primary-100 text-primary-800' : 'border-default text-muted'"
-                @click="rtHari = togglePilih(rtHari.map(String), String(i)).map(Number)"
-              >
-                {{ d }}
-              </button>
-            </div>
-          </UFormField>
-          <div class="grid grid-cols-2 gap-3">
-            <UFormField label="Tipe">
-              <USelect
-                v-model="rt.tipe"
-                :items="TAL_CATS.map(c => ({ value: c, label: c }))"
-                class="w-full"
-              />
-            </UFormField>
-            <UFormField label="Fee / show (0 = bawaan talent)">
-              <UInput
-                v-model.number="rt.fee"
-                type="number"
-                min="0"
-                class="w-full"
-              />
-            </UFormField>
-            <UFormField label="Jam mulai">
-              <AppJam
-                v-model="rt.mulai"
-                class="w-full"
-              />
-            </UFormField>
-            <UFormField label="Jam selesai">
-              <AppJam
-                v-model="rt.selesai"
-                class="w-full"
-              />
-            </UFormField>
-            <UFormField label="Dari">
-              <AppTanggal
-                v-model="rt.dari"
-                class="w-full"
-              />
-            </UFormField>
-            <UFormField label="Sampai">
-              <AppTanggal
-                v-model="rt.sampai"
-                class="w-full"
-              />
-            </UFormField>
-          </div>
-        </div>
-        <template #footer>
-          <UButton
-            color="primary"
-            loading-auto
-            @click="simpanRutin()"
-          >
-            Buat jadwal rutin
-          </UButton>
-          <UButton
-            color="neutral"
-            variant="outline"
-            @click="sheetRutin = false"
-          >
-            Batal
-          </UButton>
-        </template>
-      </ResponsiveSheet>
+      <EventTalentSel
+        v-model:open="sheetEditor"
+        :target="targetEditor"
+        :nama-talent="targetEditor ? namaTalent(targetEditor.nilai.talent_id) : ''"
+        :doc="doc"
+        :kategori="urutKategori"
+        :acara="acaraPilihan"
+        :semua="ef"
+        :boleh-ubah="bolehUbah"
+        @terapkan="terapkanEditor"
+        @hapus="hapusEditor"
+        @buang="buangEditor"
+      />
 
-      <ResponsiveSheet
-        v-model:open="sheetBulan"
-        title="Generate bulanan"
-        lebar="sedang"
-      >
-        <div class="grid grid-cols-1 gap-3">
-          <UFormField label="Talent (boleh banyak)">
-            <div class="flex max-h-32 flex-wrap gap-1.5 overflow-y-auto rounded-panel border border-default p-2">
-              <button
-                v-for="t in talentUrut"
-                :key="t.id"
-                type="button"
-                class="rounded-full border px-2.5 py-1 text-xs font-semibold"
-                :class="blTalent.includes(t.id) ? 'border-primary-400 bg-primary-100 text-primary-800' : 'border-default text-muted'"
-                @click="blTalent = togglePilih(blTalent, t.id)"
-              >
-                {{ t.name }}
-              </button>
-            </div>
-          </UFormField>
-          <UFormField label="Tiap hari dalam minggu">
-            <div class="flex flex-wrap gap-1.5">
-              <button
-                v-for="(d, i) in DOW"
-                :key="d"
-                type="button"
-                class="rounded-full border px-2.5 py-1 text-xs font-semibold"
-                :class="blHari.includes(i) ? 'border-primary-400 bg-primary-100 text-primary-800' : 'border-default text-muted'"
-                @click="blHari = togglePilih(blHari.map(String), String(i)).map(Number)"
-              >
-                {{ d }}
-              </button>
-            </div>
-          </UFormField>
-          <div class="grid grid-cols-3 gap-3">
-            <UFormField label="Tipe">
-              <USelect
-                v-model="bl.tipe"
-                :items="TAL_CATS.map(c => ({ value: c, label: c }))"
-                class="w-full"
-              />
-            </UFormField>
-            <UFormField label="Jam mulai">
-              <AppJam
-                v-model="bl.mulai"
-                class="w-full"
-              />
-            </UFormField>
-            <UFormField label="Jam selesai">
-              <AppJam
-                v-model="bl.selesai"
-                class="w-full"
-              />
-            </UFormField>
-          </div>
-          <p class="text-xs text-muted num">
-            {{ rencanaBulan.length }} tanggal · {{ barisBulan.length }} jadwal akan dibuat tanpa bentrok
-          </p>
-        </div>
-        <template #footer>
-          <UButton
-            color="primary"
-            loading-auto
-            @click="simpanBulan()"
-          >
-            Buat jadwal bulan ini
-          </UButton>
-          <UButton
-            color="neutral"
-            variant="outline"
-            @click="sheetBulan = false"
-          >
-            Batal
-          </UButton>
-        </template>
-      </ResponsiveSheet>
+      <EventTalentHari
+        v-model:open="sheetHari"
+        :tgl="hariBuka"
+        :rows="rowsHari"
+        :grup="grupAktif"
+        :bentrok="tanda"
+        :boleh-ubah="bolehUbah"
+        :ringkas="ringkas"
+        :menyimpan="menyimpan"
+        :nama="namaTalent"
+        @tambah="tambahDiHari"
+        @jam="ubahJamHari"
+        @detail="bukaBaris"
+        @hapus="hapusBarisHari"
+        @pulih="pulihBaris"
+        @simpan="simpan()"
+      />
+
+      <EventTalentOtomatis
+        v-model:open="sheetOtomatis"
+        :grup="grupAktif"
+        :talents="talentAktif"
+        :rows="ef"
+        :doc="doc"
+        :memuat="pool.memuat.value"
+        :awal="rentangOtomatis"
+        @muat="(a, b) => pool.pastikan(a, b)"
+        @terapkan="h => terapkanIsi(h, 'dari Isi otomatis')"
+      />
     </AppPage>
   </EventGerbang>
 </template>

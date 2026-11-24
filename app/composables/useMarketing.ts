@@ -29,7 +29,7 @@ import {
   PER_HAL_MKT, SETTING_MKT_BAWAAN, TENGGANG_TUTUP_MKT, bolehAksiMkt, bolehBukaMkt, hariAntaraMkt, normRoleAccMkt, normUserMkt, urutAwalMkt, urutMkt,
 } from '~/utils/marketing'
 import { normEventMkt } from '~/utils/marketing-uang'
-import { tglWIB } from '~/utils/event-hitung'
+import { hariAcaraWIB, tglWIB } from '~/utils/event-hitung'
 import type { PoBdMkt } from '~/utils/marketing-operasional'
 import type { RiwayatKalkMkt } from '~/utils/marketing-kalk'
 import { UButton } from '#components'
@@ -596,22 +596,23 @@ export const versiDokumenMkt = (r: Envelope<unknown>): Versi | undefined => {
 // ---------------------------------------------------------------- other modules (read-only)
 
 /** One EMS event as the calendar needs it (muatEventEms, :12141-12175). */
-export interface AcaraEmsMkt { id: string, tgl: string, nama: string, venue: string, kategori: string, status: string, pic: string }
+/** `hari` = every WIB day the event touches (multi-day events). */
+export interface AcaraEmsMkt { id: string, tgl: string, hari: string[], nama: string, venue: string, kategori: string, status: string, pic: string }
 
 /**
  * GET /event/events?from&to — the Event module's own events, drawn as a separate
  * read-only band. The list is open to `event` and `marketing` holders, so a
- * Marketing account without the Event module sees it too. `Planning` events are left out.
+ * Marketing account without the Event module sees it too. `Planning` and `Cancelled` events are left out.
  * The day is the LOCAL date of start_datetime — the old client sliced the UTC
  * string, which put an event before 07:00 WIB on the previous day.
  */
 export async function getAcaraEms(from: string, to: string): Promise<AcaraEmsMkt[]> {
   const r = await useApi()<Envelope<Record<string, unknown>[]>>('/event/events', { query: { from, to } })
   return (r.data ?? [])
-    .filter(e => e && e.start_datetime && e.status !== 'Planning')
+    .filter(e => e && e.start_datetime && !['Planning', 'Cancelled'].includes(String(e.status ?? '')))
     .map((e) => {
       const tgl = tglWIB(e.start_datetime)
-      return { id: String(e.id), tgl, nama: String(e.title || '(tanpa judul)'), venue: String(e.venue || ''), kategori: String(e.category || ''), status: String(e.status || ''), pic: String(e.pic || '') }
+      return { id: String(e.id), tgl, hari: hariAcaraWIB(e.start_datetime, e.end_datetime), nama: String(e.title || '(tanpa judul)'), venue: String(e.venue || ''), kategori: String(e.category || ''), status: String(e.status || ''), pic: String(e.pic || '') }
     })
 }
 

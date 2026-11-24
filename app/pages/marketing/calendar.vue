@@ -2,8 +2,10 @@
   Marketing › Kalender (old renderCalendar, deploy/marketing/index.html:12326-12438;
   marketing.md D.6). Month grid starting Sunday like the old one; three bands:
   Marketing events (gold, multi-day events on every day they touch), EMS
-  events from the Event module (violet, read-only) and Reservasi (teal, like the old calendar; one line per
-  day: bookings · pax, cancelled/no-show left out). Status filter defaults to
+  events from the Event module (violet, read-only) and Reservasi (green; one
+  line per day: bookings · pax, cancelled/no-show left out). The frame, cards
+  and colours are the shared KalenderBulan / KalenderKartu / kalender-warna;
+  a deal (Marketing Deal/Confirmed, EMS Upcoming/Today) only gets a green dot. Status filter defaults to
   "everything except Lost"; the header shows the month's pax with the same
   filter.
 
@@ -21,7 +23,9 @@ import type { EventMkt } from '~/utils/marketing'
 import { eventPadaTgl, jenisEvent, tglMkt } from '~/utils/marketing'
 import { dpLabel, eventFinance } from '~/utils/marketing-uang'
 import { ikonStatusMkt, warnaStatusMkt } from '~/utils/status-marketing'
-import { BULAN, fTgl, hariIni, rupiah } from '~/utils/format'
+import { fTgl, hariIni, rupiah } from '~/utils/format'
+import { geserTgl, hariKe, rentangBulan } from '~/utils/kalender'
+import { SUMBER_KALENDER, adalahDeal } from '~/utils/kalender-warna'
 import { listReservations } from '~/composables/useReservasi'
 import { mejaTerkunciMkt } from '~/utils/marketing-event'
 
@@ -38,32 +42,7 @@ const fStatus = computed({ get: () => status.value || SEMUA, set: (v: string) =>
 } })
 const opsiStatus = [{ value: SEMUA, label: 'Semua status' }, ...['Lead', 'Prospect', 'Quotation Terkirim', 'Deal', 'Event Done', 'Lost'].map(s => ({ value: s, label: s }))]
 const bulan = useState('mkt-cal-bulan', () => hari.slice(0, 7))
-const judul = computed(() => `${BULAN[+bulan.value.slice(5, 7) - 1]} ${bulan.value.slice(0, 4)}`)
-function geser(n: number) {
-  const d = new Date(+bulan.value.slice(0, 4), +bulan.value.slice(5, 7) - 1 + n, 1)
-  bulan.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
-
-const iso = (y: number, m: number, d: number) => `${y}-${String(m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-/** Cells as the old grid: leading/trailing days of other months are blank (:12359-12366). */
-const sel = computed(() => {
-  const y = +bulan.value.slice(0, 4)
-  const m = +bulan.value.slice(5, 7) - 1
-  const first = new Date(y, m, 1).getDay()
-  const dim = new Date(y, m + 1, 0).getDate()
-  const prevDim = new Date(y, m, 0).getDate()
-  const out: { d: number, tgl: string }[] = []
-  for (let i = first - 1; i >= 0; i--) out.push({ d: prevDim - i, tgl: '' })
-  for (let i = 1; i <= dim; i++) out.push({ d: i, tgl: iso(y, m, i) })
-  let n = 1
-  while (out.length % 7) out.push({ d: n++, tgl: '' })
-  return out
-})
-const rentang = computed(() => {
-  const y = +bulan.value.slice(0, 4)
-  const m = +bulan.value.slice(5, 7) - 1
-  return { a: iso(y, m, 1), b: iso(y, m, new Date(y, m + 1, 0).getDate()) }
-})
+const rentang = computed(() => rentangBulan(bulan.value))
 
 const lolos = (e: EventMkt) => (status.value ? e.status === status.value : e.status !== 'Lost')
 const evTgl = (tgl: string) => (tgl ? st.value.events.filter(e => eventPadaTgl(e, tgl) && lolos(e)) : [])
@@ -73,8 +52,8 @@ const paxBulan = computed(() => st.value.events
   .reduce((a, e) => a + (+(e.pax ?? 0) || 0), 0))
 
 // ---- EMS (read-only) ----
-const { data: ems, error: emsErr, refresh: emsUlang } = useAsyncData('mkt-cal-ems', () => getAcaraEms(rentang.value.a, rentang.value.b), { watch: [rentang], default: () => [], server: false })
-const emsTgl = (tgl: string) => (tgl ? ems.value.filter(x => x.tgl === tgl) : [])
+const { data: ems, error: emsErr, refresh: emsUlang } = useAsyncData('mkt-cal-ems', () => getAcaraEms(geserTgl(rentang.value.a, -31), rentang.value.b).then(l => l.filter(x => x.hari.some(t => t >= rentang.value.a && t <= rentang.value.b))), { watch: [rentang], default: () => [], server: false })
+const emsTgl = (tgl: string) => (tgl ? ems.value.filter(x => x.hari.includes(tgl)) : [])
 
 // ---- Reservasi per day ----
 type HariRsv = { jml: number, pax: number, baris: { nama: string, jam: string, pax: number, meja: string, status: string, vip: boolean }[] }
@@ -122,28 +101,13 @@ function buatDi(tgl: string) {
   baruBuka.value = true
 }
 
-const seret = ref<{ ev: EventMkt, dari: string } | null>(null)
-const sasaran = ref('')
-const hariNo = (t: string) => Math.round(Date.UTC(+t.slice(0, 4), +t.slice(5, 7) - 1, +t.slice(8, 10)) / 86400000)
-const tglDari = (n: number) => new Date(n * 86400000).toISOString().slice(0, 10)
-function mulaiSeret(e: EventMkt, dari: string, ev: DragEvent) {
-  if (!bolehUbah.value) return
-  seret.value = { ev: e, dari }
-  ev.dataTransfer?.setData('text/plain', e.id)
-  if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move'
-}
-function selesaiSeret() {
-  seret.value = null
-  sasaran.value = ''
-}
-async function lepasDi(tgl: string) {
-  const s = seret.value
-  selesaiSeret()
-  if (!s || !tgl || tgl === s.dari) return
-  const e = s.ev
-  const geserHari = hariNo(tgl) - hariNo(s.dari)
-  const mulai = tglDari(hariNo(String(e.tanggal)) + geserHari)
-  const selesai = e.tanggalSelesai ? tglDari(hariNo(e.tanggalSelesai) + geserHari) : ''
+// KalenderBulan reports the drop; the confirmation and the write are decided here.
+async function lepasDi({ id, dari, ke: tgl }: { id: string, dari: string, ke: string }) {
+  const e = st.value.events.find(x => x.id === id)
+  if (!e || !tgl || tgl === dari) return
+  const geserHari = hariKe(tgl) - hariKe(dari)
+  const mulai = geserTgl(String(e.tanggal), geserHari)
+  const selesai = e.tanggalSelesai ? geserTgl(e.tanggalSelesai, geserHari) : ''
   const kunci = mejaTerkunciMkt(e).length
   const tanya = `Pindahkan "${e.nama}" ke ${fTgl(mulai)}${selesai && selesai !== mulai ? ` – ${fTgl(selesai)}` : ''}?`
     + (kunci
@@ -172,29 +136,7 @@ Meja yang sudah dikunci di Reservasi masih di tanggal lama. Kunci ulang dari det
         class="w-48"
         aria-label="Status"
       />
-      <UButton
-        icon="i-lucide-chevron-left"
-        color="neutral"
-        variant="outline"
-        size="sm"
-        aria-label="Bulan sebelumnya"
-        @click="geser(-1)"
-      />
-      <UButton
-        label="Hari Ini"
-        color="neutral"
-        variant="outline"
-        size="sm"
-        @click="bulan = hari.slice(0, 7)"
-      />
-      <UButton
-        icon="i-lucide-chevron-right"
-        color="neutral"
-        variant="outline"
-        size="sm"
-        aria-label="Bulan berikutnya"
-        @click="geser(1)"
-      />
+      <KalenderNav v-model="bulan" />
     </template>
 
     <MarketingGerbang layar="calendar">
@@ -227,96 +169,65 @@ Meja yang sudah dikunci di Reservasi masih di tanggal lama. Kunci ulang dari det
         class="mb-3"
       />
 
-      <AppPanel flush>
-        <div class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-default px-4 py-3 lg:px-5">
-          <h2 class="font-display text-lg font-semibold">
-            {{ judul }}
-          </h2>
-          <div class="flex flex-wrap items-center gap-3 text-xs">
-            <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-primary-400" />Event Marketing</span>
-            <span class="flex items-center gap-1.5"><span
-              class="size-2.5 rounded-sm bg-vip"
-              title="EMS = Event Management System (modul Event)"
-            />Acara EMS{{ ems.length ? ` (${ems.length})` : '' }}</span>
-            <span class="flex items-center gap-1.5"><span class="size-2.5 rounded-sm bg-success" />Reservasi{{ Object.keys(rsv).length ? ` (${Object.keys(rsv).length} hari)` : '' }}</span>
-          </div>
-          <span class="num ml-auto text-sm font-bold text-primary-700">{{ paxBulan.toLocaleString('id-ID') }} pax bulan ini</span>
-        </div>
-        <div class="grid grid-cols-7 border-b border-default text-center text-[11px] font-bold tracking-wide text-muted uppercase">
-          <div
-            v-for="x in ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']"
-            :key="x"
-            class="py-2"
+      <KalenderBulan
+        v-model:bulan="bulan"
+        :boleh-klik="bolehUbah"
+        :boleh-seret="bolehUbah"
+        judul-klik="Klik untuk buat event di tanggal ini"
+        legenda-deal
+        @klik-tgl="buatDi"
+        @lepas="lepasDi"
+      >
+        <template #legenda>
+          <span class="flex items-center gap-1.5"><span
+            class="h-3 w-1 rounded-none"
+            :class="SUMBER_KALENDER.marketing.swatch"
+          />Event Marketing</span>
+          <span class="flex items-center gap-1.5"><span
+            class="h-3 w-1 rounded-none"
+            :class="SUMBER_KALENDER.ems.swatch"
+            title="EMS = Event Management System (modul Event)"
+          />Acara EMS{{ ems.length ? ` (${ems.length})` : '' }}</span>
+          <span class="flex items-center gap-1.5"><span
+            class="h-3 w-1 rounded-none"
+            :class="SUMBER_KALENDER.reservasi.swatch"
+          />Reservasi{{ Object.keys(rsv).length ? ` (${Object.keys(rsv).length} hari)` : '' }}</span>
+        </template>
+        <template #total>
+          {{ paxBulan.toLocaleString('id-ID') }} pax bulan ini
+        </template>
+        <template #sel="{ tgl }">
+          <KalenderKartu
+            v-for="e in evTgl(tgl)"
+            :key="e.id"
+            sumber="marketing"
+            :judul="e.nama"
+            :deal="adalahDeal('marketing', e.status)"
+            :kanan="e.pax ? `${e.pax} pax` : ''"
+            :title="`${e.nama} — ${jenisEvent(e)}${e.pax ? ` · ${e.pax} pax` : ''}`"
+            :seret-id="e.id"
+            :tgl="tgl"
+            @klik="evBuka = e"
+          />
+          <KalenderKartu
+            v-for="x in emsTgl(tgl)"
+            :key="x.id"
+            sumber="ems"
+            :judul="x.nama"
+            :deal="adalahDeal('ems', x.status)"
+            :title="`Acara EMS: ${x.nama}`"
+            @klik="emsBuka = x"
+          />
+          <KalenderKartu
+            v-if="rsv[tgl]"
+            sumber="reservasi"
+            :title="`${rsv[tgl]!.jml} reservasi · ${rsv[tgl]!.pax} pax — klik untuk rinciannya`"
+            @klik="rsvBuka = tgl"
           >
-            {{ x }}
-          </div>
-        </div>
-        <!-- Month step replaces the grid, so it crossfades on one key. -->
-        <Transition
-          name="mkt-swap"
-          mode="out-in"
-        >
-          <div
-            :key="bulan"
-            class="grid grid-cols-7"
-          >
-            <div
-              v-for="(s, i) in sel"
-              :key="i"
-              class="min-h-20 min-w-0 border-r border-b border-default p-1 lg:min-h-28 lg:p-1.5"
-              :class="[!s.tgl ? 'bg-muted/60' : '', s.tgl === hari ? 'bg-primary-50' : '', s.tgl && bolehUbah ? 'cursor-pointer hover:bg-elevated/50' : '', s.tgl && s.tgl === sasaran ? 'ring-2 ring-inset ring-primary-400' : '']"
-              :title="s.tgl && bolehUbah ? 'Klik untuk buat event di tanggal ini' : undefined"
-              @click="buatDi(s.tgl)"
-              @dragover="(ev: DragEvent) => { if (seret && s.tgl) { ev.preventDefault(); sasaran = s.tgl } }"
-              @dragleave="sasaran === s.tgl && (sasaran = '')"
-              @drop.prevent="lepasDi(s.tgl)"
-            >
-              <p
-                class="num mb-1 text-xs"
-                :class="s.tgl === hari ? 'font-bold text-primary-700' : s.tgl ? 'font-semibold text-default' : 'text-dimmed'"
-              >
-                {{ s.d }}
-              </p>
-              <button
-                v-for="e in evTgl(s.tgl)"
-                :key="e.id"
-                type="button"
-                class="mb-0.5 block w-full truncate rounded border-l-2 border-primary-400 bg-primary-100 px-1 py-0.5 text-left text-[10.5px] font-semibold leading-tight text-primary-900 lg:text-[11px]"
-                :class="bolehUbah ? 'cursor-grab active:cursor-grabbing' : ''"
-                :title="`${e.nama} — ${jenisEvent(e)}${e.pax ? ` · ${e.pax} pax` : ''}${bolehUbah ? ' · geser ke tanggal lain untuk memindahkan' : ''}`"
-                :draggable="bolehUbah"
-                @dragstart="(ev: DragEvent) => mulaiSeret(e, s.tgl, ev)"
-                @dragend="selesaiSeret"
-                @click.stop="evBuka = e"
-              >
-                {{ e.nama }}<b
-                  v-if="e.pax"
-                  class="float-right ml-1 hidden lg:inline"
-                >{{ e.pax }} pax</b>
-              </button>
-              <button
-                v-for="x in emsTgl(s.tgl)"
-                :key="x.id"
-                type="button"
-                class="mb-0.5 block w-full truncate rounded border-l-2 border-vip bg-vip/12 px-1 py-0.5 text-left text-[10.5px] font-semibold leading-tight text-vip lg:text-[11px]"
-                :title="`Acara EMS: ${x.nama}`"
-                @click.stop="emsBuka = x"
-              >
-                {{ x.nama }}
-              </button>
-              <button
-                v-if="s.tgl && rsv[s.tgl]"
-                type="button"
-                class="block w-full truncate rounded border-l-2 border-success bg-success/10 px-1 py-0.5 text-left text-[10.5px] font-semibold leading-tight text-success lg:text-[11px]"
-                :title="`${rsv[s.tgl]!.jml} reservasi · ${rsv[s.tgl]!.pax} pax — klik untuk rinciannya`"
-                @click.stop="rsvBuka = s.tgl"
-              >
-                • {{ rsv[s.tgl]!.jml }} reservasi<span class="hidden lg:inline">{{ rsv[s.tgl]!.pax ? ` · ${rsv[s.tgl]!.pax} pax` : '' }}</span>
-              </button>
-            </div>
-          </div>
-        </Transition>
-      </AppPanel>
+            {{ rsv[tgl]!.jml }} reservasi<span class="hidden lg:inline">{{ rsv[tgl]!.pax ? ` · ${rsv[tgl]!.pax} pax` : '' }}</span>
+          </KalenderKartu>
+        </template>
+      </KalenderBulan>
     </MarketingGerbang>
 
     <ResponsiveSheet
@@ -404,7 +315,7 @@ Meja yang sudah dikunci di Reservasi masih di tanggal lama. Kunci ulang dari det
         <dt class="text-muted">
           Tanggal
         </dt>
-        <dd>{{ tglMkt(emsBuka.tgl) }}</dd>
+        <dd>{{ tglMkt(emsBuka.tgl) }}{{ emsBuka.hari.length > 1 ? ` – ${tglMkt(emsBuka.hari.at(-1)!)}` : '' }}</dd>
         <dt class="text-muted">
           Lokasi
         </dt>
