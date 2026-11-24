@@ -244,11 +244,11 @@ async function backupJson() {
         :key="d.key"
         :title="d.label"
       >
-        <div class="flex flex-wrap gap-2 px-4 py-3">
+        <div class="flex flex-wrap gap-2.5 px-4 py-4">
           <span
             v-for="(v, i) in daftar(d.key)"
             :key="`${v}${i}`"
-            class="inline-flex items-center gap-1 rounded-lg border border-default px-2.5 py-1 text-sm"
+            class="inline-flex items-center gap-1.5 rounded-lg border border-default py-1 ps-3 pe-1.5 text-sm"
           >
             {{ v }}
             <UButton
@@ -265,7 +265,7 @@ async function backupJson() {
             class="text-sm text-muted"
           >Kosong</span>
         </div>
-        <div class="flex gap-2 px-4 pb-3">
+        <div class="flex gap-2 px-4 py-4">
           <UInput
             v-model="tambahBaru[d.key]"
             placeholder="Tambah baru…"
@@ -295,7 +295,7 @@ async function backupJson() {
             </AppStatus>
           </template>
         </AppListRow>
-        <p class="px-4 pb-3 text-sm text-muted">
+        <p class="px-4 py-3.5 text-sm text-muted">
           Grup Cashier & Koordinasi sudah otomatis dengan template siap pakai. Untuk grup lain, gunakan opsi custom saat kirim WA.
         </p>
       </AppList>
@@ -321,11 +321,11 @@ async function backupJson() {
           </AppListRow>
           <p
             v-if="!daftarKru.length"
-            class="px-4 py-3 text-muted"
+            class="px-4 py-4 text-muted"
           >
             Belum ada daftar kru.
           </p>
-          <p class="px-4 pb-3 text-sm text-muted">
+          <p class="px-4 py-3.5 text-sm text-muted">
             Atur <b>role</b> tiap kru untuk menentukan halaman apa yang bisa mereka buka (lihat tabel Hak Akses per Role). Akun kru & login dikelola di Office, bukan di sini.
           </p>
         </AppList>
@@ -338,7 +338,7 @@ async function backupJson() {
             :putaran="(r) => r === 'viewer' ? 2 : 3"
             :terkunci="(row, r) => !indukTerlihat(row, r)"
           />
-          <div class="flex flex-wrap gap-2 px-4 pb-4">
+          <div class="flex flex-wrap gap-2 px-4 py-4">
             <UButton
               label="Simpan hak akses"
               size="sm"
@@ -357,7 +357,7 @@ async function backupJson() {
       </template>
 
       <AppList title="Data & backup">
-        <div class="flex flex-wrap gap-2 px-4 py-3">
+        <div class="flex flex-wrap gap-2.5 px-4 py-4">
           <UButton
             label="Backup semua data (JSON)"
             color="neutral"
