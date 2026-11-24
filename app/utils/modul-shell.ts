@@ -149,6 +149,9 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     layar: LAYAR_CASHIER,
     tambah: { label: 'Report Daily', to: '/cashier/report' },
     peran: me => (isAdminOf(me, 'cashier') ? 'Admin modul' : 'Kasir'),
+    siapkan: () => {
+      muatAksesCashier()
+    },
   },
 
   // ── pos ──

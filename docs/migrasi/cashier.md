@@ -212,6 +212,7 @@ Kontrol topbar: pemilih **Periode** (bulan) dan pemilih tanggal untuk mode anali
 - **Endpoint v1:** termasuk `GET /api/v1/kompas/voids` (`:2546`), `GET/PUT /voids/settings`, `POST /voids`, `POST /voids/{id}/cancel` (`docs/api/kompas.md:82-92`).
 
 ### D.11 akses — Kelola Akses Kru
+> **Diubah 24 Nov 2026 (permintaan owner):** halaman ini dinamai **Kelola Akses**, khusus admin modul, dan kini mengatur halaman mana yang boleh dibuka tiap kru (matriks kru × halaman seperti Task Management; dokumen `GET/PUT /api/v1/kompas/cashier/access`, `{officeUserId: [kunci halaman tertutup]}`). Menu menyembunyikan halaman tertutup dan `auth.global` menutup alamatnya; data tetap terbuka bagi semua pemegang modul. Uraian di bawah adalah perilaku Office lama (hanya baca).
 - **Tampilan:** kartu "Pemegang Akses Modul Cashier" + tombol `↻ Segarkan`; pita info bahwa semua pemegang akses melihat halaman yang sama, hanya ada admin modul (`:4042-4046`); tabel kolom **Nama · Tim / Keterangan · Status Akun · Admin Modul** (`:4050-4058`); footer "N kru memegang akses Cashier · M di antaranya admin modul." (`:4061`).
 - **Aksi:**
   | tombol | apa yang terjadi | action lama | endpoint v1 | bukti |

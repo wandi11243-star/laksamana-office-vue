@@ -9,6 +9,7 @@ import type { EmployeesKompas } from '~/utils/porsi-pic'
 import type { BarisHarian } from '~/utils/kompas'
 import type { AbaiBri, BarisBri } from '~/utils/cocok-bri'
 import type { RosterUser } from '~/composables/useRoster'
+import { isAdminOf, type Me } from '~/composables/useMe'
 import { ifMatch, versiDari, type Versi } from '~/utils/versi'
 import { cacheSegar } from '~/utils/cache'
 
@@ -238,4 +239,44 @@ export function batalVoidKasir(id: string, alasan: string, version: Versi) {
 /** Module admin of cashier or finance only; the server is the real guard. */
 export function putVoidSettingKasir(body: { tax: number, service: number }, version: Versi) {
   return useApi()<Envelope<{ setting?: VoidSetting }>>('/kompas/voids/settings', { method: 'PUT', body, headers: ifMatch(version) })
+}
+
+// ---- Kelola Akses (screens closed per crew member) ----
+// One document `{officeUserId: [closed screen keys]}` (kompas.md "Cashier ›
+// Kelola Akses"). Every cashier holder reads it for the menu; only the module
+// admin writes it. It hides screens in the app, it is not a data permission.
+
+/** The screens an admin may close; Kelola Akses itself is always admin-only. */
+export const LAYAR_DIATUR_CASHIER = ['report', 'piutang', 'compliment', 'voidb', 'rokok', 'rokokrekap', 'kasir', 'dp', 'bri', 'rokokset'] as const
+
+export type AksesCashier = Record<string, string[]>
+
+export const getAksesCashier = () => baca<AksesCashier>('/kompas/cashier/access', {})
+export const putAksesCashier = (value: AksesCashier, version: Versi) =>
+  tulis<AksesCashier>('/kompas/cashier/access', { value }, version)
+
+const useAksesCashier = () => useState<Part<AksesCashier> | null>('cashier-akses', () => null)
+
+/** Loads the document once for the menu and the route guard; a failed read leaves every screen open. */
+export function muatAksesCashier(paksa = false): Promise<Part<AksesCashier> | null> {
+  const s = useAksesCashier()
+  if (s.value && !paksa) return Promise.resolve(s.value)
+  return getAksesCashier()
+    .then((p) => {
+      s.value = p
+      return p
+    })
+    .catch(() => null)
+}
+
+/** Replaces the cached document after a save, so the menu follows at once. */
+export function setAksesCashier(p: Part<AksesCashier>) {
+  useAksesCashier().value = p
+}
+
+/** The screen keys closed for this user (nothing for the module admin, and nothing while the document loads). */
+export function layarTersembunyiCashier(me: Me | null, akses?: AksesCashier): string[] {
+  if (!me || isAdminOf(me, 'cashier')) return []
+  const a = akses ?? useAksesCashier().value?.value
+  return Array.isArray(a?.[me.id]) ? a![me.id]! : []
 }
