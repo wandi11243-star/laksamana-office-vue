@@ -22,6 +22,7 @@ import { cekBolehDone, deps, gulirPatch, labelUlang, lahirkanUlang, namaPendekTa
 import { fTglP } from '~/utils/format'
 import { isAdminOf, type Me } from '~/composables/useMe'
 import { BATAS_TULIS_PARALEL, hitungBerhasilParalel, petaParalel } from '~/utils/paralel'
+import type { RencanaPindah } from '~/utils/bd-pindah'
 
 /** API resource names (`docs/api/bd.md:40`). */
 export type BdResource = 'people' | 'projects' | 'tasks' | 'routines' | 'coord-requests' | 'purchase-orders' | 'purchase-requests' | 'agenda'
@@ -769,6 +770,40 @@ export async function hapusTaskDenganUrutan(t: BdTask, semua: BdTask[]): Promise
     const gagal = hasil.length - hitungBerhasilParalel(hasil)
     if (gagal) throw new Error(`${gagal} penunggu gagal dilepas`)
   }, 'Task dihapus')
+}
+
+/**
+ * Move the tasks of a `rencanaPindah` to their new project. The API has no
+ * batch write here, so every row is its own versioned PATCH (four at a time).
+ * The moved tasks go FIRST and the released waiters after them: if a release
+ * fails, only a harmless order across projects is left behind. The state is
+ * reloaded whatever happened, so a half-done move is never hidden. A refused
+ * row throws, and `bdSimpan` speaks the message.
+ */
+export async function pindahkanTask(rencana: RencanaPindah, semua: BdTask[], namaTujuan: string): Promise<boolean> {
+  const n = rencana.dipindah.length
+  const pindah = new Set(rencana.dipindah.map(t => t.id))
+  const tulis = (u: RencanaPindah['ubah'][number]) => {
+    const t = semua.find(x => x.id === u.id)
+    return t
+      ? tambalBd<BdTask>('tasks', u.id, u.fields, versiBaris(t))
+      : Promise.reject(new Error('Task tidak ditemukan'))
+  }
+  return bdSimpan(async () => {
+    try {
+      const hasilPindah = await petaParalel(rencana.ubah.filter(u => pindah.has(u.id)), BATAS_TULIS_PARALEL, tulis)
+      const sudah = hitungBerhasilParalel(hasilPindah)
+      if (sudah < n) {
+        throw new Error(`${sudah} dari ${n} task sudah pindah, ${n - sudah} gagal (baru saja diubah orang lain atau koneksi putus). Buka lagi lalu pindahkan sisanya.`)
+      }
+      const hasilLepas = await petaParalel(rencana.ubah.filter(u => !pindah.has(u.id)), BATAS_TULIS_PARALEL, tulis)
+      const gagal = hasilLepas.length - hitungBerhasilParalel(hasilLepas)
+      if (gagal) throw new Error(`${n} task sudah pindah, tapi ${gagal} task yang menunggu belum terlepas dari urutannya.`)
+    }
+    finally {
+      await refreshNuxtData(['bd-state'])
+    }
+  }, `${n} task dipindah ke ${namaTujuan}`)
 }
 
 // ---------------------------------------------------------------- sub-task attachments (Nov 2026)
