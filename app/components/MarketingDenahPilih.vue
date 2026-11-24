@@ -14,6 +14,7 @@
 import { useMediaQuery } from '@vueuse/core'
 import type { PermintaanTumpang } from '~/components/DenahPeta.vue'
 import type { Reservasi } from '~/composables/useReservasi'
+import { SECTION_LAYOUT } from '~/composables/useReservasi'
 import { allLayoutKeys, capMax, dayTypeLayoutLt, defaultDayTypeLt, getLayout, lantaiMap } from '~/utils/venue-layouts'
 import { tambahHari } from '~/utils/format'
 
@@ -30,7 +31,15 @@ const pilih = defineModel<string[]>({ default: () => [] })
 const toast = useToast()
 const desktop = useMediaQuery('(min-width: 1024px)')
 
-const { master, status } = useDenah()
+const denah = useDenah()
+const { master, status } = denah
+/**
+ * Always the plan as the Reservasi settings have it NOW: the sections are
+ * cached app-wide, so a table added or moved in Atur denah & meja (maybe by
+ * someone else) is read again every time the picker opens or reloads.
+ */
+const muatDenah = () => Promise.all(SECTION_LAYOUT.map(k => denah[k].refresh())).then(() => {})
+onMounted(muatDenah)
 const { data: dineEstMin } = useSection<number>('dineEstMin')
 const { data: clashLeadMin } = useSection<number>('clashLeadMin')
 const masterKunci = computed(() => ({
@@ -61,7 +70,11 @@ async function muat() {
   galat.value = ''
   try {
     // A day either side: a 01:00 booking holds its table from the night before.
-    baris.value = await daftarReservasiSemua(tambahHari(props.tanggal, -1), tambahHari(props.tanggal, 1)) as unknown as Reservasi[]
+    const [rows] = await Promise.all([
+      daftarReservasiSemua(tambahHari(props.tanggal, -1), tambahHari(props.tanggal, 1)),
+      muatDenah(),
+    ])
+    baris.value = rows as unknown as Reservasi[]
   }
   catch (e) {
     galat.value = `Reservasi tidak terjangkau: ${apiErrorMessage(e)}. Meja yang sudah dipesan belum bisa ditandai.`
@@ -136,57 +149,63 @@ const kapasitas = computed(() => {
     >
       Denah Reservasi belum ada. Atur dulu di modul Reservasi › Editor denah.
     </p>
-    <DenahPeta
+    <div
       v-else
-      class="mt-3"
-      :class="desktop ? 'mx-auto w-[min(100%,calc((100vh-16rem)*1600/1160))]' : ''"
-      :layout="layout"
-      :fit="desktop"
-      :reservasi="baris"
-      :tanggal="tanggal"
-      :jam="jam"
-      mode="pilih"
-      :terpilih="pilih"
-      :kecuali-id="kecualiId ?? null"
-      :master="masterKunci"
-      @pilih="toggle"
-      @tumpang="tumpang"
-    />
+      class="mt-3 lg:grid lg:grid-cols-[minmax(0,1fr)_15rem] lg:items-start lg:gap-4"
+    >
+      <!-- Desktop: the plan takes the width (bounded by the screen height),
+           the picked tables sit beside it instead of under it, so the sides
+           are not empty and the plan is bigger (owner request, Nov 2026). -->
+      <DenahPeta
+        :class="desktop ? 'mx-auto w-[min(100%,calc((100vh-11rem)*1600/1160))]' : ''"
+        :layout="layout"
+        :fit="desktop"
+        :reservasi="baris"
+        :tanggal="tanggal"
+        :jam="jam"
+        mode="pilih"
+        :terpilih="pilih"
+        :kecuali-id="kecualiId ?? null"
+        :master="masterKunci"
+        @pilih="toggle"
+        @tumpang="tumpang"
+      />
 
-    <!-- The picked tables, both floors, and how many guests they seat. -->
-    <div class="mt-3 rounded-xl bg-muted p-3">
-      <div
-        v-if="pilih.length"
-        class="flex flex-wrap gap-1.5"
-      >
-        <button
-          v-for="m in pilih"
-          :key="m"
-          type="button"
-          class="inline-flex items-center gap-1 rounded-full bg-gold-soft px-2.5 py-1 text-xs font-bold text-gold-deep ring-1 ring-gold-deep hover:bg-gold-soft/70"
-          :title="`Lepas meja ${m}`"
-          @click="toggle(m)"
+      <!-- The picked tables, both floors, and how many guests they seat. -->
+      <div class="mt-3 rounded-xl bg-muted p-3 lg:sticky lg:top-0 lg:mt-0">
+        <div
+          v-if="pilih.length"
+          class="flex flex-wrap gap-1.5"
         >
-          {{ m }}
-          <UIcon
-            name="i-lucide-x"
-            class="size-3"
-          />
-        </button>
-      </div>
-      <p
-        class="text-sm"
-        :class="[pilih.length ? 'mt-2' : '', pax && kapasitas && kapasitas < pax ? 'text-warning' : 'text-muted']"
-      >
-        <template v-if="!pilih.length">
-          Belum ada meja dipilih — klik meja pada denah.
-        </template>
-        <template v-else>
-          {{ pilih.length }} meja · muat ±{{ kapasitas }} orang<template v-if="pax">
-            untuk {{ pax }} pax{{ kapasitas < pax ? ' — masih kurang' : '' }}
+          <button
+            v-for="m in pilih"
+            :key="m"
+            type="button"
+            class="inline-flex items-center gap-1 rounded-full bg-gold-soft px-2.5 py-1 text-xs font-bold text-gold-deep ring-1 ring-gold-deep hover:bg-gold-soft/70"
+            :title="`Lepas meja ${m}`"
+            @click="toggle(m)"
+          >
+            {{ m }}
+            <UIcon
+              name="i-lucide-x"
+              class="size-3"
+            />
+          </button>
+        </div>
+        <p
+          class="text-sm"
+          :class="[pilih.length ? 'mt-2' : '', pax && kapasitas && kapasitas < pax ? 'text-warning' : 'text-muted']"
+        >
+          <template v-if="!pilih.length">
+            Belum ada meja dipilih — klik meja pada denah.
           </template>
-        </template>
-      </p>
+          <template v-else>
+            {{ pilih.length }} meja · muat ±{{ kapasitas }} orang<template v-if="pax">
+              untuk {{ pax }} pax{{ kapasitas < pax ? ' — masih kurang' : '' }}
+            </template>
+          </template>
+        </p>
+      </div>
     </div>
   </div>
 </template>

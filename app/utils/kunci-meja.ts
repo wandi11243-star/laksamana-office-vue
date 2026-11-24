@@ -137,6 +137,26 @@ export const clashLeadOf = (master?: MasterDenah & { clashLeadMin?: number }) =>
   return n > 0 ? n : 10
 }
 
+/**
+ * The end of a booked window ("17:00–22:00", Marketing VIP), in absolute
+ * minutes, or null for an ordinary booking. An end at or before the start
+ * runs past midnight.
+ */
+export const timeEndAbs = (r: Reservasi): number | null => {
+  if (!r?.timeEnd || !r.time) return null
+  const mulai = absMin(r.date, r.time)
+  const akhir = absMin(r.date, r.timeEnd)
+  return akhir > mulai ? akhir : akhir + 1440
+}
+
+/** Is (date, time) inside a booking's own window (time..timeEnd)? Inside it the table is never handed out. */
+export const dalamJendela = (r: Reservasi, date: string, time: string) => {
+  const akhir = timeEndAbs(r)
+  if (akhir === null || !date || !time) return false
+  const t = absMin(date, time)
+  return t >= absMin(r.date, r.time) && t <= akhir
+}
+
 /** When a table starts being locked: 3 hours before the arrival time (`:1602`). */
 export const lockStart = (r: Reservasi) => absMin(r.date, r.time) - LOCK_LEAD_MIN
 
@@ -158,8 +178,12 @@ export const seatStart = (r: Reservasi) => {
  * made a booking for 07:00 the same day fail, and even 02:00 on the 16th stayed
  * blocked. The table now frees itself once the estimate has passed.
  */
-export const lockEnd = (r: Reservasi, dineEst = 180) =>
-  isSeated(r) ? seatStart(r) + dineEst : absMin(r.date, r.time) + LOCK_LEAD_MIN
+export const lockEnd = (r: Reservasi, dineEst = 180) => {
+  // A booked window (Marketing VIP) holds the table until its own end.
+  const akhir = timeEndAbs(r)
+  if (isSeated(r)) return Math.max(seatStart(r) + dineEst, akhir ?? 0)
+  return akhir ?? absMin(r.date, r.time) + LOCK_LEAD_MIN
+}
 
 /** Does this booking's lock touch the absolute minute range [a..b]? */
 export const locksRange = (r: Reservasi, a: number, b: number, dineEst = 180) =>
@@ -481,7 +505,7 @@ export function conflictCheck(list: Reservasi[], opts: {
     if (r.leftAt) return false // the guest has gone home -> free
     if (!tablesOf(r).some(t => want.includes(t))) return false
     if (sharing && r.sharing) return false // both sharing -> they may be joined
-    if (loose) return dudukMenempati(r, date, time, dineEst, now) || mepetTerhadap(r, date, time)
+    if (loose) return dudukMenempati(r, date, time, dineEst, now) || mepetTerhadap(r, date, time) || dalamJendela(r, date, time)
     return locksTable(r, date, time, dineEst)
   }) ?? null
 }
@@ -506,6 +530,9 @@ export type KeputusanTumpang
 export function periksaTumpang(lawan: Reservasi, meja: string, date: string, time: string, dineEst = 180): KeputusanTumpang {
   if (dudukMenempati(lawan, date, time, dineEst)) {
     return { boleh: false, kunci: true, pesan: `Meja ${meja} sedang diduduki ${lawan.name} — tandai "Selesai" dulu kalau tamunya sudah pulang.` }
+  }
+  if (dalamJendela(lawan, date, time)) {
+    return { boleh: false, kunci: true, pesan: `Meja ${meja} dipakai ${lawan.name} jam ${lawan.time}–${lawan.timeEnd}${lawan.vip ? ' (Reservasi VIP)' : ''} — pilih meja atau jam lain.` }
   }
   const beda = bedaMenitRes(lawan, date, time)
   // LOCKED, not negotiable. No question here: a question whose answer may only be
@@ -547,7 +574,9 @@ export const lockStartText = (r: Reservasi, fmtTglPendek: (tgl: string) => strin
 export const lockWindowText = (r: Reservasi, dineEst: number, fmtTglPendek: (tgl: string) => string) =>
   isSeated(r)
     ? `Meja terkunci sejak ${lockStartText(r, fmtTglPendek)} sampai ±${hhmm(lockEnd(r, dineEst))} (estimasi lama duduk ${fmtMenit(dineEst)}). Tandai "Selesai" untuk membukanya lebih cepat.`
-    : `Meja terkunci ${lockStartText(r, fmtTglPendek)}–${hhmm(absMin(r.date, r.time) + LOCK_LEAD_MIN)} (H±3 jam dari jam datang ${r.time})`
+    : timeEndAbs(r) !== null
+      ? `Meja terkunci ${lockStartText(r, fmtTglPendek)}–${hhmm(lockEnd(r, dineEst))} (H-3 jam sampai jam selesai ${r.timeEnd})`
+      : `Meja terkunci ${lockStartText(r, fmtTglPendek)}–${hhmm(absMin(r.date, r.time) + LOCK_LEAD_MIN)} (H±3 jam dari jam datang ${r.time})`
 
 // --- the six seat states ------------------------------------------------------
 

@@ -7,6 +7,11 @@
   "everything except Lost"; the header shows the month's pax with the same
   filter.
 
+  Clicking an empty spot of a day opens Event Baru on that date, and a
+  Marketing event can be dragged to another day (desktop; owner request,
+  Nov 2026). A multi-day event keeps its length; locked tables stay on the
+  old date until they are locked again, so the move asks first.
+
   The EMS and Reservasi bands are read without waiting and may fail on their
   own (their module not held, offline): the Marketing events still draw, a
   warning with "Coba lagi" says what is missing — as before.
@@ -18,6 +23,7 @@ import { dpLabel, eventFinance } from '~/utils/marketing-uang'
 import { ikonStatusMkt, warnaStatusMkt } from '~/utils/status-marketing'
 import { BULAN, fTgl, hariIni, rupiah } from '~/utils/format'
 import { listReservations } from '~/composables/useReservasi'
+import { mejaTerkunciMkt } from '~/utils/marketing-event'
 
 definePageMeta({ access: ['marketing'] })
 
@@ -104,6 +110,54 @@ const d = computed(() => (evBuka.value?.detail ?? {}) as Record<string, string>)
 const jam = computed(() => [d.value.mulaiSetup ? `Setup ${d.value.mulaiSetup}` : '', d.value.tamuDatang ? `Mulai ${d.value.tamuDatang}` : '', d.value.selesai ? `Selesai ${d.value.selesai}` : ''].filter(Boolean).join(' · '))
 const namaClient = (id: string) => st.value.clients.find(c => c.id === id)?.nama ?? '—'
 const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ?? '—'
+
+// ---- create on a day, drag to another day ----
+const { can } = useAksesMkt()
+const bolehUbah = computed(() => can('edit_event'))
+const baruBuka = ref(false)
+const baruTgl = ref('')
+function buatDi(tgl: string) {
+  if (!tgl || !bolehUbah.value) return
+  baruTgl.value = tgl
+  baruBuka.value = true
+}
+
+const seret = ref<{ ev: EventMkt, dari: string } | null>(null)
+const sasaran = ref('')
+const hariNo = (t: string) => Math.round(Date.UTC(+t.slice(0, 4), +t.slice(5, 7) - 1, +t.slice(8, 10)) / 86400000)
+const tglDari = (n: number) => new Date(n * 86400000).toISOString().slice(0, 10)
+function mulaiSeret(e: EventMkt, dari: string, ev: DragEvent) {
+  if (!bolehUbah.value) return
+  seret.value = { ev: e, dari }
+  ev.dataTransfer?.setData('text/plain', e.id)
+  if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move'
+}
+function selesaiSeret() {
+  seret.value = null
+  sasaran.value = ''
+}
+async function lepasDi(tgl: string) {
+  const s = seret.value
+  selesaiSeret()
+  if (!s || !tgl || tgl === s.dari) return
+  const e = s.ev
+  const geserHari = hariNo(tgl) - hariNo(s.dari)
+  const mulai = tglDari(hariNo(String(e.tanggal)) + geserHari)
+  const selesai = e.tanggalSelesai ? tglDari(hariNo(e.tanggalSelesai) + geserHari) : ''
+  const kunci = mejaTerkunciMkt(e).length
+  const tanya = `Pindahkan "${e.nama}" ke ${fTgl(mulai)}${selesai && selesai !== mulai ? ` – ${fTgl(selesai)}` : ''}?`
+    + (kunci
+      ? `
+
+Meja yang sudah dikunci di Reservasi masih di tanggal lama. Kunci ulang dari detail event setelah pindah.`
+      : '')
+  if (!confirm(tanya)) return
+  const patch: Partial<EventMkt> = { tanggal: mulai }
+  if (e.tanggalSelesai) patch.tanggalSelesai = selesai
+  if (e.detail && 'tanggal' in e.detail) patch.detail = { ...e.detail, tanggal: mulai, ...(e.tanggalSelesai && 'tanggalSelesai' in e.detail ? { tanggalSelesai: selesai } : {}) }
+  await mktSimpan(() => tambalMkt<EventMkt>('events', e.id, patch, e.updatedAt), 'Tanggal event dipindah',
+    { refType: 'event', refId: e.id, action: 'Tanggal event dipindah (kalender)', detail: `${e.tanggal} → ${mulai}` })
+}
 </script>
 
 <template>
@@ -210,7 +264,12 @@ const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ??
               v-for="(s, i) in sel"
               :key="i"
               class="min-h-20 min-w-0 border-r border-b border-default p-1 lg:min-h-28 lg:p-1.5"
-              :class="[!s.tgl ? 'bg-muted/60' : '', s.tgl === hari ? 'bg-primary-50' : '']"
+              :class="[!s.tgl ? 'bg-muted/60' : '', s.tgl === hari ? 'bg-primary-50' : '', s.tgl && bolehUbah ? 'cursor-pointer hover:bg-elevated/50' : '', s.tgl && s.tgl === sasaran ? 'ring-2 ring-inset ring-primary-400' : '']"
+              :title="s.tgl && bolehUbah ? 'Klik untuk buat event di tanggal ini' : undefined"
+              @click="buatDi(s.tgl)"
+              @dragover="(ev: DragEvent) => { if (seret && s.tgl) { ev.preventDefault(); sasaran = s.tgl } }"
+              @dragleave="sasaran === s.tgl && (sasaran = '')"
+              @drop.prevent="lepasDi(s.tgl)"
             >
               <p
                 class="num mb-1 text-xs"
@@ -223,8 +282,12 @@ const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ??
                 :key="e.id"
                 type="button"
                 class="mb-0.5 block w-full truncate rounded border-l-2 border-primary-400 bg-primary-100 px-1 py-0.5 text-left text-[10.5px] font-semibold leading-tight text-primary-900 lg:text-[11px]"
-                :title="`${e.nama} — ${jenisEvent(e)}${e.pax ? ` · ${e.pax} pax` : ''}`"
-                @click="evBuka = e"
+                :class="bolehUbah ? 'cursor-grab active:cursor-grabbing' : ''"
+                :title="`${e.nama} — ${jenisEvent(e)}${e.pax ? ` · ${e.pax} pax` : ''}${bolehUbah ? ' · geser ke tanggal lain untuk memindahkan' : ''}`"
+                :draggable="bolehUbah"
+                @dragstart="(ev: DragEvent) => mulaiSeret(e, s.tgl, ev)"
+                @dragend="selesaiSeret"
+                @click.stop="evBuka = e"
               >
                 {{ e.nama }}<b
                   v-if="e.pax"
@@ -237,7 +300,7 @@ const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ??
                 type="button"
                 class="mb-0.5 block w-full truncate rounded border-l-2 border-vip bg-vip/12 px-1 py-0.5 text-left text-[10.5px] font-semibold leading-tight text-vip lg:text-[11px]"
                 :title="`Acara EMS: ${x.nama}`"
-                @click="emsBuka = x"
+                @click.stop="emsBuka = x"
               >
                 {{ x.nama }}
               </button>
@@ -246,7 +309,7 @@ const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ??
                 type="button"
                 class="block w-full truncate rounded border-l-2 border-success bg-success/10 px-1 py-0.5 text-left text-[10.5px] font-semibold leading-tight text-success lg:text-[11px]"
                 :title="`${rsv[s.tgl]!.jml} reservasi · ${rsv[s.tgl]!.pax} pax — klik untuk rinciannya`"
-                @click="rsvBuka = s.tgl"
+                @click.stop="rsvBuka = s.tgl"
               >
                 • {{ rsv[s.tgl]!.jml }} reservasi<span class="hidden lg:inline">{{ rsv[s.tgl]!.pax ? ` · ${rsv[s.tgl]!.pax} pax` : '' }}</span>
               </button>
@@ -414,5 +477,9 @@ const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ??
         />
       </template>
     </ResponsiveSheet>
+    <MarketingEventBaru
+      v-model:open="baruBuka"
+      :tanggal-awal="baruTgl"
+    />
   </AppPage>
 </template>

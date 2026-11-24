@@ -237,7 +237,7 @@ export function barisReservasiVipMkt(v: VipMkt, dps: DpVipMkt[], perusahaan: str
   const ringkas = ringkasDpVipMkt(dps)
   return {
     id: `vip-${v.id}`,
-    name: v.nama ?? '', phone: v.hp ?? '', date: v.tanggal ?? '', time: v.jamMulai ?? '',
+    name: v.nama ?? '', phone: v.hp ?? '', date: v.tanggal ?? '', time: v.jamMulai ?? '', timeEnd: v.jamSelesai ?? '',
     pax: vipPaxMkt(v), table: (v.meja ?? []).join(', '), sharing: false,
     category: 'Corporate / Gathering', foodReq: '', drinkReq: '',
     dps, docReqData: '', docReqName: '', source: 'Marketing', picType: 'Marketing',
@@ -263,7 +263,7 @@ export function sinkronBarisReservasiVipMkt(lama: Record<string, unknown>, v: Vi
   const b = barisReservasiVipMkt(v, dps, perusahaan, namaPic, String(lama.createdBy ?? ''), kini)
   return {
     ...lama,
-    name: b.name, phone: b.phone, date: b.date, time: b.time, pax: b.pax, table: b.table,
+    name: b.name, phone: b.phone, date: b.date, time: b.time, timeEnd: b.timeEnd, pax: b.pax, table: b.table,
     notes: b.notes, picName: b.picName, vip: true, dps,
     ...ringkasDpVipMkt(dps),
     updatedAt: kini,
@@ -287,7 +287,7 @@ export function vipDariReservasiMkt(r: Record<string, unknown>): VipMkt {
     hp: String(r.phone ?? ''),
     tanggal: String(r.date ?? '').slice(0, 10),
     jamMulai: String(r.time ?? ''),
-    jamSelesai: '',
+    jamSelesai: String(r.timeEnd ?? ''),
     paxMin: (+(r.pax as number) || '') as number | string,
     paxMax: '',
     layoutReq: c.layoutReq,
@@ -343,7 +343,14 @@ export function mejaTerpakaiVipMkt(rows: Record<string, unknown>[], tanggal: str
     const mulaiJam = menitMutlak(tgl, String(r.time))
     const duduk = r.status === 'Datang'
     const awal = mulaiJam - VIP_LOCK_LEAD_MIN
-    const akhir = duduk ? Math.max(mulaiJam, r.checkinAt ? menitTs(+(r.checkinAt as number)) : mulaiJam) + estimasiDuduk : mulaiJam + VIP_LOCK_LEAD_MIN
+    // A booked window (another VIP, "17:00–22:00") holds until its own end.
+    let jendela: number | null = null
+    if (r.timeEnd) {
+      jendela = menitMutlak(tgl, String(r.timeEnd))
+      if (jendela <= mulaiJam) jendela += 1440
+    }
+    const akhirDuduk = Math.max(mulaiJam, r.checkinAt ? menitTs(+(r.checkinAt as number)) : mulaiJam) + estimasiDuduk
+    const akhir = duduk ? Math.max(akhirDuduk, jendela ?? 0) : (jendela ?? mulaiJam + VIP_LOCK_LEAD_MIN)
     if (awal > t || akhir < t) continue
     for (const m of String(r.table ?? '').split(',').map(x => x.trim()).filter(Boolean)) out[m] = String(r.name ?? '') || 'terpakai'
   }

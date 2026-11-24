@@ -16,6 +16,10 @@ import type { ClientMkt, EventMkt } from '~/utils/marketing'
 import { JENIS_EVENT_MKT, MENU_FIX_KOSONG_MKT, MENU_FIX_MKT } from '~/utils/marketing'
 import { hariIni } from '~/utils/format'
 
+const props = defineProps<{
+  /** The date the form opens on (a day clicked in the calendar); today otherwise. */
+  tanggalAwal?: string
+}>()
 const open = defineModel<boolean>('open', { default: false })
 
 const toast = useToast()
@@ -34,7 +38,7 @@ const opsiClient = computed(() => [
 ])
 
 watch(open, (o) => {
-  if (o) Object.assign(f, { client: '', cnama: '', chp: '', nama: '', jenis: JENIS_EVENT_MKT[0], jenisLain: '', tanggal: hariIni(), pax: '', menuFix: '' })
+  if (o) Object.assign(f, { client: '', cnama: '', chp: '', nama: '', jenis: JENIS_EVENT_MKT[0], jenisLain: '', tanggal: props.tanggalAwal || hariIni(), pax: '', menuFix: '' })
 }, { immediate: true })
 
 async function simpan() {
