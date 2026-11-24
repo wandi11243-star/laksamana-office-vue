@@ -1,5 +1,5 @@
 <!--
-  Event Management — approved events with status tabs, period toggle, search
+  Event Management — event table with status tabs, period toggle, search
   and the event form (`event/index.html:6077-6367`).
 -->
 <script setup lang="ts">
@@ -9,18 +9,21 @@ import { removeEvent, useDaftarEvent } from '~/composables/useEvent'
 import { refundGantung } from '~/utils/event-refund'
 import { bulanAktif, fmtTglJamEms, geserPeriode, rentangPeriodeEvent, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
-import { bolehUbahEvent, peranEvent } from '~/utils/layar/event'
+import { bolehBukaEvent, bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 import { angka, rupiah } from '~/utils/format'
 import { STATUS_IKON_EVENT, STATUS_WARNA_EVENT } from '~/utils/status-event'
 import { tanganiKonflik } from '~/utils/versi'
 
 const toast = useToast()
 const me = useMe()
-const bolehUbah = computed(() => bolehUbahEvent('events', peranEvent(me.value)))
+const peran = computed(() => peranEvent(me.value))
+const bolehUbah = computed(() => bolehUbahEvent('events', peran.value))
+const bolehRencana = computed(() => bolehBukaEvent('planning', peran.value))
+const tahapRencana = (s: unknown) => s === 'Planning' || s === 'Prospect'
 
 // Upcoming by default, like evtFilter (`:4536`)
 const tabStatus = ref('Upcoming')
-const TABS = ['Approval', 'Upcoming', 'Event Done', 'Semua']
+const tabs = computed(() => ['Semua', ...(bolehRencana.value ? ['Planning', 'Prospect'] : []), 'Approval', 'Upcoming', 'Event Done'])
 // '' | 'hari' | 'minggu' | 'bulan' | 'YYYY-MM' | 'YYYY-MM-DD' (`evtPeriode`).
 const modePeriode = ref('')
 const cari = ref('')
@@ -49,11 +52,11 @@ const omzet = (id: string) => daftarOrder.value.rows
   .filter(o => (o.event_id as string) === id && (o.payment_status as string) === 'Paid')
   .reduce((a, o) => a + (Number(o.total) || 0), 0)
 
-/** Approved events only — Planning & Prospect live on Perencanaan (`renderEvents` :6198). The period filters first, so "x dari y" means "in this period". Dates are WIB. */
+/** Apply the period before the stage and search filters. Dates are WIB. */
 const semua = computed(() => {
   const r = rentangPeriodeEvent(modePeriode.value)
   return daftar.value.rows.filter((e) => {
-    if (e.status === 'Planning' || e.status === 'Prospect') return false
+    if (tahapRencana(e.status) && !bolehRencana.value) return false
     const tgl = tglWIB(e.start_datetime)
     return !r || (!!tgl && tgl >= r.a && tgl <= r.b)
   })
@@ -112,7 +115,7 @@ async function hapus() {
     <div class="flex flex-wrap items-center gap-2">
       <AppSeg
         v-model="tabStatus"
-        :options="TABS.map(t => ({ value: t, label: t }))"
+        :options="tabs.map(t => ({ value: t, label: t }))"
       />
       <AppSeg
         v-model="modePeriode"
@@ -163,7 +166,8 @@ async function hapus() {
       :columns="kolom"
       :data="list"
       :loading="status === 'pending'"
-      class="hidden lg:block"
+      sticky
+      class="hidden max-h-[min(68dvh,640px)] overscroll-contain lg:block"
     >
       <template #acara-cell="{ row }">
         <ULink
@@ -218,7 +222,7 @@ async function hapus() {
       <template #aksi-cell="{ row }">
         <span class="flex gap-1">
           <UButton
-            v-if="bolehUbah"
+            v-if="bolehUbah && !tahapRencana(row.original.status)"
             color="error"
             variant="ghost"
             icon="i-lucide-trash-2"
@@ -227,7 +231,7 @@ async function hapus() {
         </span>
       </template>
     </UTable>
-    <ul class="divide-y divide-default lg:hidden">
+    <ul class="max-h-[min(68dvh,640px)] divide-y divide-default overflow-y-auto overscroll-contain lg:hidden">
       <li
         v-for="e in list"
         :key="e.id"

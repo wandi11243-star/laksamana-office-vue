@@ -11,12 +11,16 @@ import { useStateEvent } from '~/composables/useEvent'
 import { angkaEms, bulanAktif, eventTiket, fmtTglJamEms, geserPeriode, idCheckin, omzetPerBulan, paxAcara, petaOrder, rentangPeriodeEvent, tglWIB } from '~/utils/event-hitung'
 import { apiErrorMessage } from '~/composables/useApi'
 import { angka, hariIni, rupiah, tglPanjang } from '~/utils/format'
+import { geserBulan, geserTgl, hariKe, rentangHari } from '~/utils/kalender'
+import { bolehBukaEvent, peranEvent } from '~/utils/layar/event'
 import { STATUS_IKON_EVENT, STATUS_WARNA_EVENT } from '~/utils/status-event'
 
 definePageMeta({ access: ['event'] })
 
 const { data: state, error, status } = useStateEvent()
 const s = computed(() => state.value?.data ?? null)
+const me = useMe()
+const bolehJadwal = computed(() => bolehBukaEvent('schedule', peranEvent(me.value)))
 
 /** First-load skeleton for the stat grids below: skeleton cells stand in
  *  while the first state lands. Refetch keeps old numbers, so filter or
@@ -192,6 +196,33 @@ const perhatian = computed(() => {
   if (belumBayar) keluar.push({ tone: 'warning', judul: `${belumBayar} pembayaran talent menunggu`, desc: 'Belum ditandai lunas', to: '/event/fee' })
   const tanpaRek = talent.value.filter(t => t.status === 'Active' && !(t.bank_account || '').trim()).length
   if (tanpaRek) keluar.push({ tone: 'warning', judul: `${tanpaRek} talent tanpa rekening`, desc: 'Fee tidak bisa ditransfer', to: '/event/talents' })
+  if (bolehJadwal.value && talentAktifN.value) {
+    const tanggalTerisi = new Set(jadwal.value.filter(j => j.status !== 'Cancelled').map(j => j.date))
+    const bulanDepan = geserBulan(h.slice(0, 7), 1)
+    const awalBulanDepan = bulanDepan + '-01'
+    const sisa = hariKe(awalBulanDepan) - hariKe(h)
+    const jadwalBulanDepanKosong = sisa <= 3 && ![...tanggalTerisi].some(tgl => tgl.startsWith(bulanDepan))
+    if (jadwalBulanDepanKosong) {
+      const namaBulan = new Date(awalBulanDepan + 'T00:00:00').toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })
+      keluar.push({
+        tone: 'warning',
+        judul: 'Isi jadwal talent bulan depan',
+        desc: namaBulan + ' dimulai dalam ' + sisa + ' hari dan belum ada jadwal.',
+        to: '/event/schedule?tgl=' + awalBulanDepan,
+      })
+    }
+
+    const kosong = rentangHari(h, geserTgl(h, 3)).filter(tgl => !tanggalTerisi.has(tgl)
+      && (!jadwalBulanDepanKosong || tgl < awalBulanDepan))
+    if (kosong.length) {
+      keluar.push({
+        tone: 'warning',
+        judul: kosong.length + ' tanggal belum ada jadwal talent',
+        desc: 'Mulai ' + tglPanjang(kosong[0]!),
+        to: '/event/schedule?tgl=' + kosong[0],
+      })
+    }
+  }
   return keluar
 })
 
@@ -229,43 +260,6 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
         :title="apiErrorMessage(error)"
         class="mb-4"
       />
-
-      <AppPanel
-        title="Perlu perhatian"
-        icon="i-lucide-triangle-alert"
-        class="mb-4"
-      >
-        <p
-          v-if="!perhatian.length"
-          class="text-sm text-muted"
-        >
-          Tidak ada yang perlu ditindak hari ini.
-        </p>
-        <ul
-          v-else
-          class="grid gap-2 lg:grid-cols-2"
-        >
-          <li
-            v-for="(p, i) in perhatian"
-            :key="i"
-          >
-            <ULink
-              :to="p.to"
-              class="flex items-center gap-3 rounded-field border border-default px-3 py-2 hover:border-primary"
-            >
-              <UIcon
-                :name="p.tone === 'error' ? 'i-lucide-octagon-alert' : 'i-lucide-triangle-alert'"
-                :class="p.tone === 'error' ? 'text-error' : 'text-warning'"
-                class="size-5 shrink-0"
-              />
-              <span class="min-w-0">
-                <b class="block truncate text-sm text-highlighted">{{ p.judul }}</b>
-                <span class="block truncate text-xs text-muted">{{ p.desc }}</span>
-              </span>
-            </ULink>
-          </li>
-        </ul>
-      </AppPanel>
 
       <AppPanel class="mb-4">
         <div class="flex flex-wrap items-center gap-2">
@@ -431,22 +425,65 @@ const ringkas = computed(() => angkaEms(s.value?.events ?? [], kelas.value, tike
         />
       </AppStatGrid>
 
-      <AppPanel
-        title="Uang masuk per event (6 bulan)"
-        icon="i-lucide-chart-column"
-        class="mb-4"
-      >
-        <p class="mb-3 text-xs text-muted">
-          Pesanan lunas saja, dipetakan ke bulan mulai event, dalam juta rupiah.
-        </p>
-        <AppBar
-          v-for="g in grafik"
-          :key="g.label"
-          :label="g.label"
-          :value="`Rp ${g.jt} jt`"
-          :persen="maksGrafik ? Math.round(g.jt / maksGrafik * 100) : 0"
-        />
-      </AppPanel>
+      <div class="mb-4 grid items-start gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]">
+        <AppPanel
+          title="Uang masuk per event (6 bulan)"
+          icon="i-lucide-chart-column"
+          class="min-w-0 mb-0"
+        >
+          <p class="mb-3 text-xs text-muted">
+            Pesanan lunas saja, dipetakan ke bulan mulai event, dalam juta rupiah.
+          </p>
+          <AppBar
+            v-for="g in grafik"
+            :key="g.label"
+            :label="g.label"
+            :value="`Rp ${g.jt} jt`"
+            :persen="maksGrafik ? Math.round(g.jt / maksGrafik * 100) : 0"
+          />
+        </AppPanel>
+
+        <AppPanel
+          title="Perlu perhatian"
+          icon="i-lucide-triangle-alert"
+          class="min-w-0 mb-0"
+        >
+          <USkeleton
+            v-if="statMemuat"
+            class="h-14 w-full"
+          />
+          <p
+            v-else-if="s && !perhatian.length"
+            class="text-sm text-muted"
+          >
+            Tidak ada yang perlu ditindak hari ini.
+          </p>
+          <ul
+            v-else-if="perhatian.length"
+            class="grid gap-2"
+          >
+            <li
+              v-for="(p, i) in perhatian"
+              :key="i"
+            >
+              <ULink
+                :to="p.to"
+                class="flex items-center gap-3 rounded-field border border-default px-3 py-2 hover:border-primary"
+              >
+                <UIcon
+                  :name="p.tone === 'error' ? 'i-lucide-octagon-alert' : 'i-lucide-triangle-alert'"
+                  :class="p.tone === 'error' ? 'text-error' : 'text-warning'"
+                  class="size-5 shrink-0"
+                />
+                <span class="min-w-0">
+                  <b class="block text-sm text-highlighted">{{ p.judul }}</b>
+                  <span class="block text-xs text-muted">{{ p.desc }}</span>
+                </span>
+              </ULink>
+            </li>
+          </ul>
+        </AppPanel>
+      </div>
 
       <AppPanel
         title="Event terdekat"
