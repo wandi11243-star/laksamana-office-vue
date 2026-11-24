@@ -31,6 +31,10 @@ export default {
           '*Daily Stock Rokok* dan *Rekap Stock Rokok*, barang masuk dan keluar per hari.',
           '*Performa Kasir*, omset yang diakui untuk kamu.',
         ] },
+        { t: 'catatan', nada: 'info', judul: 'Admin modul bisa menutup halaman per orang',
+          isi: 'Di *Kelola Akses*, admin modul Cashier mencentang halaman mana saja yang boleh dibuka tiap kru, '
+            + 'lalu menekan Simpan akses. Halaman yang ditutup hilang dari menu dan tidak bisa dibuka lewat alamatnya. '
+            + 'Yang diatur hanya halamannya; siapa yang memegang modul Cashier tetap diatur di Kelola Akses milik Office.' },
         { t: 'gambar', berkas: 'cashier/report-daily.png',
           teks: 'Report Daily Kasir: kolom POS di kiri, Actual di kanan, selisihnya dihitung sendiri.',
           tandai: [

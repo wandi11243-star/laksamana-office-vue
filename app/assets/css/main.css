@@ -367,3 +367,39 @@ h1, h2, h3, .font-display {
     text-transform: capitalize;
   }
 }
+
+/*
+  Cashier (owner request, 24 Nov 2026: "padding kolom isi disesuaikan", "tulisan
+  agak lebih besar dikit"). `.modul-cashier` sits on the layout's <main> inside
+  /cashier. The module reads its numbers all shift long, so its type steps back
+  up one notch from the app-wide scale, and the first/last table column of an
+  edge-to-edge (`flush`) panel lines up with that panel's own head padding
+  instead of sitting 12px to the left of it. A grid that needs every pixel
+  (Kelola Akses) opts out with `tabel-padat`. Unlayered on purpose: it must beat
+  the per-cell `px-*` utilities of components that Finance › Omset shares.
+*/
+.modul-cashier {
+  --text-xs: 0.75rem;   /* 12px (app-wide 11.5) */
+  --text-sm: 0.875rem;  /* 14px (app-wide 13) */
+  --text-base: 1rem;    /* 16px (app-wide 15) */
+}
+.modul-cashier .text-\[11px\] {
+  font-size: 0.75rem;
+}
+.modul-cashier [data-flush] table:not(.tabel-padat) :is(th, td) {
+  padding-inline: 0.875rem;
+}
+.modul-cashier [data-flush] table:not(.tabel-padat) :is(th, td):first-child {
+  padding-inline-start: 1.25rem;
+}
+.modul-cashier [data-flush] table:not(.tabel-padat) :is(th, td):last-child {
+  padding-inline-end: 1.25rem;
+}
+@media (min-width: 1024px) {
+  .modul-cashier [data-flush] table:not(.tabel-padat) :is(th, td):first-child {
+    padding-inline-start: 1.75rem;
+  }
+  .modul-cashier [data-flush] table:not(.tabel-padat) :is(th, td):last-child {
+    padding-inline-end: 1.75rem;
+  }
+}

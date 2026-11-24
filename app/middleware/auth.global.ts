@@ -4,7 +4,9 @@
 // rule again, so this is only about not showing a screen that would fail.
 import type { BdSettings } from '~/composables/useBd'
 import { getBdSettings, layarTersembunyiBd } from '~/composables/useBd'
+import { layarTersembunyiCashier, muatAksesCashier } from '~/composables/useCashier'
 import { LAYAR_BD } from '~/utils/layar/bd'
+import { LAYAR_CASHIER } from '~/utils/layar/cashier'
 
 export default defineNuxtRouteMiddleware(async (to) => {
   if (to.meta.public) return
@@ -36,6 +38,20 @@ export default defineNuxtRouteMiddleware(async (to) => {
 
   if (to.meta.access && !hasAccess(me.value, to.meta.access)) {
     throw createError({ statusCode: 403, statusMessage: 'Anda belum punya akses ke modul ini. Minta admin membukanya di Kelola Akses.' })
+  }
+
+  // Cashier: same rule — a screen its admin closed in Kelola Akses stays closed by URL.
+  if (to.path.startsWith('/cashier/') && me.value && !isAdminOf(me.value, 'cashier')) {
+    const layar = LAYAR_CASHIER.find(l => to.path === l.to)
+    if (layar?.key === 'akses') {
+      throw createError({ statusCode: 403, statusMessage: 'Kelola Akses hanya untuk admin modul Cashier.' })
+    }
+    if (layar) {
+      const akses = (await muatAksesCashier())?.value
+      if (layarTersembunyiCashier(me.value, akses ?? {}).includes(layar.key)) {
+        throw createError({ statusCode: 403, statusMessage: `${layar.label} belum dibuka untukmu. Minta admin modul Cashier membukanya di Kelola Akses.` })
+      }
+    }
   }
 
   // Task Management: a screen a BD admin closed for this crew member (Kelola

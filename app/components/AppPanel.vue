@@ -21,6 +21,7 @@ defineProps<{
 <template>
   <section
     class="overflow-hidden"
+    :data-flush="flush || undefined"
     :class="bersarang ? 'mb-0 rounded-xl border border-default bg-muted' : 'mb-6 rounded-panel bg-default shadow-panel'"
   >
     <header
