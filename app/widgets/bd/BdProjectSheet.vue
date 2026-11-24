@@ -164,11 +164,16 @@ async function hapus() {
           <USelectMenu
             v-model="f.businessGroup"
             :items="opsiGrupBisnis"
+            create-item="always"
             value-key="value"
             placeholder="Pilih grup bisnis"
             :search-input="{ placeholder: 'Cari grup bisnis...' }"
             class="w-full"
-          />
+          >
+            <template #create-item-label="{ item }">
+              Tambahkan grup bisnis "{{ item }}"
+            </template>
+          </USelectMenu>
         </UFormField>
         <UFormField label="Warna grup bisnis">
           <USelect
