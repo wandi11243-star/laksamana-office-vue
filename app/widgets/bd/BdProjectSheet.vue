@@ -1,6 +1,6 @@
-<!--
+﻿<!--
   Project form (old `projModal`, deploy/bd/index.html:1995-2063). Progress is
-  COMPUTED, never a manual number; closing a project (stage → Completed) closes
+  COMPUTED, never a manual number; closing a project (stage â†’ Completed) closes
   its tasks, only on the stage change.
 -->
 <script setup lang="ts">
@@ -29,6 +29,14 @@ const toast = useToast()
  * The edited row's own div is unioned in, so a stored legacy division never
  * drops out of the select even when no crew carries it any more. */
 const opsiDiv = computed(() => opsiDivisi([...props.people, { div: props.project?.div }]))
+const grupBisnis = computed(() => [...new Set(props.projects
+  .map(p => p.businessGroup?.trim() ?? '')
+  .filter(Boolean)
+  .sort((a, b) => a.localeCompare(b, 'id')))])
+const opsiGrupBisnis = computed(() => [
+  { label: 'Tanpa grup bisnis', value: '' },
+  ...grupBisnis.value.map(nama => ({ label: nama, value: nama })),
+])
 
 const f = reactive({
   name: '',
@@ -117,7 +125,7 @@ async function simpan() {
       for (const t of ikut) await tambalBd<BdTask>('tasks', t.id, { status: 'Done', progress: 100 }, versiBaris(t))
     }
   }
-  const pesan = (lama ? 'Project diperbarui' : 'Project ditambahkan') + (ikut.length ? ` — ${ikut.length} task ikut jadi Done` : '')
+  const pesan = (lama ? 'Project diperbarui' : 'Project ditambahkan') + (ikut.length ? ` â€” ${ikut.length} task ikut jadi Done` : '')
   const ok = await bdSimpan(aksi, pesan)
   if (ok) open.value = false
 }
@@ -153,10 +161,12 @@ async function hapus() {
       </UFormField>
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField label="Grup bisnis">
-          <UInput
+          <USelectMenu
             v-model="f.businessGroup"
-            placeholder="Masukkan nama grup bisnis"
-            maxlength="80"
+            :items="opsiGrupBisnis"
+            value-key="value"
+            placeholder="Pilih grup bisnis"
+            :search-input="{ placeholder: 'Cari grup bisnis...' }"
             class="w-full"
           />
         </UFormField>
@@ -203,7 +213,7 @@ async function hapus() {
           />
         </UFormField>
       </div>
-      <UFormField label="PIC — boleh lebih dari satu">
+      <UFormField label="PIC â€” boleh lebih dari satu">
         <BdPicPicker
           v-model="f.pics"
           :people="people"
@@ -248,7 +258,7 @@ async function hapus() {
           />
         </UFormField>
       </div>
-      <UFormField label="Milestone (satu per baris — nama | YYYY-MM-DD)">
+      <UFormField label="Milestone (satu per baris â€” nama | YYYY-MM-DD)">
         <UTextarea
           v-model="f.ms"
           :rows="4"
@@ -288,7 +298,7 @@ async function hapus() {
   <BdKonfirmasi
     v-model:open="hapusMau"
     title="Hapus project ini?"
-    description="Task-nya TIDAK ikut terhapus — hanya dilepas dari project. Koordinasi dan PO terkait juga dilepas."
+    description="Task-nya TIDAK ikut terhapus â€” hanya dilepas dari project. Koordinasi dan PO terkait juga dilepas."
     @konfirmasi="hapus"
   />
 </template>
