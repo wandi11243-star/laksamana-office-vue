@@ -55,7 +55,7 @@ Sumber `NAV` `event/index.html:2006-2046`, `TITLES` `:2047`, dispatcher `router`
 | key | judul | subjudul (crumb) | tampil untuk | tersembunyi? | bukti |
 |---|---|---|---|---|---|
 | dashboard | Dashboard | Ringkasan operasional · <tanggal panjang> | semua (izin) | tidak | `:2009`, `:2311` |
-| calendar | Event Calendar | Kalender terpadu multi-sumber | semua | tidak | `:2010`, `:10925` |
+| calendar | Kalender (dulu "Event Calendar") | Kalender terpadu multi-sumber | semua | tidak | `:2010`, `:10925` |
 | talents | Talent Management | Kelola profil, jadwal & fee talent | semua | tidak | `:2012`, `:2495` |
 | schedule | Talent Schedule | Kalender jadwal · anti double-booking | semua | tidak | `:2013`, `:2703` |
 | fee | Fee & Pembayaran | Rekap otomatis show Done × fee | semua | tidak | `:2014`, `:4044` |
@@ -100,7 +100,13 @@ Sub-layar rincian (bukan menu, argumen rute `router` `:2135-2152`):
 - **Perhitungan di browser:** `upcoming` = count status `Upcoming`; `ticketRev` = Σ `orders[payment_status==='Paid'].total`; `ticketsSold` = Σ `ticketClasses.sold`; `attendance` = count `checkins[result==='Valid']`; `occ = round(attendance/paidTickets*100)`, `paidTickets = tickets.length`; `avgPrice = round(ticketRev/ticketsSold)`; best event per `event_id` omzet; top talent per `schedules[status==='Done']` (`:2313-2347`).
 - **Catatan:** bar chart memakai **data demo tertulis-mati** `[['Ags',22],['Sep',31],['Okt',18],['Nov',26],['Des',210],['Jan',8]]` (`:2405`) — bukan dihitung dari data; Vue harus menghitung dari `omzetPerBulanEms` (`:4975`). Judul kartu memakai emoji (`💡`,`📈`,`🎪`) → langgar DESIGN.md.
 
-### D.2 calendar — Event Calendar
+### D.2 calendar — Kalender
+- **Vue (24 Nov 2026, plan `2026-11-24-kalender-talent-roster.md` §2-3):** halaman memakai `KalenderBulan`/`KalenderKartu`/`kalender-warna.ts` yang sama dengan Kalender Marketing. Menu & judul bernama **Kalender** (alamat `/event/calendar` tetap); kepala modul Event tidak lagi punya kotak cari dan tombol "+" (lonceng approval tetap; "Rencana Baru" ada di Perencanaan).
+  - Saringan: status (EMS + Marketing; bawaan tanpa Lost/Cancelled) dan sumber, menggantikan dropdown tipe lama. Warna kartu = sumber: EMS ungu muda, Marketing emas muda, Reservasi hijau muda, Talent merah muda, libur netral, ulang tahun kuning. **Tanpa warna penuh**: deal (Marketing Deal/Confirmed, EMS Upcoming/Today) hanya bertanda titik hijau di depan judul + legenda "Deal / pasti jalan".
+  - Event EMS dan Marketing lintas hari digambar di semua harinya (WIB; akhir ≤ 06:00 dianggap ujung malam yang sama). Talent diringkas satu baris per hari ("3 talent · 19:45–23:59") → daftar + tombol "Atur jadwal" ke `/event/schedule?tgl=YYYY-MM-DD`.
+  - Klik tanggal kosong → sheet Rencana baru (EventForm, tanggal terisi 19:00; hanya yang boleh ubah Perencanaan; simpan lewat `useRencanaBaru`, sama dengan Perencanaan). Geser event EMS ke tanggal lain → konfirmasi, lalu PATCH `start_datetime`/`end_datetime` saja dengan `If-Match` (jam & lama tetap). Event Done/Finished/Cancelled terkunci; event bertiket: konfirmasi menyebut tiket terjual. Marketing & Reservasi tetap baca saja.
+  - EventForm: `poster_img` yang sudah ada disimpan kembali apa adanya (dulu objek tertulis `"[object Object]"`); unggahan baru disimpan `{key,name,size,type}` yang dibaca `HomepageEvents::hasPoster`. Baris lama berisi string kunci tetap terbaca.
+- **Acuan Office lama (di bawah) tetap berlaku untuk isi popup dan sumber data.**
 - **Tampilan:** navigasi ‹ bulan › + "Hari Ini"; dropdown tipe `['all','Event','Entertainment','Reservation','Marketing','Holiday','Birthday']` (`:11045`); legenda 3 warna (EMS ungu, Talent merah, Marketing emas, Reservasi teal — meski komentar menyebut "tiga warna" ada 4 item legenda); pita "N pax bulan ini" dengan rincian `title="EMS … · Marketing … · Reservasi …"` (`:11047`); kisi bulan (`:11049`) dengan maks 4 item + "+N lagi".
 - **Sumber (lintas modul):** `DB.events` (ungu), `DB.schedules` (label "🎤 nama", merah), `DB.calendarExtra` (libur/ulang tahun; tipe `Reservation` dibuang, `:10993`), **Marketing dibaca** via `MKT_URL='../marketing-api-mysql/api.php'?action=getAll` filter `status!=='Lost'` (`:10753,10759-10793`), **Reservasi dibaca** via `RSV_API_EMS='../reservasi-api-mysql/api.php'?action=getAll` membuang `cancelled|no-show|noshow|batal` (`:10825,10830-10865`).
 - **Aksi:** klik item → `calEventPopup` (`:11060`), `calJadwalPopup` (`:11082`), `calMktPopup` (`:11103`, read-only), `rsvHariPopupEms` (`:10878`, read-only + tombol "Buka Modul Reservasi").
@@ -142,6 +148,18 @@ Sub-layar rincian (bukan menu, argumen rute `router` `:2135-2152`):
 - **Dokumen field:** `t.docs = {ktp,npwp,contract,portfolio[]}`, tiap nilai `{key,name,size,at}` (`:2556`).
 
 ### D.5 schedule — Talent Schedule
+- **Vue (24 Nov 2026, plan `2026-11-24-kalender-talent-roster.md` §4-5):** halaman ditulis ulang, TIDAK lagi memakai Input mingguan, Recurring dan Generate bulanan di bawah (di-nolkan: `recurring-rules` 0 baris, dan picker harinya bergeser satu hari karena `DOW` mulai Minggu sementara indeks mulai Senin). Satu pengubah hari `idxHari` (Senin = 0) di `app/utils/event-jadwal.ts` dipakai di mana-mana.
+  - **Dua tampilan**, dipilih lewat AppSeg **Kalender | Tabel** (diingat per perangkat; Tabel punya **Minggu | Bulan**), kepala sama dengan kalender lain: ‹ Hari Ini ›, legenda kategori, "N jadwal", saringan kategori. `?tgl=YYYY-MM-DD` (dari Kalender › "Atur jadwal") membuka bulan/minggu itu dan sheet "Jadwal hari itu".
+  - **Kalender:** `KalenderBulan` + kartu `19:45 Nama` berwarna kategori (`nadaKategori`), batal dicoret, draf bergaris putus-putus. Klik kartu → editor; klik tanggal → "Jadwal hari itu" (chip talent per kategori, sekali klik masuk dengan jam bawaan, jam bisa diubah per baris). Geser kartu = pindah tanggal setelah konfirmasi + periksa bentrok, ditulis langsung (satu baris lewat batch); Done/Cancelled dan baris yang sedang berupa draf tidak bisa digeser.
+  - **Tabel › Minggu** (`EventTalentLembar`): baris = talent aktif per kategori (+ talent nonaktif/terhapus yang punya jadwal minggu itu), kolom Senin–Minggu, kolom nama dibekukan; di 390px menjadi kartu per hari. Data dimuat per **rentang tanggal** yang dibutuhkan (`useJadwalRentang`), jadi minggu yang melewati akhir bulan memuat ketujuh harinya dan pemeriksaan bentrok melihat semua hari yang termuat.
+  - **Tabel › Bulan** (`EventTalentBulan`): tabel Kehadiran lama (S/C/✓/×, Tampil, Selesai, Fee, Penampil/hari), angka sama, dari baris yang SUDAH tersimpan.
+  - **Draf:** klik sel kosong → langsung terisi jam bawaan (jam khusus talent → slot kategori untuk hari itu → slot kategori semua hari; yang bertanda *bawaan* menang; tidak ada → editor dengan jam kosong). Klik sel terisi → editor (slot, jam, fee, tipe, event terkait opsional, status, catatan, hapus); titik kuning bila jam berbeda dari bawaan; `+` = show kedua. Baris tersimpan juga bisa diubah/dihapus sebagai draf; **status ikut draf** (tidak lagi "langsung tersimpan"). Bar bawah "x baru · y diubah · z dihapus", **Simpan jadwal**, **Buang**. Bentrok = merah + menahan simpan. Pindah minggu/bulan/tampilan tidak membuang draf; keluar halaman dengan draf → konfirmasi (`onBeforeRouteLeave` + `beforeunload`).
+  - **Simpan** = satu `POST /event/schedules/batch` (semua atau tidak sama sekali; maks 300, lebih dari itu ditolak dengan pesan, tidak dipecah diam-diam). Baris baru: `talent_id, event_id (null), date, performance_type (= kategori talent), start_time, end_time, fee (= fee bawaan talent via feeAngka), status 'Scheduled', recurring_rule_id null, source 'roster', createdAt/updatedAt`, plus `notes` bila diisi (belum ada pembaca lain untuk catatan jadwal; kunci `notes` sama dengan talent). Id baris baru dibuat di browser agar jawaban server per baris bisa ditandai di selnya. Baris tersimpan memakai `version` saat draf dibuat; `source`-nya tetap. 409 `version_conflict`: draf dipertahankan, data dimuat ulang, baris itu disebut dan ditandai *!* sampai dibuka/diterapkan ulang; 409 `jadwal_bentrok`: sel yang bentrok ditandai merah; 422/404 per baris disebut.
+  - **Salin minggu lalu** dan **Isi otomatis** (talent + hari + dari/sampai tanggal, maks 93 hari) hanya membuat draf; sel yang sudah punya jadwal non-Cancelled dilewati dan jumlahnya disebut (begitu juga sel tanpa jam bawaan).
+  - **Jam bawaan** = pengaturan `jamTalent` (`GET/PUT /event/settings/jamTalent`, layar **Jam talent** `/event/jam-talent`, grup Pengaturan, kunci akses `jamtalent`: Manajemen & Tim Event ubah, Kasir & Hanya Lihat tidak melihat). Saat dokumen kosong layar menampilkan **usulan** (Band 19:45–22:30, DJ & MC DJ 22:30–23:59) berlabel belum tersimpan; Talent Schedule hanya memakai yang SUDAH tersimpan, dan bila kosong menampilkan petunjuk ke Jam talent. Bila API belum punya endpoint (404), jadwal tetap jalan tanpa jam bawaan.
+  - Jam selesai tetap maksimal 23:59 dan harus > jam mulai (Event lama memeriksa bentrok dengan aturan itu); jadwal tidak bisa melewati tengah malam. Pengguna tanpa `bolehUbahEvent('schedule')` melihat semuanya dan tidak bisa mengubah apa pun.
+  - Tes: `npm run uji:event-jadwal` (`tools/uji-event-jadwal.mjs`).
+- **Acuan Office lama (di bawah)** tetap berlaku untuk bentuk record dan aturan bentrok; Input mingguan / Recurring / Generate bulanan di bawah **tidak dibawa**.
 - **Tampilan:** kalender bulan; chip talent diwarnai **per kategori** `TAL_WARNA` (`:2441-2450`), teks kontras `talTeks` (`:2465`); legenda hanya kategori yang dipakai (`legendaTalentHTML` `:3200`). Tombol atas: `📆 Input Mingguan`, `🔁 Recurring`, `📅 Generate Bulanan`, `+ Jadwal` (`:2703`).
 - **Aksi:** klik chip → `schedInfo` (`:2856`) (ubah status/`setSchedStatus` `:2888`, hapus `delSched` `:3100`), klik sel → `scheduleForm(tgl)`.
 - **Form "Tambah Jadwal"** (`scheduleForm` `:3412`, `gambarTambahJadwal` `:3445`, simpan `saveSchedule` `:3497`): pilih talent (tombol multi), field: Tanggal * (date), Tipe Performance (select `TAL_CATS`), Jam Mulai (time, default `20:00`), Jam Selesai (time, default `23:00`), fee per talent (input uang per baris). Validasi: `Pilih minimal satu talent dulu.`; `Jam selesai harus > jam mulai.`; bentrok → `Bentrok di <tgl>: <nama,...>`.
@@ -434,10 +452,11 @@ rincian [id] tidak pernah tampil. Lihat laporan Lane B 2026-10-08.)
 | layar (key) | file | status | endpoint dipakai | ditunda karena |
 |---|---|---|---|---|
 | dashboard | app/pages/event/dashboard.vue | ✅ | GET /state | — |
-| calendar | app/pages/event/calendar.vue | ✅ | GET /state; GET /marketing/events; GET /reservasi/reservations (pita + Coba lagi bila gagal) | — |
+| calendar | app/pages/event/calendar.vue | ✅ | GET /state; GET /event/events (versi untuk geser); PATCH /event/events/{id}; POST /event/events (rencana baru); GET /marketing/events; GET /reservasi/reservations (pita + Coba lagi bila gagal) | — |
 | talents | app/pages/event/talents/index.vue | ✅ | GET/POST/PUT/DELETE /talents | — |
 | talents rincian | app/pages/event/talents/[id].vue | ✅ | GET/PUT /talents/{id}; POST /files | — |
-| schedule | app/pages/event/schedule.vue | ✅ | GET/POST/PATCH/DELETE /schedules; POST /recurring-rules | — |
+| schedule | app/pages/event/schedule.vue | ✅ | GET /schedules?from&to (per rentang); POST /schedules/batch; GET /settings/jamTalent; GET /talents; GET /events | Input mingguan, Recurring, Generate bulanan diganti Isi otomatis + Salin minggu lalu (draf) |
+| jam talent | app/pages/event/jam-talent.vue | ✅ | GET/PUT /settings/jamTalent; GET /talents | — |
 | fee | app/pages/event/fee.vue | ✅ | GET /schedules; GET/POST/PATCH /talent-payments; POST /files | OCR otomatis Segera (K-05 belum dipasang; verifikasi manual jalan) |
 | checkin | app/pages/event/checkin.vue | ✅ | GET /events; GET /tickets; GET /seats; GET /ticket-classes; GET /orders (cocokkan event via order, `event_id` diabaikan di /tickets); GET/POST /checkins (batal = baris koreksi `{batalDari}`, G-10) | pindai kamera Segera (butuh pustaka QR) |
 | pipeline | app/pages/event/pipeline.vue | ✅ | GET/PATCH /events | — |
@@ -496,15 +515,17 @@ Konvensi: Vue ↔ Office lama dibuka berdampingan dengan data yang sama
 1. Dashboard: status Planning/Prospect/Approval/Upcoming sama dengan lama;
    8 kartu statistik cocok dengan hitungan lama; bar chart dihitung dari
    data (bukan angka mati); tabel Event Terdekat = Upcoming terurut tanggal.
-2. Calendar: event, jadwal talent & calendarExtra tampil; Marketing (tanpa
+2. Kalender: event, ringkasan talent per hari & calendarExtra tampil; deal bertitik hijau; klik hari kosong → Rencana baru; geser event + konfirmasi; Marketing (tanpa
    Lost) & Reservasi (tanpa Cancelled/No-show) tampil; matikan API
    marketing/reservasi → pita peringatan + Coba lagi, bukan layar kosong.
 3. Talents: filter kategori/status/kontrak + cari; tambah (validasi nama,
    phone, email); sunting; hapus. Rincian: inline edit, unggah/ganti/hapus
    dokumen (≤8MB), performance history & monthly income dari show Done.
-4. Schedule: tambah (multi-talent, fee per baris), mingguan, recurring,
-   generate bulanan; bentrok ditolak SEBELUM satu pun ditulis; ubah status,
-   hapus. Coba jadwal tumpang tindih di lama & Vue → sama-sama menolak.
+4. Schedule: klik sel kosong (jam bawaan masuk), edit sel, `+` show kedua, salin
+   minggu lalu, isi otomatis, hari itu; semuanya draf sampai Simpan jadwal;
+   bentrok merah menahan simpan; minggu lintas bulan diperiksa utuh. Coba
+   jadwal tumpang tindih di lama & Vue → sama-sama menolak. Jam talent: usulan
+   berlabel, simpan, ubah, konflik versi.
 5. Fee: ganti mode minggu/bulan/rentang; rekap = show Done × fee baris;
    generate payment; bayar (bukti + nominal + PIC); detail; set paid/reject.
 6. Checkin: pilih event ber-tiket; statistik cocok; tempel token → cek;

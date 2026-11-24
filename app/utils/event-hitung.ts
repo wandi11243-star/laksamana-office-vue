@@ -315,3 +315,36 @@ export function fmtTglEms(s: unknown): string {
   if (Number.isNaN(d.getTime())) return String(s)
   return d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Jakarta' })
 }
+
+const ADA_ZONA = /(Z|[+-]\d{2}:?\d{2})$/
+
+/** The stamp moved by `n` calendar days with the wall-clock time unchanged
+ *  (calendar drag). A zoned instant moves by whole 24 h — WIB has no DST, so
+ *  the WIB hour stays; a zoneless local stamp only has its date part shifted.
+ *  Unparseable input comes back as it was. */
+export function geserStempelHari(s: string, n: number): string {
+  if (!s) return ''
+  if (ADA_ZONA.test(s)) {
+    const t = Date.parse(s)
+    return Number.isNaN(t) ? s : new Date(t + n * 86400000).toISOString()
+  }
+  const t = Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10) + n)
+  return Number.isNaN(t) ? s : `${new Date(t).toISOString().slice(0, 10)}${s.slice(10)}`
+}
+
+/** WIB calendar days an event touches, `[first, ..., last]`. An end before the
+ *  start is ignored; an end at or before 06:00 WIB on a later day is the tail
+ *  of the same night (a 20:00–02:00 show is one day, not two); a span is capped
+ *  at 62 days against bad data. */
+export function hariAcaraWIB(mulai: unknown, selesai: unknown): string[] {
+  const a = tglWIB(mulai)
+  if (!a) return []
+  let b = selesai ? tglWIB(selesai) : a
+  if (b > a && /^\d{2}:\d{2}$/.test(jamWIB(selesai)) && jamWIB(selesai) <= '06:00') {
+    b = geserStempelHari(b, -1).slice(0, 10)
+  }
+  if (b < a) b = a
+  const out: string[] = []
+  for (let t = a; t <= b && out.length < 62; t = geserStempelHari(t, 1).slice(0, 10)) out.push(t)
+  return out
+}

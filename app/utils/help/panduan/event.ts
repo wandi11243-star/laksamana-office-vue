@@ -26,10 +26,11 @@ export default {
         { t: 'tabel',
           kepala: ['Kelompok', 'Menu', 'Untuk apa'],
           baris: [
-            ['Utama', 'Dashboard, Event Calendar', 'Melihat apa yang sedang berjalan dan kapan.'],
+            ['Utama', 'Dashboard, Kalender', 'Melihat apa yang sedang berjalan dan kapan.'],
             ['Talent', 'Talent Management, Talent Schedule, Fee & Pembayaran', 'Data penampil, jadwal tampilnya, dan bayarannya.'],
-            ['Event', 'Event Pipeline, Perencanaan Event, Event Management, Ticketing, Check-In, Approval Flow', 'Dari wacana sampai tamu masuk pintu.'],
+            ['Event', 'Event Pipeline, Event Management, Ticketing, Check-In, Approval Flow', 'Dari wacana sampai tamu masuk pintu.'],
             ['Analitik', 'Event Performance, Performa Omset & Bonus, Report & Analytics', 'Hasil acaranya, dan omset yang diakui.'],
+            ['Pengaturan', 'Hak Akses, Jam talent', 'Siapa boleh apa, dan jam bawaan talent untuk mengisi jadwal.'],
           ] },
         { t: 'gambar', berkas: 'event/dashboard.png',
           teks: 'Dashboard modul Event: acara terdekat, jadwal talent, dan ringkasan tiket.',
@@ -49,11 +50,11 @@ export default {
       id: 'buat', judul: 'Membuat Event Baru',
       isi: [
         { t: 'langkah', isi: [
-          'Buka *Event Management*, lalu tekan tombol tambah event.',
+          'Buka *Event Management*, pilih tab *Perencanaan*, lalu tekan *Rencana Baru*. Atau buka *Kalender* dan klik tanggal yang masih kosong: tanggalnya sudah terisi (jam 19:00).',
           'Isi *nama acara*, *tanggal*, dan *jamnya*.',
           'Pilih *jenis acara*. Jenis inilah yang dipakai laporan untuk mengelompokkan omset, jadi jangan dilewati.',
           'Isi *tempat* dan perkiraan *kapasitas* tamunya.',
-          'Simpan. Acaranya langsung muncul di Event Calendar.',
+          'Simpan. Acaranya langsung muncul di Kalender.',
         ] },
         { t: 'catatan', nada: 'info', judul: 'Kolom PIC terisi sendiri',
           isi: 'Kolom PIC event baru dikunci ke akun yang sedang login, dan itu disengaja: kolom itu '
@@ -61,8 +62,8 @@ export default {
             + 'PIC-nya masih berisi jabatan seperti "Event Manager", kolomnya masih bisa diketik '
             + 'supaya bisa dibetulkan.' },
         { t: 'langkah', judul: 'Kalau acaranya belum pasti', isi: [
-          'Catat di *Event Pipeline* atau *Perencanaan Event*, bukan di Event Management.',
-          'Pindahkan ke Event Management begitu acaranya benar-benar akan berjalan.',
+          'Catat di *Event Pipeline* atau di tab *Perencanaan* pada *Event Management*.',
+          'Setelah disetujui, acara tampil di tab *Daftar Event*.',
         ] },
         { t: 'catatan', nada: 'info', judul: 'Kenapa dipisah',
           isi: 'Menyusun rencana yang belum tentu jadi dan menjalankan acara yang sudah pasti adalah '
@@ -101,11 +102,19 @@ export default {
           'Tambahkan talent baru: nama, kategori (Band, DJ, MC, dan seterusnya), dan kontaknya.',
           'Simpan. Talent itu kini bisa dipilih saat menyusun jadwal.',
         ] },
+        { t: 'langkah', judul: 'Mengatur jam bawaan (sekali saja)', isi: [
+          'Buka *Jam talent* di grup Pengaturan (Manajemen dan Tim Event).',
+          'Untuk tiap kategori, isi slot jamnya: nama, jam mulai dan selesai, hari berlakunya, dan tandai satu sebagai *Bawaan*. Slot tanpa hari dipilih berlaku di semua hari.',
+          'Talent tertentu boleh diberi *jam khusus* yang menimpa jam kategorinya.',
+          'Selama belum ada yang tersimpan, layar menampilkan *usulan* (Band 19:45–22:30, DJ dan MC DJ 22:30–23:59). Usulan itu baru dipakai setelah Anda menekan *Simpan*.',
+        ] },
         { t: 'langkah', judul: 'Menjadwalkan talent tampil', isi: [
-          'Buka *Talent Schedule*.',
-          'Pilih tanggalnya, lalu tambahkan jadwal.',
-          'Pilih talent, isi *jam mulai* dan *durasinya*.',
-          'Simpan.',
+          'Buka *Talent Schedule*. Pilih tampilan *Kalender* (satu bulan, kartu berwarna per kategori) atau *Tabel*.',
+          'Di *Tabel › Minggu*, tiap baris adalah talent dan tiap kolom adalah hari Senin sampai Minggu. Klik sel kosong: sel langsung terisi jam bawaan talent itu. Klik sel yang sudah terisi untuk mengubah jam, fee, tipe, event terkait, status, atau catatannya, atau untuk menghapusnya. Tanda *+* menambah show kedua di hari yang sama.',
+          'Di *Kalender*, klik tanggal untuk membuka *Jadwal hari itu*: tekan nama talent untuk menambahkannya, ubah jamnya per baris. Klik kartu untuk mengubah satu jadwal; geser kartu ke tanggal lain untuk memindahkannya (jadwal Done dan Cancelled terkunci).',
+          '*Salin minggu lalu* dan *Isi otomatis* (talent, hari, dari dan sampai tanggal) membuat draf dari jam bawaan. Sel yang sudah punya jadwal dilewati dan jumlahnya disebutkan.',
+          'Semua yang Anda kerjakan adalah *draf* (garis putus-putus) sampai Anda menekan *Simpan jadwal* di bar bawah. Draf tetap ada saat pindah minggu, bulan, atau tampilan; meninggalkan halaman dengan draf akan ditanya dulu. *Buang* membatalkan semua draf.',
+          'Jadwal yang bentrok (talent sama, tanggal sama, jam bertumpuk) ditandai merah dan menahan penyimpanan. Titik kuning kecil berarti jamnya berbeda dari jam bawaan.',
         ] },
         { t: 'catatan', nada: 'awas', judul: 'Jam tampil menentukan angka analisa',
           isi: 'Halaman Performa Talent di modul Analytics menghitung omset yang masuk selama jam '
@@ -113,7 +122,9 @@ export default {
             + 'dinilai sama sekali, dan yang tercatat salah akan menagihkan omset malam itu ke '
             + 'penampil yang keliru.' },
         { t: 'daftar', isi: [
-          'Jadwal yang melewati tengah malam ditulis apa adanya, misalnya 22:30 sampai 01:30. Sistem yang membagi tanggalnya.',
+          'Jam selesai paling akhir 23:59 dan harus lebih besar dari jam mulai; jadwal tidak bisa melewati tengah malam.',
+          'Simpan jadwal bersifat semua-atau-tidak-sama-sekali: bila satu baris ditolak (bentrok, atau sudah diubah orang lain), tidak ada yang tersimpan dan draf Anda tetap ada. Paling banyak 300 perubahan sekali simpan.',
+          'Mengubah *Jam talent* tidak mengubah jadwal yang sudah tersimpan.',
           'Jadwal berstatus *Cancelled* tidak ikut dihitung. Status lain ikut, termasuk yang lupa ditandai selesai.',
           'Bayaran talent dicatat di *Fee & Pembayaran*, terpisah dari jadwalnya.',
         ] },

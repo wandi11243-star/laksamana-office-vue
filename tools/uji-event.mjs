@@ -15,6 +15,8 @@
  *   - F.18: budget variance = actual − budget.
  */
 import * as H from '../app/utils/event-hitung.ts'
+import * as K from '../app/utils/kalender-warna.ts'
+import * as KL from '../app/utils/kalender.ts'
 
 let ok = 0
 let gagal = 0
@@ -148,6 +150,28 @@ cek('geser tanggal mundur sehari', H.geserPeriode('2026-10-01', -1) === '2026-09
 cek('geser kata tetap dari bulan berjalan', H.geserPeriode('bulan', 1, new Date(2026, 9, 8)) === '2026-11')
 cek('bulan dipegang YYYY-MM', H.bulanAktif('2026-09', new Date(2026, 9, 8)) === '2026-09')
 cek('bulan kata tetap = bulan berjalan', H.bulanAktif('bulan', new Date(2026, 9, 8)) === '2026-10')
+
+// Kalender: drag keeps the wall-clock time, multi-day events draw on every WIB day
+process.env.TZ = 'Asia/Jakarta'
+cek('geser instan +2 hari, jam WIB tetap', H.geserStempelHari('2026-11-24T12:45:00.000Z', 2) === '2026-11-26T12:45:00.000Z')
+cek('geser lintas bulan', H.geserStempelHari('2026-11-30T12:00:00Z', 1) === '2026-12-01T12:00:00.000Z')
+cek('geser stempel lokal hanya tanggalnya', H.geserStempelHari('2026-11-24T19:00', -1) === '2026-11-23T19:00')
+cek('geser kosong tetap kosong', H.geserStempelHari('', 3) === '')
+cek('acara satu malam = satu hari', JSON.stringify(H.hariAcaraWIB('2026-11-24T13:00:00Z', '2026-11-24T16:00:00Z')) === '["2026-11-24"]')
+cek('selesai 02:00 WIB hari berikutnya = malam yang sama', JSON.stringify(H.hariAcaraWIB('2026-11-24T13:00:00Z', '2026-11-24T19:00:00Z')) === '["2026-11-24"]')
+cek('acara tiga hari tergambar di semua harinya (WIB)', JSON.stringify(H.hariAcaraWIB('2026-11-24T13:00:00Z', '2026-11-26T15:00:00Z')) === '["2026-11-24","2026-11-25","2026-11-26"]')
+cek('mulai 20:00 WIB jatuh di tanggal WIB, bukan UTC', JSON.stringify(H.hariAcaraWIB('2026-11-30T20:00:00Z', '')) === '["2026-12-01"]')
+cek('selesai sebelum mulai diabaikan', JSON.stringify(H.hariAcaraWIB('2026-11-24T13:00:00Z', '2026-11-20T13:00:00Z')) === '["2026-11-24"]')
+cek('deal Marketing: Deal & Confirmed saja', K.adalahDeal('marketing', 'Deal') && K.adalahDeal('marketing', 'Confirmed') && !K.adalahDeal('marketing', 'Lead') && !K.adalahDeal('marketing', 'Event Done'))
+cek('deal EMS: Upcoming & Today saja', K.adalahDeal('ems', 'Upcoming') && K.adalahDeal('ems', 'Today') && !K.adalahDeal('ems', 'Planning') && !K.adalahDeal('ems', 'Event Done'))
+cek('reservasi/talent tidak pernah deal', !K.adalahDeal('reservasi', 'Deal') && !K.adalahDeal('talent', 'Upcoming'))
+cek('saringan bawaan menyembunyikan Lost & Cancelled', !K.lolosSaringStatus('Lost', '') && !K.lolosSaringStatus('Cancelled', '') && K.lolosSaringStatus('Deal', ''))
+cek('saringan terpilih menampilkan persis itu', K.lolosSaringStatus('Lost', 'Lost') && !K.lolosSaringStatus('Deal', 'Lost'))
+cek('kisi bulan mulai Minggu: 1 Nov 2026 jatuh Minggu', KL.selBulan('2026-11')[0].tgl === '2026-11-01' && KL.selBulan('2026-11').length % 7 === 0)
+cek('kisi: Des 2026 dimulai Selasa (2 sel kosong)', KL.selBulan('2026-12').slice(0, 3).map(x => x.tgl).join() === ',,2026-12-01')
+cek('rentang hari', KL.rentangHari('2026-11-29', '2026-12-01').join() === '2026-11-29,2026-11-30,2026-12-01')
+cek('rentang hari terbalik = satu hari', KL.rentangHari('2026-11-29', '2026-11-20').join() === '2026-11-29')
+cek('geser bulan Des ke Jan', KL.geserBulan('2026-12', 1) === '2027-01')
 
 console.log(`\n${ok} OK, ${gagal} GAGAL`)
 process.exit(gagal ? 1 : 0)

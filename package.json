@@ -21,6 +21,7 @@
     "uji:denah": "node tools/uji-denah.mjs",
     "uji:dw": "node tools/uji-dw.mjs",
     "uji:event": "node tools/uji-event.mjs",
+    "uji:event-jadwal": "node tools/uji-event-jadwal.mjs",
     "uji:event-refund": "node tools/uji-event-refund.mjs",
     "uji:konten": "node tools/uji-konten.mjs",
     "uji:marketing": "node tools/uji-marketing.mjs",

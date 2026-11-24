@@ -15,6 +15,8 @@ const props = defineProps<{
   awal?: Partial<Acara>
   picTerkunci: string
   statusBaru?: string
+  /** `YYYY-MM-DD` to prefill Mulai at 19:00 (a click on an empty calendar day). Ignored when `awal` has a start. */
+  tanggalAwal?: string
 }>()
 const emit = defineEmits<{
   simpan: [body: Record<string, unknown>]
@@ -30,12 +32,20 @@ const form = ref({
   // The box reads LOCAL time (`dtLokalInput :6148`): a raw UTC instant shows
   // an empty box in the browser, and reading it back as local once shifted
   // every Edit → Simpan 7 hours back.
-  start_datetime: dtLokalInput(props.awal?.start_datetime),
+  start_datetime: dtLokalInput(props.awal?.start_datetime) || (props.tanggalAwal ? `${props.tanggalAwal}T19:00` : ''),
   end_datetime: dtLokalInput(props.awal?.end_datetime),
   description: String(props.awal?.description ?? ''),
   is_ticketed: Boolean(props.awal?.is_ticketed ?? false),
 })
-const posterLama = ref(String(props.awal?.poster_img ?? ''))
+// The stored poster is kept AS IS when no new file is picked: new rows hold
+// {key,name,size,type}, old rows may hold a bare key string. Stringifying the
+// object once wrote "[object Object]" on every edit.
+const posterLama = ref<unknown>(props.awal?.poster_img ?? '')
+const posterAda = computed(() => {
+  const p = posterLama.value
+  if (typeof p === 'string') return p !== ''
+  return !!p && typeof p === 'object' && 'key' in p && !!(p as { key: unknown }).key
+})
 const posterBaru = ref<File | null>(null)
 const menyimpan = ref(false)
 const toast = useToast()
@@ -67,7 +77,7 @@ async function simpan() {
   }
   menyimpan.value = true
   try {
-    let poster = posterLama.value
+    let poster: unknown = posterLama.value
     if (posterBaru.value) {
       const f = posterBaru.value
       if (!/^image\//.test(f.type)) {
@@ -80,7 +90,8 @@ async function simpan() {
       const bytes = new Uint8Array(buf)
       for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]!)
       const up = await uploadFileEvent({ dataBase64: btoa(bin), fileName: f.name, mimeType: f.type })
-      poster = up.data.key
+      // {key,...}: the shape HomepageEvents::hasPoster and TicketShop read.
+      poster = { key: up.data.key, name: f.name, size: f.size, type: f.type }
     }
     emit('simpan', {
       ...form.value,
@@ -122,7 +133,7 @@ async function simpan() {
         @change="posterBaru = ($event.target as HTMLInputElement).files?.[0] ?? null"
       >
       <p
-        v-if="posterLama && !posterBaru"
+        v-if="posterAda && !posterBaru"
         class="mt-1 text-xs text-muted"
       >
         Poster lama dipertahankan.
