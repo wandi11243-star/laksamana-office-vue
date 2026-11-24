@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import EventDaftar from '~/components/EventDaftar.vue'
+import EventKanban from '~/components/EventKanban.vue'
 import EventPerencanaan from '~/components/EventPerencanaan.vue'
 import { bolehBukaEvent, bolehUbahEvent, peranEvent } from '~/utils/layar/event'
 
@@ -14,7 +15,7 @@ const bolehBuat = computed(() => bolehUbahEvent('planning', peran.value))
 const sheetBaru = ref(false)
 const pilihan = computed(() => {
   const tabs: { value: string, label: string }[] = []
-  if (bolehEvents.value) tabs.push({ value: 'events', label: 'Daftar event' })
+  if (bolehEvents.value) tabs.push({ value: 'events', label: 'Tabel' }, { value: 'kanban', label: 'Kanban' })
   if (bolehPlanning.value) {
     tabs.push({ value: 'rencana', label: 'Perencanaan' }, { value: 'riwayat', label: 'Riwayat event' })
   }
@@ -53,6 +54,7 @@ const tab = computed({
         class="mb-4"
       />
       <EventDaftar v-if="tab === 'events'" />
+      <EventKanban v-else-if="tab === 'kanban'" />
       <EventPerencanaan
         v-else-if="tab === 'rencana' || tab === 'riwayat'"
         v-model:baru="sheetBaru"

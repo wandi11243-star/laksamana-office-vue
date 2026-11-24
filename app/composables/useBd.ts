@@ -70,6 +70,8 @@ export interface BdLampiran {
 
 export interface BdProject {
   id: string
+  businessGroup?: string
+  businessGroupColor?: string
   name: string
   desc: string
   div: string

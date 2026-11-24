@@ -3,10 +3,12 @@
   Progress is COMPUTED from the project's tasks; the end date shows overdue in red.
 -->
 <script setup lang="ts">
+import BdProjectGroup from '~/widgets/bd/BdProjectGroup.vue'
 import type { BdPerson, BdProject, BdTask } from '~/composables/useBd'
 import { inisial, pics, projProgress, sisaHari } from '~/utils/bd-rumus'
 import { IKON_HEALTH, LABEL_HEALTH, WARNA_HEALTH, divTone } from '~/utils/status-bd'
 import { fTglP } from '~/utils/format'
+import { warnaKategori } from '~/utils/kategori-warna'
 
 const props = withDefaults(defineProps<{
   project: BdProject
@@ -23,7 +25,13 @@ const dpakai = computed(() => pics(props.project).map(id => props.people.find(p 
 </script>
 
 <template>
-  <div class="rounded-panel border border-default bg-default p-3 shadow-panel">
+  <div class="relative overflow-hidden rounded-panel border border-default bg-default p-3 shadow-panel">
+    <span
+      v-if="project.businessGroup?.trim()"
+      aria-hidden="true"
+      class="absolute inset-y-0 start-0 w-1 before:absolute before:inset-0 before:bg-current"
+      :class="warnaKategori(project.businessGroup, project.businessGroupColor)"
+    />
     <button
       type="button"
       class="w-full text-start"
@@ -31,6 +39,10 @@ const dpakai = computed(() => pics(props.project).map(id => props.people.find(p 
     >
       <span class="block font-semibold leading-snug text-highlighted">{{ project.name }}</span>
       <span class="mt-1 flex flex-wrap items-center gap-1.5">
+        <BdProjectGroup
+          :nama="project.businessGroup"
+          :warna="project.businessGroupColor"
+        />
         <AppStatus
           size="sm"
           :color="divTone(project.div)"

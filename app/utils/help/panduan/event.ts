@@ -28,7 +28,7 @@ export default {
           baris: [
             ['Utama', 'Dashboard, Kalender', 'Melihat apa yang sedang berjalan dan kapan.'],
             ['Talent', 'Talent Management, Talent Schedule, Fee & Pembayaran', 'Data penampil, jadwal tampilnya, dan bayarannya.'],
-            ['Event', 'Event Pipeline, Event Management, Ticketing, Check-In, Approval Flow', 'Dari wacana sampai tamu masuk pintu.'],
+            ['Event', 'Event Management, Ticketing, Check-In, Approval Flow', 'Dari wacana sampai tamu masuk pintu.'],
             ['Analitik', 'Event Performance, Performa Omset & Bonus, Report & Analytics', 'Hasil acaranya, dan omset yang diakui.'],
             ['Pengaturan', 'Hak Akses, Jam talent', 'Siapa boleh apa, dan jam bawaan talent untuk mengisi jadwal.'],
           ] },
@@ -62,8 +62,8 @@ export default {
             + 'PIC-nya masih berisi jabatan seperti "Event Manager", kolomnya masih bisa diketik '
             + 'supaya bisa dibetulkan.' },
         { t: 'langkah', judul: 'Kalau acaranya belum pasti', isi: [
-          'Catat di *Event Pipeline* atau di tab *Perencanaan* pada *Event Management*.',
-          'Setelah disetujui, acara tampil di tab *Daftar Event*.',
+          'Catat di tab *Perencanaan* pada *Event Management*. Gunakan tab *Kanban* untuk melihat tahapnya.',
+          'Setelah disetujui, acara tampil di tab *Tabel*.',
         ] },
         { t: 'catatan', nada: 'info', judul: 'Kenapa dipisah',
           isi: 'Menyusun rencana yang belum tentu jadi dan menjalankan acara yang sudah pasti adalah '
