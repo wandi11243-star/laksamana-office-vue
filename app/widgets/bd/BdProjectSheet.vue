@@ -29,9 +29,11 @@ const toast = useToast()
  * The edited row's own div is unioned in, so a stored legacy division never
  * drops out of the select even when no crew carries it any more. */
 const opsiDiv = computed(() => opsiDivisi([...props.people, { div: props.project?.div }]))
-const grupBisnis = computed(() => [...new Set(props.projects
+const grupBaru = ref<string[]>([])
+const grupMenuTerbuka = ref(false)
+const grupBisnis = computed(() => [...new Set([...props.projects
   .map(p => p.businessGroup?.trim() ?? '')
-  .filter(Boolean)
+  .filter(Boolean), ...grupBaru.value, ...(props.project?.businessGroup ? [props.project.businessGroup.trim()] : [])]
   .sort((a, b) => a.localeCompare(b, 'id')))])
 const opsiGrupBisnis = computed(() => [
   { label: 'Tanpa grup bisnis', value: '' },
@@ -92,6 +94,18 @@ watch(open, (o) => {
     f.ms = ''
   }
 })
+
+function tambahGrupBisnis(teks: string) {
+  const nama = teks.trim()
+  if (!nama || nama.length > 80) {
+    toast.add({ title: 'Nama grup bisnis harus berisi 1 sampai 80 karakter.', color: 'error' })
+    return
+  }
+  const ada = grupBisnis.value.find(g => g.toLocaleLowerCase('id') === nama.toLocaleLowerCase('id'))
+  if (!ada) grupBaru.value.push(nama)
+  f.businessGroup = ada ?? nama
+  grupMenuTerbuka.value = false
+}
 
 async function simpan() {
   if (!f.name.trim()) {
@@ -163,12 +177,14 @@ async function hapus() {
         <UFormField label="Grup bisnis">
           <USelectMenu
             v-model="f.businessGroup"
+            v-model:open="grupMenuTerbuka"
             :items="opsiGrupBisnis"
             create-item="always"
             value-key="value"
             placeholder="Pilih grup bisnis"
             :search-input="{ placeholder: 'Cari grup bisnis...' }"
             class="w-full"
+            @create="tambahGrupBisnis"
           >
             <template #create-item-label="{ item }">
               Tambahkan grup bisnis "{{ item }}"
