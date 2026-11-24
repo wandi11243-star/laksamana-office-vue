@@ -49,24 +49,24 @@ function geser(row: string, role: string) {
 
 <template>
   <div>
-    <p class="px-4 py-3 text-sm text-muted">
+    <p class="px-4 py-3.5 text-sm text-muted">
       Tak terlihat = hilang dari menu · Lihat = boleh buka, tombol ubah disembunyikan · Boleh ubah = penuh. <b>Admin</b> selalu penuh.
     </p>
     <div class="hidden overflow-x-auto lg:block">
       <table class="w-full text-sm">
         <thead>
           <tr class="border-b border-default">
-            <th class="px-4 py-2 text-start font-semibold">
+            <th class="px-4 py-3 text-start font-semibold">
               Halaman
             </th>
             <th
               v-for="r in roles"
               :key="r.key"
-              class="px-2 py-2 text-start font-semibold"
+              class="px-3 py-3 text-start font-semibold"
             >
               {{ r.label }}
             </th>
-            <th class="px-2 py-2 text-start font-semibold">
+            <th class="px-3 py-3 text-start font-semibold">
               Admin
             </th>
           </tr>
@@ -77,13 +77,13 @@ function geser(row: string, role: string) {
             :key="b.key"
             class="border-b border-default"
           >
-            <td class="px-4 py-2">
+            <td class="px-4 py-3">
               {{ b.label }}
             </td>
             <td
               v-for="r in roles"
               :key="r.key"
-              class="px-2 py-1.5"
+              class="px-3 py-2"
             >
               <UButton
                 v-if="!terkunci(b.key, r.key)"
@@ -100,14 +100,14 @@ function geser(row: string, role: string) {
                 class="text-xs text-dimmed"
               >Tak terlihat</span>
             </td>
-            <td class="px-2 py-1.5">
+            <td class="px-3 py-2">
               <AppStatus>Ubah</AppStatus>
             </td>
           </tr>
         </tbody>
       </table>
     </div>
-    <p class="px-4 pb-3 text-sm text-muted lg:hidden">
+    <p class="px-4 py-3.5 text-sm text-muted lg:hidden">
       Matriks butuh layar lebar — buka di desktop untuk mengubah hak akses.
     </p>
   </div>
