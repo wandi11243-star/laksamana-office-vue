@@ -436,6 +436,10 @@ export interface FilterHalamanReservasi {
   to?: string
   q?: string
   status?: string
+  /** Riwayat archive only: dated before today, or already No-show / Cancelled. */
+  arsip?: boolean
+  /** Paged order; the server default is oldest first. */
+  urut?: 'asc' | 'desc'
   page?: number
   perPage?: number
 }
@@ -463,6 +467,8 @@ export const listReservationsHalaman = (f: FilterHalamanReservasi) =>
       to: f.to || undefined,
       q: f.q || undefined,
       status: f.status || undefined,
+      arsip: f.arsip ? 1 : undefined,
+      urut: f.urut,
       page: f.page ?? 1,
       // The API caps a page at 100 rows — clamp here so a big literal
       // never turns into a 422 (marketing VIP sweep hit this, #139).

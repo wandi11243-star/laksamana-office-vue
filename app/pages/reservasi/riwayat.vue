@@ -1,27 +1,27 @@
 <!--
   Riwayat Reservasi — the archive: past bookings, the CRM base, evaluation.
-  Search + status narrow the window on the server (G-08 `q`/`status`, no
-  paging — the archive rule "past or already closed" lives only here, so the
-  page itself is still sliced in the browser). The default period is THIS
-  MONTH, not "Semua": "Semua" pulls the whole table, and opening the screen
-  should stay fast — "Semua" remains one tap away.
+  The table is paged by the server: every page is one request (G-08 `page`/
+  `perPage`, newest first), with search, status and the archive rule
+  ("past or already closed", `arsip=1`) applied there too — the browser never
+  holds more than one page. The default period is THIS MONTH, not "Semua".
+  The CSV export walks the pages at 100 rows a time.
 
-  Guest profiles merge the whole-history summary (G-07) with the loaded rows.
+  Guest profiles come from the whole-history summary (G-07) of the one phone.
   Rows open the reservation's input page, the screen that already reads and
   edits one booking.
   Source: laksamana-office/deploy/reservasi/index.html:10041-10213.
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { Reservasi } from '~/composables/useReservasi'
-import { useDaftarReservasi, useDenah, useRingkasanTamu } from '~/composables/useReservasi'
+import type { Reservasi, PetaRingkasan } from '~/composables/useReservasi'
+import { getGuestsSummary, listReservationsHalaman, useDenah } from '~/composables/useReservasi'
 import { lantaiMap } from '~/utils/venue-layouts'
 import { bolehAksi, bolehBuka, roleReservasi } from '~/utils/layar/reservasi'
 import { angka, hariIni, tglPendek } from '~/utils/format'
 import { fmtMenit } from '~/utils/kunci-meja'
 import { tampilPhone } from '~/utils/dp-reservasi'
 import {
-  barisArsip, csvRiwayat, durasiDuduk, kelompokBarisTamu, normStatus, profilTamu, profilTamuGabung, paxRiwayat, unduhCsv, urutArsip,
+  csvRiwayat, durasiDuduk, kelompokBarisTamu, profilTamuGabung, paxRiwayat, unduhCsv,
 } from '~/utils/riwayat'
 import { usePollReservasi } from '~/composables/usePollReservasi'
 
@@ -63,53 +63,66 @@ watch(cari, (v) => {
   }, 300)
 }, { immediate: true })
 
-/** Server-side narrowing (G-08): search + status only. The archive rule lives here alone, so no paging. */
+const hal = ref(1)
+const perHal = ref(10)
+/** A new search, period, status or page size starts again from page 1. */
+watch([cariTunda, statusAkhir, dari, sampai, perHal], () => {
+  hal.value = 1
+})
+
+/** Everything the server narrows by; the archive rule and the newest-first order are the server's too. */
 const saringServer = computed(() => ({
+  from: dari.value,
+  to: sampai.value,
   q: cariTunda.value.trim() || undefined,
   status: statusAkhir.value !== SEMUA ? statusAkhir.value : undefined,
+  arsip: true,
+  urut: 'desc' as const,
 }))
 
-const { data: semua, status, refresh } = useDaftarReservasi(dari, sampai, 'reservasi-riwayat', saringServer)
+const { data: hasil, status, refresh } = useAsyncData(
+  'reservasi-riwayat',
+  () => listReservationsHalaman({ ...saringServer.value, page: hal.value, perPage: perHal.value }),
+  { watch: [saringServer, hal, perHal] },
+)
 const { setel } = usePollReservasi(refresh, {
   jeda: 60000,
   tunda: () => sheetDetail.value || sheetTambahDp.value || sheetEditCepat.value || sheetKirimWa.value,
 })
-watch([dari, sampai, () => saringServer.value.q, () => saringServer.value.status], setel)
+watch(saringServer, setel)
 
-/** Whole-history guest map, before the period start. Empty in "Semua" mode: the window IS the whole table there. */
-const { data: ringkasan } = useRingkasanTamu(dari, 'reservasi-tamu-riwayat')
+/** The one page on screen. */
+const halaman = computed(() => hasil.value?.data ?? [])
+const total = computed(() => hasil.value?.meta.total ?? 0)
+const maxHal = computed(() => Math.max(1, Math.ceil(total.value / perHal.value)))
+/** The server clamps a page past the end (a refresh after rows vanished): follow it. */
+watch(hasil, (h) => {
+  if (h?.meta.page && h.meta.page !== hal.value) hal.value = h.meta.page
+})
 
-const arsip = computed(() => urutArsip(barisArsip(semua.value ?? [], hariIni())))
-
-/** Rows grouped by phone once per window for the whole-history profiles. */
-const kelompokTamu = computed(() => kelompokBarisTamu(semua.value ?? []))
-
-const daftar = computed(() => {
-  const q = cariTunda.value.trim().toLowerCase()
-  return arsip.value.filter((r) => {
-    if (statusAkhir.value !== SEMUA && normStatus(r.status) !== statusAkhir.value) return false
-    if (q && !((r.name || '').toLowerCase().includes(q) || (r.phone || '').includes(q))) return false
-    return true
+/**
+ * One guest's whole-history profile (G-07 summary of that phone, rows dated
+ * before today). Falls back to the rows of this page while the summary has
+ * no entry for the number, like the old screen.
+ */
+function useProfilTamu(telepon: Ref<string>, kunci: string) {
+  const { data: peta } = useAsyncData(kunci, async () => {
+    const m: PetaRingkasan = new Map()
+    if (!telepon.value) return m
+    const { data } = await getGuestsSummary(hariIni(), telepon.value)
+    for (const [k, v] of Object.entries(data.tamu ?? {})) m.set(k.startsWith('k') ? k.slice(1) : k, v)
+    return m
+  }, { watch: [telepon], default: () => new Map() as PetaRingkasan })
+  return computed(() => {
+    if (!telepon.value) return null
+    const kelompok = peta.value.size ? new Map<string, Reservasi[]>() : kelompokBarisTamu(halaman.value)
+    return profilTamuGabung(peta.value, kelompok, telepon.value)
   })
-})
+}
 
-/** The CRM card reads the first FOUND row's phone, over the whole history (summary + window, no double count). */
-const profil = computed(() => {
-  const pertama = cariTunda.value.trim() && daftar.value.length ? daftar.value[0]! : null
-  if (!pertama) return null
-  if (!dari.value) return profilTamu(arsip.value, pertama.phone)
-  return profilTamuGabung(ringkasan.value ?? new Map(), kelompokTamu.value, pertama.phone, dari.value)
-})
-
-// --- paging in the browser (the server only narrows; the archive rule lives here) ---
-
-const hal = ref(1)
-const perHal = ref(10)
-const maxHal = computed(() => Math.max(1, Math.ceil(daftar.value.length / perHal.value)))
-const halaman = computed(() => daftar.value.slice((hal.value - 1) * perHal.value, hal.value * perHal.value))
-watch([daftar, perHal], () => {
-  hal.value = Math.min(hal.value, maxHal.value)
-})
+/** The CRM card reads the first FOUND row's phone: the newest match of the search. */
+const teleponProfil = computed(() => (cariTunda.value.trim() && halaman.value[0] ? halaman.value[0].phone : ''))
+const profil = useProfilTamu(teleponProfil, 'reservasi-riwayat-profil')
 
 // --- export --------------------------------------------------------------------
 
@@ -120,13 +133,25 @@ const lantaiDari = (meja: string) => {
   return f || undefined
 }
 
-function ekspor() {
-  if (!daftar.value.length) {
+/** Every row of the current filter, fetched page by page (the API caps a page at 100). */
+async function ekspor() {
+  if (!total.value) {
     toast.add({ title: 'Tidak ada baris untuk diekspor', color: 'error' })
     return
   }
-  unduhCsv(`reservasi_laksamana_${hariIni()}.csv`, csvRiwayat(daftar.value, lantaiDari))
-  toast.add({ title: 'CSV diunduh', color: 'success' })
+  try {
+    const baris: Reservasi[] = []
+    for (let p = 1; ; p++) {
+      const r = await listReservationsHalaman({ ...saringServer.value, page: p, perPage: 100 })
+      baris.push(...r.data)
+      if (!r.data.length || baris.length >= r.meta.total) break
+    }
+    unduhCsv(`reservasi_laksamana_${hariIni()}.csv`, csvRiwayat(baris, lantaiDari))
+    toast.add({ title: 'CSV diunduh', color: 'success' })
+  }
+  catch (e) {
+    toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
 }
 
 // --- the table -------------------------------------------------------------------
@@ -149,13 +174,8 @@ const sheetTambahDp = ref(false)
 const sheetHapus = ref(false)
 const sheetEditCepat = ref(false)
 const sheetKirimWa = ref(false)
-const detail = computed(() => (semua.value ?? []).find(r => r.id === detailId.value) ?? null)
-const detailProfil = computed(() => {
-  const r = detail.value
-  if (!r) return null
-  if (!dari.value) return profilTamu(semua.value ?? [], r.phone)
-  return profilTamuGabung(ringkasan.value ?? new Map(), kelompokTamu.value, r.phone, dari.value)
-})
+const detail = computed(() => halaman.value.find(r => r.id === detailId.value) ?? null)
+const detailProfil = useProfilTamu(computed(() => detail.value?.phone ?? ''), 'reservasi-riwayat-profil-detail')
 
 function bukaDetail(r: Reservasi) {
   detailId.value = r.id
@@ -261,7 +281,7 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
 
       <AppPanel
         title="Arsip"
-        :count="daftar.length"
+        :count="total"
         :description="mode === 'month' ? `Bulan ${bulan}` : mode === 'year' ? `Tahun ${tahun}` : undefined"
         flush
       >
@@ -397,7 +417,7 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
 
         <div class="flex flex-wrap items-center justify-between gap-3 border-t border-default px-4 py-3 text-sm text-muted">
           <div class="flex items-center gap-2">
-            <span class="num">{{ daftar.length ? (hal - 1) * perHal + 1 : 0 }}–{{ Math.min(hal * perHal, daftar.length) }} dari {{ daftar.length }}</span>
+            <span class="num">{{ total ? (hal - 1) * perHal + 1 : 0 }}–{{ Math.min(hal * perHal, total) }} dari {{ total }}</span>
             <USelect
               v-model.number="perHal"
               :items="[{ value: 10, label: '10 / hal' }, { value: 25, label: '25 / hal' }, { value: 50, label: '50 / hal' }]"
@@ -428,7 +448,7 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => [
           </div>
         </div>
         <p class="border-t border-default px-4 py-2 text-xs text-dimmed">
-          Pencarian & status dipersempit di server; halaman & ekspor CSV di browser — aturan arsip ("sudah lewat atau sudah tutup") hanya ada di layar ini.
+          Satu halaman = satu permintaan ke server; pencarian, status, dan aturan arsip ("sudah lewat atau sudah tutup") dihitung di server. Ekspor CSV mengambil semua baris sesuai filter.
         </p>
       </AppPanel>
 

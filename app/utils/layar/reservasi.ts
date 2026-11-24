@@ -43,11 +43,11 @@ const ROLE_NAV: Record<RoleReservasi, string[]> = {
   host: ['dashboard', 'input', 'riwayat', 'analitik'],
   marketing: ['dashboard', 'input', 'riwayat', 'analitik'],
   cashier: ['dashboard', 'finance', 'riwayat'],
-  manager: ['dashboard', 'input', 'finance', 'riwayat', 'analitik', 'master', 'audit'],
+  manager: ['dashboard', 'input', 'finance', 'riwayat', 'analitik', 'denah', 'master', 'audit'],
   // View only: just the read-only screens. Input, Dana Masuk, Master and Audit
   // are not on the list, so a superadmin turns them on in the matrix by hand.
   viewer: ['dashboard', 'riwayat', 'analitik'],
-  admin: ['dashboard', 'input', 'finance', 'riwayat', 'analitik', 'master', 'audit'],
+  admin: ['dashboard', 'input', 'finance', 'riwayat', 'analitik', 'denah', 'master', 'audit'],
 }
 
 /** Who may EDIT, per action (`:985-998`). Seed of `master.perms`. */
@@ -57,6 +57,7 @@ const CAN_DEFAULT: Record<string, (role: RoleReservasi) => boolean> = {
   deleteReservation: r => ['marketing', 'manager', 'admin'].includes(r),
   deleteReview: r => ['manager', 'admin'].includes(r),
   master: r => ['manager', 'admin'].includes(r),
+  denah: r => ['manager', 'admin'].includes(r),
   audit: r => ['manager', 'admin'].includes(r),
   manageUsers: r => r === 'admin',
   seeDP: () => true,
@@ -73,6 +74,7 @@ const ACTION_PAGE: Record<string, string> = {
   deleteReservation: 'inputDelete',
   deleteReview: 'review',
   master: 'master',
+  denah: 'denah',
   audit: 'audit',
   finance: 'finance',
   deleteDp: 'financeDelete',
@@ -111,15 +113,11 @@ export type PeranMatrix = NonNullable<PeranReservasi['perms']>
  * from the loosest bound action, rows without an action default to edit, and
  * viewer never rises above view. The master screen resets to this.
  */
-/** Screens that have no row of their own in the matrix: they follow Master data. */
-export const IKUT_MASTER = new Set(['denah'])
-
 export function seedPermsReservasi(): PeranMatrix {
   const seed: PeranMatrix = {}
   const induk = (row: string) => BARIS_IZIN_RESERVASI.find(b => b.key === row)?.page ?? row
   const baris: string[] = []
   for (const l of LAYAR_RESERVASI) {
-    if (IKUT_MASTER.has(l.key)) continue
     baris.push(l.key)
     for (const b of BARIS_IZIN_RESERVASI.filter(b => b.afterPage === l.key && b.key !== l.key)) baris.push(b.key)
   }
@@ -164,6 +162,9 @@ export function roleReservasi(me: Me | null): RoleReservasi {
 export function pagePerm(page: string, role: RoleReservasi): 0 | 1 | 2 {
   if (role === 'admin') return 2
   const perms = usePeranReservasi().value.perms
+  // A matrix saved before "Atur denah & meja" got its own row has no `denah`
+  // entry: until someone saves it, the screen keeps following Kelola Akses.
+  if (page === 'denah' && perms && perms.denah?.[role] === undefined) return pagePerm('master', role)
   const tersimpan = perms?.[page]?.[role]
   const nilai = typeof tersimpan === 'number'
     ? tersimpan as 0 | 1 | 2
@@ -198,9 +199,9 @@ export const LAYAR_RESERVASI: Layar[] = [
   { key: 'riwayat', label: 'Riwayat', desc: 'Arsip reservasi yang sudah lewat, dasar CRM dan evaluasi.', icon: 'i-lucide-history', to: '/reservasi/riwayat', grup: 'Data & analisa', boleh: bolehLayar('riwayat') },
   { key: 'analitik', label: 'Analitik', desc: 'Insight bisnis dari seluruh data reservasi.', icon: 'i-lucide-chart-column', to: '/reservasi/analitik', grup: 'Data & analisa', boleh: bolehLayar('analitik') },
   // Plan editing moved out of the dashboard into its own screen (owner request,
-  // Nov 2026). Opened by whoever may open Master data; editing needs the
-  // `master` edit right, checked on the page.
-  { key: 'denah', label: 'Atur denah & meja', desc: 'Editor denah, jadwal denah per tanggal, dan kapasitas tiap meja.', icon: 'i-lucide-map', to: '/reservasi/denah', grup: 'Kontrol', boleh: bolehLayar('master') },
+  // Nov 2026) and has its own row in the access matrix, so any role can be
+  // given it without also getting Kelola Akses.
+  { key: 'denah', label: 'Atur denah & meja', desc: 'Editor denah, jadwal denah per tanggal, dan kapasitas tiap meja.', icon: 'i-lucide-map', to: '/reservasi/denah', grup: 'Kontrol', boleh: bolehLayar('denah') },
   { key: 'master', label: 'Kelola Akses', desc: 'Kelola pilihan dropdown, role kru & hak akses.', icon: 'i-lucide-sliders-horizontal', to: '/reservasi/master', grup: 'Kontrol', boleh: bolehLayar('master') },
   { key: 'audit', label: 'Log Activity', desc: 'Jejak seluruh aktivitas: siapa, kapan, apa yang diubah.', icon: 'i-lucide-history', to: '/reservasi/audit', grup: 'Kontrol', boleh: bolehLayar('audit') },
 ]
