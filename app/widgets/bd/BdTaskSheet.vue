@@ -11,7 +11,7 @@
 -->
 <script setup lang="ts">
 import type { BdLampiran, BdPerson, BdProject, BdSubtask, BdTask } from '~/composables/useBd'
-import { LAMPIRAN_TERIMA, buatBd, bdSimpan, bdTulisDiam, capPenugasan, hapusTaskDenganUrutan, lahirkanUlangSetelah, lampiranSah, pesanHapusTask, putSetelan, tolakLampiran, ubahBd, unggahLampiranBd, useBdSettings, versiBaris, versiSetelan } from '~/composables/useBd'
+import { LAMPIRAN_TERIMA, buatBd, bdSimpan, bdTulisDiam, capPenugasan, hapusTaskDenganUrutan, lahirkanUlangSetelah, lampiranSah, pesanHapusTask, putSetelan, tambalBd, tolakLampiran, ubahBd, unggahLampiranBd, useBdSettings, versiBaris, versiSetelan } from '~/composables/useBd'
 import {
   PILIHAN_TANPA, PRIORITAS, STATUS_FLOW, TAG_PALET, TASK_TIPE, ULANG, cekBolehDone, deps, divisiBawaan, gayaTag, jamValid, kruTersedia, kuadran,
   kunciTag, labelUlang, menungguTransitif, opsiDivisi, opsiProject as opsiProjectBd, parseUlang, pesanTunggu, pics, reviewers, segarkanProgress, selesai, semuaTag, setPics, subs, susunUlang, tagsOf, todayISO, uidBd,
@@ -19,6 +19,8 @@ import {
   type UlangRumus,
 } from '~/utils/bd-rumus'
 import { WARNA_KUADRAN, WARNA_TASK } from '~/utils/status-bd'
+import { rencanaPindah } from '~/utils/bd-pindah'
+import { BATAS_TULIS_PARALEL, petaParalel } from '~/utils/paralel'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdLampiranChip from '~/widgets/bd/BdLampiranChip.vue'
 import BdPicPicker from '~/widgets/bd/BdPicPicker.vue'
@@ -337,7 +339,7 @@ async function simpan() {
       ...(s.files.length || s.punya ? { files: s.files } : {}),
     }))
     .filter(s => s.t)
-  const dependsOn = depDraf.value.filter(d => d !== props.task?.id && props.tasks.some(x => x.id === d))
+  let dependsOn = depDraf.value.filter(d => d !== props.task?.id && props.tasks.some(x => x.id === d))
   // A leftover tag in the box joins: saving without Enter must not silently drop it.
   if (tagBaru.value.trim()) tagTambah()
   // Tag colours ride in the `tagWarna` settings document: this form's drafts
@@ -349,6 +351,12 @@ async function simpan() {
   }
   const daily = f.daily
   if (daily) f.project = null
+  // Changing the project moves the task: an order only holds inside one
+  // project, so the ones that would reach across are dropped (same rules as
+  // "Pindahkan Task", app/utils/bd-pindah.ts). Untouched when the project stays.
+  const projBaru = f.project || null
+  const pindah = !!props.task && (props.task.project || null) !== projBaru
+  if (pindah) dependsOn = dependsOn.filter(d => projBaru !== null && (props.tasks.find(x => x.id === d)?.project || null) === projBaru)
   // Custom recurrence is read once, on save (`bacaKustom`).
   let ulang = f.ulang
   if (ulang === '__kustom') {
@@ -423,6 +431,7 @@ async function simpan() {
     const ok = await bdSimpan(() => ubahBd<BdTask>('tasks', lama.id, kirim, versiBaris(lama)), 'Task diperbarui')
     if (ok) {
       open.value = false
+      if (pindah) await lepaskanPenunggu(lama, projBaru)
       if (kirim.status === 'Done') await lahirkanUlangSetelah({ ...lama, ...kirim } as BdTask, props.tasks)
     }
   }
@@ -436,6 +445,19 @@ async function simpan() {
       if (kirim.status === 'Done') await lahirkanUlangSetelah(kirim as BdTask, props.tasks)
     }
   }
+}
+
+/** After a move: tasks left behind that still wait on this one lose that order. */
+async function lepaskanPenunggu(lama: BdTask, projBaru: string | null) {
+  const lepas = rencanaPindah(props.tasks, [lama.id], projBaru).ubah.filter(u => u.id !== lama.id)
+  if (!lepas.length) return
+  const hasil = await petaParalel(lepas, BATAS_TULIS_PARALEL, (u) => {
+    const t = props.tasks.find(x => x.id === u.id)
+    return t ? tambalBd<BdTask>('tasks', u.id, u.fields, versiBaris(t)) : Promise.resolve(null)
+  })
+  const gagal = hasil.filter(h => h.status === 'rejected').length
+  await refreshNuxtData(['bd-state'])
+  if (gagal) toast.add({ title: 'Task sudah pindah, tapi ada task lain yang masih menunggunya', description: `${gagal} urutan belum terlepas. Buka task itu dan lepas urutannya.`, color: 'warning' })
 }
 
 async function hapus() {
@@ -472,6 +494,18 @@ async function hapus() {
           :rows="3"
           autoresize
           class="w-full"
+        />
+      </UFormField>
+      <UFormField
+        label="Project (opsional)"
+        :help="f.daily ? 'Daily Task tidak masuk project mana pun.' : 'Ganti untuk memindahkan task ini ke project lain. Urutan ke task di project lama dilepas saat disimpan.'"
+      >
+        <USelect
+          :model-value="f.daily ? PILIHAN_TANPA : (f.project ?? PILIHAN_TANPA)"
+          :items="opsiProject"
+          :disabled="f.daily"
+          class="w-full"
+          @update:model-value="(v: string | undefined) => { f.project = !v || v === PILIHAN_TANPA ? null : v }"
         />
       </UFormField>
       <div class="grid gap-4 *:min-w-0 sm:grid-cols-2 lg:grid-cols-4">
@@ -608,7 +642,7 @@ async function hapus() {
           />
         </div>
       </UFormField>
-      <div class="grid gap-4 *:min-w-0 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="grid gap-4 *:min-w-0 sm:grid-cols-3">
         <UFormField label="Mulai (opsional)">
           <AppTanggal
             v-model="f.start"
@@ -628,15 +662,6 @@ async function hapus() {
           <AppJam
             v-model="f.jam"
             class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Project (opsional)">
-          <USelect
-            :model-value="f.daily ? PILIHAN_TANPA : (f.project ?? PILIHAN_TANPA)"
-            :items="opsiProject"
-            :disabled="f.daily"
-            class="w-full"
-            @update:model-value="(v: string | undefined) => { f.project = !v || v === PILIHAN_TANPA ? null : v }"
           />
         </UFormField>
       </div>

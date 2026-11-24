@@ -22,6 +22,7 @@ import { WARNA_PO } from '~/utils/status-bd'
 import BdGantt from '~/widgets/bd/BdGantt.vue'
 import BdKanban from '~/widgets/bd/BdKanban.vue'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
+import BdPindahTask from '~/widgets/bd/BdPindahTask.vue'
 import BdPoSheet from '~/widgets/bd/BdPoSheet.vue'
 import BdProjectSheet from '~/widgets/bd/BdProjectSheet.vue'
 import BdTaskSheet from '~/widgets/bd/BdTaskSheet.vue'
@@ -60,6 +61,7 @@ async function toggleMilestone(i: number) {
 // ---- sheets ----
 const bukaProject = ref(false)
 const bukaTask = ref(false)
+const bukaPindah = ref(false)
 const taskPilih = ref<BdTask | null>(null)
 const bukaPo = ref(false)
 const poPilih = ref<BdPo | null>(null)
@@ -115,6 +117,14 @@ const { jalan, lagi } = useSibuk()
         color="neutral"
         variant="outline"
         @click="bukaProject = true"
+      />
+      <UButton
+        v-if="p && tugas.length"
+        label="Pindahkan Task"
+        icon="i-lucide-arrow-right-left"
+        color="neutral"
+        variant="outline"
+        @click="bukaPindah = true"
       />
       <UButton
         v-if="p"
@@ -387,6 +397,12 @@ const { jalan, lagi } = useSibuk()
         :projects="state.projects"
         :people="people"
         :aku="aku"
+      />
+      <BdPindahTask
+        v-model:open="bukaPindah"
+        :asal="p"
+        :tasks="state.tasks"
+        :projects="state.projects"
       />
       <BdPoSheet
         v-model:open="bukaPo"

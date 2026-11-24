@@ -45,6 +45,11 @@ export default {
           isi: 'Tiap task boleh punya sub-task (progres dihitung dari yang dicentang) dan menunggu '
             + 'task lain. Yang ditahan hanya Done: task yang masih menunggu tidak bisa diselesaikan '
             + 'sebelum prasyaratnya Done — mulai mengerjakannya tetap boleh.' },
+        { t: 'catatan', nada: 'info', judul: 'Memindahkan task ke project lain',
+          isi: 'Di halaman project, tekan Pindahkan Task: centang task-nya (atau Pilih semua), pilih project tujuan, '
+            + 'lalu konfirmasi. Sub-task ikut pindah. Urutan antar task hanya berlaku di satu project, jadi urutan ke '
+            + 'task yang tidak ikut pindah dilepas — jumlahnya ditampilkan sebelum kamu menekan Pindahkan. '
+            + 'Untuk satu task saja, ganti kolom Project di form task.' },
       ],
     },
 
