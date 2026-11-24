@@ -8,6 +8,7 @@
   each card has a "Pindah stage" sheet.
 -->
 <script setup lang="ts">
+import BdProjectGroup from '~/widgets/bd/BdProjectGroup.vue'
 import type { BdProject, BdTask } from '~/composables/useBd'
 import {
   bdSimpan, centangSub, hapusTaskDenganUrutan, pesanHapusTask, tambalBd, toggleTask, useBdState, versiBaris,
@@ -282,6 +283,11 @@ const gantt = ref<InstanceType<typeof BdGantt> | null>(null)
           @click="g.project && buka(g.project)"
         >
           {{ g.project?.name || '(project tidak ada)' }} ({{ g.items.length }})
+          <BdProjectGroup
+            class="ms-1 align-middle"
+            :nama="g.project?.businessGroup"
+            :warna="g.project?.businessGroupColor"
+          />
         </button>
         <AppPanel
           class="mb-2"

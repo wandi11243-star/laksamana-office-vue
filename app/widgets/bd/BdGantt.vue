@@ -10,6 +10,7 @@
   gradients) — the old violet lock stripe is now a solid lilac bar, said in the legend.
 -->
 <script setup lang="ts">
+import BdProjectGroup from '~/widgets/bd/BdProjectGroup.vue'
 import type { BdPerson, BdProject, BdTask } from '~/composables/useBd'
 import { ganttModel, G_HH, G_LW, G_RH, type GZoom } from '~/utils/bd-gantt'
 import { inisial, pics, todayISO } from '~/utils/bd-rumus'
@@ -179,6 +180,11 @@ defineExpose({ bukaSemua, tutupSemua, keHariIni })
               >
                 {{ r.p.name }}
               </button>
+              <BdProjectGroup
+                class="max-w-24 shrink-0"
+                :nama="r.p.businessGroup"
+                :warna="r.p.businessGroupColor"
+              />
               <span class="ms-auto shrink-0 text-[11px] font-semibold text-muted num">{{ r.persen }}%</span>
             </template>
             <template v-else-if="r.k === 't'">

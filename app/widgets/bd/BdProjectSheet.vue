@@ -7,6 +7,8 @@
 import type { BdCoord, BdPerson, BdPo, BdProject, BdTask } from '~/composables/useBd'
 import { bdSimpan, buatBd, hapusBd, tambalBd, ubahBd, versiBaris } from '~/composables/useBd'
 import { PROJ_HEALTH, PROJ_STAGES, bacaMilestone, divisiBawaan, inDays, opsiDivisi, setPics, tasksPerluDitutup, todayISO, tulisMilestone } from '~/utils/bd-rumus'
+import { PILIHAN_WARNA_KATEGORI } from '~/utils/kategori-warna'
+import BdProjectGroup from '~/widgets/bd/BdProjectGroup.vue'
 import { LABEL_HEALTH } from '~/utils/status-bd'
 import BdKonfirmasi from '~/widgets/bd/BdKonfirmasi.vue'
 import BdPicPicker from '~/widgets/bd/BdPicPicker.vue'
@@ -30,6 +32,8 @@ const opsiDiv = computed(() => opsiDivisi([...props.people, { div: props.project
 
 const f = reactive({
   name: '',
+  businessGroup: '',
+  businessGroupColor: 'auto',
   desc: '',
   div: '',
   type: 'Internal',
@@ -48,6 +52,8 @@ const opsiHealth = PROJ_HEALTH.map(k => ({ value: k, label: LABEL_HEALTH[k] || k
 watch(open, (o) => {
   if (!o) return
   const p = props.project
+  f.businessGroup = p?.businessGroup || ''
+  f.businessGroupColor = p?.businessGroupColor || 'auto'
   if (p) {
     f.name = p.name
     f.desc = p.desc || ''
@@ -87,6 +93,8 @@ async function simpan() {
   const lama = props.project
   const body: Partial<BdProject> = {
     name: f.name.trim(),
+    businessGroup: f.businessGroup.trim(),
+    businessGroupColor: f.businessGroup.trim() ? f.businessGroupColor : 'auto',
     desc: f.desc.trim(),
     div: f.div,
     type: f.type.trim() || 'Internal',
@@ -143,6 +151,29 @@ async function hapus() {
           class="w-full"
         />
       </UFormField>
+      <div class="grid gap-4 sm:grid-cols-2">
+        <UFormField label="Grup bisnis">
+          <UInput
+            v-model="f.businessGroup"
+            placeholder="Masukkan nama grup bisnis"
+            maxlength="80"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField label="Warna grup bisnis">
+          <USelect
+            v-model="f.businessGroupColor"
+            :items="[{ label: 'Otomatis', value: 'auto' }, ...PILIHAN_WARNA_KATEGORI]"
+            :disabled="!f.businessGroup.trim()"
+            class="w-full"
+          />
+          <BdProjectGroup
+            class="mt-2"
+            :nama="f.businessGroup.trim()"
+            :warna="f.businessGroupColor"
+          />
+        </UFormField>
+      </div>
       <UFormField label="Deskripsi">
         <UTextarea
           v-model="f.desc"

@@ -12,9 +12,15 @@ const PALET = [
   'bg-kat-6/12 text-kat-6',
 ] as const
 
-export function warnaKategori(nama?: string | null): string {
+export const PILIHAN_WARNA_KATEGORI = ['Hijau toska', 'Nila', 'Magenta', 'Hijau zaitun', 'Biru', 'Ungu']
+  .map((label, i) => ({ label, value: String(i + 1) }))
+
+export function warnaKategori(nama?: string | null, pilihan?: string): string {
   const n = (nama || '').trim().toLowerCase()
-  if (!n || n === 'lainnya') return 'bg-muted text-muted'
+  if (!n) return 'bg-muted text-muted'
+  const warna = PILIHAN_WARNA_KATEGORI.findIndex(o => o.value === pilihan)
+  if (warna >= 0) return PALET[warna]!
+  if (n === 'lainnya') return 'bg-muted text-muted'
   let h = 0
   for (const c of n) h = (h * 31 + c.charCodeAt(0)) >>> 0
   return PALET[h % PALET.length]!

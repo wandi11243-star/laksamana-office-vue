@@ -6,6 +6,7 @@
   Hidden from the menu — opened from a card.
 -->
 <script setup lang="ts">
+import BdProjectGroup from '~/widgets/bd/BdProjectGroup.vue'
 import type { BdPo, BdProject, BdTask } from '~/composables/useBd'
 import {
   bdTulisDiam, centangSub, hapusTaskDenganUrutan, pesanHapusTask, tambalBd,
@@ -131,6 +132,11 @@ const { jalan, lagi } = useSibuk()
     </AppPanel>
 
     <template v-else>
+      <BdProjectGroup
+        class="mb-4"
+        :nama="p.businessGroup"
+        :warna="p.businessGroupColor"
+      />
       <p
         v-if="p.desc"
         class="mb-4 text-sm text-muted"
