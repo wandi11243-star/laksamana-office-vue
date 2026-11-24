@@ -161,7 +161,7 @@ export default {
         { t: 'daftar', isi: [
           'Denah bisa berbeda antara hari kerja dan akhir pekan, karena susunan mejanya memang berbeda.',
           'Denah khusus satu tanggal bisa dibuat kalau malam itu susunannya diubah untuk sebuah acara.',
-          'Denah diatur di menu *Atur Denah & Meja*, bukan di halaman ini.',
+          'Denah diatur di menu *Atur Denah & Meja*, bukan di halaman ini. Hak aksesnya baris tersendiri di *Kelola Akses*, jadi role lain bisa diberi akses tanpa ikut mengelola hak akses.',
         ] },
         { t: 'tanya', isi: [
           { t: 'Kenapa meja yang sudah dibatalkan masih terlihat terkunci?',
