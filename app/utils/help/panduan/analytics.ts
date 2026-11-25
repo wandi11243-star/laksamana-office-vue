@@ -65,7 +65,6 @@ export default {
             ['Promo & Klaim', 'Promo mana yang paling banyak diklaim.'],
             ['Tren Bulanan', 'Perbandingan bulan ke bulan.'],
             ['Pengaruh Event / Marketing', 'Apakah hari berevent memang lebih besar daripada hari biasa.'],
-            ['Performa Konten / Desain', 'Dibaca dari modul Konten, bukan dari berkas POS.'],
           ] },
       ],
     },

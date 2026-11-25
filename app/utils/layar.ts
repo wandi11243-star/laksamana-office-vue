@@ -24,6 +24,13 @@ export interface Layar {
   to: string
   /** Optional section heading in the menu. */
   grup?: string
+  /**
+   * Screens with the same `kelompok.label` share ONE menu row; each of them
+   * shows the others as tabs on top (AppTabKelompok). Keep them next to each
+   * other in the list: the tabs follow the list order. A new screen joins a
+   * group with this one field, so the sidebar does not grow with it.
+   */
+  kelompok?: { label: string, icon: string }
   /** A small pill on the menu row, e.g. "Segera" (Help chapter not written yet). */
   badge?: string
   /** In-module check (role matrix, admin). Omit = everyone with the module. */

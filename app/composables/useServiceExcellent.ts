@@ -38,7 +38,38 @@ export interface Review {
   verifiedBy: string
   verifiedAt: number
   rejectNote: string
+  googleCek?: GoogleCek
+  googleReviewId?: string
+  googleRating?: number
 }
+
+export interface GoogleCek {
+  jenis: 'cocok' | 'mirip' | 'tidak' | 'luar' | 'tanpaNama'
+  id?: string
+  penulis?: string
+  rating?: number
+  tgl?: string
+  teks?: string
+  url?: string
+  tempat?: string
+  lain?: number
+  lemah: boolean
+  syncAt: number
+  at: number
+  by: string
+}
+
+export interface GoogleCandidate {
+  id: string
+  penulis: string
+  rating: number
+  teks: string
+  waktu_ms: number
+  url: string
+  tnama: string
+}
+
+export const getGoogleClaimCandidates = () => useApi()<{ data: { review: GoogleCandidate[], sumber: string[], syncAt: number } }>('/service-excellent/google-claim-candidates')
 
 /** One thing the guest said, with the division it belongs to. */
 export interface FeedbackItem {

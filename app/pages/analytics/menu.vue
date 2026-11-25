@@ -290,7 +290,7 @@ async function pasang(kode: string, menu: string) {
     />
 
     <template v-else>
-      <div class="mb-4 flex flex-wrap items-center gap-1.5">
+      <div class="mb-4 flex flex-wrap items-center gap-2 rounded-panel bg-default px-5 py-3.5 shadow-panel">
         <span class="text-sm font-semibold">Bulan</span>
         <AppChips
           :model-value="blnPilih"
@@ -346,11 +346,12 @@ async function pasang(kode: string, menu: string) {
         >
           <b class="text-sm">Bandingkan dengan</b>
           <USelect
-            v-model="blnBanding"
-            :items="[{ value: '', label: '— tidak dibandingkan —' }, ...opsiBanding.map(b => ({ value: b, label: fmtBln(b) }))]"
+            :model-value="blnBanding || KOSONG"
+            :items="[{ value: KOSONG, label: '— tidak dibandingkan —' }, ...opsiBanding.map(b => ({ value: b, label: fmtBln(b) }))]"
             value-key="value"
             size="sm"
             class="min-w-48"
+            @update:model-value="blnBanding = dariKosong($event)"
           />
           <span class="text-xs text-muted">Tiap baris menu dapat kolom porsi & nilai bulan pembanding, berikut selisihnya.</span>
         </div>

@@ -137,7 +137,7 @@ const kolomPromo: TableColumn<BarisPromo>[] = [
     <template v-else>
       <div
         v-if="daftarBulan.length"
-        class="mb-4 flex flex-wrap items-center gap-1.5"
+        class="mb-4 flex flex-wrap items-center gap-2 rounded-panel bg-default px-5 py-3.5 shadow-panel"
       >
         <span class="text-sm font-semibold">Bulan</span>
         <AppChips

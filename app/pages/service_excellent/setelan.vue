@@ -95,7 +95,7 @@ async function simpan() {
     <template v-if="bolehBukaSe('setelan', tingkat)">
       <div
         v-if="cfg && cfg.waAktif === false"
-        class="mb-5 rounded-lg border border-default p-3 text-sm"
+        class="mb-5 rounded-lg border border-default p-4 text-sm"
       >
         Ajakan WhatsApp <b>dimatikan</b> — tombol Minta Review hilang untuk semua orang. Data review tetap utuh.
       </div>
@@ -104,7 +104,7 @@ async function simpan() {
         <AppList title="Google Review">
           <UFormField
             label="Link Google Review"
-            class="px-4 py-3"
+            class="px-4 py-4"
           >
             <UInput
               v-model="form.link"
@@ -116,29 +116,31 @@ async function simpan() {
               Dari Google Business Profile → Minta ulasan → Salin tautan. Link inilah yang dikirim ke WhatsApp tamu.
             </p>
           </UFormField>
-          <label class="flex cursor-pointer items-start gap-2.5 rounded-lg border border-default p-3">
-            <input
-              v-model="form.waAktif"
-              type="checkbox"
-              class="mt-0.5 size-4.5"
-            >
-            <span class="text-sm">
-              <b>Izinkan kru meminta review lewat WhatsApp</b>
-              <span class="block text-xs text-muted">Kalau dimatikan, tombol Minta Review hilang. Catatan yang sudah ada tidak terpengaruh.</span>
-            </span>
-          </label>
-          <p class="px-4 py-3 text-sm text-muted">
+          <div class="px-4 py-4">
+            <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-default p-4">
+              <input
+                v-model="form.waAktif"
+                type="checkbox"
+                class="mt-0.5 size-4.5"
+              >
+              <span class="text-sm">
+                <b>Izinkan kru meminta review lewat WhatsApp</b>
+                <span class="block text-xs text-muted">Kalau dimatikan, tombol Minta Review hilang. Catatan yang sudah ada tidak terpengaruh.</span>
+              </span>
+            </label>
+          </div>
+          <p class="px-4 py-3.5 text-sm text-muted">
             Target sebulan per nama diatur di <b>Dashboard → Atur target</b>.
           </p>
         </AppList>
 
         <AppList title="Reward review">
-          <p class="px-4 pt-3 text-sm text-muted">
+          <p class="px-4 py-3.5 text-sm leading-relaxed text-muted">
             Dari review <b>terverifikasi</b>. Dibayar <b>satu tangga tertinggi</b> yang dilewati, bukan dijumlah.
           </p>
           <UFormField
             label="Minimal review untuk ikut program"
-            class="px-4 py-3"
+            class="px-4 py-4"
           >
             <UInput
               v-model.number="form.min"
@@ -148,13 +150,13 @@ async function simpan() {
               class="w-full max-w-36"
             />
           </UFormField>
-          <p class="px-4 text-sm text-muted">
+          <p class="px-4 py-3.5 text-sm text-muted">
             Tangga bonus — jumlah review dan nominalnya. Yang jumlahnya 0 dibuang saat disimpan.
           </p>
           <div
             v-for="(t, i) in form.tiers"
             :key="i"
-            class="flex items-end gap-2 px-4 py-2"
+            class="flex items-end gap-3 px-4 py-3.5"
           >
             <UFormField
               :label="`Tangga ${i + 1} — jumlah review`"
@@ -186,7 +188,7 @@ async function simpan() {
               @click="hapusTangga(i)"
             />
           </div>
-          <div class="flex flex-wrap gap-2 px-4 py-3">
+          <div class="flex flex-wrap gap-2 px-4 py-4">
             <UButton
               label="Tambah tangga"
               color="neutral"

@@ -4,7 +4,7 @@
   (satu halaman server + detail 9 angka), Insight otomatis AI, daftar insight.
 -->
 <script setup lang="ts">
-import type { AkunCampaign, BarisTop, InsightCampaign, InsightInput } from '~/composables/useCampaign'
+import type { AkunCampaign, BarisTop, InsightCampaign, InsightInput, IgCommentPost } from '~/composables/useCampaign'
 
 definePageMeta({ access: ['konten', 'campaign'] })
 
@@ -62,6 +62,34 @@ async function putuskan(a: { platform: string, nama: string }) {
   const ok = await campaignSimpan(
     () => oauthPutusCampaign(a.platform as 'tiktok' | 'instagram'), 'Akun diputus.')
   if (ok) refresh()
+}
+
+const igPosts = ref<IgCommentPost[] | null>(null)
+const igLoading = ref(false)
+const igError = ref('')
+const igReply = ref<Record<string, string>>({})
+async function muatKomentar() {
+  igLoading.value = true
+  igError.value = ''
+  try {
+    igPosts.value = (await getIgComments()).data.posts
+  }
+  catch (e) { igError.value = apiErrorMessage(e) }
+  finally { igLoading.value = false }
+}
+async function ubahKomentar(id: string, aksi: 'reply' | 'hide' | 'delete', hidden = false) {
+  if (aksi === 'delete' && !confirm('Hapus komentar ini dari Instagram?')) return
+  if (aksi === 'reply' && !igReply.value[id]?.trim()) return
+  igLoading.value = true
+  try {
+    if (aksi === 'reply') await replyIgComment(id, igReply.value[id]!.trim())
+    else if (aksi === 'hide') await hideIgComment(id, !hidden)
+    else await deleteIgComment(id)
+    igReply.value[id] = ''
+    await muatKomentar()
+  }
+  catch (e) { toast.add({ title: apiErrorMessage(e), color: 'error' }) }
+  finally { igLoading.value = false }
 }
 
 // ---------------------------------------------------------------- top
@@ -214,6 +242,108 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
       />
 
       <!-- Akun terhubung -->
+      <AppPanel title="Komentar Instagram">
+        <p class="mb-3 text-sm text-muted">
+          Komentar dari postingan yang sudah disinkronkan. Hubungkan Instagram lagi untuk memberi izin kelola komentar.
+        </p>
+        <UButton
+          :loading="igLoading"
+          label="Muat komentar"
+          icon="i-lucide-refresh-cw"
+          @click="muatKomentar"
+        />
+        <p
+          v-if="igError"
+          class="mt-3 text-error"
+        >
+          {{ igError }}
+        </p>
+        <p
+          v-if="igPosts && !igPosts.length"
+          class="mt-3 text-muted"
+        >
+          Belum ada postingan dengan komentar. Sinkronkan akun Instagram untuk memperbarui daftar.
+        </p>
+        <div
+          v-for="post in igPosts"
+          :key="post.id"
+          class="mt-4 rounded-xl border border-default p-4"
+        >
+          <a
+            :href="post.url"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="font-semibold text-gold-deep"
+          >{{ post.judul || 'Postingan Instagram' }}</a>
+          <p class="text-sm text-muted">
+            {{ post.jumlah }} komentar
+          </p>
+          <p
+            v-if="post.galat"
+            class="text-error"
+          >
+            {{ post.galat }}
+          </p>
+          <p
+            v-if="post.selanjutnya"
+            class="text-muted"
+          >
+            Menampilkan 50 komentar pertama.
+          </p>
+          <div
+            v-for="comment in post.komentar"
+            :key="comment.id"
+            class="mt-3 border-t border-default pt-3"
+          >
+            <div
+              v-for="item in [comment, ...(comment.replies?.data || [])]"
+              :key="item.id"
+              class="mb-3"
+            >
+              <p>
+                <strong>{{ item.username || 'Instagram' }}</strong> <span
+                  v-if="item.hidden"
+                  class="text-muted"
+                >(disembunyikan)</span>
+              </p>
+              <p class="whitespace-pre-wrap">
+                {{ item.text }}
+              </p>
+              <div class="mt-2 flex flex-wrap gap-2">
+                <UButton
+                  size="sm"
+                  color="neutral"
+                  variant="soft"
+                  :disabled="igLoading"
+                  :label="item.hidden ? 'Tampilkan' : 'Sembunyikan'"
+                  @click="ubahKomentar(item.id, 'hide', item.hidden)"
+                />
+                <UButton
+                  size="sm"
+                  color="error"
+                  variant="ghost"
+                  :disabled="igLoading"
+                  label="Hapus"
+                  @click="ubahKomentar(item.id, 'delete')"
+                />
+              </div>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <UInput
+                v-model="igReply[comment.id]"
+                placeholder="Tulis balasan"
+                :maxlength="2200"
+                class="min-w-0 flex-1"
+              />
+              <UButton
+                label="Balas"
+                :disabled="igLoading || !igReply[comment.id]?.trim()"
+                @click="ubahKomentar(comment.id, 'reply')"
+              />
+            </div>
+          </div>
+        </div>
+      </AppPanel>
       <AppPanel title="Akun terhubung">
         <div class="grid gap-3 md:grid-cols-3">
           <UCard

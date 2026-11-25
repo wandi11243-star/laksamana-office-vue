@@ -169,7 +169,7 @@ async function salinCaption(caption: string) {
             :class="t === selTanggal ? 'border-primary' : 'border-default'"
             @click="selTanggal = t"
           >
-            <span :class="t.slice(0, 7) !== `${selHari.y}-${String(selHari.m + 1).padStart(2, '0')}` ? 'text-muted' : ''">
+            <span :class="t === selTanggal ? 'tgl-bulat' : t === hariIni() ? 'tgl-cincin' : t.slice(0, 7) !== `${selHari.y}-${String(selHari.m + 1).padStart(2, '0')}` ? 'text-muted' : ''">
               {{ Number(t.slice(8)) }}
             </span>
             <span
@@ -289,9 +289,10 @@ async function salinCaption(caption: string) {
         </UFormField>
         <UFormField label="Dari insight">
           <USelect
-            v-model="form.insightId"
-            :items="[{ label: '— tanpa insight —', value: '' },
+            :model-value="form.insightId || KOSONG"
+            :items="[{ label: '— tanpa insight —', value: KOSONG },
                      ...((st?.insight ?? []).filter(i => !i.arsip).map(i => ({ label: `${i.platform} · ${i.temuan.slice(0, 60)}`, value: i.id })))]"
+            @update:model-value="form.insightId = dariKosong($event)"
           />
         </UFormField>
         <UFormField label="Catatan">

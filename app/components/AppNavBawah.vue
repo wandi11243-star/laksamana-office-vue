@@ -33,7 +33,7 @@ const akhir = computed(() => terbuka.value === slots.value.length - 1)
 
 const aktif = (s: SlotNav) => s.to
   ? cocokRute(route.path, s.to)
-  : (s.grup ?? []).flat().some(i => typeof i.to === 'string' && cocokRute(route.path, i.to))
+  : (s.grup ?? []).flat().some(i => i.active || (typeof i.to === 'string' && cocokRute(route.path, i.to)))
 const nyala = (s: SlotNav, i: number) => aktif(s) || terbuka.value === i
 
 const sheet = computed({

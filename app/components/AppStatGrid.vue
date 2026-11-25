@@ -7,11 +7,20 @@ withDefaults(defineProps<{
   loading?: boolean
   /** How many skeleton cells to render while loading. */
   count?: number
-}>(), { loading: false, count: 4 })
+  /**
+   * Keep all 6-7 cards on ONE row from 1280px up, with a tighter card, instead
+   * of wrapping the last one onto its own line (owner request, Nov 2026).
+   * Narrower screens use four per row (two on a phone).
+   */
+  satuBaris?: boolean
+}>(), { loading: false, count: 4, satuBaris: false })
 </script>
 
 <template>
-  <div class="mb-6 grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fit,minmax(170px,1fr))] lg:gap-6">
+  <div
+    class="mb-6 grid grid-cols-2 gap-3"
+    :class="satuBaris ? 'sm:grid-cols-4 xl:grid-flow-col xl:auto-cols-fr xl:grid-cols-none xl:*:p-4' : 'sm:grid-cols-[repeat(auto-fit,minmax(170px,1fr))] lg:gap-6'"
+  >
     <template v-if="loading">
       <div
         v-for="i in count"

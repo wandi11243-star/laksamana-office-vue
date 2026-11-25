@@ -257,3 +257,30 @@ export const unduhCadanganPos = () => useApi()<Envelope<{ format: string, versi:
 /** POST /kompas/pos/restore — add-only restore (existing ids are skipped). */
 export const pulihkanCadanganPos = (orders: OrderPos[], setting: SettingPos | null) =>
   useApi()<Envelope<{ baru: number, ada: number, tolak: number, setting: boolean }>>('/kompas/pos/restore', { method: 'POST', body: { orders, setting } })
+
+/** Void only a synchronized paid order; the server records the authenticated actor. */
+export async function voidOrderPos(order: OrderPos, alasan: string): Promise<void> {
+  const current = usePosDb().value.find(o => o.id === order.id)
+  if (!current || current.status !== 'paid' || current._naik !== true || !current._base || current._base !== order._base) {
+    throw new Error('Order belum tersinkron atau sudah berubah. Muat ulang dan periksa kembali.')
+  }
+  try {
+    const res = await useApi()<Envelope<{ order: OrderPos }>>(`/kompas/pos/orders/${encodeURIComponent(order.id)}/void`, {
+      method: 'POST', body: { alasan, base: order._base },
+    })
+    const db = usePosDb().value
+    const latest = db.find(o => o.id === order.id)
+    if (latest && latest._naik === true && latest._base === order._base) {
+      simpanDb(db.map(o => o.id === order.id ? { ...res.data.order, _naik: true, _base: res.data.order.updatedAt } : o))
+    }
+  }
+  catch (e) {
+    const server = (e as { data?: { error?: { details?: { server?: OrderPos } } } })?.data?.error?.details?.server
+    const db = usePosDb().value
+    const latest = db.find(o => o.id === order.id)
+    if (server?.id === order.id && latest?._naik === true && latest._base === order._base) {
+      simpanDb(db.map(o => o.id === order.id ? { ...server, _naik: true, _base: server.updatedAt } : o))
+    }
+    throw e
+  }
+}

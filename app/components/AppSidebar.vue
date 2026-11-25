@@ -97,6 +97,8 @@ watch(() => route.path, perluasModulAktif)
 // in the full sidebar).
 const isAktif = (item: NavigationMenuItem) => {
   if (typeof item.to !== 'string' || !item.to) return false
+  // A grouped row says itself when one of its screens is open.
+  if (item.active) return true
   return item.exact
     ? route.path === item.to
     : route.path === item.to || route.path.startsWith(`${item.to}/`)

@@ -217,10 +217,11 @@ const segSegera = computed(() => (data.value?.review ?? []).filter(r => r.tingka
                 />
                 <USelect
                   v-if="tempat.length > 1"
-                  v-model="tempatPilih"
-                  :items="[{ value: '', label: 'Semua tempat' }, ...tempat.map(t => ({ value: t.id, label: t.nama || t.id }))]"
+                  :model-value="tempatPilih || KOSONG"
+                  :items="[{ value: KOSONG, label: 'Semua tempat' }, ...tempat.map(t => ({ value: t.id, label: t.nama || t.id }))]"
                   size="sm"
                   class="w-44"
+                  @update:model-value="tempatPilih = dariKosong($event)"
                 />
                 <UInput
                   v-model="cari"

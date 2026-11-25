@@ -32,7 +32,6 @@ const L = computed(() => h.laporanHari.value)
         @click="h.geser(-1)"
       />
       <AppTanggal
-        size="sm"
         :max="hari0"
         :model-value="h.hari.value"
         @update:model-value="(v) => h.pilih(String(v ?? ''))"

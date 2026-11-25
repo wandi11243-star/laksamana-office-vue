@@ -2039,7 +2039,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           >
             <span
               class="num text-sm font-semibold"
-              :class="c.tgl === hariIni() ? 'text-highlighted underline' : (c.dalam ? '' : 'text-dimmed')"
+              :class="c.tgl === tglDenah ? 'tgl-bulat' : c.tgl === hariIni() ? 'tgl-cincin' : (c.dalam ? '' : 'text-dimmed')"
             >{{ c.num }}</span>
             <span
               v-for="r in c.list.slice(0, 3)"

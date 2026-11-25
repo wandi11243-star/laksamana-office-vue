@@ -228,7 +228,7 @@ const opsiTampil = computed(() => {
   Object.keys(fp.value.isi ?? {}).forEach(tambah)
   tambah(fp.value.satuanTampil)
   SATUAN_TERSEDIA.forEach(tambah)
-  return [{ value: '', label: 'Otomatis' }, ...ada.map(u => ({ value: u, label: u }))]
+  return [{ value: KOSONG, label: 'Otomatis' }, ...ada.map(u => ({ value: u, label: u }))]
 })
 const simpanProduk = ref(false)
 async function simpanP() {
@@ -922,8 +922,9 @@ async function simpanTemplate() {
           label="Satuan Tampilan Stok"
         >
           <USelect
-            v-model="fp.satuanTampil"
+            :model-value="fp.satuanTampil || KOSONG"
             :items="opsiTampil"
+            @update:model-value="fp.satuanTampil = dariKosong($event)"
           />
           <p class="mt-1 text-xs text-muted">
             Otomatis mengikuti bentuk simpanan; pilih satuan bila saldo harus selalu tampil dalam satuan itu.

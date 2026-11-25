@@ -2,7 +2,10 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import { hitungOrderPos, rupiahPos, strukTeksPos } from '~/utils/pos'
-import { mulaiPos, printerPos, usePosDb, usePosSetting } from '~/composables/usePos'
+import { mulaiPos, printerPos, usePosDb, usePosSetting, voidOrderPos } from '~/composables/usePos'
+import { hariIni } from '~/utils/format'
+import { isAdminOf, useMe } from '~/composables/useMe'
+import { apiErrorCode, apiErrorMessage } from '~/composables/useApi'
 
 definePageMeta({ access: ['pos'] })
 
@@ -11,9 +14,9 @@ const setting = usePosSetting()
 
 onMounted(() => mulaiPos())
 
-const tgl = ref(new Date().toISOString().slice(0, 10))
+const tgl = ref(hariIni())
 const riwayat = computed(() => db.value
-  .filter(o => (o.status === 'paid' || o.status === 'batal') && (!tgl.value || o.tgl === tgl.value))
+  .filter(o => (o.status === 'paid' || o.status === 'batal' || o.status === 'void') && (!tgl.value || o.tgl === tgl.value))
   .sort((a, b) => (b.paidAt || b.updatedAt) - (a.paidAt || a.updatedAt)))
 
 interface BarisRiwayat {
@@ -29,7 +32,7 @@ const baris = computed<BarisRiwayat[]>(() => riwayat.value.map(o => ({
   id: o.id,
   no: o.no || o.id.slice(-6),
   meja: o.meja,
-  status: o.status === 'paid' ? 'Lunas' : 'Batal',
+  status: o.status === 'paid' ? 'Lunas' : o.status === 'void' ? 'Void' : 'Batal',
   total: rupiahPos(hitungOrderPos(o, setting.value?.sc ?? 5, setting.value?.pb1 ?? 10).grand),
   kasir: o.kasir,
 })))
@@ -58,6 +61,42 @@ watch(strukBuka, (v) => {
 })
 
 const toast = useToast()
+const me = useMe()
+const alasan = ref('')
+const voidBuka = ref(false)
+const voidSedang = ref(false)
+const targetVoid = ref<{ id: string, base: number } | null>(null)
+const bolehVoid = computed(() => isAdminOf(me.value, 'pos') && orderLihat.value?.status === 'paid'
+  && orderLihat.value._naik === true && !!orderLihat.value._base)
+
+function bukaVoid(): void {
+  const o = orderLihat.value
+  if (!o || !bolehVoid.value || !o._base) return
+  targetVoid.value = { id: o.id, base: o._base }
+  alasan.value = ''
+  voidBuka.value = true
+}
+
+async function simpanVoid(): Promise<void> {
+  const target = targetVoid.value
+  const o = db.value.find(x => x.id === target?.id)
+  if (!target || !o || alasan.value.trim().length < 3 || alasan.value.trim().length > 160) return
+  voidSedang.value = true
+  try {
+    await voidOrderPos({ ...o, _base: target.base }, alasan.value.trim())
+    voidBuka.value = false
+    toast.add({ title: 'Transaksi di-void', color: 'success' })
+  }
+  catch (e) {
+    const konflik = ['version_conflict', 'precondition_required'].includes(apiErrorCode(e) || '')
+    if (konflik) voidBuka.value = false
+    // A plain Error is our own pre-check (not synced / changed): say it as is,
+    // instead of the "cannot reach the server" fallback.
+    const pesan = e instanceof Error && e.name === 'Error' ? e.message : apiErrorMessage(e)
+    toast.add({ title: konflik ? 'Order berubah, periksa kembali' : 'Void gagal', description: pesan, color: 'error' })
+  }
+  finally { voidSedang.value = false }
+}
 
 /** Reprint a bill from history using this computer's printer width. */
 function cetakUlang(): void {
@@ -78,7 +117,7 @@ function cetakUlang(): void {
 <template>
   <AppPage
     title="Riwayat"
-    description="Transaksi yang sudah dibayar atau dibatalkan."
+    description="Transaksi yang sudah dibayar, dibatalkan, atau di-void."
   >
     <AppPanel
       flush
@@ -109,8 +148,8 @@ function cetakUlang(): void {
           @click="lihat = o.id"
         >
           <template #trailing>
-            <AppStatus :color="o.status === 'paid' ? 'success' : 'neutral'">
-              {{ o.status === 'paid' ? 'Lunas' : 'Batal' }}
+            <AppStatus :color="o.status === 'paid' ? 'success' : o.status === 'void' ? 'error' : 'neutral'">
+              {{ o.status === 'paid' ? 'Lunas' : o.status === 'void' ? 'Void' : 'Batal' }}
             </AppStatus>
           </template>
         </AppListRow>
@@ -128,6 +167,14 @@ function cetakUlang(): void {
       title="Struk"
       :description="orderLihat ? `Meja ${orderLihat.meja}` : ''"
     >
+      <div
+        v-if="orderLihat?.status === 'void'"
+        class="mb-3 rounded-xl border-l-4 border-error bg-error/10 p-3 text-sm text-error"
+      >
+        <strong>Transaksi sudah di-void dan tidak dihitung dalam omset.</strong>
+        <p>Oleh {{ orderLihat.voidOleh || '-' }} · {{ orderLihat.voidAt ? new Date(orderLihat.voidAt).toLocaleString('id-ID') : '-' }}</p>
+        <p>Alasan: {{ orderLihat.voidAlasan || '-' }}</p>
+      </div>
       <pre class="overflow-x-auto rounded-lg bg-muted p-3 font-mono text-xs whitespace-pre">{{ strukLihat }}</pre>
       <template #footer>
         <UButton
@@ -137,11 +184,52 @@ function cetakUlang(): void {
           @click="strukBuka = false"
         />
         <UButton
+          v-if="bolehVoid"
+          label="Void transaksi"
+          color="error"
+          variant="soft"
+          @click="bukaVoid()"
+        />
+        <UButton
           label="Cetak ulang"
           icon="i-lucide-printer"
           color="neutral"
           class="bg-ink-900 text-white"
           @click="cetakUlang()"
+        />
+      </template>
+    </ResponsiveSheet>
+    <ResponsiveSheet
+      v-model:open="voidBuka"
+      title="Void transaksi"
+      description="Transaksi tidak lagi dihitung dalam omset dan PB1, tetapi tetap tersimpan di riwayat."
+    >
+      <UFormField
+        label="Alasan void"
+        required
+        hint="3–160 karakter"
+      >
+        <UTextarea
+          v-model="alasan"
+          :maxlength="160"
+          class="w-full"
+          placeholder="Masukkan alasan void"
+        />
+      </UFormField>
+      <template #footer>
+        <UButton
+          label="Batal"
+          color="neutral"
+          variant="ghost"
+          :disabled="voidSedang"
+          @click="voidBuka = false"
+        />
+        <UButton
+          label="Void transaksi"
+          color="error"
+          :loading="voidSedang"
+          :disabled="alasan.trim().length < 3"
+          @click="simpanVoid()"
         />
       </template>
     </ResponsiveSheet>

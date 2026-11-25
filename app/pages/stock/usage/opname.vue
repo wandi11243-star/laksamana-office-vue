@@ -54,7 +54,7 @@ watch(me, () => {
 const opsiTimTampil = computed(() => {
   const base = opsiTim.value
   if (tim.value && !base.some(o => o.value === tim.value)) return [...base, { value: tim.value, label: `${tim.value} (kode lama)` }]
-  if (!tim.value && admin.value) return [...base, { value: '', label: '(belum ada tim)' }]
+  if (!tim.value && admin.value) return [...base, { value: KOSONG, label: '(belum ada tim)' }]
   return base
 })
 const pesanTim = computed(() => terkunci.value
@@ -347,10 +347,11 @@ async function segarkan() {
         </UFormField>
         <UFormField label="Tim">
           <USelect
-            v-model="tim"
+            :model-value="tim || KOSONG"
             :items="opsiTimTampil"
             class="w-full"
             :class="terkunci && 'pointer-events-none'"
+            @update:model-value="tim = dariKosong($event)"
           />
         </UFormField>
         <UFormField label="Cari item">

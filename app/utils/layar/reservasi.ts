@@ -202,6 +202,6 @@ export const LAYAR_RESERVASI: Layar[] = [
   // Nov 2026) and has its own row in the access matrix, so any role can be
   // given it without also getting Kelola Akses.
   { key: 'denah', label: 'Atur denah & meja', desc: 'Editor denah, jadwal denah per tanggal, dan kapasitas tiap meja.', icon: 'i-lucide-map', to: '/reservasi/denah', grup: 'Kontrol', boleh: bolehLayar('denah') },
-  { key: 'master', label: 'Kelola Akses', desc: 'Kelola pilihan dropdown, role kru & hak akses.', icon: 'i-lucide-sliders-horizontal', to: '/reservasi/master', grup: 'Kontrol', boleh: bolehLayar('master') },
+  { key: 'master', label: 'Kelola Akses', desc: 'Kelola pilihan dropdown, role kru & hak akses.', icon: 'i-lucide-key-round', to: '/reservasi/master', grup: 'Kontrol', boleh: bolehLayar('master') },
   { key: 'audit', label: 'Log Activity', desc: 'Jejak seluruh aktivitas: siapa, kapan, apa yang diubah.', icon: 'i-lucide-history', to: '/reservasi/audit', grup: 'Kontrol', boleh: bolehLayar('audit') },
 ]

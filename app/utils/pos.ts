@@ -23,7 +23,7 @@ export const grupMenuPos = (m: Pick<MenuPos, 'jenis'>): GrupPos =>
   m.jenis === 'food' ? 'FOOD' : m.jenis === 'drink' ? 'BEVERAGES' : 'OTHERS'
 
 /** The old order statuses: draft/open while served, paid, batal (kept, never deleted). */
-export type StatusOrderPos = 'draft' | 'open' | 'paid' | 'batal'
+export type StatusOrderPos = 'draft' | 'open' | 'paid' | 'batal' | 'void'
 
 export interface ItemOrderPos {
   id: string
@@ -53,6 +53,11 @@ export interface OrderPos {
   kasir: string
   at: number
   paidAt?: number
+  voidAt?: number
+  voidOleh?: string
+  voidOlehId?: string
+  voidSetuju?: string
+  voidAlasan?: string
   /** Percents are COPIED onto the order: changing Pengaturan never shifts a paid bill. */
   scPct: number
   pb1Pct: number
@@ -181,6 +186,7 @@ export function strukTeksPos(o: OrderPos, hitung: ReturnType<typeof hitungOrderP
   const tgl = new Date(o.paidAt || o.at)
   const p = (n: number) => String(n).padStart(2, '0')
   const baris: string[] = [
+    ...(o.status === 'void' ? ['*** VOID — TIDAK BERLAKU ***', `Alasan: ${o.voidAlasan || '-'}`, `Oleh: ${o.voidOleh || '-'}`, garis(kolom)] : []),
     kepala.outlet.toUpperCase(),
     `Station ${kepala.station} · ${o.no || o.id.slice(-6)}`,
     `${o.tgl} ${p(tgl.getHours())}:${p(tgl.getMinutes())} · Kasir ${kepala.kasir}`,

@@ -111,9 +111,10 @@ async function simpan() {
         </UFormField>
         <UFormField label="Terbitkan SP">
           <USelect
-            v-model="sp"
-            :items="[{ value: '', label: 'Tidak / belum' }, { value: 'SP1', label: 'SP1' }, { value: 'SP2', label: 'SP2' }, { value: 'SP3', label: 'SP3' }]"
+            :model-value="sp || KOSONG"
+            :items="[{ value: KOSONG, label: 'Tidak / belum' }, { value: 'SP1', label: 'SP1' }, { value: 'SP2', label: 'SP2' }, { value: 'SP3', label: 'SP3' }]"
             class="w-full"
+            @update:model-value="sp = dariKosong($event)"
           />
         </UFormField>
       </div>

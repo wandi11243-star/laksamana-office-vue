@@ -5,11 +5,13 @@
 // when the group has a heading. `pilih` runs when an item is chosen.
 import type { NavigationMenuItem } from '@nuxt/ui'
 import { isAdminOf } from '~/composables/useMe'
+import type { Layar } from '~/utils/layar'
 
 export function useMenuNav(pilih: () => void = () => {}) {
   const me = useMe()
   const { grouped } = useModulNav()
   const { shell } = useModulShell()
+  const route = useRoute()
   shell.value?.siapkan?.()
   const lencana = shell.value?.lencana?.()
 
@@ -21,18 +23,40 @@ export function useMenuNav(pilih: () => void = () => {}) {
         const n = lencana?.value[key] ?? 0
         return n > 0 ? { label: String(n), color: 'error' as const, variant: 'solid' as const, size: 'sm' as const } : undefined
       }
+      const baris = (l: Layar): NavigationMenuItem => ({
+        label: l.label,
+        icon: l.icon,
+        to: l.to,
+        exact: true,
+        badge: badge(l.key) ?? (l.badge
+          ? { label: l.badge, color: 'neutral' as const, variant: 'soft' as const, size: 'sm' as const }
+          : undefined),
+        onSelect: pilih,
+      })
+      // A `kelompok` becomes one row that opens its first viewable screen and
+      // stays lit on all of them. With a single viewable screen it is just that screen.
+      const lipat = (items: Layar[]): NavigationMenuItem[] => {
+        const selesai = new Set<string>()
+        return items.flatMap((l) => {
+          const nama = l.kelompok?.label
+          if (!nama) return [baris(l)]
+          if (selesai.has(nama)) return []
+          selesai.add(nama)
+          const isi = items.filter(x => x.kelompok?.label === nama)
+          if (isi.length === 1) return [baris(l)]
+          const n = isi.reduce((a, x) => a + (lencana?.value[x.key] ?? 0), 0)
+          return [{
+            ...baris(l),
+            label: nama,
+            icon: l.kelompok!.icon,
+            active: isi.some(x => cocokRute(route.path, x.to)),
+            badge: n > 0 ? { label: String(n), color: 'error' as const, variant: 'solid' as const, size: 'sm' as const } : undefined,
+          }]
+        })
+      }
       const grup = groupLayar(bisa).map(({ grup, items }) => [
         ...(grup ? [{ label: grup, type: 'label' as const }] : []),
-        ...items.map(l => ({
-          label: l.label,
-          icon: l.icon,
-          to: l.to,
-          exact: true,
-          badge: badge(l.key) ?? (l.badge
-            ? { label: l.badge, color: 'neutral' as const, variant: 'soft' as const, size: 'sm' as const }
-            : undefined),
-          onSelect: pilih,
-        })),
+        ...lipat(items),
       ])
       return [...grup, ...(s.navEkstra?.() ?? [])]
     }

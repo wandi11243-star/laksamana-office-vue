@@ -212,10 +212,9 @@ const hitungBulan = computed(() => acara.value.filter(e => String(e.tgl).startsW
             >
               <template v-if="s">
                 <p
-                  class="text-xs font-bold"
-                  :class="s.tgl === hariIni ? 'text-ink-900' : 'text-muted'"
+                  class="text-xs font-bold text-muted"
                 >
-                  {{ Number(s.tgl.slice(8)) }}
+                  <span :class="s.tgl === hariIni ? 'tgl-bulat' : ''">{{ Number(s.tgl.slice(8)) }}</span>
                 </p>
                 <p
                   v-for="(e, k) in (perTanggal.get(s.tgl) ?? []).slice(0, 2)"

@@ -13,11 +13,15 @@
 import type { TableColumn } from '@nuxt/ui'
 import type { Reservasi } from '~/composables/useReservasi'
 import {
-  deleteSectionItem, getFile, listReservations, postAudit, putSectionItem,
+  deleteSectionItem, listReservations, postAudit, putSectionItem,
   useSectionVersi,
 } from '~/composables/useReservasi'
 import type { Review } from '~/composables/useServiceExcellent'
-import { usePeriodeReview, useReviewCfg } from '~/composables/useServiceExcellent'
+import { usePeriodeReview, useReviewCfg, useSeCrew } from '~/composables/useServiceExcellent'
+import { useCekGoogle } from '~/composables/useCekGoogle'
+import type { KelompokCek } from '~/utils/cek-google'
+import { googleDipakai, kelompokCek } from '~/utils/cek-google'
+import { TABEL_PANEL_UI } from '~/utils/tabel-panel'
 import { apiErrorMessage } from '~/composables/useApi'
 import { tanganiKonflik, versiDari } from '~/utils/versi'
 import {
@@ -74,6 +78,26 @@ const bolehHapus = computed(() => bolehAksiSe('deleteReview', tingkat.value))
 /** Admin, office, or a claim verifier sees everyone's list — otherwise the verifier's button could never be pressed (`:7780-7798`). */
 const lihatSemua = computed(() => adminSe.value || divisiCocok(divisiSaya.value, ['office']) || bolehVerif.value)
 
+// --- cek Google (admin) ----------------------------------------------------------
+// Runs by itself when the page opens (owner request, Nov 2026); the result is a
+// suggestion, verifying stays a person's decision.
+
+const { status: statusCrew } = useSeCrew()
+const google = useCekGoogle({
+  aktif: adminSe,
+  siap: computed(() => reviews.status.value === 'success' && statusCrew.value === 'success'),
+  daftar: daftarReview,
+  versi: versiReviews,
+  muatUlang: () => reviews.refresh(),
+  nama: namaSaya,
+})
+const waktuPendek = (ms: number) => new Date(ms).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+
+async function cekUlang() {
+  const n = await google.cek(true)
+  if (n !== null) toast.add({ title: n ? `Cek Google selesai: ${n} klaim diperbarui` : 'Cek Google selesai: tidak ada yang berubah', color: 'success' })
+}
+
 // --- eligible guests ---------------------------------------------------------------
 
 const target = computed(() => layakDiminta(
@@ -102,14 +126,32 @@ const saya = computed(() => String(namaSaya.value).trim().toLowerCase())
 const milikSaya = (x: Review) => [x.host, x.claimedBy, x.by].some(v => String(v || '').trim().toLowerCase() === saya.value)
 
 const cariDaftar = ref('')
-const daftarTampil = computed(() => {
+/** Period + search; the chips below narrow this further. */
+const dasarDaftar = computed(() => {
   const dasar = lihatSemua.value ? daftarReview.value : daftarReview.value.filter(milikSaya)
   const q = cariDaftar.value.trim().toLowerCase()
   return dasar
     .filter(x => dalamRentang(x.date, rentang.value))
     .filter(x => !q || [x.name, x.reviewerName, x.phone, x.claimedBy, x.by].some(v => String(v || '').toLowerCase().includes(q)))
-    .sort((a, b) => (b.claimedAt || b.at || 0) - (a.claimedAt || a.at || 0))
 })
+
+type Saring = '' | 'perlu' | KelompokCek
+const saring = ref<Saring>('')
+const KELOMPOK_LABEL: [KelompokCek, string][] = [
+  ['cocok', 'Ada di Google'], ['mirip', 'Nama mirip'], ['tidak', 'Tidak ditemukan'], ['manual', 'Belum bisa dicek'],
+]
+/** Review queue: the Google buckets count the claims still waiting. */
+const opsiSaring = computed<{ value: Saring, label: string }[]>(() => {
+  const perlu = dasarDaftar.value.filter(x => x.status === 'diklaim')
+  return [
+    { value: '', label: `Semua (${dasarDaftar.value.length})` },
+    { value: 'perlu', label: `Perlu verifikasi (${perlu.length})` },
+    ...(adminSe.value ? KELOMPOK_LABEL.map(([k, l]) => ({ value: k as Saring, label: `${l} (${perlu.filter(x => kelompokCek(x) === k).length})` })) : []),
+  ]
+})
+const daftarTampil = computed(() => dasarDaftar.value
+  .filter(x => !saring.value || (x.status === 'diklaim' && (saring.value === 'perlu' || kelompokCek(x) === saring.value)))
+  .sort((a, b) => (b.claimedAt || b.at || 0) - (a.claimedAt || a.at || 0)))
 
 const halDaftar = ref(1)
 const perHal = ref(10)
@@ -119,10 +161,15 @@ watch([daftarTampil, perHal], () => {
   halDaftar.value = Math.min(halDaftar.value, maxHalDaftar.value)
 })
 
+watch([saring, cariDaftar], () => {
+  halDaftar.value = 1
+})
+
 const halBelum = ref(1)
-const maxHalBelum = computed(() => Math.max(1, Math.ceil(belumTampil.value.length / perHal.value)))
-const halamanBelum = computed(() => belumTampil.value.slice((halBelum.value - 1) * perHal.value, halBelum.value * perHal.value))
-watch([belumTampil, perHal], () => {
+const perBelum = ref(10)
+const maxHalBelum = computed(() => Math.max(1, Math.ceil(belumTampil.value.length / perBelum.value)))
+const halamanBelum = computed(() => belumTampil.value.slice((halBelum.value - 1) * perBelum.value, halBelum.value * perBelum.value))
+watch([belumTampil, perBelum], () => {
   halBelum.value = Math.min(halBelum.value, maxHalBelum.value)
 })
 
@@ -150,10 +197,9 @@ const kolomBelum = computed<TableColumn<Reservasi>[]>(() => [
 
 const kolomDaftar = computed<TableColumn<Review>[]>(() => [
   { accessorKey: 'name', header: 'Tamu' },
-  { accessorKey: 'reviewerName', header: 'Nama akun Google' },
-  { accessorKey: 'date', header: 'Tanggal' },
+  { accessorKey: 'reviewerName', header: 'Akun Google' },
   { accessorKey: 'status', header: 'Status' },
-  { accessorKey: 'host', header: 'Nama' },
+  ...(adminSe.value ? [{ accessorKey: 'googleCek', header: 'Cek Google' }] : []),
   { accessorKey: 'aksi', header: 'Aksi' },
 ])
 
@@ -312,6 +358,7 @@ async function simpanKlaim() {
     const lama = klaim.id ? daftarReview.value.find(x => x.id === klaim.id) : null
     const host = lama?.host ? lama.host : namaSaya.value
     const rv: Review = {
+      ...lama,
       id: klaim.id || uid(),
       resId: klaim.resId,
       name: nama,
@@ -340,6 +387,7 @@ async function simpanKlaim() {
     await postAudit({ action: 'Google Review', detail: `Klaim review dicatat: ${nama} (akun: ${reviewer}, host: ${host}, meja: ${rv.tableNo})` })
     sheetKlaim.value = false
     toast.add({ title: 'Klaim dicatat — menunggu manager memverifikasi', color: 'success' })
+    void google.cek()
   }
   catch (e) {
     if (!(await tanganiKonflik(e, muatUlangKlaim))) toast.add({ title: apiErrorMessage(e), color: 'error' })
@@ -350,16 +398,29 @@ async function simpanKlaim() {
 
 const sheetVerif = ref(false)
 const verifId = ref('')
+const verifReview = computed(() => daftarReview.value.find(x => x.id === verifId.value))
 
+/** The review sheet: any claim can be looked at; the buttons follow the rights. */
 function bukaVerif(id: string) {
-  const rv = daftarReview.value.find(x => x.id === id)
-  if (!rv) return
-  if (!rv.proof2Data) {
-    toast.add({ title: 'Belum bisa diverifikasi — Foto 2 (bukti poin bertambah) belum dilampirkan. Minta host melengkapinya lewat Ubah.', color: 'error' })
-    return
-  }
+  if (!daftarReview.value.some(x => x.id === id)) return
   verifId.value = id
   sheetVerif.value = true
+}
+
+function tolakDariTinjau() {
+  sheetVerif.value = false
+  bukaTolak(verifId.value)
+}
+function ubahDariTinjau() {
+  const rv = verifReview.value
+  if (!rv) return
+  sheetVerif.value = false
+  bukaKlaim(rv.id, rv.resId)
+}
+/** A phone row has no buttons: it opens the review sheet when there is something to judge, else the form. */
+function ketukBaris(x: Review) {
+  if (x.status !== 'diklaim' && x.status !== 'terverifikasi' && bolehCatat.value) bukaKlaim(x.id, x.resId)
+  else bukaVerif(x.id)
 }
 
 async function verifGo() {
@@ -373,8 +434,12 @@ async function verifGo() {
       await reviews.refresh()
       return
     }
+    if (!lama.proof2Data) {
+      toast.add({ title: 'Belum bisa diverifikasi — Foto 2 (bukti poin bertambah) belum dilampirkan.', color: 'error' })
+      return
+    }
     await putSectionItem('reviews', id, {
-      ...lama, status: 'terverifikasi', verifiedBy: namaSaya.value, verifiedAt: Date.now(), rejectNote: '',
+      ...lama, ...(lama.googleCek?.jenis === 'cocok' ? { googleReviewId: lama.googleCek.id, googleRating: lama.googleCek.rating } : {}), status: 'terverifikasi', verifiedBy: namaSaya.value, verifiedAt: Date.now(), rejectNote: '',
     }, versiReviews.value)
     await reviews.refresh()
     await postAudit({ action: 'Google Review', detail: `Review ${lama.name} (${lama.reviewerName}) TERVERIFIKASI` })
@@ -434,32 +499,6 @@ async function hapusGo() {
   }
   catch (e) {
     if (!(await tanganiKonflik(e, () => reviews.refresh()))) toast.add({ title: apiErrorMessage(e), color: 'error' })
-  }
-}
-
-// --- proof viewer --------------------------------------------------------------------------
-
-const sheetBukti = ref(false)
-const buktiJudul = ref('')
-const buktiData = ref('')
-const buktiMemuat = ref(false)
-
-async function lihatBukti(rv: Review, mana: 1 | 2) {
-  const ref = mana === 1 ? rv.proofData : rv.proof2Data
-  if (!ref) return
-  sheetBukti.value = true
-  buktiJudul.value = mana === 1 ? 'Screenshot review' : 'Bukti poin bertambah'
-  buktiData.value = ''
-  buktiMemuat.value = true
-  try {
-    buktiData.value = ref.startsWith('@f:') ? (await getFile(ref.replace(/^@f:/, ''))).data.data : ref
-  }
-  catch (e) {
-    toast.add({ title: apiErrorMessage(e), color: 'error' })
-    sheetBukti.value = false
-  }
-  finally {
-    buktiMemuat.value = false
   }
 }
 </script>
@@ -551,21 +590,25 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
           />
         </AppStatGrid>
 
-        <AppList title="Tamu belum diminta review">
-          <UFormField
-            label="Cari nama, no. HP, atau meja"
-            class="px-4 pt-3"
-          >
+        <AppPanel
+          title="Tamu belum diminta review"
+          :count="belumTampil.length"
+          flush
+        >
+          <div class="px-5 py-4 lg:px-7">
             <UInput
               v-model="cariBelum"
+              icon="i-lucide-search"
               placeholder="Cari nama, no. HP, atau meja…"
-              class="w-full"
+              aria-label="Cari nama, no. HP, atau meja"
+              class="w-full sm:max-w-md"
             />
-          </UFormField>
-          <div class="mt-3 hidden overflow-hidden border-t border-default lg:block">
+          </div>
+          <div class="hidden border-t border-default lg:block">
             <UTable
               :data="halamanBelum"
               :columns="kolomBelum"
+              :ui="TABEL_PANEL_UI"
               empty="Semua tamu yang datang sudah diminta review."
             >
               <template #date-cell="{ row }">
@@ -594,188 +637,278 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
               </template>
             </UTable>
           </div>
-          <AppListRow
-            v-for="r in halamanBelum"
-            :key="r.id"
-            :title="`${r.name} · ${r.pax} pax`"
-            :description="`${tglPendek(r.date)} ${r.time} · ${r.table || 'tanpa meja'}`"
-            icon="i-lucide-send"
-            class="lg:hidden"
+          <div class="divide-y divide-default border-t border-default lg:hidden">
+            <AppListRow
+              v-for="r in halamanBelum"
+              :key="r.id"
+              :title="`${r.name} · ${r.pax} pax`"
+              :description="`${tglPendek(r.date)} ${r.time} · ${r.table || 'tanpa meja'}`"
+              icon="i-lucide-send"
+              class="px-5"
+            >
+              <template #trailing>
+                <UButton
+                  v-if="waAktif && bolehMinta"
+                  label="Minta"
+                  size="xs"
+                  loading-auto
+                  @click="mintaReview(r)"
+                />
+              </template>
+            </AppListRow>
+            <p
+              v-if="!halamanBelum.length"
+              class="px-5 py-5 text-center text-sm text-muted"
+            >
+              Semua tamu yang datang sudah diminta review.
+            </p>
+          </div>
+          <div
+            v-if="belumTampil.length > 10"
+            class="border-t border-default px-5 pb-4 pt-1 lg:px-7"
           >
-            <template #trailing>
-              <UButton
-                v-if="waAktif && bolehMinta"
-                label="Minta"
-                size="xs"
-                loading-auto
-                @click="mintaReview(r)"
-              />
-            </template>
-          </AppListRow>
-          <p
-            v-if="!halamanBelum.length"
-            class="px-4 py-3 text-muted lg:hidden"
-          >
-            Semua tamu yang datang sudah diminta review.
-          </p>
-        </AppList>
+            <AppPager
+              v-model:page="halBelum"
+              v-model:per="perBelum"
+              :total="belumTampil.length"
+              :sizes="[10, 25, 50]"
+              satuan="tamu"
+            />
+          </div>
+        </AppPanel>
       </template>
 
-      <AppList :title="`Daftar review${lihatSemua ? '' : ' saya'} — ${labelPeriode}`">
-        <p
-          v-if="!lihatSemua"
-          class="px-4 pt-3 text-sm text-muted"
-        >
-          Hanya review atas nama Anda sendiri.
-        </p>
-        <UFormField
-          label="Cari nama tamu, akun Google, atau pencatat"
-          class="px-4 pt-3"
-        >
+      <AppPanel
+        :title="`Daftar review${lihatSemua ? '' : ' saya'} — ${labelPeriode}`"
+        :count="daftarTampil.length"
+        :description="lihatSemua ? undefined : 'Hanya review atas nama Anda sendiri.'"
+        flush
+      >
+        <div class="space-y-4 px-5 py-4 lg:px-7">
+          <!-- Cek Google: runs by itself; this strip says what it used and when. -->
+          <div
+            v-if="adminSe"
+            class="flex flex-wrap items-start gap-3 rounded-xl p-4"
+            :class="google.galat.value ? 'bg-warning/10' : 'bg-muted'"
+            aria-live="polite"
+          >
+            <UIcon
+              :name="google.memuat.value ? 'i-lucide-loader-circle' : google.galat.value ? 'i-lucide-triangle-alert' : 'i-lucide-search-check'"
+              class="mt-0.5 size-5 shrink-0"
+              :class="[google.memuat.value ? 'animate-spin text-gold-deep' : google.galat.value ? 'text-warning' : 'text-gold-deep']"
+            />
+            <div class="min-w-0 flex-1 basis-60 text-sm">
+              <p class="font-semibold text-highlighted">
+                <template v-if="google.memuat.value">
+                  Mencocokkan klaim dengan Google Review…
+                </template>
+                <template v-else-if="google.galat.value">
+                  Cek Google belum bisa dijalankan
+                </template>
+                <template v-else>
+                  Cek Google otomatis
+                </template>
+              </p>
+              <p
+                v-if="google.galat.value"
+                class="text-muted"
+              >
+                {{ google.galat.value }} Hasil sebelumnya tetap tampil; verifikasi tetap bisa manual.
+              </p>
+              <template v-else-if="google.info.value">
+                <p class="text-muted">
+                  {{ google.info.value.syncAt ? `Data Google ditarik ${waktuPendek(google.info.value.syncAt)}` : 'Data Google belum pernah ditarik' }}
+                  · diperiksa {{ waktuPendek(google.info.value.pada) }} · ulasan 30 hari terakhir. Hasilnya saran, keputusan tetap lewat <b>Tinjau</b>.
+                </p>
+                <p
+                  v-if="google.info.value.lemah"
+                  class="mt-1.5 text-warning"
+                >
+                  Sumbernya baru Places API (hanya beberapa ulasan per tempat), jadi “Tidak ditemukan” belum berarti palsu. Sambungkan Google Business Profile di modul Konten supaya semua ulasan terbaca.
+                </p>
+              </template>
+              <p
+                v-else
+                class="text-muted"
+              >
+                Berjalan sendiri setiap halaman ini dibuka.
+              </p>
+            </div>
+            <UButton
+              label="Cek ulang"
+              icon="i-lucide-refresh-cw"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              :loading="google.memuat.value"
+              @click="cekUlang"
+            />
+          </div>
           <UInput
             v-model="cariDaftar"
+            icon="i-lucide-search"
             placeholder="Cari nama tamu, akun Google, atau pencatat…"
-            class="w-full"
+            aria-label="Cari nama tamu, akun Google, atau pencatat"
+            class="w-full sm:max-w-md"
           />
-        </UFormField>
-        <div class="mt-3 hidden overflow-hidden border-t border-default lg:block">
+          <AppChips
+            v-model="saring"
+            :options="opsiSaring"
+          />
+        </div>
+        <div class="hidden border-t border-default lg:block">
           <UTable
             :data="halamanDaftar"
             :columns="kolomDaftar"
+            :ui="{ ...TABEL_PANEL_UI, td: `${TABEL_PANEL_UI.td} align-top` }"
             empty="Belum ada catatan review."
           >
             <template #name-cell="{ row }">
-              <div class="font-semibold">
-                {{ row.original.name }}
-              </div>
-              <div class="text-muted">
-                {{ row.original.phone || '-' }}
+              <div class="max-w-44 whitespace-normal">
+                <div class="font-semibold text-highlighted">
+                  {{ row.original.name }}
+                </div>
+                <div class="text-[13px] text-muted">
+                  {{ row.original.phone || '-' }}
+                </div>
               </div>
             </template>
-            <template #date-cell="{ row }">
-              {{ tglPendek(row.original.date) }}
+            <template #reviewerName-cell="{ row }">
+              <div class="max-w-52 whitespace-normal">
+                <div class="break-words font-semibold text-highlighted">
+                  {{ row.original.reviewerName || '—' }}
+                </div>
+                <div class="text-[13px] text-muted">
+                  {{ tglPendek(row.original.date) }}
+                </div>
+              </div>
             </template>
             <template #status-cell="{ row }">
-              <AppStatus :color="warnaStatus[row.original.status] ?? 'neutral'">
-                {{ labelStatus[row.original.status] ?? row.original.status }}
-              </AppStatus>
-              <div
-                v-if="row.original.rejectNote"
-                class="mt-0.5 text-xs text-muted"
-              >
-                {{ row.original.rejectNote }}
-              </div>
-              <div
-                v-if="row.original.status === 'diklaim' && !row.original.proof2Data"
-                class="mt-0.5 text-xs text-muted"
-              >
-                menunggu Foto 2
+              <div class="max-w-44 space-y-1 whitespace-normal">
+                <AppStatus :color="warnaStatus[row.original.status] ?? 'neutral'">
+                  {{ labelStatus[row.original.status] ?? row.original.status }}
+                </AppStatus>
+                <div class="text-[13px] text-muted">
+                  Pencatat: {{ hostDari(row.original) }}
+                </div>
+                <div
+                  v-if="row.original.rejectNote"
+                  class="text-xs text-muted"
+                >
+                  {{ row.original.rejectNote }}
+                </div>
+                <div
+                  v-if="row.original.status === 'diklaim' && !row.original.proof2Data"
+                  class="text-xs font-semibold text-warning"
+                >
+                  Menunggu foto 2
+                </div>
               </div>
             </template>
-            <template #host-cell="{ row }">
-              {{ hostDari(row.original) }}
+            <template #googleCek-cell="{ row }">
+              <div class="w-64">
+                <SeCekGoogle
+                  v-if="['diklaim', 'terverifikasi'].includes(row.original.status)"
+                  :rv="row.original"
+                  :dipakai="googleDipakai(daftarReview, row.original)?.name"
+                />
+                <span
+                  v-else
+                  class="text-dimmed"
+                >—</span>
+              </div>
             </template>
             <template #aksi-cell="{ row }">
-              <div class="flex flex-wrap gap-1">
+              <div class="flex flex-nowrap items-center gap-1">
                 <UButton
-                  v-if="row.original.proofData || row.original.proof2Data"
-                  label="Bukti"
-                  color="neutral"
-                  variant="ghost"
-                  size="xs"
-                  loading-auto
-                  @click="lihatBukti(row.original, row.original.proofData ? 1 : 2)"
-                />
-                <UButton
-                  v-if="row.original.status === 'diklaim' && bolehVerif && row.original.proof2Data"
-                  label="Verifikasi"
-                  color="neutral"
-                  variant="soft"
+                  v-if="row.original.status === 'diklaim' && bolehVerif"
+                  label="Tinjau"
+                  icon="i-lucide-search-check"
                   size="xs"
                   @click="bukaVerif(row.original.id)"
                 />
                 <UButton
-                  v-if="row.original.status === 'diklaim' && bolehVerif"
-                  label="Tolak"
-                  color="error"
-                  variant="ghost"
-                  size="xs"
-                  @click="bukaTolak(row.original.id)"
-                />
-                <UButton
-                  v-if="row.original.status !== 'terverifikasi' && bolehCatat"
-                  label="Ubah"
+                  v-else
+                  icon="i-lucide-eye"
                   color="neutral"
                   variant="ghost"
                   size="xs"
+                  aria-label="Lihat detail & bukti"
+                  title="Lihat detail & bukti"
+                  @click="bukaVerif(row.original.id)"
+                />
+                <UButton
+                  v-if="row.original.status !== 'terverifikasi' && bolehCatat"
+                  icon="i-lucide-pencil"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  aria-label="Ubah"
+                  title="Ubah"
                   @click="bukaKlaim(row.original.id, row.original.resId)"
                 />
                 <UButton
                   v-if="bolehHapus"
-                  label="Hapus"
+                  icon="i-lucide-trash-2"
                   color="error"
                   variant="ghost"
                   size="xs"
+                  aria-label="Hapus"
+                  title="Hapus"
                   @click="hapusId = row.original.id; sheetHapus = true"
                 />
               </div>
             </template>
           </UTable>
         </div>
-        <AppListRow
-          v-for="x in halamanDaftar"
-          :key="x.id"
-          :title="`${x.name} · ${x.reviewerName || 'tanpa akun'}`"
-          :description="`${tglPendek(x.date)} · ${labelStatus[x.status] ?? x.status} · ${hostDari(x)}`"
-          icon="i-lucide-star"
-          class="lg:hidden"
-          @click="bolehCatat && x.status !== 'terverifikasi' ? bukaKlaim(x.id, x.resId) : undefined"
-        >
-          <template #trailing>
-            <AppStatus :color="warnaStatus[x.status] ?? 'neutral'">
-              {{ labelStatus[x.status] ?? x.status }}
-            </AppStatus>
-          </template>
-        </AppListRow>
-        <p
-          v-if="!halamanDaftar.length"
-          class="px-4 py-3 text-muted lg:hidden"
-        >
-          Belum ada catatan review.
-        </p>
-      </AppList>
-
-      <AppList title="Halaman">
-        <div class="flex flex-wrap items-center justify-between gap-2 px-4 pb-4">
-          <div class="flex items-center gap-2 text-sm text-muted">
-            <span>Baris per halaman</span>
-            <USelect
-              v-model.number="perHal"
-              :items="[10, 25, 50]"
-              class="w-20"
+        <div class="divide-y divide-default border-t border-default lg:hidden">
+          <button
+            v-for="x in halamanDaftar"
+            :key="x.id"
+            type="button"
+            class="block w-full px-5 py-4 text-start transition-colors active:bg-elevated"
+            @click="ketukBaris(x)"
+          >
+            <span class="flex items-start justify-between gap-3">
+              <span class="min-w-0">
+                <span class="block font-semibold text-highlighted">{{ x.name }}</span>
+                <span class="block break-words text-sm text-muted">{{ x.reviewerName || 'tanpa akun' }}</span>
+                <span class="block text-sm text-muted">{{ tglPendek(x.date) }} · {{ hostDari(x) }}</span>
+              </span>
+              <AppStatus
+                :color="warnaStatus[x.status] ?? 'neutral'"
+                size="sm"
+              >
+                {{ labelStatus[x.status] ?? x.status }}
+              </AppStatus>
+            </span>
+            <SeCekGoogle
+              v-if="adminSe && ['diklaim', 'terverifikasi'].includes(x.status)"
+              :rv="x"
+              :dipakai="googleDipakai(daftarReview, x)?.name"
+              class="mt-3"
             />
-          </div>
-          <div class="flex items-center gap-2 text-sm text-muted">
-            <UButton
-              label="Sebelumnya"
-              color="neutral"
-              variant="soft"
-              size="sm"
-              :disabled="halDaftar <= 1"
-              @click="halDaftar--"
-            />
-            <span class="num">Hal {{ halDaftar }} dari {{ maxHalDaftar }}</span>
-            <UButton
-              label="Berikutnya"
-              color="neutral"
-              variant="soft"
-              size="sm"
-              :disabled="halDaftar >= maxHalDaftar"
-              @click="halDaftar++"
-            />
-          </div>
+          </button>
+          <p
+            v-if="!halamanDaftar.length"
+            class="px-5 py-5 text-center text-sm text-muted"
+          >
+            Belum ada catatan review.
+          </p>
         </div>
-      </AppList>
+        <div
+          v-if="daftarTampil.length > 10"
+          class="border-t border-default px-5 pb-4 pt-1 lg:px-7"
+        >
+          <AppPager
+            v-model:page="halDaftar"
+            v-model:per="perHal"
+            :total="daftarTampil.length"
+            :sizes="[10, 25, 50]"
+            satuan="catatan"
+          />
+        </div>
+      </AppPanel>
     </template>
     <p
       v-else
@@ -881,29 +1014,17 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
       </template>
     </ResponsiveSheet>
 
-    <ResponsiveSheet
+    <SeTinjauReview
       v-model:open="sheetVerif"
-      title="Verifikasi review"
-    >
-      <p class="text-sm text-muted">
-        Sudah cocokkan review ini di Google Business Profile? Tekan Ya hanya jika review-nya benar-benar ada di Google.
-      </p>
-      <template #footer>
-        <UButton
-          label="Ya, verifikasi"
-          size="xl"
-          loading-auto
-          @click="verifGo"
-        />
-        <UButton
-          label="Batal"
-          color="neutral"
-          variant="ghost"
-          size="xl"
-          @click="sheetVerif = false"
-        />
-      </template>
-    </ResponsiveSheet>
+      :rv="verifReview"
+      :pencatat="verifReview ? hostDari(verifReview) : ''"
+      :dipakai="verifReview ? googleDipakai(daftarReview, verifReview)?.name : undefined"
+      :boleh-verif="bolehVerif && verifReview?.status === 'diklaim'"
+      :boleh-ubah="bolehCatat && verifReview?.status !== 'terverifikasi'"
+      @verifikasi="verifGo"
+      @tolak="tolakDariTinjau"
+      @ubah="ubahDariTinjau"
+    />
 
     <ResponsiveSheet
       v-model:open="sheetTolak"
@@ -956,37 +1077,6 @@ async function lihatBukti(rv: Review, mana: 1 | 2) {
           variant="ghost"
           size="xl"
           @click="sheetHapus = false"
-        />
-      </template>
-    </ResponsiveSheet>
-
-    <ResponsiveSheet
-      v-model:open="sheetBukti"
-      :title="buktiJudul"
-    >
-      <div
-        v-if="buktiMemuat"
-        class="space-y-2"
-      >
-        <!-- Photo placeholder mirrors the proof image below. -->
-        <USkeleton class="h-40 w-full rounded-lg" />
-        <p class="pt-1 text-sm text-muted">
-          Memuat bukti…
-        </p>
-      </div>
-      <img
-        v-else-if="buktiData"
-        :src="buktiData"
-        :alt="buktiJudul"
-        class="w-full rounded-lg border border-default"
-      >
-      <template #footer>
-        <UButton
-          label="Tutup"
-          color="neutral"
-          variant="soft"
-          size="xl"
-          @click="sheetBukti = false"
         />
       </template>
     </ResponsiveSheet>

@@ -258,7 +258,7 @@ function segarkan() {
     <template v-else>
       <!-- kartuSinkronEsb(true) sits above the month picker (vRingkasan, :1646) -->
       <AnalyticsEsbSinkron ringkas />
-      <div class="mb-4 flex flex-wrap items-center gap-1.5">
+      <div class="mb-4 flex flex-wrap items-center gap-2 rounded-panel bg-default px-5 py-3.5 shadow-panel">
         <span class="text-sm font-semibold">Bulan</span>
         <AppChips
           :model-value="blnPilih"

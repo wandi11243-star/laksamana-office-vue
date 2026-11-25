@@ -349,3 +349,10 @@ export const ubahAdsCampaign = (body: { jenis: string, id: string, aksi?: string
 export async function campaignSimpan(aksi: () => Promise<unknown>, sukses?: string): Promise<boolean> {
   return tulisBerVersi(aksi, { sukses, muatUlang: () => refreshNuxtData('campaign-state') })
 }
+
+export interface IgComment { id: string, text?: string, username?: string, hidden?: boolean, replies?: { data: IgComment[] } }
+export interface IgCommentPost { id: string, judul: string, url: string, jumlah: number, komentar: IgComment[], galat: string, selanjutnya?: boolean }
+export const getIgComments = () => useApi()<Envelope<{ posts: IgCommentPost[] }>>('/konten/analytics/instagram/comments')
+export const replyIgComment = (id: string, pesan: string) => useApi()('/konten/analytics/instagram/comments/' + encodeURIComponent(id) + '/reply', { method: 'POST', body: { pesan } })
+export const hideIgComment = (id: string, sembunyi: boolean) => useApi()('/konten/analytics/instagram/comments/' + encodeURIComponent(id) + '/hide', { method: 'POST', body: { sembunyi } })
+export const deleteIgComment = (id: string) => useApi()('/konten/analytics/instagram/comments/' + encodeURIComponent(id), { method: 'DELETE' })

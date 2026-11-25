@@ -51,7 +51,7 @@ const luar = (d: string) => d < `${props.mk}-01` || d > akhirBulanDw(props.mk)
       @click="bisa(d) && $emit('pilih', d)"
     >
       <span class="flex items-center gap-1 text-xs font-bold text-highlighted num">
-        {{ Number(d.slice(8)) }}
+        <span :class="d === ini ? 'tgl-bulat' : ''">{{ Number(d.slice(8)) }}</span>
         <em
           v-if="d === ini"
           class="text-[10px] font-semibold not-italic text-primary-700"
