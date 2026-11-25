@@ -263,13 +263,11 @@ const hariBelum = computed(() => days.value.filter(d => !syncKasirBerlaku(d.date
         <AppBulan
           v-if="mode === 'bulan'"
           v-model="period"
-          size="sm"
-          class="w-40"
+          class="w-48"
         />
         <AppTanggal
           v-else
           v-model="tanggal"
-          size="sm"
           class="w-40"
         />
       </template>

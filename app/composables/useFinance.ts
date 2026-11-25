@@ -399,8 +399,8 @@ export interface InvoiceSetting {
   [k: string]: unknown
 }
 /** Light read: `cap`/`ttd` come back blank with `capAda`/`ttdAda`; the version is still the full row's. */
-export async function getInvoiceSettings() {
-  const r = await useApi()<Envelope<InvoiceSetting>>('/finance/invoices/settings', { query: { ringan: 1 } })
+export async function getInvoiceSettings(ringan = true) {
+  const r = await useApi()<Envelope<InvoiceSetting>>('/finance/invoices/settings', { query: ringan ? { ringan: 1 } : {} })
   return { setting: r.data, version: versiDari(r) }
 }
 export function putInvoiceSettings(body: Partial<InvoiceSetting>, versi: Versi) {
@@ -418,11 +418,11 @@ export interface Penanda {
   [k: string]: unknown
 }
 /** Light read: each `ttd` comes back blank with `ttdAda`; versions are still the full rows'. */
-export async function getPenanda() {
-  const r = await useApi()<Envelope<Penanda[]> & { meta?: Record<string, unknown> }>('/finance/invoices/signatories', { query: { ringan: 1 } })
+export async function getPenanda(ringan = true) {
+  const r = await useApi()<Envelope<Penanda[]> & { meta?: Record<string, unknown> }>('/finance/invoices/signatories', { query: ringan ? { ringan: 1 } : {} })
   return { rows: r.data, versions: VERSIONS(r.meta) }
 }
-export function createPenanda(body: { nama: string, jabatan?: string, urut?: number, aktif?: boolean }) {
+export function createPenanda(body: { nama: string, jabatan?: string, urut?: number, aktif?: boolean, ttd?: string }) {
   return useApi()<Envelope<Penanda>>('/finance/invoices/signatories', { method: 'POST', body })
 }
 export function patchPenanda(id: string, body: Partial<Penanda>, versi: Versi) {

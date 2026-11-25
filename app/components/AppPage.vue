@@ -4,6 +4,9 @@
   the right (#actions) — secondary first, the gold action last.
 -->
 <script setup lang="ts">
+// A page embedded inside another page's tab (Finance › Kelola Akses) keeps its content and buttons but not a second title.
+const tanpaKepala = inject<boolean>('tanpaKepalaPage', false)
+
 defineProps<{
   title: string
   description?: string
@@ -31,7 +34,10 @@ defineProps<{
         class="size-4"
       />{{ back.label }}
     </ULink>
-    <header class="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 lg:mb-8">
+    <header
+      v-if="!tanpaKepala"
+      class="mb-6 flex flex-wrap items-center justify-between gap-x-4 gap-y-3 lg:mb-8"
+    >
       <div class="min-w-0">
         <p
           v-if="kicker"
@@ -56,6 +62,12 @@ defineProps<{
         <slot name="actions" />
       </div>
     </header>
+    <div
+      v-if="tanpaKepala && $slots.actions"
+      class="mb-4 flex flex-wrap items-center justify-end gap-2"
+    >
+      <slot name="actions" />
+    </div>
     <slot />
   </div>
 </template>

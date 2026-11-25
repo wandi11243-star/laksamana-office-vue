@@ -23,7 +23,7 @@ import { hariIni, tglPanjang } from '~/utils/format'
 import RupiahInput from '~/widgets/cashier/RupiahInput.vue'
 import CashierKonfirmasi from '~/widgets/cashier/CashierKonfirmasi.vue'
 import { pesanGagalEsb, tarikCashierEsb } from '~/composables/useCashierEsb'
-import { complimentBaru } from '~/utils/cashier-esb'
+import { complimentBaru, type EsbCompliment } from '~/utils/cashier-esb'
 
 const props = defineProps<{ kunci?: string, esbEnabled?: boolean }>()
 
@@ -53,6 +53,10 @@ const esbMessage = ref('')
 const esbError = ref('')
 const esbWarnings = ref<string[]>([])
 let tanggalRevision = 0
+/** The ESB bills of the last pull, kept per date so the table below can say which are already recorded. */
+const esbTarikan = ref<{ tgl: string, at: number, nBill: number, nBatal: number, komp: EsbCompliment[] } | null>(null)
+const esbTabel = computed(() => (esbTarikan.value?.tgl === tanggal.value ? esbTarikan.value : null))
+const sudahTercatat = (x: EsbCompliment) => semua.value.some(c => c.date === tanggal.value && c.esbBill === x.bill && (c.esbJenis || 'compliment') === x.jenis)
 watch(tanggal, () => {
   tanggalRevision++
   esbMessage.value = ''
@@ -81,6 +85,7 @@ async function tarikComplimentEsb() {
       if (tanggalRevision === revision) esbMessage.value = message
     })
     if (tanggalRevision !== revision) return
+    esbTarikan.value = { tgl: date, at: Date.now(), nBill: summary.nBill, nBatal: summary.nBatal, komp: summary.komp }
     if (data.value?.comps.value == null) throw new Error('Daftar compliment belum termuat; tidak ada catatan yang diubah.')
     let employees: { id: string, name: string, officeUserId?: string | null }[] = []
     let mapping: Record<string, string> = {}
@@ -276,9 +281,8 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
         <div
           class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-default pt-4"
         >
-          <UButton
+          <TombolEsb
             label="Tarik & catat dari ESB"
-            icon="i-lucide-cloud-download"
             :loading="esbLoading"
             :disabled="!data || menyimpan"
             @click="tarikComplimentEsb()"
@@ -304,6 +308,101 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
           icon="i-lucide-triangle-alert"
           :title="warning"
         />
+        <div
+          v-if="esbTabel"
+          class="mt-4"
+        >
+          <p class="mb-2 text-sm text-muted">
+            {{ esbTabel.nBill }} bill ESB {{ tglPanjang(tanggal) }}{{ esbTabel.nBatal ? ' · ' + esbTabel.nBatal + ' batal' : '' }} · ditarik {{ new Date(esbTabel.at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }) }}
+          </p>
+          <p
+            v-if="!esbTabel.komp.length"
+            class="rounded-xl bg-muted px-4 py-3 text-sm text-muted"
+          >
+            ESB tidak mencatat satu pun bill Compliment / Member Deposit pada {{ tglPanjang(tanggal) }}.
+          </p>
+          <div
+            v-else
+            class="overflow-x-auto rounded-xl border border-default"
+          >
+            <table class="w-full min-w-[40rem] text-sm">
+              <thead class="bg-table-head text-table-head-text">
+                <tr class="text-xs font-bold uppercase tracking-wider">
+                  <th class="px-3 py-2.5 text-start">
+                    Bill
+                  </th>
+                  <th class="px-3 py-2.5 text-start">
+                    Keterangan
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    Sub total
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    Tax
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    Service
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    Total
+                  </th>
+                  <th class="px-3 py-2.5 text-start">
+                    Status
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-default">
+                <tr
+                  v-for="x in esbTabel.komp"
+                  :key="x.bill + x.jenis"
+                >
+                  <td class="px-3 py-2.5">
+                    <b class="num text-highlighted">{{ x.bill }}</b>
+                    <span class="block text-xs text-muted">{{ x.jenis === 'member_dep' ? 'Member Deposit' : 'Compliment' }}{{ x.meja ? ' · meja ' + x.meja : '' }}{{ x.kasir ? ' · ' + x.kasir : '' }}</span>
+                  </td>
+                  <td class="px-3 py-2.5">
+                    {{ x.info || '—' }}
+                    <span class="block text-xs text-muted">{{ x.menu.slice(0, 4).join(', ') }}{{ x.menu.length > 4 ? ' …' : '' }}</span>
+                  </td>
+                  <td class="px-3 py-2.5 text-end num">
+                    {{ fmtRp(x.subTotal) }}
+                  </td>
+                  <td class="px-3 py-2.5 text-end num">
+                    {{ fmtRp(x.tax) }}
+                  </td>
+                  <td class="px-3 py-2.5 text-end num">
+                    {{ fmtRp(x.service) }}
+                  </td>
+                  <td class="px-3 py-2.5 text-end font-bold num">
+                    {{ fmtRp(x.nominal) }}
+                  </td>
+                  <td class="px-3 py-2.5">
+                    <AppStatus
+                      :color="sudahTercatat(x) ? 'success' : 'neutral'"
+                      size="sm"
+                    >
+                      {{ sudahTercatat(x) ? 'tercatat' : 'belum' }}
+                    </AppStatus>
+                  </td>
+                </tr>
+              </tbody>
+              <tfoot class="border-t-2 border-default font-bold">
+                <tr>
+                  <td
+                    colspan="5"
+                    class="px-3 py-2.5"
+                  >
+                    Total di ESB
+                  </td>
+                  <td class="px-3 py-2.5 text-end num">
+                    {{ fmtRp(esbTabel.komp.reduce((a, x) => a + x.nominal, 0)) }}
+                  </td>
+                  <td />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </div>
       </template>
     </AppPanel>
 

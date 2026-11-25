@@ -22,11 +22,12 @@ const nilaiMenu = (m: Obj) => n(m.price) * n(m.qty) + arr(m.extras).reduce((s, x
 
 export interface EsbVoid { bill: string, utuh: boolean, waiter: string, alasan: string, items: { item: string, qty: number, sub: number }[], meja: string }
 export interface EsbCompliment { bill: string, jenis: string, nominal: number, tax: number, service: number, subTotal: number, info: string, menu: string[], akun: string, kasir: string, meja: string }
-export interface EsbHari { nBill: number, nBatal: number, bayar: Record<string, number>, asing: Record<string, number>, order: { n: number, nil: number }, void: EsbVoid[], komp: EsbCompliment[], menuQty: Record<string, { qty: number, kat: string, kel: string }> }
+export interface EsbKasirAkun { amount: number, disc: number, n: number }
+export interface EsbHari { kasir: Record<string, EsbKasirAkun>, self: EsbKasirAkun, food: number, bev: number, lainnya: number, disc: number, svc: number, tax: number, grand: number, pax: number, qty: { food: number, bev: number, lainnya: number }, nBill: number, nBatal: number, bayar: Record<string, number>, asing: Record<string, number>, order: { n: number, nil: number }, void: EsbVoid[], komp: EsbCompliment[], menuQty: Record<string, { qty: number, kat: string, kel: string }> }
 
 /** Shared one-day POS summarizer used by the cashier import panels. */
 export function ringkasEsb(bills: unknown[]): EsbHari {
-  const R: EsbHari = { nBill: 0, nBatal: 0, bayar: {}, asing: {}, order: { n: 0, nil: 0 }, void: [], komp: [], menuQty: {} }
+  const R: EsbHari = { kasir: {}, self: { amount: 0, disc: 0, n: 0 }, food: 0, bev: 0, lainnya: 0, disc: 0, svc: 0, tax: 0, grand: 0, pax: 0, qty: { food: 0, bev: 0, lainnya: 0 }, nBill: 0, nBatal: 0, bayar: {}, asing: {}, order: { n: 0, nil: 0 }, void: [], komp: [], menuQty: {} }
   for (const B of arr(bills)) {
     const bill = String(B.salesNum ?? '')
     if (!bill) continue
@@ -41,6 +42,36 @@ export function ringkasEsb(bills: unknown[]): EsbHari {
     const order = ORDER_RE.test(String(B.visitPurposeName ?? ''))
     const grand = n(B.grandTotal)
     const live = menus.filter(M => !batal.test(String(M.statusName ?? '')))
+    const kat = { food: 0, bev: 0, lainnya: 0 }
+    for (const menu of live) {
+      const category = String(menu.menuCategoryName ?? '').trim().toUpperCase()
+      const key = category === 'FOOD' ? 'food' : category === 'BEVERAGE' || category === 'BEVERAGES' ? 'bev' : 'lainnya'
+      kat[key] += nilaiMenu(menu)
+      R.qty[key] += n(menu.qty)
+    }
+    const svc = n(B.otherTaxTotal), tax = n(B.vatTotal), net = grand - svc - tax
+    const sum = kat.food + kat.bev + kat.lainnya
+    const gross = Math.max(sum, net)
+    if (gross > sum) {
+      if (sum > 0) for (const key of ['food', 'bev', 'lainnya'] as const) kat[key] *= gross / sum
+      else kat.lainnya = gross
+    }
+    R.food += kat.food
+    R.bev += kat.bev
+    R.lainnya += kat.lainnya
+    R.disc += gross - net
+    R.svc += svc
+    R.tax += tax
+    R.grand += grand
+    R.pax += Math.max(1, n(B.paxTotal))
+    // Section A of the breakdown: bruto and discount per cashier account (the one that processed the bill);
+    // ESB Order bills are Self Order, no cashier served them.
+    {
+      const x = order ? R.self : (R.kasir[String(B.editedBy || B.createdBy || '').trim() || '(tanpa nama kasir)'] ??= { amount: 0, disc: 0, n: 0 })
+      x.amount += gross
+      x.disc += gross - net
+      x.n++
+    }
     const pays = arr(B.salesPayments).filter(p => p.paymentMethodName).map(p => ({ name: String(p.paymentMethodName).trim(), amount: n(p.paymentAmount) }))
     const change = grand > 0 ? Math.max(0, pays.reduce((s, p) => s + p.amount, 0) - grand) : 0
     const cash = pays.find(p => keyBayar(p.name) === 'cash')
@@ -180,3 +211,37 @@ export function complimentBaru(R: EsbHari, date: string, old: ComplimentKasir[],
 export function voidItemsEsb(items: EsbVoid['items']): VoidItemForm[] {
   return items.map(x => ({ item: `${x.item}${x.qty > 1 ? ` x${x.qty}` : ''}`, sub: Math.round(x.sub) }))
 }
+
+/**
+ * Pair each ESB cashier account with ONE Kompas cashier (old petakanKasir): the saved mapping first, then the
+ * name. An account that matches nobody, or two people, is never guessed — it comes back in `takKenal` so the
+ * screen can say so and let the person pick.
+ */
+export function petakanKasirEsb(
+  employees: { id: string, name: string }[],
+  kasirEsb: Record<string, EsbKasirAkun>,
+  peta: Record<string, string> = {},
+) {
+  const hasil: Record<string, { amount: number, disc: number, akun: string[] }> = {}
+  const takKenal: Record<string, EsbKasirAkun & { nama: string, ambigu: boolean }> = {}
+  for (const akun of Object.keys(kasirEsb)) {
+    const idPeta = peta[baku(akun)] ?? peta[baku(akun).replace(/ /g, '')] ?? peta[akun]
+    const lewatPeta = idPeta ? employees.filter(e => String(e.id) === String(idPeta)) : []
+    const nama = namaKasirEsb(akun)
+    const inti = OFFICE_ALIAS[nama] || nama
+    const cand = lewatPeta.length ? lewatPeta : employees.filter(e => cocokToken(inti, e.name) || cocokToken(e.name, inti))
+    const x = kasirEsb[akun]!
+    if (cand.length === 1) {
+      const r = hasil[cand[0]!.id] ??= { amount: 0, disc: 0, akun: [] }
+      r.amount += x.amount
+      r.disc += x.disc
+      r.akun.push(`${nama} (${akun})`)
+    }
+    else {
+      takKenal[akun] = { ...x, nama, ambigu: cand.length > 1 }
+    }
+  }
+  return { hasil, takKenal }
+}
+/** Key of the saved account → cashier mapping (same spelling the old Office writes). */
+export const kunciPetaKasir = (akun: string) => baku(akun)

@@ -287,7 +287,6 @@ async function simpanRole(m: ModulMember) {
                   { label: ROLE_LABEL.manajemen, value: 'manajemen' },
                   { label: ROLE_LABEL.viewer, value: 'viewer' },
                 ]"
-                size="sm"
                 class="w-48"
                 :disabled="!izin.ubah('akses')"
                 @update:model-value="(v: string) => { drafRole = { ...drafRole, [m.id]: v } }"

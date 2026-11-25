@@ -95,9 +95,8 @@ async function sinkron() {
     :title="ringkas ? undefined : 'Sinkronkan dengan POS (ESB)'"
     :description="ringkas ? undefined : 'Menarik seluruh bill bulan ini sampai hari ini langsung dari ESB, lalu menyimpannya — tanpa memilih bulan dan tanpa berkas. Bulan lalu yang sinkron terakhirnya belum sampai akhir bulan ikut dilengkapi. Diringkas dengan aturan yang sama persis dengan unggahan Detail Report. Bulan-bulan lama tetap bisa diunggah dari Excel.'"
   >
-    <UButton
+    <TombolEsb
       :label="jalan ? 'Menyinkronkan…' : 'Sinkronkan dengan ESB'"
-      icon="i-lucide-refresh-cw"
       :loading="jalan"
       :disabled="jalan"
       @click="sinkron"

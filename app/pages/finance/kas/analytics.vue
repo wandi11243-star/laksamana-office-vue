@@ -18,9 +18,11 @@ definePageMeta({ access: ['finance'] })
 
 const izin = useKasIzin()
 const periode = ref(hariIni().slice(0, 7))
+const mode = ref<'bulan' | 'hari'>('bulan')
+const tanggal = ref(hariIni())
 const { data, error } = useKompasState()
 
-const hari = computed<BarisHarian[]>(() => (data.value?.value.daily ?? []).filter(d => monthKeyOf(d.date) === periode.value))
+const hari = computed<BarisHarian[]>(() => (data.value?.value.daily ?? []).filter(d => (mode.value === 'hari' ? d.date === tanggal.value : monthKeyOf(d.date) === periode.value)))
 const kasirList = computed(() => data.value?.value.employees?.kasir ?? [])
 const namaKasir = (id: string) => kasirList.value.find(k => k.id === id)?.name ?? id
 
@@ -55,6 +57,9 @@ const byKasir = computed(() => {
   }
   return [...map.values()].sort((a, b) => b.omset - a.omset)
 })
+/** Self Order per day, for the bar list under the cards (old a_self chart). */
+const selfHarian = computed(() => hari.value.map(d => ({ tgl: d.date, nilai: kNum(d.bd?.self?.amount) - kNum(d.bd?.self?.disc) })))
+const maxSelf = computed(() => Math.max(1, ...selfHarian.value.map(x => x.nilai)))
 const maxOmset = computed(() => Math.max(1, ...byKasir.value.map(k => k.omset)))
 const totDisc = computed(() => byKasir.value.reduce((s, k) => s + k.disc, 0))
 const discInput = computed(() => hari.value.reduce((s, d) => s + kNum(d.discount), 0))
@@ -90,7 +95,9 @@ const byEvent = computed(() => kontribusi('event'))
 const maxOf = (rows: { omset: number }[]) => Math.max(1, ...rows.map(r => r.omset))
 /** Cashiers in roster order, as the old chart drew them. */
 const kasirRoster = computed(() => kasirList.value.map(k => byKasir.value.find(x => x.nama === k.name) ?? { nama: k.name, omset: 0, disc: 0 }))
-const labelBulan = computed(() => new Date(`${periode.value}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }))
+const labelBulan = computed(() => (mode.value === 'hari'
+  ? new Date(`${tanggal.value}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+  : new Date(`${periode.value}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })))
 </script>
 
 <template>
@@ -99,10 +106,20 @@ const labelBulan = computed(() => new Date(`${periode.value}-01T00:00:00`).toLoc
     description="Komposisi & sumber pendapatan."
   >
     <template #actions>
-      <AppBulan
-        v-model="periode"
+      <AppSeg
+        v-model="mode"
         size="sm"
-        class="w-40"
+        :options="[{ value: 'bulan', label: 'Bulanan' }, { value: 'hari', label: 'Harian' }]"
+      />
+      <AppBulan
+        v-if="mode === 'bulan'"
+        v-model="periode"
+        class="w-48"
+      />
+      <AppTanggal
+        v-else
+        v-model="tanggal"
+        class="w-52"
       />
     </template>
 
@@ -125,7 +142,7 @@ const labelBulan = computed(() => new Date(`${periode.value}-01T00:00:00`).toLoc
       <div class="grid gap-5 lg:grid-cols-2 lg:items-start">
         <AppPanel
           title="Komposisi pendapatan"
-          description="Dari gross bulan ini."
+          :description="`Dari gross ${mode === 'hari' ? 'hari ini' : 'bulan ini'}.`"
         >
           <AppBar
             v-for="k in kompo"
@@ -135,7 +152,7 @@ const labelBulan = computed(() => new Date(`${periode.value}-01T00:00:00`).toLoc
             :persen="k.persen"
           />
           <p class="mt-2 text-sm text-muted">
-            Realisasi net bulan ini: <b class="text-highlighted num">{{ fmtRp(realTotal) }}</b>
+            Realisasi net {{ mode === 'hari' ? 'hari ini' : 'bulan ini' }}: <b class="text-highlighted num">{{ fmtRp(realTotal) }}</b>
           </p>
         </AppPanel>
 
@@ -222,7 +239,7 @@ const labelBulan = computed(() => new Date(`${periode.value}-01T00:00:00`).toLoc
             v-if="!kasirRoster.length"
             class="py-6 text-center text-sm text-muted"
           >
-            Belum ada baris kasir bulan ini.
+            Belum ada baris kasir pada rentang ini.
           </p>
         </AppPanel>
       </div>
@@ -254,6 +271,26 @@ const labelBulan = computed(() => new Date(`${periode.value}-01T00:00:00`).toLoc
             :sub="`${hari.length} hari terinput`"
           />
         </div>
+        <div
+          v-if="mode === 'bulan' && src.self > 0"
+          class="mt-5"
+        >
+          <AppSectionTitle title="Per hari" />
+          <AppBar
+            v-for="x in selfHarian"
+            :key="x.tgl"
+            :label="x.tgl.slice(8) + ' ' + new Date(x.tgl + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'short' })"
+            :value="fmtRp(x.nilai)"
+            :persen="(x.nilai / maxSelf) * 100"
+            tone="info"
+          />
+        </div>
+        <p
+          v-else-if="src.self <= 0"
+          class="mt-4 text-sm text-muted"
+        >
+          Belum ada omset Self Order pada rentang ini.
+        </p>
       </AppPanel>
 
       <AppPanel
@@ -273,7 +310,7 @@ const labelBulan = computed(() => new Date(`${periode.value}-01T00:00:00`).toLoc
           v-if="!byKasir.some(x => x.disc > 0)"
           class="rounded-panel bg-muted px-3 py-6 text-center text-sm text-muted"
         >
-          Tidak ada diskon yang diatribusikan bulan ini.
+          Tidak ada diskon yang diatribusikan pada rentang ini.
         </p>
       </AppPanel>
     </template>

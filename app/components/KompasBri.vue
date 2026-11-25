@@ -12,6 +12,7 @@
   wrong match is released. The proof viewer downloads ONE file on demand.
 -->
 <script setup lang="ts">
+import RupiahInput from '~/widgets/cashier/RupiahInput.vue'
 import {
   barisGabungan, cbBlobUrl, cbBuktiGambar, cbBuktiKey, cbBuktiRef, cbJamWIB, cbNum, cbTglID,
   cbUsulan, caraLuar, dpBelumDicatat, dpBernisan, dpLuarBri, dpsBulan, filterBarisGab, hidupBaris, labelBulanYm,
@@ -273,6 +274,13 @@ async function jalanBatal() {
 // ---- Tambah dana masuk (juga dipakai tombol Catat pada kartu DP) ----
 const tambahOpen = ref(false)
 const tambah = reactive({ tgl: hariIni(), jam: '', nominal: '', ket: '', dp: '' })
+/** The amount box is a rupiah field (thousand dots while typing); the form keeps the digits as text. */
+const nominalTambah = computed({
+  get: () => cbNum(tambah.nominal),
+  set: (v: number) => {
+    tambah.nominal = v ? String(v) : ''
+  },
+})
 function bukaTambah() {
   tambah.tgl = hariIni()
   tambah.jam = ''
@@ -467,8 +475,7 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
     <template #actions>
       <AppBulan
         v-model="bulan"
-        size="sm"
-        class="w-40"
+        class="w-48"
       />
     </template>
     <UAlert
@@ -564,7 +571,6 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
           v-model="cari"
           icon="i-lucide-search"
           placeholder="Cari nama, nominal, tanggal…"
-          size="sm"
           class="w-full sm:w-64"
         />
       </div>
@@ -1259,12 +1265,7 @@ const dpTgl = (d: DpBri) => (d.tfTgl ? cbTglID(d.tfTgl) : d.resTgl ? cbTglID(d.r
           </UFormField>
         </div>
         <UFormField label="Nominal *">
-          <UInput
-            v-model="tambah.nominal"
-            inputmode="numeric"
-            placeholder="0"
-            class="w-full"
-          />
+          <RupiahInput v-model="nominalTambah" />
         </UFormField>
         <UFormField
           label="Keterangan — uang ini masuk dari mana *"

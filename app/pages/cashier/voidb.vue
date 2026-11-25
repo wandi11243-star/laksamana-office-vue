@@ -565,9 +565,8 @@ const diubahTeks = (r: VoidBaris) => (r.diubahOleh && num(r.diubah) > num(r.dibu
       description="Pilih Pakai untuk mengisi form di atas. Kesalahan dari siapa tetap ditentukan manual; catatan belum disimpan sampai Tambah catatan ditekan."
     >
       <div class="flex flex-wrap items-center gap-3">
-        <UButton
+        <TombolEsb
           label="Ambil dari ESB"
-          icon="i-lucide-download"
           :loading="esbLoading"
           :disabled="!data || menyimpan || status === 'pending'"
           @click="muatVoidEsb()"

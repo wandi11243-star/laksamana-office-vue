@@ -279,8 +279,7 @@ const namaTagihan = (b: BayarTagihan) => tagihanDari(b.tagihanId)?.nama ?? `(tag
     <template #actions>
       <AppBulan
         v-model="periode"
-        size="sm"
-        class="w-40"
+        class="w-48"
       />
       <UButton
         label="Muat ulang"

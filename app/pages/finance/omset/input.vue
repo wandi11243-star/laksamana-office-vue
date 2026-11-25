@@ -22,6 +22,8 @@ import type { BarisHarian } from '~/utils/kompas'
 import { avgSpendOf, grossOf, kNum, monthKeyOf, netOf, tagihanOf, taxSvcOf, validasiHarian } from '~/utils/kompas'
 import { SELISIH_TOLERANSI, bonRingkasHari, fmtRp, fmtSel, jejakList, repPay, tambahJejak } from '~/utils/cashier'
 import { getDay, getPiutang, getReport, putDay, useKompasState } from '~/composables/useCashier'
+import { pesanGagalEsb, tarikCashierEsb } from '~/composables/useCashierEsb'
+import { hasAccess } from '~/composables/useMe'
 import { tanganiKonflik } from '~/utils/versi'
 import { hariIni, tglPanjang } from '~/utils/format'
 import RupiahInput from '~/widgets/cashier/RupiahInput.vue'
@@ -37,12 +39,13 @@ const kp = useKompasState()
 const { data, status: dayStatus, error: dayError, refresh } = useAsyncData(
   'omset-input',
   async () => {
+    const date = tanggal.value
     const [day, rep, bon] = await Promise.all([
-      getDay(tanggal.value),
-      getReport(tanggal.value),
+      getDay(date),
+      getReport(date),
       getPiutang(),
     ])
-    return { day, rep, bon }
+    return { date, day, rep, bon }
   },
   { watch: [tanggal] },
 )
@@ -60,8 +63,10 @@ const KOSONG: Record<Kolom, number> = { food: 0, bev: 0, lainnya: 0, discount: 0
 const form = reactive<Record<Kolom, number>>({ ...KOSONG })
 const kotor = ref(false)
 const ditolak = ref(false)
+let revision = 0
 
 function isiDariServer() {
+  revision++
   const r = rec.value
   for (const k of Object.keys(KOSONG) as Kolom[]) form[k] = kNum(r?.[k])
   kotor.value = false
@@ -71,13 +76,60 @@ watch(rec, () => {
   isiDariServer()
 }, { immediate: true })
 watch(tanggal, () => {
+  revision++
+  esbConfirmOpen.value = false
+  esbInfo.value = ''
+  esbError.value = ''
   kotor.value = false
   ditolak.value = false
 })
 
 function ubah(k: Kolom, v: string | number) {
+  revision++
   form[k] = kNum(v)
   kotor.value = true
+}
+
+const esbLoading = ref(false)
+const esbInfo = ref('')
+const esbError = ref('')
+const esbConfirmOpen = ref(false)
+const siapEsb = computed(() => data.value?.date === tanggal.value && status.value === 'success' && hasAccess(me.value, ['cashier', 'analytics', 'kompas']))
+
+async function isiEsb(force = false) {
+  if (esbLoading.value || menyimpan.value || !siapEsb.value) return
+  if (!force && Object.values(form).some(v => v > 0)) {
+    esbConfirmOpen.value = true
+    return
+  }
+  esbConfirmOpen.value = false
+  esbLoading.value = true
+  const date = tanggal.value, awal = revision
+  esbInfo.value = `Menarik bill ${tglPanjang(date)} dari ESB…`
+  esbError.value = ''
+  try {
+    const { summary: r, ganda } = await tarikCashierEsb(date, (message) => {
+      if (tanggal.value === date) esbInfo.value = message
+    })
+    if (tanggal.value !== date || revision !== awal) {
+      esbInfo.value = 'Tanggal atau isian berubah saat ESB ditarik. Isian tidak diubah; tarik ulang bila perlu.'
+      return
+    }
+    if (!r.nBill) {
+      esbInfo.value = `ESB tidak memulangkan satu bill pun untuk ${tglPanjang(date)}. Isian tidak diubah.`
+      return
+    }
+    Object.assign(form, { food: Math.round(r.food), bev: Math.round(r.bev), lainnya: Math.round(r.lainnya), discount: Math.round(r.disc), service_charge: Math.round(r.svc), tax: Math.round(r.tax), qty_food: Math.round(r.qty.food), qty_bev: Math.round(r.qty.bev), qty_others: Math.round(r.qty.lainnya), bill: r.nBill, traffic: Math.round(Math.max(r.pax, r.nBill)) })
+    revision++
+    kotor.value = true
+    esbInfo.value = `Diisi dari ESB: ${r.nBill} bill, tagihan ${fmtRp(r.grand)} (net ${fmtRp(r.grand - r.svc - r.tax)} + service ${fmtRp(r.svc)} + tax ${fmtRp(r.tax)})${r.nBatal ? ` · ${r.nBatal} bill batal/void tidak dihitung` : ''}${ganda ? ` · ${ganda} bill duplikat disaring` : ''}. Traffic dari Pax POS. Belum tersimpan — periksa lalu tekan Simpan omset.`
+  }
+  catch (e) {
+    if (tanggal.value !== date) return
+    esbInfo.value = ''
+    esbError.value = `Gagal menarik dari ESB: ${pesanGagalEsb(e)}. Isian tidak diubah.`
+  }
+  finally { esbLoading.value = false }
 }
 
 const net = computed(() => netOf(form))
@@ -212,6 +264,30 @@ async function jalanHapus() {
             </UFormField>
           </div>
 
+          <div class="mt-4 flex flex-wrap items-center gap-2">
+            <TombolEsb
+              label="Isi dari ESB"
+              :loading="esbLoading"
+              :disabled="!siapEsb || menyimpan"
+              @click="isiEsb()"
+            />
+            <span class="text-sm text-muted">Mengisi kotak dari bill POS tanggal ini; belum tersimpan sampai Simpan omset ditekan.</span>
+          </div>
+          <UAlert
+            v-if="esbInfo"
+            class="mt-3"
+            color="info"
+            variant="subtle"
+            :title="esbInfo"
+          />
+          <UAlert
+            v-if="esbError"
+            class="mt-3"
+            color="error"
+            variant="subtle"
+            :title="esbError"
+          />
+
           <AppSectionTitle
             title="Pendapatan"
             class="mt-5"
@@ -340,6 +416,7 @@ async function jalanHapus() {
             <UButton
               :label="rec ? 'Update data' : 'Simpan omset'"
               :loading="menyimpan"
+              :disabled="esbLoading"
               @click="simpan"
             />
             <UButton
@@ -347,6 +424,7 @@ async function jalanHapus() {
               label="Hapus"
               color="error"
               variant="soft"
+              :disabled="esbLoading"
               @click="hapusOpen = true"
             />
             <UButton
@@ -494,6 +572,15 @@ async function jalanHapus() {
       </div>
     </div>
 
+    <CashierKonfirmasi
+      v-model:open="esbConfirmOpen"
+      title="Timpa isian omset dari ESB?"
+      description="Isian tanggal ini akan diganti. Perubahan baru tersimpan setelah Anda menekan Simpan omset."
+      confirm-label="Lanjutkan"
+      color="primary"
+      :loading="esbLoading"
+      @konfirmasi="isiEsb(true)"
+    />
     <ResponsiveSheet
       v-model:open="hapusOpen"
       :title="`Hapus data omset ${tglPanjang(tanggal)}?`"

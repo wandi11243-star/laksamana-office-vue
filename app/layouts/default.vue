@@ -116,7 +116,7 @@ onBeforeUnmount(() => {
 
       <main
         class="px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 lg:px-8 lg:pb-12 lg:pt-4 2xl:px-10"
-        :class="{ 'modul-cashier': route.path.startsWith('/cashier') }"
+        :class="{ 'modul-cashier': route.path.startsWith('/cashier') || route.path.startsWith('/finance/omset') }"
       >
         <AppHrisBanner
           v-if="key === 'hr' || (key === 'jadwal' && route.path !== '/jadwal/pengaturan')"

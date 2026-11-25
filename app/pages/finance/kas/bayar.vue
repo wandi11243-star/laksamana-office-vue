@@ -185,6 +185,18 @@ const lain = computed(() => daftar.value.filter(p => !SEMUA_WADAH.includes(kunci
 const qa = reactive({ vendor: '', name: '', cat: BAYAR_KAT[0]!, dari: 'cash', amount: 0 })
 interface Draf { vendor: string, name: string, cat: string, dari: string, amount: number }
 const draf = ref<Draf[]>([])
+// Drafts live in the browser only until Simpan: leaving the page or closing the tab would drop them silently.
+onBeforeRouteLeave(() => {
+  if (!draf.value.length) return true
+  return window.confirm(`${draf.value.length} baris pembayaran belum disimpan dan akan hilang kalau pindah halaman. Lanjut?`)
+})
+function jagaTutupTab(e: BeforeUnloadEvent) {
+  if (!draf.value.length && !sibuk.value) return
+  e.preventDefault()
+  e.returnValue = ''
+}
+onMounted(() => window.addEventListener('beforeunload', jagaTutupTab))
+onBeforeUnmount(() => window.removeEventListener('beforeunload', jagaTutupTab))
 const drafTotal = computed(() => draf.value.reduce((s, r) => s + r.amount, 0))
 const infoVendor = computed(() => {
   const t = qa.vendor.trim()
@@ -364,7 +376,6 @@ async function jalanKonfirm() {
           <b class="text-sm text-highlighted">Lembar pembayaran</b>
           <AppTanggal
             :model-value="tglLembar"
-            size="sm"
             class="w-44"
             @update:model-value="(v: string) => pilihLembar(v)"
           />

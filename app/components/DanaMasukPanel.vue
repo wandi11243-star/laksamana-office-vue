@@ -1567,7 +1567,6 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           <USelect
             v-model.number="perHal"
             :items="[{ value: 10, label: '10 / hal' }, { value: 25, label: '25 / hal' }, { value: 50, label: '50 / hal' }]"
-            size="sm"
             class="w-28"
           />
           <div class="flex items-center gap-2">

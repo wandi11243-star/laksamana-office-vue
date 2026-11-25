@@ -33,6 +33,11 @@
 import type { BarisBd, BarisHarian } from '~/utils/kompas'
 import { kNum, netOf, taxSvcOf, tagihanOf } from '~/utils/kompas'
 import type { PicKompas } from '~/utils/porsi-pic'
+import RupiahInput from '~/widgets/cashier/RupiahInput.vue'
+import { pesanGagalEsb, tarikCashierEsb } from '~/composables/useCashierEsb'
+import { getBagianKompas, putBagianKompas, getDay, putDay, useKompasState } from '~/composables/useCashier'
+import { hasAccess } from '~/composables/useMe'
+import { kunciPetaKasir, petakanKasirEsb, type EsbHari, type EsbKasirAkun } from '~/utils/cashier-esb'
 import { bagianPotong, obAktif, obTotal, potonganBarisKompas, potongKasirAktif } from '~/utils/porsi-pic'
 import {
   cocokPic, namaSama, nilaiEventMkt, picAkun, sumberDari, sumberKosong, vipPecah,
@@ -42,7 +47,6 @@ import { getEventsOn } from '~/composables/useMarketing'
 import { eventsOn } from '~/composables/useEvent'
 import { sidikBd, snapKasir, syncKasirBerlaku, type BdSync } from '~/utils/sync-kasir'
 import { fmtRp, jejakList, tambahJejak } from '~/utils/cashier'
-import { getDay, putDay, useKompasState } from '~/composables/useCashier'
 import { tanganiKonflik } from '~/utils/versi'
 import { hariIni, tglLabel, tglPanjang } from '~/utils/format'
 
@@ -117,12 +121,16 @@ function isiDariServer() {
   // perubahannya baru mengikat kalau disimpan (legacy :3340-3343).
   for (const r of ks.value) if (r.off) buangDariShift(String(r.kasirId))
 }
+const ditolak = ref(false)
 watch([rec, kasirList], () => {
+  // After a refused save the screen keeps what was typed (the reloaded version is only checked, never merged).
+  if (ditolak.value && kotor.value) return
   isiDariServer()
   serapOtomatis()
   if (rec.value && sumber.value.tgl !== tanggal.value) muatSumber()
 }, { immediate: true })
 watch(tanggal, () => {
+  ditolak.value = false
   abaikanSementara.value = []
   if (rec.value && rec.value.date === tanggal.value) muatSumber()
   else if (!rec.value) sumber.value = sumberKosong()
@@ -164,6 +172,111 @@ function isiSisa(i: number) {
   r.amount = Math.max(0, net.value - (sumDiakui.value - cur)) + kNum(r.disc)
 }
 
+// ---- Isi kasir & Self Order dari ESB (old esbPos.petakanKasir + terapkanEsb)
+// Only Section A and Self Order are touched; Marketing & Event rows keep coming from their own modules.
+const esbLoading = ref(false)
+const esbInfo = ref('')
+const esbError = ref('')
+const esbKonfirm = ref(false)
+const esbHasil = ref<EsbHari | null>(null)
+const esbTakKenal = ref<Record<string, EsbKasirAkun & { nama: string, ambigu: boolean }>>({})
+const esbPilih = reactive<Record<string, string>>({})
+const esbPetaSibuk = ref(false)
+let esbRevisi = 0
+const siapEsb = computed(() => !!rec.value && hasAccess(me.value, ['cashier', 'analytics', 'kompas']))
+const adaIsianKasir = computed(() => ks.value.some(r => kNum(r.amount) || kNum(r.disc)) || !!kNum(so.value.amount) || !!kNum(so.value.disc))
+const adaTakKenal = computed(() => Object.keys(esbTakKenal.value).length > 0)
+
+function terapkanEsb(R: EsbHari) {
+  const peta = ((kp.data.value?.value as Record<string, unknown> | undefined)?.esbAkunKasir ?? {}) as Record<string, string>
+  const { hasil, takKenal } = petakanKasirEsb(kasirList.value.map(k => ({ id: k.id, name: k.name })), R.kasir, peta)
+  for (const r of ks.value) {
+    const h = hasil[String(r.kasirId)]
+    r.amount = h ? Math.round(h.amount) : 0
+    r.disc = h ? Math.round(h.disc) : 0
+    if (h) r.off = false
+  }
+  so.value = { amount: Math.round(R.self.amount), disc: Math.round(R.self.disc) }
+  esbTakKenal.value = takKenal
+  for (const akun of Object.keys(takKenal)) esbPilih[akun] ??= KOSONG
+  const netEsb = R.grand - R.svc - R.tax
+  const dipakai = Object.entries(hasil).map(([id, h]) => `${namaKasir(id)} ← ${h.akun.join(', ')}`).join(' · ')
+  esbInfo.value = `Diisi dari ESB: ${Object.keys(hasil).length} kasir${R.self.n ? `, Self Order ${R.self.n} bill` : ''} — net ESB ${fmtRp(netEsb)}${Math.abs(netEsb - net.value) >= 1 ? ` (omset net harian yang tersimpan ${fmtRp(net.value)} — selisih ${fmtRp(Math.abs(netEsb - net.value))}, periksa dulu)` : ' (cocok dengan omset net harian)'}. Belum tersimpan — periksa lalu tekan Simpan breakdown.${dipakai ? ` Dipasangkan: ${dipakai}.` : ''}`
+}
+
+async function isiEsb(force = false) {
+  if (esbLoading.value || menyimpan.value || !siapEsb.value) return
+  if (!force && adaIsianKasir.value) {
+    esbKonfirm.value = true
+    return
+  }
+  esbKonfirm.value = false
+  esbLoading.value = true
+  esbError.value = ''
+  const date = tanggal.value
+  const awal = ++esbRevisi
+  esbInfo.value = `Menarik bill ${tglPanjang(date)} dari ESB…`
+  try {
+    const { summary: R, ganda } = await tarikCashierEsb(date, (m) => {
+      if (tanggal.value === date) esbInfo.value = m
+    })
+    if (tanggal.value !== date || awal !== esbRevisi) return
+    if (!R.nBill) {
+      esbInfo.value = `ESB tidak memulangkan satu bill pun untuk ${tglPanjang(date)}. Isian tidak diubah.`
+      return
+    }
+    esbHasil.value = R
+    terapkanEsb(R)
+    if (ganda) esbInfo.value += ` ${ganda} bill duplikat disaring.`
+  }
+  catch (e) {
+    if (tanggal.value !== date) return
+    esbInfo.value = ''
+    esbError.value = `Gagal menarik dari ESB: ${pesanGagalEsb(e)}. Isian tidak diubah.`
+  }
+  finally {
+    esbLoading.value = false
+  }
+}
+watch(tanggal, () => {
+  esbRevisi++
+  esbHasil.value = null
+  esbTakKenal.value = {}
+  esbInfo.value = ''
+  esbError.value = ''
+  esbKonfirm.value = false
+})
+
+/** Remember which cashier an unknown ESB account is (applies to every later date), then refill from the same pull. */
+async function simpanPetaEsb() {
+  const pilihan = Object.entries(esbPilih).filter(([akun, id]) => esbTakKenal.value[akun] && id && id !== KOSONG)
+  if (!pilihan.length) {
+    toast.add({ title: 'Belum ada kasir yang dipilih.', color: 'error' })
+    return
+  }
+  esbPetaSibuk.value = true
+  try {
+    const cur = await getBagianKompas<Record<string, string>>('esbAkunKasir', {})
+    const baru = { ...(cur.value ?? {}) }
+    for (const [akun, id] of pilihan) baru[kunciPetaKasir(akun)] = id
+    await putBagianKompas('esbAkunKasir', baru, cur.version)
+    await kp.refresh()
+    if (esbHasil.value) terapkanEsb(esbHasil.value)
+    toast.add({ title: 'Pemetaan akun ESB disimpan.', color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, () => kp.refresh()))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    esbPetaSibuk.value = false
+  }
+}
+
+function isiSisaSelf() {
+  const cur = kNum(so.value.amount) - kNum(so.value.disc)
+  so.value.amount = Math.max(0, net.value - (sumDiakui.value - cur)) + kNum(so.value.disc)
+}
+
 const sumKasir = computed(() => ks.value.reduce((s, r) => s + (r.off ? 0 : kNum(r.amount) - kNum(r.disc)), 0))
 const selfOmset = computed(() => kNum(so.value.amount) - kNum(so.value.disc))
 const sumDiakui = computed(() => sumKasir.value + selfOmset.value)
@@ -202,10 +315,11 @@ const efekTotal = computed(() => {
   return efek.value.reduce((t, e) => ({ bruto: t.bruto + e.bruto, disc: t.disc + e.disc, potong: t.potong + e.potong, real: t.real + e.real, ob: t.ob + e.ob }),
     { bruto: sb, disc: sd, potong: 0, real: sb - sd, ob: 0 })
 })
+const obYatim = computed(() => [...mk.value, ...ev.value].filter(r => obAktif(r) && obTotal(r) > 0 && !r.obKasirId))
 const compHari = computed(() => (kp.data.value?.value.compliments ?? [])
   .filter(c => c.date === tanggal.value && c.picDiv !== 'tamu'))
 
-const jejak = computed(() => jejakList(rec.value))
+const jejak = computed(() => jejakList({ log: rec.value?.bdLog } as { log?: never }))
 
 const shiftOpen = ref(false)
 const shiftRow = ref<BarisBd | null>(null)
@@ -229,8 +343,22 @@ function isiNomDariRata() {
   for (const id of ids) draf[id] = shiftNom.value[id] ?? String(rata)
   shiftNom.value = draf
 }
+const shiftDisimpan = ref(false)
+let shiftAwal: { shift: string[], shiftNom: unknown } | null = null
+/** Cashiers who can carry a deduction: the ones NOT ticked OFF in Section A (old kasirAktif). */
+const kasirShift = computed(() => kasirList.value.filter(k => !ks.value.find(x => String(x.kasirId) === k.id)?.off))
+watch(shiftOpen, (buka) => {
+  // Closing without "Simpan pembagian" restores the row as it was: the checkboxes edit it live.
+  const r = shiftRow.value
+  if (buka || shiftDisimpan.value || !r || !shiftAwal) return
+  r.shift = [...shiftAwal.shift]
+  if (shiftAwal.shiftNom === undefined) delete r.shiftNom
+  else r.shiftNom = shiftAwal.shiftNom as Record<string, unknown>
+})
 function bukaShift(r: BarisBd) {
   if (!Array.isArray(r.shift)) r.shift = []
+  shiftDisimpan.value = false
+  shiftAwal = { shift: [...(r.shift as string[])], shiftNom: 'shiftNom' in r ? JSON.parse(JSON.stringify(r.shiftNom ?? null)) ?? undefined : undefined }
   shiftRow.value = r
   const b = potonganBarisKompas(r)
   if (b.manual) {
@@ -279,6 +407,7 @@ function simpanShift() {
     // never linger where the screen reads "bagi rata".
     delete r.shiftNom
   }
+  shiftDisimpan.value = true
   shiftOpen.value = false
 }
 
@@ -303,10 +432,13 @@ async function jalanSimpan() {
     // B2: real API 200 but the screen only updates after reload — re-read
     // (same finding as fix/api-cashier for the Kompas panels).
     await refreshSemua()
+    ditolak.value = false
     simpanOpen.value = false
     toast.add({ title: `Breakdown ${tglPanjang(tanggal.value)} tersimpan.`, color: 'success' })
   }
   catch (e) {
+    ditolak.value = true
+    simpanOpen.value = false
     if (!(await tanganiKonflik(e, refreshSemua))) toast.add({ title: apiErrorMessage(e), color: 'error' })
   }
   finally {
@@ -581,6 +713,33 @@ const buangSementara = computed(() => {
 })
 const galatSebagian = computed(() => (sumber.value.galat ? ` (${sumber.value.galat} tidak terbaca)` : ''))
 
+/** The notes above the rows, as plain lines: [icon, colour, text]. */
+const catatanAtas = computed(() => {
+  const out: { ikon: string, kelas: string, teks: string }[] = []
+  if (compHari.value.length) {
+    out.push({ ikon: 'i-lucide-gift', kelas: 'text-warning', teks: `${compHari.value.length} compliment hari ini membebani PIC (${fmtRp(compHari.value.reduce((s, c) => s + kNum(c.subTotal ?? c.nominal), 0))} menurut Sub Total) — sudah memotong realisasi PIC di Performa; alokasi di bawah tidak perlu dikurangi sendiri.` })
+  }
+  const t = tglLabel(tanggal.value)
+  if (sumber.value.st === 'muat' || sumber.value.tgl !== tanggal.value) {
+    out.push({ ikon: 'i-lucide-loader-circle', kelas: 'text-muted', teks: `Mengambil event & Reservasi VIP ${t} dari modul Marketing & Event…` })
+  }
+  else if (sumber.value.st === 'galat') {
+    out.push({ ikon: 'i-lucide-triangle-alert', kelas: 'text-warning', teks: `Daftar otomatis tidak bisa diambil (${sumber.value.galat}). Breakdown tetap bisa diisi seperti biasa — tambahkan barisnya manual.` })
+  }
+  else if (sumber.value.st === 'ok') {
+    const ekor = `${galatSebagian.value}${tersimpanBuang.value ? ` · ${tersimpanBuang.value} baris pernah dibuang.` : ''}${buangSementara.value ? ` · ${buangSementara.value} baris baru dibuang di layar ini — belum tersimpan, muncul lagi kalau halaman ditutup sebelum Simpan Breakdown.` : ''}`
+    if (nSumber.value) {
+      out.push(tampilSumber.value
+        ? { ikon: 'i-lucide-check', kelas: 'text-success', teks: `${tampilSumber.value} dari ${nSumber.value} sumber untuk ${t} (${rinciSumber.value}) sudah dibuatkan barisnya di bawah — tinggal diisi nominalnya.${ekor}` }
+        : { ikon: 'i-lucide-triangle-alert', kelas: 'text-warning', teks: `${nSumber.value} sumber ditemukan untuk ${t} (${rinciSumber.value}), tapi tidak ada yang dipasang karena semuanya pernah dibuang.${ekor}` })
+    }
+    else {
+      out.push({ ikon: 'i-lucide-info', kelas: 'text-muted', teks: `Tidak ada event Deal/Upcoming maupun Reservasi VIP Assisted di Marketing & Event untuk ${t}.${ekor}` })
+    }
+  }
+  return out
+})
+
 const memulihkan = ref(false)
 /** Empty `abaikan` in both places and save at once (old `bd_pulih`, omset :3633-3644). */
 async function pulihkanSumber() {
@@ -614,15 +773,13 @@ async function pulihkanSumber() {
     <template #actions>
       <AppTanggal
         v-model="tanggal"
-        size="sm"
-        class="w-40"
+        class="w-52"
       />
       <UButton
         label="Ke input omset"
         icon="i-lucide-arrow-left"
         color="neutral"
         variant="outline"
-        size="sm"
         :to="`/finance/omset/input?tgl=${tanggal}`"
       />
     </template>
@@ -633,6 +790,16 @@ async function pulihkanSumber() {
       variant="subtle"
       icon="i-lucide-triangle-alert"
       :title="`Gagal memuat: ${apiErrorMessage(error)}`"
+    />
+
+    <UAlert
+      v-if="ditolak && kotor"
+      color="warning"
+      variant="subtle"
+      icon="i-lucide-triangle-alert"
+      title="Belum tersimpan."
+      description="Data di server berubah sejak halaman ini dibuka. Isian Anda masih di layar — periksa lalu tekan Simpan breakdown lagi."
+      class="mb-3"
     />
 
     <AppPanel v-if="status === 'pending' && !rec">
@@ -661,65 +828,33 @@ async function pulihkanSumber() {
     </AppPanel>
 
     <template v-else-if="rec">
-      <AppPanel
-        :description="`Total omset net ${fmtRp(net)}${kNum(rec.discount) > 0 ? ` (sesudah diskon ${fmtRp(kNum(rec.discount))})` : ''}. Service charge + tax ${fmtRp(taxSvcOf(rec))} tidak masuk breakdown. Tagihan hari itu ${fmtRp(tagihanOf(rec))}.`"
-      >
-        <UAlert
-          v-if="compHari.length"
-          color="warning"
-          variant="subtle"
-          icon="i-lucide-gift"
-          :title="`Ada ${compHari.length} compliment hari ini yang membebani PIC, total ${fmtRp(compHari.reduce((s, c) => s + kNum(c.subTotal ?? c.nominal), 0))} menurut Sub Total-nya.`"
-          description="Angka ini memotong realisasi PIC bersangkutan di Performa & Ranking — alokasi breakdown di bawah tidak perlu dikurangi sendiri."
-        />
-        <UAlert
-          v-if="sumber.st === 'muat' || sumber.tgl !== tanggal"
-          color="info"
-          variant="subtle"
-          icon="i-lucide-loader-circle"
-          :title="`Mengambil event & Reservasi VIP ${tglLabel(tanggal)} dari modul Marketing & Event…`"
-          class="mt-2"
-        />
-        <UAlert
-          v-else-if="sumber.st === 'galat'"
-          color="warning"
-          variant="subtle"
-          icon="i-lucide-triangle-alert"
-          :title="`Daftar otomatis tidak bisa diambil (${sumber.galat}). Breakdown tetap bisa diisi seperti biasa — tambahkan barisnya manual.`"
-          class="mt-2"
-        />
-        <template v-else-if="sumber.st === 'ok'">
-          <UAlert
-            v-if="nSumber"
-            :color="tampilSumber ? 'success' : 'warning'"
-            variant="subtle"
-            :icon="tampilSumber ? 'i-lucide-check' : 'i-lucide-triangle-alert'"
-            :title="tampilSumber
-              ? `${tampilSumber} dari ${nSumber} sumber untuk ${tglLabel(tanggal)} (${rinciSumber}) sudah dibuatkan barisnya di bawah — tinggal diisi nominalnya.`
-              : `${nSumber} sumber ditemukan untuk ${tglLabel(tanggal)} (${rinciSumber}), tapi tidak ada satu pun yang dipasang karena semuanya pernah dibuang.`"
-            :description="`${galatSebagian}${tersimpanBuang ? ` · ${tersimpanBuang} baris pernah dibuang.` : ''}${buangSementara ? ` · ${buangSementara} baris baru dibuang di layar ini — belum tersimpan, akan muncul lagi kalau halaman ditutup sebelum Simpan Breakdown.` : ''}` || undefined"
-            class="mt-2"
+      <!-- notices: quiet one-line notes, not boxes — they used to eat a third of the first screen -->
+      <div class="mb-4 space-y-1.5 text-sm">
+        <p class="text-muted">
+          Omset net <b class="text-highlighted num">{{ fmtRp(net) }}</b>{{ kNum(rec.discount) > 0 ? ` (sesudah diskon ${fmtRp(kNum(rec.discount))})` : '' }} · service + tax {{ fmtRp(taxSvcOf(rec)) }} tidak masuk breakdown · tagihan hari itu {{ fmtRp(tagihanOf(rec)) }}.
+        </p>
+        <p
+          v-for="(c, i) in catatanAtas"
+          :key="i"
+          class="flex items-start gap-2"
+          :class="c.kelas"
+        >
+          <UIcon
+            :name="c.ikon"
+            class="mt-0.5 size-4 shrink-0"
           />
-          <UAlert
-            v-else
-            color="info"
-            variant="subtle"
-            icon="i-lucide-info"
-            :title="`Tidak ada event berstatus Deal/Upcoming maupun Reservasi VIP Assisted di modul Marketing & Event untuk ${tglLabel(tanggal)}.${galatSebagian}${tersimpanBuang ? ` · ${tersimpanBuang} baris pernah dibuang.` : ''}`"
-            class="mt-2"
-          />
-          <UButton
-            v-if="tersimpanBuang"
-            label="Munculkan lagi"
-            color="neutral"
-            variant="ghost"
-            size="xs"
-            class="mt-2"
-            :loading="memulihkan"
-            @click="pulihkanSumber"
-          />
-        </template>
-      </AppPanel>
+          <span>{{ c.teks }}</span>
+        </p>
+        <UButton
+          v-if="tersimpanBuang && sumber.st === 'ok'"
+          label="Munculkan lagi baris yang pernah dibuang"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          :loading="memulihkan"
+          @click="pulihkanSumber"
+        />
+      </div>
 
       <!-- the old sticky summary: always in view while the rows below are typed -->
       <div class="sticky top-16 z-[5] mb-5 rounded-panel border border-default bg-default/95 px-4 py-3 shadow-panel backdrop-blur lg:px-5">
@@ -777,94 +912,166 @@ async function pulihkanSumber() {
         </div>
       </div>
 
-      <AppPanel
-        title="Section A — omset per kasir"
-        description="Semua uang lewat meja kasir, termasuk tiket event dan tagihan gathering. Omset diisi BRUTO (sebelum diskon); yang diakui = bruto − diskon. Total yang diakui harus sama dengan omset net — Section B & C di bawah TIDAK menambah total, tapi memotong dari kasir yang kena shift-nya. Centang OFF jika kasir libur."
-      >
+      <AppPanel>
+        <template #head>
+          <div class="min-w-0">
+            <span class="inline-block rounded-md px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-teal-50 text-teal-700">Section A — omset per kasir <span class="font-normal normal-case">(isi ini dulu)</span></span>
+            <p class="mt-2 text-sm leading-relaxed text-muted">
+              Semua uang lewat meja kasir, termasuk tiket event dan tagihan gathering. Omset diisi BRUTO (sebelum diskon); yang diakui = bruto − diskon. Total yang diakui harus sama dengan omset net — Section B & C di bawah TIDAK menambah total, tapi memotong dari kasir yang kena shift-nya. Centang OFF jika kasir libur.
+            </p>
+          </div>
+        </template>
+        <div
+          v-if="siapEsb"
+          class="flex flex-wrap items-center gap-x-4 gap-y-2 pb-3"
+        >
+          <TombolEsb
+            label="Isi kasir & Self Order dari ESB"
+            :loading="esbLoading"
+            :disabled="menyimpan"
+            @click="isiEsb()"
+          />
+          <p class="min-w-0 flex-1 text-sm text-muted">
+            Bill dipasangkan ke kasir lewat akun POS yang memprosesnya; bill ESB Order masuk Self Order. Belum tersimpan sampai Simpan breakdown ditekan.
+          </p>
+        </div>
+        <UAlert
+          v-if="esbInfo"
+          class="mb-3"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-info"
+          :title="esbInfo"
+        />
+        <UAlert
+          v-if="esbError"
+          class="mb-3"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          :title="esbError"
+        />
+        <div
+          v-if="adaTakKenal"
+          class="mb-3 rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm"
+        >
+          <p>
+            <b>Karyawan ESB ini belum dikenali sebagai kasir</b>, jadi omsetnya <b>belum dimasukkan</b>. Pilih kasirnya lalu tekan Simpan pemetaan — pilihan ini diingat untuk tanggal-tanggal berikutnya.
+          </p>
+          <div
+            v-for="(x, akun) in esbTakKenal"
+            :key="akun"
+            class="mt-2 grid items-center gap-2 sm:grid-cols-[1fr_auto_auto_14rem]"
+          >
+            <span>
+              <b>{{ x.nama || akun }}</b> <span class="text-sm text-muted">{{ akun }}</span>
+              <span
+                v-if="x.ambigu"
+                class="block text-sm text-muted"
+              >cocok ke lebih dari satu kasir</span>
+            </span>
+            <span class="text-sm text-muted num">{{ x.n }} bill</span>
+            <b class="num">{{ fmtRp(x.amount) }}</b>
+            <USelect
+              :model-value="esbPilih[String(akun)] || KOSONG"
+              :items="opsiKasir(kasirList)"
+              class="w-full"
+              @update:model-value="(v: string) => { esbPilih[String(akun)] = v }"
+            />
+          </div>
+          <UButton
+            class="mt-3"
+            label="Simpan pemetaan & isi ulang"
+            icon="i-lucide-save"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :loading="esbPetaSibuk"
+            @click="simpanPetaEsb"
+          />
+        </div>
         <div class="divide-y divide-default">
           <div
             v-for="(r, i) in ks"
             :key="String(r.kasirId)"
-            class="flex flex-wrap items-end gap-3 py-3"
+            class="grid gap-3 py-3 sm:grid-cols-[1fr_1fr_auto_auto] sm:items-end"
             :class="r.off ? 'opacity-60' : ''"
           >
-            <div class="min-w-40 flex-1">
-              <p class="font-semibold text-highlighted">
-                {{ namaKasir(String(r.kasirId)) }}
-              </p>
-              <UCheckbox
-                :model-value="!!r.off"
-                label="OFF (libur)"
-                class="mt-1"
-                @update:model-value="(v: boolean | 'indeterminate') => ubahOff(r, v === true)"
-              />
-            </div>
-            <UFormField label="Omset bruto">
-              <UInput
-                :model-value="String(r.amount ?? 0)"
-                inputmode="numeric"
-                class="w-32"
+            <UFormField :label="namaKasir(String(r.kasirId)) + ' — omset bruto'">
+              <RupiahInput
+                :model-value="kNum(r.amount)"
                 :disabled="!!r.off"
-                @update:model-value="(v: string | number) => set(r, 'amount', v)"
+                @update:model-value="(v: number) => set(r, 'amount', v)"
               />
             </UFormField>
-            <UFormField label="Diskon diberikan">
-              <UInput
-                :model-value="String(r.disc ?? 0)"
-                inputmode="numeric"
-                class="w-32"
+            <UFormField label="Diskon diberikan (−)">
+              <RupiahInput
+                :model-value="kNum(r.disc)"
                 :disabled="!!r.off"
-                @update:model-value="(v: string | number) => set(r, 'disc', v)"
+                @update:model-value="(v: number) => set(r, 'disc', v)"
               />
             </UFormField>
-            <div class="pb-2 text-sm">
-              <span class="text-muted">Diakui</span>
-              <b class="ms-1 text-highlighted num">{{ fmtRp(r.off ? 0 : kNum(r.amount) - kNum(r.disc)) }}</b>
-            </div>
+            <UCheckbox
+              :model-value="!!r.off"
+              label="OFF (libur)"
+              class="pb-2.5"
+              @update:model-value="(v: boolean | 'indeterminate') => ubahOff(r, v === true)"
+            />
             <UButton
-              v-if="!r.off"
-              label="Isi sisa"
+              label="sisa"
               color="neutral"
-              variant="ghost"
-              size="xs"
-              class="mb-2"
+              variant="outline"
+              size="sm"
+              class="mb-1 justify-center"
+              :disabled="!!r.off"
               @click="isiSisa(i)"
             />
           </div>
         </div>
       </AppPanel>
 
-      <AppPanel
-        title="Self order"
-        description="Tamu memesan sendiri lewat barcode di meja — tidak ada kasir yang melayani, jadi nominalnya bukan omset kasir mana pun: tidak masuk Performa Kasir, tidak kena potongan event, tidak ikut menghitung bonus. Uangnya tetap dialokasikan di sini supaya harian ini balance."
-      >
-        <div class="flex flex-wrap gap-4">
-          <UFormField label="Omset bruto (self)">
-            <UInput
-              :model-value="String(so.amount ?? 0)"
-              inputmode="numeric"
-              class="w-36"
-              @update:model-value="(v: string | number) => { so.amount = v }"
-            />
-          </UFormField>
-          <UFormField label="Diskon diberikan">
-            <UInput
-              :model-value="String(so.disc ?? 0)"
-              inputmode="numeric"
-              class="w-36"
-              @update:model-value="(v: string | number) => { so.disc = v }"
-            />
-          </UFormField>
-          <div class="self-end pb-1 text-sm text-muted">
-            Diakui: <b class="text-highlighted num">{{ fmtRp(selfOmset) }}</b>
+      <AppPanel>
+        <template #head>
+          <div class="min-w-0">
+            <span class="inline-block rounded-md px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-muted text-muted">Self order <span class="font-normal normal-case">(tanpa kasir)</span></span>
+            <p class="mt-2 text-sm leading-relaxed text-muted">
+              Tamu memesan sendiri lewat barcode di meja — tidak ada kasir yang melayani, jadi nominalnya bukan omset kasir mana pun: tidak masuk Performa Kasir, tidak kena potongan event, tidak ikut menghitung bonus. Uangnya tetap dialokasikan di sini supaya harian ini balance.
+            </p>
           </div>
+        </template>
+        <div class="grid gap-3 sm:grid-cols-[1fr_1fr_auto] sm:items-end">
+          <UFormField label="Self Order — omset bruto">
+            <RupiahInput
+              :model-value="kNum(so.amount)"
+              @update:model-value="(v: number) => { so.amount = v }"
+            />
+          </UFormField>
+          <UFormField label="Diskon diberikan (−)">
+            <RupiahInput
+              :model-value="kNum(so.disc)"
+              @update:model-value="(v: number) => { so.disc = v }"
+            />
+          </UFormField>
+          <UButton
+            label="sisa"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            class="mb-1 justify-center"
+            @click="isiSisaSelf"
+          />
         </div>
       </AppPanel>
 
-      <AppPanel
-        title="Section B — marketing (memotong kasir shift)"
-        description="Nilai event dipecah Omset, Tax, dan Service. Realisasi PIC = ketiganya; yang dipotong dari kasir shift HANYA kolom Omset. Menu ditetapkan → kasir yang menginput dipotong; menu dipilih di tempat → tidak ada potongan. Tanpa PIC, nominalnya tidak diakui untuk siapa pun di Performa Marketing."
-      >
+      <AppPanel>
+        <template #head>
+          <div class="min-w-0">
+            <span class="inline-block rounded-md px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-blue-50 text-blue-700">Section B — marketing <span class="font-normal normal-case">(memotong kasir shift)</span></span>
+            <p class="mt-2 text-sm leading-relaxed text-muted">
+              Nilai event dipecah Omset, Tax, dan Service. Realisasi PIC = ketiganya; yang dipotong dari kasir shift HANYA kolom Omset. Menu ditetapkan → kasir yang menginput dipotong; menu dipilih di tempat → tidak ada potongan. Tanpa PIC, nominalnya tidak diakui untuk siapa pun di Performa Marketing.
+            </p>
+          </div>
+        </template>
         <div
           v-for="(r, i) in mk"
           :key="`mk${i}`"
@@ -887,27 +1094,21 @@ async function pulihkanSumber() {
               />
             </UFormField>
             <UFormField label="Omset">
-              <UInput
-                :model-value="String(r.amount ?? 0)"
-                inputmode="numeric"
-                class="w-full"
-                @update:model-value="(v: string | number) => set(r, 'amount', v)"
+              <RupiahInput
+                :model-value="kNum(r.amount)"
+                @update:model-value="(v: number) => set(r, 'amount', v)"
               />
             </UFormField>
             <UFormField label="Tax">
-              <UInput
-                :model-value="String(r.tax ?? 0)"
-                inputmode="numeric"
-                class="w-full"
-                @update:model-value="(v: string | number) => set(r, 'tax', v)"
+              <RupiahInput
+                :model-value="kNum(r.tax)"
+                @update:model-value="(v: number) => set(r, 'tax', v)"
               />
             </UFormField>
             <UFormField label="Service">
-              <UInput
-                :model-value="String(r.service ?? 0)"
-                inputmode="numeric"
-                class="w-full"
-                @update:model-value="(v: string | number) => set(r, 'service', v)"
+              <RupiahInput
+                :model-value="kNum(r.service)"
+                @update:model-value="(v: number) => set(r, 'service', v)"
               />
             </UFormField>
             <UFormField label="Menu">
@@ -943,7 +1144,7 @@ async function pulihkanSumber() {
               />
             </div>
           </div>
-          <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+          <div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted">
             <AppStatus
               :color="potongKasirAktif(r) ? 'warning' : 'success'"
               size="sm"
@@ -962,7 +1163,7 @@ async function pulihkanSumber() {
           </div>
           <div
             v-if="r.srcId"
-            class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted"
+            class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted"
           >
             <AppStatus
               color="info"
@@ -996,27 +1197,21 @@ async function pulihkanSumber() {
             class="mt-2 grid gap-3 sm:grid-cols-4"
           >
             <UFormField label="OB amount">
-              <UInput
-                :model-value="String(r.obAmount ?? 0)"
-                inputmode="numeric"
-                class="w-full"
-                @update:model-value="(v: string | number) => set(r, 'obAmount', v)"
+              <RupiahInput
+                :model-value="kNum(r.obAmount)"
+                @update:model-value="(v: number) => set(r, 'obAmount', v)"
               />
             </UFormField>
             <UFormField label="OB tax">
-              <UInput
-                :model-value="String(r.obTax ?? 0)"
-                inputmode="numeric"
-                class="w-full"
-                @update:model-value="(v: string | number) => set(r, 'obTax', v)"
+              <RupiahInput
+                :model-value="kNum(r.obTax)"
+                @update:model-value="(v: number) => set(r, 'obTax', v)"
               />
             </UFormField>
             <UFormField label="OB service">
-              <UInput
-                :model-value="String(r.obService ?? 0)"
-                inputmode="numeric"
-                class="w-full"
-                @update:model-value="(v: string | number) => set(r, 'obService', v)"
+              <RupiahInput
+                :model-value="kNum(r.obService)"
+                @update:model-value="(v: number) => set(r, 'obService', v)"
               />
             </UFormField>
             <UFormField
@@ -1042,10 +1237,15 @@ async function pulihkanSumber() {
         />
       </AppPanel>
 
-      <AppPanel
-        title="Section C — event internal (diakui 50%, kasir tidak dipotong)"
-        description="Yang diakui untuk target PIC event separuh nominalnya, dihitung otomatis. Kasir tidak dipotong sama sekali. Open Bill diakui penuh, tidak ikut dibagi dua."
-      >
+      <AppPanel>
+        <template #head>
+          <div class="min-w-0">
+            <span class="inline-block rounded-md px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider bg-violet-50 text-violet-700">Section C — event internal <span class="font-normal normal-case">(diakui 50%, kasir tidak dipotong)</span></span>
+            <p class="mt-2 text-sm leading-relaxed text-muted">
+              Yang diakui untuk target PIC event separuh nominalnya, dihitung otomatis. Kasir tidak dipotong sama sekali. Open Bill diakui penuh, tidak ikut dibagi dua.
+            </p>
+          </div>
+        </template>
         <div
           v-for="(r, i) in ev"
           :key="`ev${i}`"
@@ -1068,11 +1268,9 @@ async function pulihkanSumber() {
               />
             </UFormField>
             <UFormField label="Nilai event">
-              <UInput
-                :model-value="String(r.amount ?? 0)"
-                inputmode="numeric"
-                class="w-full"
-                @update:model-value="(v: string | number) => set(r, 'amount', v)"
+              <RupiahInput
+                :model-value="kNum(r.amount)"
+                @update:model-value="(v: number) => set(r, 'amount', v)"
               />
             </UFormField>
             <div class="flex items-end gap-2">
@@ -1086,7 +1284,7 @@ async function pulihkanSumber() {
               />
             </div>
           </div>
-          <div class="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+          <div class="mt-2 flex flex-wrap items-center gap-2 text-sm text-muted">
             <span>Diakui PIC: <b class="text-highlighted num">{{ fmtRp(Math.round(kNum(r.amount) / 2) + obTotal(r)) }}</b> (50% + open bill)</span>
             <UTooltip text="Open Bill diakui PENUH untuk PIC event dan tidak dipotong dari kasir mana pun.">
               <UCheckbox
@@ -1098,7 +1296,7 @@ async function pulihkanSumber() {
           </div>
           <div
             v-if="r.srcId"
-            class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted"
+            class="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted"
           >
             <AppStatus
               color="info"
@@ -1116,27 +1314,21 @@ async function pulihkanSumber() {
             class="mt-2 grid gap-3 sm:grid-cols-4"
           >
             <UFormField label="OB amount">
-              <UInput
-                :model-value="String(r.obAmount ?? 0)"
-                inputmode="numeric"
-                class="w-full"
-                @update:model-value="(v: string | number) => set(r, 'obAmount', v)"
+              <RupiahInput
+                :model-value="kNum(r.obAmount)"
+                @update:model-value="(v: number) => set(r, 'obAmount', v)"
               />
             </UFormField>
             <UFormField label="OB tax">
-              <UInput
-                :model-value="String(r.obTax ?? 0)"
-                inputmode="numeric"
-                class="w-full"
-                @update:model-value="(v: string | number) => set(r, 'obTax', v)"
+              <RupiahInput
+                :model-value="kNum(r.obTax)"
+                @update:model-value="(v: number) => set(r, 'obTax', v)"
               />
             </UFormField>
             <UFormField label="OB service">
-              <UInput
-                :model-value="String(r.obService ?? 0)"
-                inputmode="numeric"
-                class="w-full"
-                @update:model-value="(v: string | number) => set(r, 'obService', v)"
+              <RupiahInput
+                :model-value="kNum(r.obService)"
+                @update:model-value="(v: number) => set(r, 'obService', v)"
               />
             </UFormField>
             <UFormField label="Kasir pelayan OB">
@@ -1164,6 +1356,15 @@ async function pulihkanSumber() {
         title="Efek ke realisasi kasir"
         description="Rincian lengkap ada di sini, bukan di halaman Performa Kasir — di sana yang tampil hanya angka finalnya. Diskon yang diberikan seorang kasir tidak pernah jadi omsetnya."
       >
+        <UAlert
+          v-if="obYatim.length"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          class="m-4"
+          :title="`${obYatim.length} Open Bill belum ditunjuk kasirnya (${obYatim.map(r => r.eventName || 'event tanpa nama').join(', ')}) senilai ${fmtRp(obYatim.reduce((s, r) => s + obTotal(r), 0))}.`"
+          description="Nominalnya tetap diakui untuk PIC, tapi tidak ada kasir yang tercatat melayaninya. Pilih kasirnya di kotak Kasir pelayan OB pada barisnya."
+        />
         <table class="w-full text-sm">
           <thead class="bg-table-head text-table-head-text">
             <tr>
@@ -1255,7 +1456,7 @@ async function pulihkanSumber() {
             </tr>
           </tfoot>
         </table>
-        <p class="mt-2 text-xs text-muted">
+        <p class="mt-2 text-sm text-muted">
           Kolom <b>Open Bill</b> tidak menambah maupun mengurangi Realisasi di sebelahnya — uangnya sudah ada di dalam Omset Bruto kasir itu.
           Ia menandai bagian mana yang datang dari pesanan tambahan event, dan event mana.
         </p>
@@ -1306,13 +1507,13 @@ async function pulihkanSumber() {
 
         <div
           v-if="jejak.length"
-          class="mt-3 text-xs text-muted"
+          class="mt-3 text-sm text-muted"
         >
           Jejak atur: {{ jejak.map(j => `${j.by || '—'} ${new Date(j.at).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`).join(' · ') }}
         </div>
         <p
           v-else
-          class="mt-3 text-xs text-muted"
+          class="mt-3 text-sm text-muted"
         >
           Breakdown hari ini belum pernah disimpan, atau diatur sebelum jejaknya dicatat.
         </p>
@@ -1379,6 +1580,15 @@ async function pulihkanSumber() {
       </AppPanel>
     </template>
 
+    <CashierKonfirmasi
+      v-model:open="esbKonfirm"
+      title="Timpa omset kasir dan Self Order dari ESB?"
+      description="Omset bruto dan diskon semua kasir serta Self Order tanggal ini akan diganti. Section Marketing & Event tidak disentuh. Baru tersimpan setelah Anda menekan Simpan breakdown."
+      confirm-label="Lanjutkan"
+      color="primary"
+      :loading="esbLoading"
+      @konfirmasi="isiEsb(true)"
+    />
     <ResponsiveSheet
       v-model:open="shiftOpen"
       :title="shiftRow?.eventName ? `Kasir shift — ${shiftRow.eventName}` : 'Kasir shift'"
@@ -1391,7 +1601,7 @@ async function pulihkanSumber() {
         size="sm"
         :options="[{ value: 'rata', label: 'Bagi rata' }, { value: 'nominal', label: 'Atur nominal' }]"
       />
-      <p class="mt-2 text-xs text-muted">
+      <p class="mt-2 text-sm text-muted">
         <template v-if="shiftMode === 'rata'">
           Total {{ fmtRp(shiftTotal) }} dibagi rata ke semua yang dicentang.
         </template>
@@ -1402,7 +1612,7 @@ async function pulihkanSumber() {
       </p>
       <div class="mt-2 space-y-2">
         <div
-          v-for="k in kasirList"
+          v-for="k in kasirShift"
           :key="k.id"
           class="flex items-center gap-2"
         >
@@ -1411,14 +1621,15 @@ async function pulihkanSumber() {
             :label="k.name"
             @update:model-value="() => toggleShift(k.id)"
           />
-          <UInput
+          <div
             v-if="shiftMode === 'nominal' && shiftIds().includes(k.id)"
-            :model-value="shiftNom[k.id] ?? ''"
-            inputmode="numeric"
-            placeholder="Rp0"
-            class="ms-auto w-36 shrink-0"
-            @update:model-value="(v: string | number) => { shiftNom[k.id] = String(v) }"
-          />
+            class="ms-auto w-44 shrink-0"
+          >
+            <RupiahInput
+              :model-value="kNum(shiftNom[k.id])"
+              @update:model-value="(v: number) => { shiftNom[k.id] = String(v) }"
+            />
+          </div>
         </div>
       </div>
       <p

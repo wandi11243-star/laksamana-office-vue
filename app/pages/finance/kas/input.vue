@@ -282,7 +282,7 @@ async function simpanSemua() {
       <UButton
         label="Buka Pos & Kategori"
         size="sm"
-        to="/finance/kas/pos"
+        to="/finance/pengaturan"
       />
     </template>
 
@@ -502,14 +502,12 @@ async function simpanSemua() {
                   <td class="px-2 py-2">
                     <AppTanggal
                       v-model="d.tgl"
-                      size="sm"
                       class="w-full"
                     />
                   </td>
                   <td class="px-2 py-2">
                     <UInput
                       v-model="d.keterangan"
-                      size="sm"
                       placeholder="mis. Pembelian Mie Kwetiau 2kg"
                       class="w-full"
                     />
@@ -538,7 +536,6 @@ async function simpanSemua() {
                     <USelect
                       v-model="d.kategori_id"
                       :items="opsiKategori"
-                      size="sm"
                       class="w-full"
                     />
                   </td>
@@ -546,7 +543,6 @@ async function simpanSemua() {
                     <USelect
                       v-model="d.jenis"
                       :items="OPSI_JENIS"
-                      size="sm"
                       class="w-full"
                     />
                   </td>
@@ -557,7 +553,6 @@ async function simpanSemua() {
                   >
                     <RupiahInput
                       v-model="d.nilai[String(p.id)]"
-                      size="sm"
                       :aria-label="p.nama"
                     />
                   </td>

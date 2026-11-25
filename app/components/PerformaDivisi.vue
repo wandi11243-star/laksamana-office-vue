@@ -20,6 +20,8 @@ const props = defineProps<{ divisi: 'marketing' | 'event', kunci: string }>()
 
 const izin = useKasIzin()
 const periode = ref(hariIni().slice(0, 7))
+const mode = ref<'bulan' | 'hari'>('bulan')
+const tanggal = ref(hariIni())
 const pilihan = ref('__all__')
 const hal = ref(1)
 const PER_HAL = 5
@@ -30,12 +32,13 @@ const error = computed(() => errorRoster.value || kp.error.value)
 const data = computed(() => ({ state: kp.data.value, roster: roster.value }))
 
 const judul = computed(() => (props.divisi === 'marketing' ? 'Performa marketing' : 'Performa event'))
+const cocokRentang = (tgl: unknown) => (mode.value === 'hari' ? String(tgl) === tanggal.value : String(tgl).slice(0, 7) === periode.value)
 const hari = computed<HariBreakdown[]>(() => (data.value?.state.value.daily ?? [])
-  .filter(d => String(d.date).slice(0, 7) === periode.value)
+  .filter(d => cocokRentang(d.date))
   .slice()
   .sort((a, b) => (a.date < b.date ? -1 : 1)) as unknown as HariBreakdown[])
 const list = computed<PicBonus[]>(() => (data.value?.state.value.employees?.[props.divisi] ?? []) as PicBonus[])
-const komplimen = computed(() => (data.value?.state.value.compliments ?? []).filter(c => String(c.date).startsWith(periode.value)))
+const komplimen = computed(() => (data.value?.state.value.compliments ?? []).filter(c => cocokRentang(c.date)))
 
 const hasil = computed(() => pbAgregasi(hari.value, props.divisi, list.value, komplimen.value as never))
 const agg = computed<Record<string, AggPic>>(() => hasil.value.agg)
@@ -61,7 +64,7 @@ const halaman = computed(() => {
   const mulai = (p - 1) * PER_HAL
   return { p, mulai, akhir: Math.min(mulai + PER_HAL, eventsTampil.value.length), rows: eventsTampil.value.slice(mulai, mulai + PER_HAL) }
 })
-watch([pilihan, periode], () => {
+watch([pilihan, periode, mode, tanggal], () => {
   hal.value = 1
 })
 
@@ -73,7 +76,7 @@ const infoEv = computed(() => bonusEvent(list.value, agg.value))
 /** Per-event bars (old "Omset per Event" chart), largest first. */
 const perEvent = computed(() => eventsTampil.value.slice().sort((a, b) => b.porsi - a.porsi))
 const maxEvent = computed(() => Math.max(1, ...perEvent.value.map(e => e.porsi)))
-const avgEvent = computed(() => (eventsTampil.value.length ? eventsTampil.value.reduce((s, e) => s + e.porsi, 0) / eventsTampil.value.length : 0))
+const avgEvent = computed(() => (eventsTampil.value.length ? realTampil.value / eventsTampil.value.length : 0))
 
 /** Compliments that cut the realisation shown (old kartuCompliment over a.compRows). */
 const compRows = computed(() => {
@@ -107,7 +110,9 @@ const STATUS_POTONG = {
   menunggu: { color: 'neutral', label: 'Menunggu' },
 } as const
 
-const labelPeriode = computed(() => new Date(`${periode.value}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }))
+const labelPeriode = computed(() => (mode.value === 'hari'
+  ? new Date(`${tanggal.value}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+  : new Date(`${periode.value}-01T00:00:00`).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })))
 const cetak = () => cetakPdf(namaBerkas(judul.value, labelPeriode.value))
 </script>
 
@@ -117,10 +122,21 @@ const cetak = () => cetakPdf(namaBerkas(judul.value, labelPeriode.value))
     :description="divisi === 'marketing' ? 'Kontribusi omset per marketing.' : 'Kontribusi omset per PIC event.'"
   >
     <template #actions>
-      <AppBulan
-        v-model="periode"
+      <AppSeg
+        v-model="mode"
         size="sm"
-        class="w-40"
+        class="print:hidden"
+        :options="[{ value: 'bulan', label: 'Bulanan' }, { value: 'hari', label: 'Harian' }]"
+      />
+      <AppBulan
+        v-if="mode === 'bulan'"
+        v-model="periode"
+        class="w-48 print:hidden"
+      />
+      <AppTanggal
+        v-else
+        v-model="tanggal"
+        class="w-48 print:hidden"
       />
     </template>
 
@@ -157,7 +173,7 @@ const cetak = () => cetakPdf(namaBerkas(judul.value, labelPeriode.value))
           />
         </template>
         <p class="text-sm text-muted">
-          Menampilkan <b>satu bulan</b> · {{ labelPeriode }}
+          Menampilkan <b>{{ mode === 'hari' ? 'satu hari' : 'satu bulan' }}</b> · {{ labelPeriode }}
         </p>
       </AppPanel>
 
@@ -238,7 +254,7 @@ const cetak = () => cetakPdf(namaBerkas(judul.value, labelPeriode.value))
           :description="`${eventsTampil.length} event · diakui ${divisi === 'marketing' ? 'omset + tax + service + open bill' : '50%, kasir tidak dipotong'}`"
           flush
         >
-          <table class="w-full text-sm">
+          <table class="w-full text-sm print:hidden">
             <thead class="bg-table-head text-xs font-bold uppercase tracking-wider text-table-head-text">
               <tr>
                 <th class="px-3 py-2.5 text-start">
@@ -250,6 +266,14 @@ const cetak = () => cetakPdf(namaBerkas(judul.value, labelPeriode.value))
                 <th class="px-3 py-2.5 text-end">
                   {{ divisi === 'marketing' ? 'Omset' : 'Nilai event' }}
                 </th>
+                <template v-if="divisi === 'marketing'">
+                  <th class="px-3 py-2.5 text-end">
+                    Tax
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    Service
+                  </th>
+                </template>
                 <th class="px-3 py-2.5 text-end">
                   Diakui
                 </th>
@@ -273,6 +297,14 @@ const cetak = () => cetakPdf(namaBerkas(judul.value, labelPeriode.value))
                 <td class="px-3 py-2.5 text-end num">
                   {{ fmtRp(e.amount) }}
                 </td>
+                <template v-if="divisi === 'marketing'">
+                  <td class="px-3 py-2.5 text-end num">
+                    {{ fmtRp((e as { tax?: number }).tax ?? 0) }}
+                  </td>
+                  <td class="px-3 py-2.5 text-end num">
+                    {{ fmtRp((e as { service?: number }).service ?? 0) }}
+                  </td>
+                </template>
                 <td class="px-3 py-2.5 text-end font-semibold num">
                   {{ fmtRp(e.porsi) }}
                   <span
@@ -283,7 +315,7 @@ const cetak = () => cetakPdf(namaBerkas(judul.value, labelPeriode.value))
               </tr>
               <tr v-if="!eventsTampil.length">
                 <td
-                  colspan="4"
+                  :colspan="divisi === 'marketing' ? 6 : 4"
                   class="px-3 py-6 text-center text-sm text-muted"
                 >
                   Belum ada event.
@@ -291,9 +323,42 @@ const cetak = () => cetakPdf(namaBerkas(judul.value, labelPeriode.value))
               </tr>
             </tbody>
           </table>
+          <table class="hidden w-full text-sm print:table">
+            <thead class="text-xs font-bold uppercase tracking-wider">
+              <tr>
+                <th class="px-3 py-2 text-start">
+                  Tanggal
+                </th>
+                <th class="px-3 py-2 text-start">
+                  Nama event
+                </th>
+                <th class="px-3 py-2 text-end">
+                  Diakui
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="(e, i) in eventsTampil.slice().sort((a, b) => (a.date < b.date ? -1 : 1))"
+                :key="`pdf-${e.date}-${i}`"
+              >
+                <td class="px-3 py-1.5">
+                  {{ e.date }}
+                </td>
+                <td class="px-3 py-1.5">
+                  {{ e.name || '(tanpa nama)' }}<template v-if="pilihan === '__all__' && (e as { pic?: string }).pic">
+                    ({{ (e as { pic?: string }).pic }})
+                  </template>
+                </td>
+                <td class="px-3 py-1.5 text-end">
+                  {{ fmtRp(e.porsi) }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
           <div
             v-if="totalHal > 1"
-            class="flex flex-wrap items-center justify-between gap-2 border-t border-default px-4 py-3"
+            class="flex flex-wrap items-center justify-between gap-2 border-t border-default px-4 py-3 print:hidden"
           >
             <UButton
               label="‹ Sebelumnya"

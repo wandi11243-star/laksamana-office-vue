@@ -641,7 +641,6 @@ const helpPic = computed(() => {
       <div class="w-44">
         <AppBulan
           v-model="bulan"
-          size="sm"
           clearable
           placeholder="Semua bulan"
           :aria-label="tab === 'open' ? 'Filter bulan tanggal bill' : 'Filter bulan pelunasan'"
@@ -865,7 +864,7 @@ const helpPic = computed(() => {
               <th class="px-3 py-2 text-right">
                 Nominal
               </th>
-              <th class="px-3 py-2">
+              <th class="hidden px-3 py-2 lg:table-cell">
                 Tanggal uang masuk
               </th>
               <th class="hidden px-3 py-2 lg:table-cell">
@@ -905,6 +904,7 @@ const helpPic = computed(() => {
                   <b>{{ b.nama }}</b> <AppStatus size="sm">
                     {{ bonTipeNama(b.tipe) }}
                   </AppStatus>
+                  <span class="block text-xs text-muted lg:hidden">uang masuk {{ b.lunasDate || '—' }} · {{ namaPayment(b.lunasPayKey) }}</span>
                 </td>
                 <td class="hidden px-3 py-2 num lg:table-cell">
                   {{ b.date }}
@@ -915,7 +915,7 @@ const helpPic = computed(() => {
                 <td class="px-3 py-2 text-right font-bold num">
                   {{ fmtRp(num(b.nominal)) }}
                 </td>
-                <td class="px-3 py-2">
+                <td class="hidden px-3 py-2 lg:table-cell">
                   <AppStatus
                     color="success"
                     size="sm"
