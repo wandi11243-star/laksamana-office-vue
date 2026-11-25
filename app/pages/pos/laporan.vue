@@ -7,6 +7,7 @@
 import type { TableColumn } from '@nuxt/ui'
 import { hitungOrderPos, laporanHarianPos, rupiahPos } from '~/utils/pos'
 import { mulaiPos, usePosDb, usePosSetting } from '~/composables/usePos'
+import { hariIni } from '~/utils/format'
 
 definePageMeta({ access: ['pos'] })
 
@@ -24,7 +25,7 @@ const hari = computed(() => {
   const out: { iso: string, omset: number, pajak: number, trx: number }[] = []
   for (let d = 1; d <= n; d++) {
     const iso = `${TAHUN}-${String(bulan.value + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
-    if (iso > kini.toISOString().slice(0, 10)) break
+    if (iso > hariIni()) break
     const r = laporanHarianPos(db.value, iso, setting.value?.sc ?? 5, setting.value?.pb1 ?? 10)
     out.push({ iso, omset: r.omset, pajak: r.pajak, trx: r.trx })
   }

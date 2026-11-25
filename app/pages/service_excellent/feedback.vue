@@ -9,6 +9,7 @@
   Source: laksamana-office/deploy/service_excellent/index.html:8275-8600.
 -->
 <script setup lang="ts">
+import { TABEL_PANEL_UI } from '~/utils/tabel-panel'
 import type { TableColumn } from '@nuxt/ui'
 import { deleteSectionItem, getFile, listReservations, postAudit, putSectionItem, useSectionVersi } from '~/composables/useReservasi'
 import type { Feedback, FeedbackItem } from '~/composables/useServiceExcellent'
@@ -433,8 +434,12 @@ async function lihatBukti(fb: Feedback) {
         />
       </AppPanel>
 
-      <AppPanel>
-        <div class="flex flex-col gap-3">
+      <AppPanel
+        title="Daftar feedback"
+        :count="tampil.length"
+        flush
+      >
+        <div class="flex flex-col gap-3.5 px-5 py-4 lg:px-7">
           <AppChips
             v-model="filterStatus"
             :options="[{ value: '', label: 'Semua status' }, { value: 'baru', label: 'Baru' }, { value: 'proses', label: 'Diproses' }, { value: 'selesai', label: 'Selesai' }]"
@@ -450,181 +455,162 @@ async function lihatBukti(fb: Feedback) {
             class="w-full sm:max-w-md"
           />
         </div>
-      </AppPanel>
 
-      <div class="mb-7 hidden overflow-hidden rounded-panel border border-default bg-default shadow-panel lg:block">
-        <UTable
-          :data="halaman"
-          :columns="kolom"
-          empty="Belum ada feedback."
-        >
-          <template #name-cell="{ row }">
-            <div class="font-semibold">
-              {{ row.original.name }}
-              <AppStatus
-                v-if="row.original.tone === 'positif'"
-                class="ms-1"
-              >
-                Positif
+        <div class="hidden border-t border-default lg:block">
+          <UTable
+            :data="halaman"
+            :columns="kolom"
+            :ui="{ ...TABEL_PANEL_UI, td: `${TABEL_PANEL_UI.td} align-top` }"
+            empty="Belum ada feedback."
+          >
+            <template #name-cell="{ row }">
+              <div class="font-semibold">
+                {{ row.original.name }}
+                <AppStatus
+                  v-if="row.original.tone === 'positif'"
+                  class="ms-1"
+                >
+                  Positif
+                </AppStatus>
+              </div>
+              <div class="text-muted">
+                {{ row.original.phone || '-' }}
+              </div>
+            </template>
+            <template #cat-cell="{ row }">
+              <span
+                v-for="(it, i) in (row.original.items ?? [])"
+                :key="i"
+                class="me-1"
+              >{{ labelKategori(it.cat, it.catOther) }}</span>
+            </template>
+            <template #text-cell="{ row }">
+              <div class="min-w-56 max-w-md whitespace-normal">
+                <div
+                  v-for="(it, i) in (row.original.items ?? [])"
+                  :key="i"
+                >
+                  • {{ it.text }}
+                </div>
+                <div
+                  v-if="row.original.actionNote"
+                  class="mt-1 text-xs text-muted"
+                >
+                  {{ row.original.actionNote }}
+                </div>
+              </div>
+            </template>
+            <template #date-cell="{ row }">
+              {{ tglPendek(row.original.date) }}
+            </template>
+            <template #status-cell="{ row }">
+              <AppStatus :color="warnaStatus[row.original.status] ?? 'neutral'">
+                {{ labelStatus[row.original.status] ?? row.original.status }}
               </AppStatus>
-            </div>
-            <div class="text-muted">
-              {{ row.original.phone || '-' }}
-            </div>
-          </template>
-          <template #cat-cell="{ row }">
-            <span
-              v-for="(it, i) in (row.original.items ?? [])"
-              :key="i"
-              class="me-1"
-            >{{ labelKategori(it.cat, it.catOther) }}</span>
-          </template>
-          <template #text-cell="{ row }">
-            <div
-              v-for="(it, i) in (row.original.items ?? [])"
-              :key="i"
-            >
-              • {{ it.text }}
-            </div>
-            <div
-              v-if="row.original.actionNote"
-              class="mt-0.5 text-xs text-muted"
-            >
-              {{ row.original.actionNote }}
-            </div>
-          </template>
-          <template #date-cell="{ row }">
-            {{ tglPendek(row.original.date) }}
-          </template>
-          <template #status-cell="{ row }">
-            <AppStatus :color="warnaStatus[row.original.status] ?? 'neutral'">
-              {{ labelStatus[row.original.status] ?? row.original.status }}
-            </AppStatus>
-            <div
-              v-if="row.original.handledBy"
-              class="mt-0.5 text-xs text-muted"
-            >
-              oleh {{ row.original.handledBy }}
-            </div>
-          </template>
-          <template #by-cell="{ row }">
-            {{ row.original.by || '-' }}
-          </template>
-          <template #aksi-cell="{ row }">
-            <div class="flex flex-wrap gap-1">
-              <UButton
-                v-if="row.original.proofData"
-                label="Foto"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                loading-auto
-                @click="lihatBukti(row.original)"
-              />
-              <UButton
-                v-if="row.original.phone"
-                label="WA"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                loading-auto
-                @click="waTindakLanjut(row.original)"
-              />
-              <UButton
-                v-if="bolehUbah && row.original.status === 'baru'"
-                label="Proses"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                loading-auto
-                @click="setStatus(row.original, 'proses', row.original.actionNote || '')"
-              />
-              <UButton
-                v-if="bolehUbah && row.original.status !== 'selesai'"
-                label="Selesai"
-                color="neutral"
-                variant="soft"
-                size="xs"
-                @click="selesai.id = row.original.id; selesai.nama = row.original.name; selesai.aksi = row.original.actionNote || ''; sheetSelesai = true"
-              />
-              <UButton
-                v-if="bolehUbah"
-                label="Ubah"
-                color="neutral"
-                variant="ghost"
-                size="xs"
-                @click="bukaForm(row.original.id)"
-              />
-              <UButton
-                v-if="bolehHapus"
-                label="Hapus"
-                color="error"
-                variant="ghost"
-                size="xs"
-                @click="hapusTarget = row.original; sheetHapus = true"
-              />
-            </div>
-          </template>
-        </UTable>
-      </div>
-
-      <AppList
-        title="Daftar feedback"
-        class="lg:hidden"
-      >
-        <AppListRow
-          v-for="fb in halaman"
-          :key="fb.id"
-          :title="`${fb.name} · ${(fb.items ?? []).map(it => labelKategori(it.cat, it.catOther)).join(', ')}`"
-          :description="`${tglPendek(fb.date)} · ${labelStatus[fb.status] ?? fb.status}${fb.actionNote ? ` · ${fb.actionNote}` : ''}`"
-          icon="i-lucide-message-square"
-          @click="bolehUbah ? bukaForm(fb.id) : undefined"
-        >
-          <template #trailing>
-            <AppStatus :color="warnaStatus[fb.status] ?? 'neutral'">
-              {{ labelStatus[fb.status] ?? fb.status }}
-            </AppStatus>
-          </template>
-        </AppListRow>
-        <p
-          v-if="!halaman.length"
-          class="px-4 py-3 text-muted"
-        >
-          Belum ada feedback.
-        </p>
-      </AppList>
-
-      <AppList title="Halaman">
-        <div class="flex flex-wrap items-center justify-between gap-2 px-4 pb-4">
-          <div class="flex items-center gap-2 text-sm text-muted">
-            <span>Baris per halaman</span>
-            <USelect
-              v-model.number="perHal"
-              :items="[10, 25, 50]"
-              class="w-20"
-            />
-          </div>
-          <div class="flex items-center gap-2 text-sm text-muted">
-            <UButton
-              label="Sebelumnya"
-              color="neutral"
-              variant="soft"
-              size="sm"
-              :disabled="hal <= 1"
-              @click="hal--"
-            />
-            <span class="num">Hal {{ hal }} dari {{ maxHal }}</span>
-            <UButton
-              label="Berikutnya"
-              color="neutral"
-              variant="soft"
-              size="sm"
-              :disabled="hal >= maxHal"
-              @click="hal++"
-            />
-          </div>
+              <div
+                v-if="row.original.handledBy"
+                class="mt-0.5 text-xs text-muted"
+              >
+                oleh {{ row.original.handledBy }}
+              </div>
+            </template>
+            <template #by-cell="{ row }">
+              {{ row.original.by || '-' }}
+            </template>
+            <template #aksi-cell="{ row }">
+              <div class="flex flex-wrap gap-1">
+                <UButton
+                  v-if="row.original.proofData"
+                  label="Foto"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  loading-auto
+                  @click="lihatBukti(row.original)"
+                />
+                <UButton
+                  v-if="row.original.phone"
+                  label="WA"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  loading-auto
+                  @click="waTindakLanjut(row.original)"
+                />
+                <UButton
+                  v-if="bolehUbah && row.original.status === 'baru'"
+                  label="Proses"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  loading-auto
+                  @click="setStatus(row.original, 'proses', row.original.actionNote || '')"
+                />
+                <UButton
+                  v-if="bolehUbah && row.original.status !== 'selesai'"
+                  label="Selesai"
+                  color="neutral"
+                  variant="soft"
+                  size="xs"
+                  @click="selesai.id = row.original.id; selesai.nama = row.original.name; selesai.aksi = row.original.actionNote || ''; sheetSelesai = true"
+                />
+                <UButton
+                  v-if="bolehUbah"
+                  label="Ubah"
+                  color="neutral"
+                  variant="ghost"
+                  size="xs"
+                  @click="bukaForm(row.original.id)"
+                />
+                <UButton
+                  v-if="bolehHapus"
+                  label="Hapus"
+                  color="error"
+                  variant="ghost"
+                  size="xs"
+                  @click="hapusTarget = row.original; sheetHapus = true"
+                />
+              </div>
+            </template>
+          </UTable>
         </div>
-      </AppList>
+
+        <div class="divide-y divide-default border-t border-default lg:hidden">
+          <AppListRow
+            v-for="fb in halaman"
+            :key="fb.id"
+            :title="`${fb.name} · ${(fb.items ?? []).map(it => labelKategori(it.cat, it.catOther)).join(', ')}`"
+            :description="`${tglPendek(fb.date)} · ${labelStatus[fb.status] ?? fb.status}${fb.actionNote ? ` · ${fb.actionNote}` : ''}`"
+            icon="i-lucide-message-square"
+            class="px-5"
+            @click="bolehUbah ? bukaForm(fb.id) : undefined"
+          >
+            <template #trailing>
+              <AppStatus :color="warnaStatus[fb.status] ?? 'neutral'">
+                {{ labelStatus[fb.status] ?? fb.status }}
+              </AppStatus>
+            </template>
+          </AppListRow>
+          <p
+            v-if="!halaman.length"
+            class="px-5 py-5 text-center text-sm text-muted"
+          >
+            Belum ada feedback.
+          </p>
+        </div>
+        <div
+          v-if="tampil.length > 10"
+          class="border-t border-default px-5 pb-4 pt-1 lg:px-7"
+        >
+          <AppPager
+            v-model:page="hal"
+            v-model:per="perHal"
+            :total="tampil.length"
+            :sizes="[10, 25, 50]"
+            satuan="catatan"
+          />
+        </div>
+      </AppPanel>
     </template>
     <p
       v-else

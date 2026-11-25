@@ -7,6 +7,8 @@
 const props = withDefaults(defineProps<{
   label: string
   value: string | number
+  /** One quiet line under the bar, naming a second figure. */
+  ket?: string
   /** 0–100 */
   persen: number
   tone?: 'gold' | 'success' | 'error' | 'info' | 'vip'
@@ -35,5 +37,11 @@ const lebar = computed(() => `${Math.max(0, Math.min(100, props.persen))}%`)
         :style="{ width: lebar }"
       />
     </div>
+    <p
+      v-if="ket"
+      class="mt-1.5 text-[13px] text-muted num"
+    >
+      {{ ket }}
+    </p>
   </div>
 </template>

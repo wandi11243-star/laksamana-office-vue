@@ -139,9 +139,17 @@ export const getEsbSales = (dari: string, sampai: string, page: number) =>
   useApi()<Envelope<{ bills: unknown[], page: number, pageCount: number | null, totalCount: number | null, perPage: number | null }>>('/kompas/esb/sales', { query: { dari, sampai, page } })
     .then(r => r.data)
 
-/** The shared analytics read: one request for every screen of the module. */
+/**
+ * The shared analytics read: one request for every screen of the module. The
+ * document holds every uploaded month, so a screen switch within 5 minutes
+ * reuses it; saving, uploading and "Segarkan" call refresh() and always refetch.
+ */
 export const useAnalyticsState = () =>
-  useAsyncData('analytics-state', () => getAnalytics(), { dedupe: 'defer', getCachedData: cacheSegar() })
+  useAsyncData('analytics-state', async () => {
+    const r = await getAnalytics()
+    stempelCache('analytics-state')
+    return r
+  }, { dedupe: 'defer', getCachedData: cacheSegar(5 * 60_000) })
 
 /**
  * PUT /api/v1/kompas/analytics — replaces the WHOLE state. version is

@@ -362,6 +362,16 @@ h1, h2, h3, .font-display {
   dialog titles capitalise every word. The copy in the code stays sentence case;
   a heading that must keep its own casing takes `normal-case`.
 */
+/* Calendar day markers (owner request, Nov 2026: bold alone was hard to see).
+   `tgl-bulat` = a filled circle (today, or the chosen day); `tgl-cincin` = a
+   ringed circle (today while another day is chosen). */
+@utility tgl-bulat {
+  @apply inline-grid h-6 min-w-6 place-items-center rounded-full bg-primary px-1 font-bold text-white;
+}
+@utility tgl-cincin {
+  @apply inline-grid h-6 min-w-6 place-items-center rounded-full bg-gold-soft px-1 font-bold text-gold-deep ring-2 ring-inset ring-gold;
+}
+
 @layer base {
   h1, h2, h3, h4 {
     text-transform: capitalize;
@@ -401,5 +411,14 @@ h1, h2, h3, .font-display {
   }
   .modul-cashier [data-flush] table:not(.tabel-padat) :is(th, td):last-child {
     padding-inline-end: 1.75rem;
+  }
+}
+
+/* A toolbar or hint inside a flush panel keeps its distance from the table
+   under it (owner request, Nov 2026: filter chips sat on the table head).
+   Rows that already set bottom spacing keep their own. */
+@layer components {
+  section[data-flush] > div > :not([class*="pb-"]):not([class*="py-"]):not([class*=" p-"]):not([class^="p-"]):has(+ div > table) {
+    margin-bottom: 0.875rem;
   }
 }

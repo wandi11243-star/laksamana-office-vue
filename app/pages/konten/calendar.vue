@@ -212,9 +212,9 @@ async function lepas(tgl: string) {
           >
             <p
               class="num mb-1 text-xs"
-              :class="s.tgl === hari ? 'font-bold text-primary-700' : s.lain ? 'text-dimmed' : 'text-muted'"
+              :class="s.lain ? 'text-dimmed' : 'text-muted'"
             >
-              {{ s.d }}
+              <span :class="s.tgl === hari ? 'tgl-bulat' : ''">{{ s.d }}</span>
             </p>
             <button
               v-for="(e, i) in (perTgl.get(s.tgl) ?? []).slice(0, 3)"

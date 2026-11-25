@@ -146,8 +146,6 @@ const fbSembunyi = computed(() => tersembunyi.value.reduce((a, o) => a + o.fb, 0
 /** The reward total counts VISIBLE rows only: office never earns a tier (F17). */
 const totalBonus = computed(() => baris.value.reduce((a, o) => a + o.reward.bonus, 0))
 const kruDapat = computed(() => baris.value.filter(o => o.reward.bonus > 0).length)
-const lolosBelum = computed(() => baris.value.filter(o => o.reward.layak && !o.reward.bonus).length)
-const belumLayak = computed(() => baris.value.filter(o => !o.reward.layak).length)
 
 const tangga = computed(() => aturan.value.tiers.map(t => ({
   ...t,
@@ -390,6 +388,7 @@ async function simpanTarget() {
       <AppStatGrid
         :loading="statMemuat"
         :count="7"
+        satu-baris
       >
         <AppStat
           label="Diminta"
@@ -443,49 +442,9 @@ async function simpanTarget() {
       </AppStatGrid>
 
       <AppList title="Reward review">
-        <p class="px-4 pt-3 text-sm text-muted">
-          {{ labelPeriode }} · dari review terverifikasi. Dibayar <b>satu tangga tertinggi</b> yang dilewati, bukan dijumlahkan.
-          Syarat minimal <b>{{ aturan.min }} review</b> menang atas tangga.
-        </p>
-        <AppListRow
-          title="Total cair"
-          :description="`${angka(kruDapat)} kru mencapai tangga`"
-          icon="i-lucide-banknote"
-        >
-          <template #trailing>
-            {{ rupiah(totalBonus) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Syarat minimal"
-          description="di bawah ini belum dibayar"
-          icon="i-lucide-target"
-        >
-          <template #trailing>
-            {{ angka(aturan.min) }} review
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Lolos, belum bertangga"
-          :description="`sudah ≥ ${angka(aturan.min)} tapi belum ${angka(aturan.tiers[0]?.rv ?? 0)}`"
-          icon="i-lucide-hourglass"
-        >
-          <template #trailing>
-            {{ angka(lolosBelum) }}
-          </template>
-        </AppListRow>
-        <AppListRow
-          title="Belum memenuhi"
-          :description="`dari ${angka(baris.length)} kru`"
-          icon="i-lucide-trending-down"
-        >
-          <template #trailing>
-            {{ angka(belumLayak) }}
-          </template>
-        </AppListRow>
         <div
           v-if="tangga.length"
-          class="mb-7 hidden overflow-hidden rounded-panel border border-default bg-default shadow-panel lg:block"
+          class="hidden overflow-x-auto lg:block"
         >
           <UTable
             :data="tangga"
@@ -508,16 +467,28 @@ async function simpanTarget() {
             </template>
           </UTable>
         </div>
+        <AppListRow
+          v-for="t in tangga"
+          :key="t.rv"
+          :title="`${t.rv} review · ${rupiah(t.bonus)}`"
+          :description="`${t.sampai} kru sudah sampai · ${t.menuju} sedang menuju`"
+          icon="i-lucide-award"
+          class="lg:hidden"
+        >
+          <template #trailing>
+            {{ t.sampai ? rupiah(t.sampai * t.bonus) : '—' }}
+          </template>
+        </AppListRow>
         <p
-          v-else
-          class="px-4 py-3 text-muted"
+          v-if="!tangga.length"
+          class="px-4 py-4 text-muted"
         >
           Belum ada tangga bonus yang disetel.{{ bolehAtur ? ' Atur di Setelan.' : '' }}
         </p>
       </AppList>
 
       <AppList title="Perolehan per kru">
-        <div class="mb-7 hidden overflow-hidden rounded-panel border border-default bg-default shadow-panel lg:block">
+        <div class="hidden overflow-x-auto lg:block">
           <UTable
             :data="baris"
             :columns="[{ accessorKey: 'nama', header: 'Kru' }, { accessorKey: 'minta', header: 'Diminta' }, { accessorKey: 'klaim', header: 'Diklaim' }, { accessorKey: 'sah', header: 'Terverifikasi' }, { accessorKey: 'tolak', header: 'Ditolak' }, { accessorKey: 'fb', header: 'Feedback' }, { accessorKey: 'target', header: 'Target' }, { accessorKey: 'pct', header: 'Capaian' }, { accessorKey: 'reward', header: 'Reward' }]"
@@ -585,7 +556,7 @@ async function simpanTarget() {
         </AppListRow>
         <p
           v-if="tersembunyi.length && (sahSembunyi || fbSembunyi)"
-          class="px-4 py-3 text-sm text-muted"
+          class="px-4 py-3.5 text-sm leading-relaxed text-muted"
         >
           {{ tersembunyi.length }} orang tidak ditampilkan di papan ini — tim Office dan pemegang Admin Sistem mengatur modulnya, bukan dinilai perolehannya.
           Angka mereka yang tidak ikut tabel: <b>{{ sahSembunyi }}</b> review terverifikasi<template v-if="fbSembunyi">
@@ -595,7 +566,7 @@ async function simpanTarget() {
         </p>
         <p
           v-if="statusRoster === 'pending'"
-          class="px-4 py-3 text-sm text-muted"
+          class="px-4 py-3.5 text-sm leading-relaxed text-muted"
         >
           Roster Office belum termuat — papan memakai kru modul.
         </p>
@@ -605,7 +576,7 @@ async function simpanTarget() {
         title="Riwayat pencapaian per bulan"
         :description="`Review terverifikasi per kru · ${riwayat.bulan.length} bulan terakhir`"
       >
-        <div class="mb-3 hidden overflow-x-auto rounded-panel border border-default bg-default shadow-panel lg:block">
+        <div class="mb-4 hidden overflow-x-auto rounded-xl border border-default lg:block">
           <UTable
             :data="riwayat.baris"
             :columns="kolomRiwayat"
@@ -620,7 +591,7 @@ async function simpanTarget() {
           <div
             v-for="o in riwayat.baris"
             :key="o.nama"
-            class="rounded-panel border border-default p-3"
+            class="rounded-panel border border-default p-4"
           >
             <p class="font-semibold text-highlighted">
               {{ o.nama }}
@@ -655,7 +626,7 @@ async function simpanTarget() {
             Belum ada review terverifikasi.
           </p>
         </div>
-        <p class="mt-3 text-xs text-muted">
+        <p class="mt-4 text-xs leading-relaxed text-muted">
           Perolehan tiap bulan <b>mulai dari nol</b> — dihitung dari review terverifikasi yang tanggalnya jatuh di
           bulan itu, jadi bulan lalu tetap utuh di sini. Angka hijau = reward bulan itu, dihitung dengan
           <b>tangga reward yang berlaku sekarang</b>; kalau tangganya pernah diubah, angka bulan lama ikut memakai

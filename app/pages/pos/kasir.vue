@@ -9,7 +9,7 @@
 -->
 <script setup lang="ts">
 import type { MenuPos, OrderPos } from '~/utils/pos'
-import { CARA_BAYAR_POS, grupMenuPos, hariIniPos, hitungOrderPos, laporanHarianPos, rupiahPos, strukTeksPos } from '~/utils/pos'
+import { CARA_BAYAR_POS, grupMenuPos, hariIniPos, hitungOrderPos, rupiahPos, strukTeksPos } from '~/utils/pos'
 import { LT_CFG, VENUE_LAYOUTS } from '~/utils/venue-layouts'
 import { antreOrderPos, gabungMenuPos, mulaiPos, printerPos, usePosDb, usePosSetting, usePosSync, usePosUser, pilihUserPos } from '~/composables/usePos'
 
@@ -159,7 +159,7 @@ const bayarLunas = (): void => {
   }
   const o = {
     ...order.value, status: 'paid' as const, paidAt: Date.now(),
-    no: order.value.no || `B${String(laporanHarianPos(db.value, order.value.tgl, 0, 0).trx + 1).padStart(4, '0')}`,
+    no: order.value.no || `B${String(db.value.filter(o => o.tgl === order.value.tgl && (o.status === 'paid' || o.status === 'void')).length + 1).padStart(4, '0')}`,
     _base: order.value._base ?? order.value.updatedAt,
   }
   antreOrderPos(o)

@@ -25,10 +25,23 @@ const props = withDefaults(defineProps<{
   wrap?: boolean
 }>(), { tone: 'gold', badgeTone: 'neutral' })
 
-/** Long values (money) step down a size so they stay on one line. */
-const ukuran = computed(() => {
-  const n = String(props.value).length
-  return n > 11 ? 'text-xl' : n > 7 ? 'text-2xl' : 'text-[2rem]'
+const teks = computed(() => String(props.value))
+/** A name (a promo, a menu, a talent), not a figure: it wraps to two lines. */
+const berupaNama = computed(() => teks.value.length > 14 && /[A-Za-z]{3,}/.test(teks.value))
+/**
+ * A figure stays on one line: it steps down a size when long, and shrinks
+ * further when the card itself is narrow (`cqi` = the card's inner width), so
+ * nothing ever leaves the card (owner request, Nov 2026).
+ */
+const ukuranAngka = computed(() => {
+  const n = teks.value.length
+  return n > 11 ? 1.25 : n > 7 ? 1.5 : 2
+})
+const gaya = computed(() => {
+  if (berupaNama.value) return { fontSize: '1.0625rem' }
+  if (props.wrap) return { fontSize: `${ukuranAngka.value}rem` }
+  const huruf = teks.value.length + (props.satuan ? props.satuan.length * 0.6 + 1 : 0)
+  return { fontSize: `min(${ukuranAngka.value}rem, ${(100 / (Math.max(huruf, 1) * 0.62)).toFixed(1)}cqi)` }
 })
 
 const ubin = {
@@ -47,7 +60,7 @@ const tag = {
 </script>
 
 <template>
-  <div class="rounded-panel bg-default p-5 shadow-panel">
+  <div class="@container min-w-0 rounded-panel bg-default p-5 shadow-panel">
     <div
       v-if="icon || badge"
       class="mb-4 flex items-start justify-between gap-2"
@@ -79,7 +92,9 @@ const tag = {
     </p>
     <p
       class="mt-1 font-display font-extrabold leading-tight tracking-tight text-highlighted num"
-      :class="[ukuran, wrap ? 'whitespace-normal' : 'whitespace-nowrap']"
+      :class="berupaNama ? 'line-clamp-2 break-words' : wrap ? 'whitespace-normal break-words' : 'whitespace-nowrap'"
+      :style="gaya"
+      :title="berupaNama ? teks : undefined"
     >
       {{ value }}<span
         v-if="satuan"

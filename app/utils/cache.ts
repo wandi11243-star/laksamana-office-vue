@@ -41,13 +41,19 @@ export function bacaCache(ttlMs: number = TTL_MASTER) {
 
 const segarDijadwal = new Set<string>()
 
-/** useAsyncData getCachedData: last copy on mount, then one background refresh. */
-export function cacheSegar() {
+/**
+ * useAsyncData getCachedData: last copy on mount, then one background refresh.
+ * With `mudaMs`, a copy fetched less than that ago (the fetcher calls
+ * `stempelCache`) is served as is, with no refetch: for a large document that
+ * only this module writes, refetching on every screen switch froze the page.
+ */
+export function cacheSegar(mudaMs = 0) {
   return (key: string, nuxtApp: NuxtApp, ctx: { cause: string }) => {
     if (ctx.cause !== 'initial') return undefined
     const data = nuxtApp.payload.data[key]
     if (data === undefined || data === null) return undefined
-    if (!segarDijadwal.has(key)) {
+    const masihMuda = mudaMs > 0 && Date.now() - (cap.get(key) ?? 0) < mudaMs
+    if (!masihMuda && !segarDijadwal.has(key)) {
       segarDijadwal.add(key)
       setTimeout(() => {
         segarDijadwal.delete(key)

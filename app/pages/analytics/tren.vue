@@ -53,6 +53,13 @@ const tumbuh = computed(() => {
   if (!a || !s || !s.grand) return null
   return (a.grand - s.grand) / s.grand * 100
 })
+/** Days in a 'YYYY-MM' month: says when a month's total covers only part of it. */
+const hariSebulan = (b: string) => new Date(Number(b.slice(0, 4)), Number(b.slice(5, 7)), 0).getDate()
+const ketBulan = (x: BarisTren) => {
+  if (!x.hari) return ''
+  const n = hariSebulan(x.b)
+  return `Rata-rata per hari: ${rupiah(Math.round(x.perHari))} — ${x.hari < n ? `baru ${x.hari} dari ${n} hari` : `${x.hari} hari penuh`}`
+}
 const punTren = computed(() => Math.max(...pakai.value.map(x => x.grand), 1))
 
 interface BarisTabel extends BarisTren { delta: number | null }
@@ -201,13 +208,14 @@ const pctBanding = (a: number, b: number) => b ? (a - b) / b * 100 : null
 
         <AppPanel
           title="Total Omset Bulan ke Bulan"
-          description="Grand Total dari berkas POS tiap bulan. Angka kecil di tiap barisnya rata-rata per hari — bulan yang harinya lebih sedikit (bulan berjalan, atau berkas yang tidak sebulan penuh) terlihat rendah di batangnya padahal tidak di garisnya."
+          description="Angka kanan dan batangnya = omset SEBULAN (Grand Total berkas POS). Baris kecil di bawahnya = rata-rata per hari. Bulan yang harinya belum penuh totalnya pasti terlihat kecil — bandingkan lewat rata-rata per harinya."
         >
           <AppBar
             v-for="x in pakai"
             :key="x.b"
             :label="fmtBln(x.b)"
-            :value="`${rupiah(x.grand)} · ${rupiah(x.perHari)}/hari`"
+            :value="`Total ${rupiah(x.grand)}`"
+            :ket="ketBulan(x)"
             :persen="Math.round(x.grand / punTren * 100)"
             tone="gold"
           />

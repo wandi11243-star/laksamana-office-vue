@@ -197,10 +197,10 @@ function kirim() {
     </div>
     <UFormField label="Untuk acara">
       <USelect
-        v-model="f.acara"
-        :items="['', ...evOpsi]"
-        :placeholder="'— tidak terkait acara tertentu —'"
+        :model-value="f.acara || KOSONG"
+        :items="[{ value: KOSONG, label: '— tidak terkait acara tertentu —' }, ...evOpsi.map(x => ({ value: x, label: x }))]"
         class="w-full"
+        @update:model-value="f.acara = dariKosong($event)"
       />
     </UFormField>
     <UFormField

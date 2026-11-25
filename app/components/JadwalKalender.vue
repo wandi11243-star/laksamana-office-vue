@@ -59,7 +59,7 @@ const jam = (d: string) => jamSel(props.set, sel(d))
       @click="bisa && emit('pilih', d)"
     >
       <span class="flex items-center gap-1 text-xs font-bold text-highlighted num">
-        {{ Number(d.slice(8)) }}
+        <span :class="d === hariIni() ? 'tgl-bulat' : ''">{{ Number(d.slice(8)) }}</span>
         <span
           v-if="tanda?.[d] === 'MENUNGGU'"
           class="size-1.5 rounded-full bg-warning"

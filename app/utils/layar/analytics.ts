@@ -1,4 +1,4 @@
-// The 18 screens of Analytics + its page × role matrix.
+// The 16 screens of Analytics + its page × role matrix.
 // Old: NAV groups Analisa/Data/Sistem (deploy/analytics/index.html:698-724),
 // TITLES (index.html:1407-1429), PERM_* + role matrix (index.html:959-1036).
 //
@@ -38,8 +38,6 @@ const DEFAULT_PERMS: Record<string, Record<string, number>> = {
   tren: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_VIEW },
   event: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_VIEW },
   marketing: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_VIEW },
-  konten: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_VIEW },
-  desain: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_VIEW },
   unggah: { staf: PERM_EDIT, manajemen: PERM_VIEW, viewer: PERM_NONE },
   pengaturan: { staf: PERM_EDIT, manajemen: PERM_NONE, viewer: PERM_NONE },
   akses: { staf: PERM_VIEW, manajemen: PERM_VIEW, viewer: PERM_VIEW },
@@ -121,22 +119,29 @@ export function useAnalyticsIzin() {
 const anHal = (page: string) => (me: Me) =>
   hasAccess(me, ['analytics']) && tingkatAnalytics(me, page, useAnalyticsAksesSiap().value) >= PERM_VIEW
 
+// The sidebar shows one row per group; the group's screens are tabs on top of
+// each other. A new analysis only needs one line below with the `kelompok` it
+// belongs to (owner request, Nov 2026: the sidebar must not grow downward).
+const K_PENJUALAN = { label: 'Penjualan', icon: 'i-lucide-chart-line' }
+const K_PENGUNJUNG = { label: 'Kunjungan & Meja', icon: 'i-lucide-users' }
+const K_MENU = { label: 'Menu & Promo', icon: 'i-lucide-utensils' }
+const K_PENGARUH = { label: 'Pengaruh & Talent', icon: 'i-lucide-sparkles' }
+const K_KOREKSI = { label: 'Koreksi & Void', icon: 'i-lucide-triangle-alert' }
+
 export const LAYAR_ANALYTICS: Layar[] = [
-  { key: 'ringkasan', label: 'Ringkasan', desc: 'Angka pokok dari laporan POS yang diunggah', icon: 'i-lucide-chart-line', to: '/analytics/ringkasan', grup: 'Analisa', boleh: anHal('ringkasan') },
-  { key: 'tren', label: 'Tren Bulanan', desc: 'Total omset bulan ke bulan, dan perbandingan dua bulan', icon: 'i-lucide-chart-column', to: '/analytics/tren', grup: 'Analisa', boleh: anHal('tren') },
-  { key: 'hari', label: 'Hari & Jam', desc: 'Omset per hari dalam seminggu, dan sebaran jamnya', icon: 'i-lucide-calendar-days', to: '/analytics/hari', grup: 'Analisa', boleh: anHal('hari') },
-  { key: 'menu', label: 'Menu & Bahan Baku', desc: 'Menu terlaris dan perkiraan bahan yang seharusnya keluar', icon: 'i-lucide-list', to: '/analytics/menu', grup: 'Analisa', boleh: anHal('menu') },
-  { key: 'kategori', label: 'Kategori Menu', desc: 'Omset per kategori menu — termasuk EVENT, terpisah dari peringkat menu', icon: 'i-lucide-layout-grid', to: '/analytics/kategori', grup: 'Analisa', boleh: anHal('kategori') },
-  { key: 'kunjungan', label: 'Metode Kunjungan', desc: 'Rekap kanal, cara tamu datang, dan cara mereka membayar', icon: 'i-lucide-log-in', to: '/analytics/kunjungan', grup: 'Analisa', boleh: anHal('kunjungan') },
-  { key: 'meja', label: 'Performa Meja', desc: 'Omset tiap meja, kapasitasnya di denah Reservasi, dan omset per kursinya', icon: 'i-lucide-armchair', to: '/analytics/meja', grup: 'Analisa', boleh: anHal('meja') },
-  { key: 'talent', label: 'Performa Talent', desc: 'Kontribusi omset tiap penampil, dihitung dari jam tampilnya sendiri', icon: 'i-lucide-music', to: '/analytics/talent', grup: 'Analisa', boleh: anHal('talent') },
-  { key: 'error', label: 'Error & Koreksi', desc: 'Bill yang ditandai error — sebabnya, nilainya, dan siapa yang memegangnya', icon: 'i-lucide-triangle-alert', to: '/analytics/error', grup: 'Analisa', boleh: anHal('error') },
-  { key: 'voidb', label: 'Void & Cancel', desc: 'Siapa yang membatalkan, alasannya, itemnya, nilainya, dan jamnya', icon: 'i-lucide-ban', to: '/analytics/voidb', grup: 'Analisa', boleh: anHal('voidb') },
-  { key: 'promo', label: 'Promo & Klaim', desc: 'Promo mana yang paling banyak diklaim, barang apa, dan jam berapa', icon: 'i-lucide-badge-percent', to: '/analytics/promo', grup: 'Analisa', boleh: anHal('promo') },
-  { key: 'event', label: 'Pengaruh Event', desc: 'Omset hari berevent dibanding hari biasa', icon: 'i-lucide-star', to: '/analytics/event', grup: 'Analisa', boleh: anHal('event') },
-  { key: 'marketing', label: 'Pengaruh Marketing', desc: 'Omset hari ada acara Marketing dibanding hari biasa', icon: 'i-lucide-send', to: '/analytics/marketing', grup: 'Analisa', boleh: anHal('marketing') },
-  { key: 'konten', label: 'Performa Konten', desc: 'Reach, Engagement Rate, Virality Index, CTA Click Rate & Content Pillar — semua platform', icon: 'i-lucide-trending-up', to: '/analytics/konten', grup: 'Analisa', boleh: anHal('konten') },
-  { key: 'desain', label: 'Performa Desain', desc: 'Virality konten berdesain, dan jumlah desain selesai per kategori', icon: 'i-lucide-palette', to: '/analytics/desain', grup: 'Analisa', boleh: anHal('desain') },
+  { key: 'ringkasan', label: 'Ringkasan', desc: 'Angka pokok dari laporan POS yang diunggah', icon: 'i-lucide-chart-line', to: '/analytics/ringkasan', grup: 'Analisa', kelompok: K_PENJUALAN, boleh: anHal('ringkasan') },
+  { key: 'tren', label: 'Tren Bulanan', desc: 'Total omset bulan ke bulan, dan perbandingan dua bulan', icon: 'i-lucide-chart-column', to: '/analytics/tren', grup: 'Analisa', kelompok: K_PENJUALAN, boleh: anHal('tren') },
+  { key: 'hari', label: 'Hari & Jam', desc: 'Omset per hari dalam seminggu, dan sebaran jamnya', icon: 'i-lucide-calendar-days', to: '/analytics/hari', grup: 'Analisa', kelompok: K_PENGUNJUNG, boleh: anHal('hari') },
+  { key: 'kunjungan', label: 'Metode Kunjungan', desc: 'Rekap kanal, cara tamu datang, dan cara mereka membayar', icon: 'i-lucide-log-in', to: '/analytics/kunjungan', grup: 'Analisa', kelompok: K_PENGUNJUNG, boleh: anHal('kunjungan') },
+  { key: 'meja', label: 'Performa Meja', desc: 'Omset tiap meja, kapasitasnya di denah Reservasi, dan omset per kursinya', icon: 'i-lucide-armchair', to: '/analytics/meja', grup: 'Analisa', kelompok: K_PENGUNJUNG, boleh: anHal('meja') },
+  { key: 'menu', label: 'Menu & Bahan Baku', desc: 'Menu terlaris dan perkiraan bahan yang seharusnya keluar', icon: 'i-lucide-list', to: '/analytics/menu', grup: 'Analisa', kelompok: K_MENU, boleh: anHal('menu') },
+  { key: 'kategori', label: 'Kategori Menu', desc: 'Omset per kategori menu — termasuk EVENT, terpisah dari peringkat menu', icon: 'i-lucide-layout-grid', to: '/analytics/kategori', grup: 'Analisa', kelompok: K_MENU, boleh: anHal('kategori') },
+  { key: 'promo', label: 'Promo & Klaim', desc: 'Promo mana yang paling banyak diklaim, barang apa, dan jam berapa', icon: 'i-lucide-badge-percent', to: '/analytics/promo', grup: 'Analisa', kelompok: K_MENU, boleh: anHal('promo') },
+  { key: 'event', label: 'Pengaruh Event', desc: 'Omset hari berevent dibanding hari biasa', icon: 'i-lucide-star', to: '/analytics/event', grup: 'Analisa', kelompok: K_PENGARUH, boleh: anHal('event') },
+  { key: 'marketing', label: 'Pengaruh Marketing', desc: 'Omset hari ada acara Marketing dibanding hari biasa', icon: 'i-lucide-send', to: '/analytics/marketing', grup: 'Analisa', kelompok: K_PENGARUH, boleh: anHal('marketing') },
+  { key: 'talent', label: 'Performa Talent', desc: 'Kontribusi omset tiap penampil, dihitung dari jam tampilnya sendiri', icon: 'i-lucide-music', to: '/analytics/talent', grup: 'Analisa', kelompok: K_PENGARUH, boleh: anHal('talent') },
+  { key: 'error', label: 'Error & Koreksi', desc: 'Bill yang ditandai error — sebabnya, nilainya, dan siapa yang memegangnya', icon: 'i-lucide-triangle-alert', to: '/analytics/error', grup: 'Analisa', kelompok: K_KOREKSI, boleh: anHal('error') },
+  { key: 'voidb', label: 'Void & Cancel', desc: 'Siapa yang membatalkan, alasannya, itemnya, nilainya, dan jamnya', icon: 'i-lucide-ban', to: '/analytics/voidb', grup: 'Analisa', kelompok: K_KOREKSI, boleh: anHal('voidb') },
   { key: 'unggah', label: 'Unggah Laporan', desc: 'Berkas Sales Recapitulation dari POS', icon: 'i-lucide-upload', to: '/analytics/unggah', grup: 'Data', boleh: anHal('unggah') },
   { key: 'pengaturan', label: 'Pengaturan', desc: 'Batas jam shift dan pemetaan nama menu', icon: 'i-lucide-settings', to: '/analytics/pengaturan', grup: 'Sistem', boleh: anHal('pengaturan') },
   { key: 'akses', label: 'Kelola Akses', desc: 'Siapa boleh membuka dan mengubah halaman mana', icon: 'i-lucide-key-round', to: '/analytics/akses', grup: 'Sistem', boleh: anHal('akses') },

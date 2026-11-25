@@ -11,6 +11,7 @@
     "typecheck": "nuxt typecheck",
     "uji:help": "node tools/uji-help.mjs",
     "uji:bd-pindah": "node tools/uji-bd-pindah.mjs",
+    "uji:cek-google": "node tools/uji-cek-google.mjs",
     "uji:bonus": "node tools/uji-performa-bonus.mjs",
     "uji:xlsx": "node tools/uji-xlsx-baca.mjs",
     "uji:cashier": "node tools/uji-cashier.mjs",

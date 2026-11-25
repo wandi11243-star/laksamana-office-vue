@@ -252,9 +252,8 @@ useSegarSenyap(refresh, () => buka.value)
         >
           <div
             class="mb-1 text-xs font-bold num"
-            :class="c.iso === hari ? 'text-ink-900' : ''"
           >
-            {{ c.n }}
+            <span :class="c.iso === hari ? 'tgl-bulat' : ''">{{ c.n }}</span>
           </div>
           <button
             v-for="a in agSel(c.iso).slice(0, 3)"

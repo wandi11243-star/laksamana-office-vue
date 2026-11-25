@@ -90,6 +90,11 @@ export default defineAppConfig({
       // dialog around it) wider than the screen.
       slots: { label: 'font-semibold text-highlighted', labelWrapper: 'flex-wrap gap-x-3', hint: 'min-w-0' },
     },
+    // Calendar days are circles you can see: the chosen day filled gold, today
+    // ringed (owner request, Nov 2026: bold alone was hard to see).
+    calendar: {
+      slots: { cellTrigger: 'data-today:not-data-selected:bg-gold-soft data-today:not-data-selected:ring-2 data-today:not-data-selected:ring-inset data-today:not-data-selected:ring-gold data-today:font-bold data-selected:font-bold data-selected:shadow-md data-selected:shadow-laksamana-600/30' },
+    },
     // WattVision sidebar: the active item is a white card with a soft shadow on
     // the shell, words and icon in deep gold; others are muted, whiten on hover.
     navigationMenu: {

@@ -1,5 +1,5 @@
 <!--
-  Kelola Role — the module's own crew levels and its own access matrix.
+  Kelola Akses (was "Kelola Role") — the module's own crew levels and its own access matrix.
   `seCrew` holds id + name + divisi + role; `sePerms` is this module's own
   section and never Reservasi's `perms`. Until one manager or admin exists,
   EVERYONE counts as System Admin — shown as a warning, not silently (F20).
@@ -207,13 +207,13 @@ async function resetMatriks() {
 
 <template>
   <AppPage
-    title="Kelola role"
-    description="Kelola role Service Excellent."
+    title="Kelola akses"
+    description="Kelola role dan hak akses Service Excellent."
   >
     <template v-if="bolehBukaSe('peran', tingkat)">
       <div
         v-if="belumAdaPengurus"
-        class="mb-5 rounded-lg border border-default p-3 text-sm"
+        class="mb-5 rounded-lg border border-default p-4 text-sm leading-relaxed"
       >
         Daftar ini belum punya satu pun <b>Manajer / Owner</b> atau <b>Admin Sistem</b>.
         Selama itu <b>semua orang</b> masuk sebagai <b>Admin Sistem</b> — termasuk yang di sini tertulis
@@ -222,7 +222,7 @@ async function resetMatriks() {
       </div>
 
       <AppList title="Role kru">
-        <div class="flex items-center justify-between px-4 py-3">
+        <div class="flex items-center justify-between gap-3 px-4 py-3.5">
           <span class="text-sm text-muted">{{ angka(kruTampil.daftar.length) }} kru</span>
           <UButton
             v-if="bolehUbah"
@@ -257,15 +257,15 @@ async function resetMatriks() {
         </AppListRow>
         <p
           v-if="!kruTampil.daftar.length"
-          class="px-4 py-3 text-muted"
+          class="px-4 py-4 text-muted"
         >
           Daftar kru belum termuat dari Office.
         </p>
-        <p class="px-4 pb-3 text-sm text-muted">
+        <p class="px-4 py-3.5 text-sm leading-relaxed text-muted">
           Tingkat berlaku <b>hanya di modul ini</b>. Akun & login tetap dari Office.
           Yang tampil hanya tim <b>Kasir, Host, Floor, Office</b>{{ kruTampil.tersembunyi ? ` — ${angka(kruTampil.tersembunyi)} disembunyikan (tim lain atau keterangan masih kosong).` : '.' }}
         </p>
-        <p class="px-4 pb-3 text-sm text-muted">
+        <p class="px-4 py-3.5 text-sm leading-relaxed text-muted">
           Bertanda <i>bawaan</i> = tingkatnya belum pernah dipilih di sini. <b>Superadmin Office selalu Admin Sistem</b> dan tidak bisa dikunci dari sini.
         </p>
       </AppList>
@@ -280,7 +280,7 @@ async function resetMatriks() {
         />
         <div
           v-if="bolehUbah"
-          class="flex flex-wrap gap-2 px-4 pb-4"
+          class="flex flex-wrap gap-2 px-4 py-4"
         >
           <UButton
             label="Simpan hak akses"

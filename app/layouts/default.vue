@@ -123,6 +123,7 @@ onBeforeUnmount(() => {
           :modul="key === 'hr' ? 'hr' : 'jadwal'"
           class="mb-5"
         />
+        <AppTabKelompok />
         <slot />
       </main>
     </div>

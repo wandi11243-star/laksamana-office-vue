@@ -120,9 +120,9 @@ function klikSel(tgl: string) {
         >
           <p
             class="num mb-1 text-xs"
-            :class="s.tgl === hari ? 'font-bold text-primary-700' : s.tgl ? 'font-semibold text-default' : 'text-dimmed'"
+            :class="s.tgl ? 'font-semibold text-default' : 'text-dimmed'"
           >
-            {{ s.d }}
+            <span :class="s.tgl === hari ? 'tgl-bulat' : ''">{{ s.d }}</span>
           </p>
           <slot
             v-if="s.tgl"
