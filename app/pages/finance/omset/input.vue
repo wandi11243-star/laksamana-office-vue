@@ -20,7 +20,7 @@
 <script setup lang="ts">
 import type { BarisHarian } from '~/utils/kompas'
 import { avgSpendOf, grossOf, kNum, monthKeyOf, netOf, tagihanOf, taxSvcOf, validasiHarian } from '~/utils/kompas'
-import { PAYS, SELISIH_TOLERANSI, bonRingkasHari, fmtRp, fmtSel, jejakList, repPay, tambahJejak } from '~/utils/cashier'
+import { SELISIH_TOLERANSI, bonRingkasHari, fmtRp, fmtSel, jejakList, repPay, tambahJejak } from '~/utils/cashier'
 import { getDay, getPiutang, getReport, putDay, useKompasState } from '~/composables/useCashier'
 import { tanganiKonflik } from '~/utils/versi'
 import { hariIni, tglPanjang } from '~/utils/format'
@@ -87,7 +87,7 @@ const tagihan = computed(() => tagihanOf(form))
 const avg = computed(() => avgSpendOf(form))
 
 const rep = computed(() => data.value?.rep.value ?? null)
-const setoran = computed(() => (rep.value ? PAYS.reduce((s, p) => s + repPay(rep.value, p.k).actual, 0) : null))
+const setoran = computed(() => (rep.value ? Object.keys(rep.value.pay ?? {}).reduce((s, k) => s + repPay(rep.value, k).actual, 0) : null))
 const bhIn = computed(() => bonRingkasHari(data.value?.bon.value ?? [], tanggal.value))
 const koreksi = computed(() => bhIn.value.totLunas - bhIn.value.totBaru)
 const selisih = computed(() => tagihan.value - (setoran.value ?? 0) + koreksi.value)

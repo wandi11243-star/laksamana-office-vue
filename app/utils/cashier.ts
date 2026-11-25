@@ -22,6 +22,7 @@ export function fmtSel(n: number): string {
 export const fmtRp = (n: number) => `Rp${Math.round(n || 0).toLocaleString('id-ID')}`
 
 export interface Metode { k: string, n: string }
+export interface MetodeCashier extends Metode { nonaktif?: boolean }
 
 /**
  * Daily Report payment methods, alphabetical as on the POS (:611-634). MUST stay
@@ -54,7 +55,28 @@ export const PAYS: readonly Metode[] = [
   { k: 'xendit', n: 'Xendit' },
 ]
 
-export const payName = (k?: string) => PAYS.find(p => p.k === k)?.n || k || '—'
+export const payName = (k?: string, metode: readonly Metode[] = PAYS) => metode.find(p => p.k === k)?.n || k || '—'
+
+export function daftarPayment(setelan: MetodeCashier[]): MetodeCashier[] {
+  const daftar = new Map<string, MetodeCashier>(PAYS.map(p => [p.k, p]))
+  for (const p of setelan) daftar.set(p.k, p)
+  return [...daftar.values()]
+}
+
+/** Archived methods still appear on dates where they carry amounts or bons. */
+export function metodeReport(daftar: MetodeCashier[], rec: DailyReport | null, bon: RingkasBon): Metode[] {
+  const peta = new Map(daftar.map(p => [p.k, p]))
+  const dipakai = new Set([
+    ...Object.keys(rec?.pay ?? {}).filter((k) => {
+      const row = repPay(rec, k)
+      return row.pos !== 0 || row.actual !== 0
+    }),
+    ...Object.keys(bon.baru),
+    ...Object.keys(bon.lunas),
+  ].filter(Boolean))
+  for (const k of dipakai) if (!peta.has(k)) peta.set(k, { k, n: k })
+  return [...peta.values()].filter(p => !p.nonaktif || dipakai.has(p.k))
+}
 
 /**
  * Only the TOTAL is judged, and Rp5.000 exactly is still fine (:635-649). The
@@ -113,6 +135,7 @@ export interface Bon {
   bill?: string
   nominal: number | string
   payKey: string
+  whatsapp?: string
   picName?: string
   picOfficeId?: string
   picDiv?: string
@@ -125,6 +148,18 @@ export interface Bon {
   at?: number
   ubahBy?: string
   ubahAt?: number
+}
+
+export const kunciNamaBon = (nama: string) => nama.trim().replace(/\s+/g, ' ').toLowerCase()
+
+export function nomorWhatsAppBon(value: string): string {
+  const input = value.trim()
+  if (!/^\+?[\d ().-]+$/.test(input)) return ''
+  const digits = input.replace(/\D/g, '')
+  const phone = digits.startsWith('0')
+    ? `62${digits.slice(1)}`
+    : digits.startsWith('8') && !input.startsWith('+') ? `62${digits}` : digits
+  return /^[1-9]\d{7,14}$/.test(phone) ? phone : ''
 }
 
 export const bonBelum = (list: Bon[]) => list.filter(b => b.status !== 'lunas')
@@ -170,10 +205,9 @@ export interface PenjelasHari extends RingkasBon {
   harus: Record<string, number>
   totHarus: number
 }
-export function penjelasHari(list: Bon[], date: string): PenjelasHari {
-  const bh = bonRingkasHari(list, date)
+export function penjelasHari(list: Bon[], date: string, metode: readonly Metode[] = PAYS, bh = bonRingkasHari(list, date)): PenjelasHari {
   const harus: Record<string, number> = {}
-  for (const p of PAYS) harus[p.k] = num(bh.lunas[p.k]) - num(bh.baru[p.k])
+  for (const p of metode) harus[p.k] = num(bh.lunas[p.k]) - num(bh.baru[p.k])
   return { ...bh, harus, totHarus: bh.totLunas - bh.totBaru }
 }
 
@@ -183,7 +217,7 @@ export interface GrupBon { nama: string, tipe: string, items: Bon[], total: numb
 export function bonGrupBelum(list: Bon[]): GrupBon[] {
   const map = new Map<string, GrupBon>()
   for (const b of bonBelum(list)) {
-    const key = `${String(b.nama || '').trim().toLowerCase()}|${b.tipe}`
+    const key = `${kunciNamaBon(b.nama || '')}|${b.tipe}`
     if (!map.has(key)) map.set(key, { nama: b.nama, tipe: b.tipe, items: [], total: 0 })
     const g = map.get(key)!
     g.items.push(b)
@@ -230,12 +264,12 @@ export interface HitungReport {
  * means the cashier has not reached it, so its bon is excluded from the expected
  * total too — otherwise the total warns about money no row on screen can show.
  */
-export function hitungReport(pay: Record<string, { pos: number, actual: number }>, bh: PenjelasHari): HitungReport {
+export function hitungReport(pay: Record<string, { pos: number, actual: number }>, bh: PenjelasHari, metode: readonly Metode[] = PAYS): HitungReport {
   let tp = 0
   let ta = 0
   let th = 0
   const baris: BarisReport[] = []
-  for (const p of PAYS) {
+  for (const p of metode) {
     const pos = num(pay[p.k]?.pos)
     const act = num(pay[p.k]?.actual)
     tp += pos

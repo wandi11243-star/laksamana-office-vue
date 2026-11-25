@@ -14,10 +14,12 @@ import { daftarRokok, rokokHariItem, rksKunci } from '~/utils/cashier'
 import { getRokok, getRokokItems, hapusRokokItems, putRokokItems } from '~/composables/useCashier'
 import { tanganiKonflik } from '~/utils/versi'
 import { rokokPosTeks } from '~/utils/cashier-esb'
+import CashierPaymentSettings from '~/widgets/cashier/CashierPaymentSettings.vue'
 
 definePageMeta({ access: ['cashier'] })
 
 const toast = useToast()
+const tab = ref<'rokok' | 'payment'>('rokok')
 const { data, status, error, refresh } = useAsyncData('cashier-rokokset', async () => {
   const [items, rokok] = await Promise.all([getRokokItems(), getRokok()])
   return { items, rokok }
@@ -142,10 +144,16 @@ async function pulihkan() {
 
 <template>
   <AppPage
-    title="Pengaturan item rokok"
-    description="Item apa saja yang muncul di lembar Daily Stock Rokok."
+    title="Pengaturan Cashier"
   >
+    <AppSeg
+      v-model="tab"
+      class="mb-4"
+      :options="[{ value: 'rokok', label: 'Item rokok' }, { value: 'payment', label: 'Metode pembayaran' }]"
+    />
+    <CashierPaymentSettings v-if="tab === 'payment'" />
     <AppPanel
+      v-else
       title="Item di lembar stock"
       icon="i-lucide-package"
       :count="daftar.length"

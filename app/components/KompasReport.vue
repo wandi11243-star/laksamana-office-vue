@@ -17,10 +17,10 @@
 <script setup lang="ts">
 import type { DailyReport } from '~/utils/cashier'
 import {
-  PAYS, SELISIH_TOLERANSI, bonGrupBelum, bonTipeNama, fmtRp, fmtSel, hitungReport, jejakList,
-  namaUnik, payName, penjelasHari, repPay, tambahJejak,
+  PAYS, SELISIH_TOLERANSI, bonGrupBelum, bonRingkasHari, bonTipeNama, daftarPayment, fmtRp, fmtSel, hitungReport, jejakList,
+  metodeReport, namaUnik, payName, penjelasHari, repPay, tambahJejak,
 } from '~/utils/cashier'
-import { getPiutang, getReport, putReport } from '~/composables/useCashier'
+import { getPaymentCashier, getPiutang, getReport, putReport } from '~/composables/useCashier'
 import { tanganiKonflik } from '~/utils/versi'
 import { hariIni, tglPanjang } from '~/utils/format'
 import RupiahInput from '~/widgets/cashier/RupiahInput.vue'
@@ -37,14 +37,23 @@ const tanggal = ref(hariIni())
 const { data, status, error, refresh } = useAsyncData(
   props.kunci ?? 'cashier-report',
   async () => {
-    const [rep, bon] = await Promise.all([getReport(tanggal.value), getPiutang()])
-    return { rep, bon }
+    const date = tanggal.value
+    const [rep, bon, payment] = await Promise.all([getReport(date), getPiutang(), getPaymentCashier()])
+    return { date, rep, bon, payment }
   },
   { watch: [tanggal] },
 )
 
-const rec = computed<DailyReport | null>(() => data.value?.rep.value ?? null)
-const bh = computed(() => penjelasHari(data.value?.bon.value ?? [], tanggal.value))
+const siap = computed(() => data.value?.date === tanggal.value && status.value === 'success')
+const rec = computed<DailyReport | null>(() => data.value?.date === tanggal.value ? data.value.rep.value : null)
+const semuaBon = computed(() => data.value?.bon.value ?? [])
+const daftarMetode = computed(() => daftarPayment(data.value?.payment.value ?? []))
+const ringkasBon = computed(() => bonRingkasHari(semuaBon.value, tanggal.value))
+const metode = computed(() => metodeReport(daftarMetode.value, rec.value, ringkasBon.value))
+const bh = computed(() => penjelasHari(semuaBon.value, tanggal.value, metode.value, ringkasBon.value))
+const namaPayment = (key?: string) => payName(key, daftarMetode.value)
+const kunciEsb = new Set(PAYS.map(p => p.k))
+const metodeEsb = computed(() => daftarMetode.value.filter(p => !p.nonaktif && kunciEsb.has(p.k)))
 
 // The form lives outside the data: a reload after a refused save must not wipe
 // what the cashier typed (old "catat dulu, jangan dibuang", F.5).
@@ -56,10 +65,10 @@ let perubahanSaatTarik = 0
 
 function isiDariServer() {
   perubahanSaatTarik++
-  for (const p of PAYS) form[p.k] = { ...repPay(rec.value, p.k) }
+  for (const p of metode.value) form[p.k] = repPay(rec.value, p.k)
   kotor.value = false
 }
-watch(rec, () => {
+watch([data, metode], () => {
   if (kotor.value && ditolak.value) return
   isiDariServer()
 }, { immediate: true })
@@ -72,7 +81,7 @@ watch(tanggal, () => {
   esbError.value = ''
 })
 
-const h = computed(() => hitungReport(form, bh.value))
+const h = computed(() => hitungReport(form, bh.value, metode.value))
 const jejak = computed(() => jejakList(rec.value))
 const jejakAkhir = computed(() => jejak.value[jejak.value.length - 1])
 const jejakSebelum = computed(() => jejak.value.slice(0, -1).reverse())
@@ -84,9 +93,9 @@ const esbError = ref('')
 const esbConfirmOpen = ref(false)
 
 async function isiPosEsb(force = false) {
-  if (esbLoading.value || menyimpan.value || !data.value || status.value === 'pending') return
+  if (esbLoading.value || menyimpan.value || !siap.value) return
   const date = tanggal.value
-  const filled = PAYS.filter(p => form[p.k]!.pos > 0).length
+  const filled = metodeEsb.value.some(p => (form[p.k]?.pos ?? 0) > 0)
   if (filled && !force) {
     esbConfirmOpen.value = true
     return
@@ -104,13 +113,18 @@ async function isiPosEsb(force = false) {
       esbInfo.value = 'Tanggal atau isian berubah saat ESB ditarik. Tidak ada angka yang diterapkan; tarik ulang bila perlu.'
       return
     }
-    for (const p of PAYS) form[p.k]!.pos = Math.round(summary.bayar[p.k] || 0)
+    for (const p of metodeEsb.value) {
+      const isian = form[p.k] ??= repPay(rec.value, p.k)
+      isian.pos = Math.round(summary.bayar[p.k] || 0)
+    }
     kotor.value = true
     ditolak.value = false
-    const total = Object.values(summary.bayar).reduce((s, value) => s + value, 0)
+    const total = metodeEsb.value.reduce((s, p) => s + (summary.bayar[p.k] || 0), 0)
     esbInfo.value = `${summary.nBill} bill ESB · Rp${Math.round(total).toLocaleString('id-ID')}${summary.nBatal ? ` · ${summary.nBatal} bill batal/void tidak dihitung` : ''}${summary.order.n ? ` · ${summary.order.n} ESB Order masuk QRIS POS` : ''}${ganda ? ` · ${ganda} bill duplikat disaring` : ''}. POS terisi; Actual tidak berubah. Periksa lalu Submit report.`
     const unknown = Object.entries(summary.asing)
     if (unknown.length) esbInfo.value += ` Metode tidak dikenali dan tidak dimasukkan: ${unknown.map(([name, amount]) => `${name} Rp${Math.round(amount).toLocaleString('id-ID')}`).join(' · ')}.`
+    const nonaktif = daftarMetode.value.filter(p => p.nonaktif && summary.bayar[p.k])
+    if (nonaktif.length) esbInfo.value += ` Metode nonaktif dilewati: ${nonaktif.map(p => `${p.n} ${fmtRp(summary.bayar[p.k] || 0)}`).join(' · ')}.`
     if (!summary.nBill) esbInfo.value += ' ESB tidak memulangkan bill pada tanggal ini.'
   }
   catch (e) {
@@ -127,7 +141,7 @@ const fmtWaktu = (ts: number) => {
 }
 const warnaSel = (s: number) => (s === 0 ? 'text-muted' : s > 0 ? 'text-success font-bold' : 'text-error font-bold')
 const perMetode = (obj: Record<string, number>) =>
-  Object.keys(obj).filter(k => obj[k]! > 0).map(k => `${payName(k)} ${fmtRp(obj[k]!)}`).join(' + ')
+  Object.keys(obj).filter(k => obj[k]! > 0).map(k => `${namaPayment(k)} ${fmtRp(obj[k]!)}`).join(' + ')
 
 const sisaTone = computed(() => (h.value.sisa === 0 ? 'success' : h.value.aman ? 'warning' : 'error'))
 const sisaFoot = computed(() => {
@@ -138,17 +152,18 @@ const sisaFoot = computed(() => {
 
 function ubahAngka(k: string, f: 'pos' | 'actual', v: number) {
   perubahanSaatTarik++
-  form[k]![f] = v
+  form[k] ??= repPay(rec.value, k)
+  form[k][f] = v
   kotor.value = true
 }
 
 const menyimpan = ref(false)
 async function submit() {
-  if (!data.value) return
+  if (!data.value || !siap.value || menyimpan.value || esbLoading.value) return
   menyimpan.value = true
   const lama = rec.value
-  const pay: Record<string, { pos: number, actual: number }> = {}
-  for (const p of PAYS) pay[p.k] = { pos: form[p.k]!.pos, actual: form[p.k]!.actual }
+  const pay = { ...lama?.pay }
+  for (const p of metode.value) pay[p.k] = { ...(form[p.k] ?? repPay(lama, p.k)) }
   const nama = me.value?.name ?? ''
   const value: DailyReport = { ...(lama ?? {}), pay, by: nama, at: Date.now(), submitted: true, log: tambahJejak(lama, nama) }
   const abs = Math.abs(h.value.sisa)
@@ -203,7 +218,7 @@ async function submit() {
             label="Ambil dari ESB"
             icon="i-lucide-cloud-download"
             :loading="esbLoading"
-            :disabled="!data || menyimpan || status === 'pending'"
+            :disabled="!siap || menyimpan"
             @click="isiPosEsb()"
           />
           <p class="min-w-0 flex-1 text-sm text-muted">
@@ -296,7 +311,7 @@ async function submit() {
             </td>
             <td class="w-44 px-4 py-1.5">
               <RupiahInput
-                :model-value="form[b.k]!.pos"
+                :model-value="form[b.k]?.pos ?? 0"
                 size="sm"
                 :aria-label="`POS ${b.n}`"
                 @update:model-value="v => ubahAngka(b.k, 'pos', v)"
@@ -304,7 +319,7 @@ async function submit() {
             </td>
             <td class="w-44 px-4 py-1.5">
               <RupiahInput
-                :model-value="form[b.k]!.actual"
+                :model-value="form[b.k]?.actual ?? 0"
                 size="sm"
                 :aria-label="`Actual ${b.n}`"
                 @update:model-value="v => ubahAngka(b.k, 'actual', v)"
@@ -370,13 +385,13 @@ async function submit() {
           <div class="mt-2 grid grid-cols-2 gap-2">
             <UFormField label="POS">
               <RupiahInput
-                :model-value="form[b.k]!.pos"
+                :model-value="form[b.k]?.pos ?? 0"
                 @update:model-value="v => ubahAngka(b.k, 'pos', v)"
               />
             </UFormField>
             <UFormField label="Actual">
               <RupiahInput
-                :model-value="form[b.k]!.actual"
+                :model-value="form[b.k]?.actual ?? 0"
                 @update:model-value="v => ubahAngka(b.k, 'actual', v)"
               />
             </UFormField>
@@ -525,7 +540,7 @@ async function submit() {
                   class="block text-xs text-muted"
                 >{{ [b.bill, b.picName ? `PIC ${b.picName}` : ''].filter(Boolean).join(' · ') }}</span>
               </div>
-              <span class="text-xs text-muted">POS: {{ payName(b.payKey) }}</span>
+              <span class="text-xs text-muted">POS: {{ namaPayment(b.payKey) }}</span>
               <span class="text-error num">{{ fmtSel(-Number(b.nominal)) }}</span>
             </div>
           </div>
@@ -549,7 +564,7 @@ async function submit() {
                   class="block text-xs text-muted"
                 >{{ b.bill }}</span>
               </div>
-              <span class="text-xs text-muted">bill {{ b.date }} · {{ payName(b.lunasPayKey) }}</span>
+              <span class="text-xs text-muted">bill {{ b.date }} · {{ namaPayment(b.lunasPayKey) }}</span>
               <span class="text-success num">{{ fmtSel(Number(b.nominal)) }}</span>
             </div>
           </div>
@@ -593,7 +608,7 @@ async function submit() {
         :label="rec?.submitted ? 'Update report' : 'Submit report'"
         icon="i-lucide-send"
         :loading="menyimpan"
-        :disabled="!data || esbLoading"
+        :disabled="!siap || esbLoading"
         @click="submit"
       />
       <span class="text-sm text-muted">Submit atas nama <b>{{ me?.name || '—' }}</b> — nama dan jamnya ikut tercatat di laporan ini.</span>
