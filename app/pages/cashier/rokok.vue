@@ -176,7 +176,6 @@ function geser(n: number) {
   d.setDate(d.getDate() + n)
   tanggal.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
-const kosongKelas = 'w-24 text-end'
 </script>
 
 <template>
@@ -187,30 +186,35 @@ const kosongKelas = 'w-24 text-end'
     <AppPanel
       title="Daily stock rokok"
       description="Isi jumlah yang masuk dan keluar hari itu. Item yang tidak bergerak biarkan 0 — itu tetap tercatat sebagai sudah diperiksa."
+      class="[&>div:empty]:hidden [&>div]:pt-2 [&>header]:pb-4"
     >
       <template #actions>
-        <div class="flex items-center gap-1.5">
-          <UButton
-            icon="i-lucide-chevron-left"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            aria-label="Hari sebelumnya"
-            @click="geser(-1)"
-          />
-          <AppTanggal
-            v-model="tanggal"
-            size="sm"
-            class="w-40"
-          />
-          <UButton
-            icon="i-lucide-chevron-right"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            aria-label="Hari berikutnya"
-            @click="geser(1)"
-          />
+        <div class="flex flex-wrap items-center gap-1.5">
+          <div class="flex items-center gap-1.5">
+            <UButton
+              icon="i-lucide-chevron-left"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              aria-label="Hari sebelumnya"
+              @click="geser(-1)"
+            />
+            <div class="w-36 shrink-0">
+              <AppTanggal
+                v-model="tanggal"
+                size="sm"
+                :clearable="false"
+              />
+            </div>
+            <UButton
+              icon="i-lucide-chevron-right"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              aria-label="Hari berikutnya"
+              @click="geser(1)"
+            />
+          </div>
           <UButton
             v-if="tanggal !== hariIni()"
             label="Hari ini"
@@ -261,8 +265,8 @@ const kosongKelas = 'w-24 text-end'
         color="warning"
         variant="subtle"
         icon="i-lucide-triangle-alert"
-        :title="`${minus.length} item sisa akhirnya minus (${minus.map(x => x.n).join(', ')}).`"
-        description="Biasanya ada hari sebelumnya yang barang masuknya belum dicatat — periksa tanggal-tanggal sebelum ini. Simpan tetap boleh."
+        title="Sisa akhir stok di bawah nol"
+        :description="`${minus.map(it => `${it.n}: ${akhir(it.k)}`).join(' · ')}. Periksa jumlah Masuk dan Keluar hari ini serta catatan stok sebelumnya. Simpan tetap boleh.`"
         class="mt-2"
       />
       <UAlert
@@ -343,20 +347,22 @@ const kosongKelas = 'w-24 text-end'
             <td class="px-4 py-2 text-end text-muted num">
               {{ awal[it.k] ?? 0 }}
             </td>
-            <td class="px-2 py-1.5">
+            <td class="px-4 py-1.5 text-end">
               <UInput
                 :model-value="String(form[it.k]?.in ?? 0)"
                 inputmode="numeric"
-                :class="kosongKelas"
+                class="w-24"
+                :ui="{ base: 'text-end' }"
                 :aria-label="`Masuk ${it.n}`"
                 @update:model-value="(v: string | number) => ubah(it.k, 'in', v)"
               />
             </td>
-            <td class="px-2 py-1.5">
+            <td class="px-4 py-1.5 text-end">
               <UInput
                 :model-value="String(form[it.k]?.out ?? 0)"
                 inputmode="numeric"
-                :class="kosongKelas"
+                class="w-24"
+                :ui="{ base: 'text-end' }"
                 :aria-label="`Keluar ${it.n}`"
                 @update:model-value="(v: string | number) => ubah(it.k, 'out', v)"
               />
