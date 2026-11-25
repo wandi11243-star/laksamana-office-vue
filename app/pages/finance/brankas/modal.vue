@@ -14,15 +14,16 @@
   brankas or finance; the server checks again.
 -->
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import { buatAkunInvestor, createVaultRec, deleteVaultRec, getVault, updateVaultRec } from '~/composables/useFinance'
 import { getRoster } from '~/composables/useCashier'
 import { isAdminOf } from '~/composables/useMe'
 import type { RosterUser } from '~/composables/useRoster'
 import { useBrankasIzin } from '~/utils/layar/finance'
 import { fmtRp, num } from '~/utils/cashier'
-import { fTgl, hariIni } from '~/utils/format'
+import { hariIni, tglRingkas } from '~/utils/format'
 import { tanganiKonflik } from '~/utils/versi'
-import type { InvestorBrankas } from '~/utils/brankas'
+import type { InvestorBrankas, KembaliModal, TambahanModal } from '~/utils/brankas'
 import { modalTanpaWadah, modalTotal, namaWallet, SEMUA_WADAH } from '~/utils/brankas'
 
 definePageMeta({ access: ['brankas'] })
@@ -54,6 +55,35 @@ const persenOf = (i: InvestorBrankas) => {
 }
 const retUrut = (i: InvestorBrankas) => (i.returns ?? []).slice().sort((a, b) => String(b.date) < String(a.date) ? -1 : 1)
 const tmUrut = (i: InvestorBrankas) => (i.tambahan ?? []).slice().sort((a, b) => String(b.date) < String(a.date) ? -1 : 1)
+
+// ---- per-card header, stat boxes and tables (old `vModal` card) ----
+function keterangan(i: InvestorBrankas): string {
+  const tm = i.tambahan ?? []
+  const total = modalTotal(i)
+  const modalTeks = tm.length
+    ? `${fmtRp(total)} (awal ${fmtRp(num(i.capital))} + ${tm.length}× tambahan ${fmtRp(total - num(i.capital))})`
+    : fmtRp(num(i.capital))
+  return `Tercatat juga di halaman investor sebagai riwayat dividen. Modal ${modalTeks} · kepemilikan ${i.ownership || 0}%${i.targetDate ? ` · target ${tglRingkas(i.targetDate)}` : ''}`
+}
+const ringkasan = (i: InvestorBrankas) => [
+  { label: 'Dikembalikan', nilai: fmtRp(kembaliOf(i)), sub: `${persenOf(i).toFixed(1)}% dari modal` },
+  { label: 'Sisa', nilai: fmtRp(Math.max(modalTotal(i) - kembaliOf(i), 0)), sub: '' },
+  { label: 'Jumlah pembayaran', nilai: `${(i.returns ?? []).length}×`, sub: '' },
+]
+const KANAN = { class: { th: 'text-right', td: 'text-right' } }
+const kolomTambahan = (i: InvestorBrankas): TableColumn<TambahanModal>[] => [
+  { id: 'date', header: 'Tanggal masuk', footer: 'Total tambahan' },
+  { id: 'ke', header: 'Masuk ke' },
+  { id: 'amount', header: 'Tambahan modal', footer: fmtRp(modalTotal(i) - num(i.capital)), meta: KANAN },
+  { id: 'ket', header: 'Keterangan' },
+  { id: 'aksi', header: '' },
+]
+const kolomKembali: TableColumn<KembaliModal>[] = [
+  { id: 'date', header: 'Tanggal' },
+  { id: 'dari', header: 'Dibayar dari' },
+  { id: 'amount', header: 'Nominal', meta: KANAN },
+  { id: 'aksi', header: '' },
+]
 
 // ---- investor form (same form edits) ----
 const ivSunting = ref<string | null>(null)
@@ -103,6 +133,17 @@ function tmMulaiSunting(i: InvestorBrankas, id: string) {
   dd.ta = String(num(t.amount) || '')
   dd.tw = String(t.ke || '')
   dd.tk = String(t.ket || '')
+}
+
+// Cancelling must empty the fields too: left filled, the button turns back into
+// "Catat" and one more press records the old row a second time.
+function rvBatal(i: InvestorBrankas) {
+  rvSunting.value = null
+  Object.assign(d(String(i.id)), { rd: '', ra: '', rw: '' })
+}
+function tmBatal(i: InvestorBrankas) {
+  tmSunting.value = null
+  Object.assign(d(String(i.id)), { td: hariIni(), ta: '', tw: '', tk: '' })
 }
 
 const sibuk = ref(false)
@@ -216,6 +257,8 @@ async function tmSimpan(i: InvestorBrankas) {
 }
 
 async function tmHapus(i: InvestorBrankas, id: string) {
+  const t = (i.tambahan ?? []).find(x => String(x.id) === id)
+  if (!t || !confirm(`Hapus tambahan modal ${fmtRp(num(t.amount))} (${tglRingkas(t.date)})? Saldo ${namaWallet(t.ke)} ikut berkurang.`)) return
   const obj = { ...i, tambahan: (i.tambahan ?? []).filter(x => String(x.id) !== id) }
   if (tmSunting.value?.id === id) tmSunting.value = null
   await tulisInvestor(obj, true, 'Tambahan modal dihapus. Saldo wallet tujuan ikut berkurang.')
@@ -223,7 +266,7 @@ async function tmHapus(i: InvestorBrankas, id: string) {
 
 async function rvHapus(i: InvestorBrankas, ix: number) {
   const target = retUrut(i)[ix]
-  if (!target) return
+  if (!target || !confirm('Hapus catatan pengembalian ini?')) return
   const obj = { ...i, returns: (i.returns ?? []).filter(r => r !== target) }
   if (rvSunting.value?.iv === String(i.id) && rvSunting.value.ix === ix) rvSunting.value = null
   await tulisInvestor(obj, true, 'Catatan pengembalian dihapus.')
@@ -251,7 +294,6 @@ async function jalanHapusInvestor() {
 }
 
 const opsiWallet = computed(() => [{ label: '— pilih wallet —', value: '__kosong' }, ...SEMUA_WADAH.map(k => ({ label: namaWallet(k), value: k }))])
-const SEMUHAKAN_OK = SEMUA_WADAH
 onMounted(() => ivBaru())
 
 // ---- investor → Office account link (VUE-7b, old `akunHtml`/`akBuka`/`akKirim`) ----
@@ -431,7 +473,7 @@ async function akLepas(i: InvestorBrankas) {
         variant="subtle"
         icon="i-lucide-triangle-alert"
         class="mb-4"
-        :title="`${gantung.length} catatan pengembalian belum menyebut keluar dari wallet mana. Uangnya sudah dibayarkan tapi saldo wallet belum berkurang, jadi saldo di halaman Saldo & Rekening lebih besar daripada kenyataan sebesar ${fmtRp(gantungTotal)}. Perbaiki lewat tombol Ubah di barisnya lalu pilih wallet asalnya.`"
+        :title="`${gantung.length} catatan pengembalian belum menyebut keluar dari wallet mana. Uangnya sudah dibayarkan tapi saldo wallet belum berkurang, jadi saldo di halaman Saldo & Rekening lebih besar daripada kenyataan sebesar ${fmtRp(gantungTotal)}. Tekan Edit di barisnya lalu pilih wallet asalnya.`"
       />
 
       <AppStatGrid
@@ -440,23 +482,18 @@ async function akLepas(i: InvestorBrankas) {
       >
         <AppStat
           label="Modal masuk"
-          icon="i-lucide-hand-coins"
           :value="fmtRp(modal)"
           :sub="`${daftar.length} investor · termasuk tambahan modal`"
         />
         <AppStat
           label="Sudah dikembalikan"
-          icon="i-lucide-check"
           :value="fmtRp(kembali)"
           :sub="modal > 0 ? `${(kembali / modal * 100).toFixed(1)}% dari modal` : '—'"
-          tone="success"
         />
         <AppStat
           label="Sisa kewajiban"
-          icon="i-lucide-hourglass"
           :value="fmtRp(Math.max(modal - kembali, 0))"
           sub="belum dikembalikan"
-          :tone="modal - kembali > 0 ? 'warning' : undefined"
         />
       </AppStatGrid>
 
@@ -466,7 +503,7 @@ async function akLepas(i: InvestorBrankas) {
         :description="ivSunting ? 'Riwayat pengembaliannya tidak tersentuh.' : 'Modal yang masuk dan target pengembaliannya'"
         class="mb-5"
       >
-        <AppFilterGrid>
+        <AppFilterGrid class="mb-4">
           <UFormField label="Nama">
             <UInput
               v-model="ivForm.nama"
@@ -475,9 +512,8 @@ async function akLepas(i: InvestorBrankas) {
             />
           </UFormField>
           <UFormField :label="ivSunting ? 'Modal awal' : 'Modal'">
-            <UInput
+            <AppNominal
               v-model="ivForm.modal"
-              inputmode="numeric"
               placeholder="0"
               class="w-full num"
             />
@@ -518,27 +554,322 @@ async function akLepas(i: InvestorBrankas) {
         v-for="i in daftar"
         :key="String(i.id)"
         :title="String(i.name || '(tanpa nama)')"
-        :description="`Modal ${fmtRp(modalTotal(i))} · kepemilikan ${i.ownership || 0}%${i.targetDate ? ` · target ${fTgl(i.targetDate)}` : ''} · tercatat juga di halaman investor sebagai riwayat dividen`"
+        :description="keterangan(i)"
         class="mb-5"
-        flush
       >
-        <div class="grid gap-4 px-4 py-3 sm:grid-cols-3 lg:px-5">
-          <div class="text-sm">
-            <span class="block text-[12px] font-bold uppercase tracking-wider text-muted">Dikembalikan</span>
-            <b class="num text-highlighted">{{ fmtRp(kembaliOf(i)) }}</b>
-            <span class="block text-[12px] text-muted">{{ persenOf(i).toFixed(1) }}% dari modal</span>
-          </div>
-          <div class="text-sm">
-            <span class="block text-[12px] font-bold uppercase tracking-wider text-muted">Sisa</span>
-            <b class="num text-highlighted">{{ fmtRp(Math.max(modalTotal(i) - kembaliOf(i), 0)) }}</b>
-          </div>
-          <div class="text-sm">
-            <span class="block text-[12px] font-bold uppercase tracking-wider text-muted">Jumlah pembayaran</span>
-            <b class="num text-highlighted">{{ (i.returns ?? []).length }}×</b>
+        <div class="grid gap-3 sm:grid-cols-3">
+          <div
+            v-for="k in ringkasan(i)"
+            :key="k.label"
+            class="rounded-xl border border-t-[3px] border-default border-t-gold bg-muted p-4"
+          >
+            <p class="text-[11px] font-bold uppercase tracking-wider text-muted">
+              {{ k.label }}
+            </p>
+            <p class="num mt-1 font-display text-2xl font-extrabold text-highlighted">
+              {{ k.nilai }}
+            </p>
+            <p
+              v-if="k.sub"
+              class="mt-1 text-[13px] text-muted"
+            >
+              {{ k.sub }}
+            </p>
           </div>
         </div>
 
-        <div class="border-t border-default px-4 py-3 lg:px-5">
+        <!-- ── Tambah modal ── -->
+        <div
+          v-if="izin.ubah('modal')"
+          class="mt-4 rounded-xl border border-dashed border-accented bg-muted p-4"
+        >
+          <b class="text-sm text-highlighted">{{ tmSunting?.iv === String(i.id) ? 'Edit tambahan modal' : 'Tambah modal' }}</b>
+          <p class="mb-3 text-[12px] text-muted">
+            Uang tambahan dari investor ini sesudah modal awal. Saldo wallet tujuannya ikut bertambah —
+            <b>jangan dicatat lagi</b> sebagai Mutasi "uang masuk dari luar", nanti terhitung dua kali.
+          </p>
+          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <UFormField label="Tanggal masuk">
+              <AppTanggal
+                :model-value="d(String(i.id)).td"
+                class="w-full"
+                @update:model-value="(v: string | number) => d(String(i.id)).td = String(v)"
+              />
+            </UFormField>
+            <UFormField label="Nominal">
+              <AppNominal
+                :model-value="d(String(i.id)).ta"
+                placeholder="0"
+                class="num w-full"
+                @update:model-value="(v: string) => d(String(i.id)).ta = v"
+              />
+            </UFormField>
+            <UFormField label="Masuk ke wallet">
+              <USelect
+                :model-value="d(String(i.id)).tw || '__kosong'"
+                :items="opsiWallet"
+                class="w-full"
+                @update:model-value="(v: string) => d(String(i.id)).tw = v === '__kosong' ? '' : v"
+              />
+            </UFormField>
+            <UFormField label="Keterangan">
+              <UInput
+                :model-value="d(String(i.id)).tk"
+                placeholder="mis. tambahan modal renovasi"
+                class="w-full"
+                @update:model-value="(v: string | number) => d(String(i.id)).tk = String(v)"
+              />
+            </UFormField>
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            <UButton
+              :label="tmSunting?.iv === String(i.id) ? 'Simpan perubahan' : 'Catat tambahan modal'"
+              size="sm"
+              :loading="sibuk"
+              @click="tmSimpan(i)"
+            />
+            <UButton
+              v-if="tmSunting?.iv === String(i.id)"
+              label="Batal"
+              size="sm"
+              color="neutral"
+              variant="ghost"
+              @click="tmBatal(i)"
+            />
+          </div>
+        </div>
+
+        <!-- The top-up history stays visible to view-only roles, as before. -->
+        <div
+          v-if="tmUrut(i).length"
+          class="mt-4 overflow-hidden rounded-xl border border-default"
+        >
+          <UTable
+            :columns="kolomTambahan(i)"
+            :data="tmUrut(i)"
+            class="hidden lg:block"
+          >
+            <template #date-cell="{ row }">
+              {{ tglRingkas(row.original.date) }}
+            </template>
+            <template #ke-cell="{ row }">
+              {{ namaWallet(row.original.ke) }}
+            </template>
+            <template #amount-cell="{ row }">
+              <span class="num">{{ fmtRp(num(row.original.amount)) }}</span>
+            </template>
+            <template #ket-cell="{ row }">
+              {{ row.original.ket || '—' }}
+            </template>
+            <template #aksi-cell="{ row }">
+              <div
+                v-if="izin.ubah('modal')"
+                class="flex justify-end gap-1 whitespace-nowrap"
+              >
+                <UButton
+                  label="Edit"
+                  size="xs"
+                  color="neutral"
+                  variant="soft"
+                  @click="tmMulaiSunting(i, String(row.original.id))"
+                />
+                <UButton
+                  label="Hapus"
+                  size="xs"
+                  color="error"
+                  variant="soft"
+                  loading-auto
+                  @click="tmHapus(i, String(row.original.id))"
+                />
+              </div>
+            </template>
+          </UTable>
+          <div class="divide-y divide-default lg:hidden">
+            <div
+              v-for="t in tmUrut(i)"
+              :key="String(t.id)"
+              class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-3 py-2 text-sm"
+            >
+              <span class="min-w-0">{{ tglRingkas(t.date) }} · {{ namaWallet(t.ke) }} · {{ t.ket || '—' }}</span>
+              <span class="flex items-center gap-2">
+                <b class="num">{{ fmtRp(num(t.amount)) }}</b>
+                <template v-if="izin.ubah('modal')">
+                  <UButton
+                    label="Edit"
+                    size="xs"
+                    color="neutral"
+                    variant="soft"
+                    @click="tmMulaiSunting(i, String(t.id))"
+                  />
+                  <UButton
+                    label="Hapus"
+                    size="xs"
+                    color="error"
+                    variant="soft"
+                    loading-auto
+                    @click="tmHapus(i, String(t.id))"
+                  />
+                </template>
+              </span>
+            </div>
+            <div class="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+              <b class="text-highlighted">Total tambahan</b>
+              <b class="num">{{ fmtRp(modalTotal(i) - num(i.capital)) }}</b>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Catat pengembalian ── -->
+        <template v-if="izin.ubah('modal')">
+          <UAlert
+            v-if="rvSunting?.iv === String(i.id)"
+            color="info"
+            variant="subtle"
+            icon="i-lucide-pencil"
+            class="mt-4"
+            title="Sedang menyunting catatan pengembalian. Saldo wallet asalnya ikut berubah begitu disimpan."
+          />
+          <div class="mt-4 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <UFormField label="Tanggal bayar">
+              <AppTanggal
+                :model-value="d(String(i.id)).rd"
+                class="w-full"
+                @update:model-value="(v: string | number) => d(String(i.id)).rd = String(v)"
+              />
+            </UFormField>
+            <UFormField label="Nominal">
+              <AppNominal
+                :model-value="d(String(i.id)).ra"
+                placeholder="0"
+                class="num w-full"
+                @update:model-value="(v: string) => d(String(i.id)).ra = v"
+              />
+            </UFormField>
+            <UFormField label="Dibayar dari">
+              <USelect
+                :model-value="d(String(i.id)).rw || '__kosong'"
+                :items="opsiWallet"
+                class="w-full"
+                @update:model-value="(v: string) => d(String(i.id)).rw = v === '__kosong' ? '' : v"
+              />
+            </UFormField>
+            <div class="flex gap-2">
+              <UButton
+                :label="rvSunting?.iv === String(i.id) ? 'Simpan perubahan' : 'Catat pengembalian'"
+                block
+                class="flex-1"
+                :loading="sibuk"
+                @click="rvSimpan(i)"
+              />
+              <UButton
+                v-if="rvSunting?.iv === String(i.id)"
+                label="Batal"
+                color="neutral"
+                variant="ghost"
+                @click="rvBatal(i)"
+              />
+            </div>
+          </div>
+        </template>
+
+        <div
+          v-if="retUrut(i).length"
+          class="mt-4 overflow-hidden rounded-xl border border-default"
+        >
+          <UTable
+            :columns="kolomKembali"
+            :data="retUrut(i)"
+            class="hidden lg:block"
+          >
+            <template #date-cell="{ row }">
+              {{ tglRingkas(row.original.date) }}
+            </template>
+            <template #dari-cell="{ row }">
+              <AppStatus
+                v-if="!row.original.dari || !SEMUA_WADAH.includes(row.original.dari)"
+                color="warning"
+                icon="i-lucide-triangle-alert"
+                size="sm"
+              >
+                belum disebut
+              </AppStatus>
+              <template v-else>
+                {{ namaWallet(row.original.dari) }}
+              </template>
+            </template>
+            <template #amount-cell="{ row }">
+              <span class="num">{{ fmtRp(num(row.original.amount)) }}</span>
+            </template>
+            <template #aksi-cell="{ row }">
+              <div
+                v-if="izin.ubah('modal')"
+                class="flex justify-end gap-1 whitespace-nowrap"
+              >
+                <UButton
+                  label="Edit"
+                  size="xs"
+                  color="neutral"
+                  variant="soft"
+                  @click="rvMulaiSunting(i, row.index)"
+                />
+                <UButton
+                  label="Hapus"
+                  size="xs"
+                  color="error"
+                  variant="soft"
+                  loading-auto
+                  @click="rvHapus(i, row.index)"
+                />
+              </div>
+            </template>
+          </UTable>
+          <div class="divide-y divide-default lg:hidden">
+            <div
+              v-for="(r, ix) in retUrut(i)"
+              :key="ix"
+              class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-3 py-2 text-sm"
+            >
+              <span class="min-w-0">
+                <b class="text-highlighted">{{ tglRingkas(r.date) }}</b>
+                <AppStatus
+                  v-if="!r.dari || !SEMUA_WADAH.includes(r.dari)"
+                  color="warning"
+                  size="sm"
+                  class="ml-2"
+                >
+                  belum disebut
+                </AppStatus>
+                <span
+                  v-else
+                  class="ml-2 text-muted"
+                >{{ namaWallet(r.dari) }}</span>
+              </span>
+              <span class="flex items-center gap-2">
+                <b class="num">{{ fmtRp(num(r.amount)) }}</b>
+                <template v-if="izin.ubah('modal')">
+                  <UButton
+                    label="Edit"
+                    size="xs"
+                    color="neutral"
+                    variant="soft"
+                    @click="rvMulaiSunting(i, ix)"
+                  />
+                  <UButton
+                    label="Hapus"
+                    size="xs"
+                    color="error"
+                    variant="soft"
+                    loading-auto
+                    @click="rvHapus(i, ix)"
+                  />
+                </template>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Akun Office (below the repayments, as in the old card) ── -->
+        <div class="mt-4">
           <template v-if="i.akunId">
             <UAlert
               color="info"
@@ -560,7 +891,10 @@ async function akLepas(i: InvestorBrankas) {
               />
             </div>
           </template>
-          <template v-else-if="akunBoleh">
+          <div
+            v-else-if="akunBoleh"
+            class="rounded-xl border border-dashed border-accented bg-muted p-4"
+          >
             <b class="text-sm text-highlighted">Akun Office</b>
             <p
               v-if="akBuka?.iv !== String(i.id)"
@@ -590,7 +924,6 @@ async function akLepas(i: InvestorBrankas) {
               />
             </div>
             <template v-else-if="akBuka.mode === 'pilih'">
-              <b class="text-sm text-highlighted">Hubungkan akun yang sudah ada</b>
               <p class="mb-2 text-[12px] text-muted">
                 Akun yang dipilih diberi hak modul investor (tidak pernah admin); nama dan PIN-nya tidak diubah.
               </p>
@@ -642,7 +975,6 @@ async function akLepas(i: InvestorBrankas) {
               </div>
             </template>
             <template v-else>
-              <b class="text-sm text-highlighted">Buat akun baru</b>
               <p class="mb-2 text-[12px] text-muted">
                 Investor masuk ke Investor Compass dengan nama akun + PIN ini. Sampaikan PIN-nya langsung ke orangnya — layar ini tidak menyimpannya.
               </p>
@@ -688,7 +1020,7 @@ async function akLepas(i: InvestorBrankas) {
                 </div>
               </div>
             </template>
-          </template>
+          </div>
           <p
             v-else
             class="text-sm text-muted"
@@ -699,196 +1031,10 @@ async function akLepas(i: InvestorBrankas) {
 
         <div
           v-if="izin.ubah('modal')"
-          class="border-t border-default px-4 py-3 lg:px-5"
-        >
-          <b class="text-sm text-highlighted">{{ tmSunting?.iv === String(i.id) ? 'Ubah tambahan modal' : 'Tambah modal' }}</b>
-          <p class="mb-2 text-[12px] text-muted">
-            Uang tambahan dari investor ini sesudah modal awal. Saldo wallet tujuannya ikut bertambah —
-            <b>jangan dicatat lagi</b> sebagai Mutasi "uang masuk dari luar", nanti terhitung dua kali.
-          </p>
-          <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <UFormField label="Tanggal masuk">
-              <AppTanggal
-                :model-value="d(String(i.id)).td"
-                class="w-full"
-                @update:model-value="(v: string | number) => d(String(i.id)).td = String(v)"
-              />
-            </UFormField>
-            <UFormField label="Nominal">
-              <UInput
-                :model-value="d(String(i.id)).ta"
-                inputmode="numeric"
-                placeholder="0"
-                class="w-full num"
-                @update:model-value="(v: string | number) => d(String(i.id)).ta = String(v)"
-              />
-            </UFormField>
-            <UFormField label="Masuk ke wallet">
-              <USelect
-                :model-value="d(String(i.id)).tw || '__kosong'"
-                :items="opsiWallet"
-                class="w-full"
-                @update:model-value="(v: string) => d(String(i.id)).tw = v === '__kosong' ? '' : v"
-              />
-            </UFormField>
-            <UFormField label="Keterangan">
-              <UInput
-                :model-value="d(String(i.id)).tk"
-                placeholder="mis. tambahan modal renovasi"
-                class="w-full"
-                @update:model-value="(v: string | number) => d(String(i.id)).tk = String(v)"
-              />
-            </UFormField>
-          </div>
-          <div class="mt-2 flex flex-wrap gap-2">
-            <UButton
-              :label="tmSunting?.iv === String(i.id) ? 'Simpan perubahan' : 'Catat tambahan modal'"
-              size="sm"
-              :loading="sibuk"
-              @click="tmSimpan(i)"
-            />
-            <UButton
-              v-if="tmSunting?.iv === String(i.id)"
-              label="Batal"
-              size="sm"
-              color="neutral"
-              variant="ghost"
-              @click="tmSunting = null"
-            />
-          </div>
-          <div
-            v-if="tmUrut(i).length"
-            class="mt-2 divide-y divide-default rounded-panel border border-default"
-          >
-            <div
-              v-for="t in tmUrut(i)"
-              :key="String(t.id)"
-              class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-3 py-2 text-sm"
-            >
-              <span class="min-w-0">{{ fTgl(t.date) }} · {{ namaWallet(t.ke) }} · {{ t.ket || '—' }}</span>
-              <span class="flex items-center gap-2">
-                <b class="num">{{ fmtRp(num(t.amount)) }}</b>
-                <UButton
-                  label="Ubah"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  @click="tmMulaiSunting(i, String(t.id))"
-                />
-                <UButton
-                  label="Hapus"
-                  size="xs"
-                  color="error"
-                  variant="ghost"
-                  loading-auto
-                  @click="tmHapus(i, String(t.id))"
-                />
-              </span>
-            </div>
-          </div>
-        </div>
-
-        <div
-          v-if="izin.ubah('modal')"
-          class="border-t border-default px-4 py-3 lg:px-5"
-        >
-          <b class="text-sm text-highlighted">{{ rvSunting?.iv === String(i.id) ? 'Ubah pengembalian' : 'Catat pengembalian' }}</b>
-          <div class="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-            <UFormField label="Tanggal bayar">
-              <AppTanggal
-                :model-value="d(String(i.id)).rd"
-                class="w-full"
-                @update:model-value="(v: string | number) => d(String(i.id)).rd = String(v)"
-              />
-            </UFormField>
-            <UFormField label="Nominal">
-              <UInput
-                :model-value="d(String(i.id)).ra"
-                inputmode="numeric"
-                placeholder="0"
-                class="w-full num"
-                @update:model-value="(v: string | number) => d(String(i.id)).ra = String(v)"
-              />
-            </UFormField>
-            <UFormField label="Dibayar dari">
-              <USelect
-                :model-value="d(String(i.id)).rw || '__kosong'"
-                :items="opsiWallet"
-                class="w-full"
-                @update:model-value="(v: string) => d(String(i.id)).rw = v === '__kosong' ? '' : v"
-              />
-            </UFormField>
-            <div class="flex items-end gap-2">
-              <UButton
-                :label="rvSunting?.iv === String(i.id) ? 'Simpan perubahan' : 'Catat pengembalian'"
-                size="sm"
-                :loading="sibuk"
-                @click="rvSimpan(i)"
-              />
-              <UButton
-                v-if="rvSunting?.iv === String(i.id)"
-                label="Batal"
-                size="sm"
-                color="neutral"
-                variant="ghost"
-                @click="rvSunting = null"
-              />
-            </div>
-          </div>
-        </div>
-
-        <div
-          v-if="retUrut(i).length"
-          class="divide-y divide-default border-t border-default"
-        >
-          <div
-            v-for="(r, ix) in retUrut(i)"
-            :key="ix"
-            class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-4 py-2.5 text-sm lg:px-5"
-          >
-            <span class="min-w-0">
-              <b class="text-highlighted">{{ fTgl(r.date) }}</b>
-              <AppStatus
-                v-if="!r.dari || !SEMUHAKAN_OK.includes(String(r.dari))"
-                color="warning"
-                size="sm"
-              >
-                belum disebut
-              </AppStatus>
-              <span
-                v-else
-                class="ml-2 text-muted"
-              >{{ namaWallet(r.dari) }}</span>
-            </span>
-            <span class="flex items-center gap-2">
-              <b class="num">{{ fmtRp(num(r.amount)) }}</b>
-              <template v-if="izin.ubah('modal')">
-                <UButton
-                  label="Ubah"
-                  size="xs"
-                  color="neutral"
-                  variant="ghost"
-                  @click="rvMulaiSunting(i, ix)"
-                />
-                <UButton
-                  label="Hapus"
-                  size="xs"
-                  color="error"
-                  variant="ghost"
-                  loading-auto
-                  @click="rvHapus(i, ix)"
-                />
-              </template>
-            </span>
-          </div>
-        </div>
-
-        <div
-          v-if="izin.ubah('modal')"
-          class="flex flex-wrap gap-2 border-t border-default px-4 py-3 lg:px-5"
+          class="mt-4 flex flex-wrap gap-2"
         >
           <UButton
-            label="Ubah investor"
+            label="Edit investor"
             size="sm"
             color="neutral"
             variant="outline"

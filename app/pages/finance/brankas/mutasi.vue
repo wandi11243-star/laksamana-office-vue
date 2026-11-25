@@ -9,11 +9,12 @@
   against the whole-blob version (`If-Match`); conflicts reload, never retry.
 -->
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import { createVaultRec, deleteVaultRec, getVault, updateVaultRec } from '~/composables/useFinance'
 import { useKompasState } from '~/composables/useCashier'
 import { useBrankasIzin } from '~/utils/layar/finance'
 import { fmtRp, num } from '~/utils/cashier'
-import { fTgl, hariIni } from '~/utils/format'
+import { hariIni, tglRingkas } from '~/utils/format'
 import { tanganiKonflik } from '~/utils/versi'
 import type { MutasiBrankas } from '~/utils/brankas'
 import { bankDariTujuan, namaWallet, saldoSemua, SEMUA_WADAH } from '~/utils/brankas'
@@ -65,10 +66,21 @@ const barisAuto = computed<BarisAuto[]>(() => ((kompas.value?.rekap_setoran ?? [
     auto: true as const, kenal: !!bankDariTujuan(st.tujuan),
     tujuanTeks: st.tujuan || '', hari: (st.hari ?? []).length,
   })))
-const semua = computed<(MutasiBrankas & { auto?: boolean, kenal?: boolean, tujuanTeks?: string, hari?: number })[]>(() =>
+type BarisRiwayat = MutasiBrankas & { auto?: boolean, kenal?: boolean, tujuanTeks?: string, hari?: number }
+const semua = computed<BarisRiwayat[]>(() =>
   ([...(vault.value.mutasi ?? []), ...barisAuto.value] as MutasiBrankas[])
     .slice()
     .sort((a, b) => String(b.tgl || '') < String(a.tgl || '') ? -1 : 1))
+// The old "Riwayat Mutasi" table, same columns in the same order.
+const kolomRiwayat: TableColumn<BarisRiwayat>[] = [
+  { id: 'tgl', header: 'Tanggal' },
+  { id: 'jenis', header: 'Jenis' },
+  { id: 'dari', header: 'Dari' },
+  { id: 'ke', header: 'Ke' },
+  { id: 'nominal', header: 'Nominal', meta: { class: { th: 'text-right', td: 'text-right' } } },
+  { id: 'ket', header: 'Keterangan', meta: { class: { td: 'min-w-56 whitespace-normal' } } },
+  { id: 'aksi', header: '' },
+]
 const totalAuto = computed(() => barisAuto.value.reduce((s, m) => s + num(m.nominal), 0))
 const takKenal = computed(() => barisAuto.value.filter(m => !m.kenal))
 
@@ -212,7 +224,6 @@ const opsiWallet = computed(() => SEMUA_WADAH.map(k => ({ label: namaWallet(k), 
           v-for="k in SEMUA_WADAH"
           :key="k"
           :label="namaWallet(k)"
-          icon="i-lucide-wallet"
           :value="fmtRp(saldo[k]?.saldo ?? 0)"
           sub="saldo berjalan"
         />
@@ -232,7 +243,8 @@ const opsiWallet = computed(() => SEMUA_WADAH.map(k => ({ label: namaWallet(k), 
         variant="subtle"
         icon="i-lucide-info"
         class="mb-4"
-        :title="`${barisAuto.length} setoran cash dari Rekap Penjualan ikut di daftar ini. Total ${fmtRp(totalAuto)} berpindah dari brankas fisik ke bank. Barisnya DIBACA dari Rekap Penjualan, tidak disalin — yang membatalkan setoran melakukannya di sana, dan daftar ini langsung ikut.`"
+        :title="`${barisAuto.length} setoran cash dari Rekap Penjualan ikut di daftar ini.`"
+        :description="`Total ${fmtRp(totalAuto)} berpindah dari brankas fisik ke bank. Barisnya DIBACA dari Rekap Penjualan, tidak disalin — yang membatalkan setoran melakukannya di sana, dan daftar ini langsung ikut.`"
       />
       <UAlert
         v-if="takKenal.length"
@@ -246,16 +258,25 @@ const opsiWallet = computed(() => SEMUA_WADAH.map(k => ({ label: namaWallet(k), 
       <AppPanel
         v-if="izin.ubah('mutasi')"
         :title="suntingId ? 'Ubah mutasi' : 'Catat mutasi'"
-        description="Pindah antar wallet dicatat SATU baris, bukan dua. Dua baris yang salah satunya terhapus membuat uang perusahaan bertambah atau hilang tanpa ada yang menyadarinya."
         class="mb-5"
       >
+        <template #description>
+          Pindah antar wallet dicatat SATU baris, bukan dua. Dua baris yang salah satunya terhapus membuat uang
+          perusahaan bertambah atau hilang tanpa ada yang menyadarinya.
+          <span class="mt-1 block">
+            <b>Uang masuk dari luar</b> untuk pemasukan cash yang TIDAK lewat POS — sewa tempat, penjualan barang bekas,
+            titipan yang dikembalikan. Yang sudah masuk omset harian jangan dicatat lagi di sini: ia sudah terhitung lewat
+            <b>Aktual Masuk</b> di Rekap Penjualan, dan mencatatnya dua kali menaikkan saldo tanpa satu pun uang yang
+            benar-benar datang.
+          </span>
+        </template>
         <p
           v-if="suntingId"
           class="mb-3 text-sm text-muted"
         >
           Sedang menyunting mutasi. Saldo wallet yang terlibat ikut berubah begitu disimpan.
         </p>
-        <AppFilterGrid>
+        <AppFilterGrid class="mb-4 lg:!grid-cols-3">
           <UFormField label="Jenis">
             <USelect
               v-model="form.jenis"
@@ -270,9 +291,8 @@ const opsiWallet = computed(() => SEMUA_WADAH.map(k => ({ label: namaWallet(k), 
             />
           </UFormField>
           <UFormField label="Nominal">
-            <UInput
+            <AppNominal
               v-model="form.nominal"
-              inputmode="numeric"
               placeholder="0"
               class="w-full num"
             />
@@ -305,11 +325,6 @@ const opsiWallet = computed(() => SEMUA_WADAH.map(k => ({ label: namaWallet(k), 
             />
           </UFormField>
         </AppFilterGrid>
-        <p class="mb-3 text-sm text-muted">
-          <b>Uang masuk dari luar</b> untuk pemasukan cash yang TIDAK lewat POS — sewa tempat, penjualan barang bekas,
-          titipan yang dikembalikan. Yang sudah masuk omset harian jangan dicatat lagi di sini: ia sudah terhitung lewat
-          <b>Aktual Masuk</b> di Rekap Penjualan, dan mencatatnya dua kali menaikkan saldo tanpa satu pun uang yang benar-benar datang.
-        </p>
         <div class="flex flex-wrap gap-2">
           <UButton
             :label="suntingId ? 'Simpan perubahan' : 'Simpan mutasi'"
@@ -329,60 +344,147 @@ const opsiWallet = computed(() => SEMUA_WADAH.map(k => ({ label: namaWallet(k), 
 
       <AppPanel
         title="Riwayat mutasi"
-        :description="`${semua.length} baris · manual + otomatis Rekap Penjualan, terbaru dulu`"
+        :count="semua.length"
         flush
       >
-        <div
-          v-if="semua.length"
-          class="divide-y divide-default"
-        >
-          <div
-            v-for="m in semua"
-            :key="String(m.id)"
-            class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-2.5 text-sm lg:px-5"
+        <template v-if="semua.length">
+          <UTable
+            :columns="kolomRiwayat"
+            :data="semua"
+            class="hidden lg:block"
           >
-            <span class="min-w-0">
-              <b class="text-highlighted">{{ fTgl(m.tgl) }}</b>
-              <span class="ml-2">{{ jenisNama(m.jenis) }}</span>
+            <template #tgl-cell="{ row }">
+              <span class="whitespace-nowrap">{{ tglRingkas(row.original.tgl) }}</span>
+            </template>
+            <template #jenis-cell="{ row }">
+              <div class="flex flex-col items-start gap-1">
+                <AppStatus
+                  color="neutral"
+                  size="sm"
+                >
+                  {{ jenisNama(row.original.jenis) }}
+                </AppStatus>
+                <AppStatus
+                  v-if="row.original.auto"
+                  color="info"
+                  icon="i-lucide-receipt"
+                  size="sm"
+                >
+                  Rekap Penjualan
+                </AppStatus>
+              </div>
+            </template>
+            <template #dari-cell="{ row }">
+              <span
+                v-if="row.original.jenis === 'masuk'"
+                class="text-muted"
+              >luar brankas</span>
+              <template v-else>
+                {{ namaWallet(row.original.dari) }}
+              </template>
+            </template>
+            <template #ke-cell="{ row }">
+              <span
+                v-if="row.original.jenis === 'keluar'"
+                class="text-muted"
+              >luar brankas</span>
               <AppStatus
-                v-if="m.auto"
-                color="info"
+                v-else-if="row.original.auto && !row.original.kenal"
+                color="warning"
+                icon="i-lucide-triangle-alert"
                 size="sm"
               >
-                Rekap Penjualan
+                {{ row.original.tujuanTeks || 'tanpa tujuan' }}
               </AppStatus>
-              <span class="block text-[12px] text-muted">
-                {{ m.jenis === 'masuk' ? 'luar brankas' : namaWallet(m.dari) }} → {{ m.jenis === 'keluar' ? 'luar brankas' : namaWallet(m.ke) }}
-                <template v-if="m.auto && !m.kenal"> · <span class="text-warning">{{ m.tujuanTeks || 'tanpa tujuan' }}</span></template>
-                · {{ m.ket || '—' }}
-                <template v-if="m.auto && m.hari"> · mencakup {{ m.hari }} hari</template>
-              </span>
-            </span>
-            <span class="flex items-center gap-2">
-              <b class="num">{{ fmtRp(num(m.nominal)) }}</b>
-              <template v-if="!m.auto && izin.ubah('mutasi')">
+              <template v-else>
+                {{ namaWallet(row.original.ke) }}
+              </template>
+            </template>
+            <template #nominal-cell="{ row }">
+              <span class="num whitespace-nowrap">{{ fmtRp(num(row.original.nominal)) }}</span>
+            </template>
+            <template #ket-cell="{ row }">
+              {{ row.original.ket || '—' }}
+              <span
+                v-if="row.original.auto && row.original.hari"
+                class="block text-xs text-muted"
+              >mencakup {{ row.original.hari }} hari</span>
+            </template>
+            <template #aksi-cell="{ row }">
+              <span
+                v-if="row.original.auto"
+                class="block text-right text-xs text-muted"
+              >dari Rekap Penjualan</span>
+              <div
+                v-else-if="izin.ubah('mutasi')"
+                class="flex justify-end gap-1 whitespace-nowrap"
+              >
                 <UButton
-                  label="Ubah"
+                  label="Edit"
                   size="xs"
                   color="neutral"
-                  variant="ghost"
-                  @click="mulaiSunting(m)"
+                  variant="soft"
+                  @click="mulaiSunting(row.original)"
                 />
                 <UButton
                   label="Hapus"
                   size="xs"
                   color="error"
-                  variant="ghost"
-                  @click="tanyaHapus(m)"
+                  variant="soft"
+                  @click="tanyaHapus(row.original)"
                 />
-              </template>
-              <span
-                v-else-if="m.auto"
-                class="text-[12px] text-muted"
-              >dari Rekap Penjualan</span>
-            </span>
+              </div>
+            </template>
+          </UTable>
+          <div class="divide-y divide-default lg:hidden">
+            <div
+              v-for="m in semua"
+              :key="String(m.id)"
+              class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-4 py-2.5 text-sm"
+            >
+              <span class="min-w-0">
+                <b class="text-highlighted">{{ tglRingkas(m.tgl) }}</b>
+                <span class="ml-2">{{ jenisNama(m.jenis) }}</span>
+                <AppStatus
+                  v-if="m.auto"
+                  color="info"
+                  size="sm"
+                  class="ml-2"
+                >
+                  Rekap Penjualan
+                </AppStatus>
+                <span class="block text-[12px] text-muted">
+                  {{ m.jenis === 'masuk' ? 'luar brankas' : namaWallet(m.dari) }} → {{ m.jenis === 'keluar' ? 'luar brankas' : m.auto && !m.kenal ? (m.tujuanTeks || 'tanpa tujuan') : namaWallet(m.ke) }}
+                  · {{ m.ket || '—' }}
+                  <template v-if="m.auto && m.hari"> · mencakup {{ m.hari }} hari</template>
+                </span>
+              </span>
+              <span class="flex items-center gap-2">
+                <b class="num">{{ fmtRp(num(m.nominal)) }}</b>
+                <template v-if="!m.auto && izin.ubah('mutasi')">
+                  <UButton
+                    label="Edit"
+                    size="xs"
+                    color="neutral"
+                    variant="soft"
+                    @click="mulaiSunting(m)"
+                  />
+                  <UButton
+                    label="Hapus"
+                    size="xs"
+                    color="error"
+                    variant="soft"
+                    @click="tanyaHapus(m)"
+                  />
+                </template>
+                <span
+                  v-else-if="m.auto"
+                  class="text-[12px] text-muted"
+                >dari Rekap Penjualan</span>
+              </span>
+            </div>
           </div>
-        </div>
+        </template>
         <p
           v-else
           class="px-4 py-6 text-center text-sm text-muted"
@@ -396,7 +498,7 @@ const opsiWallet = computed(() => SEMUA_WADAH.map(k => ({ label: namaWallet(k), 
         title="Hapus mutasi ini?"
       >
         <p class="text-sm">
-          {{ hapusTarget ? `${fTgl(hapusTarget.tgl)} · ${fmtRp(num(hapusTarget.nominal))}` : '' }} — saldo wallet yang terlibat akan berubah.
+          {{ hapusTarget ? `${tglRingkas(hapusTarget.tgl)} · ${fmtRp(num(hapusTarget.nominal))}` : '' }} — saldo wallet yang terlibat akan berubah.
           Baris otomatis dari Rekap Penjualan tidak bisa dihapus di sini.
         </p>
         <template #footer>

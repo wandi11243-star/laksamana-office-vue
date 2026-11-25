@@ -62,6 +62,10 @@ export function fTglP(iso?: string): string {
   return `${d.getDate()} ${BLN[d.getMonth()]}`
 }
 
+/** "2026-08-03" -> "3 Agu 2026", the old Brankas tables (Intl short months). */
+export const tglRingkas = (iso?: string) =>
+  iso ? tglLokal(iso).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
+
 /** "2026-09-27" -> "Sab, 27 Sep". */
 export const tglPendek = (tgl: string) =>
   new Date(`${tgl}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short' })

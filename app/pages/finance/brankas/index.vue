@@ -7,11 +7,12 @@
   `saldoSemua` in `~/utils/brankas` — never typed by anyone.
 -->
 <script setup lang="ts">
+import type { TableColumn } from '@nuxt/ui'
 import { getVault } from '~/composables/useFinance'
 import { useKompasState } from '~/composables/useCashier'
 import { useBrankasIzin } from '~/utils/layar/finance'
 import { fmtRp, num } from '~/utils/cashier'
-import { fTgl } from '~/utils/format'
+import { tglRingkas } from '~/utils/format'
 import { namaWallet, saldoSemua, selisihHari, SEMUA_WADAH } from '~/utils/brankas'
 
 definePageMeta({ access: ['brankas'] })
@@ -68,6 +69,19 @@ const dekat = computed(() => ((vault.value.bayar ?? []) as { status?: string, du
   .filter(p => p.status === 'scheduled')
   .sort((a, b) => String(a.dueDate || '') < String(b.dueDate || '') ? -1 : 1)
   .slice(0, 6))
+
+// The two tables of the old Ringkasan.
+const KANAN = { class: { th: 'text-right', td: 'text-right' } }
+const barisPosisi = computed(() => SEMUA_WADAH.map(k => ({ k, saldo: saldo.value[k]?.saldo ?? 0 })))
+const kolomPosisi = computed<TableColumn<(typeof barisPosisi.value)[number]>[]>(() => [
+  { id: 'wadah', header: 'Wadah', footer: 'Total' },
+  { id: 'saldo', header: 'Saldo', footer: fmtRp(likuid.value), meta: KANAN },
+])
+const kolomDekat: TableColumn<(typeof dekat.value)[number]>[] = [
+  { id: 'name', header: 'Kewajiban', meta: { class: { td: 'whitespace-normal' } } },
+  { id: 'due', header: 'Jatuh tempo' },
+  { id: 'amount', header: 'Nominal', meta: KANAN },
+]
 
 function jatuhTempo(due?: string): string {
   const d = selisihHari(due)
@@ -170,7 +184,19 @@ function jatuhTempo(due?: string): string {
           description="Saldo berjalan tiap bank dan brankas fisik"
           flush
         >
-          <div class="divide-y divide-default">
+          <UTable
+            :columns="kolomPosisi"
+            :data="barisPosisi"
+            class="hidden lg:block"
+          >
+            <template #wadah-cell="{ row }">
+              {{ namaWallet(row.original.k) }}
+            </template>
+            <template #saldo-cell="{ row }">
+              <b class="num text-highlighted">{{ fmtRp(row.original.saldo) }}</b>
+            </template>
+          </UTable>
+          <div class="divide-y divide-default lg:hidden">
             <div
               v-for="k in SEMUA_WADAH"
               :key="k"
@@ -191,9 +217,26 @@ function jatuhTempo(due?: string): string {
           description="Enam kewajiban paling dekat"
           flush
         >
+          <UTable
+            v-if="dekat.length"
+            :columns="kolomDekat"
+            :data="dekat"
+            class="hidden lg:block"
+          >
+            <template #name-cell="{ row }">
+              {{ row.original.name || '(tanpa nama)' }}
+            </template>
+            <template #due-cell="{ row }">
+              {{ tglRingkas(row.original.dueDate) }}
+              <span class="block text-xs text-muted">{{ jatuhTempo(row.original.dueDate) }}</span>
+            </template>
+            <template #amount-cell="{ row }">
+              <span class="num">{{ fmtRp(num(row.original.amount)) }}</span>
+            </template>
+          </UTable>
           <div
             v-if="dekat.length"
-            class="divide-y divide-default"
+            class="divide-y divide-default lg:hidden"
           >
             <div
               v-for="p in dekat"
@@ -202,7 +245,7 @@ function jatuhTempo(due?: string): string {
             >
               <span class="min-w-0">
                 <b class="text-highlighted">{{ p.name || '(tanpa nama)' }}</b>
-                <span class="block text-[12px] text-muted">{{ fTgl(p.dueDate) }} · {{ jatuhTempo(p.dueDate) }}</span>
+                <span class="block text-[12px] text-muted">{{ tglRingkas(p.dueDate) }} · {{ jatuhTempo(p.dueDate) }}</span>
               </span>
               <b class="num">{{ fmtRp(num(p.amount)) }}</b>
             </div>
