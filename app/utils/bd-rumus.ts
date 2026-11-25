@@ -589,6 +589,16 @@ export function lingkupIds(people: BdPerson[], akuId?: string, admin = false): s
   if (!akuId || admin) return null
   return [akuId, ...bawahan(people, akuId)]
 }
+/**
+ * Whose My Task this user may open besides their own: a BD admin every active
+ * crew member, a boss their reports (direct and indirect), anyone else nobody.
+ */
+export function orangPantau(people: BdPerson[], akuId?: string, admin = false): BdPerson[] {
+  const l = admin ? null : akuId ? bawahan(people, akuId) : []
+  return people
+    .filter(p => p.id !== akuId && p.active !== false && !p.tanpaAkses && (!l || l.includes(p.id)))
+    .sort((a, b) => String(a.name || '').localeCompare(String(b.name || ''), 'id'))
+}
 /** `dalamLingkup` — visible when ANY of its PICs is in scope. */
 export function dalamLingkup(o: BerPic, l: string[] | null): boolean {
   if (!l) return true
