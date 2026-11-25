@@ -72,11 +72,31 @@ h = C.hitungReport(pay, C.penjelasHari([], '2026-10-01'))
 cek('selisih antar metode saling menutup: total nol, keduanya tetap disebut', h.sisa === 0 && h.aman && h.bermasalah.length === 2)
 
 console.log('\ncashier: piutang')
+cek('nomor WhatsApp lokal dan internasional dinormalisasi', C.nomorWhatsAppBon('0812-3456-7890') === '6281234567890' && C.nomorWhatsAppBon('+65 9123 4567') === '6591234567')
+cek('nomor WhatsApp yang tidak valid ditolak', C.nomorWhatsAppBon('0812abc34567890') === '' && C.nomorWhatsAppBon('0812') === '')
 const g = C.bonGrupBelum([...bon, { id: 'd', date: '2026-09-01', nama: 'PAK BUDI', tipe: 'tamu', nominal: 500000, payKey: 'cash', status: 'open' }])
 cek('grup per nama huruf kecil + tipe', g.length === 2 && g[0].items.length === 2, JSON.stringify(g.map(x => [x.nama, x.items.length])))
 cek('utang terbesar di atas', g[0].total === 600000 && g[1].total === 300000)
 cek('isi grup urut tanggal bill', g[0].items[0].date === '2026-09-01')
 cek('bon lunas tidak ikut grup', !g.some(x => x.items.some(b => b.id === 'b')))
+const pembayaran = C.daftarPayment([
+  { k: 'cash', n: 'Cash', nonaktif: true },
+  { k: 'transfer_bni', n: 'Transfer BNI' },
+])
+const tanpaBon = C.bonRingkasHari([], '2026-10-01')
+cek('metode nonaktif tanpa riwayat disembunyikan', !C.metodeReport(pembayaran, null, tanpaBon).some(p => p.k === 'cash'))
+const historis = { pay: { cash: { actual: 10000 }, metode_lama: { actual: 30000 } } }
+const bonBni = [{ ...bon[0], payKey: 'transfer_bni' }]
+const ringkasBni = C.bonRingkasHari(bonBni, '2026-10-01')
+const barisPembayaran = C.metodeReport(pembayaran, historis, { ...ringkasBni, lunas: { edc_bca: 10000 } })
+cek('metode nonaktif dan kunci lama tetap dihitung saat ada nominal tersimpan', barisPembayaran.some(p => p.k === 'cash') && barisPembayaran.some(p => p.k === 'metode_lama'))
+const koreksiBni = C.penjelasHari(bonBni, '2026-10-01', barisPembayaran, ringkasBni)
+const laporanBni = C.hitungReport({
+  cash: { actual: 10000, pos: 10000 },
+  metode_lama: { actual: 30000, pos: 30000 },
+  transfer_bni: { actual: 0, pos: 100000 },
+}, koreksiBni, barisPembayaran)
+cek('metode baru memakai label, nominal, dan koreksi bon yang benar', laporanBni.baris.some(p => p.n === 'Transfer BNI' && p.bb === 100000) && laporanBni.ta === 40000 && laporanBni.sisa === 0)
 cek('namaUnik maks tiga + dkk', C.namaUnik([{ nama: 'A' }, { nama: 'B' }, { nama: 'A' }, { nama: 'C' }, { nama: 'D' }]) === 'A, B, C dkk')
 
 console.log('\ncashier: jejak submit')

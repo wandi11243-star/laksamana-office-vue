@@ -4,7 +4,7 @@
 // different days or sections never conflict.
 //
 // Contract: laksamana-api/docs/api/kompas.md "Granular parts of the blob".
-import type { Bon, ComplimentKasir, DailyReport, RokokHari, RokokItem, VoidBaris, VoidSetting } from '~/utils/cashier'
+import type { Bon, ComplimentKasir, DailyReport, MetodeCashier, RokokHari, RokokItem, VoidBaris, VoidSetting } from '~/utils/cashier'
 import type { EmployeesKompas } from '~/utils/porsi-pic'
 import type { BarisHarian } from '~/utils/kompas'
 import type { AbaiBri, BarisBri } from '~/utils/cocok-bri'
@@ -36,6 +36,10 @@ export const putBagianKompas = <T>(key: string, value: T, version: Versi) => tul
 export const getReport = (date: string) => baca<DailyReport | null>(`/kompas/reports/${date}`, null)
 export const putReport = (date: string, value: DailyReport, version: Versi) =>
   tulis<DailyReport>(`/kompas/reports/${date}`, { value }, version)
+
+export const getPaymentCashier = () => getBagianKompas<MetodeCashier[]>('cashier_payment_methods', [])
+export const putPaymentCashier = (v: MetodeCashier[], version: Versi) =>
+  putBagianKompas('cashier_payment_methods', v, version)
 
 export const getPiutang = () => getBagianKompas<Bon[]>('piutang', [])
 export const putPiutang = (v: Bon[], version: Versi) => putBagianKompas<Bon[]>('piutang', v, version)

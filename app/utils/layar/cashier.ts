@@ -22,6 +22,6 @@ export const LAYAR_CASHIER: Layar[] = [
   { key: 'kasir', label: 'Performa Kasir', desc: 'Omset yang diakui tiap kasir — angka final', icon: 'i-lucide-chart-column', to: '/cashier/kasir', grup: 'Kasir', boleh: bolehCashier('kasir') },
   { key: 'dp', label: 'Dana Masuk (DP)', desc: 'Uang DP reservasi yang sudah masuk — dibaca dari modul Reservasi', icon: 'i-lucide-wallet', to: '/cashier/dp', grup: 'Kasir', boleh: bolehCashier('dp') },
   { key: 'bri', label: 'Pencocokan QRIS BRI', desc: 'Mutasi masuk rekening BRI dicocokkan ke DP reservasi', icon: 'i-lucide-scan-line', to: '/cashier/bri', grup: 'Kasir', boleh: bolehCashier('bri') },
-  { key: 'rokokset', label: 'Pengaturan Item Rokok', desc: 'Item apa saja yang muncul di lembar Daily Stock Rokok', icon: 'i-lucide-settings-2', to: '/cashier/rokokset', grup: 'Sistem', boleh: bolehCashier('rokokset') },
+  { key: 'rokokset', label: 'Pengaturan Cashier', desc: 'Atur item Daily Stock Rokok dan metode pembayaran', icon: 'i-lucide-settings-2', to: '/cashier/rokokset', grup: 'Sistem', boleh: bolehCashier('rokokset') },
   { key: 'akses', label: 'Kelola Akses', desc: 'Atur halaman Cashier yang boleh dibuka tiap kru', icon: 'i-lucide-key-round', to: '/cashier/akses', grup: 'Sistem', boleh: me => isAdminOf(me, 'cashier') },
 ]
