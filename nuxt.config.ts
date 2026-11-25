@@ -15,7 +15,10 @@ export default defineNuxtConfig({
       htmlAttrs: { lang: 'id' },
       title: 'Laksamana Office',
       meta: [{ name: 'theme-color', content: '#F7F6F4' }],
-      link: [{ rel: 'icon', type: 'image/png', href: '/mark.png' }],
+      link: [
+        { rel: 'icon', type: 'image/png', href: '/mark.png' },
+        { rel: 'apple-touch-icon', type: 'image/png', sizes: '192x192', href: '/icon-192.png' },
+      ],
     },
   },
   css: ['~/assets/css/main.css'],

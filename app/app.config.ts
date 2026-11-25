@@ -141,6 +141,8 @@ export default defineAppConfig({
         thead: 'bg-muted',
         th: 'text-muted text-xs font-semibold uppercase tracking-wide py-3 whitespace-nowrap',
         td: 'num py-3 text-default align-middle',
+        // A total row reads as figures, not as a second capital-letter head.
+        tfoot: '[&_th]:normal-case [&_th]:tracking-normal [&_th]:text-[13px] [&_th]:font-bold [&_th]:text-highlighted',
         // Hover only on body rows (rows with a td): on the head row it greyed the dark heads.
         tr: 'border-b border-default [&:has(td)]:hover:bg-muted/70',
       },
