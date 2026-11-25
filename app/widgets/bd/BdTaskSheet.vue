@@ -34,6 +34,8 @@ const props = defineProps<{
   projects: BdProject[]
   people: BdPerson[]
   aku?: BdPerson | null
+  /** Who a new task is assigned to (My Task of a crew member); default = me. */
+  picAwal?: BdPerson | null
 }>()
 const open = defineModel<boolean>('open', { default: false })
 const toast = useToast()
@@ -207,7 +209,7 @@ watch(open, (o) => {
     depDraf.value = deps(t).filter(d => d !== t.id && props.tasks.some(x => x.id === d))
   }
   else {
-    const aku = props.aku
+    const aku = props.picAwal || props.aku
     f.name = ''
     f.desc = ''
     f.div = divisiBawaan(aku?.div, opsiDiv.value)

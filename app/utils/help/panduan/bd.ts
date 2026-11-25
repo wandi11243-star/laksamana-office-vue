@@ -38,6 +38,10 @@ export default {
             ['My Task', 'Pekerjaan yang kamu pegang.', 'Daftar per grup atau Kanban To Do → Done.'],
             ['Projects', 'Pekerjaan besar berjangka.', 'Punya milestone, berlangsung berminggu-minggu.'],
           ] },
+        { t: 'catatan', nada: 'info', judul: 'Melihat task anggota tim',
+          isi: 'Di My Task, admin Task Management bisa memilih task siapa yang ditampilkan: Task saya, Semua task, '
+            + 'atau satu orang. Atasan bisa memilih Tim saya atau salah satu bawahannya (atasan diatur di Kelola Akses). '
+            + 'Anggota lain hanya melihat task miliknya di halaman ini.' },
         { t: 'catatan', nada: 'info', judul: 'Status: To Do, Doing, Review, Done',
           isi: 'Task lama berstatus Backlog terbaca sebagai To Do, Waiting sebagai Doing. '
             + 'Done mencatat tanggal selesainya; deadline task Done berhenti menghitung dan tampil hijau.' },

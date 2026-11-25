@@ -4,6 +4,9 @@
   the roster (AKU null) sees every visible task instead — and that is SAID, or
   an empty list reads as "no work".
 
+  A BD admin or a boss can also open someone else's My Task, their whole team,
+  or (admin) every task — the picker beside the search. Own tasks stay the default.
+
   List mode groups the open tasks the way the morning question goes: overdue,
   next 7 days, later, waiting on others — plus the projects I hold and the 6
   most recently done. Kanban mode is the four columns with an archive switch.
@@ -12,7 +15,7 @@
 import type { BdTask } from '~/composables/useBd'
 import { centangSub, hapusTaskDenganUrutan, pesanHapusTask, toggleTask, useBdState } from '~/composables/useBd'
 import {
-  cariAku, lewat, lingkupIds, menungguReviewSaya, pelaksana, penghalang, pics, reviewers, saringLingkup, selesai, sisaHari, urutDeadline,
+  bawahan, cariAku, lewat, lingkupIds, menungguReviewSaya, orangPantau, pelaksana, penghalang, pics, saringLingkup, selesai, sisaHari, tugasSaya, urutDeadline,
   type ModeArsip,
 } from '~/utils/bd-rumus'
 import BdCari, { type HasilPilih } from '~/widgets/bd/BdCari.vue'
@@ -33,6 +36,13 @@ const { data: state, status, refresh: muatBd } = useBdState()
 const statMemuat = computed(() => !state.value.tasks.length && (status.value === 'pending' || status.value === 'idle'))
 const f = useState('bd-mytask', () => ({ mode: 'list' as 'list' | 'kanban', arsip: 'aktif' as ModeArsip }))
 
+// ---- whose tasks are shown ----
+// Sentinels, not '': the select treats an empty value as "nothing chosen".
+const SAYA = '__saya__'
+const TIM = '__tim__'
+const SEMUA = '__semua__'
+const lihat = useState('bd-mytask-lihat', () => SAYA)
+
 const people = computed(() => state.value.people)
 const projects = computed(() => state.value.projects)
 const aku = computed(() => cariAku(people.value, me.value))
@@ -41,10 +51,36 @@ const lingkup = computed(() => lingkupIds(people.value, aku.value?.id, isAdminOf
 /** `tugasSaya` — visible tasks I hold: my PICs AND my sub-task assignments AND tasks waiting on my review (old `tugasSaya`); the unmatched see everything, said out loud. Everyone sees every task & project (`tasksTerlihat`): scope only narrows what is SHOWN. */
 const tampak = computed(() => saringLingkup(state.value.tasks, 'semua', lingkup.value, aku.value?.id))
 const tampakProject = computed(() => saringLingkup(projects.value, 'semua', lingkup.value, aku.value?.id))
-const reviewSaya = (t: BdTask) => !!aku.value && t.status === 'Review' && reviewers(t).includes(aku.value.id)
+const admin = computed(() => isAdminOf(me.value, 'bd'))
+const pantau = computed(() => orangPantau(people.value, aku.value?.id, admin.value))
+const idTim = computed(() => (aku.value ? bawahan(people.value, aku.value.id) : []))
+const tugasTim = computed(() => tampak.value.filter(t => pelaksana(t).some(id => idTim.value.includes(id))))
+const nBuka = (daftar: BdTask[]) => daftar.filter(t => !selesai(t)).length
+/** The picker: me, my reports together, everyone (admin), then one person at a time — with their open count. */
+const opsiLihat = computed(() => [
+  { value: SAYA, label: aku.value ? 'Task saya' : 'Semua task' },
+  ...(idTim.value.length ? [{ value: TIM, label: `Tim saya (${nBuka(tugasTim.value)})` }] : []),
+  ...(admin.value && aku.value ? [{ value: SEMUA, label: `Semua task (${nBuka(tampak.value)})` }] : []),
+  ...pantau.value.map(p => ({ value: p.id, label: `${p.name || p.id} (${nBuka(tugasSaya(tampak.value, p.id))})` })),
+])
+/** A choice that is no longer offered (access or boss changed) falls back to my own tasks. */
+const lihatSah = computed({
+  get: () => (opsiLihat.value.some(o => o.value === lihat.value) ? lihat.value : SAYA),
+  set: (v: string) => { lihat.value = v },
+})
+/** The one person on screen: me, the picked crew member, or null for a team / everyone. */
+const orang = computed(() => {
+  if (lihatSah.value === SAYA) return aku.value
+  return pantau.value.find(p => p.id === lihatSah.value) || null
+})
+const sebut = computed(() => {
+  if (lihatSah.value === TIM) return 'tim kamu'
+  if (lihatSah.value === SEMUA || !orang.value) return 'semua kru'
+  return lihatSah.value === SAYA ? 'kamu' : String(orang.value.name || '')
+})
 const semua = computed(() => {
-  const vt = tampak.value
-  return aku.value ? vt.filter(t => pelaksana(t).includes(aku.value!.id) || reviewSaya(t)) : vt
+  if (lihatSah.value === TIM) return tugasTim.value
+  return tugasSaya(tampak.value, orang.value?.id)
 })
 const buka = computed(() => semua.value.filter(t => !selesai(t)).slice().sort(urutDeadline))
 const telat = computed(() => buka.value.filter(lewat))
@@ -53,18 +89,18 @@ const nSelesai = computed(() => semua.value.length - buka.value.length)
 const terkunci = (t: BdTask) => penghalang(t, state.value.tasks).length > 0
 
 const grup = computed(() => {
-  const review = menungguReviewSaya(buka.value, aku.value?.id)
-  const reviewSajaIds = new Set(review.filter(t => !(aku.value && pelaksana(t).includes(aku.value.id))).map(t => t.id))
+  const review = menungguReviewSaya(buka.value, orang.value?.id)
+  const reviewSajaIds = new Set(review.filter(t => !(orang.value && pelaksana(t).includes(orang.value.id))).map(t => t.id))
   const sisa = buka.value.filter(t => !reviewSajaIds.has(t.id))
   return [
-    { judul: 'Menunggu review kamu', items: review },
+    { judul: `Menunggu review ${sebut.value}`, items: review },
     { judul: 'Lewat deadline', items: sisa.filter(lewat) },
     { judul: '7 hari ke depan', items: sisa.filter(t => !lewat(t) && !terkunci(t) && t.deadline && sisaHari(t.deadline) <= 7) },
     { judul: 'Berikutnya', items: sisa.filter(t => !lewat(t) && !terkunci(t) && (!t.deadline || sisaHari(t.deadline) > 7)) },
     { judul: 'Menunggu task lain', items: sisa.filter(t => !lewat(t) && terkunci(t)) },
   ]
 })
-const proyekKu = computed(() => projects.value.filter(p => aku.value && pics(p).includes(aku.value.id) && p.stage !== 'Done'))
+const proyekKu = computed(() => projects.value.filter(p => orang.value && pics(p).includes(orang.value.id) && p.stage !== 'Done'))
 const baruSelesai = computed(() => semua.value.filter(selesai)
   .slice().sort((a, b) => (a.doneAt || '') < (b.doneAt || '') ? 1 : -1).slice(0, 6))
 
@@ -165,7 +201,7 @@ onUnmounted(() => {
 <template>
   <AppPage
     title="My Task"
-    description="Task yang kamu pegang — yang telat, minggu ini, dan yang masih menunggu task lain."
+    :description="`Task yang ${lihatSah === SAYA ? 'kamu' : sebut} pegang — yang telat, minggu ini, dan yang masih menunggu task lain.`"
   >
     <template #actions>
       <AppSeg
@@ -189,14 +225,27 @@ onUnmounted(() => {
       class="mb-4"
     />
 
-    <BdCari
-      :tasks="tampak"
-      :projects="tampakProject"
-      :po="state.po"
-      :people="people"
-      class="mb-4"
-      @pilih="pilihCari"
-    />
+    <div class="mb-4 flex flex-col gap-3 sm:flex-row sm:items-start">
+      <!-- Only for a BD admin or a boss: everyone else has a single choice. -->
+      <USelectMenu
+        v-if="opsiLihat.length > 1"
+        v-model="lihatSah"
+        :items="opsiLihat"
+        value-key="value"
+        icon="i-lucide-users"
+        :search-input="{ placeholder: 'Cari kru…' }"
+        class="w-full sm:w-60 sm:shrink-0"
+        aria-label="Lihat task milik"
+      />
+      <BdCari
+        :tasks="tampak"
+        :projects="tampakProject"
+        :po="state.po"
+        :people="people"
+        class="min-w-0 flex-1"
+        @pilih="pilihCari"
+      />
+    </div>
 
     <AppStatGrid
       :loading="statMemuat"
@@ -206,7 +255,7 @@ onUnmounted(() => {
         label="Task terbuka"
         icon="i-lucide-list-todo"
         :value="String(buka.length)"
-        sub="yang kamu pegang"
+        :sub="lihatSah === SAYA ? 'yang kamu pegang' : `dipegang ${sebut}`"
       />
       <AppStat
         label="Lewat deadline"
@@ -245,8 +294,8 @@ onUnmounted(() => {
         :projects="projects"
         show-project
         :arsip="f.arsip"
-        :pic-default="aku?.id"
-        :div-default="aku?.div"
+        :pic-default="(orang || aku)?.id"
+        :div-default="(orang || aku)?.div"
         @buka="bukaSheet"
         @sub-toggle="subToggle"
       />
@@ -261,7 +310,7 @@ onUnmounted(() => {
 
     <template v-else>
       <template v-if="proyekKu.length">
-        <AppSectionTitle title="Project yang kamu pegang" />
+        <AppSectionTitle :title="`Project yang ${sebut} pegang`" />
         <div class="mb-5 grid grid-cols-[repeat(auto-fill,minmax(290px,1fr))] gap-4">
           <BdProjCard
             v-for="p in proyekKu"
@@ -306,7 +355,7 @@ onUnmounted(() => {
         class="mb-5"
       >
         <p class="py-6 text-center text-sm text-muted">
-          Mantap. Task baru bisa ditambah lewat tombol di atas.
+          {{ lihatSah === SAYA ? 'Mantap. Task baru bisa ditambah lewat tombol di atas.' : `Belum ada task terbuka untuk ${sebut}.` }}
         </p>
       </AppPanel>
 
@@ -338,6 +387,7 @@ onUnmounted(() => {
       :projects="projects"
       :people="people"
       :aku="aku"
+      :pic-awal="orang"
     />
     <BdKonfirmasi
       v-model:open="hapusMau"
