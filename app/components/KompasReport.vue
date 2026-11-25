@@ -192,41 +192,38 @@ async function submit() {
           />
         </UFormField>
       </template>
-    </AppPanel>
-
-    <AppPanel
-      v-if="esbAllowed"
-      title="Isi POS dari ESB"
-      icon="i-lucide-cloud-download"
-      description="Menarik seluruh bill tanggal ini. Hanya kolom POS yang berubah; Actual tetap dan laporan belum disimpan."
-    >
-      <div class="flex flex-wrap items-center gap-3">
-        <UButton
-          label="Ambil dari ESB"
-          icon="i-lucide-download"
-          :loading="esbLoading"
-          :disabled="!data || menyimpan || status === 'pending'"
-          @click="isiPosEsb()"
-        />
-        <p
-          v-if="esbInfo"
-          class="min-w-0 flex-1 text-sm text-muted"
+      <template
+        v-if="esbAllowed"
+        #default
+      >
+        <div
+          class="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-default pt-4"
         >
-          {{ esbInfo }}
-        </p>
-      </div>
-      <UAlert
-        v-if="esbError"
-        class="mt-3"
-        color="error"
-        variant="subtle"
-        icon="i-lucide-triangle-alert"
-        :title="esbError"
-      />
+          <UButton
+            label="Ambil dari ESB"
+            icon="i-lucide-cloud-download"
+            :loading="esbLoading"
+            :disabled="!data || menyimpan || status === 'pending'"
+            @click="isiPosEsb()"
+          />
+          <p class="min-w-0 flex-1 text-sm text-muted">
+            {{ esbInfo || 'Menarik seluruh bill tanggal ini. Hanya kolom POS yang berubah; Actual tetap dan laporan belum disimpan.' }}
+          </p>
+        </div>
+        <UAlert
+          v-if="esbError"
+          class="mt-3"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          :title="esbError"
+        />
+      </template>
     </AppPanel>
 
     <UAlert
       v-if="error"
+      class="mb-6"
       color="error"
       variant="subtle"
       icon="i-lucide-triangle-alert"
@@ -235,6 +232,7 @@ async function submit() {
 
     <UAlert
       v-if="ditolak && kotor"
+      class="mb-6"
       color="warning"
       variant="subtle"
       icon="i-lucide-triangle-alert"
@@ -244,6 +242,7 @@ async function submit() {
 
     <UAlert
       v-if="jejakAkhir"
+      class="mb-6"
       color="info"
       variant="subtle"
       icon="i-lucide-file-pen-line"

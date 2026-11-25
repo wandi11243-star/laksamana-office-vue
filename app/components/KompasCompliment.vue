@@ -260,7 +260,7 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
   >
     <AppPanel
       title="Catatan compliment"
-      description="PIC Kasir selain Tamu langsung dipotong realisasinya sebesar Sub Total. PIC Pemberi tidak — potongannya baru berlaku setelah disetujui di halaman Performa Marketing/Event."
+      description="Pilih tanggal, lalu catat atau tarik compliment hari itu."
     >
       <template #actions>
         <UFormField label="Tanggal">
@@ -269,50 +269,47 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
           />
         </UFormField>
       </template>
-    </AppPanel>
-
-    <AppPanel
-      v-if="esbAllowed"
-      title="Compliment dari ESB"
-      icon="i-lucide-cloud-download"
-      description="Bill Compliment dan Member Deposit yang belum tercatat akan masuk langsung. PIC Kasir dicocokkan dari akun POS; PIC Pemberi tetap Tamu."
-    >
-      <div class="flex flex-wrap items-center gap-3">
-        <UButton
-          label="Tarik & catat dari ESB"
-          icon="i-lucide-download"
-          :loading="esbLoading"
-          :disabled="!data || menyimpan"
-          @click="tarikComplimentEsb()"
-        />
-        <p
-          v-if="esbMessage"
-          class="text-sm text-muted"
+      <p class="text-sm text-muted">
+        PIC Kasir selain Tamu langsung dipotong realisasinya sebesar Sub Total. PIC Pemberi tidak — potongannya baru berlaku setelah disetujui di halaman Performa Marketing/Event.
+      </p>
+      <template v-if="esbAllowed">
+        <div
+          class="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-default pt-4"
         >
-          {{ esbMessage }}
-        </p>
-      </div>
-      <UAlert
-        v-if="esbError"
-        class="mt-3"
-        color="error"
-        variant="subtle"
-        icon="i-lucide-triangle-alert"
-        :title="esbError"
-      />
-      <UAlert
-        v-for="warning in esbWarnings"
-        :key="warning"
-        class="mt-3"
-        color="warning"
-        variant="subtle"
-        icon="i-lucide-triangle-alert"
-        :title="warning"
-      />
+          <UButton
+            label="Tarik & catat dari ESB"
+            icon="i-lucide-cloud-download"
+            :loading="esbLoading"
+            :disabled="!data || menyimpan"
+            @click="tarikComplimentEsb()"
+          />
+          <p class="min-w-0 flex-1 text-sm text-muted">
+            {{ esbMessage || 'Bill Compliment dan Member Deposit yang belum tercatat akan masuk langsung. PIC Kasir dicocokkan dari akun POS; PIC Pemberi tetap Tamu.' }}
+          </p>
+        </div>
+        <UAlert
+          v-if="esbError"
+          class="mt-3"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          :title="esbError"
+        />
+        <UAlert
+          v-for="warning in esbWarnings"
+          :key="warning"
+          class="mt-3"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          :title="warning"
+        />
+      </template>
     </AppPanel>
 
     <UAlert
       v-if="error"
+      class="mb-6"
       color="error"
       variant="subtle"
       icon="i-lucide-triangle-alert"
@@ -420,6 +417,7 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
     <!-- Matching to the Daily Report (old kartuCocokRD, :1984-1991). -->
     <UAlert
       v-if="!rd.ada"
+      class="mb-6"
       color="info"
       variant="subtle"
       icon="i-lucide-info"
