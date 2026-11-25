@@ -45,6 +45,38 @@ const bh = computed(() => bonRingkasHari(semua.value, tanggal.value))
 const riwayat = computed(() => semua.value.filter(b => b.status === 'lunas')
   .sort((a, b) => String(b.lunasDate || '').localeCompare(String(a.lunasDate || ''))).slice(0, 80))
 
+// Riwayat pelunasan can be read as one list or grouped by who paid, the day the
+// money arrived, or how it was settled; each group shows its count and total.
+type ModeGrupRiwayat = 'none' | 'nama' | 'tgl' | 'metode'
+const modeRiwayat = ref<ModeGrupRiwayat>('none')
+const opsiGrupRiwayat: { value: ModeGrupRiwayat, label: string }[] = [
+  { value: 'none', label: 'Tanpa grup' },
+  { value: 'nama', label: 'Per nama' },
+  { value: 'tgl', label: 'Per tanggal uang masuk' },
+  { value: 'metode', label: 'Per metode pelunasan' },
+]
+const grupRiwayat = computed(() => {
+  const mode = modeRiwayat.value
+  if (mode === 'none') return [{ kunci: '', label: '', items: riwayat.value, total: 0 }]
+  const peta = new Map<string, { kunci: string, label: string, items: Bon[], total: number }>()
+  for (const b of riwayat.value) {
+    const label = mode === 'nama'
+      ? String(b.nama || '—').trim() || '—'
+      : mode === 'tgl'
+        ? (b.lunasDate ? tglPanjang(b.lunasDate) : '—')
+        : payName(b.lunasPayKey)
+    const kunci = mode === 'nama' ? label.toLowerCase() : mode === 'tgl' ? String(b.lunasDate || '') : String(b.lunasPayKey || '')
+    const g = peta.get(kunci) ?? { kunci, label, items: [], total: 0 }
+    g.items.push(b)
+    g.total += num(b.nominal)
+    peta.set(kunci, g)
+  }
+  const out = [...peta.values()]
+  // Dates keep the newest-first order of the list; names and methods read A→Z.
+  if (mode !== 'tgl') out.sort((x, y) => x.label.localeCompare(y.label, 'id'))
+  return out
+})
+
 // PIC for a guest bon: the same Office roster as compliment PICs (one source).
 const orang = computed(() => rosterComp(roster.value))
 const opsiPay = PAYS.map(p => ({ label: p.n, value: p.k }))
@@ -299,6 +331,7 @@ const helpPic = computed(() => {
 
     <UAlert
       v-if="error"
+      class="mb-6"
       color="error"
       variant="subtle"
       icon="i-lucide-triangle-alert"
@@ -620,6 +653,15 @@ const helpPic = computed(() => {
       description="80 pelunasan terakhir."
       flush
     >
+      <template #actions>
+        <UFormField label="Kelompokkan">
+          <USelect
+            v-model="modeRiwayat"
+            :items="opsiGrupRiwayat"
+            class="w-56"
+          />
+        </UFormField>
+      </template>
       <p
         v-if="!riwayat.length"
         class="p-6 text-center text-sm text-muted"
@@ -658,57 +700,77 @@ const helpPic = computed(() => {
             </tr>
           </thead>
           <tbody class="divide-y divide-default">
-            <tr
-              v-for="b in riwayat"
-              :key="b.id"
+            <template
+              v-for="g in grupRiwayat"
+              :key="g.kunci || 'semua'"
             >
-              <td class="px-3 py-2">
-                <b>{{ b.nama }}</b> <AppStatus size="sm">
-                  {{ bonTipeNama(b.tipe) }}
-                </AppStatus>
-              </td>
-              <td class="hidden px-3 py-2 num lg:table-cell">
-                {{ b.date }}
-              </td>
-              <td class="hidden px-3 py-2 lg:table-cell">
-                {{ b.bill || '—' }}
-              </td>
-              <td class="px-3 py-2 text-right font-bold num">
-                {{ fmtRp(num(b.nominal)) }}
-              </td>
-              <td class="px-3 py-2">
-                <AppStatus
-                  color="success"
-                  size="sm"
+              <tr
+                v-if="modeRiwayat !== 'none'"
+                class="bg-muted"
+              >
+                <td
+                  colspan="8"
+                  class="px-3 py-2"
                 >
-                  {{ b.lunasDate || '—' }}
-                </AppStatus>
-              </td>
-              <td class="hidden px-3 py-2 lg:table-cell">
-                {{ payName(b.lunasPayKey) }}
-              </td>
-              <td class="hidden px-3 py-2 text-xs text-muted lg:table-cell">
-                {{ b.lunasBy || '—' }}
-              </td>
-              <td class="whitespace-nowrap px-3 py-2">
-                <UButton
-                  icon="i-lucide-pencil"
-                  color="neutral"
-                  variant="outline"
-                  size="xs"
-                  aria-label="Ubah"
-                  @click="ubah(b)"
-                />
-                <UButton
-                  class="ml-1"
-                  label="Batal lunas"
-                  color="neutral"
-                  variant="outline"
-                  size="xs"
-                  @click="batalLunas(b)"
-                />
-              </td>
-            </tr>
+                  <div class="flex flex-wrap items-baseline justify-between gap-x-4">
+                    <span class="font-bold text-highlighted">{{ g.label }}
+                      <span class="ml-1 text-xs font-semibold text-muted">{{ g.items.length }} bon</span></span>
+                    <span class="text-sm font-bold num">{{ fmtRp(g.total) }}</span>
+                  </div>
+                </td>
+              </tr>
+              <tr
+                v-for="b in g.items"
+                :key="b.id"
+              >
+                <td class="px-3 py-2">
+                  <b>{{ b.nama }}</b> <AppStatus size="sm">
+                    {{ bonTipeNama(b.tipe) }}
+                  </AppStatus>
+                </td>
+                <td class="hidden px-3 py-2 num lg:table-cell">
+                  {{ b.date }}
+                </td>
+                <td class="hidden px-3 py-2 lg:table-cell">
+                  {{ b.bill || '—' }}
+                </td>
+                <td class="px-3 py-2 text-right font-bold num">
+                  {{ fmtRp(num(b.nominal)) }}
+                </td>
+                <td class="px-3 py-2">
+                  <AppStatus
+                    color="success"
+                    size="sm"
+                  >
+                    {{ b.lunasDate || '—' }}
+                  </AppStatus>
+                </td>
+                <td class="hidden px-3 py-2 lg:table-cell">
+                  {{ payName(b.lunasPayKey) }}
+                </td>
+                <td class="hidden px-3 py-2 text-xs text-muted lg:table-cell">
+                  {{ b.lunasBy || '—' }}
+                </td>
+                <td class="whitespace-nowrap px-3 py-2">
+                  <UButton
+                    icon="i-lucide-pencil"
+                    color="neutral"
+                    variant="outline"
+                    size="xs"
+                    aria-label="Ubah"
+                    @click="ubah(b)"
+                  />
+                  <UButton
+                    class="ml-1"
+                    label="Batal lunas"
+                    color="neutral"
+                    variant="outline"
+                    size="xs"
+                    @click="batalLunas(b)"
+                  />
+                </td>
+              </tr>
+            </template>
           </tbody>
         </table>
       </div>
