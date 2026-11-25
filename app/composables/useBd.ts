@@ -17,9 +17,8 @@
 // `ping`/`stats` (U3 — no screen uses them) and the legacy whole-state `saveAll`
 // (T-25 → per-record CRUD).
 import type { Versi } from '~/utils/versi'
-import { ifMatch, isKonflik, isVersiWajib, tanganiKonflik, tulisBerVersi } from '~/utils/versi'
-import { cekBolehDone, deps, gulirPatch, labelUlang, lahirkanUlang, namaPendekTask, normalisasiStatus, normResp, parseUlang, penunggu, pesanTunggu, rantaiUlang, segarkanProgress, selesai, seriBerakhir, todayISO } from '~/utils/bd-rumus'
-import { fTglP } from '~/utils/format'
+import { ifMatch, tulisBerVersi } from '~/utils/versi'
+import { cekBolehDone, deps, labelUlang, normalisasiStatus, normResp, penunggu, pesanTunggu, rantaiUlang, segarkanProgress, selesai } from '~/utils/bd-rumus'
 import { isAdminOf, type Me } from '~/composables/useMe'
 import { BATAS_TULIS_PARALEL, hitungBerhasilParalel, petaParalel } from '~/utils/paralel'
 import type { RencanaPindah } from '~/utils/bd-pindah'
@@ -521,21 +520,7 @@ export async function toggleTask(t: BdTask, semua: BdTask[]): Promise<boolean> {
   // The drag marker names its column: a checkbox flip is not a drag.
   delete body.pindahKe
   segarkanProgress(body)
-  const ok = await bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
-  if (ok && !buka) await lahirkanUlangSetelah({ ...t, ...body, id: t.id } as BdTask, semua)
-  return ok
-}
-
-/**
- * Birth the next occurrence of a recurring task right after its Done is
- * saved, on every path (tick, modal, drag). No-op without `ulang`.
- */
-export async function lahirkanUlangSetelah(t: BdTask, semua: BdTask[]): Promise<void> {
-  if (t.status !== 'Done' || !t.ulang) return
-  const b = lahirkanUlang(t, semua)
-  if (!b) return
-  const ok = await bdTulisDiam(() => buatBd<BdTask>('tasks', b))
-  if (ok) toastBd()?.add({ title: `Berikutnya: ${namaPendekTask(b)} — ${fTglP(b.deadline)}`, color: 'success' })
+  return bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
 }
 
 /**
@@ -557,9 +542,7 @@ export async function setujuiReview(t: BdTask, semua: BdTask[], olehId: string):
   delete body.updatedAt
   delete body.pindahKe
   segarkanProgress(body)
-  const ok = await bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
-  if (ok) await lahirkanUlangSetelah({ ...t, ...body, id: t.id } as BdTask, semua)
-  return ok
+  return bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
 }
 
 /**
@@ -658,73 +641,6 @@ export async function lanjutkanUlang(t: BdTask, semua: BdTask[]): Promise<boolea
     () => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)),
     `Pengulangan dilanjutkan: ${labelUlang(pola, t.deadline)}`,
   )
-}
-
-/**
- * A custom `x:` series is spent once chain length (+ missed dates) reaches
- * the quota — the same count the old client used (completed AND skipped
- * occurrences). `gulirPatch` only sees the single row, so re-check here
- * against the FULL chain before rolling an `x:` series; `d:` series are
- * exact as returned.
- */
-function seriHabisRantaiPenuh(t: BdTask, semua: BdTask[], berikut: string): boolean {
-  const r = parseUlang(t.ulang)
-  if (!r || r.akhir.j !== 'x') return false
-  const n = rantaiUlang(t, semua).reduce((a, x) => a + 1 + (Array.isArray(x.terlewat) ? x.terlewat.length : 0), 0)
-  return seriBerakhir(t, berikut, n, 0)
-}
-
-/**
- * Roll every overdue occurrence forward to its next unelapsed schedule
- * (old `gulirUlang` loop). Each row goes through its own versioned PUT, so
- * two tabs rolling together converge: both compute the same deterministic
- * target, one wins, the loser takes a 409 and just reloads — never retries
- * blindly. Returns the rolled count.
- */
-export async function gulirUlangOtomatis(semua: BdTask[]): Promise<number> {
-  const hari = todayISO()
-  const muatUlang = () => refreshNuxtData(['bd-state', 'bd-settings'])
-  let n = 0
-  let konflik: unknown = null
-  for (const t of semua) {
-    const patch = gulirPatch(t, hari)
-    if (!patch || !patch.deadline) continue
-    if (seriHabisRantaiPenuh(t, semua, patch.deadline)) continue
-    const body: Partial<BdTask> = { ...t, ...patch }
-    delete body.updatedAt
-    // The drag marker names its column: an automatic roll is not a drag.
-    delete body.pindahKe
-    try {
-      await ubahBd<BdTask>('tasks', t.id, body, versiBaris(t))
-      n++
-    }
-    catch (e) {
-      // A 409 from a lost race means another tab won: reload once at the
-      // end instead of refighting it. Any other failure still speaks.
-      if (isKonflik(e) || isVersiWajib(e)) konflik = e
-      else toastBd()?.add({ title: apiErrorMessage(e), color: 'error' })
-    }
-  }
-  if (konflik) await tanganiKonflik(konflik, muatUlang)
-  else if (n) await muatUlang()
-  if (n) toastBd()?.add({ title: `${n} task berulang maju ke jadwal berikutnya`, color: 'success' })
-  return n
-}
-
-/**
- * Mark the running occurrence Done through the one guard (`toggleTask`, old
- * `selesaiUlang`): dependency check and next-occurrence birth apply. The
- * birth path already toasts "Berikutnya: …"; only an ended series speaks
- * here, so the toast tells scheduled-apart from ended.
- */
-export async function selesaiUlang(t: BdTask, semua: BdTask[]): Promise<boolean> {
-  if (selesai(t)) return false
-  const ok = await toggleTask(t, semua)
-  if (ok && t.ulang && labelUlang(t.ulang, t.deadline)) {
-    const lahir = lahirkanUlang({ ...t, status: 'Done' } as BdTask, semua)
-    if (!lahir) toastBd()?.add({ title: `${namaPendekTask(t)} selesai — seri berulangnya sudah berakhir`, color: 'success' })
-  }
-  return ok
 }
 
 /** Delete sentence for the confirm sheet: dependents are named by count. */
