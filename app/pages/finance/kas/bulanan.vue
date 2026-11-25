@@ -161,14 +161,12 @@ function kirimWhatsApp() {
       <AppTanggal
         v-if="harian"
         v-model="tanggal"
-        size="sm"
         class="w-40 print:hidden"
       />
       <AppBulan
         v-else
         v-model="periode"
-        size="sm"
-        class="w-40 print:hidden"
+        class="w-48 print:hidden"
       />
     </template>
 

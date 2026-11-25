@@ -179,12 +179,10 @@ export const LAYAR_FINANCE: Layar[] = [
   { key: 'omset_report', label: 'Report Daily', desc: 'Setoran per metode pembayaran: POS vs Actual', icon: 'i-lucide-clipboard-list', to: '/finance/omset/report', grup: 'Panel Omset', boleh: omset },
   { key: 'omset_piutang', label: 'Piutang / Bon', desc: 'Bill yang belum dibayar tamu & owner — beserta metode POS sementaranya', icon: 'i-lucide-receipt-text', to: '/finance/omset/piutang', grup: 'Panel Omset', boleh: omset },
   { key: 'omset_compliment', label: 'Compliment', desc: 'Catatan compliment beserta alasan & PIC penanggungnya', icon: 'i-lucide-gift', to: '/finance/omset/compliment', grup: 'Panel Omset', boleh: omset },
-  { key: 'omset_akses', label: 'Kelola Akses Kru', desc: 'Siapa saja yang bisa membuka modul Kompas', icon: 'i-lucide-key-round', to: '/finance/omset/akses', grup: 'Panel Omset', boleh: omset },
 
   // ── Kas Kecil (kunci finance) ──
   { key: 'kas_kk_buku', label: 'Buku Kas Kecil', desc: 'Semua transaksi berikut saldo berjalan tiap pos', icon: 'i-lucide-book-open', to: '/finance/kas', grup: 'Kas Kecil', boleh: kasHal('kk_buku') },
   { key: 'kas_kk_input', label: 'Input Transaksi Kas Kecil', desc: 'Satu baris = satu transaksi; tambah baris sebanyak yang perlu lalu simpan sekaligus', icon: 'i-lucide-pencil-line', to: '/finance/kas/input', grup: 'Kas Kecil', boleh: kasHal('kk_input') },
-  { key: 'kas_kk_pos', label: 'Pos & Kategori', desc: 'Daftar pos pembayaran dan kategori belanja', icon: 'i-lucide-tags', to: '/finance/kas/pos', grup: 'Kas Kecil', boleh: kasHal('kk_pos') },
   { key: 'kas_tagihan', label: 'Tagihan Rutin', desc: 'Langganan & tagihan berulang — kapan jatuh temponya, dan berapa yang sudah dibayar', icon: 'i-lucide-calendar-sync', to: '/finance/kas/tagihan', grup: 'Kas Kecil', boleh: kasHal('tagihan') },
   { key: 'kas_bayar', label: 'Planning Pembayaran', desc: 'Lembar transfer mingguan per rekening pembayar', icon: 'i-lucide-calendar-clock', to: '/finance/kas/bayar', grup: 'Kas Kecil', boleh: kasHal('bayar') },
   { key: 'kas_rekap', label: 'Rekap Penjualan', desc: 'Cocokkan POS dengan setoran bank — angka penjualannya after tax & service', icon: 'i-lucide-clipboard-check', to: '/finance/kas/rekap', grup: 'Kas Kecil', boleh: kasHal('rekap') },
@@ -194,10 +192,9 @@ export const LAYAR_FINANCE: Layar[] = [
   { key: 'kas_void', label: 'Laporan Void', desc: 'Menu yang di-void berikut kronologinya — dicatat kasir di modul Cashier', icon: 'i-lucide-ban', to: '/finance/kas/void', grup: 'Kas Kecil', boleh: kasHal('voidb') },
   { key: 'kas_bulanan', label: 'Dashboard Omset', desc: 'Pencapaian target bulan berjalan', icon: 'i-lucide-calendar-range', to: '/finance/kas/bulanan', grup: 'Kas Kecil', boleh: kasHal('bulanan') },
   { key: 'kas_analytics', label: 'Dashboard Analytics', desc: 'Komposisi & sumber pendapatan', icon: 'i-lucide-pie-chart', to: '/finance/kas/analytics', grup: 'Kas Kecil', boleh: kasHal('analytics') },
-  { key: 'kas_marketing', label: 'Performa Marketing', desc: 'Kontribusi omset per marketing', icon: 'i-lucide-megaphone', to: '/finance/kas/marketing', grup: 'Kas Kecil', boleh: kasHal('marketing') },
-  { key: 'kas_event', label: 'Performa Event', desc: 'Kontribusi omset per PIC event', icon: 'i-lucide-party-popper', to: '/finance/kas/event', grup: 'Kas Kecil', boleh: kasHal('event') },
-  { key: 'kas_kasir', label: 'Performa Kasir', desc: 'Omset yang diakui tiap kasir — angka final', icon: 'i-lucide-chart-column', to: '/finance/kas/kasir', grup: 'Kas Kecil', boleh: kasHal('kasir') },
-  { key: 'kas_akses', label: 'Kelola Kru', desc: 'Siapa saja yang bisa membuka modul Finance', icon: 'i-lucide-key-round', to: '/finance/kas/akses', grup: 'Kas Kecil', boleh: kasHal('akses') },
+  { key: 'kas_marketing', label: 'Performa Marketing', desc: 'Kontribusi omset per marketing', icon: 'i-lucide-megaphone', to: '/finance/kas/marketing', grup: 'Performa', boleh: kasHal('marketing') },
+  { key: 'kas_event', label: 'Performa Event', desc: 'Kontribusi omset per PIC event', icon: 'i-lucide-party-popper', to: '/finance/kas/event', grup: 'Performa', boleh: kasHal('event') },
+  { key: 'kas_kasir', label: 'Performa Kasir', desc: 'Omset yang diakui tiap kasir — angka final', icon: 'i-lucide-chart-column', to: '/finance/kas/kasir', grup: 'Performa', boleh: kasHal('kasir') },
 
   // ── Brankas (kunci brankas) ──
   { key: 'brankas_ringkasan', label: 'Ringkasan Brankas', desc: 'Posisi kas perusahaan dan keputusan terdekat', icon: 'i-lucide-vault', to: '/finance/brankas', grup: 'Brankas', boleh: brankasHal('ringkasan') },
@@ -205,8 +202,10 @@ export const LAYAR_FINANCE: Layar[] = [
   { key: 'brankas_mutasi', label: 'Mutasi & Transfer', desc: 'Setor, tarik, dan pindah uang antar wallet', icon: 'i-lucide-arrow-left-right', to: '/finance/brankas/mutasi', grup: 'Brankas', boleh: brankasHal('mutasi') },
   { key: 'brankas_pending', label: 'Uang Pending / Piutang', desc: 'Bon yang dicatat kasir dan belum dibayar tamu', icon: 'i-lucide-hourglass', to: '/finance/brankas/pending', grup: 'Brankas', boleh: brankasHal('pending') },
   { key: 'brankas_modal', label: 'Pengembalian Modal', desc: 'Progres pengembalian modal per investor', icon: 'i-lucide-hand-coins', to: '/finance/brankas/modal', grup: 'Brankas', boleh: brankasHal('modal') },
-  { key: 'brankas_pengaturan', label: 'Pengaturan', desc: 'Saldo awal, pemetaan metode pembayaran, dan biaya bulanan', icon: 'i-lucide-settings-2', to: '/finance/brankas/pengaturan', grup: 'Brankas', boleh: brankasHal('pengaturan') },
-  { key: 'brankas_akses', label: 'Kelola Akses', desc: 'Siapa boleh membuka dan mengubah halaman mana', icon: 'i-lucide-key-round', to: '/finance/brankas/akses', grup: 'Brankas', boleh: brankasHal('akses') },
+
+  // ── One access screen for all three panels ──
+  { key: 'pengaturan', label: 'Pengaturan', desc: 'Pos & kategori kas kecil, saldo awal, pemetaan metode pembayaran, dan biaya bulanan', icon: 'i-lucide-settings-2', to: '/finance/pengaturan', grup: 'Sistem', boleh: (me: Me) => kasHal('kk_pos')(me) || brankasHal('pengaturan')(me) },
+  { key: 'akses', label: 'Kelola Akses', desc: 'Siapa boleh membuka modul Finance dan mengubah halaman mana', icon: 'i-lucide-key-round', to: '/finance/akses', grup: 'Sistem', boleh: (me: Me) => hasAccess(me, ['kompas', 'finance', 'brankas']) },
 ]
 
 /** The line under the user's name in the module chrome. */

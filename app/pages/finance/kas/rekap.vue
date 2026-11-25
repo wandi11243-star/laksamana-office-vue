@@ -36,7 +36,6 @@ const setorForm = reactive({ tujuan: '', catatan: '' })
 
 const kp = useKompasState()
 const data = kp.data
-const status = kp.status
 const error = kp.error
 const refresh = () => kp.refresh()
 
@@ -44,9 +43,6 @@ const reports = computed(() => data.value?.value.reports ?? {})
 const daily = computed(() => data.value?.value.daily ?? [])
 const piutang = computed(() => data.value?.value.piutang ?? [])
 const setoranRows = computed<SetoranRow[]>(() => (data.value?.value.rekap_setoran ?? []) as SetoranRow[])
-
-// Skeleton only for the first load: the month filter recomputes locally, so a refetch must not blank the cards.
-const statMemuat = computed(() => !data.value && (status.value === 'pending' || status.value === 'idle'))
 
 const omsetOf = (t: string): BarisHarian | null => daily.value.find(d => d.date === t) ?? null
 const recOf = (t: string) => reports.value[t] ?? null
@@ -116,6 +112,34 @@ const bulan = computed(() => {
   }
   return { jual, rekapAkt, mdrTotal, kotorMdr, selisih, adjust, adjKunci, lewat, net, svc, tax, nTanpaSvc }
 })
+/** The old panel's colours per payment group (RK_GRUP.warna). Whole class strings, so Tailwind can see them. */
+const WARNA: Record<string, { atas: string, teks: string, bar: string }> = {
+  cash: { atas: 'border-t-emerald-600', teks: 'text-emerald-700', bar: 'bg-emerald-600' },
+  qr_order: { atas: 'border-t-teal-600', teks: 'text-teal-700', bar: 'bg-teal-600' },
+  edc_bri: { atas: 'border-t-blue-600', teks: 'text-blue-700', bar: 'bg-blue-600' },
+  qris_bri: { atas: 'border-t-blue-600', teks: 'text-blue-700', bar: 'bg-blue-600' },
+  edc_mandiri: { atas: 'border-t-amber-600', teks: 'text-amber-700', bar: 'bg-amber-600' },
+  qris_mandiri: { atas: 'border-t-amber-600', teks: 'text-amber-700', bar: 'bg-amber-600' },
+  edc_bca: { atas: 'border-t-violet-600', teks: 'text-violet-700', bar: 'bg-violet-600' },
+  qris_bca: { atas: 'border-t-violet-600', teks: 'text-violet-700', bar: 'bg-violet-600' },
+  transfer: { atas: 'border-t-yellow-600', teks: 'text-yellow-700', bar: 'bg-yellow-600' },
+  gofood: { atas: 'border-t-red-600', teks: 'text-red-700', bar: 'bg-red-600' },
+  grabfood: { atas: 'border-t-red-600', teks: 'text-red-700', bar: 'bg-red-600' },
+  tiktokgo: { atas: 'border-t-red-600', teks: 'text-red-700', bar: 'bg-red-600' },
+  xendit: { atas: 'border-t-teal-600', teks: 'text-teal-700', bar: 'bg-teal-600' },
+  error: { atas: 'border-t-red-600', teks: 'text-red-700', bar: 'bg-red-600' },
+}
+const warna = (k: string) => WARNA[k] ?? WARNA.cash!
+/** Thousand dots while typing (a million is one digit away from ten million). */
+const titik = (v: unknown) => {
+  const d = String(v ?? '').replace(/[^0-9]/g, '')
+  return d ? Number(d).toLocaleString('id-ID') : ''
+}
+function geserHari(n: number) {
+  const d = new Date(`${hariInput.value}T00:00:00`)
+  d.setDate(d.getDate() + n)
+  hariInput.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 const nSetor = computed(() => hariData.value.filter(d => setorSelesai(d.tgl)).length)
 const grupBulan = computed(() => RK_GRUP.map((x) => {
   let pos = 0
@@ -181,7 +205,6 @@ const bonBulan = computed(() => {
   }
   return { baru, lunas, n, belum, nBelum }
 })
-const sudahSetorBulan = computed(() => setoranRows.value.filter(s => String(s.tgl ?? '').slice(0, 7) === periode.value).reduce((s, x) => s + kNum(x.nominal), 0))
 /** Cash days never fully deposited — the whole history, not just this month (old rkBelumSetor). */
 const belumSetor = computed(() => Object.keys(reports.value)
   .filter(t => /^\d{4}-\d{2}-\d{2}$/.test(t) && cash(t) > 0 && !setorSelesai(t))
@@ -200,29 +223,27 @@ function ubahTanda(g: string, v: boolean) {
   const t = hariInput.value
   ubah.value = { ...ubah.value, [t]: { ...(ubah.value[t] ?? {}), tanda: { ...(ubah.value[t]?.tanda ?? {}), [g]: v } } }
 }
-function ubahSetor(v: boolean) {
-  const t = hariInput.value
-  ubah.value = { ...ubah.value, [t]: { ...(ubah.value[t] ?? {}), setor: v } }
-}
-const setorTerpilih = computed(() => (ubah.value[hariInput.value]?.setor ?? !!recOf(hariInput.value)?.setor))
 
 const kotorHariIni = computed(() => Object.keys(ubah.value).length > 0)
 const sibuk = ref(false)
 async function simpanHari() {
   if (!izin.ubah('rekap') || sibuk.value) return
-  const t = hariInput.value
-  const u = ubah.value[t]
-  if (!u) return
+  const hariUbah = Object.keys(ubah.value).filter(t => Object.keys(ubah.value[t] ?? {}).length)
+  if (!hariUbah.length) return
   sibuk.value = true
   try {
-    const body: Record<string, unknown> = {}
-    if (u.aktual) body.aktual = u.aktual
-    if (u.mdrman) body.mdrManual = u.mdrman
-    if (u.tanda) body.esb = u.tanda
-    if (u.setor !== undefined) body.setor = u.setor
-    await putRekap({ hari: { [t]: body } })
-    ubah.value = { ...ubah.value, [t]: {} }
-    toast.add({ title: `Penanda & MDR ${t} disimpan.`, color: 'success' })
+    const hari: Record<string, Record<string, unknown>> = {}
+    for (const t of hariUbah) {
+      const u = ubah.value[t]!
+      const body: Record<string, unknown> = {}
+      if (u.aktual) body.aktual = u.aktual
+      if (u.mdrman) body.mdrManual = u.mdrman
+      if (u.tanda) body.esb = u.tanda
+      hari[t] = body
+    }
+    await putRekap({ hari })
+    ubah.value = {}
+    toast.add({ title: `Penanda & MDR ${hariUbah.length} hari disimpan.`, color: 'success' })
     await refresh()
   }
   catch (e) {
@@ -233,26 +254,38 @@ async function simpanHari() {
   }
 }
 
-const setoranBuka = ref(false)
-function bukaSetoran() {
-  terpilih.value = {}
-  setorForm.tujuan = ''
-  setorForm.catatan = ''
-  setoranBuka.value = true
+const tglSetor = ref(hariIni())
+/** Typed amount per day (digits only); a ticked day starts at its remaining cash (old rkPilihHari). */
+const nomSetor = ref<Record<string, string>>({})
+const hariTerpilih = computed(() => Object.keys(terpilih.value).filter(t => terpilih.value[t]).sort())
+const nominalHari = (t: string) => (nomSetor.value[t] !== undefined ? kNum(nomSetor.value[t]) : sisaSetor(t))
+function pilihHari(t: string, on: boolean) {
+  terpilih.value = { ...terpilih.value, [t]: on }
+  nomSetor.value = { ...nomSetor.value, [t]: on ? String(sisaSetor(t)) : '' }
 }
-const totalTerpilih = computed(() => Object.keys(terpilih.value).filter(t => terpilih.value[t]).reduce((s, t) => s + sisaSetor(t), 0))
-const nTerpilih = computed(() => Object.keys(terpilih.value).filter(t => terpilih.value[t]).length)
+function pilihSemua(on: boolean) {
+  for (const x of belumSetor.value) pilihHari(x, on)
+}
+const totalTerpilih = computed(() => hariTerpilih.value.reduce((s, t) => s + nominalHari(t), 0))
+const nTerpilih = computed(() => hariTerpilih.value.length)
+/** Ticked days whose amount is zero, or more than what is left of that day's cash (the server would clamp it silently). */
+const setorNol = computed(() => hariTerpilih.value.filter(t => nominalHari(t) < 1))
+const setorLebih = computed(() => hariTerpilih.value.filter(t => nominalHari(t) > sisaSetor(t) + 0.5))
+const umurHari = (t: string) => Math.round((new Date(`${hariIni()}T00:00:00`).getTime() - new Date(`${t}T00:00:00`).getTime()) / 86400000)
+const setorBisa = computed(() => nTerpilih.value > 0 && !setorNol.value.length && !setorLebih.value.length && !!setorForm.tujuan.trim() && !!tglSetor.value)
 async function simpanSetoran() {
-  if (!izin.ubah('rekap') || sibuk.value) return
-  const hari = Object.keys(terpilih.value).filter(t => terpilih.value[t]).sort()
-  if (!hari.length) {
-    toast.add({ title: 'Pilih dulu hari yang disetor.', color: 'error' })
-    return
-  }
+  if (!izin.ubah('rekap') || sibuk.value || !setorBisa.value) return
+  const hari = hariTerpilih.value
+  const jumlah: Record<string, number> = {}
+  for (const t of hari) jumlah[t] = nominalHari(t)
   sibuk.value = true
   try {
-    const r = await putRekap({ hari: {}, setoran: { tambah: [{ tgl: hari[hari.length - 1], tujuan: setorForm.tujuan.trim(), catatan: setorForm.catatan.trim(), hari }] } })
-    setoranBuka.value = false
+    const r = await putRekap({ hari: {}, setoran: { tambah: [{ tgl: tglSetor.value, tujuan: setorForm.tujuan.trim(), catatan: setorForm.catatan.trim(), hari, jumlah }] } })
+    terpilih.value = {}
+    nomSetor.value = {}
+    tglSetor.value = hariIni()
+    setorForm.tujuan = ''
+    setorForm.catatan = ''
     toast.add({ title: `Setoran dicatat (${hari.length} hari).${Array.isArray(r.data.takDikenal) && r.data.takDikenal.length ? ` Sebagian tak dikenal: ${JSON.stringify(r.data.takDikenal)}` : ''}`, color: 'success' })
     await refresh()
   }
@@ -292,8 +325,7 @@ async function jalanHapusSetoran() {
     <template #actions>
       <AppBulan
         v-model="periode"
-        size="sm"
-        class="w-40"
+        class="w-48"
       />
       <UButton
         label="Segarkan"
@@ -334,62 +366,41 @@ async function jalanHapusSetoran() {
       </div>
 
       <template v-if="tab === 'rekap'">
-        <AppStatGrid
-          :loading="statMemuat"
-          :count="4"
-        >
-          <AppStat
-            label="Dibayar tamu"
-            icon="i-lucide-receipt"
-            :value="fmtRp(bulan.jual)"
-            :sub="`after tax & service · net ${fmtRp(bulan.net)} + svc ${fmtRp(bulan.svc)} + tax ${fmtRp(bulan.tax)}`"
-          />
-          <AppStat
-            label="Rekap aktual"
-            icon="i-lucide-landmark"
-            :value="fmtRp(bulan.rekapAkt)"
-            sub="seluruh kolom Actual Report Daily, dipotong MDR"
-            tone="info"
-          />
-          <AppStat
-            label="Total MDR"
-            icon="i-lucide-scissors"
-            :value="`${mdrRp(bulan.mdrTotal)}${mdrPct(bulan.mdrTotal, bulan.kotorMdr) ? ` · ${mdrPct(bulan.mdrTotal, bulan.kotorMdr)}` : ''}`"
-            sub="potongan bank & ojol; persennya dari Aktual kotor kelompok yang kena potongan"
-            tone="warning"
-          />
-          <AppStat
-            label="Total selisih"
-            icon="i-lucide-scale"
-            :value="fmtSel(bulan.selisih)"
-            :sub="bulan.lewat ? `${bulan.lewat} hari lewat toleransi ${fmtRp(SELISIH_TOLERANSI)}` : 'semua dalam toleransi ✓'"
-            :tone="bulan.lewat ? 'error' : 'success'"
-          />
-        </AppStatGrid>
-        <AppStatGrid
-          :loading="statMemuat"
-          :count="3"
-        >
-          <AppStat
-            label="Piutang / bon"
-            icon="i-lucide-hand-coins"
-            :value="fmtRp(bonBulan.baru)"
-            :sub="bonBulan.n ? `${bonBulan.n} bon bulan ini · ${fmtRp(bonBulan.belum)} belum lunas (${bonBulan.nBelum})${bonBulan.lunas ? ` · pelunasan masuk ${fmtRp(bonBulan.lunas)}` : ''}` : (bonBulan.lunas ? `tidak ada bon baru · pelunasan bon lama masuk ${fmtRp(bonBulan.lunas)}` : 'tidak ada bon bulan ini')"
-          />
-          <AppStat
-            label="Adjust terkunci di POS"
-            icon="i-lucide-lock"
-            :value="fmtRp(bulan.adjKunci)"
-            :sub="bulan.adjust - bulan.adjKunci === 0 ? 'seluruhnya sudah diinput' : `${fmtRp(bulan.adjust - bulan.adjKunci)} belum diinput`"
-          />
-          <AppStat
-            label="Sudah setor"
-            icon="i-lucide-banknote"
-            :value="`${nSetor} / ${hariData.length}`"
-            sub="hari yang cash-nya sudah disetor"
-            tone="success"
-          />
-        </AppStatGrid>
+        <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
+          <div
+            v-for="(k, i) in [
+              { l: 'Dibayar tamu', v: fmtRp(bulan.jual), s: 'after tax & service · net ' + fmtRp(bulan.net) + ' + svc ' + fmtRp(bulan.svc) + ' + tax ' + fmtRp(bulan.tax), aksen: true },
+              { l: 'Rekap aktual', v: fmtRp(bulan.rekapAkt), s: 'seluruh kolom Actual Report Daily, dipotong MDR' },
+              { l: 'Total MDR', v: mdrRp(bulan.mdrTotal) + (mdrPct(bulan.mdrTotal, bulan.kotorMdr) ? ' · ' + mdrPct(bulan.mdrTotal, bulan.kotorMdr) : ''), s: 'potongan bank & ojol; persennya dari Aktual kotor kelompok yang kena potongan' },
+              { l: 'Total selisih', v: fmtSel(bulan.selisih), s: 'Dibayar Tamu − Rekap Aktual + koreksi bon' },
+              { l: 'Piutang / bon', v: fmtRp(bonBulan.baru), s: bonBulan.n ? bonBulan.n + ' bon bulan ini · ' + fmtRp(bonBulan.belum) + ' belum lunas (' + bonBulan.nBelum + ')' + (bonBulan.lunas ? ' · pelunasan masuk ' + fmtRp(bonBulan.lunas) : '') : (bonBulan.lunas ? 'tidak ada bon baru · pelunasan bon lama masuk ' + fmtRp(bonBulan.lunas) : 'tidak ada bon bulan ini') },
+              { l: 'Adjust terkunci di POS', v: fmtRp(bulan.adjKunci), s: bulan.adjust - bulan.adjKunci === 0 ? 'seluruhnya sudah diinput' : fmtRp(bulan.adjust - bulan.adjKunci) + ' belum diinput' },
+              { l: 'Sudah setor', v: nSetor + ' / ' + hariData.length, s: 'hari yang cash-nya sudah disetor' },
+            ]"
+            :key="i"
+            class="rounded-panel border-t-[3px] p-4 shadow-panel"
+            :class="(k as { aksen?: boolean }).aksen ? 'border-t-primary-900 bg-primary text-white' : 'border-t-primary bg-default'"
+          >
+            <p
+              class="text-[11px] font-bold uppercase tracking-wider"
+              :class="(k as { aksen?: boolean }).aksen ? 'text-white/80' : 'text-muted'"
+            >
+              {{ k.l }}
+            </p>
+            <p
+              class="mt-1 text-xl font-extrabold num"
+              :class="(k as { aksen?: boolean }).aksen ? 'text-white' : 'text-highlighted'"
+            >
+              {{ k.v }}
+            </p>
+            <p
+              class="mt-1 text-xs"
+              :class="(k as { aksen?: boolean }).aksen ? 'text-white/85' : 'text-muted'"
+            >
+              {{ k.s }}
+            </p>
+          </div>
+        </div>
 
         <UAlert
           v-if="kotorHariIni"
@@ -410,53 +421,52 @@ async function jalanHapusSetoran() {
 
         <AppPanel
           title="Per metode pembayaran"
-          :description="`Sebulan penuh, ${hariData.length} hari. Aktual sudah dipotong MDR; kelompok tanpa sisi POS tidak punya selisih.`"
+          :description="`Sebulan penuh, ${hariData.length} hari. Aktual di sini sudah dipotong MDR.`"
         >
-          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <div
               v-for="g in grupBulan"
               :key="g.k"
-              class="rounded-panel border border-default p-3 text-sm"
+              class="rounded-xl border border-t-[3px] border-default bg-default p-3.5 shadow-panel"
+              :class="warna(g.k).atas"
             >
-              <div class="mb-1 flex items-center justify-between gap-2">
-                <b class="text-highlighted">{{ g.n }}</b>
-                <AppStatus
+              <div class="mb-2 flex items-center justify-between gap-2">
+                <b :class="warna(g.k).teks">{{ g.n }}</b>
+                <span
                   v-if="g.punyaPos"
-                  :color="Math.abs(g.sel) <= SELISIH_TOLERANSI ? 'success' : 'error'"
-                  size="sm"
-                >
-                  {{ Math.abs(g.sel) <= SELISIH_TOLERANSI ? 'cocok' : fmtRp(g.sel) }}
-                </AppStatus>
-                <AppStatus
+                  class="rounded-full px-2 py-0.5 text-[11px] font-bold num"
+                  :class="Math.abs(g.sel) <= SELISIH_TOLERANSI ? 'bg-success/15 text-success' : 'bg-error/15 text-error'"
+                >{{ Math.abs(g.sel) <= SELISIH_TOLERANSI ? 'cocok' : fmtRp(g.sel) }}</span>
+                <span
                   v-else
-                  color="neutral"
-                  size="sm"
-                >
-                  tanpa pembanding
-                </AppStatus>
+                  class="rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-muted"
+                >tanpa pembanding</span>
               </div>
-              <div
-                v-if="g.punyaPos"
-                class="flex justify-between"
-              >
-                <span class="text-muted">POS</span><span class="num">{{ fmtRp(g.pos) }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-muted">Aktual{{ g.mdr ? ' (bersih)' : '' }}</span><b class="num">{{ fmtRp(g.akt) }}</b>
-              </div>
-              <div
-                v-if="g.mdr"
-                class="flex justify-between"
-              >
-                <span class="text-muted">MDR</span><span class="num">{{ mdrRp(g.mdr) }}{{ mdrPct(g.mdr, g.kotor) ? ` · ${mdrPct(g.mdr, g.kotor)}` : '' }}</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-muted">Adjust</span><span class="num">{{ fmtRp(g.adjust) }}</span>
-              </div>
-              <div class="mt-2 h-1.5 overflow-hidden rounded-full bg-muted">
+              <div class="space-y-1 text-sm">
                 <div
-                  class="h-full rounded-full bg-primary-400"
-                  :style="{ width: `${g.pers}%` }"
+                  v-if="g.punyaPos"
+                  class="flex justify-between"
+                >
+                  <span class="text-muted">POS</span><span class="num">{{ fmtRp(g.pos) }}</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-muted">Aktual{{ g.mdr ? ' (bersih)' : '' }}</span><b class="num">{{ fmtRp(g.akt) }}</b>
+                </div>
+                <div
+                  v-if="g.mdr"
+                  class="flex justify-between"
+                >
+                  <span class="text-muted">MDR</span><span class="num">{{ mdrRp(g.mdr) }}{{ mdrPct(g.mdr, g.kotor) ? ' · ' + mdrPct(g.mdr, g.kotor) : '' }}</span>
+                </div>
+                <div class="flex justify-between border-t border-dashed border-default pt-1">
+                  <span class="text-muted">Adjust</span><b class="num">{{ fmtRp(g.adjust) }}</b>
+                </div>
+              </div>
+              <div class="mt-2.5 h-1.5 overflow-hidden rounded-full bg-muted">
+                <div
+                  class="h-full rounded-full"
+                  :class="warna(g.k).bar"
+                  :style="{ width: g.pers + '%' }"
                 />
               </div>
               <p class="mt-1 text-xs text-muted">
@@ -603,181 +613,545 @@ async function jalanHapusSetoran() {
 
       <template v-else-if="tab === 'input'">
         <AppPanel
-          :title="`Input MDR & penanda — ${hariInput}`"
-          description="Aktual yang diketik menggantikan hitungan; MDR manual dipakai saat aktual BERLEBIH (bank memotong, angka saja tidak bisa menebak pembagiannya)."
+          title="Hari yang diisi"
+          description="Semua isian di halaman ini milik tanggal yang dipilih. Perubahan di tanggal lain tidak hilang saat berpindah — semuanya ikut terkirim sekali Simpan."
         >
-          <AppTanggal
-            v-model="hariInput"
-            size="sm"
-            class="mb-3 w-40"
-          />
-          <div class="divide-y divide-default">
-            <div
-              v-for="x in RK_GRUP.filter(g => g.mdr)"
-              :key="x.k"
-              class="grid gap-2 py-2 sm:grid-cols-2 lg:grid-cols-5 lg:items-end"
-            >
-              <div>
-                <b class="text-highlighted">{{ x.n }}</b>
-                <p class="text-xs text-muted">
-                  Kotor <b class="num">{{ fmtRp(RH.g[x.k]!.kotor) }}</b> · MDR kini <b class="num">{{ fmtRp(RH.g[x.k]!.mdr) }}</b>{{ RH.g[x.k]!.berlebih ? ' · aktual BERLEBIH' : '' }}
-                </p>
-              </div>
-              <UFormField label="Aktual diketik (kosong = hitungan)">
-                <UInput
-                  :model-value="String(ubah[hariInput]?.aktual?.[x.mdr!] ?? (recOf(hariInput)?.aktual as Record<string, unknown> | undefined)?.[x.mdr!] ?? '')"
-                  inputmode="numeric"
-                  class="w-full"
-                  :disabled="!izin.ubah('rekap')"
-                  @update:model-value="(v: string | number) => ubahAkt(x.mdr!, v)"
-                />
-              </UFormField>
-              <UFormField label="MDR manual (saat berlebih)">
-                <UInput
-                  :model-value="String(ubah[hariInput]?.mdrman?.[x.mdr!] ?? (recOf(hariInput)?.mdrManual as Record<string, unknown> | undefined)?.[x.mdr!] ?? '')"
-                  inputmode="numeric"
-                  class="w-full"
-                  :disabled="!izin.ubah('rekap')"
-                  @update:model-value="(v: string | number) => ubahMdrMan(x.mdr!, v)"
-                />
-              </UFormField>
-              <UFormField label="Input POS (mesin)">
-                <UCheckbox
-                  :model-value="tanda(hariInput, x.k)"
-                  :disabled="!izin.ubah('rekap')"
-                  @update:model-value="(v: boolean | 'indeterminate') => ubahTanda(x.k, v === true)"
-                />
-              </UFormField>
-              <p class="pb-1 text-xs text-muted">
-                Aktual bersih: <b class="text-highlighted num">{{ fmtRp(RH.g[x.k]!.akt) }}</b>{{ RH.g[x.k]!.lebih ? ` · dana lebih ${fmtRp(RH.g[x.k]!.lebih)}` : '' }}
-              </p>
-            </div>
-          </div>
-          <div class="mt-3 flex flex-wrap items-center gap-4">
-            <UCheckbox
-              :model-value="setorTerpilih"
-              label="Setor (cermin riwayat setoran)"
-              :disabled="!izin.ubah('rekap')"
-              @update:model-value="(v: boolean | 'indeterminate') => ubahSetor(v === true)"
+          <div class="flex flex-wrap items-end gap-2">
+            <AppTanggal
+              v-model="hariInput"
+              class="w-56"
             />
-            <span class="text-sm text-muted">Sisa setor hari ini: <b class="text-highlighted num">{{ fmtRp(sisaSetor(hariInput)) }}</b></span>
-            <div class="flex-1" />
             <UButton
-              v-if="izin.ubah('rekap')"
-              label="Simpan penanda & MDR"
-              icon="i-lucide-save"
-              :disabled="!kotorHariIni"
-              :loading="sibuk"
-              @click="simpanHari"
+              label="← Hari sebelumnya"
+              color="neutral"
+              variant="outline"
+              @click="geserHari(-1)"
+            />
+            <UButton
+              label="Hari berikutnya →"
+              color="neutral"
+              variant="outline"
+              @click="geserHari(1)"
+            />
+            <UButton
+              label="Hari ini"
+              color="neutral"
+              variant="outline"
+              @click="hariInput = hariIni()"
             />
           </div>
         </AppPanel>
+
+        <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div
+            v-for="(k, i) in [
+              { l: 'Dibayar tamu', v: fmtRp(RH.jual), s: 'after tax & service · ' + hariInput, aksen: true },
+              { l: 'Rekap aktual', v: fmtRp(RH.rekapAkt), s: 'setoran ' + fmtRp(RH.setoran) + ' − MDR + dana lebih' },
+              { l: 'Total MDR', v: mdrRp(RH.mdrTotal) + (mdrPct(RH.mdrTotal, RH.kotorMdr) ? ' · ' + mdrPct(RH.mdrTotal, RH.kotorMdr) : ''), s: 'Aktual kotor − Aktual masuk; persennya dari Aktual kotor kelompok yang kena potongan' },
+              { l: 'Selisih', v: fmtSel(RH.selisihTotal), s: 'Dibayar Tamu − Rekap Aktual' + (RH.bon.ada ? ' + koreksi bon' : '') },
+            ]"
+            :key="i"
+            class="rounded-panel border-t-[3px] p-4 shadow-panel"
+            :class="(k as { aksen?: boolean }).aksen ? 'border-t-primary-900 bg-primary text-white' : 'border-t-primary bg-default'"
+          >
+            <p
+              class="text-[11px] font-bold uppercase tracking-wider"
+              :class="(k as { aksen?: boolean }).aksen ? 'text-white/80' : 'text-muted'"
+            >
+              {{ k.l }}
+            </p>
+            <p
+              class="mt-1 text-xl font-extrabold num"
+              :class="(k as { aksen?: boolean }).aksen ? 'text-white' : 'text-highlighted'"
+            >
+              {{ k.v }}
+            </p>
+            <p
+              class="mt-1 text-xs"
+              :class="(k as { aksen?: boolean }).aksen ? 'text-white/85' : 'text-muted'"
+            >
+              {{ k.s }}
+            </p>
+          </div>
+        </div>
+
+        <UAlert
+          v-if="RH.tanpaSvcTax"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          class="my-4"
+          title="Service charge & tax tanggal ini masih nol di Input Omset Harian, padahal setoran kasirnya ada."
+          description="Selisih di atas kemungkinan besar berasal dari isian yang belum lengkap — bukan uang yang hilang."
+        />
+        <UAlert
+          v-else-if="!recOf(hariInput) && !omsetOf(hariInput)"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          class="my-4"
+          title="Report Daily tanggal ini belum ada, jadi seluruh angka POS & Aktual masih nol."
+          description="Penandanya boleh dicentang sekarang, tapi Aktual masuk sebaiknya diisi setelah Report Daily-nya ada."
+        />
+
+        <AppPanel
+          title="Setoran cash"
+          class="mt-4"
+        >
+          <p class="text-sm text-muted">
+            Cash hari ini <b class="text-highlighted num">{{ fmtRp(cash(hariInput)) }}</b> · sisa belum disetor <b class="text-highlighted num">{{ fmtRp(sisaSetor(hariInput)) }}</b>.
+            Setoran dicatat per beberapa hari sekaligus berikut tujuannya di sub-tab tersendiri.
+          </p>
+          <UButton
+            class="mt-3"
+            label="Buka setoran cash"
+            icon="i-lucide-landmark"
+            color="neutral"
+            variant="outline"
+            @click="tab = 'setoran'"
+          />
+        </AppPanel>
+
+        <AppPanel
+          title="Aktual masuk & penanda input POS"
+          flush
+        >
+          <template #description>
+            Isi <b>Aktual</b> — nominal yang benar-benar masuk rekening menurut mutasi bank / laporan ojol. MDR di sebelahnya <b>dihitung sendiri</b> sebagai selisihnya terhadap Aktual kotor, tidak perlu diketik. Kosongkan kalau memang tidak ada potongan. Centang <b>Input POS</b> berarti nominal <i>adjust</i> kelompok itu sudah dikunci di POS.
+          </template>
+          <div class="border-b border-default bg-warning/10 px-4 py-3 text-xs leading-relaxed text-default lg:px-6">
+            <b>Kalau uang yang masuk rekening MELAMPAUI</b> yang tercatat di Report Daily, kolom <b>MDR berubah jadi kotak isian</b> — di keadaan itu angka saja tidak bisa memberi tahu berapa yang potongan bank dan berapa yang input kasirnya kurang. Isi potongan bank menurut mutasi; sisanya otomatis jadi <b>Dana lebih</b>. Kosongkan kalau memang tidak ada potongan — seluruh kelebihannya akan jatuh ke Dana lebih. Yang berlaku:
+            <b>Aktual masuk = Aktual kotor + Dana lebih − MDR</b>. Berapa pun pembagiannya, <b>Rekap Aktual & Selisih tidak bergeser sepeser pun</b> — kolom ini menjelaskan uang, tidak memindahkannya.
+          </div>
+          <div class="overflow-x-auto">
+            <table class="w-full min-w-[56rem] text-sm">
+              <thead class="bg-table-head text-table-head-text">
+                <tr class="text-xs font-bold uppercase tracking-wider">
+                  <th class="px-3 py-2.5 text-start">
+                    Kelompok
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    POS
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    Aktual (kotor)
+                  </th>
+                  <th class="w-40 px-3 py-2.5 text-end">
+                    Aktual masuk
+                  </th>
+                  <th class="w-40 px-3 py-2.5 text-end">
+                    MDR
+                    <span class="block text-[10px] font-normal normal-case">% dari Aktual kotor</span>
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    Dana lebih
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    Adjust
+                  </th>
+                  <th class="px-3 py-2.5 text-center">
+                    Input POS
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-default">
+                <tr
+                  v-for="x in RK_GRUP"
+                  :key="x.k"
+                >
+                  <td class="px-3 py-2.5 font-bold">
+                    <span :class="warna(x.k).teks">{{ x.n }}</span>
+                  </td>
+                  <td class="px-3 py-2.5 text-end num">
+                    {{ RH.g[x.k]!.punyaPos ? rp0(RH.g[x.k]!.pos) : '—' }}
+                  </td>
+                  <td class="px-3 py-2.5 text-end num">
+                    {{ rp0(RH.g[x.k]!.kotor) }}
+                  </td>
+                  <td class="px-3 py-1.5 text-end">
+                    <UInput
+                      v-if="x.mdr"
+                      :model-value="titik(ubah[hariInput]?.aktual?.[x.mdr] ?? (recOf(hariInput)?.aktual as Record<string, unknown> | undefined)?.[x.mdr] ?? '')"
+                      inputmode="numeric"
+                      class="w-36"
+                      :ui="{ base: 'text-end' }"
+                      :placeholder="titik(RH.g[x.k]!.akt) || '0'"
+                      :disabled="!izin.ubah('rekap')"
+                      @update:model-value="(v: string | number) => ubahAkt(x.mdr!, String(v).replace(/[^0-9]/g, ''))"
+                    />
+                    <span
+                      v-else
+                      class="text-muted"
+                    >—</span>
+                  </td>
+                  <td class="px-3 py-1.5 text-end num">
+                    <template v-if="x.mdr">
+                      <UInput
+                        v-if="RH.g[x.k]!.berlebih || RH.g[x.k]!.mdrMan !== null"
+                        :model-value="titik(ubah[hariInput]?.mdrman?.[x.mdr] ?? (recOf(hariInput)?.mdrManual as Record<string, unknown> | undefined)?.[x.mdr] ?? '')"
+                        inputmode="numeric"
+                        class="w-36"
+                        :ui="{ base: 'text-end' }"
+                        placeholder="0"
+                        :disabled="!izin.ubah('rekap')"
+                        title="Aktual masuk melebihi Aktual kotor. Isi potongan bank menurut mutasi; sisanya otomatis jadi Dana lebih."
+                        @update:model-value="(v: string | number) => ubahMdrMan(x.mdr!, String(v).replace(/[^0-9]/g, ''))"
+                      />
+                      <template v-else>
+                        {{ mdrRp(RH.g[x.k]!.mdr) }}
+                      </template>
+                      <span
+                        v-if="mdrPct(RH.g[x.k]!.mdr, RH.g[x.k]!.kotor)"
+                        class="block text-[11px] text-muted"
+                      >{{ mdrPct(RH.g[x.k]!.mdr, RH.g[x.k]!.kotor) }} dari kotor</span>
+                    </template>
+                    <span
+                      v-else
+                      class="text-muted"
+                    >—</span>
+                  </td>
+                  <td class="px-3 py-2.5 text-end num">
+                    <span
+                      v-if="x.mdr && RH.g[x.k]!.lebih"
+                      :class="RH.g[x.k]!.lebih < 0 ? 'text-error' : 'font-semibold text-primary'"
+                    >{{ fmtRp(RH.g[x.k]!.lebih) }}</span>
+                    <span
+                      v-else
+                      class="text-muted"
+                    >—</span>
+                  </td>
+                  <td class="px-3 py-2.5 text-end num">
+                    {{ rp0(RH.g[x.k]!.adjust) }}
+                  </td>
+                  <td class="px-3 py-2.5 text-center">
+                    <UCheckbox
+                      :id="'cb-pos-' + x.k"
+                      :model-value="tanda(hariInput, x.k)"
+                      :disabled="!izin.ubah('rekap')"
+                      @update:model-value="(v: boolean | 'indeterminate') => ubahTanda(x.k, v === true)"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </AppPanel>
+
+        <div class="sticky bottom-3 z-10 mt-4 flex flex-wrap items-center justify-between gap-3 rounded-panel bg-default p-3 shadow-panel">
+          <p class="text-xs text-muted">
+            <template v-if="Object.keys(ubah).length">
+              <b class="text-warning">{{ Object.keys(ubah).length }} hari punya perubahan yang belum disimpan.</b>
+            </template>
+            <template v-else>
+              Yang disimpan dari layar ini hanya Aktual masuk, MDR (saat dana berlebih), dan centang Input POS.
+            </template>
+          </p>
+          <UButton
+            v-if="izin.ubah('rekap')"
+            label="Simpan perubahan"
+            icon="i-lucide-save"
+            :disabled="!kotorHariIni"
+            :loading="sibuk"
+            @click="simpanHari"
+          />
+        </div>
       </template>
 
       <template v-else>
+        <div class="grid gap-3 sm:grid-cols-3">
+          <div class="rounded-panel border-t-[3px] border-t-primary bg-default p-4 shadow-panel">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-muted">
+              Belum disetor
+            </p>
+            <p class="mt-1 text-xl font-extrabold text-highlighted num">
+              {{ fmtRp(belumSetor.reduce((x, t) => x + sisaSetor(t), 0)) }}
+            </p>
+            <p class="mt-1 text-xs text-muted">
+              {{ belumSetor.length }} hari, seluruh riwayat — bukan cuma bulan ini
+            </p>
+          </div>
+          <div class="rounded-panel border-t-[3px] border-t-primary-900 bg-primary p-4 text-white shadow-panel">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-white/80">
+              Dipilih sekarang
+            </p>
+            <p class="mt-1 text-xl font-extrabold num">
+              {{ fmtRp(totalTerpilih) }}
+            </p>
+            <p class="mt-1 text-xs text-white/85">
+              {{ nTerpilih }} hari dicentang
+            </p>
+          </div>
+          <div class="rounded-panel border-t-[3px] border-t-primary bg-default p-4 shadow-panel">
+            <p class="text-[11px] font-bold uppercase tracking-wider text-muted">
+              Setoran tercatat
+            </p>
+            <p class="mt-1 text-xl font-extrabold text-highlighted num">
+              {{ setoranRows.length }} kali
+            </p>
+            <p class="mt-1 text-xs text-muted">
+              riwayat lengkap ada di bawah
+            </p>
+          </div>
+        </div>
+
         <AppPanel
-          title="Riwayat setoran cash"
-          :description="`${setoranRows.filter(s => String(s.tgl ?? '').slice(0, 7) === periode).length} setoran bulan ini · total ${fmtRp(sudahSetorBulan)}. Nominal dihitung server dari cash actual hari-hari yang dicakup; baris lama tanpa rincian berarti setoran penuh.`"
+          title="Cash yang belum disetor"
+          description="Centang hari-hari yang uangnya dibawa ke bank dalam satu kali jalan. Angkanya Cash Actual hari itu dari Report Daily."
+          class="mt-4"
           flush
         >
-          <template #actions>
-            <UButton
-              v-if="izin.ubah('rekap')"
-              label="Catat setoran"
-              icon="i-lucide-plus"
-              size="sm"
-              @click="bukaSetoran"
-            />
-          </template>
-          <div class="divide-y divide-default">
-            <div
-              v-for="s in setoranRows.filter(x => String(x.tgl ?? '').slice(0, 7) === periode).sort((a, b) => String(a.tgl) < String(b.tgl) ? 1 : -1)"
-              :key="s.id"
-              class="flex flex-wrap items-center gap-3 px-4 py-3 lg:px-5"
-            >
-              <div class="min-w-0 flex-1">
-                <b class="text-highlighted">{{ s.tgl || '—' }}</b>
-                <span class="ms-2 text-sm text-muted">{{ s.tujuan || '(tanpa tujuan)' }}</span>
-                <p class="text-xs text-muted">
-                  {{ (s.hari ?? []).length }} hari: {{ (s.hari ?? []).join(', ') }}
-                  <template v-if="s.catatan">
-                    · {{ s.catatan }}
-                  </template>
-                  <template v-if="s.by">
-                    · oleh {{ s.by }}
-                  </template>
-                </p>
-              </div>
-              <b class="num">{{ fmtRp(kNum(s.nominal)) }}</b>
-              <UButton
-                v-if="izin.ubah('rekap')"
-                label="Hapus"
-                color="error"
-                variant="ghost"
-                size="xs"
-                @click="hapusSetoran = s; hapusSetoranOpen = true"
+          <p
+            v-if="!belumSetor.length"
+            class="px-5 py-8 text-center text-sm text-muted"
+          >
+            Seluruh cash yang tercatat sudah disetor.
+          </p>
+          <div
+            v-else
+            class="overflow-x-auto"
+          >
+            <table class="w-full min-w-[44rem] text-sm">
+              <thead class="bg-table-head text-table-head-text">
+                <tr class="text-xs font-bold uppercase tracking-wider">
+                  <th class="w-10 px-3 py-2.5">
+                    <UCheckbox
+                      id="cb-rekap-semua"
+                      :model-value="belumSetor.length > 0 && belumSetor.every(t => terpilih[t])"
+                      aria-label="Pilih semua"
+                      @update:model-value="(v: boolean | 'indeterminate') => pilihSemua(v === true)"
+                    />
+                  </th>
+                  <th class="px-3 py-2.5 text-start">
+                    Tanggal
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    Cash actual
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    Sisa belum setor
+                  </th>
+                  <th class="w-44 px-3 py-2.5 text-end">
+                    Yang disetor
+                  </th>
+                  <th class="px-3 py-2.5 text-start">
+                    Umur
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-default">
+                <tr
+                  v-for="t in belumSetor"
+                  :key="t"
+                >
+                  <td class="px-3 py-2">
+                    <UCheckbox
+                      :id="'cb-rekap-' + t"
+                      :model-value="!!terpilih[t]"
+                      :aria-label="'Pilih ' + t"
+                      @update:model-value="(v: boolean | 'indeterminate') => pilihHari(t, v === true)"
+                    />
+                  </td>
+                  <td class="px-3 py-2 font-semibold text-highlighted">
+                    {{ new Date(t + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }) }}
+                    <span
+                      v-if="sudahSetor(t) > 0"
+                      class="block text-xs font-normal text-muted"
+                    >{{ fmtRp(sudahSetor(t)) }} sudah disetor sebelumnya</span>
+                  </td>
+                  <td class="px-3 py-2 text-end num">
+                    {{ fmtRp(cash(t)) }}
+                  </td>
+                  <td class="px-3 py-2 text-end font-bold num">
+                    {{ fmtRp(sisaSetor(t)) }}
+                  </td>
+                  <td class="px-3 py-1.5 text-end">
+                    <UInput
+                      :model-value="terpilih[t] ? titik(nomSetor[t] ?? '') : ''"
+                      inputmode="numeric"
+                      class="w-40"
+                      :ui="{ base: 'text-end' }"
+                      :placeholder="titik(sisaSetor(t))"
+                      :disabled="!terpilih[t]"
+                      :color="setorNol.includes(t) || setorLebih.includes(t) ? 'error' : undefined"
+                      :aria-label="'Yang disetor ' + t"
+                      @update:model-value="(v: string | number) => { nomSetor = { ...nomSetor, [t]: String(v).replace(/[^0-9]/g, '') } }"
+                    />
+                  </td>
+                  <td class="px-3 py-2">
+                    <span
+                      class="rounded-full px-2 py-0.5 text-xs font-bold"
+                      :class="umurHari(t) <= 1 ? 'bg-muted text-muted' : umurHari(t) <= 3 ? 'bg-warning/15 text-warning' : 'bg-error/15 text-error'"
+                    >{{ umurHari(t) <= 1 ? 'baru' : umurHari(t) + ' hari' }}</span>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p
+            v-if="belumSetor.length"
+            class="border-t border-default px-5 py-3 text-xs text-muted"
+          >
+            Mencentang mengisi kotak <b>Yang disetor</b> dengan sisa hari itu. Ubah kalau yang dibawa ke bank ternyata cuma sebagian — <b>sisanya tetap berdiri di daftar ini</b> sampai benar-benar disetor, jadi tidak ada cash yang hilang dari pantauan.
+          </p>
+        </AppPanel>
+
+        <AppPanel
+          v-if="izin.ubah('rekap')"
+          title="Catat setoran"
+          description="Nominal per hari diambil dari kotak Yang disetor di tabel atas; yang tidak disunting memakai sisa hari itu, dihitung ulang server dari Report Daily supaya tidak pernah beda dari cash-nya."
+          class="mt-4"
+        >
+          <div class="grid gap-4 sm:grid-cols-3">
+            <UFormField label="Tanggal setor">
+              <AppTanggal
+                v-model="tglSetor"
+                class="w-full"
               />
-            </div>
-            <p
-              v-if="!setoranRows.filter(x => String(x.tgl ?? '').slice(0, 7) === periode).length"
-              class="px-4 py-6 text-center text-sm text-muted"
+            </UFormField>
+            <UFormField
+              label="Disetor ke mana *"
+              help="Tulis nama bank (BRI / Mandiri / BCA / UOB) agar masuk ke saldo Brankas."
             >
-              Belum ada setoran tercatat bulan ini.
-            </p>
+              <UInput
+                v-model="setorForm.tujuan"
+                list="rekap-tujuan"
+                placeholder="mis. BCA 1234567890"
+                class="w-full"
+              />
+              <datalist id="rekap-tujuan">
+                <option value="BCA" />
+                <option value="BRI" />
+                <option value="Mandiri" />
+                <option value="UOB" />
+                <option value="Brankas" />
+              </datalist>
+            </UFormField>
+            <UFormField label="Catatan (opsional)">
+              <UInput
+                v-model="setorForm.catatan"
+                placeholder="mis. disetor Pak Budi"
+                class="w-full"
+              />
+            </UFormField>
+          </div>
+          <UAlert
+            v-if="setorNol.length"
+            class="mt-3"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-triangle-alert"
+            :title="setorNol.length + ' hari dicentang tapi nominalnya nol (' + setorNol.join(', ') + '). Isi nominalnya, atau lepas centangnya — baris setoran nol tidak menyetor apa pun.'"
+          />
+          <UAlert
+            v-if="setorLebih.length"
+            class="mt-3"
+            color="error"
+            variant="subtle"
+            icon="i-lucide-triangle-alert"
+            :title="setorLebih.length + ' hari nominalnya melampaui sisa yang tercatat (' + setorLebih.map(t => t + ' — sisa ' + fmtRp(sisaSetor(t))).join(', ') + ').'"
+            description="Kalau yang benar-benar disetor memang sebesar itu, yang perlu dibetulkan Cash Actual hari itu di Report Daily — bukan setorannya."
+          />
+          <div class="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-xl bg-muted px-4 py-3">
+            <div class="flex gap-8 text-sm">
+              <span class="text-muted">Hari dipilih <b class="ms-1 text-highlighted num">{{ nTerpilih }}</b></span>
+              <span class="text-muted">Total disetor <b class="ms-1 text-highlighted num">{{ fmtRp(totalTerpilih) }}</b></span>
+            </div>
+            <UButton
+              label="Catat setoran"
+              icon="i-lucide-landmark"
+              :disabled="!setorBisa"
+              :loading="sibuk"
+              @click="simpanSetoran"
+            />
+          </div>
+        </AppPanel>
+
+        <AppPanel
+          title="Riwayat setoran"
+          description="Kapan disetor, ke mana, berapa, dan hari mana saja yang tercakup."
+          class="mt-4"
+          flush
+        >
+          <p
+            v-if="!setoranRows.length"
+            class="px-5 py-8 text-center text-sm text-muted"
+          >
+            Belum ada setoran yang dicatat.
+          </p>
+          <div
+            v-else
+            class="overflow-x-auto"
+          >
+            <table class="w-full min-w-[44rem] text-sm">
+              <thead class="bg-table-head text-table-head-text">
+                <tr class="text-xs font-bold uppercase tracking-wider">
+                  <th class="px-3 py-2.5 text-start">
+                    Tanggal setor
+                  </th>
+                  <th class="px-3 py-2.5 text-start">
+                    Tujuan
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    Nominal
+                  </th>
+                  <th class="px-3 py-2.5 text-start">
+                    Hari yang dicakup
+                  </th>
+                  <th class="px-3 py-2.5 text-start">
+                    Oleh
+                  </th>
+                  <th class="w-12 px-3 py-2.5" />
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-default">
+                <tr
+                  v-for="x in setoranRows.slice().sort((a, b) => String(a.tgl) < String(b.tgl) ? 1 : -1)"
+                  :key="x.id"
+                >
+                  <td class="px-3 py-2.5 font-semibold text-highlighted">
+                    {{ x.tgl ? new Date(x.tgl + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }) : '—' }}
+                    <span
+                      v-if="x.catatan"
+                      class="block text-xs font-normal text-muted"
+                    >{{ x.catatan }}</span>
+                  </td>
+                  <td class="px-3 py-2.5">
+                    {{ x.tujuan || '—' }}
+                  </td>
+                  <td class="px-3 py-2.5 text-end font-bold num">
+                    {{ fmtRp(kNum(x.nominal)) }}
+                  </td>
+                  <td class="px-3 py-2.5">
+                    <div class="flex flex-wrap gap-1">
+                      <span
+                        v-for="h in (x.hari ?? [])"
+                        :key="h"
+                        class="rounded-full px-2 py-0.5 text-xs font-semibold"
+                        :class="x.jumlah?.[h] !== undefined && kNum(x.jumlah[h]) < cash(h) - 0.5 ? 'bg-warning/15 text-warning' : 'bg-muted text-muted'"
+                      >{{ labelHari(h) }}{{ x.jumlah?.[h] !== undefined && kNum(x.jumlah[h]) < cash(h) - 0.5 ? ' · ' + fmtRp(kNum(x.jumlah[h])) : '' }}</span>
+                    </div>
+                  </td>
+                  <td class="px-3 py-2.5 text-xs text-muted">
+                    {{ x.by || '—' }}
+                  </td>
+                  <td class="px-3 py-2.5 text-end">
+                    <UButton
+                      v-if="izin.ubah('rekap')"
+                      icon="i-lucide-x"
+                      color="error"
+                      variant="ghost"
+                      size="xs"
+                      aria-label="Batalkan setoran"
+                      @click="hapusSetoran = x; hapusSetoranOpen = true"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
           </div>
         </AppPanel>
       </template>
     </template>
-
-    <ResponsiveSheet
-      v-model:open="setoranBuka"
-      title="Catat setoran cash"
-    >
-      <p class="mb-3 text-sm text-muted">
-        Pilih hari-hari yang benar-benar dibawa ke bank. Nominalnya dihitung server dari cash actual tiap hari; uang yang masih tersisa tetap berstatus belum disetor.
-      </p>
-      <div class="max-h-64 space-y-1 overflow-y-auto">
-        <UCheckbox
-          v-for="t in hariBulan.filter(t => cash(t) > 0 || sisaSetor(t) > 0)"
-          :id="`cb-rekap-741-${String(t).replace(/\s+/g, '-')}`"
-          :key="t"
-          :model-value="!!terpilih[t]"
-          :label="`${t} — sisa ${fmtRp(sisaSetor(t))}`"
-          @update:model-value="(v: boolean | 'indeterminate') => { terpilih = { ...terpilih, [t]: v === true } }"
-        />
-      </div>
-      <div class="mt-3 space-y-3">
-        <UFormField label="Tujuan (bank/penerima)">
-          <UInput
-            v-model="setorForm.tujuan"
-            class="w-full"
-          />
-        </UFormField>
-        <UFormField label="Catatan">
-          <UInput
-            v-model="setorForm.catatan"
-            class="w-full"
-          />
-        </UFormField>
-        <p class="text-sm text-muted">
-          {{ nTerpilih }} hari terpilih · perkiraan total <b class="text-highlighted num">{{ fmtRp(totalTerpilih) }}</b>
-        </p>
-      </div>
-      <template #footer>
-        <UButton
-          label="Simpan setoran"
-          :disabled="!nTerpilih"
-          :loading="sibuk"
-          @click="simpanSetoran"
-        />
-        <UButton
-          label="Batal"
-          color="neutral"
-          variant="ghost"
-          @click="setoranBuka = false"
-        />
-      </template>
-    </ResponsiveSheet>
 
     <ResponsiveSheet
       v-model:open="hapusSetoranOpen"

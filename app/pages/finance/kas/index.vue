@@ -177,8 +177,7 @@ async function jalanHapus() {
     <template #actions>
       <AppBulan
         v-model="periode"
-        size="sm"
-        class="w-40"
+        class="w-48"
       />
     </template>
 

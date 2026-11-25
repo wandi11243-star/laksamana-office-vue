@@ -214,9 +214,8 @@ async function submit() {
         <div
           class="flex flex-wrap items-center gap-x-4 gap-y-2 border-t border-default pt-4"
         >
-          <UButton
+          <TombolEsb
             label="Ambil dari ESB"
-            icon="i-lucide-cloud-download"
             :loading="esbLoading"
             :disabled="!siap || menyimpan"
             @click="isiPosEsb()"
@@ -312,7 +311,6 @@ async function submit() {
             <td class="w-44 px-4 py-1.5">
               <RupiahInput
                 :model-value="form[b.k]?.pos ?? 0"
-                size="sm"
                 :aria-label="`POS ${b.n}`"
                 @update:model-value="v => ubahAngka(b.k, 'pos', v)"
               />
@@ -320,7 +318,6 @@ async function submit() {
             <td class="w-44 px-4 py-1.5">
               <RupiahInput
                 :model-value="form[b.k]?.actual ?? 0"
-                size="sm"
                 :aria-label="`Actual ${b.n}`"
                 @update:model-value="v => ubahAngka(b.k, 'actual', v)"
               />
@@ -452,7 +449,7 @@ async function submit() {
           color="neutral"
           variant="outline"
           size="sm"
-          to="/cashier/piutang"
+          :to="props.kunci?.startsWith('omset-') ? '/finance/omset/piutang' : '/cashier/piutang'"
         />
       </template>
       <UAlert

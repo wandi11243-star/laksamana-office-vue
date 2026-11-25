@@ -223,12 +223,8 @@ function geser(n: number) {
             size="sm"
             @click="tanggal = hariIni()"
           />
-          <UButton
+          <TombolEsb
             label="Isi Keluar dari ESB"
-            icon="i-lucide-cloud-download"
-            color="neutral"
-            variant="outline"
-            size="sm"
             :loading="esbLoading"
             :disabled="!data || menyimpan || status === 'pending'"
             @click="isiKeluarEsb()"
