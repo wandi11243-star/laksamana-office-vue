@@ -10,7 +10,7 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
-import { bdTulisDiam, buatBd, lahirkanUlangSetelah, ubahBd, versiBaris } from '~/composables/useBd'
+import { bdTulisDiam, buatBd, ubahBd, versiBaris } from '~/composables/useBd'
 import {
   STATUS_FLOW, cekBolehDone, divisiBawaan, kanbanUrut, opsiDivisi, pesanTunggu, segarkanProgress, setPics,
   type ModeArsip,
@@ -75,8 +75,7 @@ async function pindahKartu(p: { id: string, to: string }) {
   const { updatedAt: _buang, ...sisa } = t
   const body = { ...sisa, status: p.to, pindahKe: { st: p.to, at: Date.now() } }
   segarkanProgress(body)
-  const ok = await bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
-  if (ok && p.to === 'Done') await lahirkanUlangSetelah({ ...t, ...body, id: t.id }, bank.value)
+  await bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
 }
 
 // ---- "+ Tambah kartu" (boardTambah) ----

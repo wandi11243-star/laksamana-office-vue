@@ -7,7 +7,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { BdTask } from '~/composables/useBd'
-import { hentikanUlang, lanjutkanUlang, selesaiUlang, useBdState } from '~/composables/useBd'
+import { hentikanUlang, lanjutkanUlang, toggleTask, useBdState } from '~/composables/useBd'
 import {
   cariAku, fDue, inisial, kunciTag, labelUlang, lewat, lingkupIds, orangById, pelaksana, pics, saringLingkup, selesai,
   seriUlang, tagsOf, todayISO, urutDeadline,
@@ -88,7 +88,7 @@ function bukaSheet(t: BdTask) {
   bukaTask.value = true
 }
 async function tandaiSelesai(s: Seri) {
-  await selesaiUlang(s.head, state.value.tasks)
+  if (!selesai(s.head)) await toggleTask(s.head, state.value.tasks)
 }
 async function lanjutkan(s: Seri) {
   await lanjutkanUlang(s.head, state.value.tasks)
@@ -104,7 +104,7 @@ async function hentikan() {
 <template>
   <AppPage
     title="Recurring Task"
-    description="Semua task berulang — maju sendiri ke jadwal berikutnya, ditandai Done atau tidak."
+    description="Task pindah ke Doing pada tanggal jadwalnya. Tandai Done untuk membuat task berikutnya."
   >
     <template #actions>
       <UButton

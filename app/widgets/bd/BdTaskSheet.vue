@@ -11,7 +11,7 @@
 -->
 <script setup lang="ts">
 import type { BdLampiran, BdPerson, BdProject, BdSubtask, BdTask } from '~/composables/useBd'
-import { LAMPIRAN_TERIMA, buatBd, bdSimpan, bdTulisDiam, capPenugasan, hapusTaskDenganUrutan, lahirkanUlangSetelah, lampiranSah, pesanHapusTask, putSetelan, tambalBd, tolakLampiran, ubahBd, unggahLampiranBd, useBdSettings, versiBaris, versiSetelan } from '~/composables/useBd'
+import { LAMPIRAN_TERIMA, buatBd, bdSimpan, bdTulisDiam, capPenugasan, hapusTaskDenganUrutan, lampiranSah, pesanHapusTask, putSetelan, tambalBd, tolakLampiran, ubahBd, unggahLampiranBd, useBdSettings, versiBaris, versiSetelan } from '~/composables/useBd'
 import {
   PILIHAN_TANPA, PRIORITAS, STATUS_FLOW, TAG_PALET, TASK_TIPE, ULANG, cekBolehDone, deps, divisiBawaan, gayaTag, jamValid, kruTersedia, kuadran,
   kunciTag, labelUlang, menungguTransitif, opsiDivisi, opsiProject as opsiProjectBd, parseUlang, pesanTunggu, pics, reviewers, segarkanProgress, selesai, semuaTag, setPics, subs, susunUlang, tagsOf, todayISO, uidBd,
@@ -313,9 +313,10 @@ async function simpan() {
     toast.add({ title: 'Lampiran masih diunggah — tunggu sebentar lalu simpan lagi.', color: 'warning' })
     return
   }
+  const deadline = f.deadline || (f.ulang ? (props.task?.deadline || f.start || todayISO()) : '')
   // A start past the deadline would draw the Timeline bar backwards — refused
   // here, never silently drawn as a diamond.
-  if (f.start && f.deadline && f.start > f.deadline) {
+  if (f.start && deadline && f.start > deadline) {
     toast.add({ title: 'Tanggal mulai tidak boleh sesudah deadline.', color: 'error' })
     return
   }
@@ -326,7 +327,7 @@ async function simpan() {
     toast.add({ title: 'Jam tidak valid — pakai format 24 jam, mis. 14:00.', color: 'error' })
     return
   }
-  if (f.jam && !f.deadline) {
+  if (f.jam && !deadline) {
     toast.add({ title: 'Jam butuh tanggal deadline dulu.', color: 'error' })
     return
   }
@@ -364,15 +365,15 @@ async function simpan() {
       toast.add({ title: '"Ulangi setiap" harus 1 sampai 99.', color: 'error' })
       return
     }
-    if (kustom.satuan === 'minggu' && !kustom.hari.length && /^\d{4}-\d{2}-\d{2}$/.test(f.deadline)) {
-      kustom.hari = [new Date(Number(f.deadline.slice(0, 4)), Number(f.deadline.slice(5, 7)) - 1, Number(f.deadline.slice(8, 10))).getDay()]
+    if (kustom.satuan === 'minggu' && !kustom.hari.length && /^\d{4}-\d{2}-\d{2}$/.test(deadline)) {
+      kustom.hari = [new Date(Number(deadline.slice(0, 4)), Number(deadline.slice(5, 7)) - 1, Number(deadline.slice(8, 10))).getDay()]
     }
     if (kustom.akhir === 'd') {
       if (!/^\d{4}-\d{2}-\d{2}$/.test(kustom.sampai)) {
         toast.add({ title: 'Isi tanggal berakhirnya.', color: 'error' })
         return
       }
-      if (f.deadline && kustom.sampai < f.deadline) {
+      if (deadline && kustom.sampai < deadline) {
         toast.add({ title: 'Tanggal berakhir tidak boleh sebelum deadline.', color: 'error' })
         return
       }
@@ -383,11 +384,6 @@ async function simpan() {
     }
     ulang = ulangKustom.value
   }
-  // No deadline means no "next when" — refused here, never silently non-recurring.
-  if (ulang && !f.deadline) {
-    toast.add({ title: 'Task berulang butuh deadline sebagai patokan.', color: 'error' })
-    return
-  }
   const body: Partial<BdTask> = {
     name: f.name.trim(),
     desc: f.desc.trim(),
@@ -396,7 +392,7 @@ async function simpan() {
     priority: f.priority,
     type: f.type,
     start: f.start || '',
-    deadline: f.deadline,
+    deadline,
     jam: f.jam || '',
     project: f.project || null,
     daily,
@@ -432,7 +428,6 @@ async function simpan() {
     if (ok) {
       open.value = false
       if (pindah) await lepaskanPenunggu(lama, projBaru)
-      if (kirim.status === 'Done') await lahirkanUlangSetelah({ ...lama, ...kirim } as BdTask, props.tasks)
     }
   }
   else {
@@ -442,7 +437,6 @@ async function simpan() {
     const ok = await bdSimpan(() => buatBd<BdTask>('tasks', kirim), 'Task ditambahkan')
     if (ok) {
       open.value = false
-      if (kirim.status === 'Done') await lahirkanUlangSetelah(kirim as BdTask, props.tasks)
     }
   }
 }
@@ -668,7 +662,7 @@ async function hapus() {
       <div class="grid gap-4 *:min-w-0 sm:grid-cols-2">
         <UFormField
           label="Berulang"
-          :help="`Saat ditandai Done, task berikutnya lahir otomatis dengan deadline berikutnya (butuh deadline).${labelUlang(f.ulang === '__kustom' ? ulangKustom : f.ulang, f.deadline) ? ` ${labelUlang(f.ulang === '__kustom' ? ulangKustom : f.ulang, f.deadline)}.` : ''}`"
+          :help="`Kosongkan deadline untuk memakai jadwal yang sudah ada, tanggal mulai, atau hari ini. Task masuk Doing pada tanggal jadwalnya dan task berikutnya dibuat setelah Done.${labelUlang(f.ulang === '__kustom' ? ulangKustom : f.ulang, f.deadline) ? ` ${labelUlang(f.ulang === '__kustom' ? ulangKustom : f.ulang, f.deadline)}.` : ''}`"
         >
           <USelect
             :model-value="f.ulang || PILIHAN_TANPA"
