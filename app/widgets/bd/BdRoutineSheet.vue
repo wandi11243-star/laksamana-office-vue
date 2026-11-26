@@ -70,6 +70,25 @@ watch(open, (o) => {
   }
 })
 
+// The schedule stays one string ("Jumat 16:00"): the day is typed, the time picked.
+const jadwal = computed(() => {
+  const m = f.time.match(/^(.*?) ?(\d{1,2}[:.]\d{2})$/)
+  return { hari: m ? m[1]! : f.time, jam: m ? m[2]!.replace('.', ':').padStart(5, '0') : '' }
+})
+const susunJadwal = (hari: string, jam: string) => [hari, jam].filter(Boolean).join(' ')
+const jadwalHari = computed({
+  get: () => jadwal.value.hari,
+  set: (v: string) => {
+    f.time = susunJadwal(v, jadwal.value.jam)
+  },
+})
+const jadwalJam = computed({
+  get: () => jadwal.value.jam,
+  set: (v: string) => {
+    f.time = susunJadwal(jadwal.value.hari.trim(), v)
+  },
+})
+
 const q = computed(() => kuadran(f))
 
 async function simpan() {
@@ -146,11 +165,19 @@ async function hapus() {
           />
         </UFormField>
         <UFormField label="Waktu / jadwal">
-          <UInput
-            v-model="f.time"
-            placeholder="mis. Jumat 16:00"
-            class="w-full"
-          />
+          <div class="flex gap-2">
+            <UInput
+              v-model="jadwalHari"
+              placeholder="mis. Jumat"
+              aria-label="Hari atau tanggal jadwal"
+              class="min-w-0 flex-1"
+            />
+            <AppJam
+              v-model="jadwalJam"
+              aria-label="Jam jadwal"
+              class="!w-28 shrink-0"
+            />
+          </div>
         </UFormField>
       </div>
       <div class="grid gap-4 sm:grid-cols-3">

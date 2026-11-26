@@ -244,9 +244,8 @@ const nominal = (v: unknown) => {
       </div>
       <div class="mb-2 grid grid-cols-2 gap-2">
         <UFormField label="Jam kelompok">
-          <UInput
+          <AppJam
             :model-value="String(grup[g]?.jam ?? '')"
-            placeholder="mis. 09.00"
             @update:model-value="setGrup(g, { ...(grup[g] ?? {}), jam: String($event) })"
           />
         </UFormField>
@@ -301,7 +300,7 @@ const nominal = (v: unknown) => {
               />
             </UFormField>
             <UFormField :label="`Jam${grup[g]?.jam ? ` (kelompok: ${grup[g]?.jam})` : ''}`">
-              <UInput
+              <AppJam
                 :model-value="String(r.jam ?? '')"
                 :placeholder="String(grup[g]?.jam || 'ikut kelompok')"
                 @update:model-value="setGrup(g, { ...(grup[g] ?? {}), rows: (grup[g]?.rows ?? []).map((x, j) => j === i ? { ...x, jam: String($event) } : x) })"

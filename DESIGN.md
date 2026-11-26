@@ -81,6 +81,9 @@ Semua warna adalah token di `app/assets/css/main.css`; komponen tidak boleh beri
   tanggal bahasa Indonesia ("Kamis, 12 November 2026") + ikon kalender emas, membuka `UCalendar`
   dalam popover; model tetap string `YYYY-MM-DD`. Pintasan Hari ini / Besok / Lusa (`AppChips`) boleh
   di bawahnya.
+- **Jam** (`AppJam`): pilihan jam selalu dropdown ini, bukan teks ketik atau `type="time"`; model
+  string `HH:MM` (`detik` menambah kolom detik). Tanggal + jam memakai `AppTanggalJam` sebagai ganti
+  `type="datetime-local"`.
 - **Tombol ikon di dalam baris form** (− / + jumlah, hapus baris): `size-10` di HP, `size-8` di
   desktop — sejajar tinggi field, tidak lebih besar.
 - **Tab segmen** (`AppSeg`): trek `bg-muted` 10px; opsi aktif = ubin putih bergaris tipis, teks emas
@@ -183,6 +186,7 @@ pemilih tema.
 | `UTable` | Data tabular desktop |
 | `ResponsiveSheet` | Form dan konfirmasi (bottom sheet di HP, dialog di desktop) |
 | `AppTanggal` | Field tanggal dengan kalender sendiri (bukan pemilih browser) |
+| `AppJam` / `AppTanggalJam` | Field jam (dropdown jam–menit) dan tanggal + jam |
 | `AppList` / `AppListRow` | Daftar sederhana dan versi HP tabel kecil |
 | `AppFocus` | Satu blok utama widget Beranda |
 

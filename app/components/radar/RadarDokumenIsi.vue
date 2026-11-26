@@ -10,8 +10,8 @@
 -->
 <script setup lang="ts">
 import type { BarisDetail, Lampiran } from '~/utils/radar'
-import { lampiranGambar } from '~/utils/radar'
-import { barisRundownOv, grupMenuOv } from '~/utils/marketing-event'
+import { adaTabelMenu, lampiranGambar } from '~/utils/radar'
+import { barisRundownOv } from '~/utils/marketing-event'
 import { rupiah } from '~/utils/format'
 
 const props = defineProps<{
@@ -29,6 +29,8 @@ interface BarisBarang { nama: string, info: string }
 function jenis(r: BarisDetail): Kaya {
   if (r.lampiran?.length) return 'lampiran'
   const v = props.mentah?.[r.k]
+  // Menu fields are keyed by component name ({Appetizer: {rows}}), so go by the field.
+  if (adaTabelMenu(r.k, v)) return 'menu'
   if (Array.isArray(v) && v.length && typeof v[0] === 'object' && v[0] !== null) {
     const o = v[0] as Record<string, unknown>
     if ('kegiatan' in o || 'mulai' in o) return barisRundownOv(v).length ? 'rundown' : 'teks'
@@ -36,10 +38,7 @@ function jenis(r: BarisDetail): Kaya {
   }
   if (v && typeof v === 'object' && !Array.isArray(v)) {
     const o = v as Record<string, unknown>
-    if ('rows' in o || '_teks' in o) {
-      const teks = String(o._teks ?? '').trim()
-      return grupMenuOv(v).length || teks ? 'menu' : 'teks'
-    }
+    if (('rows' in o || '_teks' in o) && String(o._teks ?? '').trim()) return 'menu'
   }
   return 'teks'
 }
@@ -63,12 +62,6 @@ function barisBarang(v: unknown): BarisBarang[] {
       }
     })
     .filter(r => r.nama || r.info)
-}
-
-/** Menu intro line above the grouped tables ({group: {rows, jam, qty}} + _teks). */
-const teksMenu = (v: unknown): string => {
-  if (!v || typeof v !== 'object' || Array.isArray(v)) return ''
-  return String((v as Record<string, unknown>)._teks ?? '').trim()
 }
 
 /** Rundown columns that actually have data — empty ones are not drawn. */
@@ -188,64 +181,10 @@ function kolomRundown(rows: { mulai: string, selesai: string, durasi: string, ke
         </table>
 
         <!-- Grouped menu tables -->
-        <div v-else-if="jenis(r) === 'menu'">
-          <p
-            v-if="teksMenu(mentahOf(r))"
-            class="mb-2 whitespace-pre-line text-sm"
-          >
-            {{ teksMenu(mentahOf(r)) }}
-          </p>
-          <div
-            v-for="g in grupMenuOv(mentahOf(r))"
-            :key="g.nama"
-            class="mb-3"
-          >
-            <p
-              v-if="g.nama"
-              class="text-sm font-semibold text-highlighted"
-            >
-              {{ g.nama }}{{ g.jam ? ` · ${g.jam}` : '' }}{{ g.qty ? ` · ${g.qty}` : '' }}
-            </p>
-            <table class="mt-1 w-full table-fixed border-collapse text-sm sm:table-auto print:table-auto">
-              <thead>
-                <tr class="bg-muted text-left text-xs text-muted">
-                  <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
-                    Jenis
-                  </th>
-                  <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
-                    Menu
-                  </th>
-                  <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
-                    Jumlah
-                  </th>
-                  <th class="border-b border-default px-2 py-1.5 print:border print:border-default">
-                    Jam
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr
-                  v-for="(row, i) in g.rows"
-                  :key="i"
-                  class="border-b border-default last:border-0"
-                >
-                  <td class="break-words px-2 py-1.5 print:border print:border-default">
-                    {{ row.kat }}
-                  </td>
-                  <td class="break-words px-2 py-1.5 print:border print:border-default">
-                    {{ row.menu }}
-                  </td>
-                  <td class="break-words px-2 py-1.5 print:border print:border-default">
-                    {{ row.qty }}
-                  </td>
-                  <td class="break-words px-2 py-1.5 print:border print:border-default">
-                    {{ row.jam || g.jam }}
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </div>
+        <RadarMenuTabel
+          v-else-if="jenis(r) === 'menu'"
+          :nilai="mentahOf(r)"
+        />
 
         <!-- Item / goods table -->
         <table

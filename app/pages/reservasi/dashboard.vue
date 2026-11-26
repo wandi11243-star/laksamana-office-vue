@@ -1529,14 +1529,14 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           />
         </UFormField>
         <UFormField label="Jam dari">
-          <UInput
+          <AppJam
             v-model="filter.fromHour"
             placeholder="00:00"
             class="w-full"
           />
         </UFormField>
         <UFormField label="Jam sampai">
-          <UInput
+          <AppJam
             v-model="filter.toHour"
             placeholder="23:59"
             class="w-full"

@@ -4,6 +4,7 @@
 // RadarRules. Each rule here names the old function it comes from.
 import type { RadarAgenda, RadarReservasi, SumberAgenda } from '~/composables/useRadar'
 import { BLN, BULAN, fTgl, fTglP, hariIni, rupiah, tambahHari } from '~/utils/format'
+import { grupMenuOv } from '~/utils/marketing-event'
 
 /** Seed only; Marketing sends the live list with the board (fbFormats). */
 export const FB_FORMATS_DEFAULT = ['Prasmanan', 'Set Menu', 'Coffee Break', 'Nasi Kotak']
@@ -418,13 +419,18 @@ export function fmtDetVal(v: unknown): string {
 
 export interface BarisDetail { k: string, label: string, teks: string, lampiran?: Lampiran[] }
 
+/** Menu Final / Menu Bar with at least one row: drawn as a table, not as text. */
+export const adaTabelMenu = (k: string, v: unknown): boolean =>
+  (k === 'menuFinal' || k === 'barMenu') && grupMenuOv(v).some(g => g.rows.length > 0)
+
 /** Every filled field of a Marketing event, in schema order, unknown keys after (detailFields). */
 export function detailFields(detail: Obj): BarisDetail[] {
   const out: BarisDetail[] = []
   const lihat = new Set<string>()
   const baris = (k: string) => {
     const v = detail[k]
-    const t = fmtDetVal(v)
+    // A plain list of menu rows has no text form, but it still has a table.
+    const t = fmtDetVal(v) || (adaTabelMenu(k, v) ? 'Menu' : '')
     if (t === '') return
     out.push(adalahLampiran(v) ? { k, label: detLabel(k), teks: t, lampiran: v } : { k, label: detLabel(k), teks: t })
   }
@@ -454,12 +460,13 @@ const SOROT_MKT: [string, string, string][] = [
   ['menuFinal', 'Menu Final', 'i-lucide-utensils'],
   ['barMenu', 'Menu Bar', 'i-lucide-wine'],
 ]
-export function sorotanEvent(detail: Obj): { label: string, icon: string, teks: string }[] {
-  const out: { label: string, icon: string, teks: string }[] = []
+export function sorotanEvent(detail: Obj): { label: string, icon: string, teks: string, menu?: unknown }[] {
+  const out: { label: string, icon: string, teks: string, menu?: unknown }[] = []
   for (const [k, label, icon] of SOROT_MKT) {
     if (!(k in detail)) continue
     const t = fmtDetVal(detail[k])
-    if (t && t.trim()) out.push({ label, icon, teks: t })
+    if (adaTabelMenu(k, detail[k])) out.push({ label, icon, teks: t, menu: detail[k] })
+    else if (t && t.trim()) out.push({ label, icon, teks: t })
   }
   return out
 }

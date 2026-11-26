@@ -33,6 +33,27 @@ watch(open, (o) => {
   roles.value = rolesKru(u)
 }, { immediate: true })
 
+// Working hours keep the stored text: "09.00-18.00", or "Fleksibel".
+const rentangKerja = computed(() => f.workHours.match(/^\s*(\d{1,2}[.:]\d{2})\s*[-–]\s*(\d{1,2}[.:]\d{2})\s*$/))
+function ujungKerja(ke: 1 | 2) {
+  return computed({
+    get: () => rentangKerja.value?.[ke]?.replace('.', ':').padStart(5, '0') ?? '',
+    set: (v: string) => {
+      const ujung = [rentangKerja.value?.[1] ?? '09.00', rentangKerja.value?.[2] ?? '18.00']
+      ujung[ke - 1] = v.replace(':', '.')
+      f.workHours = ujung.join('-')
+    },
+  })
+}
+const kerjaMulai = ujungKerja(1)
+const kerjaSelesai = ujungKerja(2)
+const fleksibel = computed({
+  get: () => f.workHours === 'Fleksibel',
+  set: (v: boolean) => {
+    f.workHours = v ? 'Fleksibel' : '09.00-18.00'
+  },
+})
+
 const pilih = (r: string, on: boolean | 'indeterminate') => {
   roles.value = on === true ? [...new Set([...roles.value, r])] : roles.value.filter(x => x !== r)
 }
@@ -89,10 +110,29 @@ async function simpan() {
           class="w-full"
         />
       </UFormField>
-      <UFormField label="Jam kerja">
-        <UInput
-          v-model="f.workHours"
-          class="w-full"
+      <UFormField
+        label="Jam kerja"
+        :help="!rentangKerja && !fleksibel && f.workHours ? `Tersimpan: ${f.workHours}` : undefined"
+      >
+        <div class="flex items-center gap-2">
+          <AppJam
+            v-model="kerjaMulai"
+            :clearable="false"
+            :disabled="fleksibel"
+            aria-label="Jam kerja mulai"
+          />
+          <span class="text-muted">–</span>
+          <AppJam
+            v-model="kerjaSelesai"
+            :clearable="false"
+            :disabled="fleksibel"
+            aria-label="Jam kerja selesai"
+          />
+        </div>
+        <UCheckbox
+          v-model="fleksibel"
+          label="Fleksibel"
+          class="mt-2"
         />
       </UFormField>
       <UFormField label="Ketersediaan">
