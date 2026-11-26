@@ -112,13 +112,14 @@ export const esbAkhirBulan = (b: string): string => {
 
 /**
  * Months the sync pulls: this month, plus earlier months whose last sync did
- * not reach their last day. Months filled from Excel are left alone.
+ * not reach their last day or that were synced before menus were stored per
+ * visit channel. Months filled from Excel are left alone.
  */
-export function esbBulanSinkron(laporan: Record<string, { esb?: { sampai?: string } } | undefined>, hariIni: string): string[] {
+export function esbBulanSinkron(laporan: Record<string, { esb?: { sampai?: string }, kanalMenu?: unknown } | undefined>, hariIni: string): string[] {
   const kini = hariIni.slice(0, 7)
   const out = Object.keys(laporan).sort().filter((b) => {
     const L = laporan[b]
-    return b < kini && L?.esb && (L.esb.sampai ?? '') < esbAkhirBulan(b)
+    return b < kini && L?.esb && ((L.esb.sampai ?? '') < esbAkhirBulan(b) || !L.kanalMenu)
   })
   out.push(kini)
   return out

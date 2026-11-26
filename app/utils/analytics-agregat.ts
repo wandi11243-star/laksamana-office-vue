@@ -41,6 +41,11 @@ export interface AgregatHari { bill: number, grand: number, net: number }
 export interface AgregatJam { bill: number, grand: number }
 export interface AgregatHariJam { g: number, b: number }
 export interface AgregatMenu { qty: number, nilai: number }
+/** One visit channel's menus: the same raw shape as the month's own `menu` + `ukuran`. */
+export interface AgregatKanalMenu {
+  menu: Record<string, AgregatMenu>
+  ukuran: Record<string, Record<string, Record<string, AgregatMenu & { induk: number }>>>
+}
 export interface AgregatKategori { qty: number, nilai: number, kat: string }
 export interface AgregatKunjung { grand: number, bill: number }
 export interface AgregatMeja { grand: number, bill: number, seksi: string }
@@ -93,6 +98,8 @@ export interface HasilUraiPos {
   kunjung: Record<string, AgregatKunjung>
   bayar: Record<string, AgregatKunjung>
   kunjungBayar: Record<string, AgregatKunjung>
+  /** Menus per visit channel; the keys are the row names of rekapKanal(). */
+  kanalMenu: Record<string, AgregatKanalMenu>
   error: ErrorBill[]
   meja: Record<string, AgregatMeja>
   ringkas: RingkasPos
@@ -162,6 +169,24 @@ export function uraiLaporanPos(baris: BarisTabel[], namaBerkas: string): HasilUr
     bSemua.add(no)
     ;(bHari[t] = bHari[t] || new Set()).add(no)
     if (jm >= 0) (bJam[jm] = bJam[jm] || new Set()).add(no)
+  }
+
+  // The channel of a bill must be known BEFORE its first row is read, and the
+  // payment may be written on a later row only — hence one pass ahead.
+  const kanalMenu: Record<string, AgregatKanalMenu> = {}
+  const kanalBill: Record<string, string> = {}
+  if (jenis === 'menu' && K.kunjung && K.bayar && punyaBill) {
+    for (let i = iH + 1; i < baris.length; i++) {
+      const no = sel(baris[i] ?? {}, K.bill).trim()
+      const pm = sel(baris[i] ?? {}, K.bayar).trim()
+      if (pm && kanalBill[no] === undefined) kanalBill[no] = kanalBayar(pm)
+    }
+  }
+  const tambahUkuran = (uk: AgregatKanalMenu['ukuran'], ind: string, lbl: string, kd: string, q: number, nl: number, induk: number) => {
+    const u = (((uk[ind] ||= {})[lbl] ||= {})[kd] ||= { qty: 0, nilai: 0, induk: 0 })
+    u.qty += q
+    u.nilai += nl
+    u.induk += induk
   }
 
   for (let i = iH + 1; i < baris.length; i++) {
@@ -305,6 +330,16 @@ export function uraiLaporanPos(baris: BarisTabel[], namaBerkas: string): HasilUr
         menu[nm]!.qty += q
         menu[nm]!.nilai += nl
 
+        let km: AgregatKanalMenu | null = null
+        if (K.kunjung) {
+          const kanal = (punyaBill ? kanalBill[noBill] : kanalBayar(sel(b, K.bayar)))
+            || sel(b, K.kunjung).trim().toUpperCase() || KUN_TANPA
+          km = kanalMenu[kanal] ||= { menu: {}, ukuran: {} }
+          const x = km.menu[nm] ||= { qty: 0, nilai: 0 }
+          x.qty += q
+          x.nilai += nl
+        }
+
         if (PAKET_RE.test(nm)) {
           const kd = (K.kode ? kodeMenu(sel(b, K.kode)) : '') || (K.kode2 ? kodeMenu(sel(b, K.kode2)) : '')
           if (!paket[nm]) paket[nm] = {}
@@ -316,13 +351,9 @@ export function uraiLaporanPos(baris: BarisTabel[], namaBerkas: string): HasilUr
             const lbl = paketNamaAsli(nm).toUpperCase()
             const punya = !!(indukAkhir && indukAkhir.bill === noBill && indukAkhir.nama)
             const ind = punya ? indukAkhir!.nama : ''
-            if (!ukuran[ind]) ukuran[ind] = {}
-            if (!ukuran[ind]![lbl]) ukuran[ind]![lbl] = {}
-            if (!ukuran[ind]![lbl]![kd]) ukuran[ind]![lbl]![kd] = { qty: 0, nilai: 0, induk: 0 }
-            const u = ukuran[ind]![lbl]![kd]!
-            u.qty += q
-            u.nilai += nl
-            if (punya) u.induk += indukAkhir!.qty > 0 ? indukAkhir!.nilai * (q / indukAkhir!.qty) : 0
+            const nInduk = punya && indukAkhir!.qty > 0 ? indukAkhir!.nilai * (q / indukAkhir!.qty) : 0
+            tambahUkuran(ukuran, ind, lbl, kd, q, nl, nInduk)
+            if (km) tambahUkuran(km.ukuran, ind, lbl, kd, q, nl, nInduk)
             if (!punya) nUkYatim += q
           }
           indukAkhir = null
@@ -432,6 +463,7 @@ export function uraiLaporanPos(baris: BarisTabel[], namaBerkas: string): HasilUr
     kunjung,
     bayar,
     kunjungBayar,
+    kanalMenu,
     error,
     meja: mejaBln[bulan] || {},
     ringkas: r,
@@ -873,6 +905,22 @@ export function vdKelompok(baris: VoidSimpan[], ambil: (x: VoidSimpan) => string
 // Source: laksamana-office/deploy/analytics/index.html:3847
 export const KANAL_BAYAR = /\b(GRAB\s*FOOD|GO\s*FOOD|SHOPEE\s*FOOD|TIKTOK\s*GO|MAXIM|TRAVELOKA)\b/
 export const kanalKah = (n: unknown): boolean => KANAL_BAYAR.test(String(n || '').toUpperCase())
+
+/**
+ * The ordering channel inside one payment string, '' when there is none. A
+ * mixed bill goes WHOLE to its largest channel: dishes cannot be split by
+ * payment portion without inventing fractions of a plate.
+ */
+export function kanalBayar(teks: unknown): string {
+  let out = ''
+  let maks = -1
+  for (const p of pecahBayar(teks)) {
+    if (!kanalKah(p.nama) || (p.nom ?? 0) <= maks) continue
+    out = p.nama
+    maks = p.nom ?? 0
+  }
+  return out
+}
 
 export interface KanalBaris { n: string, grand: number, bill: number, dari: string[] }
 

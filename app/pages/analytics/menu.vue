@@ -1,6 +1,7 @@
 <!--
   Analytics › Menu & Bahan Baku (deploy/analytics/index.html:3443 vMenu).
-  Section order as the old page: month comparison, four stat cards, size and
+  Section order as the old page: month comparison, four stat cards, Top Menu
+  per Kategori Kunjungan (new, owner request Nov 2026), size and
   package-code notes, the unpaired-code table, Penjualan Menu (sortable,
   paged 20/50/100, a row opens that menu's ingredients), Perkiraan Bahan Baku
   Keluar (raw / prep), Menu yang belum ada di HPP (+ copy / CSV). The merging
@@ -13,9 +14,10 @@ import { saveAnalytics, useAnalyticsState } from '~/composables/useAnalytics'
 import { getHppRecipes } from '~/composables/useStock'
 import { ROLE_LABEL_ANALYTICS, useAnalyticsIzin } from '~/utils/layar/analytics'
 import {
-  bahanSatuMenu, hppNamaMenu, kodeCatatan, menuNormal, mnBulat, petaKode, resepPeta,
+  bahanSatuMenu, hppNamaMenu, kodeCatatan, laporanKanal, menuNormal, mnBulat, petaKode, resepPeta,
   saranKode, ukuranPaket, uraiBaru, uraiResep, type GabMenu, type LaporanMenu,
 } from '~/utils/analytics-menu'
+import { rekapKanal } from '~/utils/analytics-agregat'
 import { tanganiKonflik, versiDari } from '~/utils/versi'
 import { BLN, angka, rupiah } from '~/utils/format'
 
@@ -69,11 +71,36 @@ const blnBanding = useState<string>('analytics-banding', () => '')
 const bandingAktif = computed(() => (!harian.hari.value && blnBanding.value && blnBanding.value !== bulan.value && laporan.value[blnBanding.value] ? blnBanding.value : ''))
 const opsiBanding = computed(() => daftarBulan.value.filter(b => b !== bulan.value))
 
+// ---- visit channel (DINE IN / ESB ORDER / TIKTOK GO / GRABFOOD / GOFOOD …) ----
+// The same rows, in the same order, as Metode Kunjungan › Rekap Kanal.
+const kanalPilih = ref('')
+const punyaMenu = (l: unknown) => !!l && Object.keys((l as LaporanMenu).menu ?? {}).length > 0
+const opsiKanal = computed(() => {
+  const ada = Object.keys(d.value?.kanalMenu ?? {})
+  const urutan = rekapKanal(d.value?.kunjung ?? {}, d.value?.kunjungBayar ?? {}).baris.map(x => x.n)
+  const pos = (n: string) => (urutan.includes(n) ? urutan.indexOf(n) : urutan.length)
+  return ada.sort((a, b) => pos(a) - pos(b) || a.localeCompare(b, 'id'))
+})
+const adaKanal = computed(() => opsiKanal.value.length > 0)
+watch(opsiKanal, (ops) => {
+  if (kanalPilih.value && !ops.includes(kanalPilih.value)) kanalPilih.value = ''
+})
+
 interface BarisMenu { n: string, qty: number, nilai: number, kel: string, bqty: number, bnilai: number, dnilai: number, ada: boolean }
-const NM = computed(() => (d.value && Object.keys(d.value.menu ?? {}).length ? menuNormal(d.value as LaporanMenu, pk.value) : null))
+/** The whole month: package-code pairing and the notes never follow the channel filter. */
+const NMsemua = computed(() => (punyaMenu(d.value) ? menuNormal(d.value as LaporanMenu, pk.value) : null))
+const NM = computed(() => {
+  const L = kanalPilih.value && d.value ? laporanKanal(d.value as LaporanMenu, kanalPilih.value) : null
+  return L ? menuNormal(L, pk.value) : NMsemua.value
+})
 const dB = computed(() => (bandingAktif.value ? laporan.value[bandingAktif.value] ?? null : null))
-const bPunyaMenu = computed(() => !!(dB.value && Object.keys(dB.value.menu ?? {}).length))
-const NB = computed(() => (bPunyaMenu.value ? menuNormal(dB.value as LaporanMenu, pk.value) : null))
+const bPunyaMenu = computed(() => punyaMenu(dB.value))
+/** A channel is only compared with a month that stored its channels; one that did but never sold there compares against zero. */
+const bTanpaKanal = computed(() => bPunyaMenu.value && !!kanalPilih.value && !Object.keys(dB.value?.kanalMenu ?? {}).length)
+const NB = computed(() => {
+  if (!bPunyaMenu.value || bTanpaKanal.value) return null
+  return menuNormal(laporanKanal(dB.value as LaporanMenu, kanalPilih.value) ?? { menu: {} }, pk.value)
+})
 
 /** gabungBanding: rows of BOTH months — a menu that vanished this month is the question. */
 const semua = computed<BarisMenu[]>(() => {
@@ -128,10 +155,10 @@ function sortKlik(k: Kolom) {
   else sort.value = { k, turun: k !== 'n' } // numbers start from the largest
   hal.value = 1
 }
-watch([bulan, tapisKel, cari, perHal, bandingAktif], () => {
+watch([bulan, tapisKel, kanalPilih, cari, perHal, bandingAktif], () => {
   hal.value = 1
 })
-watch([bulan, tapisKel], () => {
+watch([bulan, tapisKel, kanalPilih], () => {
   buka.value = ''
 })
 /** urutKolom: empties always last, ties split by name (rows never jump between renders). */
@@ -164,6 +191,30 @@ const rincian = computed(() => {
   const x = baris.value.find(r => r.n === buka.value)
   return x && peta.value && kenal(x.n) ? { x, r: bahanSatuMenu(x.n, x.qty, peta.value) } : x ? { x, r: null } : null
 })
+// ---- top menus, one card per channel (follows the sort by value / portions and the group filter) ----
+const TOP_KANAL = 5
+const topKanal = computed(() => opsiKanal.value.map((k) => {
+  const L = laporanKanal(d.value as LaporanMenu, k)
+  const rows = L
+    ? Object.entries(menuNormal(L, pk.value).gab)
+        .map(([n, g]) => ({ n, ...g }))
+        .filter(x => x.qty > 0 && (!tapisKel.value || x.kel === tapisKel.value))
+        .sort((a, b) => b[kolBar.value] - a[kolBar.value] || a.n.localeCompare(b.n, 'id'))
+    : []
+  return {
+    k,
+    jenis: rows.length,
+    qty: rows.reduce((a, x) => a + x.qty, 0),
+    nilai: rows.reduce((a, x) => a + x.nilai, 0),
+    top: rows.slice(0, TOP_KANAL),
+    pun: rows[0]?.[kolBar.value] || 1,
+  }
+}))
+/** Open one channel in the Penjualan Menu table below; pressing it again shows all channels. */
+function bukaKanal(k: string) {
+  kanalPilih.value = kanalPilih.value === k ? '' : k
+  if (kanalPilih.value) nextTick(() => document.getElementById('penjualan-menu')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+}
 const urutObj = (o: Record<string, number>) => Object.keys(o).sort((a, b) => o[b]! - o[a]!)
 
 // ---- ingredients ----
@@ -208,7 +259,7 @@ function unduhCsv() {
   const rows = ['Nama Menu POS,Qty,Nilai', ...tanpaResep.value.map(x => `"${x.n.replace(/"/g, '""')}",${x.qty},${Math.round(x.nilai)}`)]
   const a = document.createElement('a')
   a.href = URL.createObjectURL(new Blob([`\uFEFF${rows.join('\r\n')}`], { type: 'text/csv;charset=utf-8' }))
-  a.download = `menu_belum_ada_resep_${bulan.value}.csv`
+  a.download = `menu_belum_ada_resep_${bulan.value}${kanalPilih.value ? `_${kanalPilih.value.toLowerCase().replace(/[^a-z0-9]+/g, '_')}` : ''}.csv`
   document.body.appendChild(a)
   a.click()
   setTimeout(() => {
@@ -219,11 +270,11 @@ function unduhCsv() {
 
 // ---- unpaired package codes + pairing ----
 const takKenal = computed(() => {
-  const t = NM.value?.takKenal ?? {}
+  const t = NMsemua.value?.takKenal ?? {}
   return Object.keys(t).sort((a, b) => t[b]!.qty - t[a]!.qty).map((k) => {
     const x = t[k]!
     const uk = ukuranPaket(x.dari)
-    return { k, ...x, uk, s: saranKode(k, Object.keys(NM.value!.gab), peta.value ? hppNamaMenu(peta.value) : [], uk) }
+    return { k, ...x, uk, s: saranKode(k, Object.keys(NMsemua.value!.gab), peta.value ? hppNamaMenu(peta.value) : [], uk) }
   })
 })
 const totTakKenal = computed(() => takKenal.value.reduce((a, x) => a + x.qty, 0))
@@ -316,7 +367,7 @@ async function pasang(kode: string, menu: string) {
         </p>
       </div>
 
-      <template v-else-if="!NM">
+      <template v-else-if="!NM || !NMsemua">
         <UAlert
           color="warning"
           variant="subtle"
@@ -339,6 +390,16 @@ async function pasang(kode: string, menu: string) {
       </template>
 
       <template v-else>
+        <div
+          v-if="adaKanal"
+          class="mb-4 flex flex-wrap items-center gap-2.5 rounded-panel border border-default bg-default px-4 py-3"
+        >
+          <b class="text-sm">Kategori Kunjungan</b>
+          <AppChips
+            v-model="kanalPilih"
+            :options="[{ value: '', label: 'Semua' }, ...opsiKanal.map(k => ({ value: k, label: k }))]"
+          />
+        </div>
         <!-- pilihBanding -->
         <div
           v-if="opsiBanding.length && !harian.hari.value"
@@ -363,6 +424,24 @@ async function pasang(kode: string, menu: string) {
           icon="i-lucide-triangle-alert"
           :title="`${fmtBln(bandingAktif)} tidak bisa dibandingkan di halaman ini.`"
           :description="`Laporan bulan itu Bill Report — satu baris per bill, tanpa satu pun nama menu. Yang memuat nama menu Sales Recapitulation Detail Report; unggah berkas itu untuk ${fmtBln(bandingAktif)}, lalu pembandingnya jalan sendiri.`"
+        />
+
+        <UAlert
+          v-if="bandingAktif && bTanpaKanal"
+          class="mb-4"
+          color="warning"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          :title="`${fmtBln(bandingAktif)} belum memuat menu per kategori kunjungan.`"
+          :description="`Jadi ${kanalPilih} belum bisa dibandingkan dengan bulan itu. Sinkronkan ulang dari ESB atau unggah ulang Detail Report ${fmtBln(bandingAktif)}.`"
+        />
+        <UAlert
+          v-if="kanalPilih"
+          class="mb-4"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-info"
+          :description="`Kartu, Penjualan Menu, perkiraan bahan baku, dan daftar menu tanpa resep sedang disaring ke ${kanalPilih}. Tekan Semua untuk melepasnya.`"
         />
 
         <AppStatGrid
@@ -398,6 +477,83 @@ async function pasang(kode: string, menu: string) {
             :sub="peta ? `dari ${urut.length} menu` : (hppStatus === 'pending' ? 'memuat resep HPP…' : 'HPP tidak terbaca')"
           />
         </AppStatGrid>
+
+        <!-- top menus per visit channel -->
+        <AppPanel
+          v-if="adaKanal"
+          title="Top Menu per Kategori Kunjungan"
+          :description="`${TOP_KANAL} menu teratas di tiap kanal. Bill yang dibayar lewat GrabFood, GoFood, atau TikTok Go masuk ke kanal itu; sisanya mengikuti metode kunjungannya. Bill dengan pembayaran campuran masuk utuh ke kanal yang terbesar.`"
+        >
+          <AppSeg
+            :model-value="kolBar"
+            size="sm"
+            :options="[{ value: 'nilai', label: 'Menurut Nilai' }, { value: 'qty', label: 'Menurut Porsi' }]"
+            @update:model-value="(v) => { sort = { k: v as Kolom, turun: true }; hal = 1 }"
+          />
+          <div class="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <section
+              v-for="x in topKanal"
+              :key="x.k"
+              class="flex flex-col rounded-panel border bg-default p-4"
+              :class="kanalPilih === x.k ? 'border-gold' : 'border-default'"
+            >
+              <div class="flex items-baseline justify-between gap-2">
+                <h3 class="font-display text-sm font-bold normal-case">
+                  {{ x.k }}
+                </h3>
+                <span class="shrink-0 text-xs text-muted num">{{ angka(x.qty) }} porsi · {{ rupiah(x.nilai) }}</span>
+              </div>
+              <p
+                v-if="!x.top.length"
+                class="mt-3 text-sm text-muted"
+              >
+                Tidak ada menu{{ tapisKel ? ` ${tapisKel}` : '' }} di kanal ini.
+              </p>
+              <ol class="mt-3 flex-1 space-y-2.5">
+                <li
+                  v-for="(m, i) in x.top"
+                  :key="m.n"
+                >
+                  <div class="flex items-baseline gap-2 text-sm">
+                    <span class="w-4 shrink-0 text-muted num">{{ i + 1 }}</span>
+                    <span
+                      class="min-w-0 flex-1 truncate font-semibold"
+                      :title="m.n"
+                    >{{ m.n }}</span>
+                    <b class="shrink-0 num">{{ kolBar === 'qty' ? `${angka(m.qty)} porsi` : rupiah(m.nilai) }}</b>
+                  </div>
+                  <div class="ms-6 mt-1 flex items-center gap-2">
+                    <div class="h-1.5 flex-1 rounded bg-primary-100">
+                      <div
+                        class="h-1.5 rounded bg-primary-500"
+                        :style="{ width: `${Math.max(2, Math.round(m[kolBar] / x.pun * 100))}%` }"
+                      />
+                    </div>
+                    <span class="shrink-0 text-xs text-muted num">{{ kolBar === 'qty' ? rupiah(m.nilai) : `${angka(m.qty)} porsi` }}</span>
+                  </div>
+                </li>
+              </ol>
+              <UButton
+                class="mt-4 self-start"
+                size="xs"
+                color="neutral"
+                variant="outline"
+                :label="kanalPilih === x.k ? 'Lihat semua kanal' : `Lihat ${angka(x.jenis)} menu`"
+                :icon="kanalPilih === x.k ? 'i-lucide-x' : 'i-lucide-list'"
+                @click="bukaKanal(x.k)"
+              />
+            </section>
+          </div>
+        </AppPanel>
+        <UAlert
+          v-else-if="Object.keys(d.kunjung ?? {}).length"
+          class="mt-4"
+          color="info"
+          variant="subtle"
+          icon="i-lucide-info"
+          title="Top menu per kategori kunjungan belum ada untuk bulan ini"
+          :description="d.esb ? 'Laporannya disimpan sebelum menu dicatat per kanal. Tekan Sinkronkan dengan ESB di halaman Ringkasan atau Unggah Laporan; bulan ini ditarik ulang sendiri.' : 'Laporannya disimpan sebelum menu dicatat per kanal. Unggah ulang Detail Report bulan itu di Unggah Laporan.'"
+        />
 
         <!-- ukCatatanHtml -->
         <UAlert
@@ -580,7 +736,9 @@ async function pasang(kode: string, menu: string) {
 
         <!-- Penjualan Menu -->
         <AppPanel
-          title="Penjualan Menu"
+          id="penjualan-menu"
+          class="scroll-mt-20"
+          :title="kanalPilih ? `Penjualan Menu · ${kanalPilih}` : 'Penjualan Menu'"
           description="Bisa diurut menurut nilai atau jumlah porsi — keduanya menjawab hal yang berbeda: menu murah yang terjual ratusan porsi menghabiskan paling banyak bahan, sementara menu mahal menyumbang paling banyak omset, dan yang terlaris menurut salah satunya sering bukan yang terlaris menurut yang lain. Kolom lain diurut dengan menekan kepala kolomnya."
           flush
         >
