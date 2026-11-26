@@ -55,7 +55,7 @@ export default {
           baris: [
             ['Ringkasan', 'Angka pokok bulan itu, dan jembatan ke tiga layar Office yang angkanya berbeda.'],
             ['Hari & Jam', 'Hari apa yang ramai, dan jam berapa.'],
-            ['Menu & Bahan Baku', 'Menu apa yang laku, dan perkiraan bahan yang seharusnya keluar gudang.'],
+            ['Menu & Bahan Baku', 'Menu apa yang laku, top menu tiap kategori kunjungan (Dine In, GrabFood, GoFood, TikTok Go, ESB Order), dan perkiraan bahan yang seharusnya keluar gudang.'],
             ['Kategori Menu', 'Omset per kategori, termasuk EVENT.'],
             ['Metode Kunjungan', 'Dari kanal mana tamunya datang: Dine In, GrabFood, GoFood, TikTok Go, ESB Order.'],
             ['Performa Meja', 'Omset tiap meja dan omset per kursinya.'],
@@ -132,6 +132,9 @@ export default {
             ['Peringatan "laporan belum memuat kategori menu"',
               'Berkasnya diunggah sebelum kolom itu dibaca.',
               'Unggah ulang berkas bulan itu.'],
+            ['"Top menu per kategori kunjungan belum ada untuk bulan ini"',
+              'Laporannya disimpan sebelum menu dicatat per kanal.',
+              'Bulan dari ESB: tekan Sinkronkan dengan ESB. Bulan dari Excel: unggah ulang Detail Report-nya.'],
             ['Perkiraan bahan baku tidak terhitung',
               'Resep dari modul HPP tidak terbaca.',
               'Pesannya menyebut sebabnya. Biasanya modul HPP sedang tidak bisa dihubungi.'],

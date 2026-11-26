@@ -12,6 +12,7 @@
 // and meta.accessVersion (hash of matrix + roles); PUT sends them back and
 // the caller handles 428/409 through tanganiKonflik() (app/utils/versi.ts).
 import type {
+  AgregatKanalMenu,
   AgregatKunjung,
   AgregatMeja,
   AgregatMenu,
@@ -48,6 +49,8 @@ export interface LaporanBulan {
   kunjung: Record<string, AgregatKunjung>
   bayar: Record<string, AgregatKunjung>
   kunjungBayar: Record<string, AgregatKunjung>
+  /** Menus per visit channel. Absent on months stored before 26 Nov 2026. */
+  kanalMenu?: Record<string, AgregatKanalMenu>
   error: ErrorBill[]
   meja: Record<string, AgregatMeja>
   ringkas: RingkasPos
@@ -218,6 +221,7 @@ export function laporanDariHasil(u: HasilUraiPos): LaporanBulan {
     kunjung: u.kunjung,
     bayar: u.bayar,
     kunjungBayar: u.kunjungBayar,
+    kanalMenu: u.kanalMenu,
     error: u.error,
     meja: u.meja,
     ringkas: u.ringkas,

@@ -93,7 +93,7 @@ async function sinkron() {
   <AppPanel
     v-if="boleh"
     :title="ringkas ? undefined : 'Sinkronkan dengan POS (ESB)'"
-    :description="ringkas ? undefined : 'Menarik seluruh bill bulan ini sampai hari ini langsung dari ESB, lalu menyimpannya — tanpa memilih bulan dan tanpa berkas. Bulan lalu yang sinkron terakhirnya belum sampai akhir bulan ikut dilengkapi. Diringkas dengan aturan yang sama persis dengan unggahan Detail Report. Bulan-bulan lama tetap bisa diunggah dari Excel.'"
+    :description="ringkas ? undefined : 'Menarik seluruh bill bulan ini sampai hari ini langsung dari ESB, lalu menyimpannya — tanpa memilih bulan dan tanpa berkas. Bulan lalu yang sinkron terakhirnya belum sampai akhir bulan, atau belum memuat menu per kategori kunjungan, ikut dilengkapi. Diringkas dengan aturan yang sama persis dengan unggahan Detail Report. Bulan-bulan lama tetap bisa diunggah dari Excel.'"
   >
     <TombolEsb
       :label="jalan ? 'Menyinkronkan…' : 'Sinkronkan dengan ESB'"

@@ -5,7 +5,7 @@
 // Package rows are merged at DRAW time, never at parse time: a code paired
 // next month must heal every month already stored.
 import type { ResepHpp } from '~/utils/pohon-resep'
-import { kelMenu, menuKatLewat, type AgregatKategori, type AgregatMenu } from './analytics-agregat.ts'
+import { kelMenu, menuKatLewat, type AgregatKanalMenu, type AgregatKategori, type AgregatMenu } from './analytics-agregat.ts'
 import { PAKET_RE, UKURAN_BAWAAN, paketGenerik, paketNamaAsli } from './analytics-pos.ts'
 
 interface Agg { qty?: number, nilai?: number }
@@ -15,6 +15,18 @@ export interface LaporanMenu {
   ukuran?: Record<string, Record<string, Record<string, AggUk>>> | null
   kategori?: Record<string, { kat?: string }>
   katMenu?: Record<string, Record<string, unknown>>
+  kanalMenu?: Record<string, AgregatKanalMenu>
+}
+
+/**
+ * One visit channel of a month, in the month's own shape, so menuNormal() and
+ * everything after it work unchanged. '' = the whole month; null = this month
+ * has no row for that channel.
+ */
+export function laporanKanal(d: LaporanMenu, kanal: string): LaporanMenu | null {
+  if (!kanal) return d
+  const k = d.kanalMenu?.[kanal]
+  return k ? { ...d, menu: k.menu, ukuran: k.ukuran } : null
 }
 
 // ------------------------------------------------------------- package codes
