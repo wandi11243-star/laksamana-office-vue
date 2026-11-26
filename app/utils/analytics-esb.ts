@@ -128,34 +128,63 @@ export function esbBulanSinkron(laporan: Record<string, { esb?: { sampai?: strin
 export interface HalamanEsb { bills?: unknown[], page?: number, pageCount?: number | null }
 export class EsbGagal extends Error {}
 
+const tunggu = (ms: number) => new Promise<void>(r => setTimeout(r, ms))
+
+/** Shortest gap between two requests to ESB. ESB does not publish its limit. */
+export const ESB_JEDA_MS = 1000
+// One queue for the whole tab: Analytics and Cashier pulls share it.
+let giliranBerikut = 0
+async function antre(jeda: (ms: number) => Promise<void>) {
+  const kini = Date.now()
+  const mulai = Math.max(kini, giliranBerikut)
+  giliranBerikut = mulai + ESB_JEDA_MS
+  if (mulai > kini) await jeda(mulai - kini)
+}
+
 /**
  * Pull every page of a date range through `ambil` (one ESB page per call).
  * With a page count: three workers in parallel. Without one: walk until an
  * empty or short page. A page failing 3x stops everything — a half month
  * that looks complete is worse than nothing. Duplicate bills across pages are
- * dropped by salesNum and counted.
+ * dropped by salesNum and counted. Once one page has failed for good, no
+ * worker sends another request. HTTP 429 (Cloudflare 1015, ESB rate limit) is
+ * never retried: requests sent while blocked make the block last longer
+ * (old Office rule, 3 Nov 2026). Requests start at most one per ESB_JEDA_MS,
+ * so a long pull stays slow and steady instead of bursting.
  */
 export async function esbTarikRentang(
   ambil: (page: number) => Promise<HalamanEsb>,
   lapor: (teks: string) => void,
   label: string,
-  jeda = (ms: number) => new Promise<void>(r => setTimeout(r, ms)),
+  jeda = tunggu,
 ): Promise<{ bills: Obj[], ganda: number }> {
   const semua: Obj[] = []
+  // shared by all workers: the first final failure stops the others too
+  let henti: EsbGagal | null = null
   const satu = async (page: number): Promise<HalamanEsb> => {
     let e: unknown = null
     for (let c = 0; c < 3; c++) {
+      if (henti) throw henti
+      await antre(jeda)
+      // another worker may have failed while this one was waiting
+      if (henti) throw henti
       try {
         return await ambil(page)
       }
       catch (x) {
         e = x
+        const pesan = String((x as Error)?.message ?? x)
+        if (/HTTP 429|1015/.test(pesan)) {
+          henti ??= new EsbGagal(`Halaman ${page}: ${pesan}. ESB sedang membatasi permintaan. Tunggu minimal 15–30 menit tanpa menarik apa pun dari ESB (termasuk Per hari di Analytics dan tombol ESB di Cashier / Finance), lalu coba sekali lagi.`)
+          throw henti
+        }
         // token / access problems do not get better by retrying
-        if (/token|akses|access|not_granted|esb_not_configured/i.test(String((x as Error)?.message ?? x))) break
+        if (/token|akses|access|not_granted|esb_not_configured/i.test(pesan)) break
       }
       await jeda(800 * (c + 1))
     }
-    throw new EsbGagal(`Halaman ${page}: ${String((e as Error)?.message ?? e)}`)
+    henti ??= new EsbGagal(`Halaman ${page}: ${String((e as Error)?.message ?? e)}`)
+    throw henti
   }
   lapor(`${label}: menarik halaman 1…`)
   const p1 = await satu(1)
@@ -189,4 +218,59 @@ export async function esbTarikRentang(
   const unik: Record<string, Obj> = {}
   for (const b of semua) if (b.salesNum) unik[String(b.salesNum)] = b
   return { bills: Object.values(unik), ganda: semua.length - Object.keys(unik).length }
+}
+
+/** A day already pulled by a run that stopped before the end. */
+export interface HariEsb { bills: Obj[], ganda: number, at: number }
+const SIMPAN_MS = 2 * 60 * 60 * 1000
+
+const hariBerikut = (t: string): string => {
+  const d = new Date(`${t}T00:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + 1)
+  return d.toISOString().slice(0, 10)
+}
+
+/**
+ * Pull a date range one day at a time. When it stops half way (ESB limit,
+ * connection lost), finished days stay in `simpanan` and the next run starts
+ * at the day that failed. Today is never kept, because its bills still change.
+ * A run that finishes empties its days, so the next sync reads ESB afresh and
+ * picks up later corrections (voids).
+ */
+export async function esbTarikPerHari(
+  dari: string,
+  sampai: string,
+  ambil: (tgl: string, page: number) => Promise<HalamanEsb>,
+  lapor: (teks: string) => void,
+  label: string,
+  { simpanan, hariIni, jeda = tunggu }: { simpanan: Map<string, HariEsb>, hariIni: string, jeda?: (ms: number) => Promise<void> },
+): Promise<{ bills: Obj[], ganda: number }> {
+  const daftar: string[] = []
+  for (let t = dari; t <= sampai; t = hariBerikut(t)) daftar.push(t)
+  const unik: Record<string, Obj> = {}
+  let ganda = 0
+  for (const [i, tgl] of daftar.entries()) {
+    const lama = simpanan.get(tgl)
+    let r: { bills: Obj[], ganda: number }
+    if (lama && Date.now() - lama.at < SIMPAN_MS) {
+      r = lama
+    }
+    else {
+      const ket = daftar.length > 1 ? `${label}, tanggal ${i + 1} dari ${daftar.length}` : label
+      try {
+        r = await esbTarikRentang(p => ambil(tgl, p), lapor, ket, jeda)
+      }
+      catch (x) {
+        throw new EsbGagal(`Tanggal ${tgl} · ${String((x as Error)?.message ?? x)}`, { cause: x })
+      }
+      if (tgl < hariIni) simpanan.set(tgl, { ...r, at: Date.now() })
+    }
+    ganda += r.ganda
+    for (const b of r.bills) {
+      if (unik[String(b.salesNum)]) ganda++
+      unik[String(b.salesNum)] = b
+    }
+  }
+  for (const tgl of daftar) simpanan.delete(tgl)
+  return { bills: Object.values(unik), ganda }
 }

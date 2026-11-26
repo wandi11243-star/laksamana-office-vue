@@ -310,6 +310,42 @@ console.log('\nanalytics-esb: bill ESB -> baris Detail Report')
     throw new Error('putus')
   }, () => {}, 'x', async () => {}).catch(e => e)
   cek('halaman gagal 3x menghentikan semuanya', g instanceof E.EsbGagal && coba === 3 && /Halaman 1/.test(g.message))
+  const diminta = []
+  const l = await E.esbTarikRentang(async (p) => {
+    diminta.push(p)
+    if (p === 1) return { bills: [{ salesNum: 1 }], pageCount: 50 }
+    await new Promise(r => setTimeout(r, 1))
+    if (p === 3) throw new Error('ESB menjawab HTTP 429: error code: 1015')
+    return { bills: [] }
+  }, () => {}, 'x', async () => {}).catch(e => e)
+  await new Promise(r => setTimeout(r, 100))
+  cek('429: tidak diulang dan disuruh menunggu', l instanceof E.EsbGagal && diminta.filter(p => p === 3).length === 1 && /15–30 menit/.test(l.message), l.message)
+  cek('429: pekerja lain ikut berhenti', diminta.length <= 6, diminta.join())
+  const antrian = []
+  await E.esbTarikRentang(async () => ({ bills: [], pageCount: 4 }), () => {}, 'x', async (ms) => {
+    antrian.push(ms)
+  })
+  cek('permintaan diberi jarak minimal 1 detik', antrian.length === 4 && antrian.slice(1).every((ms, i) => ms - antrian[i] >= 900), antrian.join())
+  const simpanan = new Map()
+  const tarik = []
+  let blokir = true
+  const perHari = () => E.esbTarikPerHari('2026-08-30', '2026-09-02', async (tgl) => {
+    tarik.push(tgl)
+    if (tgl === '2026-09-01' && blokir) throw new Error('ESB menjawab HTTP 429: error code: 1015')
+    return { bills: [{ salesNum: tgl }], pageCount: 1 }
+  }, () => {}, 'x', { simpanan, hariIni: '2026-09-02', jeda: async () => {} }).catch(e => e)
+  const putus = await perHari()
+  cek('per hari: berhenti di tanggal yang gagal, yang selesai disimpan', putus instanceof E.EsbGagal && /^Tanggal 2026-09-01/.test(putus.message) && tarik.join() === '2026-08-30,2026-08-31,2026-09-01' && simpanan.size === 2, tarik.join())
+  blokir = false
+  tarik.length = 0
+  const lanjut = await perHari()
+  cek('per hari: percobaan berikutnya lanjut dari tanggal gagal', tarik.join() === '2026-09-01,2026-09-02' && lanjut.bills.length === 4, tarik.join())
+  cek('per hari: selesai = simpanan dikosongkan', simpanan.size === 0)
+  await E.esbTarikPerHari('2026-09-02', '2026-09-03', async (tgl) => {
+    if (tgl === '2026-09-03') throw new Error('token ditolak')
+    return { bills: [{ salesNum: 'a' }], pageCount: 1 }
+  }, () => {}, 'x', { simpanan, hariIni: '2026-09-02', jeda: async () => {} }).catch(() => {})
+  cek('per hari: hari ini tidak pernah disimpan', simpanan.size === 0)
 }
 
 console.log('\n' + ok + ' lulus, ' + gagal + ' gagal')

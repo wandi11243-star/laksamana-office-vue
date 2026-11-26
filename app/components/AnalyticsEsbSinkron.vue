@@ -3,8 +3,10 @@
   button, no month to pick: this month up to today, plus earlier months whose
   last sync did not reach their last day. Each month is pulled whole (a stored
   summary cannot take extra days without counting bills twice) and saved on
-  its own, so a failure later on keeps the months already saved. A month
-  that came from Excel is only replaced after asking.
+  its own, so a failure later on keeps the months already saved. Requests are
+  paced and pulled day by day (esbTarikPerHari), so pressing again after a
+  failure continues at the day that failed. A month that came from Excel is
+  only replaced after asking.
   `ringkas` = the compact card on Ringkasan; otherwise the full card on Unggah.
 -->
 <script setup lang="ts">
@@ -81,7 +83,7 @@ async function sinkron() {
     teks.value = ''
   }
   catch (e) {
-    galat.value = `${(e as Error)?.message || String(e)}${hasil.length ? ` Yang sudah tersimpan: ${hasil.join(' · ')}.` : ''} Bulan yang gagal tidak berubah — tekan Sinkronkan lagi untuk mengulang.`
+    galat.value = `${(e as Error)?.message || String(e)}${hasil.length ? ` Yang sudah tersimpan: ${hasil.join(' · ')}.` : ''} Bulan yang gagal tidak berubah. Tekan Sinkronkan lagi untuk melanjutkan: tanggal yang sudah selesai ditarik tidak diulang, selama halaman ini tidak dimuat ulang (paling lama 2 jam).`
   }
   finally {
     jalan.value = false
@@ -103,7 +105,7 @@ async function sinkron() {
     />
     <p class="mt-2 text-xs text-muted">
       <template v-if="jalan">
-        {{ teks || 'Menyinkronkan…' }} — jangan tutup halaman ini.
+        {{ teks || 'Menyinkronkan…' }} — ditarik pelan-pelan agar tidak dibatasi ESB, bisa beberapa menit. Jangan tutup halaman ini.
       </template>
       <template v-else>
         {{ ket }}
