@@ -384,11 +384,7 @@ const kategoriNama = computed(() => kategori.value.find(k => k.id === form.kateg
               hint="WIB"
               help="Berita terbaru tampil paling depan. Kosongkan: diisi otomatis saat terbit."
             >
-              <UInput
-                v-model="form.tanggal"
-                type="datetime-local"
-                class="w-full"
-              />
+              <AppTanggalJam v-model="form.tanggal" />
             </UFormField>
             <UFormField
               label="Kategori"

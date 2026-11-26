@@ -2002,10 +2002,10 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           </p>
         </UFormField>
         <UFormField label="Jam transfer (24 jam, WIB — ikut detik bila ada di bukti)">
-          <UInput
+          <AppJam
             v-model="tfForm.time"
-            type="time"
-            step="1"
+            :langkah="1"
+            detik
             size="xl"
             class="w-full"
           />

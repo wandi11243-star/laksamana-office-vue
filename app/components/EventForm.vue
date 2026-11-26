@@ -170,18 +170,16 @@ async function simpan() {
       label="Mulai"
       required
     >
-      <UInput
+      <AppTanggalJam
         v-model="form.start_datetime"
-        type="datetime-local"
-        class="w-full"
+        jam-awal="19:00"
       />
     </UFormField>
     <UFormField label="Selesai">
-      <UInput
+      <AppTanggalJam
         v-model="form.end_datetime"
-        type="datetime-local"
-        :min="form.start_datetime || undefined"
-        class="w-full"
+        jam-awal="23:00"
+        :min="form.start_datetime.slice(0, 10) || undefined"
       />
     </UFormField>
     <UFormField label="PIC (terkunci ke pembuat)">

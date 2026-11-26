@@ -68,11 +68,7 @@ async function simpan() {
         />
       </UFormField>
       <UFormField label="Waktu tayang aktual">
-        <UInput
-          v-model="at"
-          type="datetime-local"
-          class="w-full"
-        />
+        <AppTanggalJam v-model="at" />
       </UFormField>
     </div>
     <template #footer>

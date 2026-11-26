@@ -7,7 +7,8 @@
     <AppJam v-model="f.jam" size="sm" class="w-32" />
   Picking an hour keeps the minute (00 when empty); picking a minute closes it.
   A filled field can be emptied with × (`clearable`). class, title, aria-label
-  and listeners land on the field itself.
+  and listeners land on the field itself. `detik` adds a seconds column (the
+  model may then be "HH:MM:SS", like <input type="time" step="1">).
 -->
 <script setup lang="ts">
 defineOptions({ inheritAttrs: false })
@@ -19,7 +20,9 @@ const props = withDefaults(defineProps<{
   clearable?: boolean
   /** Minute step of the minute column. */
   langkah?: number
-}>(), { placeholder: '--:--', size: 'md', clearable: true, langkah: 5 })
+  /** Adds a seconds column. */
+  detik?: boolean
+}>(), { placeholder: '--:--', size: 'md', clearable: true, langkah: 5, detik: false })
 
 const model = defineModel<string>({ default: '' })
 const buka = ref(false)
@@ -27,14 +30,21 @@ const buka = ref(false)
 const pad = (n: number) => String(n).padStart(2, '0')
 /** "7:5", "0705", "07.05" → "07:05"; anything unreadable → ''. */
 function rapikan(v: string): string {
-  const m = String(v ?? '').trim().match(/^(\d{1,2})[:.]?(\d{2})?/)
+  const m = String(v ?? '').trim().match(/^(\d{1,2})[:.]?(\d{2})?(?:[:.](\d{2}))?/)
   if (!m) return ''
   const h = Number(m[1])
   const mm = Number(m[2] ?? 0)
-  return h <= 23 && mm <= 59 ? `${pad(h)}:${pad(mm)}` : ''
+  const dd = props.detik ? m[3] : undefined
+  if (h > 23 || mm > 59 || Number(dd ?? 0) > 59) return ''
+  return susun(h, mm, dd === undefined ? null : Number(dd))
 }
-const jam = computed(() => (model.value ? Number(model.value.slice(0, 2)) : null))
-const menit = computed(() => (model.value ? Number(model.value.slice(3, 5)) : null))
+const susun = (h: number, m: number, d: number | null) => `${pad(h)}:${pad(m)}${d === null ? '' : `:${pad(d)}`}`
+// Older rows hold free text ("09.00", "sore"): it stays on show until a time is picked.
+const bagian = computed(() => String(model.value ?? '').match(/^(\d{1,2})[:.](\d{2})(?:[:.](\d{2}))?/))
+const jam = computed(() => (bagian.value ? Number(bagian.value[1]) : null))
+const menit = computed(() => (bagian.value ? Number(bagian.value[2]) : null))
+const sekon = computed(() => (props.detik && bagian.value?.[3] !== undefined ? Number(bagian.value[3]) : null))
+const daftarDetik = Array.from({ length: 60 }, (_, i) => i)
 
 const daftarJam = Array.from({ length: 24 }, (_, i) => i)
 const daftarMenit = computed(() => {
@@ -46,10 +56,14 @@ const daftarMenit = computed(() => {
 })
 
 function pilihJam(h: number) {
-  model.value = `${pad(h)}:${pad(menit.value ?? 0)}`
+  model.value = susun(h, menit.value ?? 0, sekon.value)
 }
 function pilihMenit(m: number) {
-  model.value = `${pad(jam.value ?? 0)}:${pad(m)}`
+  model.value = susun(jam.value ?? 0, m, sekon.value)
+  if (!props.detik) buka.value = false
+}
+function pilihDetik(d: number) {
+  model.value = susun(jam.value ?? 0, menit.value ?? 0, d)
   buka.value = false
 }
 const ketik = ref('')
@@ -128,14 +142,17 @@ const ukuran = computed(() => ({
       />
     </button>
     <template #content>
-      <div class="w-52 p-2">
+      <div
+        class="p-2"
+        :class="detik ? 'w-64' : 'w-52'"
+      >
         <form
           class="mb-2 flex gap-1.5"
           @submit.prevent="terapkan"
         >
           <UInput
             v-model="ketik"
-            placeholder="HH:MM"
+            :placeholder="detik ? 'HH:MM:SS' : 'HH:MM'"
             size="sm"
             class="min-w-0 flex-1"
             :ui="{ base: 'num text-center' }"
@@ -148,7 +165,10 @@ const ukuran = computed(() => ({
             aria-label="Pakai jam ini"
           />
         </form>
-        <div class="grid grid-cols-2 gap-1.5">
+        <div
+          class="grid gap-1.5"
+          :class="detik ? 'grid-cols-3' : 'grid-cols-2'"
+        >
           <div>
             <p class="mb-1 text-center text-[10px] font-bold uppercase tracking-wider text-muted">
               Jam
@@ -182,6 +202,24 @@ const ukuran = computed(() => ({
                 @click="pilihMenit(m)"
               >
                 {{ pad(m) }}
+              </button>
+            </div>
+          </div>
+          <div v-if="detik">
+            <p class="mb-1 text-center text-[10px] font-bold uppercase tracking-wider text-muted">
+              Detik
+            </p>
+            <div class="flex max-h-48 flex-col gap-0.5 overflow-y-auto overscroll-contain pe-0.5 [scrollbar-width:thin]">
+              <button
+                v-for="d in daftarDetik"
+                :key="d"
+                type="button"
+                class="num rounded-md py-1.5 text-sm transition-colors"
+                :class="sekon === d ? 'bg-gold-deep font-bold text-white' : 'text-default hover:bg-gold-soft/60'"
+                :data-jam-aktif="sekon === d ? '' : undefined"
+                @click="pilihDetik(d)"
+              >
+                {{ pad(d) }}
               </button>
             </div>
           </div>
