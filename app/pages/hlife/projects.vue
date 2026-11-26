@@ -240,7 +240,7 @@ const lewat = (p: HlifeProject) => !!p.due && p.due < hari && stageAktif(p) !== 
       </p>
     </div>
 
-    <div class="-mx-4 overflow-x-auto px-4 pb-2 lg:mx-0 lg:px-0">
+    <AppPapan class="-mx-4 px-4 lg:mx-0 lg:px-0">
       <div class="flex min-w-max gap-3">
         <section
           v-for="k in kolom"
@@ -266,7 +266,7 @@ const lewat = (p: HlifeProject) => !!p.due && p.due < hari && stageAktif(p) !== 
             <span class="rounded-full bg-table-head px-2 py-0.5 text-xs font-bold text-table-head-text num">{{ k.items.length }}</span>
           </div>
 
-          <div class="space-y-2">
+          <div class="space-y-2 p-0.5 lg:max-h-[min(68dvh,640px)] lg:overflow-y-auto [scrollbar-width:thin]">
             <article
               v-for="p in k.items"
               :key="p.id"
@@ -352,7 +352,7 @@ const lewat = (p: HlifeProject) => !!p.due && p.due < hari && stageAktif(p) !== 
           </div>
         </section>
       </div>
-    </div>
+    </AppPapan>
 
     <!-- Move-stage sheet for touch -->
     <ResponsiveSheet

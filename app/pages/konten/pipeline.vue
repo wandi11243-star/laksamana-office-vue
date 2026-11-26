@@ -138,6 +138,7 @@ async function lepas(p: { id: string, to: string }) {
           drag-reason="Kamu tidak punya izin mengubah status konten."
           layout="scroll"
           empty-text="-"
+          list-class="max-h-[min(68dvh,640px)]"
           @move="lepas"
         >
           <template #header="{ column }">

@@ -183,6 +183,7 @@ pemilih tema.
 | `AppSectionTitle` | Judul bagian form panjang (tick emas) |
 | `AppPilihan` | Dua–tiga pilihan besar (Ya / Tidak) |
 | `AppBar` | Satu batang grafik analitik |
+| `AppKanban` / `AppPapan` | Papan kanban. `AppPapan` = bingkai scroll semua papan: di kolom panjang halaman di belakang diam, di kolom pendek halaman ikut scroll; geser ke samping lewat panah / tarik area kosong. Daftar kartu: tinggi dibatasi, tanpa `overscroll-behavior` |
 | `UTable` | Data tabular desktop |
 | `ResponsiveSheet` | Form dan konfirmasi (bottom sheet di HP, dialog di desktop) |
 | `AppTanggal` | Field tanggal dengan kalender sendiri (bukan pemilih browser) |

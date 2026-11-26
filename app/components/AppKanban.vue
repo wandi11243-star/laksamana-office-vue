@@ -58,9 +58,11 @@ function onCardClick(itemId: string, colId: string) {
   emit('cardClick', { id: itemId, column: colId })
 }
 
+// `grid` stacks the columns on a phone; on desktop they keep a readable width
+// and the board scrolls sideways. `scroll` is sideways at every width.
 const trackClass = computed(() => props.layout === 'scroll'
-  ? 'grid grid-flow-col gap-4 overflow-x-auto pb-2'
-  : 'grid gap-3 lg:grid-cols-6')
+  ? 'grid grid-flow-col gap-4'
+  : 'grid gap-3 lg:grid-flow-col lg:auto-cols-[minmax(270px,1fr)]')
 
 function onDragOver(colId: string) {
   if (!props.canDrag) return
@@ -79,7 +81,7 @@ defineExpose({ swallowClick: drag.swallowClick })
 </script>
 
 <template>
-  <div
+  <AppPapan
     :class="trackClass"
     :style="layout === 'scroll' ? { gridAutoColumns: `minmax(${colMin}px, 1fr)` } : undefined"
   >
@@ -103,7 +105,7 @@ defineExpose({ swallowClick: drag.swallowClick })
       </header>
       <div
         class="flex min-h-16 flex-1 flex-col p-2"
-        :class="listClass ? `${listClass} gap-3 overflow-y-auto overscroll-contain [scrollbar-width:thin] *:shrink-0` : 'gap-2'"
+        :class="listClass ? `${listClass} gap-3 overflow-y-auto [scrollbar-width:thin] *:shrink-0` : 'gap-2'"
       >
         <template
           v-for="item in col.items"
@@ -164,5 +166,5 @@ defineExpose({ swallowClick: drag.swallowClick })
         />
       </div>
     </section>
-  </div>
+  </AppPapan>
 </template>

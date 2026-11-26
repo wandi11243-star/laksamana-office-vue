@@ -378,9 +378,9 @@ const gantt = ref<InstanceType<typeof BdGantt> | null>(null)
       </p>
     </div>
 
-    <div
+    <AppPapan
       v-else
-      class="grid auto-cols-[minmax(240px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-2"
+      class="grid auto-cols-[minmax(240px,1fr)] grid-flow-col gap-4"
     >
       <section
         v-for="st in PROJ_STAGES"
@@ -393,7 +393,7 @@ const gantt = ref<InstanceType<typeof BdGantt> | null>(null)
           <span class="text-sm font-bold text-highlighted">{{ st }}</span>
           <span class="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-ink-900 num">{{ diStage(st).length }}</span>
         </header>
-        <div class="grid gap-2 p-2">
+        <div class="grid content-start gap-2 p-2 lg:max-h-[min(68dvh,640px)] lg:overflow-y-auto [scrollbar-width:thin]">
           <div
             v-for="p in diStage(st)"
             :key="p.id"
@@ -410,7 +410,7 @@ const gantt = ref<InstanceType<typeof BdGantt> | null>(null)
           </div>
         </div>
       </section>
-    </div>
+    </AppPapan>
 
     <AppPanel
       v-if="f.view !== 'task' && !base.length && state.projects.length"
