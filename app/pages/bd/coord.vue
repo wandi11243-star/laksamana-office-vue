@@ -119,7 +119,9 @@ async function hapus() {
     </p>
 
     <template v-if="mode === 'board'">
-      <div class="grid auto-cols-[minmax(250px,1fr)] grid-flow-col gap-4 overflow-x-auto pb-2">
+      <AppPapan
+        class="grid auto-cols-[minmax(250px,1fr)] grid-flow-col gap-4"
+      >
         <section
           v-for="st in COORD_FLOW"
           :key="st"
@@ -131,7 +133,7 @@ async function hapus() {
             <span class="text-sm font-bold text-highlighted">{{ st }}</span>
             <span class="rounded-full bg-muted px-2 py-0.5 text-xs font-bold text-ink-900 num">{{ diKolom(st).length }}</span>
           </header>
-          <div class="grid gap-2 p-2">
+          <div class="grid content-start gap-2 p-2 lg:max-h-[min(68dvh,640px)] lg:overflow-y-auto [scrollbar-width:thin]">
             <div
               v-for="c in diKolom(st)"
               :key="c.id"
@@ -190,7 +192,7 @@ async function hapus() {
             </div>
           </div>
         </section>
-      </div>
+      </AppPapan>
     </template>
 
     <AppPanel
