@@ -4,14 +4,17 @@
 // parser as an Excel upload; only the sync saves anything.
 import { getEsbSales, laporanDariHasil, type LaporanBulan } from '~/composables/useAnalytics'
 import { uraiLaporanPos } from '~/utils/analytics-agregat'
-import { esbKeBaris, esbTarikRentang, type EsbInfo } from '~/utils/analytics-esb'
+import { esbKeBaris, esbTarikPerHari, type EsbInfo, type HariEsb } from '~/utils/analytics-esb'
 import { hariIni } from '~/utils/format'
+
+/** Days kept from a pull that stopped half way; memory only, gone on reload. */
+const hariTersimpan = new Map<string, HariEsb>()
 
 /** Pull a date range and summarise it like a Detail Report upload. */
 export async function tarikLaporanEsb(dari: string, sampai: string, label: string, lapor: (t: string) => void): Promise<{ L: LaporanBulan, bulan: string, info: EsbInfo, ganda: number } | null> {
-  const { bills, ganda } = await esbTarikRentang(p => getEsbSales(dari, sampai, p).catch((e) => {
+  const { bills, ganda } = await esbTarikPerHari(dari, sampai, (tgl, p) => getEsbSales(tgl, tgl, p).catch((e) => {
     throw new Error(apiErrorMessage(e), { cause: e })
-  }), lapor, label)
+  }), lapor, label, { simpanan: hariTersimpan, hariIni: hariIni() })
   if (!bills.length) return null
   const { rows, info } = esbKeBaris(bills)
   const u = uraiLaporanPos(rows, `API ESB · ${label}`)
