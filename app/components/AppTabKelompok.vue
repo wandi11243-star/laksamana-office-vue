@@ -9,11 +9,12 @@
 const me = useMe()
 const route = useRoute()
 const { shell } = useModulShell()
+const siap = useMenuSiap()
 
 const tab = computed(() => {
   const s = shell.value
   const kini = s?.layar.find(l => l.to === route.path)
-  if (!s || !kini?.kelompok) return []
+  if (!siap.value || !s || !kini?.kelompok) return []
   const isi = s.layar.filter(l => l.kelompok?.label === kini.kelompok!.label
     && (!l.boleh || (me.value && l.boleh(me.value))))
   return isi.length > 1 ? isi : []

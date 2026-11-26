@@ -27,12 +27,30 @@ export interface ModulShell {
   peran?: (me: Me | null) => string
   /** Counts shown as red badges on menu items, by screen key; `lonceng` lights the bell dot. */
   lencana?: () => ComputedRef<Record<string, number>>
-  /** Loads what the menu needs before it is drawn (the in-module role matrix). */
-  siapkan?: () => void
+  /** Loads what the menu needs before it is drawn (the in-module role matrix) and
+   *  returns a check that turns true once the server has answered, failure
+   *  included. The menu shows a placeholder until then (useMenuNav), so rows the
+   *  viewer may not open never appear. */
+  siapkan?: () => PenandaSiap
   /** Extra sidebar groups after the module's screens (Help: held keys with no chapter). */
   navEkstra?: () => NavigationMenuItem[][]
   /** Replaces the logout power button in the sidebar foot (Help: "Keluar ke Office"). */
   kaki?: { label: string, to: string, icon?: string }
+}
+
+export type PenandaSiap = () => boolean
+
+/** True once every one of these reads has succeeded or failed. */
+const terjawab = (...baca: { status: { value: string } }[]): PenandaSiap =>
+  () => baca.every(b => b.status.value === 'success' || b.status.value === 'error')
+
+/** The same for a loader that is a plain promise. */
+function terjawabJanji(janji: Promise<unknown>): PenandaSiap {
+  const selesai = ref(false)
+  void janji.finally(() => {
+    selesai.value = true
+  })
+  return () => selesai.value
 }
 
 export const MODUL_SHELL: Record<string, ModulShell> = {
@@ -42,14 +60,20 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     // The old footer showed the crew member's Office title; "Kru" while the row
     // is not in the local crew list yet (roster sync is admin-only, see gap G-18).
     peran: me => kruSaya(me)?.title || 'Kru',
-    siapkan: () => muatAkademiKru(),
+    siapkan: () => {
+      muatAkademiKru()
+      return terjawab(useAkademiState())
+    },
   },
   absensi: {
     subjudul: 'Absensi',
     layar: LAYAR_ABSENSI,
     peran: () => (useAbsensiSiapa().value?.hr ? 'HR Absensi' : 'Kru'),
     lencana: () => useLencanaAbsensi(),
-    siapkan: () => muatAbsensiSiapa(),
+    siapkan: () => {
+      muatAbsensiSiapa()
+      return terjawab(useAbsensiContext())
+    },
   },
   reservasi: {
     subjudul: 'Reservasi',
@@ -58,7 +82,10 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     lonceng: { label: 'Kedatangan hari ini', to: '/reservasi/dashboard?tab=denah' },
     peran: me => ROLE_LABEL_RESERVASI[roleReservasi(me)],
     lencana: () => useLencanaReservasi(),
-    siapkan: () => muatPeranReservasi(),
+    siapkan: () => {
+      muatPeranReservasi()
+      return terjawab(useSection('users'), useSection('perms'))
+    },
   },
   homepage: {
     subjudul: 'Homepage',
@@ -76,7 +103,10 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     layar: LAYAR_SERVICE_EXCELLENT,
     tambah: { label: 'Catat review', to: '/service_excellent/review?catat=1' },
     peran: me => LABEL_TINGKAT_SE[tingkatSe(me)],
-    siapkan: () => muatPeranSE(),
+    siapkan: () => {
+      muatPeranSE()
+      return terjawab(useSeCrew(), useSePerms())
+    },
   },
   help: {
     subjudul: 'Help Center',
@@ -124,7 +154,10 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     tambah: { label: 'Ajukan off / izin', to: '/jadwal/saya?ajukan=1' },
     peran: me => peranJadwalLabel(me),
     lencana: () => useLencanaJadwal(),
-    siapkan: () => muatPeranJadwal(),
+    siapkan: () => {
+      muatPeranJadwal()
+      return terjawab(useJadwalSettings(), useJadwalRoster())
+    },
   },
   dw: {
     subjudul: 'Daily Worker',
@@ -132,7 +165,10 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     tambah: { label: 'Minta DW', to: '/dw/permintaan?minta=1' },
     peran: me => peranDwLabel(me),
     lencana: () => useLencanaDw(),
-    siapkan: () => muatPeranDw(),
+    siapkan: () => {
+      muatPeranDw()
+      return terjawab(useDwOverview())
+    },
   },
 
   // ── hr ──
@@ -140,7 +176,10 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     subjudul: 'Staff Performance',
     layar: LAYAR_HR,
     peran: me => peranHrLabel(me),
-    siapkan: () => muatPeranHr(),
+    siapkan: () => {
+      muatPeranHr()
+      return terjawab(useHrState())
+    },
   },
 
   // ── cashier ──
@@ -149,9 +188,7 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     layar: LAYAR_CASHIER,
     tambah: { label: 'Report Daily', to: '/cashier/report' },
     peran: me => (isAdminOf(me, 'cashier') ? 'Admin modul' : 'Kasir'),
-    siapkan: () => {
-      muatAksesCashier()
-    },
+    siapkan: () => terjawabJanji(muatAksesCashier()),
   },
 
   // ── pos ──
@@ -161,7 +198,10 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     tambah: { label: 'Order baru', to: '/pos/kasir' },
     peran: me => (isAdminOf(me, 'pos') ? 'Admin modul' : 'Kasir'),
     lencana: () => useLencanaPos(),
-    siapkan: () => mulaiPos(),
+    siapkan: () => {
+      mulaiPos()
+      return () => true // roles come from this device first: nothing to wait for
+    },
   },
 
   // ── finance ──
@@ -172,6 +212,9 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     siapkan: () => {
       muatPeranKas()
       muatPeranBrankas()
+      const kas = useKasAksesSiap()
+      const brankas = useBrankasAksesSiap()
+      return () => kas.value !== null && brankas.value !== null
     },
   },
 
@@ -193,7 +236,10 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     kaki: { label: 'Profil saya', to: '/konten/profile', icon: 'i-lucide-user-round' },
     // Red count on Approval: items waiting for approval, all brands (old updateApprovalBadge, :1683).
     lencana: () => useLencanaKonten(),
-    siapkan: () => muatPeranKonten(),
+    siapkan: () => {
+      muatPeranKonten()
+      return terjawab(useDictKonten())
+    },
   },
 
   // ── marketing ──
@@ -214,6 +260,7 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     siapkan: () => {
       muatPeranMkt()
       useTutupEventLewat()
+      return terjawab(useStateMkt())
     },
   },
 
@@ -224,9 +271,7 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     peran: me => peranStock(me),
     lencana: () => useLencanaStock(),
     // The caller's own Ordering / Purchasing role drives the menu (GET /stock/me).
-    siapkan: () => {
-      void muatPeranStock()
-    },
+    siapkan: () => terjawabJanji(muatPeranStock()),
   },
 
   // ── event ──
@@ -244,7 +289,11 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     layar: LAYAR_ANALYTICS,
     tambah: { label: 'Unggah laporan', to: '/analytics/unggah' },
     peran: me => peranAnalyticsLabel(me),
-    siapkan: () => muatMatriksAnalytics(),
+    siapkan: () => {
+      muatMatriksAnalytics()
+      const akses = useAnalyticsAksesSiap()
+      return () => akses.value !== null
+    },
   },
 
   // ── investor ──

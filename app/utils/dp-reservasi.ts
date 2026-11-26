@@ -255,11 +255,15 @@ export const txTanggal = (x: TxDanaMasuk): string => x.p.tfDate || x.r.date || '
 /** Transfer time (`:9010`). */
 export const txJam = (x: TxDanaMasuk): string => x.p.tfTime || ''
 
+/** The AI agent records its payments as `QR_CODE`; the screens call that "QR Agent".
+ *  Display only: the stored DP method is left as it is. */
+export const labelBank = (v: string): string => /^qr[_\s]?code$/i.test(v.trim()) ? 'QR Agent' : v
+
 /** "Transfer BCA" -> "BCA": the guess before the proof is scanned (`:8997`). */
-export const bankDariMetode = (m?: string | null): string => String(m ?? '').replace(/^transfer\s+/i, '').trim()
+export const bankDariMetode = (m?: string | null): string => labelBank(String(m ?? '').replace(/^transfer\s+/i, '').trim())
 
 /** The bank, or the method guess (`:9010`). */
-export const txBank = (x: TxDanaMasuk): string => x.p.tfBank || bankDariMetode(x.p.method)
+export const txBank = (x: TxDanaMasuk): string => labelBank(x.p.tfBank || '') || bankDariMetode(x.p.method)
 
 /** The sender's account name (`:9011`). */
 export const txNama = (x: TxDanaMasuk): string => x.p.tfName || ''
@@ -429,11 +433,11 @@ export function cerminTfUtama(dps: ReservasiDp[]): TfUtama {
 export function rekeningDp(r?: Reservasi | null): string[] {
   const keluar: string[] = []
   for (const p of dpsOf(r)) {
-    const v = String(p?.method || '').trim()
+    const v = labelBank(String(p?.method || '').trim())
     if (v && !keluar.includes(v)) keluar.push(v)
   }
   if (!keluar.length) {
-    const v = String(r?.dpMethod || '').trim()
+    const v = labelBank(String(r?.dpMethod || '').trim())
     if (v) keluar.push(v)
   }
   return keluar

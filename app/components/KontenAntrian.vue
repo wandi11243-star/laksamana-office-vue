@@ -90,7 +90,7 @@ const kepala = (k: string, t: string) => () => h(UButton, {
   'label': t,
   'color': 'neutral',
   'variant': 'link',
-  'class': '-mx-1 px-1 text-xs font-semibold tracking-wide text-table-head-text uppercase',
+  'class': '-mx-1 px-1 text-xs font-semibold tracking-wide text-muted uppercase hover:text-default',
   'trailingIcon': f.value.sort === k ? (f.value.dir === 1 ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down') : 'i-lucide-arrow-up-down',
   'aria-label': `Urutkan berdasarkan ${t}`,
   'onClick': () => urut(k),

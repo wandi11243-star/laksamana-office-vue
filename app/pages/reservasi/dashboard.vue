@@ -29,7 +29,7 @@ import { exportReservationsCsv, listReservationsHalaman, patchReservation, postA
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
 import { profilTamuGabung, kelompokBarisTamu, normStatus, unduhBlob } from '~/utils/riwayat'
 import { arrivedPax, bookingBerikut, buatIzinTumpang, canAddArrival, fmtMenit, harihOccupancy, isSeated, mepetKah, menitMenuju, occupiedMap, partiesAt, remainingPax, sedangDialihkan, tableFill, tablesOf } from '~/utils/kunci-meja'
-import { dpTotal, normPhone, rekeningDp, tampilPhone } from '~/utils/dp-reservasi'
+import { bankDariMetode, dpTotal, normPhone, rekeningDp, tampilPhone } from '~/utils/dp-reservasi'
 import {
   capMax, cariMeja, dayTypeLayout, dayTypeLayout2, getLayout, jejakDenah, kapasitasTanggal,
   lantaiMap, layoutName,
@@ -161,19 +161,23 @@ const profilBaris = (phone: string) => profilTamuGabung(ringkasan.value ?? new M
 
 const cariLower = computed(() => cari.value.trim().toLowerCase())
 
+const kunciPIC = (nama?: string | null) => (nama ?? '').trim().toLocaleLowerCase('id')
+
 const saringan = computed(() => {
   const F = filter
   let r = [...(semua.value ?? [])]
-  if (F.mode === 'day') r = r.filter(x => x.date === F.date)
-  else if (F.mode === 'month') r = r.filter(x => x.date.slice(0, 7) === F.month)
-  else if (F.mode === 'year') r = r.filter(x => x.date.slice(0, 4) === String(F.year))
-  else if (F.mode === 'range' && F.from && F.to) r = r.filter(x => x.date >= F.from && x.date <= F.to)
+  if (tab.value !== 'calendar') {
+    if (F.mode === 'day') r = r.filter(x => x.date === F.date)
+    else if (F.mode === 'month') r = r.filter(x => x.date.slice(0, 7) === F.month)
+    else if (F.mode === 'year') r = r.filter(x => x.date.slice(0, 4) === String(F.year))
+    else if (F.mode === 'range' && F.from && F.to) r = r.filter(x => x.date >= F.from && x.date <= F.to)
+  }
   if (F.fromHour) r = r.filter(x => (x.time || '') >= F.fromHour)
   if (F.toHour) r = r.filter(x => (x.time || '') <= F.toHour)
   if (saringAktif(F.status)) r = r.filter(x => normStatus(x.status) === F.status)
   if (saringAktif(F.category)) r = r.filter(x => (x.category || '') === F.category)
   if (saringAktif(F.dp)) r = r.filter(x => x.dpStatus === F.dp)
-  if (saringAktif(F.pic)) r = r.filter(x => (x.picName || '') === F.pic)
+  if (saringAktif(F.pic)) r = r.filter(x => kunciPIC(x.picName) === kunciPIC(F.pic))
   if (saringAktif(F.ctype)) r = r.filter((x) => {
     const p = profilBaris(x.phone)
     return F.ctype === 'Baru' ? p.kunjungan === 0 : F.ctype === 'Loyal' ? (p.tipe === 'Loyal' || p.tipe === 'Repeat') : F.ctype === 'Member' ? p.member : true
@@ -220,7 +224,7 @@ const batal = computed(() => (filter.status !== 'Cancelled' ? saringan.value.fil
 const list = computed(() => (filter.status !== 'Cancelled' ? saringan.value.filter(r => normStatus(r.status) !== 'Cancelled') : saringan.value))
 
 /** The map and the queue only ever describe one day. */
-const dayList = computed(() => (semuaHari.value ?? []).filter(r => r.date === tglDenah.value && normStatus(r.status) !== 'Cancelled'))
+const dayList = computed(() => list.value.filter(r => r.date === tglDenah.value))
 const basis = computed(() => (perTanggal.value ? dayList.value : list.value))
 
 // --- the six numbers (`:5336-5355`) ------------------------------------------
@@ -241,7 +245,7 @@ const paxTgl = computed(() => (semuaHari.value ?? [])
   .reduce((a, r) => a + (Number(r.pax) || 0), 0))
 const pctKap = computed(() => (kap.value.pax ? Math.round(paxTgl.value / kap.value.pax * 100) : 0))
 
-const namaPIC = computed(() => [...new Set((semuaHari.value ?? []).map(r => r.picName).filter(Boolean))].sort((a, b) => a.localeCompare(b)))
+const namaPIC = computed(() => [...new Set((semuaHari.value ?? []).map(r => r.picName?.trim() ?? '').filter(Boolean))].sort((a, b) => a.localeCompare(b)))
 
 const labelPeriode = computed(() => {
   if (filter.mode === 'day') return tglPendek(filter.date)
@@ -510,7 +514,7 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => kolomTabel.map(k => ({
         label: k.label,
         variant: 'link',
         color: 'neutral',
-        class: '-mx-1 px-1 text-xs font-semibold uppercase tracking-wide text-table-head-text hover:text-primary-200',
+        class: '-mx-1 px-1 text-xs font-semibold uppercase tracking-wide text-muted hover:text-default',
         trailingIcon: urut.value.kolom === k.urut ? (urut.value.naik ? 'i-lucide-arrow-up' : 'i-lucide-arrow-down') : undefined,
         onClick: () => urutkan(k.urut!),
       })
@@ -519,10 +523,8 @@ const kolom = computed<TableColumn<Reservasi>[]>(() => kolomTabel.map(k => ({
 /** Below 1536px the floor rides under the table and the account under the DP, so
  *  every column of the old table still fits without a sideways scroll. */
 const lebar = useMediaQuery('(min-width: 1536px)')
-/** The day-of plan is drawn whole on a desktop (no inner scroll box) and can go full screen (owner, Nov 2026). */
+/** The day-of plan is drawn whole on a desktop. */
 const desktopDenah = useMediaQuery('(min-width: 1024px)')
-const kanvasDenah = ref<HTMLElement | null>(null)
-const { penuh: penuhDenah, bisa: bisaPenuhDenah, alihkan: alihkanPenuhDenah } = useLayarPenuh(kanvasDenah)
 const kolomTampil = computed(() => ({ lantai: lebar.value, rekening: lebar.value }))
 /** "29 Sep" — the old table's date, without the weekday so the column stays narrow. */
 const tglTabel = (d: string) => new Date(`${d}T00:00:00`).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })
@@ -604,7 +606,6 @@ function jumlahHariBulan(ym: string): string {
 }
 
 const bulan = ref(hariIni().slice(0, 7))
-const kalenderStatus = ref(SEMUA)
 
 /** Left/right a month, without the Date rollover trap. */
 function geserBulan(n: number) {
@@ -619,10 +620,10 @@ const labelBulan = computed(() => new Date(`${bulan.value}-01T00:00:00`).toLocal
  *  rows are left out when no status is chosen — the same as the table. */
 const kalenderPerTanggal = computed(() => {
   const map = new Map<string, Reservasi[]>()
-  for (const r of semuaHari.value ?? []) {
+  for (const r of saringan.value) {
     if (!r.date) continue
-    if (kalenderStatus.value !== SEMUA) {
-      if (normStatus(r.status) !== kalenderStatus.value) continue
+    if (filter.status !== SEMUA) {
+      if (normStatus(r.status) !== filter.status) continue
     }
     else if (normStatus(r.status) === 'Cancelled') continue
     const list = map.get(r.date) ?? []
@@ -633,7 +634,7 @@ const kalenderPerTanggal = computed(() => {
   return map
 })
 
-const kalenderDibatalkan = computed(() => (kalenderStatus.value !== SEMUA ? 0 : (semuaHari.value ?? []).filter(r => normStatus(r.status) === 'Cancelled').length))
+const kalenderDibatalkan = computed(() => (filter.status !== SEMUA ? 0 : saringan.value.filter(r => normStatus(r.status) === 'Cancelled').length))
 
 /** The month's cells, Monday first, with the leading and trailing days of the
  *  neighbouring months greyed out (`:5578-5581`, `:5624-5628`). */
@@ -692,6 +693,11 @@ const kunciL1 = computed(() => dayTypeLayout(master.value, tglDenah.value))
 const kunciL2 = computed(() => dayTypeLayout2(master.value, tglDenah.value))
 const denahTerpilih = computed(() => getLayout(master.value, layerMap.value === 2 ? kunciL2.value : kunciL1.value))
 
+/** A filter that hides part of the rows must not be used to add guests or move tables. */
+const saringBerlaku = computed(() => !!(filter.fromHour || filter.toHour || saringAktif(filter.status) || saringAktif(filter.category)
+  || saringAktif(filter.lantai) || saringAktif(filter.kursi) || saringAktif(filter.dp) || saringAktif(filter.pic) || saringAktif(filter.ctype) || filter.q || cari.value || filter.mode !== 'day'))
+const reservasiDenah = computed(() => saringBerlaku.value ? dayList.value : semuaHari.value ?? [])
+
 /**
  * The search box on the map tab (owner, Nov 2026): the tables of the matching
  * guests (name / phone) or a matching table number light up, the rest dim.
@@ -701,8 +707,7 @@ const sorotDenah = computed<string[] | null>(() => {
   const q = cariLower.value
   if (!q) return null
   const ids = new Set<string>()
-  for (const r of semuaHari.value ?? []) {
-    // No date check: the map also carries yesterday's late or still-seated guests.
+  for (const r of reservasiDenah.value) {
     if (['Cancelled', 'No-show'].includes(normStatus(r.status))) continue
     if (String(r.name ?? '').toLowerCase().includes(q) || String(r.phone ?? '').includes(q)) tablesOf(r).forEach(t => ids.add(t))
   }
@@ -892,6 +897,49 @@ async function simpanDatang() {
     datangDiasumsikan: kunjunganBaru ? 0 : target.datangDiasumsikan,
   }, `${target.name}: ${total}/${target.pax} pax masuk${sisa ? ` — sisa ${sisa} masih ditunggu` : ' — rombongan lengkap'}`)
   if (ok) await catat(`${target.name}, ${n} pax masuk (total ${total}/${target.pax})`, target.id, datangPertama.value ? 'Datang' : 'Datang Susulan')
+}
+
+const calonPulang = computed(() => dayList.value.filter(r => normStatus(r.status) === 'Datang' && !r.leftAt))
+const calonConfirm = computed(() => dayList.value.filter(r => normStatus(r.status) === 'Pending'))
+
+async function ubahStatusMassal(aksi: 'pulang' | 'confirm') {
+  if (!bolehEdit.value || sedangSimpan.value) return
+  const target = aksi === 'pulang' ? calonPulang.value : calonConfirm.value
+  const label = aksi === 'pulang' ? 'Tandai pulang' : 'Konfirmasi'
+  const tanggal = tglPanjangLama(tglDenah.value)
+  if (!target.length || !window.confirm(label + ' ' + target.length + ' reservasi pada ' + tanggal + ' yang sesuai filter?')) return
+
+  sedangSimpan.value = true
+  const berhenti = mulaiProses(label + ' reservasi')
+  const waktu = Date.now()
+  let berhasil = 0
+  let galat = ''
+  try {
+    for (const r of target) {
+      const fields: Partial<Reservasi> = aksi === 'pulang'
+        ? { checkinAt: r.checkinAt || waktu, leftAt: waktu }
+        : { status: 'Confirmed' }
+      try {
+        await patchReservation(r.id, { ...fields, updatedAt: waktu }, versiBaris(r))
+        berhasil++
+        await catat(r.name, r.id, aksi === 'pulang' ? 'Selesai Duduk' : 'Ubah Status')
+      }
+      catch (e) {
+        galat ||= apiErrorMessage(e)
+      }
+    }
+    await muatUlang()
+    const gagal = target.length - berhasil
+    toast.add({
+      title: label + ' ? ' + berhasil + ' berhasil' + (gagal ? ', ' + gagal + ' gagal' : ''),
+      description: galat || undefined,
+      color: gagal ? 'warning' : 'success',
+    })
+  }
+  finally {
+    berhenti()
+    sedangSimpan.value = false
+  }
 }
 
 async function selesai(r: Reservasi) {
@@ -1122,7 +1170,7 @@ function lanjutWalkin(meja: string) {
 const sheetSharing = ref(false)
 const mejaSharing = ref('')
 const partaiSharing = computed(() => mejaSharing.value
-  ? partiesAt(occupiedMap(semuaHari.value ?? [], { date: tglDenah.value, realita: hariIniMap.value, dineEst: dineEst.value }), mejaSharing.value)
+  ? partiesAt(occupiedMap(reservasiDenah.value, { date: tglDenah.value, realita: hariIniMap.value, dineEst: dineEst.value }), mejaSharing.value)
   : [])
 
 function onMejaSharing(meja: string) {
@@ -1231,7 +1279,7 @@ const teksKasir = computed(() => {
 
 /** "Transfer UOB BRI" reads as "UOB BRI" in a 1-line message (`:7636-7639`). */
 const dpMethodPendek = (r: Reservasi) =>
-  (r.dpStatus !== 'Sudah' || !r.dpMethod ? '-' : r.dpMethod.replace(/^Transfer\s+/i, ''))
+  (r.dpStatus !== 'Sudah' || !r.dpMethod ? '-' : bankDariMetode(r.dpMethod))
 
 /** The two recaps, always drawn — like the old screen, which hard-coded both cards.
  *  They used to hang off `master.waTargets`, so an empty list left the sheet with no recap at all. */
@@ -1303,10 +1351,6 @@ watch(tab, (baru, lama) => {
   // while the map is open — refresh it on return, not on every tick.
   if (baru === 'list' && lama === 'map') refresh()
 })
-
-/** A filter that hides part of the rows must not be used to add guests or move tables. */
-const saringBerlaku = computed(() => !!(filter.fromHour || filter.toHour || saringAktif(filter.status) || saringAktif(filter.category)
-  || saringAktif(filter.lantai) || saringAktif(filter.kursi) || saringAktif(filter.dp) || saringAktif(filter.pic) || saringAktif(filter.ctype) || filter.q || cari.value || filter.mode !== 'day'))
 
 const tglPanjangLama = (tgl: string) => new Date(`${tgl}T00:00:00`).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long' })
 
@@ -2002,7 +2046,7 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
           @click="bulan = hariIni().slice(0, 7)"
         />
         <USelect
-          v-model="kalenderStatus"
+          v-model="filter.status"
           :items="[{ value: SEMUA, label: 'Semua (kecuali dibatalkan)' }, 'Pending', 'Confirmed', 'Datang', 'Cancelled', 'No-show']"
           class="max-w-52"
         />
@@ -2079,8 +2123,6 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
 
     <div
       v-else-if="tab === 'map'"
-      ref="kanvasDenah"
-      :class="penuhDenah ? 'overflow-auto bg-default p-4' : ''"
     >
       <div class="mb-3 flex flex-wrap items-center gap-2">
         <UButton
@@ -2095,16 +2137,29 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         <span class="text-sm text-muted">
           {{ tglPanjangLama(tglDenah) }} · {{ namaDenah }}
         </span>
-        <UButton
-          v-if="bisaPenuhDenah"
-          :icon="penuhDenah ? 'i-lucide-minimize' : 'i-lucide-maximize'"
-          :label="penuhDenah ? 'Keluar layar penuh' : 'Layar penuh'"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          class="ms-auto"
-          @click="alihkanPenuhDenah"
-        />
+        <div
+          v-if="bolehEdit"
+          class="ms-auto flex flex-wrap gap-2"
+        >
+          <UButton
+            icon="i-lucide-check"
+            :label="'Konfirmasi semua (' + calonConfirm.length + ')'"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :disabled="sedangSimpan || !calonConfirm.length"
+            @click="ubahStatusMassal('confirm')"
+          />
+          <UButton
+            icon="i-lucide-log-out"
+            :label="'Tandai semua pulang (' + calonPulang.length + ')'"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :disabled="sedangSimpan || !calonPulang.length"
+            @click="ubahStatusMassal('pulang')"
+          />
+        </div>
       </div>
       <p
         v-if="jejakPlan"
@@ -2126,10 +2181,9 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
       </p>
       <DenahPeta
         v-if="denahTerpilih"
-        :fit="desktopDenah || penuhDenah"
-        :class="penuhDenah ? 'mx-auto w-[min(100%,calc((100vh-12rem)*1600/1160))]' : ''"
+        :fit="desktopDenah"
         :layout="denahTerpilih"
-        :reservasi="semuaHari ?? []"
+        :reservasi="reservasiDenah"
         :tanggal="tglDenah"
         :hari-ini="hariIniMap"
         :timer="true"

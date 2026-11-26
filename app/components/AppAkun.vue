@@ -6,9 +6,11 @@
 <script setup lang="ts">
 const me = useMe()
 const { shell } = useModulShell()
+const siap = useMenuSiap()
 
 const inisial = computed(() => (me.value?.name ?? '?').split(/\s+/).map(s => s[0]).join('').slice(0, 2).toUpperCase())
-const peran = computed(() => shell.value?.peran?.(me.value) ?? me.value?.keterangan ?? '')
+// Blank until the module's roles are in, so a guessed role never shows first.
+const peran = computed(() => (siap.value ? shell.value?.peran?.(me.value) ?? me.value?.keterangan ?? '' : ''))
 </script>
 
 <template>
