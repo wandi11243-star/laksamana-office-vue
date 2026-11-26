@@ -31,24 +31,23 @@ async function submit() {
 </script>
 
 <template>
-  <div class="grid min-h-dvh place-items-center bg-muted px-4 py-10">
+  <div class="grid min-h-dvh place-items-center bg-muted px-8 py-10 sm:px-4">
+    <!-- px-8: phones get a wider gutter so the fields do not hug the screen edges. -->
     <div class="w-full max-w-sm">
       <div class="mb-8 text-center">
+        <!-- The home-screen icon; its file is full-bleed, so the corners are rounded here. -->
         <img
-          src="/mark.png"
+          src="/icon-512.png"
           alt=""
-          class="mx-auto size-16"
+          class="mx-auto size-24 rounded-[22%] shadow-panel"
         >
         <h1 class="mt-4 text-3xl font-extrabold tracking-tight text-highlighted">
-          Laksamana Office
+          Laksamana Teams
         </h1>
-        <p class="mt-1 text-xs font-semibold tracking-[0.3em] text-muted">
-          COFFEE &amp; LIVE SPACE
-        </p>
       </div>
 
       <form
-        class="space-y-4 rounded-panel border border-default bg-default shadow-panel p-5"
+        class="space-y-4 rounded-panel border border-default bg-default shadow-panel p-6 sm:p-5"
         @submit.prevent="submit"
       >
         <UFormField
