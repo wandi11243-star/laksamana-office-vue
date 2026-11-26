@@ -403,7 +403,7 @@ export function useLencanaReservasi() {
   const { data } = useReservasiHariIni()
   return computed<Record<string, number>>(() => {
     const followUp = (data.value ?? []).filter(r => r.status === 'Pending').length
-    return { dashboard: followUp, lonceng: followUp }
+    return { dashboard: followUp }
   })
 }
 

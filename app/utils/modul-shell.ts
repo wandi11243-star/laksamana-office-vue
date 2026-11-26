@@ -3,8 +3,7 @@
 // carries the module's search, its gold "+" and its bell.
 //
 //   laksamana-office deploy/reservasi/index.html:851-872  sidebar + appbar
-//   laksamana-office deploy/reservasi/index.html:3819     bell dot = follow-ups today
-//   laksamana-office deploy/reservasi/index.html:3830     bell opens today's map
+//   (the old Reservasi bell was removed on the owner's request, Nov 2026)
 //
 // A module without an entry here keeps the Office sidebar (Beranda + modules).
 import type { ComputedRef } from 'vue'
@@ -79,7 +78,6 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     subjudul: 'Reservasi',
     layar: LAYAR_RESERVASI,
     cari: { placeholder: 'Cari nama tamu, no. HP…', to: '/reservasi/dashboard' },
-    lonceng: { label: 'Kedatangan hari ini', to: '/reservasi/dashboard?tab=denah' },
     peran: me => ROLE_LABEL_RESERVASI[roleReservasi(me)],
     lencana: () => useLencanaReservasi(),
     siapkan: () => {

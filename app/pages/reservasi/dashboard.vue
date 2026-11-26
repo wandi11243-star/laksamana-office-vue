@@ -899,30 +899,47 @@ async function simpanDatang() {
   if (ok) await catat(`${target.name}, ${n} pax masuk (total ${total}/${target.pax})`, target.id, datangPertama.value ? 'Datang' : 'Datang Susulan')
 }
 
-const calonPulang = computed(() => dayList.value.filter(r => normStatus(r.status) === 'Datang' && !r.leftAt))
-const calonConfirm = computed(() => dayList.value.filter(r => normStatus(r.status) === 'Pending'))
+/** Who "Tandai semua pulang" closes (old pulangSemua): seated guests, and Confirmed
+ *  bookings whose time has passed. A later booking must keep its table. */
+const calonPulang = computed(() => dayList.value.filter((r) => {
+  if (r.leftAt) return false
+  const st = normStatus(r.status)
+  return st === 'Datang' || (st === 'Confirmed' && !!r.time && milisBooking(r) <= sekarang.value)
+}))
 
-async function ubahStatusMassal(aksi: 'pulang' | 'confirm') {
+async function pulangSemua() {
   if (!bolehEdit.value || sedangSimpan.value) return
-  const target = aksi === 'pulang' ? calonPulang.value : calonConfirm.value
-  const label = aksi === 'pulang' ? 'Tandai pulang' : 'Konfirmasi'
-  const tanggal = tglPanjangLama(tglDenah.value)
-  if (!target.length || !window.confirm(label + ' ' + target.length + ' reservasi pada ' + tanggal + ' yang sesuai filter?')) return
+  sekarang.value = Date.now() // judge "time has passed" at the click, not at the last tick
+  const target = calonPulang.value
+  if (!target.length) return
+  const belum = target.filter(r => normStatus(r.status) === 'Confirmed').length
+  const catatanBelum = belum ? `\n${belum} di antaranya belum ditandai datang, jadi akan dicatat datang penuh.` : ''
+  if (!window.confirm(`Tandai pulang ${target.length} reservasi pada ${tglPanjangLama(tglDenah.value)} yang sesuai filter?${catatanBelum}`)) return
 
   sedangSimpan.value = true
-  const berhenti = mulaiProses(label + ' reservasi')
+  const berhenti = mulaiProses('Tandai semua pulang')
   const waktu = Date.now()
   let berhasil = 0
   let galat = ''
   try {
     for (const r of target) {
-      const fields: Partial<Reservasi> = aksi === 'pulang'
-        ? { checkinAt: r.checkinAt || waktu, leftAt: waktu }
-        : { status: 'Confirmed' }
+      let fields: Partial<Reservasi>
+      if (normStatus(r.status) === 'Confirmed') {
+        // Never marked in: the full party, flagged as assumed. checkinAt stays
+        // empty, so no made-up seating duration or lateness reaches Analitik.
+        const arrivals = r.arrivals?.length ? r.arrivals : [{ ts: waktu, pax: Number(r.pax) || 0, by: namaSaya.value }]
+        fields = {
+          status: 'Datang', arrivals, actualPax: arrivals.reduce((a, x) => a + (Number(x.pax) || 0), 0),
+          datangDiasumsikan: 1, leftAt: waktu,
+        }
+      }
+      else {
+        fields = { checkinAt: r.checkinAt || (r.datangDiasumsikan ? 0 : waktu), leftAt: waktu }
+      }
       try {
         await patchReservation(r.id, { ...fields, updatedAt: waktu }, versiBaris(r))
         berhasil++
-        await catat(r.name, r.id, aksi === 'pulang' ? 'Selesai Duduk' : 'Ubah Status')
+        await catat(r.name, r.id, 'Selesai Duduk')
       }
       catch (e) {
         galat ||= apiErrorMessage(e)
@@ -931,7 +948,7 @@ async function ubahStatusMassal(aksi: 'pulang' | 'confirm') {
     await muatUlang()
     const gagal = target.length - berhasil
     toast.add({
-      title: label + ' ? ' + berhasil + ' berhasil' + (gagal ? ', ' + gagal + ' gagal' : ''),
+      title: `Tandai pulang: ${berhasil} berhasil${gagal ? `, ${gagal} gagal` : ''}`,
       description: galat || undefined,
       color: gagal ? 'warning' : 'success',
     })
@@ -1621,15 +1638,32 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
       flush
     >
       <template #actions>
-        <UButton
-          label="Export CSV"
-          icon="i-lucide-download"
-          color="neutral"
-          variant="outline"
-          size="sm"
-          :disabled="!totalTampil"
-          @click="pakaiServer ? eksporServer() : eksporCSV()"
-        />
+        <div class="flex flex-wrap items-center justify-end gap-2">
+          <UButton
+            label="Export CSV"
+            icon="i-lucide-download"
+            color="neutral"
+            variant="outline"
+            size="sm"
+            :disabled="!totalTampil"
+            @click="pakaiServer ? eksporServer() : eksporCSV()"
+          />
+          <!-- One day only: a month or a range would close many nights at once. -->
+          <template v-if="bolehEdit">
+            <span
+              v-if="filter.mode !== 'day'"
+              class="text-sm text-muted"
+            >Pilih filter Harian untuk tandai pulang</span>
+            <UButton
+              icon="i-lucide-log-out"
+              :label="filter.mode === 'day' ? `Tandai semua pulang (${calonPulang.length})` : 'Tandai semua pulang'"
+              color="primary"
+              size="lg"
+              :disabled="sedangSimpan || filter.mode !== 'day' || !calonPulang.length"
+              @click="pulangSemua"
+            />
+          </template>
+        </div>
       </template>
 
       <!-- Phone: the same rows as cards -->
@@ -2137,29 +2171,16 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         <span class="text-sm text-muted">
           {{ tglPanjangLama(tglDenah) }} · {{ namaDenah }}
         </span>
-        <div
+        <UButton
           v-if="bolehEdit"
-          class="ms-auto flex flex-wrap gap-2"
-        >
-          <UButton
-            icon="i-lucide-check"
-            :label="'Konfirmasi semua (' + calonConfirm.length + ')'"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            :disabled="sedangSimpan || !calonConfirm.length"
-            @click="ubahStatusMassal('confirm')"
-          />
-          <UButton
-            icon="i-lucide-log-out"
-            :label="'Tandai semua pulang (' + calonPulang.length + ')'"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            :disabled="sedangSimpan || !calonPulang.length"
-            @click="ubahStatusMassal('pulang')"
-          />
-        </div>
+          icon="i-lucide-log-out"
+          :label="`Tandai semua pulang (${calonPulang.length})`"
+          color="primary"
+          size="lg"
+          class="ms-auto"
+          :disabled="sedangSimpan || !calonPulang.length"
+          @click="pulangSemua"
+        />
       </div>
       <p
         v-if="jejakPlan"
