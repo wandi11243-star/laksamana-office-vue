@@ -15,6 +15,7 @@
 //   catch (e) { if (!(await tanganiKonflik(e, refresh))) toast.add({ title: apiErrorMessage(e), color: 'error' }) }
 //
 import type { LayoutDenah } from '~/utils/venue-layouts'
+import type { RingkasDanaMasuk } from '~/utils/dp-reservasi'
 import type { PerformaPeriode, RingkasKeseluruhan } from '~/utils/analitik'
 
 // G-07 (guest summary) and G-08 (server paging + CSV export) are wired now
@@ -298,6 +299,56 @@ export const listDpsReservasi = (tfFrom?: string, tfTo?: string) =>
     query: {
       tfFrom: tfFrom || undefined,
       tfTo: tfTo || undefined,
+    },
+  })
+
+/** The filters of the Dana Masuk table, as `GET /reservasi/dana-masuk` takes them. */
+export interface FilterDanaMasuk {
+  /** The window, on the BOOKING date. */
+  from?: string
+  to?: string
+  /** Which date the same range filters inside the window. */
+  basis: 'reservasi' | 'masuk'
+  tab: 'perlu' | 'sudah' | 'tolak'
+  status?: string
+  bank?: string
+  q?: string
+  page: number
+  perPage: number
+}
+
+/** One row: instalment `ke` of `dari` on the booking `r`. */
+export interface BarisDanaMasuk {
+  ke: number
+  dari: number
+  r: Reservasi
+}
+
+/** The page numbers plus everything the screen shows about rows it does not hold. */
+export interface MetaDanaMasuk {
+  total: number
+  page: number
+  perPage: number
+  ringkas: RingkasDanaMasuk & { jumlah: number }
+  perReservasi: { jumlah: number, total: number }
+  perMasuk: { jumlah: number, total: number, tanpaTglTf: number }
+  cadangan: { jumlah: number, total: number }
+  bank: string[]
+  belumPindai: number
+  demo: Reservasi[]
+}
+
+/** GET /reservasi/dana-masuk — one page of transfers, newest first. Open through the Dana Masuk door (G-14). */
+export const listDanaMasuk = (f: FilterDanaMasuk) =>
+  useApi()<{ data: BarisDanaMasuk[], meta: MetaDanaMasuk }>('/reservasi/dana-masuk', {
+    query: {
+      ...f,
+      from: f.from || undefined,
+      to: f.to || undefined,
+      status: f.status || undefined,
+      bank: f.bank || undefined,
+      // The API refuses a longer search text.
+      q: f.q?.slice(0, 200) || undefined,
     },
   })
 

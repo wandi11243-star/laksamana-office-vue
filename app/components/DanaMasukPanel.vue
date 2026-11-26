@@ -22,17 +22,17 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import type { Reservasi, ReservasiDp } from '~/composables/useReservasi'
+import type { BarisDanaMasuk, MetaDanaMasuk, Reservasi, ReservasiDp } from '~/composables/useReservasi'
 import {
-  deleteReservation, getFile, getReservation, listReservations, patchReservation,
-  postAudit, useSection,
+  deleteReservation, getFile, getReservation, listDanaMasuk, listReservations,
+  patchReservation, postAudit, useSection,
 } from '~/composables/useReservasi'
 import { bukaBerkasMkt, getMarketingDp, kunciBerkasMkt, type DpEvent, type DpEventData } from '~/composables/useMarketing'
 import { apiErrorCode, apiErrorMessage } from '~/composables/useApi'
 import { tanganiKonflik, versiDari, type Versi } from '~/utils/versi'
 import {
   bankDariMetode, buktiAdalahGambar, cerminDp, cerminTfUtama, dpBaru, dpHitungTerverifikasi,
-  dpMetodeBawaan, dpTotal, dpsTampilan, kurangDataTf, normPhone, opsiDpMetode, pastikanDps,
+  dpMetodeBawaan, dpTotal, dpsTampilan, kurangDataTf, opsiDpMetode, pastikanDps,
   ringkasDanaMasuk, saringDanaMasuk, tampilPhone, txBank,
   txBuktiGambar, txNama, txNominal, txSelisih, txSudahScan,
   type SaringDanaMasuk, type TxDanaMasuk,
@@ -131,15 +131,52 @@ function pilihan(kind: 'today' | 'week' | 'month' | 'all') {
 }
 
 // --- the rows ----------------------------------------------------------------
-// The window follows the filter on the BOOKING date — the only date the list
-// endpoint filters on. In 'masuk' basis a transfer is still found through its
+// The API pages the table by TRANSFER (`GET /reservasi/dana-masuk`) and sends
+// the card, tab and banner numbers with each page. The window follows the filter
+// on the BOOKING date. In 'masuk' basis a transfer is still found through its
 // booking, so a DP paid today for next month's party needs a wider range (or
 // "Semua"). The banner below says how many rows ride on the fallback date.
 
-const { data: semua, refresh, error: galatMuat, status } = useAsyncData(
-  'dana-masuk',
-  () => listReservations(saring.dari || undefined, saring.sampai || undefined).then(r => r.data),
-  { watch: [() => saring.dari, () => saring.sampai], default: () => [] },
+const hal = ref(1)
+const perHal = ref(10)
+
+/** Typing searches on the server, 300 ms after the last key. */
+const cariTunda = ref(saring.q)
+let tundaCari: ReturnType<typeof setTimeout> | undefined
+watch(() => saring.q, (v) => {
+  clearTimeout(tundaCari)
+  tundaCari = setTimeout(() => {
+    cariTunda.value = v
+  }, 300)
+})
+onBeforeUnmount(() => clearTimeout(tundaCari))
+
+const filterServer = computed(() => ({
+  from: saring.dari, to: saring.sampai, basis: saring.basis, tab: saring.tab,
+  status: saring.status, bank: saringEfektif.value.bank, q: cariTunda.value,
+}))
+const kunciFilter = computed(() => JSON.stringify(filterServer.value))
+// A new filter starts again at page 1. Declared before the read below.
+watch([kunciFilter, perHal], () => {
+  hal.value = 1
+})
+
+const jawabanKosong = (): { data: BarisDanaMasuk[], meta: MetaDanaMasuk } => ({
+  data: [],
+  meta: {
+    total: 0, page: 1, perPage: 10,
+    ringkas: { ...ringkasDanaMasuk([]), jumlah: 0 },
+    perReservasi: { jumlah: 0, total: 0 },
+    perMasuk: { jumlah: 0, total: 0, tanpaTglTf: 0 },
+    cadangan: { jumlah: 0, total: 0 },
+    bank: [], belumPindai: 0, demo: [],
+  },
+})
+
+const { data: jawaban, refresh, error: galatMuat, status } = useAsyncData(
+  'dana-masuk-halaman',
+  () => listDanaMasuk({ ...filterServer.value, page: hal.value, perPage: perHal.value }),
+  { watch: [kunciFilter, hal, perHal], default: jawabanKosong },
 )
 
 const aksiAktif = ref(0)
@@ -159,51 +196,34 @@ const { data: dpMethods } = useSection<string[]>('dpMethods')
  */
 const tanpaAkses = computed(() => apiErrorCode(galatMuat.value) === 'module_not_granted')
 
-const tx = computed(() => txSemua(semua.value ?? []))
-const daftarSemua = computed(() => saringDanaMasuk(tx.value, saringEfektif.value, false))
-const ringkas = computed(() => ringkasDanaMasuk(daftarSemua.value))
-const daftar = computed(() => saringDanaMasuk(tx.value, saringEfektif.value, true))
+const meta = computed(() => jawaban.value.meta)
+// The API clamps a page that is gone (the last row of the last page was verified).
+watch(meta, (m) => {
+  if (status.value === 'success' && m.page !== hal.value) hal.value = m.page
+})
 
-// Two Total DP cards, one per date basis (old 4a2edc6). Both run through the
-// same list + filters, only the basis differs; rejected transfers never count.
-// The 'masuk' basis falls back to the booking date when the transfer date is
-// still unread (txTanggal), and those fallback rows are named on its card.
-const saringReservasi = computed(() => ({ ...saringEfektif.value, basis: 'reservasi' as const }))
-const saringMasuk = computed(() => ({ ...saringEfektif.value, basis: 'masuk' as const }))
-const perRes = computed(() => saringDanaMasuk(tx.value, saringReservasi.value, false).filter(x => x.p.tfStatus !== 'rejected'))
-const perMasuk = computed(() => saringDanaMasuk(tx.value, saringMasuk.value, false).filter(x => x.p.tfStatus !== 'rejected'))
-const totalPerRes = computed(() => perRes.value.reduce((a, x) => a + txNominal(x), 0))
-const totalPerMasuk = computed(() => perMasuk.value.reduce((a, x) => a + txNominal(x), 0))
-const cadMasuk = computed(() => perMasuk.value.filter(x => !x.p.tfDate).length)
+/** The rows of this page. The API names the instalment; its data sits on the booking. */
+const halaman = computed<TxDanaMasuk[]>(() =>
+  jawaban.value.data.map(b => ({ ...b, p: dpsTampilan(b.r)[b.ke - 1]! })))
+const maxHal = computed(() => Math.max(1, Math.ceil(meta.value.total / perHal.value)))
+const ringkas = computed(() => meta.value.ringkas)
+
+// Two Total DP cards, one per date basis (old 4a2edc6). Both use the same
+// filters, only the basis differs; rejected transfers never count. The 'masuk'
+// basis falls back to the booking date when the transfer date is still unread,
+// and those fallback rows are named on its card.
 const labRentang = computed(() => (saring.dari || saring.sampai
   ? `${saring.dari ? tglPendek(saring.dari) : 'awal'} – ${saring.sampai ? tglPendek(saring.sampai) : 'sekarang'}`
   : 'semua tanggal'))
 
-const semuaBank = computed(() => [...new Set(tx.value.map(txBank).filter(Boolean))].sort())
-
-/** Rows riding on the booking date because their transfer date is still unread (`:9383-9388`). */
-const tglCadangan = computed(() => saring.basis === 'masuk' ? daftarSemua.value.filter(x => !x.p.tfDate) : [])
+const semuaBank = computed(() => meta.value.bank)
 
 /** The built-in demo rows polluting the sums (`:10802-10808`). */
-const DEMO_NAMA = ['Budi Santoso', 'Sarah Wijaya', 'Andre Kurniawan', 'Melati Putri', 'PT Nusantara Jaya', 'Rian Hidayat', 'Keluarga Tanjung', 'Fitri Amelia']
-const demoTelepon = new Set(DEMO_NAMA.map((_, i) => normPhone(`08${1234500000 + i * 11111}`)))
-const adalahDemo = (r: Reservasi) => DEMO_NAMA.includes(String(r?.name || '').trim()) && demoTelepon.has(normPhone(r?.phone))
-const demo = computed(() => (semua.value ?? []).filter(adalahDemo))
+const demo = computed(() => meta.value.demo)
 
-// --- paging in the browser ---------------------------------------------------
-// One row is one TRANSFER, so the reservation-level paging of the API (G-08)
-// cannot page this table: a page of 10 reservations holds an unpredictable
-// number of transfers, and the transfer filters (bank, scan state, tab) have
-// no server twin either. The window stays the loader; the pager below never
-// hides, like the old screen.
-
-const hal = ref(1)
-const perHal = ref(10)
-const maxHal = computed(() => Math.max(1, Math.ceil(daftar.value.length / perHal.value)))
-const halaman = computed(() => daftar.value.slice((hal.value - 1) * perHal.value, hal.value * perHal.value))
-watch([daftar, perHal], () => {
-  hal.value = Math.min(hal.value, maxHal.value)
-})
+/** Every transfer of the window, read only for what reaches past the page: CSV and bulk scan. */
+const muatSemuaTx = () =>
+  listReservations(saring.dari || undefined, saring.sampai || undefined).then(r => txSemua(r.data))
 
 // --- the table -----------------------------------------------------------------
 
@@ -705,19 +725,23 @@ function isiTambah(r: Reservasi, simpanKetik: boolean) {
   })
 }
 
-function bukaTambah(resId: string) {
-  const r = (semua.value ?? []).find(v => v.id === resId)
-  if (!r) return
-  isiTambah(r, false)
-  sheetTambah.value = true
+async function bukaTambah(resId: string) {
+  try {
+    // From the page, or read on its own when the booking is on another page or tab.
+    const r = halaman.value.find(x => x.r.id === resId)?.r ?? (await getReservation(resId)).data
+    isiTambah(r, false)
+    sheetTambah.value = true
+  }
+  catch (e) {
+    toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
 }
 
-/** After a conflict: the list is newest; the sheet follows it but keeps what was typed. */
+/** After a conflict: re-read the list and the booking; the sheet follows but keeps what was typed. */
 async function muatUlangTambah() {
   await refresh()
   if (!tambah.resId) return
-  const r = (semua.value ?? []).find(v => v.id === tambah.resId)
-  if (r) isiTambah(r, true)
+  isiTambah((await getReservation(tambah.resId)).data, true)
 }
 
 function pilihBerkas(f: File | null | undefined) {
@@ -832,8 +856,15 @@ async function hapusDemo() {
 // Stays in the browser on purpose: the server export is reservation-level
 // (Recap columns), while this table exports transfers.
 
-function unduhCsv() {
-  const list = daftar.value
+async function unduhCsv() {
+  let list: TxDanaMasuk[]
+  try {
+    list = saringDanaMasuk(await muatSemuaTx(), saringEfektif.value, true)
+  }
+  catch (e) {
+    toast.add({ title: apiErrorMessage(e), color: 'error' })
+    return
+  }
   if (!list.length) {
     toast.add({ title: 'Tidak ada transaksi untuk diekspor', color: 'error' })
     return
@@ -932,11 +963,18 @@ async function jalankanAntrean(todo: TxDanaMasuk[], aksiAudit: string) {
   return { ok, gagal }
 }
 
-const belumPindai = computed(() => tx.value.filter(x => !txSudahScan(x) && txBuktiGambar(x)))
-
 async function pindaiBorongan() {
-  if (pindai.sibuk || !belumPindai.value.length) return
-  const { ok, gagal } = await jalankanAntrean([...belumPindai.value], 'Scan borongan')
+  if (pindai.sibuk) return
+  let todo: TxDanaMasuk[]
+  try {
+    todo = (await muatSemuaTx()).filter(x => !txSudahScan(x) && txBuktiGambar(x))
+  }
+  catch (e) {
+    toast.add({ title: apiErrorMessage(e), color: 'error' })
+    return
+  }
+  if (pindai.sibuk || !todo.length) return
+  const { ok, gagal } = await jalankanAntrean(todo, 'Scan borongan')
   toast.add({ title: `Selesai: ${ok} bukti punya saran${gagal ? `, ${gagal} gagal dibaca` : ''}`, color: gagal ? 'warning' : 'success' })
 }
 
@@ -948,7 +986,7 @@ async function pindaiBaris(x: TxDanaMasuk) {
     await postAudit({ action: 'Scan Bukti TF', detail: `${x.r.name}: ${bank} ${hasil.name || '?'} ${hasil.date || '?'} ${hasil.time || '?'} ${hasil.amount ? rp(hasil.amount) : '?'}`, res: x.r.id })
     await refresh()
     const kurang = (['date', 'time', 'amount', 'bank', 'name'] as const).filter(k => !hasil[k])
-    const segar = (semua.value ?? []).flatMap(r => txSemua([r])).find(t => t.r.id === x.r.id && t.p.id === x.p.id)
+    const segar = txSemua([(await getReservation(x.r.id)).data]).find(t => t.p.id === x.p.id)
     if (segar) bukaTfEdit(segar)
     toast.add({
       title: kurang.length
@@ -1105,8 +1143,8 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           @click="hapusDemo"
         />
         <UButton
-          v-if="belumPindai.length && !pindai.sibuk && bolehVerifikasi"
-          :label="`Ulangi scan (${belumPindai.length})`"
+          v-if="meta.belumPindai && !pindai.sibuk && bolehVerifikasi"
+          :label="`Ulangi scan (${meta.belumPindai})`"
           icon="i-lucide-scan-line"
           color="neutral"
           variant="outline"
@@ -1156,14 +1194,14 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
         <AppStat
           label="Total DP · menurut Tgl Reservasi"
           icon="i-lucide-calendar"
-          :value="rp(totalPerRes)"
-          :sub="`${angka(perRes.length)} transfer untuk reservasi yang jadwal makannya ${labRentang}`"
+          :value="rp(meta.perReservasi.total)"
+          :sub="`${angka(meta.perReservasi.jumlah)} transfer untuk reservasi yang jadwal makannya ${labRentang}`"
         />
         <AppStat
           label="Total DP · menurut Tgl Uang Masuk"
           icon="i-lucide-banknote"
-          :value="rp(totalPerMasuk)"
-          :sub="`${angka(perMasuk.length)} transfer yang uangnya masuk ${labRentang}${cadMasuk ? ` · ${angka(cadMasuk)} memakai tgl reservasi (tgl transfer belum terbaca)` : ''}`"
+          :value="rp(meta.perMasuk.total)"
+          :sub="`${angka(meta.perMasuk.jumlah)} transfer yang uangnya masuk ${labRentang}${meta.perMasuk.tanpaTglTf ? ` · ${angka(meta.perMasuk.tanpaTglTf)} memakai tgl reservasi (tgl transfer belum terbaca)` : ''}`"
         />
       </AppStatGrid>
 
@@ -1173,7 +1211,7 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
           label="Total dana masuk"
           icon="i-lucide-wallet"
           :value="rp(ringkas.total)"
-          :sub="`${angka(daftarSemua.length)} kali transfer${ringkas.cicilan ? ` · ${angka(ringkas.cicilan)} bertahap` : ''}`"
+          :sub="`${angka(ringkas.jumlah)} kali transfer${ringkas.cicilan ? ` · ${angka(ringkas.cicilan)} bertahap` : ''}`"
         />
         <AppStat
           label="Total terverifikasi"
@@ -1247,12 +1285,12 @@ const kolomEv = computed<TableColumn<DpEvent>[]>(() => [
       </p>
 
       <p
-        v-if="tglCadangan.length"
+        v-if="meta.cadangan.jumlah"
         class="mb-4 rounded-field border border-info/25 bg-info/10 p-3 text-sm text-default"
       >
-        <b>{{ angka(tglCadangan.length) }} baris di daftar ini dipakai tanggal reservasinya</b>, bukan tanggal
+        <b>{{ angka(meta.cadangan.jumlah) }} baris di daftar ini dipakai tanggal reservasinya</b>, bukan tanggal
         uang masuk — tanggal transfernya belum terbaca dari bukti. Nominalnya
-        <b>{{ rp(tglCadangan.reduce((a, x) => a + txNominal(x), 0)) }}</b>.
+        <b>{{ rp(meta.cadangan.total) }}</b>.
         Tekan <b>Scan</b> di barisnya (atau isi lewat <b>Cek / Edit</b>) supaya ia jatuh di tanggal yang benar.
       </p>
 
