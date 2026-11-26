@@ -7,17 +7,43 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 import { isAdminOf } from '~/composables/useMe'
 import type { Layar } from '~/utils/layar'
 
+/** Modules whose access rules have arrived, as `<user id>:<module key>`. Kept for
+ *  the session, so a refetch or a remount never brings the placeholder back. */
+const useMenuTerjawab = () => useState<Record<string, boolean>>('menu-terjawab', () => ({}))
+
+/** False while the current module's menu may not be drawn yet: its access rules
+ *  are still on the way. Screens outside a module chrome are always ready. */
+export function useMenuSiap() {
+  const me = useMe()
+  const { key, shell } = useModulShell()
+  const sudah = useMenuTerjawab()
+  return computed(() => !shell.value || (!!me.value && !!sudah.value[`${me.value.id}:${key.value}`]))
+}
+
 export function useMenuNav(pilih: () => void = () => {}) {
   const me = useMe()
   const { grouped } = useModulNav()
-  const { shell } = useModulShell()
+  const { key, shell } = useModulShell()
   const route = useRoute()
-  shell.value?.siapkan?.()
+  // The sidebar and bottom bar are keyed by module, so this runs once per module.
+  // The key is captured here: the outgoing copy must not answer for the next one.
+  const kunciModul = key.value
+  if (shell.value) {
+    const penanda = shell.value.siapkan?.()
+    const sudah = useMenuTerjawab()
+    watchEffect(() => {
+      if (!me.value || (penanda && !penanda())) return
+      const kunci = `${me.value.id}:${kunciModul}`
+      if (!sudah.value[kunci]) sudah.value = { ...sudah.value, [kunci]: true }
+    })
+  }
+  const siap = useMenuSiap()
   const lencana = shell.value?.lencana?.()
 
-  return computed<NavigationMenuItem[][]>(() => {
+  const menu = computed<NavigationMenuItem[][]>(() => {
     const s = shell.value
     if (s) {
+      if (!siap.value) return []
       const bisa = s.layar.filter(l => !l.boleh || (me.value && l.boleh(me.value)))
       const badge = (key: string) => {
         const n = lencana?.value[key] ?? 0
@@ -79,4 +105,5 @@ export function useMenuNav(pilih: () => void = () => {}) {
       ]),
     ]
   })
+  return { menu, siap }
 }

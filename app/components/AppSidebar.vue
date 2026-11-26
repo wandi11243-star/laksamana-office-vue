@@ -14,7 +14,7 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 withDefaults(defineProps<{ mini?: boolean }>(), { mini: false })
 
 const { modul, shell } = useModulShell()
-const menu = useMenuNav()
+const { menu, siap } = useMenuNav()
 const me = useMe()
 const route = useRoute()
 const { grouped } = useModulNav()
@@ -146,7 +146,15 @@ const inisial = computed(() => (me.value?.name ?? '?').split(/\s+/).map(s => s[0
     <nav
       aria-label="Menu"
       class="mt-4 flex w-full flex-1 flex-col items-center gap-1 overflow-y-auto"
+      :aria-busy="!siap"
     >
+      <template v-if="!siap">
+        <USkeleton
+          v-for="n in 6"
+          :key="n"
+          class="size-11 shrink-0 rounded-field"
+        />
+      </template>
       <template
         v-for="(grup, gi) in daftar"
         :key="grup.label ?? `atas-${gi}`"
@@ -255,7 +263,22 @@ const inisial = computed(() => (me.value?.name ?? '?').split(/\s+/).map(s => s[0
       </span>
     </NuxtLink>
 
-    <div class="flex-1 overflow-y-auto px-4">
+    <div
+      class="flex-1 overflow-y-auto px-4"
+      :aria-busy="!siap"
+    >
+      <div
+        v-if="!siap"
+        class="flex flex-col gap-2"
+        role="status"
+        aria-label="Memuat menu"
+      >
+        <USkeleton
+          v-for="n in 6"
+          :key="n"
+          class="h-10 w-full rounded-field"
+        />
+      </div>
       <template
         v-for="(grup, i) in daftar"
         :key="grup.label ?? `atas-${i}`"

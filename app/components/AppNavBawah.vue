@@ -15,7 +15,7 @@ const terbuka = ref<number | null>(null)
 const tutup = () => {
   terbuka.value = null
 }
-const menu = useMenuNav(tutup)
+const { menu, siap } = useMenuNav(tutup)
 watch(() => route.fullPath, tutup)
 
 const susun = computed(() => slotNavBawah(menu.value))
@@ -50,6 +50,23 @@ const sheet = computed({
     aria-label="Menu"
   >
     <ul
+      v-if="!siap"
+      class="grid grid-cols-4"
+      role="status"
+      aria-label="Memuat menu"
+    >
+      <li
+        v-for="n in 4"
+        :key="n"
+        class="flex flex-col items-center gap-1 px-1 pb-2 pt-1.5"
+      >
+        <USkeleton class="h-7 w-12 rounded-full" />
+        <USkeleton class="h-3 w-10" />
+      </li>
+    </ul>
+
+    <ul
+      v-else
       class="grid"
       :class="kolom"
     >
