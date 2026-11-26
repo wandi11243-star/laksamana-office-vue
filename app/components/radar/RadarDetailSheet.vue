@@ -122,7 +122,15 @@ const desk = computed(() => (detail.value?.event?.description ? tanpaTag(detail.
                   class="size-3.5"
                 />{{ s.label }}
               </p>
-              <p class="whitespace-pre-wrap text-sm text-default">
+              <RadarMenuTabel
+                v-if="s.menu"
+                :nilai="s.menu"
+                class="mt-1.5 overflow-hidden rounded-lg bg-default p-2"
+              />
+              <p
+                v-else
+                class="whitespace-pre-wrap text-sm text-default"
+              >
                 {{ s.teks }}
               </p>
             </div>
