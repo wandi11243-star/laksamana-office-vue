@@ -3,8 +3,8 @@
   who administers it, changed right here. Rows are the accounts of the list
   (useAccountUsers, refreshed after every save, so a box always shows the server
   truth). "Akses" ticks the explicit grant (PUT /account/users/{id}/access);
-  an account that opens the module through "Semua modul" or a default rule says
-  so instead of a box it cannot untick. "Admin" is the module admin
+  the box shows the EFFECTIVE access, so an account holding the module through
+  "Semua modul" or a default rule can still lose it (unticking writes a deny). "Admin" is the module admin
   (PUT /account/users/{id}/admin). The label of the module can be edited too.
 -->
 <script setup lang="ts">
@@ -30,9 +30,8 @@ async function simpanLabel() {
 }
 
 const k = computed(() => props.modul?.key ?? '')
-const diberi = (u: AccountUser) => u.grants.includes(k.value)
-/** Opens it without its own grant: "Semua modul" or a default rule. */
-const lewatLain = (u: AccountUser) => !diberi(u) && u.modules.includes(k.value)
+/** Holds it through its own tick, "Semua modul" or a default rule. */
+const lewatLain = (u: AccountUser) => !u.grants.includes(k.value) && u.modules.includes(k.value)
 const punya = (u: AccountUser) => u.modules.includes(k.value)
 const admin = (u: AccountUser) => u.adminModules.includes(k.value)
 const superadmin = (u: AccountUser) => u.adminModules.includes('*')
@@ -131,14 +130,11 @@ async function ubah(u: AccountUser, jenis: 'akses' | 'admin', v: boolean | 'inde
           <span
             v-if="lewatLain(u)"
             class="text-xs text-muted"
-            title="Akses datang dari &quot;Semua modul&quot; atau aturan bawaan, bukan centang modul ini. Ubah di lembar kru."
-          >Akses lewat semua modul</span>
-          <label
-            v-else
-            class="flex cursor-pointer items-center gap-2 text-sm"
-          >
+            title="Akses ini datang dari &quot;Semua modul&quot; atau aturan bawaan. Menghapus centang tetap mencabut modul ini saja."
+          >lewat Semua modul</span>
+          <label class="flex cursor-pointer items-center gap-2 text-sm">
             <UCheckbox
-              :model-value="diberi(u)"
+              :model-value="punya(u)"
               :disabled="sibuk.includes(`akses:${u.id}`)"
               @update:model-value="(v) => ubah(u, 'akses', v)"
             />Akses
