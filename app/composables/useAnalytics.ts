@@ -261,3 +261,19 @@ export function voidDariHasil(u: HasilUraiVoid): VoidBulan {
     ringkas: u.ringkas,
   }
 }
+
+/** One P&L figure set (whole year or one period) as derived by the API. */
+export interface PlAngka { penjualanBersih: number, danaKeluar: number, hpp: number, operasional: number, ebitda: number, depresiasi: number, ebit: number }
+export interface PlAkun { account: string, description: string, total: number, periods: Record<string, number> }
+export interface PlBagian { total: number, periods: Record<string, number>, accounts: PlAkun[] }
+export interface ProfitLossEsb {
+  year: number
+  periods: string[]
+  sections: Record<string, PlBagian>
+  ringkasan: { total: PlAngka, perPeriode: Record<string, PlAngka> }
+}
+
+/** GET /api/v1/kompas/esb/profit-loss — ESB Core P&L month-to-month with EBITDA (Analytics › Pengeluaran). */
+export const getEsbProfitLoss = (year: number, branchIDs: number[] = []) =>
+  useApi()<Envelope<ProfitLossEsb>>('/kompas/esb/profit-loss', { query: { year, 'branchIDs[]': branchIDs } })
+    .then(r => r.data)
