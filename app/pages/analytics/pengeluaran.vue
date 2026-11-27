@@ -1,12 +1,14 @@
 <!--
   Analytics › Pengeluaran & EBITDA. Reads the ESB Core Profit & Loss
   month-to-month report through GET /kompas/esb/profit-loss (credentials stay on
-  the server). "Dana keluar" = HPP + beban operasional (cash out); EBITDA =
-  penjualan bersih − dana keluar; depresiasi & amortisasi is non-cash and shown
-  apart, never added to dana keluar. Nothing is saved: every visit asks ESB.
+  the server) for the picked year AND the year before, so any month range can be
+  compared with the range right before it or the same months last year.
+  "Dana keluar" = HPP + beban operasional (cash out); EBITDA, penjualan bersih
+  and EBIT are ESB's own subtotals; depresiasi & amortisasi is non-cash and
+  shown apart, never added to dana keluar. Nothing is saved: every visit asks ESB.
 -->
 <script setup lang="ts">
-import { getEsbProfitLoss, type PlAkun, type ProfitLossEsb } from '~/composables/useAnalytics'
+import { getEsbProfitLoss, type PlAngka, type ProfitLossEsb } from '~/composables/useAnalytics'
 import { ROLE_LABEL_ANALYTICS, useAnalyticsIzin } from '~/utils/layar/analytics'
 import { BLN, rupiah } from '~/utils/format'
 
@@ -20,70 +22,177 @@ const tahunIni = new Date().getFullYear()
 const tahun = ref(tahunIni)
 const pilihanTahun = [tahunIni, tahunIni - 1, tahunIni - 2].map(t => ({ value: t, label: String(t) }))
 
+/** The picked year, plus the year before for comparisons (its failure only hides the comparison). */
 const { data, status, error, refresh } = useAsyncData(
   'analytics-pengeluaran',
-  () => (bolehLihat.value ? getEsbProfitLoss(tahun.value) : Promise.resolve(null)),
+  async () => {
+    if (!bolehLihat.value) return null
+    const [kini, lalu] = await Promise.all([
+      getEsbProfitLoss(tahun.value),
+      getEsbProfitLoss(tahun.value - 1).catch(() => null),
+    ])
+    return { kini, lalu }
+  },
   { watch: [tahun, bolehLihat] },
 )
-const pl = computed<ProfitLossEsb | null>(() => data.value ?? null)
-const t = computed(() => pl.value?.ringkasan.total ?? null)
+const pl = computed<ProfitLossEsb | null>(() => data.value?.kini ?? null)
 
-/** ESB keys periods in English ("January 2026"); show the Indonesian short month. */
+// ─── periods: ESB keys them in English ("January 2026"); we use "YYYY-MM" ids ──
 const BULAN_EN = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
-const labelPeriode = (k: string) => {
-  const i = BULAN_EN.indexOf(k.trim().split(/\s+/)[0]?.toLowerCase() ?? '')
-  return (i >= 0 ? BLN[i] : undefined) ?? k
+const idDariKey = (k: string): string | null => {
+  const [b, y] = k.trim().split(/\s+/)
+  const i = BULAN_EN.indexOf(b?.toLowerCase() ?? '')
+  return i >= 0 && /^\d{4}$/.test(y ?? '') ? `${y}-${String(i + 1).padStart(2, '0')}` : null
 }
-const pct = (x: number, total: number) => (total ? `${(x / total * 100).toFixed(1)}%` : '—')
+const geser = (id: string, n: number) => {
+  const [y, m] = id.split('-').map(Number)
+  const t = y! * 12 + (m! - 1) + n
+  return `${Math.floor(t / 12)}-${String(t % 12 + 1).padStart(2, '0')}`
+}
+const lblBulan = (id: string) => BLN[Number(id.slice(5)) - 1] ?? id
+const lblRentang = (ids: string[]) => {
+  if (!ids.length) return '—'
+  const a = ids[0]!
+  const z = ids[ids.length - 1]!
+  if (a === z) return `${lblBulan(a)} ${a.slice(0, 4)}`
+  return a.slice(0, 4) === z.slice(0, 4) ? `${lblBulan(a)}–${lblBulan(z)} ${a.slice(0, 4)}` : `${lblBulan(a)} ${a.slice(0, 4)}–${lblBulan(z)} ${z.slice(0, 4)}`
+}
 
-const baris = computed(() => (pl.value?.periods ?? []).map(k => ({ k, ...pl.value!.ringkasan.perPeriode[k]! })))
-const maks = computed(() => Math.max(1, ...baris.value.map(b => Math.max(b.danaKeluar, Math.abs(b.ebitda)))))
+// ─── one index over both years: figures per month, accounts per month ──
+interface Akun { kunci: string, grup: 'HPP' | 'Operasional' | 'Depresiasi', kode: string, nama: string, v: Record<string, number> }
+const GRUP: [string, Akun['grup']][] = [['cogs', 'HPP'], ['operationalExpenses', 'Operasional'], ['depreciationAmortizationExpenses', 'Depresiasi']]
+const indeks = computed(() => {
+  const angka: Record<string, PlAngka> = {}
+  const akun = new Map<string, Akun>()
+  for (const d of [data.value?.lalu, data.value?.kini]) {
+    if (!d) continue
+    for (const [k, a] of Object.entries(d.ringkasan.perPeriode)) {
+      const id = idDariKey(k)
+      if (id) angka[id] = a
+    }
+    for (const [sec, grup] of GRUP) {
+      for (const a of d.sections[sec]?.accounts ?? []) {
+        const kunci = `${grup}|${a.account || a.description}`
+        const x = akun.get(kunci) ?? { kunci, grup, kode: a.account, nama: a.description || a.account || '(tanpa nama)', v: {} }
+        for (const [k, n] of Object.entries(a.periods)) {
+          const id = idDariKey(k)
+          if (id) x.v[id] = Math.abs(n)
+        }
+        akun.set(kunci, x)
+      }
+    }
+  }
+  return { angka, akun: [...akun.values()] }
+})
+const bulanAda = computed(() => (pl.value?.periods ?? []).map(idDariKey).filter((x): x is string => !!x))
 
-/** Account lists: '' = the whole year, otherwise one ESB period key. */
-const bulanPilih = ref('')
-watch(tahun, () => {
-  bulanPilih.value = ''
+// ─── range + comparison ──
+const dari = ref('')
+const sampai = ref('')
+watch(bulanAda, (b) => {
+  dari.value = b[0] ?? ''
+  sampai.value = b[b.length - 1] ?? ''
+}, { immediate: true })
+const pilihanBulanRentang = computed(() => bulanAda.value.map(id => ({ value: id, label: lblBulan(id) })))
+const rentang = computed(() => {
+  const [a, z] = dari.value <= sampai.value ? [dari.value, sampai.value] : [sampai.value, dari.value]
+  return bulanAda.value.filter(id => id >= a && id <= z)
 })
-const pilihanBulan = computed(() => [{ value: '', label: 'Setahun' }, ...(pl.value?.periods ?? []).map(k => ({ value: k, label: labelPeriode(k) }))])
-const nilai = (a: PlAkun) => Math.abs(bulanPilih.value ? a.periods[bulanPilih.value] ?? 0 : a.total)
-const dasarKeluar = computed(() => (bulanPilih.value ? pl.value?.ringkasan.perPeriode[bulanPilih.value]?.danaKeluar ?? 0 : t.value?.danaKeluar ?? 0))
-const semuaAkun = ref(false)
-const namaAkun = (a: PlAkun) => a.description || a.account || '(tanpa nama)'
+type Cepat = 'setahun' | '3bln' | '1bln' | ''
+const cepat = computed<Cepat>({
+  get: () => {
+    const b = bulanAda.value
+    const r = rentang.value
+    if (!b.length || r[r.length - 1] !== b[b.length - 1]) return ''
+    if (r.length === b.length) return 'setahun'
+    return r.length === 3 ? '3bln' : r.length === 1 ? '1bln' : ''
+  },
+  set: (v) => {
+    const b = bulanAda.value
+    if (!v || !b.length) return
+    sampai.value = b[b.length - 1]!
+    dari.value = v === 'setahun' ? b[0]! : b[Math.max(0, b.length - (v === '3bln' ? 3 : 1))]!
+  },
+})
+const pilihanCepat = [{ value: 'setahun', label: 'Setahun' }, { value: '3bln', label: '3 bulan terakhir' }, { value: '1bln', label: 'Bulan terakhir' }]
 
-const akunKeluarSetahun = computed<(PlAkun & { grup: string })[]>(() => {
-  const s = pl.value?.sections
-  if (!s) return []
-  return [
-    ...(s.cogs?.accounts ?? []).map(a => ({ ...a, grup: 'HPP' })),
-    ...(s.operationalExpenses?.accounts ?? []).map(a => ({ ...a, grup: 'Operasional' })),
-  ]
+const pembanding = ref<'tahunLalu' | 'sebelum'>('tahunLalu')
+const pilihanPembanding = [{ value: 'tahunLalu', label: 'Tahun lalu (bulan yang sama)' }, { value: 'sebelum', label: 'Periode sebelumnya' }]
+const rentangBanding = computed(() => {
+  const r = rentang.value
+  return pembanding.value === 'tahunLalu' ? r.map(id => geser(id, -12)) : r.map(id => geser(id, -r.length))
 })
-/** Month before the picked one (month-on-month comparison); none for "Setahun" or January. */
-const bulanSebelum = computed(() => {
-  const ks = pl.value?.periods ?? []
-  const i = ks.indexOf(bulanPilih.value)
-  return i > 0 ? ks[i - 1]! : ''
-})
-const nilaiSebelum = (a: PlAkun) => Math.abs(a.periods[bulanSebelum.value] ?? 0)
-/** Change in percent vs the previous value; null = nothing to compare (both zero or no previous month). */
+/** Comparison months ESB actually returned; a partial set is said out loud. */
+const bandingAda = computed(() => rentangBanding.value.filter(id => indeks.value.angka[id]))
+const bandingLengkap = computed(() => bandingAda.value.length === rentangBanding.value.length)
+
+const NOL: PlAngka = { penjualanBersih: 0, danaKeluar: 0, hpp: 0, operasional: 0, ebitda: 0, depresiasi: 0, ebit: 0 }
+const jumlahAngka = (ids: string[]) => ids.reduce<PlAngka>((s, id) => {
+  const a = indeks.value.angka[id]
+  if (!a) return s
+  return Object.fromEntries(Object.keys(NOL).map(k => [k, s[k as keyof PlAngka] + a[k as keyof PlAngka]])) as unknown as PlAngka
+}, { ...NOL })
+const t = computed(() => jumlahAngka(rentang.value))
+const tb = computed(() => (bandingAda.value.length ? jumlahAngka(bandingAda.value) : null))
+
+const jumlahAkun = (a: Akun, ids: string[]) => ids.reduce((s, id) => s + (a.v[id] ?? 0), 0)
+
+// ─── change badges ──
+const pct = (x: number, total: number) => (total ? `${(x / total * 100).toLocaleString('id-ID', { maximumFractionDigits: 1 })}%` : '—')
 const ubahPct = (kini: number, dulu: number): number | null => (dulu ? (kini - dulu) / Math.abs(dulu) * 100 : null)
-/**
- * Badge for a change. For a cost a rise is bad (red); for EBITDA a rise is good.
- * A cost with no value last month is "baru".
- */
-const lencana = (kini: number, dulu: number, naikBaik = false) => {
-  if (!dulu && !kini) return null
+/** For a cost a rise is bad (red); for EBITDA/EBIT/sales a rise is good. */
+const lencana = (kini: number, dulu: number | null | undefined, naikBaik = false) => {
+  if (dulu == null || (!dulu && !kini)) return null
   if (!dulu) return { teks: 'baru', warna: naikBaik ? 'success' : 'warning' } as const
   const v = ubahPct(kini, dulu)!
   if (Math.abs(v) < 0.05) return { teks: '0%', warna: 'neutral' } as const
   const naik = v > 0
   return { teks: `${naik ? '▲' : '▼'} ${Math.abs(v).toLocaleString('id-ID', { maximumFractionDigits: 1 })}%`, warna: naik === naikBaik ? 'success' : 'error' } as const
 }
+const subBanding = (dulu: number | undefined) => (tb.value && dulu !== undefined ? `${lblRentang(bandingAda.value)}: ${rupiah(dulu)}` : '')
+
+// ─── per-month table (picked year) ──
+const baris = computed(() => bulanAda.value.map(id => ({ id, ...indeks.value.angka[id]! })))
+const maks = computed(() => Math.max(1, ...baris.value.map(b => Math.max(b.danaKeluar, Math.abs(b.ebitda)))))
+const pilihBulan = (id: string) => {
+  dari.value = id
+  sampai.value = id
+}
+
+// ─── accounts ──
 const urutan = ref<'nilai' | 'naik'>('nilai')
 const pilihanUrutan = [{ value: 'nilai', label: 'Nilai terbesar' }, { value: 'naik', label: 'Kenaikan terbesar (Rp)' }]
-const kunciUrut = (a: PlAkun) => (urutan.value === 'naik' && bulanSebelum.value ? nilai(a) - nilaiSebelum(a) : nilai(a))
-const akunKeluar = computed(() => akunKeluarSetahun.value.filter(a => nilai(a) || (bulanSebelum.value && nilaiSebelum(a))).sort((a, b) => kunciUrut(b) - kunciUrut(a)))
-const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizationExpenses?.accounts ?? []).filter(a => nilai(a)).sort((a, b) => nilai(b) - nilai(a)))
+const semuaAkun = ref(false)
+const barisAkun = (grup: Akun['grup'][]) => indeks.value.akun
+  .filter(a => grup.includes(a.grup))
+  .map(a => ({ ...a, nilai: jumlahAkun(a, rentang.value), dulu: tb.value ? jumlahAkun(a, bandingAda.value) : null }))
+  .filter(a => a.nilai || a.dulu)
+  .sort((a, b) => (urutan.value === 'naik' && tb.value ? (b.nilai - (b.dulu ?? 0)) - (a.nilai - (a.dulu ?? 0)) : b.nilai - a.nilai))
+const akunKeluar = computed(() => barisAkun(['HPP', 'Operasional']))
+const akunDepresiasi = computed(() => barisAkun(['Depresiasi']))
+
+/** CSV of the range: every account with its months, the comparison and the change. */
+function unduhCsv() {
+  const r = rentang.value
+  const q = (s: string | number) => `"${String(s).replace(/"/g, '""')}"`
+  const kepala = ['Kelompok', 'Kode', 'Nama akun', ...r.map(id => `${lblBulan(id)} ${id.slice(0, 4)}`), `Total ${lblRentang(r)}`]
+  if (tb.value) kepala.push(`Pembanding ${lblRentang(bandingAda.value)}`, 'Selisih', 'Perubahan %')
+  const isi = [...akunKeluar.value, ...akunDepresiasi.value].map((a) => {
+    const row: (string | number)[] = [a.grup, a.kode, a.nama, ...r.map(id => Math.round(a.v[id] ?? 0)), Math.round(a.nilai)]
+    if (tb.value) {
+      const p = ubahPct(a.nilai, a.dulu ?? 0)
+      row.push(Math.round(a.dulu ?? 0), Math.round(a.nilai - (a.dulu ?? 0)), p === null ? '' : p.toFixed(1))
+    }
+    return row.map(q).join(';')
+  })
+  const blob = new Blob([String.fromCharCode(0xFEFF) + `${[kepala.map(q).join(';'), ...isi].join('\n')}`], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const el = document.createElement('a')
+  el.href = url
+  el.download = `pengeluaran-${r[0]}_${r[r.length - 1]}.csv`
+  el.click()
+  URL.revokeObjectURL(url)
+}
 </script>
 
 <template>
@@ -93,10 +202,20 @@ const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizati
   >
     <template #actions>
       <UButton
+        label="Unduh CSV"
+        icon="i-lucide-download"
+        color="neutral"
+        variant="outline"
+        size="lg"
+        :disabled="!pl || !rentang.length"
+        @click="unduhCsv"
+      />
+      <UButton
         label="Segarkan"
         icon="i-lucide-refresh-cw"
         color="neutral"
         variant="outline"
+        size="lg"
         :loading="status === 'pending'"
         @click="refresh()"
       />
@@ -111,155 +230,210 @@ const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizati
       :description="`Hak akses kamu di halaman &quot;Pengeluaran&quot; cuma &quot;${roleSaya}&quot;. Minta admin modul mengubahnya di Kelola Akses.`"
     />
     <template v-else>
-      <div class="mb-4 flex flex-wrap items-center gap-2 rounded-panel bg-default px-5 py-3.5 shadow-panel">
-        <span class="text-sm font-semibold">Tahun</span>
-        <AppChips
-          v-model="tahun"
-          :options="pilihanTahun"
-        />
-        <span class="flex-1" />
-        <span class="text-xs text-muted">Sumber: ESB Core · Laporan Laba Rugi bulan ke bulan</span>
+      <!-- filters -->
+      <div class="flex flex-col gap-4 rounded-panel bg-default p-5 shadow-panel sm:p-6">
+        <div class="flex flex-wrap items-center gap-3">
+          <span class="w-24 font-semibold">Tahun</span>
+          <AppChips
+            v-model="tahun"
+            :options="pilihanTahun"
+          />
+          <span class="flex-1" />
+          <span class="text-sm text-muted">Sumber: ESB Core · Laporan Laba Rugi bulan ke bulan</span>
+        </div>
+        <div
+          v-if="bulanAda.length"
+          class="flex flex-wrap items-center gap-3"
+        >
+          <span class="w-24 font-semibold">Periode</span>
+          <AppChips
+            v-model="cepat"
+            :options="pilihanCepat"
+          />
+          <div class="flex items-center gap-2">
+            <USelect
+              v-model="dari"
+              :items="pilihanBulanRentang"
+              size="lg"
+              class="w-28"
+              aria-label="Dari bulan"
+            />
+            <span class="text-muted">sampai</span>
+            <USelect
+              v-model="sampai"
+              :items="pilihanBulanRentang"
+              size="lg"
+              class="w-28"
+              aria-label="Sampai bulan"
+            />
+          </div>
+        </div>
+        <div
+          v-if="bulanAda.length"
+          class="flex flex-wrap items-center gap-3"
+        >
+          <span class="w-24 font-semibold">Bandingkan</span>
+          <AppChips
+            v-model="pembanding"
+            :options="pilihanPembanding"
+          />
+          <span class="text-sm text-muted">
+            {{ lblRentang(rentang) }} vs {{ tb ? lblRentang(bandingAda) : 'tidak ada data pembanding' }}
+            <template v-if="tb && !bandingLengkap"> (sebagian bulan pembanding tidak ada di ESB)</template>
+          </span>
+        </div>
       </div>
 
       <AppPanel
         v-if="status === 'pending' && !pl"
         title="Mengambil laporan dari ESB"
+        class="mt-6"
       >
         <USkeleton class="mt-3 h-24 w-full" />
       </AppPanel>
       <UAlert
         v-else-if="error"
+        class="mt-6"
         color="error"
         variant="subtle"
         icon="i-lucide-triangle-alert"
         title="Laporan ESB tidak bisa dibaca"
         :description="apiErrorMessage(error, 'Periksa koneksi internet, lalu coba Segarkan.')"
       />
-      <template v-else-if="pl && t">
-        <AppStatGrid :count="4">
+      <template v-else-if="pl">
+        <AppStatGrid
+          :count="4"
+          class="mt-6"
+        >
           <AppStat
             label="Dana Keluar"
             :value="rupiah(t.danaKeluar)"
             icon="i-lucide-wallet"
             tone="error"
-            :sub="`HPP ${rupiah(t.hpp)} · Operasional ${rupiah(t.operasional)}`"
+            :badge="lencana(t.danaKeluar, tb?.danaKeluar)?.teks"
+            :badge-tone="lencana(t.danaKeluar, tb?.danaKeluar)?.warna === 'success' ? 'success' : lencana(t.danaKeluar, tb?.danaKeluar)?.warna === 'error' ? 'error' : 'neutral'"
+            :sub="`HPP ${rupiah(t.hpp)} · Operasional ${rupiah(t.operasional)}${tb ? ` · ${subBanding(tb.danaKeluar)}` : ''}`"
           />
           <AppStat
             label="EBITDA"
             :value="rupiah(t.ebitda)"
             icon="i-lucide-trending-up"
             :tone="t.ebitda >= 0 ? 'success' : 'error'"
-            :sub="`Margin ${pct(t.ebitda, t.penjualanBersih)} dari penjualan bersih`"
+            :badge="lencana(t.ebitda, tb?.ebitda, true)?.teks"
+            :badge-tone="lencana(t.ebitda, tb?.ebitda, true)?.warna === 'success' ? 'success' : lencana(t.ebitda, tb?.ebitda, true)?.warna === 'error' ? 'error' : 'neutral'"
+            :sub="`Margin ${pct(t.ebitda, t.penjualanBersih)} dari penjualan bersih${tb ? ` · ${subBanding(tb.ebitda)}` : ''}`"
           />
           <AppStat
             label="Depresiasi & Amortisasi"
             :value="rupiah(t.depresiasi)"
             icon="i-lucide-building"
             tone="info"
-            sub="Beban non-tunai, tidak termasuk dana keluar"
+            :badge="lencana(t.depresiasi, tb?.depresiasi)?.teks"
+            :badge-tone="lencana(t.depresiasi, tb?.depresiasi)?.warna === 'success' ? 'success' : lencana(t.depresiasi, tb?.depresiasi)?.warna === 'error' ? 'error' : 'neutral'"
+            :sub="`Beban non-tunai, tidak termasuk dana keluar${tb ? ` · ${subBanding(tb.depresiasi)}` : ''}`"
           />
           <AppStat
-            label="EBIT"
+            label="EBIT (laba operasional)"
             :value="rupiah(t.ebit)"
             icon="i-lucide-calculator"
             tone="gold"
-            :sub="`Penjualan bersih ${rupiah(t.penjualanBersih)}`"
+            :badge="lencana(t.ebit, tb?.ebit, true)?.teks"
+            :badge-tone="lencana(t.ebit, tb?.ebit, true)?.warna === 'success' ? 'success' : lencana(t.ebit, tb?.ebit, true)?.warna === 'error' ? 'error' : 'neutral'"
+            :sub="`EBITDA − depresiasi & amortisasi · penjualan bersih ${rupiah(t.penjualanBersih)}`"
           />
         </AppStatGrid>
 
         <AppPanel
-          title="Per bulan"
-          class="mt-4"
+          :title="`Per bulan ${tahun}`"
+          class="mt-6"
         >
           <p
             v-if="!baris.length"
-            class="text-sm text-muted"
+            class="text-muted"
           >
             ESB tidak mengirim data untuk tahun ini.
           </p>
           <div
             v-else
-            class="overflow-x-auto"
+            class="mt-2 overflow-x-auto"
           >
-            <table class="w-full text-sm">
-              <thead class="text-left text-xs text-muted">
+            <table class="w-full text-base">
+              <thead class="text-left text-sm text-muted">
                 <tr>
-                  <th class="py-2 pr-3">
+                  <th class="px-3 py-3">
                     Bulan
                   </th>
-                  <th class="py-2 pr-3 text-right">
+                  <th class="px-3 py-3 text-right">
                     Penjualan bersih
                   </th>
-                  <th class="py-2 pr-3 text-right">
+                  <th class="px-3 py-3 text-right">
                     Dana keluar
                   </th>
-                  <th class="py-2 pr-3 text-right">
+                  <th class="px-3 py-3 text-right">
                     EBITDA
                   </th>
-                  <th class="py-2 pr-3 text-right">
+                  <th class="px-3 py-3 text-right">
                     Depresiasi
                   </th>
-                  <th class="py-2 pr-3 text-right">
+                  <th class="px-3 py-3 text-right">
                     EBIT
                   </th>
-                  <th class="w-1/4 py-2" />
+                  <th class="w-1/5 px-3 py-3" />
                 </tr>
               </thead>
               <tbody>
                 <tr
                   v-for="(b, i) in baris"
-                  :key="b.k"
+                  :key="b.id"
                   class="cursor-pointer border-t border-default hover:bg-elevated"
-                  :class="bulanPilih === b.k ? 'bg-elevated' : ''"
-                  title="Lihat rincian akun bulan ini"
-                  @click="bulanPilih = bulanPilih === b.k ? '' : b.k"
+                  :class="rentang.includes(b.id) ? 'bg-elevated/60' : 'opacity-60'"
+                  title="Klik untuk melihat bulan ini saja"
+                  @click="pilihBulan(b.id)"
                 >
-                  <td class="py-2 pr-3 font-medium">
-                    {{ labelPeriode(b.k) }}
+                  <td class="px-3 py-3.5 font-medium">
+                    {{ lblBulan(b.id) }}
                   </td>
-                  <td class="py-2 pr-3 text-right tabular-nums">
+                  <td class="px-3 py-3.5 text-right tabular-nums">
                     {{ rupiah(b.penjualanBersih) }}
                   </td>
-                  <td class="py-2 pr-3 text-right tabular-nums">
+                  <td class="px-3 py-3.5 text-right tabular-nums">
                     {{ rupiah(b.danaKeluar) }}
                     <UBadge
                       v-if="i > 0 && lencana(b.danaKeluar, baris[i - 1]!.danaKeluar)"
-                      class="ml-1"
-                      size="sm"
+                      class="ml-1.5"
                       variant="subtle"
                       :color="lencana(b.danaKeluar, baris[i - 1]!.danaKeluar)!.warna"
                       :label="lencana(b.danaKeluar, baris[i - 1]!.danaKeluar)!.teks"
                     />
                   </td>
                   <td
-                    class="py-2 pr-3 text-right font-semibold tabular-nums"
+                    class="px-3 py-3.5 text-right font-semibold tabular-nums"
                     :class="b.ebitda < 0 ? 'text-error' : 'text-success'"
                   >
                     {{ rupiah(b.ebitda) }}
                     <UBadge
                       v-if="i > 0 && lencana(b.ebitda, baris[i - 1]!.ebitda, true)"
-                      class="ml-1"
-                      size="sm"
+                      class="ml-1.5"
                       variant="subtle"
                       :color="lencana(b.ebitda, baris[i - 1]!.ebitda, true)!.warna"
                       :label="lencana(b.ebitda, baris[i - 1]!.ebitda, true)!.teks"
                     />
                   </td>
-                  <td class="py-2 pr-3 text-right tabular-nums text-muted">
+                  <td class="px-3 py-3.5 text-right tabular-nums text-muted">
                     {{ rupiah(b.depresiasi) }}
                   </td>
-                  <td class="py-2 pr-3 text-right tabular-nums">
+                  <td class="px-3 py-3.5 text-right tabular-nums">
                     {{ rupiah(b.ebit) }}
                   </td>
-                  <td class="py-2">
-                    <div class="flex flex-col gap-1">
+                  <td class="px-3 py-3.5">
+                    <div class="flex flex-col gap-1.5">
                       <div
-                        class="h-1.5 rounded-full bg-error/70"
+                        class="h-2 rounded-full bg-error/70"
                         :style="{ width: `${b.danaKeluar / maks * 100}%` }"
                         :title="`Dana keluar ${rupiah(b.danaKeluar)}`"
                       />
                       <div
-                        class="h-1.5 rounded-full"
+                        class="h-2 rounded-full"
                         :class="b.ebitda < 0 ? 'bg-error' : 'bg-success'"
                         :style="{ width: `${Math.abs(b.ebitda) / maks * 100}%` }"
                         :title="`EBITDA ${rupiah(b.ebitda)}`"
@@ -269,116 +443,113 @@ const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizati
                 </tr>
               </tbody>
             </table>
+            <p class="mt-3 text-sm text-muted">
+              Persen di samping angka = perubahan dibanding bulan sebelumnya. Baris yang redup ada di luar periode yang dipilih.
+            </p>
           </div>
         </AppPanel>
 
-        <div class="mt-4 flex flex-wrap items-center gap-2 rounded-panel bg-default px-5 py-3.5 shadow-panel">
-          <span class="text-sm font-semibold">Rincian akun</span>
-          <AppChips
-            v-model="bulanPilih"
-            :options="pilihanBulan"
-          />
-          <span class="flex-1" />
-          <AppChips
-            v-if="bulanSebelum"
-            v-model="urutan"
-            :options="pilihanUrutan"
-          />
-          <span
-            v-else
-            class="text-xs text-muted"
-          >Pilih satu bulan (Feb ke atas) untuk melihat kenaikan dibanding bulan sebelumnya</span>
-        </div>
-
-        <div class="mt-4 grid gap-4 lg:grid-cols-3">
+        <div class="mt-6 grid gap-6 xl:grid-cols-3">
           <AppPanel
-            :title="`Akun dana keluar · ${bulanPilih ? labelPeriode(bulanPilih) : 'setahun'}`"
-            class="lg:col-span-2"
+            :title="`Akun dana keluar · ${lblRentang(rentang)}`"
+            class="xl:col-span-2"
           >
+            <div
+              v-if="tb"
+              class="mt-1 mb-3 flex flex-wrap items-center gap-3"
+            >
+              <span class="text-sm text-muted">Urutkan</span>
+              <AppChips
+                v-model="urutan"
+                :options="pilihanUrutan"
+              />
+            </div>
             <p
               v-if="!akunKeluar.length"
-              class="text-sm text-muted"
+              class="text-muted"
             >
               Tidak ada beban HPP atau operasional.
             </p>
             <ul
               v-else
-              class="divide-y divide-default text-sm"
+              class="divide-y divide-default"
             >
               <li
                 v-for="a in semuaAkun ? akunKeluar : akunKeluar.slice(0, 15)"
-                :key="a.grup + a.account"
-                class="flex items-center gap-3 py-2"
+                :key="a.kunci"
+                class="flex flex-wrap items-center gap-x-4 gap-y-2 py-3.5"
               >
                 <UBadge
                   :label="a.grup"
-                  size="sm"
                   variant="subtle"
                   :color="a.grup === 'HPP' ? 'warning' : 'neutral'"
                 />
-                <span class="min-w-0 flex-1">
-                  <span class="block truncate">{{ namaAkun(a) }}</span>
-                  <span class="block text-xs text-muted tabular-nums">{{ a.account }}</span>
+                <span class="min-w-0 flex-1 basis-48">
+                  <span class="block truncate font-medium">{{ a.nama }}</span>
+                  <span class="block text-sm text-muted tabular-nums">{{ a.kode }} · {{ pct(a.nilai, t.danaKeluar) }} dari dana keluar</span>
                 </span>
-                <span class="hidden text-xs text-muted sm:inline">{{ pct(nilai(a), dasarKeluar) }}</span>
-                <span class="w-36 text-right">
-                  <span class="block tabular-nums">{{ rupiah(nilai(a)) }}</span>
+                <span class="text-right">
+                  <span class="block font-semibold tabular-nums">{{ rupiah(a.nilai) }}</span>
                   <span
-                    v-if="bulanSebelum"
-                    class="block text-xs text-muted tabular-nums"
-                  >{{ labelPeriode(bulanSebelum) }}: {{ rupiah(nilaiSebelum(a)) }}</span>
+                    v-if="tb"
+                    class="block text-sm text-muted tabular-nums"
+                  >sebelumnya {{ rupiah(a.dulu ?? 0) }}</span>
                 </span>
-                <UBadge
-                  v-if="bulanSebelum && lencana(nilai(a), nilaiSebelum(a))"
-                  class="w-16 justify-center"
-                  size="sm"
-                  variant="subtle"
-                  :color="lencana(nilai(a), nilaiSebelum(a))!.warna"
-                  :label="lencana(nilai(a), nilaiSebelum(a))!.teks"
-                />
+                <span class="w-20 text-right">
+                  <UBadge
+                    v-if="lencana(a.nilai, a.dulu)"
+                    variant="subtle"
+                    :color="lencana(a.nilai, a.dulu)!.warna"
+                    :label="lencana(a.nilai, a.dulu)!.teks"
+                  />
+                </span>
               </li>
             </ul>
             <UButton
               v-if="akunKeluar.length > 15"
-              class="mt-2"
-              size="sm"
+              class="mt-3"
               color="neutral"
               variant="ghost"
               :label="semuaAkun ? 'Tampilkan 15 teratas' : `Tampilkan semua (${akunKeluar.length} akun)`"
               @click="semuaAkun = !semuaAkun"
             />
           </AppPanel>
-          <AppPanel title="Depresiasi & amortisasi">
+          <AppPanel :title="`Depresiasi & amortisasi · ${lblRentang(rentang)}`">
             <p
               v-if="!akunDepresiasi.length"
-              class="text-sm text-muted"
+              class="text-muted"
             >
               Tidak ada beban depresiasi di periode ini.
             </p>
             <ul
               v-else
-              class="divide-y divide-default text-sm"
+              class="divide-y divide-default"
             >
               <li
                 v-for="a in akunDepresiasi"
-                :key="a.account"
-                class="flex items-center gap-3 py-2"
+                :key="a.kunci"
+                class="flex items-center gap-4 py-3.5"
               >
                 <span class="min-w-0 flex-1">
-                  <span class="block truncate">{{ namaAkun(a) }}</span>
-                  <span class="block text-xs text-muted tabular-nums">{{ a.account }}</span>
+                  <span class="block truncate font-medium">{{ a.nama }}</span>
+                  <span class="block text-sm text-muted tabular-nums">{{ a.kode }}</span>
                 </span>
-                <span class="tabular-nums">{{ rupiah(nilai(a)) }}</span>
+                <span class="text-right">
+                  <span class="block tabular-nums">{{ rupiah(a.nilai) }}</span>
+                  <span
+                    v-if="tb"
+                    class="block text-sm text-muted tabular-nums"
+                  >sebelumnya {{ rupiah(a.dulu ?? 0) }}</span>
+                </span>
                 <UBadge
-                  v-if="bulanSebelum && lencana(nilai(a), nilaiSebelum(a))"
-                  size="sm"
+                  v-if="lencana(a.nilai, a.dulu)"
                   variant="subtle"
-                  :color="lencana(nilai(a), nilaiSebelum(a))!.warna"
-                  :label="lencana(nilai(a), nilaiSebelum(a))!.teks"
+                  :color="lencana(a.nilai, a.dulu)!.warna"
+                  :label="lencana(a.nilai, a.dulu)!.teks"
                 />
               </li>
             </ul>
-            <p class="mt-3 text-xs text-muted">
+            <p class="mt-4 text-sm text-muted">
               Depresiasi bukan uang yang keluar dari kas; ia hanya menurunkan nilai aset di pembukuan.
             </p>
           </AppPanel>
