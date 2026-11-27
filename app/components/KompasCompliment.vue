@@ -78,7 +78,7 @@ async function tarikComplimentEsb() {
         await refreshRoster()
       }
       catch {
-        esbWarnings.value.push('Roster kasir Office gagal dimuat; PIC yang tidak dapat dicocokkan akan tetap Tamu.')
+        esbWarnings.value.push('Roster Office gagal dimuat; PIC yang tidak dapat dicocokkan akan tetap Tamu.')
       }
     }
     const { summary, ganda } = await tarikCashierEsb(date, (message) => {
@@ -100,8 +100,7 @@ async function tarikComplimentEsb() {
       esbWarnings.value.push('Data pemetaan kasir Office tidak terbaca; nama PIC tetap akan dicocokkan dari roster bila cocok tunggal.')
     }
     if (tanggalRevision !== revision) return
-    const kasir = kasirRoster.value.map(u => ({ id: u.id, name: u.name }))
-    const imported = complimentBaru(summary, date, data.value.comps.value, me.value?.name ?? '', kasir, mapping, employees)
+    const imported = complimentBaru(summary, date, data.value.comps.value, me.value?.name ?? '', serverRoster.value, mapping, employees)
     if (imported.added.length || imported.corrected) {
       const saved = await tulis(imported.records, imported.added.length ? `${imported.added.length} compliment dari ESB dicatat` : `${imported.corrected} PIC Kasir diperbarui dari ESB`)
       if (!saved) return
@@ -122,10 +121,19 @@ async function tarikComplimentEsb() {
 }
 
 // PIC Kasir only from Tim Kasir; PIC Pemberi from marketing/event/office (:2004-2011).
+const serverRoster = computed(() => roster.value.filter(u => u.active !== false && u.name.trim()))
 const orang = computed(() => rosterComp(roster.value))
 const kasirRoster = computed(() => orang.value.filter(u => u.divs.includes('kasir')))
 const pemberiRoster = computed(() => orang.value.filter(u => !!divPemberi(u)))
-const opsiKasir = computed(() => [{ label: 'Tamu', value: PIC_TAMU }, ...kasirRoster.value.map(u => ({ label: u.name, value: u.id }))])
+const picPilihan = computed(() => {
+  const pilihan = kasirRoster.value.map(u => ({ id: u.id, name: u.name }))
+  const lama = semua.value.find(c => c.id === editId.value)
+  if (lama?.esbBill && lama.picOfficeId && lama.picName && !pilihan.some(u => u.id === lama.picOfficeId)) {
+    pilihan.push({ id: lama.picOfficeId, name: lama.picName })
+  }
+  return pilihan
+})
+const opsiKasir = computed(() => [{ label: 'Tamu', value: PIC_TAMU }, ...picPilihan.value.map(u => ({ label: u.name, value: u.id }))])
 const opsiPemberi = computed(() => [{ label: 'Tamu', value: PIC_TAMU }, ...pemberiRoster.value.map(u => ({ label: `${u.name} — ${divPemberi(u)}`, value: u.id }))])
 
 // ---- form (add / edit share ONE form, like the old screen) ----
@@ -190,7 +198,7 @@ async function simpan() {
     return
   }
   salah.value = ''
-  const u = kasirRoster.value.find(x => x.id === f.pic)
+  const u = picPilihan.value.find(x => x.id === f.pic)
   const pv = pemberiRoster.value.find(x => x.id === f.pemberi)
   // `nominal` IS stored: monthly recaps, the WA report and the detail card read it.
   const isi = {
@@ -288,7 +296,7 @@ const sel = (v: unknown) => (v != null ? fmtRp(num(v)) : '—')
             @click="tarikComplimentEsb()"
           />
           <p class="min-w-0 flex-1 text-sm text-muted">
-            {{ esbMessage || 'Bill Compliment dan Member Deposit yang belum tercatat akan masuk langsung. PIC Kasir dicocokkan dari akun POS; PIC Pemberi tetap Tamu.' }}
+            {{ esbMessage || 'Bill Compliment dan Member Deposit yang belum tercatat akan masuk langsung. PIC Kasir dicocokkan dari Server di ESB. PIC Pemberi tetap Tamu.' }}
           </p>
         </div>
         <UAlert
