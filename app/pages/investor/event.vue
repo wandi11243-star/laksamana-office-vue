@@ -14,7 +14,7 @@
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
 import type { InvestorAgendaEvent } from '~/composables/useInvestor'
-import { useInvestorAgenda } from '~/composables/useInvestor'
+import { getInvestorKalender, useInvestorAgenda } from '~/composables/useInvestor'
 import { fTgl, hariIni as tglHariIni } from '~/utils/format'
 import { blnPanjang, jarakHari } from '~/utils/investor'
 
@@ -27,6 +27,8 @@ const lebih = computed(() => agenda.value?.eventLebih ?? 0)
 const hariIni = computed(() => agenda.value?.hariIni ?? '')
 
 const mode = ref<'tabel' | 'kalender'>('tabel')
+/** The calendar is the Radar board (past events + reservations): only for who also holds Radar (owner, 28 Nov 2026). */
+const bolehKalender = computed(() => hasAccess(useMe().value, ['radar']) && !hanyaInvestor(useMe().value))
 
 const kolom = computed<TableColumn<InvestorAgendaEvent>[]>(() => [
   { accessorKey: 'tgl', header: 'Tanggal' },
@@ -61,28 +63,40 @@ const sel = computed(() => {
     return { iso: isoOf(d), n: d.getDate(), luar: d.getMonth() !== cur.value.m }
   })
 })
+// The calendar reads its own range (past days too, owner 28 Nov 2026) and the reservations per day.
+const { data: kal, error: kalGagal } = useAsyncData(
+  'investor-kalender',
+  () => (bolehKalender.value && mode.value === 'kalender' ? getInvestorKalender(sel.value[0]!.iso, sel.value[41]!.iso) : Promise.resolve(null)),
+  { watch: [() => sel.value[0]!.iso, mode], default: () => null },
+)
+const acaraKal = computed(() => kal.value?.event ?? [])
+const rsvSel = (iso: string) => (tampil.value.rsv ? kal.value?.reservasi[iso] : undefined)
+
 type Sumber = 'mkt' | 'evt'
 const sumberDari = (e: InvestorAgendaEvent): Sumber => (e.sumber === 'Event' ? 'evt' : 'mkt')
-const tampil = ref<Record<Sumber, boolean>>({ mkt: true, evt: true })
-const CHIP: { k: Sumber, label: string, warna: string }[] = [
+const tampil = ref<Record<Sumber | 'rsv', boolean>>({ mkt: true, evt: true, rsv: true })
+const CHIP: { k: Sumber | 'rsv', label: string, warna: string }[] = [
   { k: 'mkt', label: 'Marketing', warna: 'bg-brand-yellow' },
   { k: 'evt', label: 'Event', warna: 'bg-lilac-light' },
+  { k: 'rsv', label: 'Reservasi', warna: 'bg-info' },
 ]
 const KELAS_EV: Record<Sumber, string> = { mkt: 'bg-yellow-light text-yellow-dark', evt: 'bg-lilac-light text-ink-900' }
 const GARIS_EV: Record<Sumber, string> = { mkt: 'bg-brand-yellow', evt: 'bg-vip' }
 const perTanggal = computed(() => {
   const peta = new Map<string, InvestorAgendaEvent[]>()
-  for (const e of acara.value) {
+  for (const e of acaraKal.value) {
     if (!tampil.value[sumberDari(e)]) continue
     peta.set(e.tgl, [...(peta.get(e.tgl) ?? []), e])
   }
   return peta
 })
 const agSel = (iso: string) => perTanggal.value.get(iso) ?? []
-const paxSel = (iso: string) => agSel(iso).reduce((a, e) => a + (Number(e.pax) || 0), 0)
-const agBln = computed(() => acara.value.filter(e => String(e.tgl).startsWith(blnKal.value) && tampil.value[sumberDari(e)]))
+/** Event pax + reservation pax of a day (different groups: an estimate of the night). */
+const paxSel = (iso: string) => agSel(iso).reduce((a, e) => a + (Number(e.pax) || 0), 0) + (rsvSel(iso)?.pax ?? 0)
+const agBln = computed(() => acaraKal.value.filter(e => String(e.tgl).startsWith(blnKal.value) && tampil.value[sumberDari(e)]))
 const hitungBulan = computed(() => agBln.value.length)
-const hariBerisi = computed(() => sel.value.filter(c => !c.luar && agSel(c.iso).length))
+const rsvBln = computed(() => Object.entries(kal.value?.reservasi ?? {}).filter(([t]) => t.startsWith(blnKal.value)).reduce((a, [, r]) => ({ jumlah: a.jumlah + r.jumlah, pax: a.pax + r.pax }), { jumlah: 0, pax: 0 }))
+const hariBerisi = computed(() => sel.value.filter(c => !c.luar && (agSel(c.iso).length || rsvSel(c.iso))))
 const dipilih = ref<InvestorAgendaEvent | null>(null)
 const bukaDetail = ref(false)
 function buka(e: InvestorAgendaEvent) {
@@ -140,6 +154,7 @@ function buka(e: InvestorAgendaEvent) {
         <template #head>
           <div class="flex w-full flex-wrap items-center gap-3">
             <AppSeg
+              v-if="bolehKalender"
               v-model="mode"
               :options="[
                 { value: 'tabel', label: 'Tabel', icon: 'i-lucide-table' },
@@ -297,6 +312,13 @@ function buka(e: InvestorAgendaEvent) {
                   +{{ agSel(c.iso).length - 3 }} lagi
                 </p>
                 <p
+                  v-if="rsvSel(c.iso)"
+                  class="px-1 text-[11px] text-info"
+                  :class="c.luar ? 'opacity-60' : ''"
+                >
+                  {{ rsvSel(c.iso)!.jumlah }} rsv · {{ rsvSel(c.iso)!.pax }} pax
+                </p>
+                <p
                   v-if="paxSel(c.iso)"
                   class="mt-auto border-t border-default px-1 pt-1 text-[11px] font-semibold text-highlighted num"
                   :class="c.luar ? 'opacity-60' : ''"
@@ -328,6 +350,15 @@ function buka(e: InvestorAgendaEvent) {
                 >Total {{ paxSel(c.iso) }} pax</span>
               </div>
               <div class="grid grid-cols-1 gap-1.5">
+                <p
+                  v-if="rsvSel(c.iso)"
+                  class="flex min-h-11 items-center gap-2 rounded-field border border-default bg-default px-2.5 py-2 text-sm text-info"
+                >
+                  <UIcon
+                    name="i-lucide-book-open"
+                    class="size-4 shrink-0"
+                  />{{ rsvSel(c.iso)!.jumlah }} reservasi · {{ rsvSel(c.iso)!.pax }} pax
+                </p>
                 <button
                   v-for="(e, k) in agSel(c.iso)"
                   :key="k"
@@ -352,7 +383,7 @@ function buka(e: InvestorAgendaEvent) {
             </div>
           </div>
           <p class="px-4 py-3 text-[13px] text-muted">
-            {{ hitungBulan ? `${hitungBulan} acara di ${blnPanjang(blnKal)}` : `Tidak ada acara di ${blnPanjang(blnKal)}` }}
+            {{ hitungBulan ? `${hitungBulan} acara di ${blnPanjang(blnKal)}` : `Tidak ada acara di ${blnPanjang(blnKal)}` }}{{ rsvBln.jumlah ? ` · ${rsvBln.jumlah} reservasi (${rsvBln.pax} pax)` : '' }}{{ kalGagal ? ' · kalender belum terbaca, coba muat ulang' : '' }}{{ kal?.gagal?.length ? ` · data ${kal.gagal.join(', ')} tidak terbaca` : '' }}
           </p>
         </template>
       </AppPanel>

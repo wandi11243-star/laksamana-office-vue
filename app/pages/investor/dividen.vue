@@ -12,7 +12,7 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { getManagementFee, useInvestorIzin, useInvestorSummary } from '~/composables/useInvestor'
+import { useInvestorSummary } from '~/composables/useInvestor'
 import type { InvestorDividenPer } from '~/composables/useInvestor'
 import { rupiah, tglPanjang } from '~/utils/format'
 
@@ -20,10 +20,10 @@ definePageMeta({ access: ['investor'] })
 
 const { data: balasan, status, error } = useInvestorSummary()
 // Management fee, as Finance › Brankas shows it: only for who may open the fee page (admin, recipients)
-const izin = useInvestorIzin()
-const lihatFee = computed(() => izin.lihat('fee'))
-const { data: dataFee } = useAsyncData('investor-fee', () => (lihatFee.value ? getManagementFee() : Promise.resolve(null)), { watch: [lihatFee] })
-const fee = computed(() => dataFee.value?.total ?? null)
+// Total management fee and its deposits, for every viewer (owner, 28 Nov 2026); null = an older server
+const fee = computed(() => dividen.value?.managementFee ?? null)
+const riwayatFee = computed(() => dividen.value?.managementFeeRiwayat ?? [])
+const lihatRiwayatFee = ref(false)
 const dividen = computed(() => balasan.value?.data?.dividen ?? null)
 const riwayat = computed(() => dividen.value?.riwayat ?? [])
 const per = computed(() => dividen.value?.per ?? [])
@@ -255,6 +255,39 @@ const kolomPer = computed<TableColumn<BarisPer>[]>(() => [
             />
           </div>
         </div>
+      </AppPanel>
+
+      <AppPanel
+        v-if="fee !== null"
+        title="Management fee"
+        icon="i-lucide-briefcase"
+        :description="`Total ${rupiah(fee)} dari ${riwayatFee.length} setoran · sumber: Brankas Finance`"
+        flush
+      >
+        <template #actions>
+          <UButton
+            size="sm"
+            :color="lihatRiwayatFee ? 'primary' : 'neutral'"
+            :variant="lihatRiwayatFee ? 'solid' : 'outline'"
+            :icon="lihatRiwayatFee ? 'i-lucide-x' : 'i-lucide-history'"
+            :label="lihatRiwayatFee ? 'Tutup' : 'Lihat riwayat'"
+            :disabled="!riwayatFee.length"
+            @click="lihatRiwayatFee = !lihatRiwayatFee"
+          />
+        </template>
+        <ul
+          v-if="lihatRiwayatFee"
+          class="divide-y divide-default"
+        >
+          <li
+            v-for="(r, i) in riwayatFee"
+            :key="i"
+            class="flex items-center justify-between gap-4 px-4 py-3"
+          >
+            <span>{{ tglPanjang(r.tgl) }}</span>
+            <b class="num">{{ rupiah(r.nominal) }}</b>
+          </li>
+        </ul>
       </AppPanel>
 
       <AppPanel

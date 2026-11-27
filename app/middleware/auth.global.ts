@@ -41,6 +41,15 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo({ path: '/ganti-pin', query: to.fullPath === '/' ? {} : { next: to.fullPath } })
   }
 
+  // A pure investor (Investor Compass only) does not use Team Office: off to the investor domain.
+  // Locally (dev) the same account stays on /investor instead of leaving the dev server.
+  if (!diDomainInvestor() && hanyaInvestor(me.value)) {
+    if (import.meta.client && /(^|\.)laksamanamuda\.id$/.test(location.hostname)) {
+      return navigateTo(URL_INVESTOR + (to.path.startsWith('/investor') ? to.fullPath : '/investor'), { external: true })
+    }
+    if (!to.path.startsWith('/investor') && !['/login', '/ganti-pin', '/profil'].includes(to.path)) return navigateTo('/investor')
+  }
+
   // investor.laksamanamuda.id is Investor Compass only (utils/domain.ts)
   const arah = arahDomainInvestor(to.path)
   if (arah) return navigateTo(arah)
