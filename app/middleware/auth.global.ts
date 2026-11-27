@@ -45,6 +45,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
   // Locally (dev) the same account stays on /investor instead of leaving the dev server.
   if (!diDomainInvestor() && hanyaInvestor(me.value)) {
     if (import.meta.client && /(^|\.)laksamanamuda\.id$/.test(location.hostname)) {
+      // Sign out here first: the investor logs in again on the investor domain, and this
+      // browser must not keep bouncing every later visit of teamv1 (another account may
+      // want to log in here).
+      useToken().value = null
+      useMe().value = null
       return navigateTo(URL_INVESTOR + (to.path.startsWith('/investor') ? to.fullPath : '/investor'), { external: true })
     }
     if (!to.path.startsWith('/investor') && !['/login', '/ganti-pin', '/profil'].includes(to.path)) return navigateTo('/investor')
