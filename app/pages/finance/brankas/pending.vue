@@ -85,7 +85,7 @@ const statMemuat = computed(() => !kompasData.value && (status.value === 'pendin
   >
     <template #actions>
       <UButton
-        label="Segarkan"
+        label="Refresh"
         icon="i-lucide-refresh-cw"
         color="neutral"
         variant="outline"

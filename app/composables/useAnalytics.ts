@@ -145,7 +145,7 @@ export const getEsbSales = (dari: string, sampai: string, page: number) =>
 /**
  * The shared analytics read: one request for every screen of the module. The
  * document holds every uploaded month, so a screen switch within 5 minutes
- * reuses it; saving, uploading and "Segarkan" call refresh() and always refetch.
+ * reuses it; saving, uploading and "Refresh" call refresh() and always refetch.
  */
 export const useAnalyticsState = () =>
   useAsyncData('analytics-state', async () => {
@@ -276,4 +276,19 @@ export interface ProfitLossEsb {
 /** GET /api/v1/kompas/esb/profit-loss — ESB Core P&L month-to-month with EBITDA (Analytics › Pengeluaran). */
 export const getEsbProfitLoss = (year: number, branchIDs: number[] = []) =>
   useApi()<Envelope<ProfitLossEsb>>('/kompas/esb/profit-loss', { query: { year, 'branchIDs[]': branchIDs } })
+    .then(r => r.data)
+
+/** One Refresh attempt on Analytics › Pengeluaran (newest first; a failed one keeps the last good report). */
+export interface PlRiwayat { waktu: string, oleh: string, ok: boolean, pesan?: string }
+/** The report saved by the last successful Refresh of a year; opening the page never calls ESB. */
+export interface PlSimpanan { laporan: ProfitLossEsb | null, diambil: string | null, oleh: string | null, riwayat: PlRiwayat[] }
+
+/** GET /api/v1/kompas/esb/profit-loss/saved — the saved report + refresh history (no ESB call). */
+export const getEsbProfitLossSaved = (year: number) =>
+  useApi()<Envelope<PlSimpanan>>('/kompas/esb/profit-loss/saved', { query: { year } })
+    .then(r => r.data)
+
+/** POST /api/v1/kompas/esb/profit-loss/refresh — asks ESB again and saves the report. */
+export const refreshEsbProfitLoss = (year: number) =>
+  useApi()<Envelope<PlSimpanan>>('/kompas/esb/profit-loss/refresh', { method: 'POST', body: { year } })
     .then(r => r.data)

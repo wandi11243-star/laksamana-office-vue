@@ -253,7 +253,7 @@ const warnaLevel = (v: number) => (v === 2 ? 'success' : v === 1 ? 'info' : 'neu
           class="p-8 text-center text-sm text-muted"
         >
           <b class="block text-highlighted">Belum ada pegawai</b>
-          Daftar ini datang langsung dari database user Office dan tersegarkan sendiri. Kalau tetap kosong, berarti Office belum bisa dihubungi — lihat pita status di atas.
+          Daftar ini datang langsung dari database user Office dan ter-refresh sendiri. Kalau tetap kosong, berarti Office belum bisa dihubungi — lihat pita status di atas.
         </div>
         <template v-else>
           <UTable

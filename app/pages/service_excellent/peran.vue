@@ -111,7 +111,7 @@ async function setTingkat(u: SeKru, role: string) {
   }
   const ada = daftarCrew.value.find(x => x.id === u.id)
   if (!ada) {
-    toast.add({ title: 'Kru belum ada di daftar modul ini — tekan Segarkan dulu', color: 'error' })
+    toast.add({ title: 'Kru belum ada di daftar modul ini — tekan Refresh dulu', color: 'error' })
     return
   }
   // Refusing to lower the last manager/admin: nothing else could reopen this screen.
@@ -226,7 +226,7 @@ async function resetMatriks() {
           <span class="text-sm text-muted">{{ angka(kruTampil.daftar.length) }} kru</span>
           <UButton
             v-if="bolehUbah"
-            label="Segarkan"
+            label="Refresh"
             color="neutral"
             variant="soft"
             size="sm"

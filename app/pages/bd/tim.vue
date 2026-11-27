@@ -1,7 +1,7 @@
 <!--
   BD OS › Kru BD (old `vTim`, deploy/bd/index.html:4494-4631).
 
-  The roster comes from Office. "Segarkan dari Office" (T-01) compares
+  The roster comes from Office. "Refresh dari Office" (T-01) compares
   `GET /account/modules/bd/members` against the `people` rows and creates the
   missing ones — it NEVER deletes: a crew member whose access was revoked is
   flagged `tanpaAkses`, because deleting them would erase who did what. Only
@@ -79,7 +79,7 @@ async function segarkan() {
       if (!punya && !p.tanpaAkses) await tambalBd<BdPerson>('people', p.id, { tanpaAkses: true }, versiBaris(p))
     }
   }
-  await bdSimpan(aksi, 'Daftar kru disegarkan dari Office')
+  await bdSimpan(aksi, 'Daftar kru di-refresh dari Office')
 }
 
 interface Baris { p: BdPerson, level: number, yatim: boolean }
@@ -160,7 +160,7 @@ const tab = useState<'akses' | 'kru'>('bd-kelola-akses-tab', () => 'akses')
       />
       <UButton
         v-if="tab === 'kru'"
-        label="Segarkan dari Office"
+        label="Refresh dari Office"
         icon="i-lucide-refresh-cw"
         color="neutral"
         variant="outline"
@@ -186,7 +186,7 @@ const tab = useState<'akses' | 'kru'>('bd-kelola-akses-tab', () => 'akses')
       <AppPanel v-if="!people.length">
         <p class="py-6 text-center text-sm text-muted">
           <b class="block text-highlighted">Belum ada kru dengan akses modul ini</b>
-          Beri akses modul <code>bd</code> lewat Kelola Akses di Office, lalu tekan Segarkan.
+          Beri akses modul <code>bd</code> lewat Kelola Akses di Office, lalu tekan Refresh.
         </p>
       </AppPanel>
 
@@ -379,7 +379,7 @@ const tab = useState<'akses' | 'kru'>('bd-kelola-akses-tab', () => 'akses')
     <BdKonfirmasi
       v-model:open="hapusMau"
       :title="`Hapus ${orangHapus?.name || 'kru'} dari daftar kru BD?`"
-      description="Ini tidak mencabut apa pun di Office. Kalau akses modulnya diberikan lagi, barisnya akan muncul kembali saat disegarkan."
+      description="Ini tidak mencabut apa pun di Office. Kalau akses modulnya diberikan lagi, barisnya akan muncul kembali saat di-refresh."
       @konfirmasi="hapus"
     />
   </AppPage>

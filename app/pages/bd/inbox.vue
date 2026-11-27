@@ -159,7 +159,7 @@ const barisKirim = computed(() => kirim.value.map(e => ({ ...e, ...rekap(e) })))
       class="mb-4 rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm"
     >
       Akunmu belum tercocokkan ke daftar kru, jadi belum ada undangan atau notifikasi yang bisa ditujukan
-      kepadamu. Tekan Segarkan dari Office di <NuxtLink
+      kepadamu. Tekan Refresh dari Office di <NuxtLink
         to="/bd/tim"
         class="font-semibold text-ink-900 underline"
       >Kru BD</NuxtLink>.

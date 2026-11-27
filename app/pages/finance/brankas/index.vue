@@ -99,7 +99,7 @@ function jatuhTempo(due?: string): string {
   >
     <template #actions>
       <UButton
-        label="Segarkan"
+        label="Refresh"
         icon="i-lucide-refresh-cw"
         color="neutral"
         variant="outline"

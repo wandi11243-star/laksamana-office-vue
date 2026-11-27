@@ -127,7 +127,7 @@ const opsiPeran = ['staf', 'manajemen', 'viewer'].map(r => ({ value: r, label: R
   >
     <template #actions>
       <UButton
-        label="Segarkan"
+        label="Refresh"
         icon="i-lucide-refresh-cw"
         color="neutral"
         variant="outline"

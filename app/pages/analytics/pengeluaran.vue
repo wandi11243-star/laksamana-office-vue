@@ -5,10 +5,12 @@
   compared with the range right before it or the same months last year.
   "Dana keluar" = HPP + beban operasional (cash out); EBITDA, penjualan bersih
   and EBIT are ESB's own subtotals; depresiasi & amortisasi is non-cash and
-  shown apart, never added to dana keluar. Nothing is saved: every visit asks ESB.
+  shown apart, never added to dana keluar. Opening the page never calls ESB: it
+  shows the report saved by the last Refresh (GET …/saved); only the Refresh
+  button asks ESB again (POST …/refresh), and every attempt lands in the history.
 -->
 <script setup lang="ts">
-import { getEsbProfitLoss, type PlAngka, type ProfitLossEsb } from '~/composables/useAnalytics'
+import { getEsbProfitLossSaved, refreshEsbProfitLoss, type PlAngka, type ProfitLossEsb } from '~/composables/useAnalytics'
 import { ROLE_LABEL_ANALYTICS, useAnalyticsIzin } from '~/utils/layar/analytics'
 import { BLN, rupiah } from '~/utils/format'
 
@@ -22,20 +24,41 @@ const tahunIni = new Date().getFullYear()
 const tahun = ref(tahunIni)
 const pilihanTahun = [tahunIni, tahunIni - 1, tahunIni - 2].map(t => ({ value: t, label: String(t) }))
 
-/** The picked year, plus the year before for comparisons (its failure only hides the comparison). */
-const { data, status, error, refresh } = useAsyncData(
+/** The saved reports of the picked year and the year before (its failure only hides the comparison). No ESB call. */
+const { data, status, error, refresh: muatUlang } = useAsyncData(
   'analytics-pengeluaran',
   async () => {
     if (!bolehLihat.value) return null
     const [kini, lalu] = await Promise.all([
-      getEsbProfitLoss(tahun.value),
-      getEsbProfitLoss(tahun.value - 1).catch(() => null),
+      getEsbProfitLossSaved(tahun.value),
+      getEsbProfitLossSaved(tahun.value - 1).catch(() => null),
     ])
     return { kini, lalu }
   },
   { watch: [tahun, bolehLihat] },
 )
-const pl = computed<ProfitLossEsb | null>(() => data.value?.kini ?? null)
+const pl = computed<ProfitLossEsb | null>(() => data.value?.kini?.laporan ?? null)
+const simpanan = computed(() => data.value?.kini ?? null)
+
+// ─── Refresh: only on click; asks ESB for both years, then reloads the saved copies ──
+const merefresh = ref(false)
+const gagalRefresh = ref('')
+const lihatRiwayat = ref(false)
+async function refreshEsb() {
+  merefresh.value = true
+  gagalRefresh.value = ''
+  const th = tahun.value
+  try {
+    const [kini] = await Promise.allSettled([refreshEsbProfitLoss(th), refreshEsbProfitLoss(th - 1)])
+    if (kini.status === 'rejected') gagalRefresh.value = apiErrorMessage(kini.reason, 'ESB tidak bisa dihubungi.')
+  }
+  finally {
+    await muatUlang()
+    merefresh.value = false
+  }
+}
+const waktu = (iso: string | null | undefined) =>
+  iso ? new Date(iso).toLocaleString('id-ID', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'
 
 // ─── periods: ESB keys them in English ("January 2026"); we use "YYYY-MM" ids ──
 const BULAN_EN = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
@@ -64,7 +87,7 @@ const GRUP: [string, Akun['grup']][] = [['cogs', 'HPP'], ['operationalExpenses',
 const indeks = computed(() => {
   const angka: Record<string, PlAngka> = {}
   const akun = new Map<string, Akun>()
-  for (const d of [data.value?.lalu, data.value?.kini]) {
+  for (const d of [data.value?.lalu?.laporan, data.value?.kini?.laporan]) {
     if (!d) continue
     for (const [k, a] of Object.entries(d.ringkasan.perPeriode)) {
       const id = idDariKey(k)
@@ -211,13 +234,14 @@ function unduhCsv() {
         @click="unduhCsv"
       />
       <UButton
-        label="Segarkan"
+        label="Refresh"
         icon="i-lucide-refresh-cw"
         color="neutral"
         variant="outline"
         size="lg"
-        :loading="status === 'pending'"
-        @click="refresh()"
+        :disabled="!bolehLihat"
+        :loading="merefresh"
+        @click="refreshEsb"
       />
     </template>
 
@@ -241,6 +265,47 @@ function unduhCsv() {
           <span class="flex-1" />
           <span class="text-sm text-muted">Sumber: ESB Core · Laporan Laba Rugi bulan ke bulan</span>
         </div>
+        <div
+          v-if="simpanan"
+          class="flex flex-wrap items-center gap-3"
+        >
+          <span class="w-24 font-semibold">Data</span>
+          <span class="text-sm">
+            <template v-if="simpanan.diambil">Terakhir di-refresh <b>{{ waktu(simpanan.diambil) }}</b> oleh {{ simpanan.oleh || '—' }}</template>
+            <template v-else>Tahun {{ tahun }} belum pernah di-refresh dari ESB.</template>
+          </span>
+          <UButton
+            v-if="simpanan.riwayat.length"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            :icon="lihatRiwayat ? 'i-lucide-chevron-up' : 'i-lucide-history'"
+            :label="lihatRiwayat ? 'Tutup riwayat' : `Riwayat refresh (${simpanan.riwayat.length})`"
+            @click="lihatRiwayat = !lihatRiwayat"
+          />
+        </div>
+        <ol
+          v-if="simpanan && lihatRiwayat"
+          class="divide-y divide-default rounded-panel border border-default text-sm"
+        >
+          <li
+            v-for="(r, i) in simpanan.riwayat"
+            :key="i"
+            class="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-2.5"
+          >
+            <UIcon
+              :name="r.ok ? 'i-lucide-circle-check' : 'i-lucide-circle-x'"
+              :class="r.ok ? 'text-success' : 'text-error'"
+            />
+            <span class="tabular-nums">{{ waktu(r.waktu) }}</span>
+            <span class="text-muted">oleh {{ r.oleh || '—' }}</span>
+            <span
+              v-if="!r.ok"
+              class="min-w-0 flex-1 truncate text-error"
+              :title="r.pesan"
+            >Gagal: {{ r.pesan }}</span>
+          </li>
+        </ol>
         <div
           v-if="bulanAda.length"
           class="flex flex-wrap items-center gap-3"
@@ -284,9 +349,20 @@ function unduhCsv() {
         </div>
       </div>
 
+      <UAlert
+        v-if="gagalRefresh"
+        class="mt-6"
+        color="error"
+        variant="subtle"
+        icon="i-lucide-triangle-alert"
+        title="Refresh dari ESB gagal"
+        :description="`${gagalRefresh}${pl ? ' Angka di bawah masih dari refresh terakhir.' : ''}`"
+        :close="true"
+        @update:open="gagalRefresh = ''"
+      />
       <AppPanel
-        v-if="status === 'pending' && !pl"
-        title="Mengambil laporan dari ESB"
+        v-if="(status === 'pending' || merefresh) && !pl"
+        :title="merefresh ? 'Mengambil laporan dari ESB' : 'Memuat laporan tersimpan'"
         class="mt-6"
       >
         <USkeleton class="mt-3 h-24 w-full" />
@@ -297,9 +373,25 @@ function unduhCsv() {
         color="error"
         variant="subtle"
         icon="i-lucide-triangle-alert"
-        title="Laporan ESB tidak bisa dibaca"
-        :description="apiErrorMessage(error, 'Periksa koneksi internet, lalu coba Segarkan.')"
+        title="Laporan tersimpan tidak bisa dibaca"
+        :description="apiErrorMessage(error, 'Periksa koneksi internet, lalu muat ulang halaman.')"
       />
+      <AppPanel
+        v-else-if="status === 'success' && !pl"
+        title="Belum ada laporan"
+        class="mt-6"
+      >
+        <p class="text-muted">
+          Laporan Laba Rugi {{ tahun }} belum pernah diambil dari ESB. Tekan Refresh untuk mengambilnya; setelah itu halaman ini langsung menampilkannya tanpa menunggu ESB.
+        </p>
+        <UButton
+          class="mt-4"
+          label="Refresh dari ESB"
+          icon="i-lucide-refresh-cw"
+          :loading="merefresh"
+          @click="refreshEsb"
+        />
+      </AppPanel>
       <template v-else-if="pl">
         <AppStatGrid
           :count="4"
@@ -378,7 +470,6 @@ function unduhCsv() {
                   <th class="px-3 py-3 text-right">
                     EBIT
                   </th>
-                  <th class="w-1/5 px-3 py-3" />
                 </tr>
               </thead>
               <tbody>

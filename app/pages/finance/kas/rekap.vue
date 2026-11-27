@@ -328,7 +328,7 @@ async function jalanHapusSetoran() {
         class="w-48"
       />
       <UButton
-        label="Segarkan"
+        label="Refresh"
         icon="i-lucide-refresh-cw"
         color="neutral"
         variant="outline"

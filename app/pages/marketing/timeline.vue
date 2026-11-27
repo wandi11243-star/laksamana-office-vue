@@ -65,7 +65,7 @@ const kolom = [
         variant="soft"
       />
       <UButton
-        label="Segarkan"
+        label="Refresh"
         icon="i-lucide-refresh-cw"
         color="neutral"
         variant="outline"
