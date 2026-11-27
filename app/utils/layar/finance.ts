@@ -172,40 +172,54 @@ export function useBrankasIzin() {
 const brankasHal = (page: string) => (me: Me) =>
   hasAccess(me, ['brankas']) && tingkatBrankas(me, page, useBrankasAksesSiap().value) >= PERM_VIEW
 
+// 26 screens in one sidebar: screens that belong together share one menu row and
+// switch with the tabs on top (`kelompok`, owner request, Nov 2026). Keep the
+// members of a group next to each other.
+const K_INPUT = { label: 'Input Omset', icon: 'i-lucide-pencil-line' }
+const K_REPORT = { label: 'Report Daily', icon: 'i-lucide-clipboard-list' }
+const K_KAS = { label: 'Buku & Transaksi', icon: 'i-lucide-book-open' }
+const K_TAGIHAN = { label: 'Tagihan & Bayar', icon: 'i-lucide-calendar-clock' }
+const K_DANA = { label: 'Dana Masuk & QRIS', icon: 'i-lucide-wallet' }
+const K_DOKUMEN = { label: 'Invoice & Void', icon: 'i-lucide-file-text' }
+const K_DASHBOARD = { label: 'Dashboard', icon: 'i-lucide-chart-pie' }
+const K_PERFORMA = { label: 'Performa', icon: 'i-lucide-chart-column' }
+const K_BRANKAS = { label: 'Brankas', icon: 'i-lucide-vault' }
+const K_ATUR = { label: 'Pengaturan & Akses', icon: 'i-lucide-settings-2' }
+
 export const LAYAR_FINANCE: Layar[] = [
   // ── Omset (kunci kompas; bekas modul Kompas) ──
-  { key: 'omset_input', label: 'Input Omset Harian', desc: 'Catat pendapatan, diskon, tax & service, dan trafik harian', icon: 'i-lucide-pencil-line', to: '/finance/omset/input', grup: 'Panel Omset', boleh: omset },
-  { key: 'omset_breakdown', label: 'Breakdown Sumber Omset', desc: 'Isi omset per kasir, lalu potong untuk event marketing, Reservasi VIP & event internal', icon: 'i-lucide-git-branch', to: '/finance/omset/breakdown', grup: 'Panel Omset', boleh: omset },
-  { key: 'omset_report', label: 'Report Daily', desc: 'Setoran per metode pembayaran: POS vs Actual', icon: 'i-lucide-clipboard-list', to: '/finance/omset/report', grup: 'Panel Omset', boleh: omset },
-  { key: 'omset_piutang', label: 'Piutang / Bon', desc: 'Bill yang belum dibayar tamu & owner — beserta metode POS sementaranya', icon: 'i-lucide-receipt-text', to: '/finance/omset/piutang', grup: 'Panel Omset', boleh: omset },
-  { key: 'omset_compliment', label: 'Compliment', desc: 'Catatan compliment beserta alasan & PIC penanggungnya', icon: 'i-lucide-gift', to: '/finance/omset/compliment', grup: 'Panel Omset', boleh: omset },
+  { key: 'omset_input', label: 'Input Omset Harian', desc: 'Catat pendapatan, diskon, tax & service, dan trafik harian', icon: 'i-lucide-pencil-line', to: '/finance/omset/input', grup: 'Panel Omset', kelompok: K_INPUT, boleh: omset },
+  { key: 'omset_breakdown', label: 'Breakdown Sumber Omset', desc: 'Isi omset per kasir, lalu potong untuk event marketing, Reservasi VIP & event internal', icon: 'i-lucide-git-branch', to: '/finance/omset/breakdown', grup: 'Panel Omset', kelompok: K_INPUT, boleh: omset },
+  { key: 'omset_report', label: 'Report Daily', desc: 'Setoran per metode pembayaran: POS vs Actual', icon: 'i-lucide-clipboard-list', to: '/finance/omset/report', grup: 'Panel Omset', kelompok: K_REPORT, boleh: omset },
+  { key: 'omset_piutang', label: 'Piutang / Bon', desc: 'Bill yang belum dibayar tamu & owner — beserta metode POS sementaranya', icon: 'i-lucide-receipt-text', to: '/finance/omset/piutang', grup: 'Panel Omset', kelompok: K_REPORT, boleh: omset },
+  { key: 'omset_compliment', label: 'Compliment', desc: 'Catatan compliment beserta alasan & PIC penanggungnya', icon: 'i-lucide-gift', to: '/finance/omset/compliment', grup: 'Panel Omset', kelompok: K_REPORT, boleh: omset },
 
   // ── Kas Kecil (kunci finance) ──
-  { key: 'kas_kk_buku', label: 'Buku Kas Kecil', desc: 'Semua transaksi berikut saldo berjalan tiap pos', icon: 'i-lucide-book-open', to: '/finance/kas', grup: 'Kas Kecil', boleh: kasHal('kk_buku') },
-  { key: 'kas_kk_input', label: 'Input Transaksi Kas Kecil', desc: 'Satu baris = satu transaksi; tambah baris sebanyak yang perlu lalu simpan sekaligus', icon: 'i-lucide-pencil-line', to: '/finance/kas/input', grup: 'Kas Kecil', boleh: kasHal('kk_input') },
-  { key: 'kas_tagihan', label: 'Tagihan Rutin', desc: 'Langganan & tagihan berulang — kapan jatuh temponya, dan berapa yang sudah dibayar', icon: 'i-lucide-calendar-sync', to: '/finance/kas/tagihan', grup: 'Kas Kecil', boleh: kasHal('tagihan') },
-  { key: 'kas_bayar', label: 'Planning Pembayaran', desc: 'Lembar transfer mingguan per rekening pembayar', icon: 'i-lucide-calendar-clock', to: '/finance/kas/bayar', grup: 'Kas Kecil', boleh: kasHal('bayar') },
+  { key: 'kas_kk_buku', label: 'Buku Kas Kecil', desc: 'Semua transaksi berikut saldo berjalan tiap pos', icon: 'i-lucide-book-open', to: '/finance/kas', grup: 'Kas Kecil', kelompok: K_KAS, boleh: kasHal('kk_buku') },
+  { key: 'kas_kk_input', label: 'Input Transaksi Kas Kecil', desc: 'Satu baris = satu transaksi; tambah baris sebanyak yang perlu lalu simpan sekaligus', icon: 'i-lucide-pencil-line', to: '/finance/kas/input', grup: 'Kas Kecil', kelompok: K_KAS, boleh: kasHal('kk_input') },
+  { key: 'kas_tagihan', label: 'Tagihan Rutin', desc: 'Langganan & tagihan berulang — kapan jatuh temponya, dan berapa yang sudah dibayar', icon: 'i-lucide-calendar-sync', to: '/finance/kas/tagihan', grup: 'Kas Kecil', kelompok: K_TAGIHAN, boleh: kasHal('tagihan') },
+  { key: 'kas_bayar', label: 'Planning Pembayaran', desc: 'Lembar transfer mingguan per rekening pembayar', icon: 'i-lucide-calendar-clock', to: '/finance/kas/bayar', grup: 'Kas Kecil', kelompok: K_TAGIHAN, boleh: kasHal('bayar') },
   { key: 'kas_rekap', label: 'Rekap Penjualan', desc: 'Cocokkan POS dengan setoran bank — angka penjualannya after tax & service', icon: 'i-lucide-clipboard-check', to: '/finance/kas/rekap', grup: 'Kas Kecil', boleh: kasHal('rekap') },
-  { key: 'kas_dp', label: 'Dana Masuk (DP)', desc: 'DP reservasi yang sudah masuk — halaman milik modul Reservasi', icon: 'i-lucide-wallet', to: '/finance/kas/dp', grup: 'Kas Kecil', boleh: kasHal('dp') },
-  { key: 'kas_bri', label: 'Pencocokan QRIS BRI', desc: 'Mutasi masuk rekening BRI dicocokkan ke DP reservasi', icon: 'i-lucide-scan-line', to: '/finance/kas/bri', grup: 'Kas Kecil', boleh: kasHal('bri') },
-  { key: 'kas_invoice', label: 'Invoice & Kwitansi', desc: 'Permintaan kwitansi dari Reservasi — periksa dana masuknya, lalu terbitkan', icon: 'i-lucide-file-text', to: '/finance/kas/invoice', grup: 'Kas Kecil', boleh: kasHal('invoice') },
-  { key: 'kas_void', label: 'Laporan Void', desc: 'Menu yang di-void berikut kronologinya — dicatat kasir di modul Cashier', icon: 'i-lucide-ban', to: '/finance/kas/void', grup: 'Kas Kecil', boleh: kasHal('voidb') },
-  { key: 'kas_bulanan', label: 'Dashboard Omset', desc: 'Pencapaian target bulan berjalan', icon: 'i-lucide-calendar-range', to: '/finance/kas/bulanan', grup: 'Kas Kecil', boleh: kasHal('bulanan') },
-  { key: 'kas_analytics', label: 'Dashboard Analytics', desc: 'Komposisi & sumber pendapatan', icon: 'i-lucide-pie-chart', to: '/finance/kas/analytics', grup: 'Kas Kecil', boleh: kasHal('analytics') },
-  { key: 'kas_marketing', label: 'Performa Marketing', desc: 'Kontribusi omset per marketing', icon: 'i-lucide-megaphone', to: '/finance/kas/marketing', grup: 'Performa', boleh: kasHal('marketing') },
-  { key: 'kas_event', label: 'Performa Event', desc: 'Kontribusi omset per PIC event', icon: 'i-lucide-party-popper', to: '/finance/kas/event', grup: 'Performa', boleh: kasHal('event') },
-  { key: 'kas_kasir', label: 'Performa Kasir', desc: 'Omset yang diakui tiap kasir — angka final', icon: 'i-lucide-chart-column', to: '/finance/kas/kasir', grup: 'Performa', boleh: kasHal('kasir') },
+  { key: 'kas_dp', label: 'Dana Masuk (DP)', desc: 'DP reservasi yang sudah masuk — halaman milik modul Reservasi', icon: 'i-lucide-wallet', to: '/finance/kas/dp', grup: 'Kas Kecil', kelompok: K_DANA, boleh: kasHal('dp') },
+  { key: 'kas_bri', label: 'Pencocokan QRIS BRI', desc: 'Mutasi masuk rekening BRI dicocokkan ke DP reservasi', icon: 'i-lucide-scan-line', to: '/finance/kas/bri', grup: 'Kas Kecil', kelompok: K_DANA, boleh: kasHal('bri') },
+  { key: 'kas_invoice', label: 'Invoice & Kwitansi', desc: 'Permintaan kwitansi dari Reservasi — periksa dana masuknya, lalu terbitkan', icon: 'i-lucide-file-text', to: '/finance/kas/invoice', grup: 'Kas Kecil', kelompok: K_DOKUMEN, boleh: kasHal('invoice') },
+  { key: 'kas_void', label: 'Laporan Void', desc: 'Menu yang di-void berikut kronologinya — dicatat kasir di modul Cashier', icon: 'i-lucide-ban', to: '/finance/kas/void', grup: 'Kas Kecil', kelompok: K_DOKUMEN, boleh: kasHal('voidb') },
+  { key: 'kas_bulanan', label: 'Dashboard Omset', desc: 'Pencapaian target bulan berjalan', icon: 'i-lucide-calendar-range', to: '/finance/kas/bulanan', grup: 'Kas Kecil', kelompok: K_DASHBOARD, boleh: kasHal('bulanan') },
+  { key: 'kas_analytics', label: 'Dashboard Analytics', desc: 'Komposisi & sumber pendapatan', icon: 'i-lucide-pie-chart', to: '/finance/kas/analytics', grup: 'Kas Kecil', kelompok: K_DASHBOARD, boleh: kasHal('analytics') },
+  { key: 'kas_marketing', label: 'Performa Marketing', desc: 'Kontribusi omset per marketing', icon: 'i-lucide-megaphone', to: '/finance/kas/marketing', grup: 'Kas Kecil', kelompok: K_PERFORMA, boleh: kasHal('marketing') },
+  { key: 'kas_event', label: 'Performa Event', desc: 'Kontribusi omset per PIC event', icon: 'i-lucide-party-popper', to: '/finance/kas/event', grup: 'Kas Kecil', kelompok: K_PERFORMA, boleh: kasHal('event') },
+  { key: 'kas_kasir', label: 'Performa Kasir', desc: 'Omset yang diakui tiap kasir — angka final', icon: 'i-lucide-chart-column', to: '/finance/kas/kasir', grup: 'Kas Kecil', kelompok: K_PERFORMA, boleh: kasHal('kasir') },
 
   // ── Brankas (kunci brankas) ──
-  { key: 'brankas_ringkasan', label: 'Ringkasan Brankas', desc: 'Posisi kas perusahaan dan keputusan terdekat', icon: 'i-lucide-vault', to: '/finance/brankas', grup: 'Brankas', boleh: brankasHal('ringkasan') },
-  { key: 'brankas_saldo', label: 'Saldo & Rekening', desc: 'Dihitung dari Aktual Masuk di Rekap Penjualan', icon: 'i-lucide-landmark', to: '/finance/brankas/saldo', grup: 'Brankas', boleh: brankasHal('saldo') },
-  { key: 'brankas_mutasi', label: 'Mutasi & Transfer', desc: 'Setor, tarik, dan pindah uang antar wallet', icon: 'i-lucide-arrow-left-right', to: '/finance/brankas/mutasi', grup: 'Brankas', boleh: brankasHal('mutasi') },
-  { key: 'brankas_pending', label: 'Uang Pending / Piutang', desc: 'Bon yang dicatat kasir dan belum dibayar tamu', icon: 'i-lucide-hourglass', to: '/finance/brankas/pending', grup: 'Brankas', boleh: brankasHal('pending') },
-  { key: 'brankas_modal', label: 'Pengembalian Modal', desc: 'Progres pengembalian modal per investor', icon: 'i-lucide-hand-coins', to: '/finance/brankas/modal', grup: 'Brankas', boleh: brankasHal('modal') },
+  { key: 'brankas_ringkasan', label: 'Ringkasan Brankas', desc: 'Posisi kas perusahaan dan keputusan terdekat', icon: 'i-lucide-vault', to: '/finance/brankas', grup: 'Perusahaan', kelompok: K_BRANKAS, boleh: brankasHal('ringkasan') },
+  { key: 'brankas_saldo', label: 'Saldo & Rekening', desc: 'Dihitung dari Aktual Masuk di Rekap Penjualan', icon: 'i-lucide-landmark', to: '/finance/brankas/saldo', grup: 'Perusahaan', kelompok: K_BRANKAS, boleh: brankasHal('saldo') },
+  { key: 'brankas_mutasi', label: 'Mutasi & Transfer', desc: 'Setor, tarik, dan pindah uang antar wallet', icon: 'i-lucide-arrow-left-right', to: '/finance/brankas/mutasi', grup: 'Perusahaan', kelompok: K_BRANKAS, boleh: brankasHal('mutasi') },
+  { key: 'brankas_pending', label: 'Uang Pending / Piutang', desc: 'Bon yang dicatat kasir dan belum dibayar tamu', icon: 'i-lucide-hourglass', to: '/finance/brankas/pending', grup: 'Perusahaan', kelompok: K_BRANKAS, boleh: brankasHal('pending') },
+  { key: 'brankas_modal', label: 'Pengembalian Modal', desc: 'Progres pengembalian modal per investor', icon: 'i-lucide-hand-coins', to: '/finance/brankas/modal', grup: 'Perusahaan', kelompok: K_BRANKAS, boleh: brankasHal('modal') },
 
   // ── One access screen for all three panels ──
-  { key: 'pengaturan', label: 'Pengaturan', desc: 'Pos & kategori kas kecil, saldo awal, pemetaan metode pembayaran, dan biaya bulanan', icon: 'i-lucide-settings-2', to: '/finance/pengaturan', grup: 'Sistem', boleh: (me: Me) => kasHal('kk_pos')(me) || brankasHal('pengaturan')(me) },
-  { key: 'akses', label: 'Kelola Akses', desc: 'Siapa boleh membuka modul Finance dan mengubah halaman mana', icon: 'i-lucide-key-round', to: '/finance/akses', grup: 'Sistem', boleh: (me: Me) => hasAccess(me, ['kompas', 'finance', 'brankas']) },
+  { key: 'pengaturan', label: 'Pengaturan', desc: 'Pos & kategori kas kecil, saldo awal, pemetaan metode pembayaran, dan biaya bulanan', icon: 'i-lucide-settings-2', to: '/finance/pengaturan', grup: 'Perusahaan', kelompok: K_ATUR, boleh: (me: Me) => kasHal('kk_pos')(me) || brankasHal('pengaturan')(me) },
+  { key: 'akses', label: 'Kelola Akses', desc: 'Siapa boleh membuka modul Finance dan mengubah halaman mana', icon: 'i-lucide-key-round', to: '/finance/akses', grup: 'Perusahaan', kelompok: K_ATUR, boleh: (me: Me) => hasAccess(me, ['kompas', 'finance', 'brankas']) },
 ]
 
 /** The line under the user's name in the module chrome. */

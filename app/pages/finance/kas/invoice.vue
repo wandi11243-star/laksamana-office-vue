@@ -421,8 +421,8 @@ const jalanHapusP = () => {
             :key="r.id"
             class="px-4 py-3 lg:px-5"
           >
-            <div class="flex flex-wrap items-start gap-x-4 gap-y-2">
-              <div class="min-w-0 flex-1 basis-60">
+            <div class="grid items-start gap-x-4 gap-y-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)] lg:grid-cols-[minmax(0,1.5fr)_minmax(7rem,0.7fr)_minmax(9rem,1fr)_12rem]">
+              <div class="min-w-0 break-words sm:col-span-2 lg:col-span-1">
                 <b class="text-highlighted">{{ namaDokumen(r) }}</b>
                 <AppStatus
                   size="sm"
@@ -459,7 +459,7 @@ const jalanHapusP = () => {
                 </AppStatus>
                 <span class="block text-xs text-muted">{{ fmtRp(danaInfo(r).masuk) }} {{ isInvoice(r) ? 'tercatat masuk' : 'dipastikan masuk' }}{{ danaInfo(r).sisa > 0 ? ' · sisa ' + fmtRp(danaInfo(r).sisa) : '' }}</span>
               </div>
-              <div class="flex gap-1.5">
+              <div class="flex flex-wrap gap-1.5 sm:col-span-2 lg:col-span-1 lg:justify-end">
                 <UButton
                   :label="isInvoice(r) ? 'Terbitkan invoice' : 'Buat kwitansi'"
                   size="xs"

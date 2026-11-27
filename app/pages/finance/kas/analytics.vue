@@ -12,14 +12,11 @@ import { kNum, monthKeyOf, netOf } from '~/utils/kompas'
 import { omsetKasir, porsiPicKompas, potonganHariKompas } from '~/utils/porsi-pic'
 import { useKompasState } from '~/composables/useCashier'
 import { fmtRp } from '~/utils/cashier'
-import { hariIni } from '~/utils/format'
 
 definePageMeta({ access: ['finance'] })
 
 const izin = useKasIzin()
-const periode = ref(hariIni().slice(0, 7))
-const mode = ref<'bulan' | 'hari'>('bulan')
-const tanggal = ref(hariIni())
+const { mode, periode, tanggal } = useDashboardPeriode()
 const { data, error } = useKompasState()
 
 const hari = computed<BarisHarian[]>(() => (data.value?.value.daily ?? []).filter(d => (mode.value === 'hari' ? d.date === tanggal.value : monthKeyOf(d.date) === periode.value)))

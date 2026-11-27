@@ -71,11 +71,12 @@ export function useMenuNav(pilih: () => void = () => {}) {
           const isi = items.filter(x => x.kelompok?.label === nama)
           if (isi.length === 1) return [baris(l)]
           const n = isi.reduce((a, x) => a + (lencana?.value[x.key] ?? 0), 0)
+          const terbuka = s.layar.filter(x => cocokRute(route.path, x.to)).sort((a, b) => b.to.length - a.to.length)[0]
           return [{
             ...baris(l),
             label: nama,
             icon: l.kelompok!.icon,
-            active: isi.some(x => cocokRute(route.path, x.to)),
+            active: terbuka?.kelompok?.label === nama,
             badge: n > 0 ? { label: String(n), color: 'error' as const, variant: 'solid' as const, size: 'sm' as const } : undefined,
           }]
         })

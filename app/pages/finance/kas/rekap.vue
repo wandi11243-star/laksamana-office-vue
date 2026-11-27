@@ -366,35 +366,36 @@ async function jalanHapusSetoran() {
       </div>
 
       <template v-if="tab === 'rekap'">
-        <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4 xl:grid-cols-7">
+        <div class="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
           <div
-            v-for="(k, i) in [
-              { l: 'Dibayar tamu', v: fmtRp(bulan.jual), s: 'after tax & service · net ' + fmtRp(bulan.net) + ' + svc ' + fmtRp(bulan.svc) + ' + tax ' + fmtRp(bulan.tax), aksen: true },
-              { l: 'Rekap aktual', v: fmtRp(bulan.rekapAkt), s: 'seluruh kolom Actual Report Daily, dipotong MDR' },
-              { l: 'Total MDR', v: mdrRp(bulan.mdrTotal) + (mdrPct(bulan.mdrTotal, bulan.kotorMdr) ? ' · ' + mdrPct(bulan.mdrTotal, bulan.kotorMdr) : ''), s: 'potongan bank & ojol; persennya dari Aktual kotor kelompok yang kena potongan' },
-              { l: 'Total selisih', v: fmtSel(bulan.selisih), s: 'Dibayar Tamu − Rekap Aktual + koreksi bon' },
-              { l: 'Piutang / bon', v: fmtRp(bonBulan.baru), s: bonBulan.n ? bonBulan.n + ' bon bulan ini · ' + fmtRp(bonBulan.belum) + ' belum lunas (' + bonBulan.nBelum + ')' + (bonBulan.lunas ? ' · pelunasan masuk ' + fmtRp(bonBulan.lunas) : '') : (bonBulan.lunas ? 'tidak ada bon baru · pelunasan bon lama masuk ' + fmtRp(bonBulan.lunas) : 'tidak ada bon bulan ini') },
-              { l: 'Adjust terkunci di POS', v: fmtRp(bulan.adjKunci), s: bulan.adjust - bulan.adjKunci === 0 ? 'seluruhnya sudah diinput' : fmtRp(bulan.adjust - bulan.adjKunci) + ' belum diinput' },
-              { l: 'Sudah setor', v: nSetor + ' / ' + hariData.length, s: 'hari yang cash-nya sudah disetor' },
+            v-for="k in [
+              { l: 'Dibayar tamu', v: fmtRp(bulan.jual), s: 'net ' + fmtRp(bulan.net), t: 'after tax & service · net ' + fmtRp(bulan.net) + ' + svc ' + fmtRp(bulan.svc) + ' + tax ' + fmtRp(bulan.tax), aksen: true },
+              { l: 'Rekap aktual', v: fmtRp(bulan.rekapAkt), s: 'sudah dipotong MDR', t: 'seluruh kolom Actual Report Daily, dipotong MDR' },
+              { l: 'Total MDR', v: mdrRp(bulan.mdrTotal), s: mdrPct(bulan.mdrTotal, bulan.kotorMdr) ? mdrPct(bulan.mdrTotal, bulan.kotorMdr) + ' dari Aktual kotor' : 'potongan bank & ojol', t: 'potongan bank & ojol; persennya dari Aktual kotor kelompok yang kena potongan' },
+              { l: 'Total selisih', v: fmtSel(bulan.selisih), s: 'tamu − aktual + bon', t: 'Dibayar Tamu − Rekap Aktual + koreksi bon' },
+              { l: 'Piutang / bon', v: fmtRp(bonBulan.baru), s: bonBulan.n ? bonBulan.n + ' bon · ' + bonBulan.nBelum + ' belum lunas' : 'tidak ada bon baru', t: bonBulan.n ? bonBulan.n + ' bon bulan ini · ' + fmtRp(bonBulan.belum) + ' belum lunas (' + bonBulan.nBelum + ')' + (bonBulan.lunas ? ' · pelunasan masuk ' + fmtRp(bonBulan.lunas) : '') : (bonBulan.lunas ? 'tidak ada bon baru · pelunasan bon lama masuk ' + fmtRp(bonBulan.lunas) : 'tidak ada bon bulan ini') },
+              { l: 'Adjust terkunci di POS', v: fmtRp(bulan.adjKunci), s: bulan.adjust - bulan.adjKunci === 0 ? 'sudah diinput semua' : 'belum: ' + fmtRp(bulan.adjust - bulan.adjKunci), t: bulan.adjust - bulan.adjKunci === 0 ? 'seluruhnya sudah diinput' : fmtRp(bulan.adjust - bulan.adjKunci) + ' belum diinput' },
+              { l: 'Sudah setor', v: nSetor + ' / ' + hariData.length, s: 'hari sudah disetor', t: 'hari yang cash-nya sudah disetor' },
             ]"
-            :key="i"
-            class="rounded-panel border-t-[3px] p-4 shadow-panel"
+            :key="k.l"
+            class="@container min-w-0 rounded-panel border-t-[3px] p-3.5 shadow-panel"
             :class="(k as { aksen?: boolean }).aksen ? 'border-t-primary-900 bg-primary text-white' : 'border-t-primary bg-default'"
+            :title="k.t"
           >
             <p
-              class="text-[11px] font-bold uppercase tracking-wider"
+              class="truncate text-[11px] font-bold uppercase tracking-wider"
               :class="(k as { aksen?: boolean }).aksen ? 'text-white/80' : 'text-muted'"
             >
               {{ k.l }}
             </p>
             <p
-              class="mt-1 text-xl font-extrabold num"
+              class="mt-1 whitespace-nowrap text-[min(1.25rem,10cqi)] font-extrabold num"
               :class="(k as { aksen?: boolean }).aksen ? 'text-white' : 'text-highlighted'"
             >
               {{ k.v }}
             </p>
             <p
-              class="mt-1 text-xs"
+              class="mt-0.5 truncate text-xs"
               :class="(k as { aksen?: boolean }).aksen ? 'text-white/85' : 'text-muted'"
             >
               {{ k.s }}
@@ -423,15 +424,19 @@ async function jalanHapusSetoran() {
           title="Per metode pembayaran"
           :description="`Sebulan penuh, ${hariData.length} hari. Aktual di sini sudah dipotong MDR.`"
         >
-          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             <div
               v-for="g in grupBulan"
               :key="g.k"
               class="rounded-xl border border-t-[3px] border-default bg-default p-3.5 shadow-panel"
               :class="warna(g.k).atas"
             >
-              <div class="mb-2 flex items-center justify-between gap-2">
-                <b :class="warna(g.k).teks">{{ g.n }}</b>
+              <div class="mb-2 flex items-center justify-between gap-2 whitespace-nowrap">
+                <b
+                  class="min-w-0 truncate"
+                  :class="warna(g.k).teks"
+                  :title="g.n"
+                >{{ g.n }}</b>
                 <span
                   v-if="g.punyaPos"
                   class="rounded-full px-2 py-0.5 text-[11px] font-bold num"
@@ -442,7 +447,7 @@ async function jalanHapusSetoran() {
                   class="rounded-full bg-muted px-2 py-0.5 text-[11px] font-bold text-muted"
                 >tanpa pembanding</span>
               </div>
-              <div class="space-y-1 text-sm">
+              <div class="space-y-1 whitespace-nowrap text-sm">
                 <div
                   v-if="g.punyaPos"
                   class="flex justify-between"
@@ -469,7 +474,7 @@ async function jalanHapusSetoran() {
                   :style="{ width: g.pers + '%' }"
                 />
               </div>
-              <p class="mt-1 text-xs text-muted">
+              <p class="mt-1 truncate text-xs text-muted">
                 Input POS {{ g.nTanda }}/{{ hariData.length }} hari ({{ g.pers }}%)
               </p>
             </div>
@@ -481,116 +486,184 @@ async function jalanHapusSetoran() {
           description="Klik satu hari untuk rincian kelompoknya dan cara angkanya dihitung."
           flush
         >
-          <div class="divide-y divide-default">
-            <div
-              v-for="d in hariData"
-              :key="d.tgl"
+          <div class="overflow-x-auto">
+            <table
+              v-if="hariData.length"
+              class="w-full whitespace-nowrap text-sm"
             >
-              <button
-                type="button"
-                class="flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-start text-sm hover:bg-muted lg:px-5"
-                @click="terbuka = terbuka === d.tgl ? '' : d.tgl"
-              >
-                <b class="w-28 shrink-0 text-highlighted">{{ labelHari(d.tgl) }} <span class="font-normal text-muted">{{ namaBulan }}</span></b>
-                <span class="text-muted">Dibayar Tamu <b class="text-highlighted num">{{ rp0(d.h.jual) }}</b></span>
-                <span class="text-muted">Rekap Aktual <b class="text-highlighted num">{{ rp0(d.h.rekapAkt) }}</b></span>
-                <span class="text-muted">MDR <b class="text-highlighted num">{{ mdrRp(d.h.mdrTotal) }}</b><template v-if="mdrPct(d.h.mdrTotal, d.h.kotorMdr)"> <span class="text-xs">· {{ mdrPct(d.h.mdrTotal, d.h.kotorMdr) }}</span></template></span>
-                <span class="text-muted">Selisih <b
-                  :class="Math.abs(d.h.selisihTotal) > SELISIH_TOLERANSI ? 'text-error' : 'text-success'"
-                  class="num"
-                >{{ d.h.selisihTotal ? fmtSel(d.h.selisihTotal) : '—' }}</b></span>
-                <span class="flex-1" />
-                <AppStatus
-                  v-if="d.h.tanpaSvcTax"
-                  color="error"
-                  size="sm"
+              <thead class="bg-table-head text-table-head-text">
+                <tr class="text-xs font-bold uppercase tracking-wider">
+                  <th class="px-3 py-2.5 text-start lg:ps-5">
+                    Tanggal
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    Dibayar tamu
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    Rekap aktual
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    MDR
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    % MDR
+                  </th>
+                  <th class="px-3 py-2.5 text-end">
+                    Selisih
+                  </th>
+                  <th class="px-3 py-2.5 text-start">
+                    Setor
+                  </th>
+                  <th class="px-3 py-2.5 text-start lg:pe-5">
+                    Input POS
+                  </th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-default">
+                <template
+                  v-for="d in hariData"
+                  :key="d.tgl"
                 >
-                  svc & tax kosong
-                </AppStatus>
-                <AppStatus
-                  :color="setorSelesai(d.tgl) ? 'success' : 'neutral'"
-                  size="sm"
-                >
-                  {{ setorSelesai(d.tgl) ? '✓ Setor' : 'belum setor' }}
-                </AppStatus>
-                <AppStatus
-                  :color="nCek(d.tgl) === RK_GRUP.length ? 'success' : (nCek(d.tgl) ? 'warning' : 'neutral')"
-                  size="sm"
-                >
-                  POS {{ nCek(d.tgl) }}/{{ RK_GRUP.length }}
-                </AppStatus>
-              </button>
-
-              <div
-                v-if="terbuka === d.tgl"
-                class="bg-muted px-4 pb-4 lg:px-5"
-              >
-                <p class="py-2 text-sm text-muted">
-                  Omset net <b class="text-highlighted num">{{ fmtRp(d.h.j.net) }}</b> + service <b class="num">{{ fmtRp(d.h.j.svc) }}</b> + tax <b class="num">{{ fmtRp(d.h.j.tax) }}</b>
-                  = <b class="text-highlighted num">{{ fmtRp(d.h.jual) }}</b> − setoran <b class="num">{{ fmtRp(d.h.setoran) }}</b>
-                  <template v-if="d.h.mdrTotal">
-                    + MDR <b class="num">{{ fmtRp(d.h.mdrTotal) }}</b>
-                  </template>
-                  <template v-if="d.h.bon.ada">
-                    + bon − pelunasan <b class="num">{{ fmtSel(d.h.bon.koreksi) }}</b>
-                  </template>
-                  = <b
-                    :class="Math.abs(d.h.selisihTotal) > SELISIH_TOLERANSI ? 'text-error' : 'text-success'"
-                    class="num"
-                  >{{ fmtSel(d.h.selisihTotal) }}</b>
-                  <template v-if="d.h.tanpaSvcTax">
-                    · service & tax masih nol di Input Omset Harian
-                  </template>
-                </p>
-                <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  <div
-                    v-for="x in RK_GRUP"
-                    :key="x.k"
-                    class="rounded-panel border border-default bg-default p-2 text-xs"
+                  <tr
+                    class="cursor-pointer hover:bg-muted"
+                    @click="terbuka = terbuka === d.tgl ? '' : d.tgl"
                   >
-                    <div class="flex items-center justify-between gap-2">
-                      <b>{{ x.n }}</b>
+                    <td class="px-3 py-2 lg:ps-5">
+                      <button
+                        type="button"
+                        class="flex items-center gap-1.5 font-semibold text-highlighted"
+                        :aria-expanded="terbuka === d.tgl"
+                        @click.stop="terbuka = terbuka === d.tgl ? '' : d.tgl"
+                      >
+                        <UIcon
+                          name="i-lucide-chevron-right"
+                          class="size-4 text-dimmed transition-transform"
+                          :class="terbuka === d.tgl && 'rotate-90'"
+                        />
+                        {{ labelHari(d.tgl) }} <span class="font-normal text-muted">{{ namaBulan }}</span>
+                      </button>
+                    </td>
+                    <td class="px-3 py-2 text-end num">
+                      {{ rp0(d.h.jual) }}
+                    </td>
+                    <td class="px-3 py-2 text-end num">
+                      {{ rp0(d.h.rekapAkt) }}
+                    </td>
+                    <td class="px-3 py-2 text-end num">
+                      {{ mdrRp(d.h.mdrTotal) }}
+                    </td>
+                    <td class="px-3 py-2 text-end text-muted num">
+                      {{ mdrPct(d.h.mdrTotal, d.h.kotorMdr) || '—' }}
+                    </td>
+                    <td
+                      class="px-3 py-2 text-end font-semibold num"
+                      :class="Math.abs(d.h.selisihTotal) > SELISIH_TOLERANSI ? 'text-error' : 'text-success'"
+                    >
+                      {{ d.h.selisihTotal ? fmtSel(d.h.selisihTotal) : '—' }}
+                      <UIcon
+                        v-if="d.h.tanpaSvcTax"
+                        name="i-lucide-triangle-alert"
+                        class="ms-1 size-3.5 align-[-2px] text-error"
+                        title="Service & tax hari ini masih kosong"
+                        aria-label="Service & tax kosong"
+                      />
+                    </td>
+                    <td class="px-3 py-2">
                       <AppStatus
-                        :color="tanda(d.tgl, x.k) ? 'success' : 'neutral'"
+                        :color="setorSelesai(d.tgl) ? 'success' : 'neutral'"
                         size="sm"
                       >
-                        {{ tanda(d.tgl, x.k) ? 'POS ✓' : 'belum' }}
+                        {{ setorSelesai(d.tgl) ? 'Setor' : 'Belum' }}
                       </AppStatus>
-                    </div>
-                    <div
-                      v-if="d.h.g[x.k]!.punyaPos"
-                      class="flex justify-between"
+                    </td>
+                    <td class="px-3 py-2 lg:pe-5">
+                      <AppStatus
+                        :color="nCek(d.tgl) === RK_GRUP.length ? 'success' : (nCek(d.tgl) ? 'warning' : 'neutral')"
+                        size="sm"
+                      >
+                        POS {{ nCek(d.tgl) }}/{{ RK_GRUP.length }}
+                      </AppStatus>
+                    </td>
+                  </tr>
+                  <tr
+                    v-if="terbuka === d.tgl"
+                    class="whitespace-normal"
+                  >
+                    <td
+                      colspan="8"
+                      class="p-0"
                     >
-                      <span class="text-muted">POS</span><span class="num">{{ fmtRp(d.h.g[x.k]!.pos) }}</span>
-                    </div>
-                    <div class="flex justify-between">
-                      <span class="text-muted">Aktual{{ d.h.g[x.k]!.mdr ? ' bersih' : '' }}</span><b class="num">{{ fmtRp(d.h.g[x.k]!.akt) }}</b>
-                    </div>
-                    <div
-                      v-if="d.h.g[x.k]!.mdr"
-                      class="flex justify-between"
-                    >
-                      <span class="text-muted">MDR</span><span class="num">{{ fmtRp(d.h.g[x.k]!.mdr) }}</span>
-                    </div>
-                  </div>
-                </div>
-                <div class="mt-2 flex flex-wrap gap-x-4 text-xs text-muted">
-                  <span>Compliment <b class="num">{{ fmtRp(d.h.comp) }}</b></span>
-                  <span>Member deposit <b class="num">{{ fmtRp(d.h.mdep) }}</b></span>
-                  <span>Voucher <b class="num">{{ fmtRp(d.h.vou) }}</b></span>
-                  <span>Error customer <b class="num">{{ fmtRp(d.h.errCust) }}</b></span>
-                  <span>Error kitchen <b class="num">{{ fmtRp(d.h.errKit) }}</b></span>
-                  <UButton
-                    v-if="izin.ubah('rekap')"
-                    label="Isi MDR & penanda hari ini"
-                    size="xs"
-                    color="neutral"
-                    variant="outline"
-                    @click="hariInput = d.tgl; tab = 'input'"
-                  />
-                </div>
-              </div>
-            </div>
+                      <div class="bg-muted px-4 pb-4 lg:px-5">
+                        <p class="py-2 text-sm text-muted">
+                          Omset net <b class="text-highlighted num">{{ fmtRp(d.h.j.net) }}</b> + service <b class="num">{{ fmtRp(d.h.j.svc) }}</b> + tax <b class="num">{{ fmtRp(d.h.j.tax) }}</b>
+                          = <b class="text-highlighted num">{{ fmtRp(d.h.jual) }}</b> − setoran <b class="num">{{ fmtRp(d.h.setoran) }}</b>
+                          <template v-if="d.h.mdrTotal">
+                            + MDR <b class="num">{{ fmtRp(d.h.mdrTotal) }}</b>
+                          </template>
+                          <template v-if="d.h.bon.ada">
+                            + bon − pelunasan <b class="num">{{ fmtSel(d.h.bon.koreksi) }}</b>
+                          </template>
+                          = <b
+                            :class="Math.abs(d.h.selisihTotal) > SELISIH_TOLERANSI ? 'text-error' : 'text-success'"
+                            class="num"
+                          >{{ fmtSel(d.h.selisihTotal) }}</b>
+                          <template v-if="d.h.tanpaSvcTax">
+                            · service & tax masih nol di Input Omset Harian
+                          </template>
+                        </p>
+                        <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          <div
+                            v-for="x in RK_GRUP"
+                            :key="x.k"
+                            class="rounded-panel border border-default bg-default p-2 text-xs"
+                          >
+                            <div class="flex items-center justify-between gap-2">
+                              <b>{{ x.n }}</b>
+                              <AppStatus
+                                :color="tanda(d.tgl, x.k) ? 'success' : 'neutral'"
+                                size="sm"
+                              >
+                                {{ tanda(d.tgl, x.k) ? 'POS ✓' : 'belum' }}
+                              </AppStatus>
+                            </div>
+                            <div
+                              v-if="d.h.g[x.k]!.punyaPos"
+                              class="flex justify-between"
+                            >
+                              <span class="text-muted">POS</span><span class="num">{{ fmtRp(d.h.g[x.k]!.pos) }}</span>
+                            </div>
+                            <div class="flex justify-between">
+                              <span class="text-muted">Aktual{{ d.h.g[x.k]!.mdr ? ' bersih' : '' }}</span><b class="num">{{ fmtRp(d.h.g[x.k]!.akt) }}</b>
+                            </div>
+                            <div
+                              v-if="d.h.g[x.k]!.mdr"
+                              class="flex justify-between"
+                            >
+                              <span class="text-muted">MDR</span><span class="num">{{ fmtRp(d.h.g[x.k]!.mdr) }}</span>
+                            </div>
+                          </div>
+                        </div>
+                        <div class="mt-2 flex flex-wrap gap-x-4 text-xs text-muted">
+                          <span>Compliment <b class="num">{{ fmtRp(d.h.comp) }}</b></span>
+                          <span>Member deposit <b class="num">{{ fmtRp(d.h.mdep) }}</b></span>
+                          <span>Voucher <b class="num">{{ fmtRp(d.h.vou) }}</b></span>
+                          <span>Error customer <b class="num">{{ fmtRp(d.h.errCust) }}</b></span>
+                          <span>Error kitchen <b class="num">{{ fmtRp(d.h.errKit) }}</b></span>
+                          <UButton
+                            v-if="izin.ubah('rekap')"
+                            label="Isi MDR & penanda hari ini"
+                            size="xs"
+                            color="neutral"
+                            variant="outline"
+                            @click="hariInput = d.tgl; tab = 'input'"
+                          />
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
             <p
               v-if="!hariData.length"
               class="px-4 py-6 text-center text-sm text-muted"
@@ -724,7 +797,7 @@ async function jalanHapusSetoran() {
             <b>Aktual masuk = Aktual kotor + Dana lebih − MDR</b>. Berapa pun pembagiannya, <b>Rekap Aktual & Selisih tidak bergeser sepeser pun</b> — kolom ini menjelaskan uang, tidak memindahkannya.
           </div>
           <div class="overflow-x-auto">
-            <table class="w-full min-w-[56rem] text-sm">
+            <table class="w-full min-w-[56rem] whitespace-nowrap text-sm">
               <thead class="bg-table-head text-table-head-text">
                 <tr class="text-xs font-bold uppercase tracking-wider">
                   <th class="px-3 py-2.5 text-start">
@@ -739,9 +812,11 @@ async function jalanHapusSetoran() {
                   <th class="w-40 px-3 py-2.5 text-end">
                     Aktual masuk
                   </th>
-                  <th class="w-40 px-3 py-2.5 text-end">
+                  <th
+                    class="w-40 px-3 py-2.5 text-end"
+                    title="Persennya dihitung dari Aktual kotor"
+                  >
                     MDR
-                    <span class="block text-[10px] font-normal normal-case">% dari Aktual kotor</span>
                   </th>
                   <th class="px-3 py-2.5 text-end">
                     Dana lebih
@@ -785,7 +860,15 @@ async function jalanHapusSetoran() {
                     >—</span>
                   </td>
                   <td class="px-3 py-1.5 text-end num">
-                    <template v-if="x.mdr">
+                    <div
+                      v-if="x.mdr"
+                      class="flex items-center justify-end gap-2"
+                    >
+                      <span
+                        v-if="mdrPct(RH.g[x.k]!.mdr, RH.g[x.k]!.kotor)"
+                        class="text-[11px] text-muted"
+                        title="Persen dari Aktual kotor"
+                      >{{ mdrPct(RH.g[x.k]!.mdr, RH.g[x.k]!.kotor) }}</span>
                       <UInput
                         v-if="RH.g[x.k]!.berlebih || RH.g[x.k]!.mdrMan !== null"
                         :model-value="titik(ubah[hariInput]?.mdrman?.[x.mdr] ?? (recOf(hariInput)?.mdrManual as Record<string, unknown> | undefined)?.[x.mdr] ?? '')"
@@ -797,14 +880,8 @@ async function jalanHapusSetoran() {
                         title="Aktual masuk melebihi Aktual kotor. Isi potongan bank menurut mutasi; sisanya otomatis jadi Dana lebih."
                         @update:model-value="(v: string | number) => ubahMdrMan(x.mdr!, String(v).replace(/[^0-9]/g, ''))"
                       />
-                      <template v-else>
-                        {{ mdrRp(RH.g[x.k]!.mdr) }}
-                      </template>
-                      <span
-                        v-if="mdrPct(RH.g[x.k]!.mdr, RH.g[x.k]!.kotor)"
-                        class="block text-[11px] text-muted"
-                      >{{ mdrPct(RH.g[x.k]!.mdr, RH.g[x.k]!.kotor) }} dari kotor</span>
-                    </template>
+                      <span v-else>{{ mdrRp(RH.g[x.k]!.mdr) }}</span>
+                    </div>
                     <span
                       v-else
                       class="text-muted"
@@ -910,7 +987,7 @@ async function jalanHapusSetoran() {
             v-else
             class="overflow-x-auto"
           >
-            <table class="w-full min-w-[44rem] text-sm">
+            <table class="w-full min-w-[44rem] whitespace-nowrap text-sm">
               <thead class="bg-table-head text-table-head-text">
                 <tr class="text-xs font-bold uppercase tracking-wider">
                   <th class="w-10 px-3 py-2.5">
@@ -952,11 +1029,11 @@ async function jalanHapusSetoran() {
                     />
                   </td>
                   <td class="px-3 py-2 font-semibold text-highlighted">
-                    {{ new Date(t + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }) }}
+                    {{ new Date(t + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) }}
                     <span
                       v-if="sudahSetor(t) > 0"
-                      class="block text-xs font-normal text-muted"
-                    >{{ fmtRp(sudahSetor(t)) }} sudah disetor sebelumnya</span>
+                      class="ms-2 text-xs font-normal text-muted"
+                    >sudah disetor {{ fmtRp(sudahSetor(t)) }}</span>
                   </td>
                   <td class="px-3 py-2 text-end num">
                     {{ fmtRp(cash(t)) }}
@@ -1082,7 +1159,7 @@ async function jalanHapusSetoran() {
             v-else
             class="overflow-x-auto"
           >
-            <table class="w-full min-w-[44rem] text-sm">
+            <table class="w-full min-w-[44rem] whitespace-nowrap text-sm">
               <thead class="bg-table-head text-table-head-text">
                 <tr class="text-xs font-bold uppercase tracking-wider">
                   <th class="px-3 py-2.5 text-start">
@@ -1109,10 +1186,11 @@ async function jalanHapusSetoran() {
                   :key="x.id"
                 >
                   <td class="px-3 py-2.5 font-semibold text-highlighted">
-                    {{ x.tgl ? new Date(x.tgl + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'short', year: 'numeric' }) : '—' }}
+                    {{ x.tgl ? new Date(x.tgl + 'T00:00:00').toLocaleDateString('id-ID', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }) : '—' }}
                     <span
                       v-if="x.catatan"
-                      class="block text-xs font-normal text-muted"
+                      class="ms-2 inline-block max-w-48 truncate align-bottom text-xs font-normal text-muted"
+                      :title="String(x.catatan)"
                     >{{ x.catatan }}</span>
                   </td>
                   <td class="px-3 py-2.5">
@@ -1122,7 +1200,8 @@ async function jalanHapusSetoran() {
                     {{ fmtRp(kNum(x.nominal)) }}
                   </td>
                   <td class="px-3 py-2.5">
-                    <div class="flex flex-wrap gap-1">
+                    <!-- Many days scroll sideways instead of stacking. -->
+                    <div class="flex max-w-md gap-1 overflow-x-auto [scrollbar-width:thin]">
                       <span
                         v-for="h in (x.hari ?? [])"
                         :key="h"

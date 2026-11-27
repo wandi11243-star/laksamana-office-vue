@@ -149,6 +149,7 @@ pemilih tema.
   **"Tambah baris" ada tepat di bawah baris terakhir**, bukan di kepala panel — bilah selebar daftar,
   garis putus-putus emas (`border-2 border-dashed border-gold/40`, teks `gold-deep`, ikon `+`). Tombol
   kirim/simpan tetap di kanan bawah.
+- Lebar kolom tabel dan daftar mengikuti isi. Untuk daftar bergaya tabel, gunakan susunan kolom yang sama pada setiap baris agar nilai dan aksi sejajar.
 - **Baris tabel yang butuh perhatian**: telat = `bg-error/10`, perlu perhatian = `bg-warning/10`.
 - **Skeleton saat memuat**: `USkeleton` menyerupai tata letak konten, hanya saat `pending` dan belum
   ada data.
@@ -168,6 +169,8 @@ pemilih tema.
   kanan.
 - Isi per modul di `app/utils/modul-shell.ts` (`subjudul`, `layar`, `cari`, `tambah`, `lonceng`,
   `peran`, `lencana`, `siapkan`).
+- **Menu panjang** (permintaan owner, Nov 2026): lipat layar yang serumpun jadi satu baris dengan
+  `kelompok` di `utils/layar/<modul>.ts`. Layar lainnya jadi tab di atas halaman (`AppTabKelompok`).
 
 ### Blok bangunan
 
