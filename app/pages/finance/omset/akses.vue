@@ -33,7 +33,7 @@ const kolom: TableColumn<ModulMember>[] = [
   >
     <template #actions>
       <UButton
-        label="Segarkan"
+        label="Refresh"
         icon="i-lucide-refresh-cw"
         color="neutral"
         variant="outline"

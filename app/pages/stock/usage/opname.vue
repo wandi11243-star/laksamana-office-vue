@@ -308,7 +308,7 @@ async function segarkan() {
         @click="ekspor"
       />
       <UButton
-        label="Segarkan"
+        label="Refresh"
         icon="i-lucide-refresh-cw"
         color="neutral"
         variant="outline"

@@ -159,7 +159,7 @@ const daftarTab = computed<PengajuanAcc[]>(() => (d.value ? d.value[tab.value] :
   >
     <template #actions>
       <UButton
-        label="Segarkan"
+        label="Refresh"
         icon="i-lucide-refresh-cw"
         variant="outline"
         :loading="q.status.value === 'pending'"

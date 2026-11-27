@@ -124,7 +124,7 @@ async function lihatPdf(r: InvoiceReq) {
   pdfSibuk.value = r.id
   try {
     const b = (await berkasKwitansi(String(r.resId))).data
-    if (!b) throw new Error('Dokumen ini belum berstatus terbit di server — segarkan halamannya.')
+    if (!b) throw new Error('Dokumen ini belum berstatus terbit di server — refresh halamannya.')
     const g = (r.ringkas ?? {}) as Record<string, unknown>
     const items = (Array.isArray(g.items) ? g.items : []) as { desc?: string, qty?: number, harga?: number }[]
     const bayar = (Array.isArray(g.bayar) ? g.bayar : []) as { jenis?: string, nominal?: number, tanggal?: string, metode?: string, adaBukti?: boolean }[]
@@ -372,7 +372,7 @@ const jalanHapusP = () => {
   >
     <template #actions>
       <UButton
-        label="Segarkan"
+        label="Refresh"
         icon="i-lucide-refresh-cw"
         color="neutral"
         variant="outline"

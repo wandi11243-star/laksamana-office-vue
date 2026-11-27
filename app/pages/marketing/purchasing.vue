@@ -229,7 +229,7 @@ const terkirim = computed(() => poMarketingMkt(daftar.value ?? []))
         <template #actions>
           <UButton
             icon="i-lucide-refresh-cw"
-            label="Segarkan"
+            label="Refresh"
             size="sm"
             color="neutral"
             variant="outline"

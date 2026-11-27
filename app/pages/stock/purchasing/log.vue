@@ -99,7 +99,7 @@ function reset() {
       #actions
     >
       <UButton
-        label="Segarkan"
+        label="Refresh"
         icon="i-lucide-refresh-cw"
         variant="outline"
         :loading="daftarQ.status.value === 'pending'"

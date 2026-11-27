@@ -114,7 +114,7 @@ const pctBanding = (a: number, b: number) => b ? (a - b) / b * 100 : null
   >
     <template #actions>
       <UButton
-        label="Segarkan"
+        label="Refresh"
         icon="i-lucide-refresh-cw"
         color="neutral"
         variant="outline"

@@ -406,7 +406,7 @@ const opsiSub = computed(() => [
   >
     <template #actions>
       <UButton
-        label="Segarkan stok"
+        label="Refresh stok"
         icon="i-lucide-refresh-cw"
         variant="outline"
         @click="saldoQ.refresh(); gerakQ.refresh()"

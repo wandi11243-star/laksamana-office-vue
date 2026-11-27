@@ -155,7 +155,7 @@ async function hapus() {
       class="mb-4 rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm"
     >
       Kamu punya akses modul ini, tapi belum muncul di daftar kru — biasanya karena akses baru diberikan dan
-      daftarnya masih lama. Tekan Segarkan dari Office di <NuxtLink
+      daftarnya masih lama. Tekan Refresh dari Office di <NuxtLink
         to="/bd/tim"
         class="font-semibold text-ink-900 underline"
       >Kru BD</NuxtLink>.
@@ -166,7 +166,7 @@ async function hapus() {
       class="mb-4 rounded-xl border border-warning/30 bg-warning/10 p-3 text-sm"
     >
       Divisi kamu belum diatur, jadi task barumu jatuh ke divisi bawaan. Divisi mengikuti kolom Tim di
-      Office › Kelola User — setelah cocok, tekan Segarkan dari Office di
+      Office › Kelola User — setelah cocok, tekan Refresh dari Office di
       <NuxtLink
         to="/bd/tim"
         class="font-semibold text-ink-900 underline"

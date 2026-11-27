@@ -220,7 +220,7 @@ function segarkan() {
   >
     <template #actions>
       <UButton
-        label="Segarkan"
+        label="Refresh"
         icon="i-lucide-refresh-cw"
         color="neutral"
         variant="outline"
@@ -389,7 +389,7 @@ function segarkan() {
           variant="subtle"
           icon="i-lucide-triangle-alert"
           title="Rekap Penjualan tidak terbaca"
-          description="Perbandingan dengan Rekap Penjualan belum bisa ditampilkan. Periksa koneksi, lalu segarkan."
+          description="Perbandingan dengan Rekap Penjualan belum bisa ditampilkan. Periksa koneksi, lalu tekan Refresh."
         />
 
         <template v-else-if="daily && rekapHari">

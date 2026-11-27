@@ -428,7 +428,7 @@ function bukaDana(x?: DanaIklan) {
             @click="bukaKelola()"
           />
           <UButton
-            label="Segarkan"
+            label="Refresh"
             icon="i-lucide-refresh-cw"
             color="neutral"
             variant="outline"
@@ -455,11 +455,11 @@ function bukaDana(x?: DanaIklan) {
           variant="subtle"
           icon="i-lucide-unplug"
           title="Meta Ads belum disambungkan"
-          description="Kartu ini membaca langsung dari Meta Ads. Minta admin mengisi token & ID akun iklan di Pengaturan → kartu Meta Ads, lalu tekan Segarkan."
+          description="Kartu ini membaca langsung dari Meta Ads. Minta admin mengisi token & ID akun iklan di Pengaturan → kartu Meta Ads, lalu tekan Refresh."
         >
           <template #actions>
             <UButton
-              label="Segarkan"
+              label="Refresh"
               color="warning"
               variant="soft"
               size="xs"
