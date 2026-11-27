@@ -71,15 +71,17 @@ onBeforeUnmount(() => {
         v-if="!beranda"
         class="sticky top-0 z-10 flex print:hidden items-center gap-2.5 bg-muted/90 px-3 pb-2.5 pt-[max(0.625rem,env(safe-area-inset-top))] backdrop-blur-sm lg:gap-3 lg:px-8 lg:pb-3 lg:pt-4"
       >
-        <UButton
+        <NuxtLink
           to="/"
-          icon="i-lucide-arrow-left"
-          color="neutral"
-          variant="ghost"
-          size="lg"
-          class="size-11 shrink-0 justify-center lg:hidden"
+          class="grid size-11 shrink-0 place-items-center rounded-field lg:hidden"
           aria-label="Kembali ke Beranda Office"
-        />
+        >
+          <img
+            src="/mark.png"
+            alt=""
+            class="size-8"
+          >
+        </NuxtLink>
         <UButton
           icon="i-lucide-menu"
           color="neutral"
