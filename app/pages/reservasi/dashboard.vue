@@ -25,7 +25,7 @@ import type { TableColumn } from '@nuxt/ui'
 import { useMediaQuery } from '@vueuse/core'
 import type { Reservasi } from '~/composables/useReservasi'
 import { usePollReservasi } from '~/composables/usePollReservasi'
-import { exportReservationsCsv, listReservationsHalaman, patchReservation, postAudit, useDaftarReservasi, useDenah, useRingkasanTamu, useSection } from '~/composables/useReservasi'
+import { exportReservationsCsv, listReservationsHalaman, patchReservation, postAudit, putSection, useDaftarReservasi, useDenah, useRingkasanTamu, useSection, useSectionVersi } from '~/composables/useReservasi'
 import { bolehAksi, roleReservasi } from '~/utils/layar/reservasi'
 import { profilTamuGabung, kelompokBarisTamu, normStatus, unduhBlob } from '~/utils/riwayat'
 import { arrivedPax, bookingBerikut, buatIzinTumpang, canAddArrival, fmtMenit, harihOccupancy, isSeated, mepetKah, menitMenuju, occupiedMap, partiesAt, remainingPax, sedangDialihkan, tableFill, tablesOf } from '~/utils/kunci-meja'
@@ -35,6 +35,7 @@ import {
   lantaiMap, layoutName,
 } from '~/utils/venue-layouts'
 import { angka, fmtRupiah, hariIni, normTime, rupiah, tglPanjang, tglPendek, tambahHari } from '~/utils/format'
+import { tanganiKonflik, versiDari } from '~/utils/versi'
 import { waKirim, waSalin } from '~/utils/wa'
 
 definePageMeta({ access: ['reservasi'] })
@@ -48,6 +49,45 @@ const bolehEdit = computed(() => bolehAksi('input', role.value))
 const bolehFinance = computed(() => bolehAksi('finance', role.value))
 const bolehMaster = computed(() => bolehAksi('master', role.value))
 const bolehHapus = computed(() => bolehAksi('deleteReservation', role.value))
+
+const kelolaPenutupan = computed(() => bolehAksi('manageUsers', role.value))
+const sheetTutupUmum = ref(false)
+type Penutupan = { from: string, to: string }
+const jadwalTutup = useSectionVersi<Penutupan[]>('publicClosures')
+const penutupan = computed(() => jadwalTutup.data.value?.data ?? [])
+const waktuTutup = reactive({ tanggal: hariIni(), dari: '', sampai: '' })
+const simpanTutup = ref(false)
+
+async function ubahPenutupan(indeks?: number) {
+  const data = jadwalTutup.data.value
+  if (!data || simpanTutup.value || !kelolaPenutupan.value) return
+  let berikut = [...penutupan.value]
+  if (indeks === undefined) {
+    const { tanggal, dari, sampai } = waktuTutup
+    if (!tanggal || !dari || !sampai || dari === sampai) {
+      toast.add({ title: 'Isi tanggal dan dua jam yang berbeda.', color: 'error' })
+      return
+    }
+    const akhir = sampai < dari ? tambahHari(tanggal, 1) : tanggal
+    berikut.push({ from: tanggal + 'T' + dari, to: akhir + 'T' + sampai })
+    berikut.sort((a, b) => a.from.localeCompare(b.from))
+  }
+  else {
+    berikut = berikut.filter((_, i) => i !== indeks)
+  }
+  simpanTutup.value = true
+  try {
+    await putSection('publicClosures', berikut, versiDari(data))
+    await jadwalTutup.refresh()
+    toast.add({ title: 'Jadwal penutupan disimpan.', color: 'success' })
+  }
+  catch (e) {
+    if (!(await tanganiKonflik(e, () => jadwalTutup.refresh()))) toast.add({ title: apiErrorMessage(e), color: 'error' })
+  }
+  finally {
+    simpanTutup.value = false
+  }
+}
 
 // --- the window ---------------------------------------------------------------
 // The dashboard always draws the day-of map, so that date has to be inside the
@@ -80,6 +120,37 @@ const filter = reactive({
 const cari = ref('')
 /** The map and the waiting list can only ever show ONE date. */
 const tglDenah = ref(hariIni())
+const waktuWib = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: 'Asia/Jakarta',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+})
+const slotSekarangWib = computed(() => waktuWib.format(sekarang.value).replace(' ', 'T'))
+const riwayatPenutupan = computed(() => penutupan.value.map((jadwal, indeks) => {
+  const [tanggalMulai, jamMulai] = jadwal.from.split('T')
+  const [tanggalSelesai, jamSelesai] = jadwal.to.split('T')
+  const waktu = slotSekarangWib.value
+  return {
+    ...jadwal,
+    indeks,
+    tanggal: tglPendek(tanggalMulai),
+    jam: tanggalMulai === tanggalSelesai
+      ? jamMulai + ' – ' + jamSelesai + ' WIB'
+      : jamMulai + ' – ' + tglPendek(tanggalSelesai) + ', ' + jamSelesai + ' WIB',
+    status: waktu < jadwal.from ? 'Terjadwal' : waktu < jadwal.to ? 'Berlangsung' : 'Selesai',
+  }
+}).sort((a, b) => b.from.localeCompare(a.from)))
+const penutupanTanggal = computed(() => {
+  const tanggal = tglDenah.value
+  const mulai = tanggal + 'T00:00'
+  const selesai = tambahHari(tanggal, 1) + 'T00:00'
+  const waktu = slotSekarangWib.value
+  const batas = waktu.startsWith(tanggal) ? waktu : mulai
+  return penutupan.value.filter(jadwal => jadwal.from < selesai && jadwal.to > batas)
+})
 // In Daily mode the map's date IS the filter's date (the "Tanggal denah" field is
 // hidden then). Without this, picking Besok / another day moved the list but left
 // the map, and so the plan shown (Weekday vs Weekend), on the old date.
@@ -1380,6 +1451,29 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
     description="Satu halaman: data reservasi dan denah meja. Klik meja untuk aksi cepat."
   >
     <template #actions>
+      <div
+        v-if="kelolaPenutupan || jadwalTutup.data.value"
+        class="flex max-w-full flex-wrap items-center gap-2"
+      >
+        <UButton
+          v-if="kelolaPenutupan"
+          label="Tutup untuk umum"
+          icon="i-lucide-clock"
+          color="warning"
+          variant="solid"
+          size="md"
+          class="shrink-0 whitespace-nowrap"
+          @click="waktuTutup.tanggal = tglDenah; sheetTutupUmum = true"
+        />
+        <AppStatus
+          v-if="jadwalTutup.data.value && !jadwalTutup.error.value"
+          :color="penutupanTanggal.length ? 'warning' : 'success'"
+          :title="penutupanTanggal.map(jadwal => jadwal.from.replace('T', ' ') + ' - ' + jadwal.to.replace('T', ' ') + ' WIB').join(', ')"
+          role="status"
+        >
+          {{ penutupanTanggal.length ? 'Close for Public' : 'Open' }}
+        </AppStatus>
+      </div>
       <UButton
         v-if="bolehEdit"
         label="WA koordinasi"
@@ -2217,6 +2311,106 @@ const statusPax = (r: Reservasi) => (normStatus(r.status) === 'Datang' ? `${arri
         @sharing="onMejaSharing"
       />
     </div>
+
+    <ResponsiveSheet
+      v-model:open="sheetTutupUmum"
+      title="Tutup untuk umum"
+      description="Jam dalam WIB. Jika jam selesai lebih awal, penutupan berakhir besok."
+    >
+      <UAlert
+        v-if="jadwalTutup.error.value"
+        color="error"
+        variant="subtle"
+        title="Jadwal penutupan gagal dimuat."
+      />
+      <div class="grid grid-cols-2 items-end gap-2.5">
+        <UFormField
+          label="Tanggal"
+          class="col-span-2"
+        >
+          <AppTanggal
+            v-model="waktuTutup.tanggal"
+            size="sm"
+            :clearable="false"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField label="Mulai">
+          <AppJam
+            v-model="waktuTutup.dari"
+            size="sm"
+            aria-label="Jam mulai penutupan"
+            class="w-full"
+          />
+        </UFormField>
+        <UFormField label="Selesai">
+          <AppJam
+            v-model="waktuTutup.sampai"
+            size="sm"
+            aria-label="Jam selesai penutupan"
+            class="w-full"
+          />
+        </UFormField>
+        <UButton
+          label="Tambah jadwal"
+          icon="i-lucide-plus"
+          size="sm"
+          class="col-span-2 justify-self-end whitespace-nowrap"
+          :disabled="!jadwalTutup.data.value"
+          :loading="simpanTutup"
+          @click="ubahPenutupan()"
+        />
+      </div>
+      <section
+        v-if="riwayatPenutupan.length"
+        class="mt-5 border-t border-default pt-4"
+        aria-labelledby="judul-riwayat-penutupan"
+      >
+        <h3
+          id="judul-riwayat-penutupan"
+          class="mb-2 text-sm font-semibold text-highlighted"
+        >
+          Riwayat penutupan
+        </h3>
+        <ul class="max-h-60 divide-y divide-default overflow-y-auto rounded-lg border border-default">
+          <li
+            v-for="jadwal in riwayatPenutupan"
+            :key="jadwal.indeks"
+            class="flex items-center gap-3 px-3 py-2.5"
+          >
+            <UIcon
+              name="i-lucide-calendar-clock"
+              class="size-4 shrink-0 text-muted"
+            />
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-sm font-semibold text-highlighted">{{ jadwal.tanggal }}</span>
+                <AppStatus
+                  size="sm"
+                  :color="jadwal.status === 'Berlangsung' ? 'warning' : jadwal.status === 'Terjadwal' ? 'info' : 'neutral'"
+                >
+                  {{ jadwal.status }}
+                </AppStatus>
+              </div>
+              <p class="num mt-0.5 text-xs text-muted">
+                {{ jadwal.jam }}
+              </p>
+            </div>
+            <UButton
+              icon="i-lucide-trash-2"
+              :aria-label="'Hapus jadwal ' + jadwal.tanggal + ', ' + jadwal.jam"
+              title="Hapus jadwal"
+              color="error"
+              variant="ghost"
+              size="sm"
+              class="size-9 shrink-0 justify-center"
+              :disabled="simpanTutup"
+              @click="ubahPenutupan(jadwal.indeks)"
+            />
+          </li>
+        </ul>
+      </section>
+    </ResponsiveSheet>
 
     <ResponsiveSheet
       v-model:open="sheetWA"
