@@ -27,8 +27,6 @@ const semua = computed(() => !(dividen.value && dividen.value.semua === false))
 const belumTerhubung = computed(() => !!dividen.value && !semua.value && !per.value.length)
 const total = computed(() => Number(dividen.value?.total || 0))
 const modal = computed(() => Number(dividen.value?.modal || 0))
-const pct = computed(() => modal.value > 0 ? total.value / modal.value * 100 : null)
-const terakhir = computed(() => riwayat.value[0] ?? null)
 
 /** Per-investor rows with the computed cells the table needs (sisa, %, akun). */
 interface BarisPer extends InvestorDividenPer { sisa: number, persen: number | null, akun: boolean }
@@ -39,6 +37,13 @@ const barisPer = computed<BarisPer[]>(() => per.value.map((p) => {
 }))
 
 interface BarisDividen { tgl: string, investor: string, nominal: number }
+/** The admin opens one investor's history from the Per Investor table (owner, Nov 2026). */
+const dipilih = ref('')
+const pilih = (nama: string) => {
+  dipilih.value = dipilih.value === nama ? '' : nama
+}
+const riwayatTampil = computed(() => (semua.value && per.value.length ? riwayat.value.filter(r => r.investor === dipilih.value) : riwayat.value))
+const tampilRiwayat = computed(() => !(semua.value && per.value.length) || !!dipilih.value)
 const kolom = computed<TableColumn<BarisDividen>[]>(() => [
   { accessorKey: 'tgl', header: 'Tanggal' },
   { accessorKey: 'investor', header: 'Investor' },
@@ -51,6 +56,7 @@ const kolomPer = computed<TableColumn<BarisPer>[]>(() => [
   { accessorKey: 'sisa', header: 'Sisa' },
   { accessorKey: 'persen', header: '%' },
   { accessorKey: 'akun', header: 'Akun' },
+  { id: 'riwayat', header: 'Riwayat' },
 ])
 </script>
 
@@ -106,57 +112,32 @@ const kolomPer = computed<TableColumn<BarisPer>[]>(() => [
     </AppPanel>
 
     <template v-else>
-      <AppStatGrid>
+      <!-- same cards as Finance › Brankas › Pengembalian Modal (owner, Nov 2026) -->
+      <AppStatGrid
+        :count="3"
+        satu-baris
+      >
         <AppStat
-          label="Total dikembalikan"
+          label="Total modal"
+          :value="rupiah(modal)"
+        />
+        <AppStat
+          label="Sudah dikembalikan investor"
           :value="rupiah(total)"
-          icon="i-lucide-hand-coins"
-          tone="success"
           :sub="`${riwayat.length} kali pembagian`"
         />
         <AppStat
-          v-if="modal > 0"
-          label="Dari modal masuk"
-          :value="rupiah(modal)"
-          icon="i-lucide-piggy-bank"
-          tone="info"
-          :sub="`${pct!.toFixed(1).replace('.', ',')}% sudah dikembalikan`"
-        />
-        <AppStat
-          v-if="modal > 0"
           label="Sisa kewajiban"
           :value="rupiah(Math.max(modal - total, 0))"
-          icon="i-lucide-scale"
-          tone="warning"
-          sub="belum dikembalikan"
-        />
-        <AppStat
-          v-if="terakhir"
-          label="Pembagian terakhir"
-          :value="tglPanjang(terakhir.tgl)"
-          icon="i-lucide-calendar-check"
-          tone="gold"
-          :sub="`${rupiah(terakhir.nominal)} · ${terakhir.investor || '—'}`"
+          sub="Modal yang belum kembali"
         />
       </AppStatGrid>
-
-      <UAlert
-        v-if="pct !== null"
-        color="info"
-        variant="subtle"
-        icon="i-lucide-info"
-        :title="`${pct.toFixed(1).replace('.', ',')}% dari modal sudah dikembalikan.`"
-        :description="semua
-          ? `Angka ini menjumlahkan SELURUH investor (${per.length} orang) — rinciannya di tabel Per Investor di bawah.`
-          : 'Angka ini hanya modal dan pembagian milik Anda sendiri.'"
-        class="mb-5"
-      />
 
       <AppPanel
         v-if="semua && per.length"
         title="Per investor"
         icon="i-lucide-users"
-        description="Hanya terlihat oleh admin · sumber: Brankas Finance"
+        description="Tekan Lihat riwayat untuk melihat pembagian tiap investor · hanya terlihat oleh admin · sumber: Brankas Finance"
         flush
       >
         <UTable
@@ -175,6 +156,16 @@ const kolomPer = computed<TableColumn<BarisPer>[]>(() => [
                 {{ row.original.kepemilikan }}% kepemilikan
               </p>
             </div>
+          </template>
+          <template #riwayat-cell="{ row }">
+            <UButton
+              size="sm"
+              :color="dipilih === row.original.nama ? 'primary' : 'neutral'"
+              :variant="dipilih === row.original.nama ? 'solid' : 'outline'"
+              :icon="dipilih === row.original.nama ? 'i-lucide-x' : 'i-lucide-history'"
+              :label="dipilih === row.original.nama ? 'Tutup' : 'Lihat riwayat'"
+              @click="pilih(row.original.nama)"
+            />
           </template>
           <template #modal-cell="{ row }">
             <span class="num">{{ rupiah(Number(row.original.modal) || 0) }}</span>
@@ -206,7 +197,8 @@ const kolomPer = computed<TableColumn<BarisPer>[]>(() => [
           <div
             v-for="(p, i) in barisPer"
             :key="i"
-            class="space-y-1 px-4 py-3"
+            class="space-y-2 px-4 py-3"
+            :class="dipilih === p.nama ? 'bg-elevated' : ''"
           >
             <div class="flex items-start justify-between gap-2">
               <div class="min-w-0">
@@ -238,20 +230,41 @@ const kolomPer = computed<TableColumn<BarisPer>[]>(() => [
                 p.persen == null ? '' : ` · ${p.persen.toFixed(1).replace('.', ',')}%`
               }}
             </p>
+            <UButton
+              size="sm"
+              :color="dipilih === p.nama ? 'primary' : 'neutral'"
+              :variant="dipilih === p.nama ? 'solid' : 'outline'"
+              :icon="dipilih === p.nama ? 'i-lucide-x' : 'i-lucide-history'"
+              :label="dipilih === p.nama ? 'Tutup riwayat' : 'Lihat riwayat'"
+              @click="pilih(p.nama)"
+            />
           </div>
         </div>
       </AppPanel>
 
       <AppPanel
-        v-if="riwayat.length"
-        title="Riwayat pembagian"
+        v-if="tampilRiwayat"
+        :title="dipilih ? `Riwayat pembagian · ${dipilih}` : 'Riwayat pembagian'"
         icon="i-lucide-history"
         description="Terbaru lebih dulu · sumber: Brankas Finance"
         flush
       >
+        <template
+          v-if="dipilih"
+          #actions
+        >
+          <UButton
+            label="Tutup"
+            icon="i-lucide-x"
+            size="sm"
+            color="neutral"
+            variant="ghost"
+            @click="dipilih = ''"
+          />
+        </template>
         <UTable
           class="hidden lg:block"
-          :data="riwayat"
+          :data="riwayatTampil"
           :columns="kolom"
           empty="Belum ada pembagian."
         >
@@ -267,7 +280,7 @@ const kolomPer = computed<TableColumn<BarisPer>[]>(() => [
         </UTable>
         <div class="divide-y divide-default lg:hidden">
           <div
-            v-for="(r, i) in riwayat"
+            v-for="(r, i) in riwayatTampil"
             :key="i"
             class="flex items-start justify-between gap-3 px-4 py-3"
           >

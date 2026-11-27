@@ -13,6 +13,8 @@ export interface Me {
   email?: string
   noHp?: string
   ulid: string
+  /** The PIN was set by someone else (new account, admin reset): /ganti-pin first. */
+  harusGantiPin?: boolean
 }
 
 export const useMe = () => useState<Me | null>('me', () => null)

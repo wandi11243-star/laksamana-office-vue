@@ -301,6 +301,8 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     // The old footer showed the name with "Akun Office" underneath
     // (investor/index.html: invStake).
     peran: () => 'Akun Office',
+    // the menu waits for the page matrix (GET /investor/settings)
+    siapkan: () => terjawab(useInvestorSetelan()),
   },
 }
 
