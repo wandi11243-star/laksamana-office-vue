@@ -58,6 +58,7 @@ export const IKON_GRUP: Record<string, string> = {
   'Pemakaian Bahan Baku': 'i-lucide-package-open',
   'Pengaturan': 'i-lucide-settings',
   'Pengembangan': 'i-lucide-graduation-cap',
+  'Perusahaan': 'i-lucide-landmark',
   'Purchasing': 'i-lucide-shopping-bag',
   'Service Excellent': 'i-lucide-star',
   'Sistem': 'i-lucide-settings',
