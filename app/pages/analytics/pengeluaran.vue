@@ -76,7 +76,8 @@ const indeks = computed(() => {
         const x = akun.get(kunci) ?? { kunci, grup, kode: a.account, nama: a.description || a.account || '(tanpa nama)', v: {} }
         for (const [k, n] of Object.entries(a.periods)) {
           const id = idDariKey(k)
-          if (id) x.v[id] = Math.abs(n)
+          // ESB leaves rounding residue (Rp 0,40) on unused accounts: below Rp 1 is zero
+          if (id) x.v[id] = Math.abs(n) < 1 ? 0 : Math.abs(n)
         }
         akun.set(kunci, x)
       }
@@ -93,7 +94,6 @@ watch(bulanAda, (b) => {
   dari.value = b[0] ?? ''
   sampai.value = b[b.length - 1] ?? ''
 }, { immediate: true })
-const pilihanBulanRentang = computed(() => bulanAda.value.map(id => ({ value: id, label: lblBulan(id) })))
 const rentang = computed(() => {
   const [a, z] = dari.value <= sampai.value ? [dari.value, sampai.value] : [sampai.value, dari.value]
   return bulanAda.value.filter(id => id >= a && id <= z)
@@ -147,13 +147,13 @@ const lencana = (kini: number, dulu: number | null | undefined, naikBaik = false
   const v = ubahPct(kini, dulu)!
   if (Math.abs(v) < 0.05) return { teks: '0%', warna: 'neutral' } as const
   const naik = v > 0
-  return { teks: `${naik ? '▲' : '▼'} ${Math.abs(v).toLocaleString('id-ID', { maximumFractionDigits: 1 })}%`, warna: naik === naikBaik ? 'success' : 'error' } as const
+  const angkaPct = Math.abs(v) >= 1000 ? '>999' : Math.abs(v).toLocaleString('id-ID', { maximumFractionDigits: 1 })
+  return { teks: `${naik ? '▲' : '▼'} ${angkaPct}%`, warna: naik === naikBaik ? 'success' : 'error' } as const
 }
 const subBanding = (dulu: number | undefined) => (tb.value && dulu !== undefined ? `${lblRentang(bandingAda.value)}: ${rupiah(dulu)}` : '')
 
 // ─── per-month table (picked year) ──
 const baris = computed(() => bulanAda.value.map(id => ({ id, ...indeks.value.angka[id]! })))
-const maks = computed(() => Math.max(1, ...baris.value.map(b => Math.max(b.danaKeluar, Math.abs(b.ebitda)))))
 const pilihBulan = (id: string) => {
   dari.value = id
   sampai.value = id
@@ -251,19 +251,19 @@ function unduhCsv() {
             :options="pilihanCepat"
           />
           <div class="flex items-center gap-2">
-            <USelect
+            <AppBulan
               v-model="dari"
-              :items="pilihanBulanRentang"
-              size="lg"
-              class="w-28"
+              :min="bulanAda[0]"
+              :max="bulanAda[bulanAda.length - 1]"
+              class="w-44"
               aria-label="Dari bulan"
             />
             <span class="text-muted">sampai</span>
-            <USelect
+            <AppBulan
               v-model="sampai"
-              :items="pilihanBulanRentang"
-              size="lg"
-              class="w-28"
+              :min="bulanAda[0]"
+              :max="bulanAda[bulanAda.length - 1]"
+              class="w-44"
               aria-label="Sampai bulan"
             />
           </div>
@@ -425,21 +425,6 @@ function unduhCsv() {
                   <td class="px-3 py-3.5 text-right tabular-nums">
                     {{ rupiah(b.ebit) }}
                   </td>
-                  <td class="px-3 py-3.5">
-                    <div class="flex flex-col gap-1.5">
-                      <div
-                        class="h-2 rounded-full bg-error/70"
-                        :style="{ width: `${b.danaKeluar / maks * 100}%` }"
-                        :title="`Dana keluar ${rupiah(b.danaKeluar)}`"
-                      />
-                      <div
-                        class="h-2 rounded-full"
-                        :class="b.ebitda < 0 ? 'bg-error' : 'bg-success'"
-                        :style="{ width: `${Math.abs(b.ebitda) / maks * 100}%` }"
-                        :title="`EBITDA ${rupiah(b.ebitda)}`"
-                      />
-                    </div>
-                  </td>
                 </tr>
               </tbody>
             </table>
@@ -449,10 +434,9 @@ function unduhCsv() {
           </div>
         </AppPanel>
 
-        <div class="mt-6 grid gap-6 xl:grid-cols-3">
+        <div class="mt-6 grid gap-6">
           <AppPanel
             :title="`Akun dana keluar · ${lblRentang(rentang)}`"
-            class="xl:col-span-2"
           >
             <div
               v-if="tb"
@@ -470,41 +454,73 @@ function unduhCsv() {
             >
               Tidak ada beban HPP atau operasional.
             </p>
-            <ul
+            <div
               v-else
-              class="divide-y divide-default"
+              class="overflow-x-auto"
             >
-              <li
-                v-for="a in semuaAkun ? akunKeluar : akunKeluar.slice(0, 15)"
-                :key="a.kunci"
-                class="flex flex-wrap items-center gap-x-4 gap-y-2 py-3.5"
-              >
-                <UBadge
-                  :label="a.grup"
-                  variant="subtle"
-                  :color="a.grup === 'HPP' ? 'warning' : 'neutral'"
-                />
-                <span class="min-w-0 flex-1 basis-48">
-                  <span class="block truncate font-medium">{{ a.nama }}</span>
-                  <span class="block text-sm text-muted tabular-nums">{{ a.kode }} · {{ pct(a.nilai, t.danaKeluar) }} dari dana keluar</span>
-                </span>
-                <span class="text-right">
-                  <span class="block font-semibold tabular-nums">{{ rupiah(a.nilai) }}</span>
-                  <span
-                    v-if="tb"
-                    class="block text-sm text-muted tabular-nums"
-                  >sebelumnya {{ rupiah(a.dulu ?? 0) }}</span>
-                </span>
-                <span class="w-20 text-right">
-                  <UBadge
-                    v-if="lencana(a.nilai, a.dulu)"
-                    variant="subtle"
-                    :color="lencana(a.nilai, a.dulu)!.warna"
-                    :label="lencana(a.nilai, a.dulu)!.teks"
-                  />
-                </span>
-              </li>
-            </ul>
+              <table class="w-full min-w-[720px] table-fixed text-base">
+                <thead class="text-left text-sm text-muted">
+                  <tr>
+                    <th class="w-32 px-3 py-3">
+                      Kelompok
+                    </th>
+                    <th class="px-3 py-3">
+                      Akun
+                    </th>
+                    <th class="w-44 px-3 py-3 text-right">
+                      {{ lblRentang(rentang) }}
+                    </th>
+                    <th
+                      v-if="tb"
+                      class="w-44 px-3 py-3 text-right"
+                    >
+                      {{ lblRentang(bandingAda) }}
+                    </th>
+                    <th class="w-28 px-3 py-3 text-right">
+                      Perubahan
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr
+                    v-for="a in semuaAkun ? akunKeluar : akunKeluar.slice(0, 15)"
+                    :key="a.kunci"
+                    class="border-t border-default"
+                  >
+                    <td class="px-3 py-3.5">
+                      <UBadge
+                        :label="a.grup"
+                        variant="subtle"
+                        :color="a.grup === 'HPP' ? 'warning' : 'neutral'"
+                      />
+                    </td>
+                    <td
+                      class="truncate px-3 py-3.5"
+                      :title="`${a.kode} ${a.nama} · ${pct(a.nilai, t.danaKeluar)} dari dana keluar`"
+                    >
+                      <span class="tabular-nums text-muted">{{ a.kode }}</span>&nbsp; {{ a.nama }}
+                    </td>
+                    <td class="px-3 py-3.5 text-right font-semibold tabular-nums">
+                      {{ rupiah(a.nilai) }}
+                    </td>
+                    <td
+                      v-if="tb"
+                      class="px-3 py-3.5 text-right tabular-nums text-muted"
+                    >
+                      {{ rupiah(a.dulu ?? 0) }}
+                    </td>
+                    <td class="px-3 py-3.5 text-right">
+                      <UBadge
+                        v-if="lencana(a.nilai, a.dulu)"
+                        variant="subtle"
+                        :color="lencana(a.nilai, a.dulu)!.warna"
+                        :label="lencana(a.nilai, a.dulu)!.teks"
+                      />
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
             <UButton
               v-if="akunKeluar.length > 15"
               class="mt-3"
@@ -530,17 +546,11 @@ function unduhCsv() {
                 :key="a.kunci"
                 class="flex items-center gap-4 py-3.5"
               >
-                <span class="min-w-0 flex-1">
-                  <span class="block truncate font-medium">{{ a.nama }}</span>
-                  <span class="block text-sm text-muted tabular-nums">{{ a.kode }}</span>
-                </span>
-                <span class="text-right">
-                  <span class="block tabular-nums">{{ rupiah(a.nilai) }}</span>
-                  <span
-                    v-if="tb"
-                    class="block text-sm text-muted tabular-nums"
-                  >sebelumnya {{ rupiah(a.dulu ?? 0) }}</span>
-                </span>
+                <span
+                  class="min-w-0 flex-1 truncate"
+                  :title="`${a.kode} ${a.nama}${tb ? ` · sebelumnya ${rupiah(a.dulu ?? 0)}` : ''}`"
+                >{{ a.nama }}</span>
+                <span class="shrink-0 tabular-nums">{{ rupiah(a.nilai) }}</span>
                 <UBadge
                   v-if="lencana(a.nilai, a.dulu)"
                   variant="subtle"
