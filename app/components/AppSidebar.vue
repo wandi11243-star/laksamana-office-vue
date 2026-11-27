@@ -14,6 +14,8 @@ import type { NavigationMenuItem } from '@nuxt/ui'
 withDefaults(defineProps<{ mini?: boolean }>(), { mini: false })
 
 const { modul, shell } = useModulShell()
+/** investor.laksamanamuda.id: no way back to the Office (utils/domain.ts). */
+const domainInvestor = diDomainInvestor()
 const { menu, siap } = useMenuNav()
 const me = useMe()
 const route = useRoute()
@@ -206,7 +208,7 @@ const inisial = computed(() => (me.value?.name ?? '?').split(/\s+/).map(s => s[0
 
     <div class="mt-3 flex flex-col items-center gap-1 border-t border-default pt-3">
       <UTooltip
-        v-if="modul && shell"
+        v-if="modul && shell && !domainInvestor"
         text="Beranda Office"
         :delay-duration="0"
       >
@@ -326,7 +328,7 @@ const inisial = computed(() => (me.value?.name ?? '?').split(/\s+/).map(s => s[0
     </div>
 
     <NuxtLink
-      v-if="modul && shell"
+      v-if="modul && shell && !domainInvestor"
       to="/"
       class="mx-4 mb-3 flex items-center gap-2.5 rounded-field px-4 py-2.5 text-sm font-semibold text-muted hover:bg-default/60 hover:text-highlighted"
     >

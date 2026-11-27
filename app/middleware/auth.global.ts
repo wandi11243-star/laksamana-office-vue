@@ -41,6 +41,10 @@ export default defineNuxtRouteMiddleware(async (to) => {
     return navigateTo({ path: '/ganti-pin', query: to.fullPath === '/' ? {} : { next: to.fullPath } })
   }
 
+  // investor.laksamanamuda.id is Investor Compass only (utils/domain.ts)
+  const arah = arahDomainInvestor(to.path)
+  if (arah) return navigateTo(arah)
+
   if (to.meta.access && !hasAccess(me.value, to.meta.access)) {
     throw createError({ statusCode: 403, statusMessage: 'Anda belum punya akses ke modul ini. Minta admin membukanya di Kelola Akses.' })
   }

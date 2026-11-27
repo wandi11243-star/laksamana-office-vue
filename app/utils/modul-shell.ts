@@ -300,7 +300,12 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     layar: LAYAR_INVESTOR,
     // The old footer showed the name with "Akun Office" underneath
     // (investor/index.html: invStake).
-    peran: () => 'Akun Office',
+    // the investor role from GET /investor/settings; the investor admin says so
+    peran: () => {
+      const s = useInvestorSetelan().data.value?.data?.saya
+      if (!s) return 'Akun Office'
+      return s.admin ? 'Admin investor' : ({ investor: 'Investor', mitra: 'Mitra', pengurus: 'Pengurus' } as const)[s.peran]
+    },
     // the menu waits for the page matrix (GET /investor/settings)
     siapkan: () => terjawab(useInvestorSetelan()),
   },
