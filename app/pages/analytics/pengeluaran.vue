@@ -58,7 +58,31 @@ const akunKeluarSetahun = computed<(PlAkun & { grup: string })[]>(() => {
     ...(s.operationalExpenses?.accounts ?? []).map(a => ({ ...a, grup: 'Operasional' })),
   ]
 })
-const akunKeluar = computed(() => akunKeluarSetahun.value.filter(a => nilai(a)).sort((a, b) => nilai(b) - nilai(a)))
+/** Month before the picked one (month-on-month comparison); none for "Setahun" or January. */
+const bulanSebelum = computed(() => {
+  const ks = pl.value?.periods ?? []
+  const i = ks.indexOf(bulanPilih.value)
+  return i > 0 ? ks[i - 1]! : ''
+})
+const nilaiSebelum = (a: PlAkun) => Math.abs(a.periods[bulanSebelum.value] ?? 0)
+/** Change in percent vs the previous value; null = nothing to compare (both zero or no previous month). */
+const ubahPct = (kini: number, dulu: number): number | null => (dulu ? (kini - dulu) / Math.abs(dulu) * 100 : null)
+/**
+ * Badge for a change. For a cost a rise is bad (red); for EBITDA a rise is good.
+ * A cost with no value last month is "baru".
+ */
+const lencana = (kini: number, dulu: number, naikBaik = false) => {
+  if (!dulu && !kini) return null
+  if (!dulu) return { teks: 'baru', warna: naikBaik ? 'success' : 'warning' } as const
+  const v = ubahPct(kini, dulu)!
+  if (Math.abs(v) < 0.05) return { teks: '0%', warna: 'neutral' } as const
+  const naik = v > 0
+  return { teks: `${naik ? '▲' : '▼'} ${Math.abs(v).toLocaleString('id-ID', { maximumFractionDigits: 1 })}%`, warna: naik === naikBaik ? 'success' : 'error' } as const
+}
+const urutan = ref<'nilai' | 'naik'>('nilai')
+const pilihanUrutan = [{ value: 'nilai', label: 'Nilai terbesar' }, { value: 'naik', label: 'Kenaikan terbesar (Rp)' }]
+const kunciUrut = (a: PlAkun) => (urutan.value === 'naik' && bulanSebelum.value ? nilai(a) - nilaiSebelum(a) : nilai(a))
+const akunKeluar = computed(() => akunKeluarSetahun.value.filter(a => nilai(a) || (bulanSebelum.value && nilaiSebelum(a))).sort((a, b) => kunciUrut(b) - kunciUrut(a)))
 const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizationExpenses?.accounts ?? []).filter(a => nilai(a)).sort((a, b) => nilai(b) - nilai(a)))
 </script>
 
@@ -183,7 +207,7 @@ const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizati
               </thead>
               <tbody>
                 <tr
-                  v-for="b in baris"
+                  v-for="(b, i) in baris"
                   :key="b.k"
                   class="cursor-pointer border-t border-default hover:bg-elevated"
                   :class="bulanPilih === b.k ? 'bg-elevated' : ''"
@@ -198,12 +222,28 @@ const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizati
                   </td>
                   <td class="py-2 pr-3 text-right tabular-nums">
                     {{ rupiah(b.danaKeluar) }}
+                    <UBadge
+                      v-if="i > 0 && lencana(b.danaKeluar, baris[i - 1]!.danaKeluar)"
+                      class="ml-1"
+                      size="sm"
+                      variant="subtle"
+                      :color="lencana(b.danaKeluar, baris[i - 1]!.danaKeluar)!.warna"
+                      :label="lencana(b.danaKeluar, baris[i - 1]!.danaKeluar)!.teks"
+                    />
                   </td>
                   <td
                     class="py-2 pr-3 text-right font-semibold tabular-nums"
                     :class="b.ebitda < 0 ? 'text-error' : 'text-success'"
                   >
                     {{ rupiah(b.ebitda) }}
+                    <UBadge
+                      v-if="i > 0 && lencana(b.ebitda, baris[i - 1]!.ebitda, true)"
+                      class="ml-1"
+                      size="sm"
+                      variant="subtle"
+                      :color="lencana(b.ebitda, baris[i - 1]!.ebitda, true)!.warna"
+                      :label="lencana(b.ebitda, baris[i - 1]!.ebitda, true)!.teks"
+                    />
                   </td>
                   <td class="py-2 pr-3 text-right tabular-nums text-muted">
                     {{ rupiah(b.depresiasi) }}
@@ -238,6 +278,16 @@ const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizati
             v-model="bulanPilih"
             :options="pilihanBulan"
           />
+          <span class="flex-1" />
+          <AppChips
+            v-if="bulanSebelum"
+            v-model="urutan"
+            :options="pilihanUrutan"
+          />
+          <span
+            v-else
+            class="text-xs text-muted"
+          >Pilih satu bulan (Feb ke atas) untuk melihat kenaikan dibanding bulan sebelumnya</span>
         </div>
 
         <div class="mt-4 grid gap-4 lg:grid-cols-3">
@@ -270,8 +320,22 @@ const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizati
                   <span class="block truncate">{{ namaAkun(a) }}</span>
                   <span class="block text-xs text-muted tabular-nums">{{ a.account }}</span>
                 </span>
-                <span class="text-xs text-muted">{{ pct(nilai(a), dasarKeluar) }}</span>
-                <span class="w-32 text-right tabular-nums">{{ rupiah(nilai(a)) }}</span>
+                <span class="hidden text-xs text-muted sm:inline">{{ pct(nilai(a), dasarKeluar) }}</span>
+                <span class="w-36 text-right">
+                  <span class="block tabular-nums">{{ rupiah(nilai(a)) }}</span>
+                  <span
+                    v-if="bulanSebelum"
+                    class="block text-xs text-muted tabular-nums"
+                  >{{ labelPeriode(bulanSebelum) }}: {{ rupiah(nilaiSebelum(a)) }}</span>
+                </span>
+                <UBadge
+                  v-if="bulanSebelum && lencana(nilai(a), nilaiSebelum(a))"
+                  class="w-16 justify-center"
+                  size="sm"
+                  variant="subtle"
+                  :color="lencana(nilai(a), nilaiSebelum(a))!.warna"
+                  :label="lencana(nilai(a), nilaiSebelum(a))!.teks"
+                />
               </li>
             </ul>
             <UButton
@@ -305,6 +369,13 @@ const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizati
                   <span class="block text-xs text-muted tabular-nums">{{ a.account }}</span>
                 </span>
                 <span class="tabular-nums">{{ rupiah(nilai(a)) }}</span>
+                <UBadge
+                  v-if="bulanSebelum && lencana(nilai(a), nilaiSebelum(a))"
+                  size="sm"
+                  variant="subtle"
+                  :color="lencana(nilai(a), nilaiSebelum(a))!.warna"
+                  :label="lencana(nilai(a), nilaiSebelum(a))!.teks"
+                />
               </li>
             </ul>
             <p class="mt-3 text-xs text-muted">
