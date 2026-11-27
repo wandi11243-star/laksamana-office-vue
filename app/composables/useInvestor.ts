@@ -206,7 +206,9 @@ export const deleteInvestorReport = (bulan: string, jenis: JenisLapor) =>
 // --- Investor Compass settings + management fee (Nov 2026) --------------------
 // laksamana-api/docs/api/kompas.md: /investor/settings, /investor/management-fee.
 
-export type PeranInvestor = 'investor' | 'mitra' | 'pengurus'
+/** Owner, 28 Nov 2026: investor (all but Management Fee), management (all), admin (all + Kelola Akses). */
+export type PeranInvestor = 'investor' | 'management' | 'admin'
+export const LABEL_PERAN_INVESTOR: Record<PeranInvestor, string> = { investor: 'Investor', management: 'Management', admin: 'Admin' }
 export type HalInvestor = 'labarugi' | 'dividen' | 'fee' | 'event' | 'promo' | 'akses'
 export type TingkatInvestor = 0 | 1 | 2
 export interface PenerimaFee { akunId: string, nama: string, persen: number, nominal?: number }

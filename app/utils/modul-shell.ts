@@ -304,7 +304,7 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
     peran: () => {
       const s = useInvestorSetelan().data.value?.data?.saya
       if (!s) return 'Akun Office'
-      return s.admin ? 'Admin investor' : ({ investor: 'Investor', mitra: 'Mitra', pengurus: 'Pengurus' } as const)[s.peran]
+      return LABEL_PERAN_INVESTOR[s.peran] ?? 'Investor'
     },
     // the menu waits for the page matrix (GET /investor/settings)
     siapkan: () => terjawab(useInvestorSetelan()),
