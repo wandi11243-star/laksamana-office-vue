@@ -39,15 +39,27 @@ const pct = (x: number, total: number) => (total ? `${(x / total * 100).toFixed(
 const baris = computed(() => (pl.value?.periods ?? []).map(k => ({ k, ...pl.value!.ringkasan.perPeriode[k]! })))
 const maks = computed(() => Math.max(1, ...baris.value.map(b => Math.max(b.danaKeluar, Math.abs(b.ebitda)))))
 
-const akunKeluar = computed<(PlAkun & { grup: string })[]>(() => {
+/** Account lists: '' = the whole year, otherwise one ESB period key. */
+const bulanPilih = ref('')
+watch(tahun, () => {
+  bulanPilih.value = ''
+})
+const pilihanBulan = computed(() => [{ value: '', label: 'Setahun' }, ...(pl.value?.periods ?? []).map(k => ({ value: k, label: labelPeriode(k) }))])
+const nilai = (a: PlAkun) => Math.abs(bulanPilih.value ? a.periods[bulanPilih.value] ?? 0 : a.total)
+const dasarKeluar = computed(() => (bulanPilih.value ? pl.value?.ringkasan.perPeriode[bulanPilih.value]?.danaKeluar ?? 0 : t.value?.danaKeluar ?? 0))
+const semuaAkun = ref(false)
+const namaAkun = (a: PlAkun) => a.description || a.account || '(tanpa nama)'
+
+const akunKeluarSetahun = computed<(PlAkun & { grup: string })[]>(() => {
   const s = pl.value?.sections
   if (!s) return []
   return [
     ...(s.cogs?.accounts ?? []).map(a => ({ ...a, grup: 'HPP' })),
     ...(s.operationalExpenses?.accounts ?? []).map(a => ({ ...a, grup: 'Operasional' })),
-  ].filter(a => a.total).sort((a, b) => Math.abs(b.total) - Math.abs(a.total))
+  ]
 })
-const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizationExpenses?.accounts ?? []).filter(a => a.total))
+const akunKeluar = computed(() => akunKeluarSetahun.value.filter(a => nilai(a)).sort((a, b) => nilai(b) - nilai(a)))
+const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizationExpenses?.accounts ?? []).filter(a => nilai(a)).sort((a, b) => nilai(b) - nilai(a)))
 </script>
 
 <template>
@@ -173,7 +185,10 @@ const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizati
                 <tr
                   v-for="b in baris"
                   :key="b.k"
-                  class="border-t border-default"
+                  class="cursor-pointer border-t border-default hover:bg-elevated"
+                  :class="bulanPilih === b.k ? 'bg-elevated' : ''"
+                  title="Lihat rincian akun bulan ini"
+                  @click="bulanPilih = bulanPilih === b.k ? '' : b.k"
                 >
                   <td class="py-2 pr-3 font-medium">
                     {{ labelPeriode(b.k) }}
@@ -217,9 +232,17 @@ const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizati
           </div>
         </AppPanel>
 
+        <div class="mt-4 flex flex-wrap items-center gap-2 rounded-panel bg-default px-5 py-3.5 shadow-panel">
+          <span class="text-sm font-semibold">Rincian akun</span>
+          <AppChips
+            v-model="bulanPilih"
+            :options="pilihanBulan"
+          />
+        </div>
+
         <div class="mt-4 grid gap-4 lg:grid-cols-3">
           <AppPanel
-            title="Akun dana keluar terbesar"
+            :title="`Akun dana keluar · ${bulanPilih ? labelPeriode(bulanPilih) : 'setahun'}`"
             class="lg:col-span-2"
           >
             <p
@@ -233,7 +256,7 @@ const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizati
               class="divide-y divide-default text-sm"
             >
               <li
-                v-for="a in akunKeluar.slice(0, 15)"
+                v-for="a in semuaAkun ? akunKeluar : akunKeluar.slice(0, 15)"
                 :key="a.grup + a.account"
                 class="flex items-center gap-3 py-2"
               >
@@ -243,18 +266,30 @@ const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizati
                   variant="subtle"
                   :color="a.grup === 'HPP' ? 'warning' : 'neutral'"
                 />
-                <span class="flex-1 truncate">{{ a.account || a.description || '(tanpa nama)' }}</span>
-                <span class="text-xs text-muted">{{ pct(Math.abs(a.total), t.danaKeluar) }}</span>
-                <span class="w-32 text-right tabular-nums">{{ rupiah(Math.abs(a.total)) }}</span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate">{{ namaAkun(a) }}</span>
+                  <span class="block text-xs text-muted tabular-nums">{{ a.account }}</span>
+                </span>
+                <span class="text-xs text-muted">{{ pct(nilai(a), dasarKeluar) }}</span>
+                <span class="w-32 text-right tabular-nums">{{ rupiah(nilai(a)) }}</span>
               </li>
             </ul>
+            <UButton
+              v-if="akunKeluar.length > 15"
+              class="mt-2"
+              size="sm"
+              color="neutral"
+              variant="ghost"
+              :label="semuaAkun ? 'Tampilkan 15 teratas' : `Tampilkan semua (${akunKeluar.length} akun)`"
+              @click="semuaAkun = !semuaAkun"
+            />
           </AppPanel>
           <AppPanel title="Depresiasi & amortisasi">
             <p
               v-if="!akunDepresiasi.length"
               class="text-sm text-muted"
             >
-              Tidak ada beban depresiasi tahun ini.
+              Tidak ada beban depresiasi di periode ini.
             </p>
             <ul
               v-else
@@ -265,8 +300,11 @@ const akunDepresiasi = computed(() => (pl.value?.sections.depreciationAmortizati
                 :key="a.account"
                 class="flex items-center gap-3 py-2"
               >
-                <span class="flex-1 truncate">{{ a.account || a.description || '(tanpa nama)' }}</span>
-                <span class="tabular-nums">{{ rupiah(Math.abs(a.total)) }}</span>
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate">{{ namaAkun(a) }}</span>
+                  <span class="block text-xs text-muted tabular-nums">{{ a.account }}</span>
+                </span>
+                <span class="tabular-nums">{{ rupiah(nilai(a)) }}</span>
               </li>
             </ul>
             <p class="mt-3 text-xs text-muted">
