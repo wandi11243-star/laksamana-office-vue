@@ -151,10 +151,13 @@ function buka(e: InvestorAgendaEvent) {
         :count="acara.length"
         flush
       >
-        <template #head>
+        <!-- no Calendar for this viewer: the panel keeps its own title instead of an empty bar -->
+        <template
+          v-if="bolehKalender"
+          #head
+        >
           <div class="flex w-full flex-wrap items-center gap-3">
             <AppSeg
-              v-if="bolehKalender"
               v-model="mode"
               :options="[
                 { value: 'tabel', label: 'Tabel', icon: 'i-lucide-table' },
