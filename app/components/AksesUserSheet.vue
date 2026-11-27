@@ -148,7 +148,10 @@ async function simpan() {
   }
 }
 
-const punyaAkses = (key: string): boolean => props.user?.grants.includes(key) ?? false
+/** A module box shows the EFFECTIVE access (also through "Semua modul" or a default rule),
+ *  so it can always be unticked: unticking writes a deny for that module. '*' is its own grant. */
+const punyaAkses = (key: string): boolean =>
+  (key === '*' ? props.user?.grants.includes('*') : props.user?.modules.includes(key)) ?? false
 const punyaAdmin = (key: string): boolean => props.user?.adminModules.includes(key) ?? false
 
 // ---- Checkbox system: one box per Modul, checked = granted ----

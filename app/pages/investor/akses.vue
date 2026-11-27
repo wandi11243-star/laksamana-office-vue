@@ -1,11 +1,10 @@
 <!--
-  Investor Compass › Kelola Akses (Nov 2026), after Analytics › Kelola Akses:
-  1) the page × role matrix (None / Lihat / Ubah), 2) the role of each person
-  holding the investor module, 3) the Management Fee composition (who receives
-  what share; total 100%). Only the investor admin may change anything
-  (PUT /investor/settings with If-Match); "Lihat" on this page reads the matrix
-  and roles only — the fee composition is the admin's alone (the server leaves
-  it out for everyone else). Only the matrix DIFF from the defaults is sent.
+  Investor Compass › Kelola Akses (Nov 2026). People only (owner): the list is
+  exactly who holds the investor module in Office › Kelola Akses (members API,
+  reloaded on every visit); here each person gets a role, and each role opens
+  the pages shown in words (the stored page matrix, no longer edited here and
+  sent back unchanged). The investor admin also sets the Management Fee
+  composition (total 100%). Only the investor admin may save (If-Match).
 -->
 <script setup lang="ts">
 import {
@@ -23,13 +22,24 @@ const admin = computed(() => izin.admin.value)
 const { data: balasan, status, error, refresh } = useInvestorSetelan()
 const isi = computed(() => balasan.value?.data ?? null)
 const versi = computed(() => balasan.value?.meta?.version ?? '')
-const { data: anggota } = useAsyncData('investor-members', () => (bolehLihat.value ? getInvestorMembers() : Promise.resolve([])), { watch: [bolehLihat], default: () => [] })
+const { data: anggota, refresh: muatAnggota } = useAsyncData('investor-members', () => (bolehLihat.value ? getInvestorMembers() : Promise.resolve([])), { watch: [bolehLihat], default: () => [] })
+// always the current holders: a change in Office › Kelola Akses must show here at once
+onMounted(() => {
+  void muatAnggota()
+  void refresh()
+})
 
 const LABEL_HAL: Record<HalInvestor, string> = {
   labarugi: 'Laba Rugi', dividen: 'Dividen', fee: 'Management Fee', event: 'Upcoming event', promo: 'Promo', akses: 'Kelola Akses',
 }
 const LABEL_PERAN: Record<PeranInvestor, string> = { investor: 'Investor', mitra: 'Mitra', pengurus: 'Pengurus' }
-const TINGKAT_OPSI = [{ value: 0, label: 'None' }, { value: 1, label: 'Lihat' }, { value: 2, label: 'Ubah' }]
+/** What a role opens, in words (the page matrix is no longer edited here, owner Nov 2026). */
+const halamanPeran = (p: PeranInvestor) => {
+  const s = isi.value
+  if (!s) return ''
+  const buka = s.halaman.filter(h => (matriks.value[p]?.[h] ?? 0) >= 1 && h !== 'fee').map(h => LABEL_HAL[h])
+  return buka.length ? buka.join(', ') : 'Tidak ada halaman'
+}
 
 // ─── working copies (reset whenever the server copy changes) ──
 const matriks = ref<Record<string, Record<string, TingkatInvestor>>>({})
@@ -101,7 +111,7 @@ async function simpan() {
 <template>
   <AppPage
     title="Kelola Akses"
-    description="Siapa boleh membuka halaman apa di Investor Compass, dan komposisi penerima management fee"
+    description="Atur peran orang yang punya akses Investor Compass, dan komposisi penerima management fee"
   >
     <template #actions>
       <UButton
@@ -148,61 +158,20 @@ async function simpan() {
         description="Perubahan hanya bisa dilakukan admin modul investor."
       />
 
-      <!-- 1. matrix -->
+      <!-- people (from Office › Kelola Akses) and their role -->
       <AppPanel
-        title="Akses per halaman"
-        description="Lihat = boleh membuka. Ubah = boleh mengubah (mis. Refresh laporan dari ESB). Admin investor selalu punya akses penuh. Management Fee hanya terbuka untuk penerima yang terdaftar di bawah."
+        title="Orang dengan akses Investor Compass"
+        description="Daftar ini mengikuti Kelola Akses Office: hanya orang yang sudah diberi akses modul Investor Compass. Di sini kamu mengatur perannya, yang menentukan halaman apa saja yang bisa dibuka."
       >
-        <div class="overflow-x-auto">
-          <table class="w-full min-w-[560px] text-base">
-            <thead class="text-left text-sm text-muted">
-              <tr>
-                <th class="px-3 py-3">
-                  Halaman
-                </th>
-                <th
-                  v-for="p in isi.peranList"
-                  :key="p"
-                  class="px-3 py-3"
-                >
-                  {{ LABEL_PERAN[p] }}
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                v-for="h in isi.halaman"
-                :key="h"
-                class="border-t border-default"
-              >
-                <td class="px-3 py-3 font-medium">
-                  {{ LABEL_HAL[h] }}
-                </td>
-                <td
-                  v-for="p in isi.peranList"
-                  :key="p"
-                  class="px-3 py-2"
-                >
-                  <USelect
-                    v-if="matriks[p]"
-                    v-model="matriks[p]![h]"
-                    :items="TINGKAT_OPSI"
-                    :disabled="!admin"
-                    class="w-28"
-                  />
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </AppPanel>
-
-      <!-- 2. roles -->
-      <AppPanel
-        title="Peran tiap orang"
-        description="Orang yang punya modul Investor Compass. Tanpa pilihan, perannya Investor."
-        class="mt-6"
-      >
+        <ul class="mb-4 grid gap-1 rounded-panel bg-muted p-3 text-sm sm:grid-cols-3">
+          <li
+            v-for="p in isi.peranList"
+            :key="p"
+          >
+            <b>{{ LABEL_PERAN[p] }}</b>
+            <span class="block text-muted">{{ halamanPeran(p) }}</span>
+          </li>
+        </ul>
         <p
           v-if="!anggota?.length"
           class="text-muted"
