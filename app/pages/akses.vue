@@ -82,6 +82,9 @@ function bukaUbah(u: AccountUser) {
   pilih.value = u
   sheet.value = true
 }
+/** The sheet follows the row as the list reloads after each save: a snapshot kept
+ *  the old grants, so a ticked box jumped back until the sheet was reopened. */
+const pilihSegar = computed(() => (pilih.value ? users.value.find(u => u.id === pilih.value!.id) ?? pilih.value : null))
 
 // Delete flow: permanent delete is for deactivated rows only (the server
 // refuses active accounts, self-deletes and Kepala Divisi:
@@ -130,9 +133,18 @@ const opsiTab = computed(() => [
 // (PATCH label) and on/off (PATCH active). The key itself never changes.
 const kolomModul: TableColumn<AccountModule>[] = [
   { accessorKey: 'label', header: 'Modul' },
+  { id: 'pemegang', header: 'Pemegang akses' },
   { accessorKey: 'active', header: 'Status' },
   { id: 'aksi', header: '' },
 ]
+// Per module: who holds it and who administers it (AksesModulSheet, owner Nov 2026).
+const anggotaBuka = ref(false)
+const anggotaModul = ref<AccountModule | null>(null)
+function bukaAnggota(m: AccountModule) {
+  anggotaModul.value = m
+  anggotaBuka.value = true
+}
+const jumlahPemegang = (key: string) => users.value.filter(u => u.modules.includes(key)).length
 const modulBuka = ref(false)
 const modulTarget = ref<AccountModule | null>(null)
 const modulLabel = ref('')
@@ -659,7 +671,7 @@ async function kirimImpor() {
       title="Daftar modul"
       icon="i-lucide-key-round"
       :count="daftarModul.length"
-      description="Modul baru didaftarkan lewat sinkronisasi server. Daftar ini hanya mengganti label dan mengaktifkan/menonaktifkan."
+      description="Modul baru didaftarkan lewat sinkronisasi server. Tekan Kelola akses untuk melihat dan mengatur siapa yang memegang modul itu (dan admin-nya)."
       flush
     >
       <div
@@ -678,6 +690,16 @@ async function kirimImpor() {
             <b class="block text-highlighted">{{ row.original.label || row.original.key }}</b>
             <span class="block text-xs text-muted">{{ row.original.key }}</span>
           </template>
+          <template #pemegang-cell="{ row }">
+            <UButton
+              :label="`${jumlahPemegang(row.original.key)} orang`"
+              icon="i-lucide-users"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              @click="bukaAnggota(row.original)"
+            />
+          </template>
           <template #active-cell="{ row }">
             <AppStatus
               :color="row.original.active ? 'success' : 'neutral'"
@@ -694,6 +716,14 @@ async function kirimImpor() {
                 :disabled="sibukModul.includes(`modul:${row.original.key}`)"
                 :aria-label="`${row.original.active ? 'Nonaktifkan' : 'Aktifkan'} ${row.original.label || row.original.key}`"
                 @update:model-value="(v) => toggleModul(row.original, v)"
+              />
+              <UButton
+                label="Kelola akses"
+                icon="i-lucide-user-cog"
+                color="neutral"
+                variant="outline"
+                size="xs"
+                @click="bukaAnggota(row.original)"
               />
               <UButton
                 icon="i-lucide-pencil"
@@ -715,7 +745,7 @@ async function kirimImpor() {
           >
             <div class="min-w-0 flex-1">
               <b class="block truncate text-highlighted">{{ m.label || m.key }}</b>
-              <span class="block truncate text-xs text-muted">{{ m.key }}</span>
+              <span class="block truncate text-xs text-muted">{{ m.key }} · {{ jumlahPemegang(m.key) }} pemegang akses</span>
               <div class="mt-1.5">
                 <AppStatus
                   :color="m.active ? 'success' : 'neutral'"
@@ -733,6 +763,14 @@ async function kirimImpor() {
               @update:model-value="(v) => toggleModul(m, v)"
             />
             <UButton
+              icon="i-lucide-user-cog"
+              color="neutral"
+              variant="outline"
+              size="xs"
+              :aria-label="`Kelola akses ${m.label || m.key}`"
+              @click="bukaAnggota(m)"
+            />
+            <UButton
               icon="i-lucide-pencil"
               color="neutral"
               variant="outline"
@@ -745,9 +783,15 @@ async function kirimImpor() {
       </template>
     </AppPanel>
 
+    <AksesModulSheet
+      v-model:open="anggotaBuka"
+      :modul="anggotaModul"
+      :users="users"
+    />
+
     <AksesUserSheet
       v-model:open="sheet"
-      :user="pilih"
+      :user="pilihSegar"
       :modules="daftarModul"
       :tim-tersedia="timTersedia"
     />
