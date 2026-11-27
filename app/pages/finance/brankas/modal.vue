@@ -31,24 +31,40 @@ definePageMeta({ access: ['brankas'] })
 const izin = useBrankasIzin()
 const me = useMe()
 const toast = useToast()
+const route = useRoute()
+const router = useRouter()
 
 /** Linking an account is the bigger right (old `sayaAdmin`): module admin of
  * investor, brankas or finance. The server checks again. */
 const akunBoleh = computed(() => isAdminOf(me.value, 'investor') || isAdminOf(me.value, 'brankas') || isAdminOf(me.value, 'finance'))
 
 const { data: vaultData, status, error, refresh } = useAsyncData('brankas-vault', () => getVault())
-const daftar = computed<InvestorBrankas[]>(() => ((vault.value.investor ?? []) as InvestorBrankas[]).slice())
+const ID_FEE = 'management-fee'
+const daftar = computed(() => vault.value.investor ?? [])
+const investor = computed(() => daftar.value.filter(i => !isFee(i)))
+const barisFee = computed<InvestorBrankas>(() => daftar.value.find(isFee) ?? { id: ID_FEE, name: 'Management Fee' })
+const barisDaftar = computed(() => [...investor.value, barisFee.value])
+const isFee = (i: InvestorBrankas) => String(i.id) === ID_FEE
 const vault = computed(() => vaultData.value?.vault ?? {})
 
 // Skeleton only for the first load: saving a row refetches in place, so a refetch must not blank the cards.
 const statMemuat = computed(() => !vaultData.value && (status.value === 'pending' || status.value === 'idle'))
 
 const modal = computed(() => daftar.value.reduce((s, i) => s + modalTotal(i), 0))
-const kembali = computed(() => daftar.value.reduce((s, i) => s + (i.returns ?? []).reduce((x, r) => x + num(r.amount), 0), 0))
+const modalAwal = computed(() => daftar.value.reduce((s, i) => s + num(i.capital), 0))
+const investorId = computed(() => typeof route.query.investor === 'string' ? route.query.investor : '')
+const investorAktif = computed(() => barisDaftar.value.filter(i => String(i.id) === investorId.value))
+const buatInvestor = ref(false)
 const gantung = computed(() => modalTanpaWadah(daftar.value))
 const gantungTotal = computed(() => gantung.value.reduce((s, x) => s + num(x.r.amount), 0))
 
-const kembaliOf = (i: InvestorBrankas) => (i.returns ?? []).reduce((s, r) => s + num(r.amount), 0)
+const kembaliOf = (i: InvestorBrankas) => (i.returns ?? []).reduce((s, r) => s + (r.jenis === 'management_fee' ? 0 : num(r.amount)), 0)
+const feeOf = (i: InvestorBrankas) => (i.returns ?? []).reduce((s, r) => s + (r.jenis === 'management_fee' ? num(r.amount) : 0), 0)
+const sisaOf = (i: InvestorBrankas) => Math.max(modalTotal(i) - kembaliOf(i), 0)
+const kembali = computed(() => daftar.value.reduce((s, i) => s + kembaliOf(i), 0))
+const fee = computed(() => daftar.value.reduce((s, i) => s + feeOf(i), 0))
+const sisa = computed(() => daftar.value.reduce((s, i) => s + sisaOf(i), 0))
+const namaJenis = (r: KembaliModal) => r.jenis === 'management_fee' ? 'Management fee' : 'Investor'
 const persenOf = (i: InvestorBrankas) => {
   const t = modalTotal(i)
   return t > 0 ? Math.min(kembaliOf(i) / t * 100, 100) : 0
@@ -58,6 +74,7 @@ const tmUrut = (i: InvestorBrankas) => (i.tambahan ?? []).slice().sort((a, b) =>
 
 // ---- per-card header, stat boxes and tables (old `vModal` card) ----
 function keterangan(i: InvestorBrankas): string {
+  if (isFee(i)) return 'Riwayat setoran management fee.'
   const tm = i.tambahan ?? []
   const total = modalTotal(i)
   const modalTeks = tm.length
@@ -67,8 +84,8 @@ function keterangan(i: InvestorBrankas): string {
 }
 const ringkasan = (i: InvestorBrankas) => [
   { label: 'Dikembalikan', nilai: fmtRp(kembaliOf(i)), sub: `${persenOf(i).toFixed(1)}% dari modal` },
-  { label: 'Sisa', nilai: fmtRp(Math.max(modalTotal(i) - kembaliOf(i), 0)), sub: '' },
-  { label: 'Jumlah pembayaran', nilai: `${(i.returns ?? []).length}×`, sub: '' },
+  { label: 'Sisa', nilai: fmtRp(sisaOf(i)), sub: '' },
+  { label: 'Total modal', nilai: fmtRp(modalTotal(i)), sub: '' },
 ]
 const KANAN = { class: { th: 'text-right', td: 'text-right' } }
 const kolomTambahan = (i: InvestorBrankas): TableColumn<TambahanModal>[] => [
@@ -78,8 +95,16 @@ const kolomTambahan = (i: InvestorBrankas): TableColumn<TambahanModal>[] => [
   { id: 'ket', header: 'Keterangan' },
   { id: 'aksi', header: '' },
 ]
+const kolomInvestor: TableColumn<InvestorBrankas>[] = [
+  { id: 'name', header: 'Investor' },
+  { id: 'capital', header: 'Total modal', meta: KANAN },
+  { id: 'dividen', header: 'Total dividen', meta: KANAN },
+  { id: 'kembali', header: 'Ke investor', meta: KANAN },
+  { id: 'sisa', header: 'Sisa kewajiban', meta: KANAN },
+]
 const kolomKembali: TableColumn<KembaliModal>[] = [
   { id: 'date', header: 'Tanggal' },
+  { id: 'jenis', header: 'Jenis' },
   { id: 'dari', header: 'Dibayar dari' },
   { id: 'amount', header: 'Nominal', meta: KANAN },
   { id: 'aksi', header: '' },
@@ -89,6 +114,7 @@ const kolomKembali: TableColumn<KembaliModal>[] = [
 const ivSunting = ref<string | null>(null)
 const ivForm = reactive({ nama: '', modal: '', milik: '', target: '' })
 function ivBaru() {
+  buatInvestor.value = false
   ivSunting.value = null
   ivForm.nama = ''
   ivForm.modal = ''
@@ -110,14 +136,14 @@ const draf = ref<Record<string, Draf>>({})
 function d(id: string): Draf {
   return draf.value[id] ??= { rd: '', ra: '', rw: '', td: hariIni(), ta: '', tw: '', tk: '' }
 }
-const rvSunting = ref<{ iv: string, ix: number } | null>(null)
+const rvSunting = shallowRef<{ iv: string, target: KembaliModal } | null>(null)
 const tmSunting = ref<{ iv: string, id: string } | null>(null)
 
 function rvMulaiSunting(i: InvestorBrankas, ix: number) {
   if (!izin.ubah('modal')) return
   const r = retUrut(i)[ix]
   if (!r) return
-  rvSunting.value = { iv: String(i.id), ix }
+  rvSunting.value = { iv: String(i.id), target: r }
   const dd = d(String(i.id))
   dd.rd = String(r.date || '')
   dd.ra = String(num(r.amount) || '')
@@ -148,7 +174,7 @@ function tmBatal(i: InvestorBrankas) {
 
 const sibuk = ref(false)
 async function tulisInvestor(obj: InvestorBrankas, ada: boolean, pesan: string) {
-  if (!vaultData.value || !izin.ubah('modal') || sibuk.value) return
+  if (!vaultData.value || !izin.ubah('modal') || sibuk.value) return false
   sibuk.value = true
   try {
     const versi = vaultData.value.version ?? ''
@@ -156,9 +182,11 @@ async function tulisInvestor(obj: InvestorBrankas, ada: boolean, pesan: string) 
     else await createVaultRec('investor', obj as never, versi)
     toast.add({ title: pesan, color: 'success' })
     await refresh()
+    return true
   }
   catch (e) {
     if (!(await tanganiKonflik(e, refresh))) toast.add({ title: `Gagal menyimpan: ${apiErrorMessage(e)}`, color: 'error' })
+    return false
   }
   finally {
     sibuk.value = false
@@ -178,9 +206,7 @@ async function ivSimpan() {
       return
     }
     const obj = { ...lama, name: ivForm.nama.trim(), capital: num(ivForm.modal), ownership: num(ivForm.milik), targetDate: ivForm.target }
-    ivSunting.value = null
-    ivBaru()
-    await tulisInvestor(obj, true, 'Investor disimpan.')
+    if (await tulisInvestor(obj, true, 'Investor disimpan.')) ivBaru()
     return
   }
   const obj: InvestorBrankas = {
@@ -191,13 +217,12 @@ async function ivSimpan() {
     targetDate: ivForm.target,
     returns: [],
   }
-  ivBaru()
-  await tulisInvestor(obj, false, 'Investor dicatat.')
+  if (await tulisInvestor(obj, false, 'Investor dicatat.')) ivBaru()
 }
 
 async function rvSimpan(i: InvestorBrankas) {
   const dd = d(String(i.id))
-  if (!dd.rd || !num(dd.ra)) {
+  if (!dd.rd || num(dd.ra) <= 0) {
     toast.add({ title: 'Tanggal dan nominal pengembalian wajib diisi.', color: 'error' })
     return
   }
@@ -207,29 +232,27 @@ async function rvSimpan(i: InvestorBrankas) {
   }
   const obj = { ...i, returns: [...(i.returns ?? [])] }
   if (rvSunting.value && rvSunting.value.iv === String(i.id)) {
-    const target = retUrut(i)[rvSunting.value.ix]
-    if (!target) {
+    const target = rvSunting.value.target
+    const ixAsli = obj.returns.indexOf(target)
+    if (ixAsli < 0) {
       toast.add({ title: 'Catatan yang disunting sudah tidak ada — muat ulang halaman.', color: 'error' })
       rvSunting.value = null
       return
     }
     // Overwrite its own row, not a new one: two rows for one transfer would
     // count the repayment twice on the investor page.
-    const ixAsli = obj.returns.indexOf(target)
-    obj.returns[ixAsli] = { ...target, date: dd.rd, amount: num(dd.ra), dari: dd.rw }
-    rvSunting.value = null
+    obj.returns[ixAsli] = { ...target, date: dd.rd, amount: num(dd.ra), dari: dd.rw, jenis: isFee(i) ? 'management_fee' : target.jenis }
   }
   else {
-    obj.returns.push({ date: dd.rd, amount: num(dd.ra), dari: dd.rw })
+    obj.returns.push({ date: dd.rd, amount: num(dd.ra), dari: dd.rw, jenis: isFee(i) ? 'management_fee' : 'investor' })
   }
-  dd.rd = ''
-  dd.ra = ''
-  await tulisInvestor(obj, true, 'Pengembalian dicatat.')
+  const sudahAda = daftar.value.some(row => String(row.id) === String(i.id))
+  if (await tulisInvestor(obj, sudahAda, 'Pembayaran dicatat.')) rvBatal(i)
 }
 
 async function tmSimpan(i: InvestorBrankas) {
   const dd = d(String(i.id))
-  if (!dd.td || !num(dd.ta)) {
+  if (!dd.td || num(dd.ta) <= 0) {
     toast.add({ title: 'Tanggal dan nominal tambahan modal wajib diisi.', color: 'error' })
     return
   }
@@ -246,14 +269,11 @@ async function tmSimpan(i: InvestorBrankas) {
       return
     }
     obj.tambahan[ix] = { ...obj.tambahan[ix], date: dd.td, amount: num(dd.ta), ke: dd.tw, ket: dd.tk.trim() }
-    tmSunting.value = null
   }
   else {
     obj.tambahan.push({ id: `tm-${Date.now().toString(36)}`, date: dd.td, amount: num(dd.ta), ke: dd.tw, ket: dd.tk.trim() })
   }
-  dd.ta = ''
-  dd.tk = ''
-  await tulisInvestor(obj, true, 'Tambahan modal dicatat.')
+  if (await tulisInvestor(obj, true, 'Tambahan modal dicatat.')) tmBatal(i)
 }
 
 async function tmHapus(i: InvestorBrankas, id: string) {
@@ -268,7 +288,7 @@ async function rvHapus(i: InvestorBrankas, ix: number) {
   const target = retUrut(i)[ix]
   if (!target || !confirm('Hapus catatan pengembalian ini?')) return
   const obj = { ...i, returns: (i.returns ?? []).filter(r => r !== target) }
-  if (rvSunting.value?.iv === String(i.id) && rvSunting.value.ix === ix) rvSunting.value = null
+  if (rvSunting.value?.iv === String(i.id) && rvSunting.value.target === target) rvSunting.value = null
   await tulisInvestor(obj, true, 'Catatan pengembalian dihapus.')
 }
 
@@ -294,7 +314,14 @@ async function jalanHapusInvestor() {
 }
 
 const opsiWallet = computed(() => [{ label: '— pilih wallet —', value: '__kosong' }, ...SEMUA_WADAH.map(k => ({ label: namaWallet(k), value: k }))])
-onMounted(() => ivBaru())
+watch(investorId, () => {
+  ivBaru()
+  rvSunting.value = null
+  tmSunting.value = null
+  draf.value = {}
+  akBuka.value = null
+  if (import.meta.client) window.scrollTo(0, 0)
+})
 
 // ---- investor → Office account link (VUE-7b, old `akunHtml`/`akBuka`/`akKirim`) ----
 // Only the LINK (`akunId`/`akunNama`) is stored on the investor record, through
@@ -442,6 +469,13 @@ async function akLepas(i: InvestorBrankas) {
   >
     <template #actions>
       <UButton
+        v-if="!investorId && izin.ubah('modal')"
+        label="Tambah investor"
+        icon="i-lucide-plus"
+        size="sm"
+        @click="buatInvestor = true"
+      />
+      <UButton
         label="Segarkan"
         icon="i-lucide-refresh-cw"
         color="neutral"
@@ -477,28 +511,47 @@ async function akLepas(i: InvestorBrankas) {
       />
 
       <AppStatGrid
+        v-if="!investorId"
         :loading="statMemuat"
-        :count="3"
+        :count="5"
+        satu-baris
       >
         <AppStat
-          label="Modal masuk"
-          :value="fmtRp(modal)"
-          :sub="`${daftar.length} investor · termasuk tambahan modal`"
+          label="Modal awal"
+          :value="fmtRp(modalAwal)"
+          :sub="modal > modalAwal ? `Dengan tambahan: ${fmtRp(modal)}` : undefined"
         />
         <AppStat
-          label="Sudah dikembalikan"
+          label="Total dividen"
+          :value="fmtRp(kembali + fee)"
+        />
+        <AppStat
+          label="Sudah dikembalikan investor"
           :value="fmtRp(kembali)"
-          :sub="modal > 0 ? `${(kembali / modal * 100).toFixed(1)}% dari modal` : '—'"
+        />
+        <AppStat
+          label="Management fee"
+          :value="fmtRp(fee)"
         />
         <AppStat
           label="Sisa kewajiban"
-          :value="fmtRp(Math.max(modal - kembali, 0))"
-          sub="belum dikembalikan"
+          :value="fmtRp(sisa)"
+          sub="Modal yang belum kembali"
         />
       </AppStatGrid>
 
+      <UButton
+        v-if="investorId"
+        :to="{ query: {} }"
+        label="Kembali ke daftar investor"
+        icon="i-lucide-arrow-left"
+        color="neutral"
+        variant="ghost"
+        class="mb-4"
+      />
+
       <AppPanel
-        v-if="izin.ubah('modal')"
+        v-if="izin.ubah('modal') && (buatInvestor || ivSunting)"
         :title="ivSunting ? 'Ubah investor' : 'Catat investor'"
         :description="ivSunting ? 'Riwayat pengembaliannya tidak tersentuh.' : 'Modal yang masuk dan target pengembaliannya'"
         class="mb-5"
@@ -541,29 +594,104 @@ async function akLepas(i: InvestorBrankas) {
             @click="ivSimpan"
           />
           <UButton
-            v-if="ivSunting"
             label="Batal"
             color="neutral"
             variant="ghost"
-            @click="() => { ivSunting = null; ivBaru() }"
+            @click="ivBaru()"
           />
         </div>
       </AppPanel>
 
       <AppPanel
-        v-for="i in daftar"
+        v-if="!investorId"
+        title="Daftar investor"
+        flush
+      >
+        <UTable
+          :columns="kolomInvestor"
+          :data="barisDaftar"
+          :ui="{ tr: 'cursor-pointer hover:bg-muted', th: 'text-sm', td: 'text-base' }"
+          :loading="statMemuat"
+          empty="Belum ada investor yang dicatat."
+          class="hidden lg:block"
+          @select="(_e: Event, row: { original: InvestorBrankas }) => router.push({ query: { investor: String(row.original.id) } })"
+        >
+          <template #name-cell="{ row }">
+            <NuxtLink
+              :to="{ query: { investor: String(row.original.id) } }"
+              class="font-semibold text-primary hover:underline"
+              @click.stop
+            >
+              {{ row.original.name || '(tanpa nama)' }}
+            </NuxtLink>
+          </template>
+          <template #capital-cell="{ row }">
+            <span class="num whitespace-nowrap">{{ isFee(row.original) ? '-' : fmtRp(modalTotal(row.original)) }}</span>
+          </template>
+          <template #dividen-cell="{ row }">
+            <span class="num whitespace-nowrap">{{ fmtRp(kembaliOf(row.original) + feeOf(row.original)) }}</span>
+          </template>
+          <template #kembali-cell="{ row }">
+            <span class="num whitespace-nowrap">{{ isFee(row.original) ? '-' : fmtRp(kembaliOf(row.original)) }}</span>
+          </template>
+          <template #sisa-cell="{ row }">
+            <span class="num whitespace-nowrap">{{ isFee(row.original) ? '-' : fmtRp(sisaOf(row.original)) }}</span>
+          </template>
+        </UTable>
+        <div class="divide-y divide-default lg:hidden">
+          <p
+            v-if="statMemuat"
+            class="p-4 text-sm text-muted"
+          >
+            Memuat daftar investor...
+          </p>
+          <NuxtLink
+            v-for="i in barisDaftar"
+            :key="String(i.id)"
+            :to="{ query: { investor: String(i.id) } }"
+            class="flex min-h-11 items-center justify-between gap-3 px-4 py-3 hover:bg-muted"
+          >
+            <span class="min-w-0 break-words">
+              <b class="text-highlighted">{{ i.name || '(tanpa nama)' }}</b>
+              <span
+                v-if="isFee(i)"
+                class="block text-sm text-muted"
+              >{{ fmtRp(feeOf(i)) }}</span>
+              <span
+                v-else
+                class="block text-sm text-muted"
+              >Modal {{ fmtRp(modalTotal(i)) }} · Sisa {{ fmtRp(sisaOf(i)) }}</span>
+            </span>
+            <UIcon
+              name="i-lucide-chevron-right"
+              class="size-4 shrink-0 text-muted"
+            />
+          </NuxtLink>
+        </div>
+      </AppPanel>
+
+      <AppPanel
+        v-for="i in investorAktif"
         :key="String(i.id)"
         :title="String(i.name || '(tanpa nama)')"
         :description="keterangan(i)"
         class="mb-5"
       >
-        <div class="grid gap-3 sm:grid-cols-3">
+        <AppStat
+          v-if="isFee(i)"
+          label="Total management fee"
+          :value="fmtRp(feeOf(i))"
+        />
+        <div
+          v-else
+          class="grid gap-3 sm:grid-cols-3"
+        >
           <div
             v-for="k in ringkasan(i)"
             :key="k.label"
             class="rounded-xl border border-t-[3px] border-default border-t-gold bg-muted p-4"
           >
-            <p class="text-[11px] font-bold uppercase tracking-wider text-muted">
+            <p class="text-xs font-bold uppercase tracking-wider text-muted">
               {{ k.label }}
             </p>
             <p class="num mt-1 font-display text-2xl font-extrabold text-highlighted">
@@ -571,7 +699,7 @@ async function akLepas(i: InvestorBrankas) {
             </p>
             <p
               v-if="k.sub"
-              class="mt-1 text-[13px] text-muted"
+              class="mt-1 text-sm text-muted"
             >
               {{ k.sub }}
             </p>
@@ -580,11 +708,11 @@ async function akLepas(i: InvestorBrankas) {
 
         <!-- ── Tambah modal ── -->
         <div
-          v-if="izin.ubah('modal')"
+          v-if="!isFee(i) && izin.ubah('modal')"
           class="mt-4 rounded-xl border border-dashed border-accented bg-muted p-4"
         >
-          <b class="text-sm text-highlighted">{{ tmSunting?.iv === String(i.id) ? 'Edit tambahan modal' : 'Tambah modal' }}</b>
-          <p class="mb-3 text-[12px] text-muted">
+          <b class="text-base text-highlighted">{{ tmSunting?.iv === String(i.id) ? 'Edit tambahan modal' : 'Tambah modal' }}</b>
+          <p class="mb-3 text-sm text-muted">
             Uang tambahan dari investor ini sesudah modal awal. Saldo wallet tujuannya ikut bertambah —
             <b>jangan dicatat lagi</b> sebagai Mutasi "uang masuk dari luar", nanti terhitung dua kali.
           </p>
@@ -646,6 +774,7 @@ async function akLepas(i: InvestorBrankas) {
         >
           <UTable
             :columns="kolomTambahan(i)"
+            :ui="{ th: 'text-sm', td: 'text-base' }"
             :data="tmUrut(i)"
             class="hidden lg:block"
           >
@@ -688,7 +817,7 @@ async function akLepas(i: InvestorBrankas) {
             <div
               v-for="t in tmUrut(i)"
               :key="String(t.id)"
-              class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-3 py-2 text-sm"
+              class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-3 py-2 text-base"
             >
               <span class="min-w-0">{{ tglRingkas(t.date) }} · {{ namaWallet(t.ke) }} · {{ t.ket || '—' }}</span>
               <span class="flex items-center gap-2">
@@ -712,7 +841,7 @@ async function akLepas(i: InvestorBrankas) {
                 </template>
               </span>
             </div>
-            <div class="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+            <div class="flex items-center justify-between gap-3 px-3 py-2 text-base">
               <b class="text-highlighted">Total tambahan</b>
               <b class="num">{{ fmtRp(modalTotal(i) - num(i.capital)) }}</b>
             </div>
@@ -755,7 +884,7 @@ async function akLepas(i: InvestorBrankas) {
             </UFormField>
             <div class="flex gap-2">
               <UButton
-                :label="rvSunting?.iv === String(i.id) ? 'Simpan perubahan' : 'Catat pengembalian'"
+                :label="rvSunting?.iv === String(i.id) ? 'Simpan perubahan' : isFee(i) ? 'Catat management fee' : 'Catat pengembalian'"
                 block
                 class="flex-1"
                 :loading="sibuk"
@@ -778,11 +907,15 @@ async function akLepas(i: InvestorBrankas) {
         >
           <UTable
             :columns="kolomKembali"
+            :ui="{ th: 'text-sm', td: 'text-base' }"
             :data="retUrut(i)"
             class="hidden lg:block"
           >
             <template #date-cell="{ row }">
               {{ tglRingkas(row.original.date) }}
+            </template>
+            <template #jenis-cell="{ row }">
+              {{ namaJenis(row.original) }}
             </template>
             <template #dari-cell="{ row }">
               <AppStatus
@@ -827,10 +960,11 @@ async function akLepas(i: InvestorBrankas) {
             <div
               v-for="(r, ix) in retUrut(i)"
               :key="ix"
-              class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-3 py-2 text-sm"
+              class="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 px-3 py-2 text-base"
             >
               <span class="min-w-0">
                 <b class="text-highlighted">{{ tglRingkas(r.date) }}</b>
+                <span class="ml-2 text-muted">{{ namaJenis(r) }}</span>
                 <AppStatus
                   v-if="!r.dari || !SEMUA_WADAH.includes(r.dari)"
                   color="warning"
@@ -869,7 +1003,10 @@ async function akLepas(i: InvestorBrankas) {
         </div>
 
         <!-- ── Akun Office (below the repayments, as in the old card) ── -->
-        <div class="mt-4">
+        <div
+          v-if="!isFee(i)"
+          class="mt-4"
+        >
           <template v-if="i.akunId">
             <UAlert
               color="info"
@@ -895,10 +1032,10 @@ async function akLepas(i: InvestorBrankas) {
             v-else-if="akunBoleh"
             class="rounded-xl border border-dashed border-accented bg-muted p-4"
           >
-            <b class="text-sm text-highlighted">Akun Office</b>
+            <b class="text-base text-highlighted">Akun Office</b>
             <p
               v-if="akBuka?.iv !== String(i.id)"
-              class="mb-2 text-[12px] text-muted"
+              class="mb-2 text-sm text-muted"
             >
               Belum terhubung. Tautkan supaya <b>{{ String(i.name) }}</b> bisa masuk ke Investor Compass dan hanya melihat modal & dividennya sendiri.
             </p>
@@ -924,7 +1061,7 @@ async function akLepas(i: InvestorBrankas) {
               />
             </div>
             <template v-else-if="akBuka.mode === 'pilih'">
-              <p class="mb-2 text-[12px] text-muted">
+              <p class="mb-2 text-sm text-muted">
                 Akun yang dipilih diberi hak modul investor (tidak pernah admin); nama dan PIN-nya tidak diubah.
               </p>
               <div
@@ -975,7 +1112,7 @@ async function akLepas(i: InvestorBrankas) {
               </div>
             </template>
             <template v-else>
-              <p class="mb-2 text-[12px] text-muted">
+              <p class="mb-2 text-sm text-muted">
                 Investor masuk ke Investor Compass dengan nama akun + PIN ini. Sampaikan PIN-nya langsung ke orangnya — layar ini tidak menyimpannya.
               </p>
               <div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
@@ -1030,7 +1167,7 @@ async function akLepas(i: InvestorBrankas) {
         </div>
 
         <div
-          v-if="izin.ubah('modal')"
+          v-if="!isFee(i) && izin.ubah('modal')"
           class="mt-4 flex flex-wrap gap-2"
         >
           <UButton
@@ -1049,12 +1186,12 @@ async function akLepas(i: InvestorBrankas) {
           />
         </div>
       </AppPanel>
-      <p
-        v-if="!daftar.length"
-        class="px-4 py-6 text-center text-sm text-muted"
-      >
-        Belum ada investor yang dicatat.
-      </p>
+      <UAlert
+        v-if="investorId && !investorAktif.length && !statMemuat"
+        color="warning"
+        variant="subtle"
+        title="Investor tidak ditemukan."
+      />
 
       <ResponsiveSheet
         v-model:open="ivHapusOpen"

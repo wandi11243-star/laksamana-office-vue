@@ -133,6 +133,7 @@ export interface MutasiBrankas {
 }
 
 export interface KembaliModal {
+  jenis?: 'investor' | 'management_fee'
   date?: string
   amount?: unknown
   dari?: string
