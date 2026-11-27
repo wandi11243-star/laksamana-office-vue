@@ -452,11 +452,25 @@ const galat = ref('')
 const sheetHapus = ref(false)
 const sheetDPKurang = ref(false)
 const kurang = ref<string[]>([])
+const { data: penutupan } = useSection<{ from: string, to: string }[]>('publicClosures')
+const tutupAktif = computed(() => {
+  const jam = normTime(form.time)
+  const slot = form.date + 'T' + jam
+  const row = lama.value
+  if (!form.date || !jam || row?.vip || (row?.date === form.date && normTime(row.time) === jam)
+    || (row?.source === 'Walk-in' && row.status === 'Datang')) return undefined
+  const jadwal = Array.isArray(penutupan.value) ? penutupan.value : []
+  return jadwal.filter(j => slot >= j.from && slot < j.to).sort((a, b) => b.to.localeCompare(a.to))[0]
+})
+const pesanTutup = computed(() => tutupAktif.value
+  ? 'Reservasi umum ditutup untuk jam ini. Pilih jam mulai ' + tutupAktif.value.to.replace('T', ' ') + ' WIB atau sesudahnya.'
+  : '')
 
 const WAJIB: [string, string][] = [['name', 'Nama Tamu'], ['phone', 'No. HP'], ['date', 'Tanggal'], ['time', 'Jam Datang'], ['pax', 'Jumlah Pax']]
 
 function validasi(): boolean {
   galat.value = ''
+  if (pesanTutup.value) return false
   for (const [n, label] of WAJIB) {
     const v = (form as unknown as Record<string, unknown>)[n]
     if (v === '' || v === null || v === undefined || (typeof v === 'string' && !v.trim())) {
@@ -804,6 +818,15 @@ async function hapus() {
         class="mt-0.5 size-4 shrink-0"
       />{{ galat }}
     </p>
+
+    <UAlert
+      v-if="pesanTutup"
+      :title="pesanTutup"
+      icon="i-lucide-clock"
+      color="warning"
+      variant="subtle"
+      class="mb-4"
+    />
 
     <datalist id="nama-tamu">
       <option
