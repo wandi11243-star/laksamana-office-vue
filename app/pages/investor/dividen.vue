@@ -152,7 +152,7 @@ const kolomPer = computed<TableColumn<BarisPer>[]>(() => [
         v-if="semua && per.length"
         title="Per investor"
         icon="i-lucide-users"
-        description="Tekan Lihat riwayat untuk melihat pembagian tiap investor · hanya terlihat oleh admin · sumber: Brankas Finance"
+        description="Tekan Lihat riwayat untuk melihat pembagian tiap investor · terlihat oleh peran dengan Dividen = Semua investor · sumber: Brankas Finance"
         flush
       >
         <UTable

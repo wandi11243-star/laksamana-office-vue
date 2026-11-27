@@ -44,6 +44,10 @@ const halamanPeran = (p: PeranInvestor) => {
 
 // Per page: none / view; Kelola Akses also has "Kelola" (change). Laba Rugi is view-only (refresh in Analytics).
 const OPSI_HAL = [{ value: 0, label: 'Tidak' }, { value: 1, label: 'Lihat' }]
+const OPSI_DIVIDEN = [{ value: 0, label: 'Tidak' }, { value: 1, label: 'Milik sendiri' }, { value: 2, label: 'Semua investor' }]
+/** Highest level a page takes: Kelola Akses and Dividen have a third step. */
+const maksHal = (h: HalInvestor) => (h === 'akses' || h === 'dividen' ? 2 : 1)
+const opsiHal = (h: HalInvestor) => (h === 'akses' ? OPSI_AKSES : h === 'dividen' ? OPSI_DIVIDEN : OPSI_HAL)
 const OPSI_AKSES = [{ value: 0, label: 'Tidak' }, { value: 1, label: 'Lihat' }, { value: 2, label: 'Kelola' }]
 /** The admin role always manages Kelola Akses (the server enforces it too). */
 const terkunci = (p: PeranInvestor, h: HalInvestor) => p === 'admin' && h === 'akses'
@@ -58,7 +62,7 @@ function muatDraf() {
   const m: Record<string, Record<string, TingkatInvestor>> = {}
   for (const p of s.peranList) {
     m[p] = {}
-    for (const h of s.halaman) m[p]![h] = Math.min(h === 'akses' ? 2 : 1, (s.matrix?.[p]?.[h] ?? s.bawaan[p][h]) as number) as TingkatInvestor
+    for (const h of s.halaman) m[p]![h] = Math.min(maksHal(h), (s.matrix?.[p]?.[h] ?? s.bawaan[p][h]) as number) as TingkatInvestor
     if (p === 'admin') m[p]!.akses = 2
   }
   matriks.value = m
@@ -93,7 +97,7 @@ async function simpan() {
   for (const p of s.peranList) {
     for (const h of s.halaman) {
       const v = matriks.value[p]?.[h]
-      if (v !== undefined && v !== Math.min(h === 'akses' ? 2 : 1, s.bawaan[p][h])) (diff[p] ||= {})[h] = v
+      if (v !== undefined && v !== Math.min(maksHal(h), s.bawaan[p][h])) (diff[p] ||= {})[h] = v
     }
   }
   menyimpan.value = true
@@ -169,7 +173,7 @@ async function simpan() {
       <!-- what each role opens, per page -->
       <AppPanel
         title="Akses halaman per peran"
-        description="Atur halaman yang bisa dibuka tiap peran. Laba Rugi hanya bisa dilihat (Refresh dari Analytics). Peran Admin selalu bisa mengatur Kelola Akses. Penerima management fee selalu bisa membuka bagiannya di Management Fee."
+        description="Atur halaman yang bisa dibuka tiap peran. Laba Rugi hanya bisa dilihat (Refresh dari Analytics). Dividen: Milik sendiri = hanya catatan investor yang ditautkan ke akunnya; Semua investor = seluruh investor tanpa perlu ditautkan. Peran Admin selalu bisa mengatur Kelola Akses. Penerima management fee selalu bisa membuka bagiannya di Management Fee."
         class="mb-6"
       >
         <div class="overflow-x-auto">
@@ -205,9 +209,9 @@ async function simpan() {
                   <USelect
                     v-if="matriks[p]"
                     v-model="matriks[p]![h]"
-                    :items="h === 'akses' ? OPSI_AKSES : OPSI_HAL"
+                    :items="opsiHal(h)"
                     :disabled="!admin || terkunci(p, h)"
-                    class="w-28"
+                    class="w-40"
                   />
                 </td>
               </tr>
