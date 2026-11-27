@@ -85,6 +85,9 @@ export interface InvestorDividen {
   per?: InvestorDividenPer[]
   semua?: boolean
   jumlahSemua?: number | null
+  /** Total management fee deposits + their history (no recipients), for every viewer. */
+  managementFee?: number
+  managementFeeRiwayat?: { tgl: string, nominal: number }[]
   gagal: boolean
 }
 
@@ -261,3 +264,13 @@ export function useInvestorIzin() {
     ubah: (h: HalInvestor) => tingkat(h) >= 2,
   }
 }
+
+/** GET /api/v1/kompas/investor/calendar — events of the range INCLUDING past days,
+ *  plus reservations per day (count + pax; cancelled/no-show left out). Max 62 days. */
+export interface InvestorKalender {
+  event: InvestorAgendaEvent[]
+  reservasi: Record<string, { jumlah: number, pax: number }>
+  gagal: string[]
+}
+export const getInvestorKalender = (dari: string, sampai: string) =>
+  useApi()<Envelope<InvestorKalender>>('/kompas/investor/calendar', { query: { dari, sampai } }).then(r => r.data)

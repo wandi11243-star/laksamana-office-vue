@@ -25,3 +25,18 @@ export function arahDomainInvestor(path: string): string | null {
   if (path === '/investor' || path.startsWith('/investor/') || HAL_UMUM.includes(path)) return null
   return '/investor'
 }
+
+/** Built-in modules every account holds (laksamana-api OfficeAccess::builtinModules) plus Help. */
+const BAWAAN = ['radar', 'hris', 'help', 'jadwal', 'dw']
+
+/**
+ * A pure investor: Investor Compass is the only module besides the built-ins
+ * (owner, 28 Nov 2026). Such an account uses investor.laksamanamuda.id only —
+ * no Team Office — and gets no Radar-based calendar.
+ */
+export function hanyaInvestor(me: { modules?: string[] } | null | undefined): boolean {
+  const m = me?.modules ?? []
+  return m.includes('investor') && m.every(k => k === 'investor' || BAWAAN.includes(k))
+}
+
+export const URL_INVESTOR = 'https://investor.laksamanamuda.id'
