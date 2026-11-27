@@ -35,32 +35,60 @@ const kolom = computed<TableColumn<InvestorAgendaEvent>[]>(() => [
   { accessorKey: 'jenis', header: 'Jenis' },
 ])
 
-// --- calendar: which dates of one month are busy ----------------------------
+// --- calendar: the Radar › Kalender Terpadu look (owner, Nov 2026) ----------
+// 6 weeks from the Sunday before the 1st, one pill per event in its source
+// colour with a left stripe, a pax total at the foot of the day, a list on phones.
 const HARI = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab']
-const blnKal = ref(tglHariIni().slice(0, 7))
-const geserBulan = (n: number) => {
-  const [y, m] = blnKal.value.split('-').map(Number)
-  const d = new Date(y!, m! - 1 + n, 1)
-  blnKal.value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+const pad = (n: number) => String(n).padStart(2, '0')
+const isoOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+const hariKini = tglHariIni()
+const cur = ref({ y: Number(hariKini.slice(0, 4)), m: Number(hariKini.slice(5, 7)) - 1 })
+const blnKal = computed(() => `${cur.value.y}-${pad(cur.value.m + 1)}`)
+const nav = (n: number) => {
+  const d = new Date(cur.value.y, cur.value.m + n, 1)
+  cur.value = { y: d.getFullYear(), m: d.getMonth() }
 }
+const sekarang = () => {
+  cur.value = { y: Number(hariKini.slice(0, 4)), m: Number(hariKini.slice(5, 7)) - 1 }
+}
+const sel = computed(() => {
+  const first = new Date(cur.value.y, cur.value.m, 1)
+  const start = new Date(first)
+  start.setDate(1 - first.getDay())
+  return Array.from({ length: 42 }, (_, i) => {
+    const d = new Date(start)
+    d.setDate(start.getDate() + i)
+    return { iso: isoOf(d), n: d.getDate(), luar: d.getMonth() !== cur.value.m }
+  })
+})
+type Sumber = 'mkt' | 'evt'
+const sumberDari = (e: InvestorAgendaEvent): Sumber => (e.sumber === 'Event' ? 'evt' : 'mkt')
+const tampil = ref<Record<Sumber, boolean>>({ mkt: true, evt: true })
+const CHIP: { k: Sumber, label: string, warna: string }[] = [
+  { k: 'mkt', label: 'Marketing', warna: 'bg-brand-yellow' },
+  { k: 'evt', label: 'Event', warna: 'bg-lilac-light' },
+]
+const KELAS_EV: Record<Sumber, string> = { mkt: 'bg-yellow-light text-yellow-dark', evt: 'bg-lilac-light text-ink-900' }
+const GARIS_EV: Record<Sumber, string> = { mkt: 'bg-brand-yellow', evt: 'bg-vip' }
 const perTanggal = computed(() => {
   const peta = new Map<string, InvestorAgendaEvent[]>()
   for (const e of acara.value) {
-    if (!String(e.tgl).startsWith(blnKal.value)) continue
+    if (!tampil.value[sumberDari(e)]) continue
     peta.set(e.tgl, [...(peta.get(e.tgl) ?? []), e])
   }
   return peta
 })
-const selKalender = computed(() => {
-  const [y, m] = blnKal.value.split('-').map(Number)
-  const pertama = new Date(y!, m! - 1, 1).getDay()
-  const jumlah = new Date(y!, m!, 0).getDate()
-  const sel: ({ tgl: string } | null)[] = []
-  for (let i = 0; i < pertama; i++) sel.push(null)
-  for (let d = 1; d <= jumlah; d++) sel.push({ tgl: `${blnKal.value}-${String(d).padStart(2, '0')}` })
-  return sel
-})
-const hitungBulan = computed(() => acara.value.filter(e => String(e.tgl).startsWith(blnKal.value)).length)
+const agSel = (iso: string) => perTanggal.value.get(iso) ?? []
+const paxSel = (iso: string) => agSel(iso).reduce((a, e) => a + (Number(e.pax) || 0), 0)
+const agBln = computed(() => acara.value.filter(e => String(e.tgl).startsWith(blnKal.value) && tampil.value[sumberDari(e)]))
+const hitungBulan = computed(() => agBln.value.length)
+const hariBerisi = computed(() => sel.value.filter(c => !c.luar && agSel(c.iso).length))
+const dipilih = ref<InvestorAgendaEvent | null>(null)
+const bukaDetail = ref(false)
+function buka(e: InvestorAgendaEvent) {
+  dipilih.value = e
+  bukaDetail.value = true
+}
 </script>
 
 <template>
@@ -179,65 +207,183 @@ const hitungBulan = computed(() => acara.value.filter(e => String(e.tgl).startsW
         </template>
 
         <template v-else>
-          <div class="flex items-center justify-between gap-2 px-4 py-3">
-            <UButton
-              icon="i-lucide-chevron-left"
-              variant="soft"
-              size="sm"
-              aria-label="Bulan sebelumnya"
-              @click="geserBulan(-1)"
-            />
-            <b class="text-highlighted">{{ blnPanjang(blnKal) }}</b>
-            <UButton
-              icon="i-lucide-chevron-right"
-              variant="soft"
-              size="sm"
-              aria-label="Bulan berikutnya"
-              @click="geserBulan(1)"
-            />
-          </div>
-          <div class="grid grid-cols-7 gap-px bg-default px-4 pb-4">
-            <p
-              v-for="h in HARI"
-              :key="h"
-              class="py-1 text-center text-xs font-bold tracking-wide text-muted uppercase"
-            >
-              {{ h }}
-            </p>
-            <div
-              v-for="(s, i) in selKalender"
-              :key="i"
-              class="min-h-16 rounded-panel border border-default p-1"
-              :class="!s && 'border-transparent'"
-            >
-              <template v-if="s">
-                <p
-                  class="text-xs font-bold text-muted"
-                >
-                  <span :class="s.tgl === hariIni ? 'tgl-bulat' : ''">{{ Number(s.tgl.slice(8)) }}</span>
-                </p>
-                <p
-                  v-for="(e, k) in (perTanggal.get(s.tgl) ?? []).slice(0, 2)"
-                  :key="k"
-                  class="truncate text-[11px] text-highlighted"
-                  :title="e.judul"
-                >
-                  {{ e.judul }}
-                </p>
-                <p
-                  v-if="(perTanggal.get(s.tgl) ?? []).length > 2"
-                  class="text-[11px] text-muted"
-                >
-                  +{{ (perTanggal.get(s.tgl) ?? []).length - 2 }} lagi
-                </p>
-              </template>
+          <div class="flex flex-wrap items-center gap-3 px-4 py-3">
+            <div class="flex flex-wrap items-center gap-2">
+              <UButton
+                icon="i-lucide-chevron-left"
+                color="neutral"
+                variant="outline"
+                class="min-h-11 min-w-11 justify-center lg:min-h-9 lg:min-w-9"
+                aria-label="Bulan sebelumnya"
+                @click="nav(-1)"
+              />
+              <span class="min-w-40 text-center font-display text-lg font-bold">{{ blnPanjang(blnKal) }}</span>
+              <UButton
+                icon="i-lucide-chevron-right"
+                color="neutral"
+                variant="outline"
+                class="min-h-11 min-w-11 justify-center lg:min-h-9 lg:min-w-9"
+                aria-label="Bulan berikutnya"
+                @click="nav(1)"
+              />
+              <UButton
+                label="Hari ini"
+                color="neutral"
+                variant="outline"
+                class="min-h-11 lg:min-h-9"
+                @click="sekarang"
+              />
+            </div>
+            <div class="flex-1" />
+            <div class="flex flex-wrap items-center gap-1.5">
+              <span class="text-[11px] font-bold uppercase tracking-wide text-muted">Tampilkan</span>
+              <button
+                v-for="c in CHIP"
+                :key="c.k"
+                type="button"
+                class="inline-flex min-h-11 items-center gap-1.5 rounded-full border px-3 text-xs font-semibold transition-colors hover:border-gold lg:min-h-8"
+                :class="tampil[c.k] ? 'border-default bg-default text-highlighted' : 'border-dashed border-default text-muted line-through'"
+                :aria-pressed="tampil[c.k]"
+                @click="tampil = { ...tampil, [c.k]: !tampil[c.k] }"
+              >
+                <i
+                  class="size-2.5 rounded-full"
+                  :class="c.warna"
+                />{{ c.label }}
+              </button>
             </div>
           </div>
-          <p class="px-4 py-2 text-[13px] text-muted">
+
+          <div class="mx-4 mb-4 hidden overflow-hidden rounded-panel border border-default bg-default lg:block">
+            <div class="grid grid-cols-7">
+              <div
+                v-for="d in HARI"
+                :key="d"
+                class="border-b border-default bg-muted px-2 py-1.5 text-center text-[11px] font-bold uppercase tracking-wide text-muted"
+              >
+                {{ d }}
+              </div>
+            </div>
+            <div class="grid auto-rows-fr grid-cols-7">
+              <div
+                v-for="c in sel"
+                :key="c.iso"
+                class="flex min-h-36 flex-col border-b border-r border-default p-1.5 transition-colors hover:bg-gold-soft/40 [&:nth-child(7n)]:border-r-0"
+                :class="[c.luar ? 'bg-muted/40 text-muted' : '', c.iso === hariKini ? 'bg-gold-soft/60 ring-2 ring-inset ring-gold' : '']"
+              >
+                <div class="mb-1 text-xs font-bold num">
+                  <span :class="c.iso === hariKini ? 'tgl-bulat' : ''">{{ c.n }}</span>
+                </div>
+                <button
+                  v-for="(e, k) in agSel(c.iso).slice(0, 3)"
+                  :key="k"
+                  type="button"
+                  class="relative mb-1 block w-full overflow-hidden rounded-[4px] py-1 pl-2.5 pr-1.5 text-left text-[11px] font-semibold leading-tight transition hover:brightness-95 hover:ring-1 hover:ring-gold/50"
+                  :class="[KELAS_EV[sumberDari(e)], c.luar ? 'opacity-60' : '']"
+                  :title="`${e.judul} — ${e.sumber}${e.pax ? ` · ${e.pax} pax` : ''}`"
+                  @click="buka(e)"
+                >
+                  <i
+                    class="absolute inset-y-0 left-0 w-1"
+                    :class="GARIS_EV[sumberDari(e)]"
+                    aria-hidden="true"
+                  />
+                  <span class="block truncate">{{ e.judul }}</span>
+                </button>
+                <p
+                  v-if="agSel(c.iso).length > 3"
+                  class="px-1 text-[11px] text-muted"
+                >
+                  +{{ agSel(c.iso).length - 3 }} lagi
+                </p>
+                <p
+                  v-if="paxSel(c.iso)"
+                  class="mt-auto border-t border-default px-1 pt-1 text-[11px] font-semibold text-highlighted num"
+                  :class="c.luar ? 'opacity-60' : ''"
+                >
+                  Total {{ paxSel(c.iso) }} pax
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- phones: the days of the month that carry an event -->
+          <div class="divide-y divide-default lg:hidden">
+            <div
+              v-for="c in hariBerisi"
+              :key="c.iso"
+              class="px-4 py-3"
+              :class="c.iso === hariKini ? 'bg-primary-50' : ''"
+            >
+              <div class="mb-2 flex flex-wrap items-center justify-between gap-2">
+                <div class="min-w-0 font-semibold text-highlighted">
+                  {{ fTgl(c.iso) }}<span
+                    v-if="c.iso === hariKini"
+                    class="ml-1 text-primary-700"
+                  >· Hari ini</span>
+                </div>
+                <span
+                  v-if="paxSel(c.iso)"
+                  class="text-right text-xs font-semibold text-muted num"
+                >Total {{ paxSel(c.iso) }} pax</span>
+              </div>
+              <div class="grid grid-cols-1 gap-1.5">
+                <button
+                  v-for="(e, k) in agSel(c.iso)"
+                  :key="k"
+                  type="button"
+                  class="relative flex min-h-11 min-w-0 items-center gap-2 overflow-hidden rounded-md py-2 pl-4 pr-2.5 text-left text-sm"
+                  :class="KELAS_EV[sumberDari(e)]"
+                  @click="buka(e)"
+                >
+                  <span
+                    class="absolute inset-y-0 left-0 w-1.5"
+                    :class="GARIS_EV[sumberDari(e)]"
+                    aria-hidden="true"
+                  />
+                  <span class="shrink-0 text-xs text-muted">{{ e.sumber }}</span>
+                  <span class="min-w-0 flex-1 truncate font-semibold">{{ e.judul }}</span>
+                  <span
+                    v-if="e.jam"
+                    class="shrink-0 text-xs text-muted num"
+                  >{{ e.jam }}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+          <p class="px-4 py-3 text-[13px] text-muted">
             {{ hitungBulan ? `${hitungBulan} acara di ${blnPanjang(blnKal)}` : `Tidak ada acara di ${blnPanjang(blnKal)}` }}
           </p>
         </template>
       </AppPanel>
+
+      <ResponsiveSheet
+        v-model:open="bukaDetail"
+        :title="dipilih?.judul ?? ''"
+        :description="dipilih ? `${fTgl(dipilih.tgl)}${dipilih.jam ? ` · ${dipilih.jam}` : ''}` : ''"
+      >
+        <dl
+          v-if="dipilih"
+          class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm"
+        >
+          <dt class="text-muted">
+            Sumber
+          </dt>
+          <dd>{{ dipilih.sumber }}</dd>
+          <dt class="text-muted">
+            Tempat
+          </dt>
+          <dd>{{ dipilih.tempat || '—' }}</dd>
+          <dt class="text-muted">
+            Jenis
+          </dt>
+          <dd>{{ dipilih.jenis || '—' }}</dd>
+          <dt class="text-muted">
+            Pax
+          </dt>
+          <dd>{{ dipilih.pax || '—' }}</dd>
+        </dl>
+      </ResponsiveSheet>
     </template>
   </AppPage>
 </template>
