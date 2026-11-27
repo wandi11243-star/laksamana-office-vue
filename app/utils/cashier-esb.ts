@@ -87,11 +87,14 @@ export function ringkasEsb(bills: unknown[]): EsbHari {
       if (k === 'member_dep') deposit += p.amount
     }
     if (order) R.order.n++
+    const servers = new Map(live.map(M => String(M.createdBy ?? '').trim()).filter(Boolean).map(name => [name.toUpperCase(), name]))
+    // ESB reports the Server on each menu line. Only assign a PIC when the bill has one identifiable Server.
+    const server = servers.size === 1 ? (servers.values().next().value ?? '') : ''
     for (const [jenis, nominal] of [['compliment', compliment], ['member_dep', deposit]] as const) {
       if (nominal <= 0) continue
       const svc = n(B.otherTaxTotal), tax = n(B.vatTotal), share = grand > 0 ? Math.min(1, nominal / grand) : 1
       const menu = live.map(M => String(M.menuName ?? '').trim()).filter(Boolean)
-      R.komp.push({ bill, jenis, nominal: Math.round(nominal), tax: Math.round(tax * share), service: Math.round(svc * share), subTotal: Math.round(nominal - Math.round(tax * share) - Math.round(svc * share)), info: String(B.additionalInfo ?? '').trim(), menu, akun: String(B.editedBy || B.createdBy || '').trim(), kasir: String(B.editedBy || B.createdBy || '').trim(), meja: String(B.tableName ?? '') })
+      R.komp.push({ bill, jenis, nominal: Math.round(nominal), tax: Math.round(tax * share), service: Math.round(svc * share), subTotal: Math.round(nominal - Math.round(tax * share) - Math.round(svc * share)), info: String(B.additionalInfo ?? '').trim(), menu, akun: server, kasir: server, meja: String(B.tableName ?? '') })
     }
     const dead = menus.filter(M => batal.test(String(M.statusName ?? ''))).map(M => ({ item: String(M.menuName ?? '').trim(), qty: n(M.qty), sub: nilaiMenu(M) })).filter(x => x.item)
     if (dead.length) {
@@ -174,6 +177,7 @@ export const namaKasirEsb = (u: unknown) => {
   return EMPLOYEE_ESB[b] || (b.replace(/^MUDA/, ''))
 }
 export function cariPicEsb(akun: string, roster: { id: string, name: string }[], mapping: Record<string, string> = {}, employees: { id: string, name: string, officeUserId?: string | null }[] = []) {
+  if (!akun.trim()) return null
   const mapped = mapping[baku(akun).replace(/ /g, '')] ?? mapping[akun]
   const employee = employees.find(e => String(e.id) === String(mapped))
   if (employee) {
