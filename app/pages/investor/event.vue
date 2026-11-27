@@ -27,8 +27,8 @@ const lebih = computed(() => agenda.value?.eventLebih ?? 0)
 const hariIni = computed(() => agenda.value?.hariIni ?? '')
 
 const mode = ref<'tabel' | 'kalender'>('tabel')
-/** The calendar is the Radar board (past events + reservations): only for who also holds Radar (owner, 28 Nov 2026). */
-const bolehKalender = computed(() => hasAccess(useMe().value, ['radar']) && !hanyaInvestor(useMe().value))
+/** Table or calendar: everyone who opens this page may switch (owner, 28 Nov 2026). */
+const bolehKalender = computed(() => true)
 
 const kolom = computed<TableColumn<InvestorAgendaEvent>[]>(() => [
   { accessorKey: 'tgl', header: 'Tanggal' },
