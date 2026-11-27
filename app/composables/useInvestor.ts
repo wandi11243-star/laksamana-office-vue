@@ -202,3 +202,60 @@ export const deleteInvestorReport = (bulan: string, jenis: JenisLapor) =>
     `/kompas/investor/reports/${encodeURIComponent(bulan)}/${jenis}`,
     { method: 'DELETE' },
   )
+
+// --- Investor Compass settings + management fee (Nov 2026) --------------------
+// laksamana-api/docs/api/kompas.md: /investor/settings, /investor/management-fee.
+
+export type PeranInvestor = 'investor' | 'mitra' | 'pengurus'
+export type HalInvestor = 'labarugi' | 'dividen' | 'fee' | 'event' | 'promo' | 'akses'
+export type TingkatInvestor = 0 | 1 | 2
+export interface PenerimaFee { akunId: string, nama: string, persen: number, nominal?: number }
+export interface InvestorSetelan {
+  saya: { peran: PeranInvestor, admin: boolean, penerimaFee: boolean, tingkat: Record<HalInvestor, TingkatInvestor> }
+  bawaan: Record<PeranInvestor, Record<HalInvestor, TingkatInvestor>>
+  peranList: PeranInvestor[]
+  halaman: HalInvestor[]
+  /** Only with "akses" ≥ Lihat. */
+  matrix?: Partial<Record<PeranInvestor, Partial<Record<HalInvestor, TingkatInvestor>>>>
+  roles?: Record<string, PeranInvestor>
+  /** Investor admin only. */
+  fee?: { penerima: PenerimaFee[] }
+}
+export interface ManagementFee {
+  total: number
+  perBulan: Record<string, number>
+  riwayat: { tgl: string, nominal: number }[]
+  saya: PenerimaFee | null
+  /** Investor admin only; null for everyone else. */
+  penerima: PenerimaFee[] | null
+  gagal: boolean
+}
+
+/** GET /api/v1/kompas/investor/settings (envelope kept: meta.version). Shared by the menu, the pages and Kelola Akses. */
+export const useInvestorSetelan = () =>
+  useAsyncData('investor-setelan', () => useApi()<Envelope<InvestorSetelan> & { meta: { version?: string } }>('/kompas/investor/settings'), { dedupe: 'defer' })
+
+/** PUT /api/v1/kompas/investor/settings — investor admin; each part given replaces its whole part. */
+export const saveInvestorSetelan = (body: Partial<Pick<InvestorSetelan, 'matrix' | 'roles' | 'fee'>>, version: string) =>
+  useApi()<Envelope<{ saved: boolean }>>('/kompas/investor/settings', { method: 'PUT', body, headers: { 'If-Match': `"${version}"` } })
+
+/** GET /api/v1/kompas/investor/management-fee. */
+export const getManagementFee = () =>
+  useApi()<Envelope<ManagementFee>>('/kompas/investor/management-fee').then(r => r.data)
+
+/** GET /api/v1/account/modules/investor/members — who holds the investor module (Kelola Akses, fee recipients). */
+export const getInvestorMembers = () =>
+  useApi()<Envelope<{ id: string, name: string, username?: string, isModuleAdmin?: boolean }[]>>('/account/modules/investor/members').then(r => r.data)
+
+/** The viewer's level on an Investor Compass page. Until the settings load, view only (the server checks again). */
+export function useInvestorIzin() {
+  const { data } = useInvestorSetelan()
+  const tingkat = (h: HalInvestor): number => data.value?.data?.saya.tingkat[h] ?? (h === 'akses' || h === 'fee' ? 0 : 1)
+  return {
+    siap: computed(() => !!data.value?.data),
+    admin: computed(() => !!data.value?.data?.saya.admin),
+    tingkat,
+    lihat: (h: HalInvestor) => tingkat(h) >= 1,
+    ubah: (h: HalInvestor) => tingkat(h) >= 2,
+  }
+}

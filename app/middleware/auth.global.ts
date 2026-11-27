@@ -36,6 +36,11 @@ export default defineNuxtRouteMiddleware(async (to) => {
     }
   }
 
+  // A PIN set by someone else (new account, admin reset): pick an own PIN before anything else.
+  if (me.value?.harusGantiPin && to.path !== '/ganti-pin') {
+    return navigateTo({ path: '/ganti-pin', query: to.fullPath === '/' ? {} : { next: to.fullPath } })
+  }
+
   if (to.meta.access && !hasAccess(me.value, to.meta.access)) {
     throw createError({ statusCode: 403, statusMessage: 'Anda belum punya akses ke modul ini. Minta admin membukanya di Kelola Akses.' })
   }
