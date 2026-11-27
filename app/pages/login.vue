@@ -2,6 +2,7 @@
 definePageMeta({ layout: false, public: true })
 
 const route = useRoute()
+const domainInvestor = diDomainInvestor()
 if (useToken().value) await navigateTo('/')
 
 const form = reactive({ login: '', pin: '' })
@@ -42,7 +43,7 @@ async function submit() {
           class="mx-auto size-24 rounded-[22%] shadow-panel"
         >
         <h1 class="mt-4 text-3xl font-extrabold tracking-tight text-highlighted">
-          Laksamana Teams
+          {{ domainInvestor ? 'Investor Compass' : 'Laksamana Teams' }}
         </h1>
       </div>
 

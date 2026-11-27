@@ -6,6 +6,8 @@
   Keyed by module in the layout, so its counts are read once per module.
 -->
 <script setup lang="ts">
+/** investor.laksamanamuda.id: no way back to the Office (utils/domain.ts). */
+const domainInvestor = diDomainInvestor()
 const NuxtLink = resolveComponent('NuxtLink')
 const route = useRoute()
 const { modul, shell } = useModulShell()
@@ -127,7 +129,7 @@ const sheet = computed({
         />
         <template v-if="akhir">
           <NuxtLink
-            v-if="modul && shell"
+            v-if="modul && shell && !domainInvestor"
             to="/"
             class="mt-2 flex items-center gap-2 rounded-field px-3 py-2.5 text-[14px] font-semibold text-muted hover:bg-muted"
           >

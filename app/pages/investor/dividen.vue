@@ -12,13 +12,18 @@
 -->
 <script setup lang="ts">
 import type { TableColumn } from '@nuxt/ui'
-import { useInvestorSummary } from '~/composables/useInvestor'
+import { getManagementFee, useInvestorIzin, useInvestorSummary } from '~/composables/useInvestor'
 import type { InvestorDividenPer } from '~/composables/useInvestor'
 import { rupiah, tglPanjang } from '~/utils/format'
 
 definePageMeta({ access: ['investor'] })
 
 const { data: balasan, status, error } = useInvestorSummary()
+// Management fee, as Finance › Brankas shows it: only for who may open the fee page (admin, recipients)
+const izin = useInvestorIzin()
+const lihatFee = computed(() => izin.lihat('fee'))
+const { data: dataFee } = useAsyncData('investor-fee', () => (lihatFee.value ? getManagementFee() : Promise.resolve(null)), { watch: [lihatFee] })
+const fee = computed(() => dataFee.value?.total ?? null)
 const dividen = computed(() => balasan.value?.data?.dividen ?? null)
 const riwayat = computed(() => dividen.value?.riwayat ?? [])
 const per = computed(() => dividen.value?.per ?? [])
@@ -114,7 +119,7 @@ const kolomPer = computed<TableColumn<BarisPer>[]>(() => [
     <template v-else>
       <!-- same cards as Finance › Brankas › Pengembalian Modal (owner, Nov 2026) -->
       <AppStatGrid
-        :count="3"
+        :count="fee !== null ? 5 : 3"
         satu-baris
       >
         <AppStat
@@ -122,9 +127,19 @@ const kolomPer = computed<TableColumn<BarisPer>[]>(() => [
           :value="rupiah(modal)"
         />
         <AppStat
+          v-if="fee !== null"
+          label="Total dividen"
+          :value="rupiah(total + fee)"
+        />
+        <AppStat
           label="Sudah dikembalikan investor"
           :value="rupiah(total)"
           :sub="`${riwayat.length} kali pembagian`"
+        />
+        <AppStat
+          v-if="fee !== null"
+          label="Management fee"
+          :value="rupiah(fee)"
         />
         <AppStat
           label="Sisa kewajiban"
