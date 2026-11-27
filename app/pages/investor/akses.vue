@@ -1,15 +1,16 @@
 <!--
-  Investor Compass › Kelola Akses (Nov 2026). People only (owner): the list is
-  exactly who holds the investor module in Office › Kelola Akses (members API,
-  reloaded on every visit); here each person gets a role, and each role opens
-  the pages shown in words (the stored page matrix, no longer edited here and
-  sent back unchanged). The investor admin also sets the Management Fee
-  composition (total 100%). Only the investor admin may save (If-Match).
+  Investor Compass › Kelola Akses (Nov 2026). Three roles (owner, 28 Nov 2026):
+  Investor (all but Management Fee), Management (all), Admin (all + Kelola
+  Akses), each page per role adjustable in the matrix (only the diff from the
+  defaults is stored). The people are exactly who holds the investor module in
+  Office › Kelola Akses (reloaded on every visit); each gets a role. The admin
+  role also sets the Management Fee composition (total 100%). Saving needs the
+  admin role (or the investor module admin); If-Match.
 -->
 <script setup lang="ts">
 import {
   getInvestorMembers, saveInvestorSetelan, useInvestorIzin, useInvestorSetelan,
-  type HalInvestor, type PenerimaFee, type PeranInvestor, type TingkatInvestor,
+  LABEL_PERAN_INVESTOR, type HalInvestor, type PenerimaFee, type PeranInvestor, type TingkatInvestor,
 } from '~/composables/useInvestor'
 
 definePageMeta({ access: ['investor'] })
@@ -32,14 +33,20 @@ onMounted(() => {
 const LABEL_HAL: Record<HalInvestor, string> = {
   labarugi: 'Laba Rugi', dividen: 'Dividen', fee: 'Management Fee', event: 'Upcoming event', promo: 'Promo', akses: 'Kelola Akses',
 }
-const LABEL_PERAN: Record<PeranInvestor, string> = { investor: 'Investor', mitra: 'Mitra', pengurus: 'Pengurus' }
-/** What a role opens, in words (the page matrix is no longer edited here, owner Nov 2026). */
+const LABEL_PERAN = LABEL_PERAN_INVESTOR
+/** What a role opens, in words (the matrix below, as it stands). */
 const halamanPeran = (p: PeranInvestor) => {
-  const s = isi.value
-  if (!s) return ''
-  const buka = s.halaman.filter(h => (matriks.value[p]?.[h] ?? 0) >= 1 && h !== 'fee').map(h => LABEL_HAL[h])
-  return buka.length ? buka.join(', ') : 'Tidak ada halaman'
+  const t = matriks.value[p]
+  if (!t) return ''
+  const buka = (isi.value?.halaman ?? []).filter(h => (t[h] ?? 0) >= 1 && h !== 'akses').map(h => LABEL_HAL[h])
+  return `${buka.join(', ')}${(t.akses ?? 0) >= 2 ? ' · bisa mengatur Kelola Akses' : ' · tidak bisa Kelola Akses'}`
 }
+
+// Per page: none / view; Kelola Akses also has "Kelola" (change). Laba Rugi is view-only (refresh in Analytics).
+const OPSI_HAL = [{ value: 0, label: 'Tidak' }, { value: 1, label: 'Lihat' }]
+const OPSI_AKSES = [{ value: 0, label: 'Tidak' }, { value: 1, label: 'Lihat' }, { value: 2, label: 'Kelola' }]
+/** The admin role always manages Kelola Akses (the server enforces it too). */
+const terkunci = (p: PeranInvestor, h: HalInvestor) => p === 'admin' && h === 'akses'
 
 // ─── working copies (reset whenever the server copy changes) ──
 const matriks = ref<Record<string, Record<string, TingkatInvestor>>>({})
@@ -51,7 +58,8 @@ function muatDraf() {
   const m: Record<string, Record<string, TingkatInvestor>> = {}
   for (const p of s.peranList) {
     m[p] = {}
-    for (const h of s.halaman) m[p]![h] = (s.matrix?.[p]?.[h] ?? s.bawaan[p][h]) as TingkatInvestor
+    for (const h of s.halaman) m[p]![h] = Math.min(h === 'akses' ? 2 : 1, (s.matrix?.[p]?.[h] ?? s.bawaan[p][h]) as number) as TingkatInvestor
+    if (p === 'admin') m[p]!.akses = 2
   }
   matriks.value = m
   peran.value = { ...(s.roles ?? {}) }
@@ -80,12 +88,12 @@ const menyimpan = ref(false)
 async function simpan() {
   const s = isi.value
   if (!s || salahFee.value) return
-  // only the diff from the defaults
+  // only the diff from the role defaults
   const diff: Record<string, Record<string, TingkatInvestor>> = {}
   for (const p of s.peranList) {
     for (const h of s.halaman) {
       const v = matriks.value[p]?.[h]
-      if (v !== undefined && v !== s.bawaan[p][h]) (diff[p] ||= {})[h] = v
+      if (v !== undefined && v !== Math.min(h === 'akses' ? 2 : 1, s.bawaan[p][h])) (diff[p] ||= {})[h] = v
     }
   }
   menyimpan.value = true
@@ -158,10 +166,60 @@ async function simpan() {
         description="Perubahan hanya bisa dilakukan admin modul investor."
       />
 
+      <!-- what each role opens, per page -->
+      <AppPanel
+        title="Akses halaman per peran"
+        description="Atur halaman yang bisa dibuka tiap peran. Laba Rugi hanya bisa dilihat (Refresh dari Analytics). Peran Admin selalu bisa mengatur Kelola Akses. Penerima management fee selalu bisa membuka bagiannya di Management Fee."
+        class="mb-6"
+      >
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[520px] text-base">
+            <thead class="text-left text-sm text-muted">
+              <tr>
+                <th class="px-3 py-3">
+                  Halaman
+                </th>
+                <th
+                  v-for="p in isi.peranList"
+                  :key="p"
+                  class="px-3 py-3"
+                >
+                  {{ LABEL_PERAN[p] }}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr
+                v-for="h in isi.halaman"
+                :key="h"
+                class="border-t border-default"
+              >
+                <td class="px-3 py-3 font-medium">
+                  {{ LABEL_HAL[h] }}
+                </td>
+                <td
+                  v-for="p in isi.peranList"
+                  :key="p"
+                  class="px-3 py-2"
+                >
+                  <USelect
+                    v-if="matriks[p]"
+                    v-model="matriks[p]![h]"
+                    :items="h === 'akses' ? OPSI_AKSES : OPSI_HAL"
+                    :disabled="!admin || terkunci(p, h)"
+                    class="w-28"
+                  />
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </AppPanel>
+
       <!-- people (from Office › Kelola Akses) and their role -->
       <AppPanel
         title="Orang dengan akses Investor Compass"
-        description="Daftar ini mengikuti Kelola Akses Office: hanya orang yang sudah diberi akses modul Investor Compass. Di sini kamu mengatur perannya, yang menentukan halaman apa saja yang bisa dibuka."
+        description="Daftar ini mengikuti Kelola Akses Office: hanya orang yang sudah diberi akses modul Investor Compass. Di sini kamu memilih perannya; halaman yang dibuka tiap peran diatur di tabel di atas. Admin modul Investor Compass selalu Admin."
       >
         <ul class="mb-4 grid gap-1 rounded-panel bg-muted p-3 text-sm sm:grid-cols-3">
           <li

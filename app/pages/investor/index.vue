@@ -2,7 +2,7 @@
   Investor Compass › Laba Rugi (Nov 2026: Ringkasan + Laporan Laba Rugi merged).
   Exactly Analytics › Laba Rugi, nothing added (owner): the shared
   LabaRugiLaporan component. The monthly accounting PDFs were dropped (owner).
-  Refresh from ESB is for "Ubah" on this page.
+  No Refresh here: Analytics refreshes the report.
 -->
 <script setup lang="ts">
 import { useInvestorIzin } from '~/composables/useInvestor'
@@ -11,7 +11,8 @@ definePageMeta({ access: ['investor'] })
 
 const izin = useInvestorIzin()
 const bolehLihat = computed(() => izin.lihat('labarugi'))
-const bolehRefresh = computed(() => izin.ubah('labarugi'))
+/** Refresh lives in Analytics only (owner, 28 Nov 2026): this page reads what Analytics refreshed. */
+const bolehRefresh = false
 const lap = useTemplateRef('lap')
 </script>
 
@@ -29,16 +30,6 @@ const lap = useTemplateRef('lap')
         size="lg"
         :disabled="!lap?.adaData || !lap?.rentang.length"
         @click="lap?.unduhCsv()"
-      />
-      <UButton
-        v-if="bolehRefresh"
-        label="Refresh"
-        icon="i-lucide-refresh-cw"
-        color="neutral"
-        variant="outline"
-        size="lg"
-        :loading="lap?.merefresh"
-        @click="lap?.refreshEsb()"
       />
     </template>
 

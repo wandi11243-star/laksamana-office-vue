@@ -500,7 +500,7 @@ defineExpose({ refreshEsb, unduhCsv, merefresh, adaData, rentang })
         v-else
         class="text-muted"
       >
-        Laporan Laba Rugi belum diambil dari ESB. Minta admin menekan Refresh, lalu buka halaman ini lagi.
+        Laporan Laba Rugi belum diambil dari ESB. Laporan ini di-refresh dari modul Analytics › Laba Rugi; setelah itu muncul di sini.
       </p>
       <UButton
         v-if="bolehRefresh"
