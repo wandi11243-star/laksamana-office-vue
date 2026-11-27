@@ -32,7 +32,7 @@ const t = computed(() => pl.value?.ringkasan.total ?? null)
 const BULAN_EN = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december']
 const labelPeriode = (k: string) => {
   const i = BULAN_EN.indexOf(k.trim().split(/\s+/)[0]?.toLowerCase() ?? '')
-  return i >= 0 ? BLN[i] : k
+  return (i >= 0 ? BLN[i] : undefined) ?? k
 }
 const pct = (x: number, total: number) => (total ? `${(x / total * 100).toFixed(1)}%` : '—')
 
