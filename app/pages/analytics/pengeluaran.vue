@@ -1,5 +1,5 @@
 <!--
-  Analytics › Pengeluaran & EBITDA. Reads the ESB Core Profit & Loss
+  Analytics › Laba Rugi (was "Pengeluaran & EBITDA"; renamed Nov 2026). Reads the ESB Core Profit & Loss
   month-to-month report saved by the last Refresh (GET /kompas/esb/profit-loss/saved)
   for this year and the two before, so one slider can cover any month range.
   Opening the page never calls ESB; only Refresh asks ESB again
@@ -354,8 +354,8 @@ function unduhCsv() {
 
 <template>
   <AppPage
-    title="Pengeluaran & EBITDA"
-    description="Dana keluar (HPP + operasional), EBITDA, dan depresiasi dari laporan Laba Rugi ESB"
+    title="Laba Rugi"
+    description="Omset, dana keluar, EBITDA, dan depresiasi dari laporan Laba Rugi ESB"
   >
     <template #actions>
       <UButton
@@ -533,9 +533,18 @@ function unduhCsv() {
       </AppPanel>
       <template v-else-if="adaData">
         <AppStatGrid
-          :count="4"
+          :count="5"
           class="mt-6"
         >
+          <AppStat
+            label="Omset"
+            :value="rupiah(t.penjualanBersih)"
+            icon="i-lucide-banknote"
+            tone="success"
+            :badge="lencana(t.penjualanBersih, tb?.penjualanBersih, true)?.teks"
+            :badge-tone="nadaLencana(lencana(t.penjualanBersih, tb?.penjualanBersih, true))"
+            :sub="`Penjualan bersih (setelah diskon)${tb ? ` · ${subBanding(tb.penjualanBersih)}` : ''}`"
+          />
           <AppStat
             label="Dana Keluar"
             :value="rupiah(t.danaKeluar)"

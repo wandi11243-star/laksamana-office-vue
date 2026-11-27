@@ -128,7 +128,7 @@ const K_PENGUNJUNG = { label: 'Kunjungan & Meja', icon: 'i-lucide-users' }
 const K_MENU = { label: 'Menu & Promo', icon: 'i-lucide-utensils' }
 const K_PENGARUH = { label: 'Pengaruh & Talent', icon: 'i-lucide-sparkles' }
 const K_KOREKSI = { label: 'Koreksi & Void', icon: 'i-lucide-triangle-alert' }
-const K_BIAYA = { label: 'Pengeluaran', icon: 'i-lucide-wallet' }
+const K_BIAYA = { label: 'Laba Rugi', icon: 'i-lucide-wallet' }
 
 export const LAYAR_ANALYTICS: Layar[] = [
   { key: 'ringkasan', label: 'Ringkasan', desc: 'Angka pokok dari laporan POS yang diunggah', icon: 'i-lucide-chart-line', to: '/analytics/ringkasan', grup: 'Analisa', kelompok: K_PENJUALAN, boleh: anHal('ringkasan') },
@@ -144,7 +144,7 @@ export const LAYAR_ANALYTICS: Layar[] = [
   { key: 'talent', label: 'Performa Talent', desc: 'Kontribusi omset tiap penampil, dihitung dari jam tampilnya sendiri', icon: 'i-lucide-music', to: '/analytics/talent', grup: 'Analisa', kelompok: K_PENGARUH, boleh: anHal('talent') },
   { key: 'error', label: 'Error & Koreksi', desc: 'Bill yang ditandai error — sebabnya, nilainya, dan siapa yang memegangnya', icon: 'i-lucide-triangle-alert', to: '/analytics/error', grup: 'Analisa', kelompok: K_KOREKSI, boleh: anHal('error') },
   { key: 'voidb', label: 'Void & Cancel', desc: 'Siapa yang membatalkan, alasannya, itemnya, nilainya, dan jamnya', icon: 'i-lucide-ban', to: '/analytics/voidb', grup: 'Analisa', kelompok: K_KOREKSI, boleh: anHal('voidb') },
-  { key: 'pengeluaran', label: 'Pengeluaran & EBITDA', desc: 'Dana keluar (HPP + operasional), EBITDA, dan depresiasi dari laporan Laba Rugi ESB', icon: 'i-lucide-wallet', to: '/analytics/pengeluaran', grup: 'Analisa', kelompok: K_BIAYA, boleh: anHal('pengeluaran') },
+  { key: 'pengeluaran', label: 'Laba Rugi', desc: 'Omset, biaya, dan laba dari laporan Laba Rugi ESB', icon: 'i-lucide-wallet', to: '/analytics/pengeluaran', grup: 'Analisa', kelompok: K_BIAYA, boleh: anHal('pengeluaran') },
   { key: 'unggah', label: 'Unggah Laporan', desc: 'Berkas Sales Recapitulation dari POS', icon: 'i-lucide-upload', to: '/analytics/unggah', grup: 'Data', boleh: anHal('unggah') },
   { key: 'pengaturan', label: 'Pengaturan', desc: 'Batas jam shift dan pemetaan nama menu', icon: 'i-lucide-settings', to: '/analytics/pengaturan', grup: 'Sistem', boleh: anHal('pengaturan') },
   { key: 'akses', label: 'Kelola Akses', desc: 'Siapa boleh membuka dan mengubah halaman mana', icon: 'i-lucide-key-round', to: '/analytics/akses', grup: 'Sistem', boleh: anHal('akses') },
