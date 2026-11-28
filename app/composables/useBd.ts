@@ -859,11 +859,11 @@ export async function geserTask(daftar: BdTask[], t: BdTask, arah: -1 | 1): Prom
   return bdTulisDiam(() => tambalBd<BdTask>('tasks', t.id, { urutan }, versiBaris(t)))
 }
 
-/** wa.me link to a crew member with a ready reminder about this task (sent by hand from the user's own WhatsApp). */
-export function linkWaTask(t: BdTask, nama: string, noHp: string): string {
+/** wa.me link to one crew member with a recap of ALL their open tasks (sent by hand from the user's own WhatsApp). */
+export function linkWaRekap(nama: string, noHp: string, tasks: BdTask[]): string {
   const nomor = nomorWa(noHp)
-  if (!nomor) return ''
-  const dl = t.deadline ? `\nDeadline: ${t.deadline}` : ''
-  const teks = `Halo ${nama}, reminder task:\n*${t.name}*\nStatus: ${t.status || 'To Do'}${dl}\n\nCek di Task Management: ${location.origin}/bd/mytask`
+  if (!nomor || !tasks.length) return ''
+  const baris = tasks.map((t, i) => `${i + 1}. *${t.name}* (${t.status || 'To Do'}${t.deadline ? `, deadline ${t.deadline}` : ''})`)
+  const teks = `Halo ${nama}, berikut task kamu yang masih terbuka (${tasks.length}):\n\n${baris.join('\n')}\n\nCek di Task Management: ${location.origin}/bd/mytask`
   return `https://wa.me/${nomor}?text=${encodeURIComponent(teks)}`
 }

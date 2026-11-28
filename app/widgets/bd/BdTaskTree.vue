@@ -8,7 +8,7 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
-import { lampiranSah, linkWaTask, useNomorWaBd } from '~/composables/useBd'
+import { lampiranSah } from '~/composables/useBd'
 import { fDue, inisial, kunciTag, lewat, penghalang, pics, selesai, sisaHari, subHitung, subs, tagsOf } from '~/utils/bd-rumus'
 import { IKON_TASK, WARNA_TASK } from '~/utils/status-bd'
 import { fTgl } from '~/utils/format'
@@ -41,11 +41,6 @@ const dipakai = (t: BdTask) => pics(t).map(id => props.people.find(p => p.id ===
 /** The crew a sub-task is assigned to (`p`), by name — empty when unassigned. */
 const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.name || '') : '')
 const hal = (t: BdTask) => (selesai(t) ? [] : penghalang(t, props.semua))
-// WhatsApp button: one wa.me link per PIC that has a phone number in the roster.
-const nomor = useNomorWaBd()
-const kontakWa = (t: BdTask) => dipakai(t)
-  .map(p => ({ nama: p.name, url: linkWaTask(t, p.name, nomor.value?.[String(p.officeUserId || '')] || '') }))
-  .filter(k => k.url)
 const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
 </script>
 
@@ -216,30 +211,6 @@ const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
               @click="emit('geser', t, 1)"
             />
           </template>
-          <UButton
-            v-if="kontakWa(t).length === 1"
-            icon="i-lucide-message-circle"
-            color="success"
-            variant="soft"
-            size="xs"
-            label="WA"
-            :to="kontakWa(t)[0]!.url"
-            target="_blank"
-            :aria-label="'WhatsApp ' + kontakWa(t)[0]!.nama"
-          />
-          <UDropdownMenu
-            v-else-if="kontakWa(t).length > 1"
-            :items="kontakWa(t).map(k => ({ label: k.nama, icon: 'i-lucide-message-circle', to: k.url, target: '_blank' }))"
-          >
-            <UButton
-              icon="i-lucide-message-circle"
-              color="success"
-              variant="soft"
-              size="xs"
-              label="WA"
-              aria-label="WhatsApp PIC"
-            />
-          </UDropdownMenu>
           <UButton
             icon="i-lucide-pencil"
             color="neutral"

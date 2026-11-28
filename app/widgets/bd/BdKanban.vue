@@ -10,7 +10,7 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
-import { bdTulisDiam, buatBd, ubahBd, versiBaris } from '~/composables/useBd'
+import { bdTulisDiam, buatBd, geserTask, ubahBd, versiBaris } from '~/composables/useBd'
 import {
   STATUS_FLOW, cekBolehDone, divisiBawaan, kanbanUrut, opsiDivisi, urutTask, pesanTunggu, segarkanProgress, setPics,
   type ModeArsip, type ModeUrut,
@@ -135,7 +135,11 @@ async function tambahKartu(st: string) {
         :project-name="showProject ? namaProject(item.project) : undefined"
         :show-daily="showProject"
         :dragging="dragging"
+        :geser="urut === 'manual'"
+        :naik="isiKolom(item.status || 'To Do')[0]?.id !== item.id"
+        :turun="isiKolom(item.status || 'To Do').at(-1)?.id !== item.id"
         draggable="true"
+        @geser="(arah: -1 | 1) => geserTask(isiKolom(item.status || 'To Do'), item, arah)"
         @dragstart="dragStart"
         @dragend="dragEnd"
         @buka="emit('buka', item)"

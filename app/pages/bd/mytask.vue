@@ -13,7 +13,7 @@
 -->
 <script setup lang="ts">
 import type { BdTask } from '~/composables/useBd'
-import { centangSub, geserTask, hapusTaskDenganUrutan, pesanHapusTask, toggleTask, useBdState } from '~/composables/useBd'
+import { centangSub, geserTask, hapusTaskDenganUrutan, linkWaRekap, useNomorWaBd, pesanHapusTask, toggleTask, useBdState } from '~/composables/useBd'
 import {
   bawahan, cariAku, lewat, lingkupIds, menungguReviewSaya, orangPantau, pelaksana, penghalang, pics, saringLingkup, selesai, sisaHari, tugasSaya, urutTask, OPSI_URUT,
   type ModeArsip, type ModeUrut,
@@ -83,6 +83,18 @@ const semua = computed(() => {
   return tugasSaya(tampak.value, orang.value?.id)
 })
 const buka = computed(() => semua.value.filter(t => !selesai(t)).slice().sort(urutTask(f.value.urut ?? 'manual')))
+// WhatsApp recap (owner request 28 Nov 2026): one message per person with ALL their open
+// tasks on this screen, sent by hand. The n8n reminders are separate and untouched.
+const nomorWaKru = useNomorWaBd()
+const menuWa = computed(() => {
+  const ids = [...new Set(buka.value.flatMap(t => pelaksana(t)))]
+  return ids.map((id) => {
+    const p = people.value.find(x => x.id === id)
+    const daftar = buka.value.filter(t => pelaksana(t).includes(id))
+    const url = p ? linkWaRekap(p.name, nomorWaKru.value?.[String(p.officeUserId || '')] || '', daftar) : ''
+    return { label: `${p?.name || id} (${daftar.length} task)${url ? '' : ' · nomor belum ada'}`, icon: 'i-lucide-message-circle', to: url || undefined, target: '_blank', disabled: !url }
+  }).sort((a, b) => Number(a.disabled) - Number(b.disabled))
+})
 const telat = computed(() => buka.value.filter(lewat))
 const menunggu = computed(() => buka.value.filter(t => penghalang(t, state.value.tasks).length))
 const nSelesai = computed(() => semua.value.length - buka.value.length)
@@ -217,6 +229,18 @@ onUnmounted(() => {
         class="w-44"
         aria-label="Urutkan task"
       />
+      <UDropdownMenu
+        v-if="menuWa.length"
+        :items="menuWa"
+      >
+        <UButton
+          label="WhatsApp"
+          icon="i-lucide-message-circle"
+          color="success"
+          variant="soft"
+          aria-label="Kirim rekap task lewat WhatsApp"
+        />
+      </UDropdownMenu>
       <UButton
         label="Task"
         icon="i-lucide-plus"
