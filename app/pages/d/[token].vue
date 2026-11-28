@@ -260,9 +260,19 @@ async function kirim() {
             mode="pilih"
             :terpilih="pilih"
             :master="master"
+            :legenda="false"
             @pilih="toggle"
             @tumpang="tumpang"
           />
+          <!-- A guest legend: the crew legend talks about walk-ins and overrides. -->
+          <div
+            v-if="layout"
+            class="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted"
+          >
+            <span class="inline-flex items-center gap-1.5"><span class="size-3 rounded bg-meja-kosong ring-1 ring-inset ring-meja-kosong-line" />Tersedia — ketuk untuk memilih</span>
+            <span class="inline-flex items-center gap-1.5"><span class="size-3 rounded bg-meja-kosong outline-2 outline-offset-1 outline-gold" />Pilihan Kakak</span>
+            <span class="inline-flex items-center gap-1.5"><span class="size-3 rounded bg-meja-confirmed opacity-70" />Sudah dipesan</span>
+          </div>
         </div>
       </template>
     </div>
