@@ -16,6 +16,9 @@ import { PROD_TYPES, acaraKalender } from '~/utils/konten'
 import { ikonAcaraKonten, warnaAcaraKonten } from '~/utils/status-konten'
 import { fTgl, hariIni } from '~/utils/format'
 
+// Kalender: one tab with two views — Jadwal tayang (this grid) and Rencana posting (KontenKalenderPosting).
+const tampil = ref<'tayang' | 'posting'>(useRoute().query.tampil === 'posting' ? 'posting' : 'tayang')
+
 definePageMeta({ access: ['konten'] })
 
 const router = useRouter()
@@ -126,156 +129,164 @@ async function lepas(tgl: string) {
 <template>
   <KontenGerbang lihat="calendar">
     <AppPage
-      title="Content Calendar"
-      description="Jadwal tayang lintas brand"
+      title="Kalender"
+      :description="tampil === 'posting' ? 'Rencana posting & pengingat tayang' : 'Jadwal tayang lintas brand'"
     >
-      <UAlert
-        v-if="error"
-        color="error"
-        variant="subtle"
-        icon="i-lucide-triangle-alert"
-        :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
+      <AppSeg
+        v-model="tampil"
+        class="mb-4"
+        :options="[{ value: 'tayang', label: 'Jadwal tayang', icon: 'i-lucide-calendar' }, { value: 'posting', label: 'Rencana posting', icon: 'i-lucide-calendar-clock' }]"
       />
+      <KontenKalenderPosting v-if="tampil === 'posting'" />
+      <template v-else>
+        <UAlert
+          v-if="error"
+          color="error"
+          variant="subtle"
+          icon="i-lucide-triangle-alert"
+          :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
+        />
 
-      <KontenBrandBar :brands="st.brands" />
+        <KontenBrandBar :brands="st.brands" />
 
-      <AppPanel>
-        <div class="flex flex-wrap items-center gap-2">
-          <UButton
-            icon="i-lucide-chevron-left"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            aria-label="Bulan sebelumnya"
-            @click="geserBulan(-1)"
-          />
-          <span class="min-w-36 text-center font-display text-lg font-semibold capitalize">{{ judul }}</span>
-          <UButton
-            icon="i-lucide-chevron-right"
-            color="neutral"
-            variant="outline"
-            size="sm"
-            aria-label="Bulan berikutnya"
-            @click="geserBulan(1)"
-          />
-          <UButton
-            label="Hari ini"
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            @click="bulan = hari.slice(0, 7)"
-          />
-          <div class="flex flex-wrap gap-1.5 lg:ml-auto">
-            <button
-              v-for="x in legenda"
-              :key="x.k"
-              type="button"
-              class="rounded-full transition-opacity"
-              :class="f[x.k] ? '' : 'opacity-40'"
-              :aria-pressed="f[x.k]"
-              @click="f[x.k] = !f[x.k]"
-            >
-              <AppStatus
-                :color="warnaAcaraKonten(x.k)"
-                :icon="ikonAcaraKonten(x.k)"
-                size="sm"
+        <AppPanel>
+          <div class="flex flex-wrap items-center gap-2">
+            <UButton
+              icon="i-lucide-chevron-left"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              aria-label="Bulan sebelumnya"
+              @click="geserBulan(-1)"
+            />
+            <span class="min-w-36 text-center font-display text-lg font-semibold capitalize">{{ judul }}</span>
+            <UButton
+              icon="i-lucide-chevron-right"
+              color="neutral"
+              variant="outline"
+              size="sm"
+              aria-label="Bulan berikutnya"
+              @click="geserBulan(1)"
+            />
+            <UButton
+              label="Hari ini"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              @click="bulan = hari.slice(0, 7)"
+            />
+            <div class="flex flex-wrap gap-1.5 lg:ml-auto">
+              <button
+                v-for="x in legenda"
+                :key="x.k"
+                type="button"
+                class="rounded-full transition-opacity"
+                :class="f[x.k] ? '' : 'opacity-40'"
+                :aria-pressed="f[x.k]"
+                @click="f[x.k] = !f[x.k]"
               >
-                {{ x.l }}
-              </AppStatus>
-            </button>
+                <AppStatus
+                  :color="warnaAcaraKonten(x.k)"
+                  :icon="ikonAcaraKonten(x.k)"
+                  size="sm"
+                >
+                  {{ x.l }}
+                </AppStatus>
+              </button>
+            </div>
           </div>
-        </div>
-        <p class="mt-2 hidden text-xs text-muted lg:block">
-          Seret (drag & drop) event ke tanggal lain untuk memindahkan jadwal.
-        </p>
-      </AppPanel>
+          <p class="mt-2 hidden text-xs text-muted lg:block">
+            Seret (drag & drop) event ke tanggal lain untuk memindahkan jadwal.
+          </p>
+        </AppPanel>
 
-      <AppPanel flush>
-        <div class="grid grid-cols-7 border-b border-default text-center text-[11px] font-bold tracking-wide text-muted uppercase">
-          <div
-            v-for="d in ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']"
-            :key="d"
-            class="py-2"
-          >
-            {{ d }}
-          </div>
-        </div>
-        <div class="grid grid-cols-7">
-          <div
-            v-for="s in sel"
-            :key="s.tgl"
-            class="min-h-20 min-w-0 border-r border-b border-default p-1 lg:min-h-28 lg:p-1.5"
-            :class="[s.lain ? 'bg-muted/60' : '', s.tgl === hari ? 'bg-primary-50' : '', atas === s.tgl ? 'ring-2 ring-primary-400 ring-inset' : '']"
-            @dragover.prevent="atas = s.tgl"
-            @dragleave="atas === s.tgl && (atas = null)"
-            @drop.prevent="lepas(s.tgl)"
-          >
-            <p
-              class="num mb-1 text-xs"
-              :class="s.lain ? 'text-dimmed' : 'text-muted'"
+        <AppPanel flush>
+          <div class="grid grid-cols-7 border-b border-default text-center text-[11px] font-bold tracking-wide text-muted uppercase">
+            <div
+              v-for="d in ['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min']"
+              :key="d"
+              class="py-2"
             >
-              <span :class="s.tgl === hari ? 'tgl-bulat' : ''">{{ s.d }}</span>
-            </p>
-            <button
-              v-for="(e, i) in (perTgl.get(s.tgl) ?? []).slice(0, 3)"
+              {{ d }}
+            </div>
+          </div>
+          <div class="grid grid-cols-7">
+            <div
+              v-for="s in sel"
+              :key="s.tgl"
+              class="min-h-20 min-w-0 border-r border-b border-default p-1 lg:min-h-28 lg:p-1.5"
+              :class="[s.lain ? 'bg-muted/60' : '', s.tgl === hari ? 'bg-primary-50' : '', atas === s.tgl ? 'ring-2 ring-primary-400 ring-inset' : '']"
+              @dragover.prevent="atas = s.tgl"
+              @dragleave="atas === s.tgl && (atas = null)"
+              @drop.prevent="lepas(s.tgl)"
+            >
+              <p
+                class="num mb-1 text-xs"
+                :class="s.lain ? 'text-dimmed' : 'text-muted'"
+              >
+                <span :class="s.tgl === hari ? 'tgl-bulat' : ''">{{ s.d }}</span>
+              </p>
+              <button
+                v-for="(e, i) in (perTgl.get(s.tgl) ?? []).slice(0, 3)"
+                :key="i"
+                type="button"
+                draggable="true"
+                class="mb-0.5 block w-full truncate rounded px-1 py-0.5 text-left text-[10.5px] leading-tight lg:text-[11px]"
+                :class="[
+                  { success: 'bg-success/12 text-success', info: 'bg-info/12 text-info', vip: 'bg-vip/12 text-vip', warning: 'bg-warning/12 text-warning', gold: 'bg-primary-100 text-primary-800', neutral: 'bg-muted text-muted', error: 'bg-error/12 text-error' }[warnaAcaraKonten(e.type)],
+                  e.done ? 'line-through opacity-55' : '',
+                ]"
+                :title="`${e.label}: ${e.title}`"
+                @dragstart="seret = e"
+                @dragend="seret = null; atas = null"
+                @click="buka(e)"
+              >
+                <b class="hidden lg:inline">{{ e.label }}</b> {{ e.title }}
+              </button>
+              <button
+                v-if="(perTgl.get(s.tgl)?.length ?? 0) > 3"
+                type="button"
+                class="text-[10.5px] font-semibold text-primary-700"
+                @click="hariBuka = s.tgl"
+              >
+                +{{ (perTgl.get(s.tgl)?.length ?? 0) - 3 }} lagi
+              </button>
+            </div>
+          </div>
+        </AppPanel>
+
+        <ResponsiveSheet
+          v-model:open="hariSheet"
+          :title="hariBuka ? fTgl(hariBuka) : ''"
+        >
+          <ul class="divide-y divide-default">
+            <li
+              v-for="(e, i) in (hariBuka ? perTgl.get(hariBuka) ?? [] : [])"
               :key="i"
-              type="button"
-              draggable="true"
-              class="mb-0.5 block w-full truncate rounded px-1 py-0.5 text-left text-[10.5px] leading-tight lg:text-[11px]"
-              :class="[
-                { success: 'bg-success/12 text-success', info: 'bg-info/12 text-info', vip: 'bg-vip/12 text-vip', warning: 'bg-warning/12 text-warning', gold: 'bg-primary-100 text-primary-800', neutral: 'bg-muted text-muted', error: 'bg-error/12 text-error' }[warnaAcaraKonten(e.type)],
-                e.done ? 'line-through opacity-55' : '',
-              ]"
-              :title="`${e.label}: ${e.title}`"
-              @dragstart="seret = e"
-              @dragend="seret = null; atas = null"
-              @click="buka(e)"
             >
-              <b class="hidden lg:inline">{{ e.label }}</b> {{ e.title }}
-            </button>
-            <button
-              v-if="(perTgl.get(s.tgl)?.length ?? 0) > 3"
-              type="button"
-              class="text-[10.5px] font-semibold text-primary-700"
-              @click="hariBuka = s.tgl"
-            >
-              +{{ (perTgl.get(s.tgl)?.length ?? 0) - 3 }} lagi
-            </button>
-          </div>
-        </div>
-      </AppPanel>
-
-      <ResponsiveSheet
-        v-model:open="hariSheet"
-        :title="hariBuka ? fTgl(hariBuka) : ''"
-      >
-        <ul class="divide-y divide-default">
-          <li
-            v-for="(e, i) in (hariBuka ? perTgl.get(hariBuka) ?? [] : [])"
-            :key="i"
-          >
-            <button
-              type="button"
-              class="flex w-full items-center gap-3 py-2.5 text-left"
-              :class="e.done ? 'line-through opacity-55' : ''"
-              @click="hariBuka = null; buka(e)"
-            >
-              <AppStatus
-                :color="warnaAcaraKonten(e.type)"
-                :icon="ikonAcaraKonten(e.type)"
-                size="sm"
+              <button
+                type="button"
+                class="flex w-full items-center gap-3 py-2.5 text-left"
+                :class="e.done ? 'line-through opacity-55' : ''"
+                @click="hariBuka = null; buka(e)"
               >
-                {{ e.label }}
-              </AppStatus>
-              <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ e.title }}</span>
-              <span
-                v-if="e.time"
-                class="num text-xs text-muted"
-              >{{ e.time }}</span>
-            </button>
-          </li>
-        </ul>
-      </ResponsiveSheet>
+                <AppStatus
+                  :color="warnaAcaraKonten(e.type)"
+                  :icon="ikonAcaraKonten(e.type)"
+                  size="sm"
+                >
+                  {{ e.label }}
+                </AppStatus>
+                <span class="min-w-0 flex-1 truncate text-sm font-semibold">{{ e.title }}</span>
+                <span
+                  v-if="e.time"
+                  class="num text-xs text-muted"
+                >{{ e.time }}</span>
+              </button>
+            </li>
+          </ul>
+        </ResponsiveSheet>
+      </template>
     </AppPage>
   </KontenGerbang>
 </template>

@@ -23,13 +23,13 @@ const l = (key: string, label: string, desc: string, icon: string, kelompok?: La
 const Operasi = { label: 'Perencanaan', icon: 'i-lucide-calendar-days' }
 const Produksi = { label: 'Produksi', icon: 'i-lucide-clapperboard' }
 const Kontrol = { label: 'Publikasi', icon: 'i-lucide-send' }
+const Pengaturan = { label: 'Pengaturan', icon: 'i-lucide-settings' }
 const Analytics = { label: 'Insight & Riset', icon: 'i-lucide-sparkles' }
 export const LAYAR_KONTEN: Layar[] = [
   l('dashboard', 'Dashboard', 'Ringkasan operasional real-time', 'i-lucide-layout-grid'),
   l('planning', 'Content Planning', 'Semua unit konten dari ide sampai tayang', 'i-lucide-list', Operasi),
   l('pipeline', 'Pipeline', 'Papan alur produksi', 'i-lucide-columns-3', Operasi),
-  l('calendar', 'Calendar', 'Jadwal tayang lintas brand', 'i-lucide-calendar', Operasi),
-  l('kalender', 'Kalender Posting', 'Rencana posting & pengingat tayang', 'i-lucide-calendar-clock', Operasi),
+  l('calendar', 'Kalender', 'Jadwal tayang & rencana posting', 'i-lucide-calendar', Operasi),
   l('shooting', 'Shooting Schedule', 'Jadwal produksi foto & video', 'i-lucide-camera', Produksi),
   l('design', 'Design Queue', 'Antrian pekerjaan desain', 'i-lucide-pen-tool', Produksi),
   l('editing', 'Editing Queue', 'Antrian pekerjaan video', 'i-lucide-film', Produksi),
@@ -48,8 +48,8 @@ export const LAYAR_KONTEN: Layar[] = [
   l('iklan', 'Performa Iklan', 'Iklan Facebook & Instagram: mana yang works, mana yang tidak', 'i-lucide-target', Analytics),
   l('designperf', 'Performa Desain', 'Virality konten berdesain & jumlah desain selesai per kategori', 'i-lucide-pen-line', Analytics),
   l('greview', 'Google Review', 'Ulasan Google tamu: yang perlu ditangani, dibalas langsung, dan dianalisa AI', 'i-lucide-star'),
-  l('sosmed', 'Pengaturan Sosmed', 'Profil brand, kunci AI, TikTok & Instagram', 'i-lucide-key-round'),
-  l('settings', 'Kelola Akses', 'Konfigurasi sistem, daftar kru & hak akses', 'i-lucide-settings'),
+  l('sosmed', 'Pengaturan Sosmed', 'Profil brand, TikTok, Instagram & Meta Ads', 'i-lucide-key-round', Pengaturan),
+  l('settings', 'Kelola Akses', 'Konfigurasi sistem, daftar kru & hak akses', 'i-lucide-shield-check', Pengaturan),
   l('activity', 'Log Activity', 'Jejak audit seluruh aktivitas', 'i-lucide-history'),
 ]
 
