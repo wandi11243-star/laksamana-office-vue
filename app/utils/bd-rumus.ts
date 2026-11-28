@@ -1266,3 +1266,35 @@ export function tempatLabel(t: { daily?: boolean, project?: string | null }): st
   if (t.daily) return 'Daily Task'
   return t.project || '—'
 }
+
+// ─────────────────────────── task order (owner request, 28 Nov 2026) ──
+// Manual order: `urutan` when set, else `createdAt` — so a task created from
+// any screen (list, Kanban "+ Tambah kartu", Add Task) lands at the bottom.
+// Moving a task writes one number between its new neighbours (one PATCH).
+
+export type ModeUrut = 'manual' | 'deadline' | 'prioritas' | 'terbaru'
+export const OPSI_URUT: { value: ModeUrut, label: string }[] = [
+  { value: 'manual', label: 'Urutan manual' },
+  { value: 'deadline', label: 'Deadline' },
+  { value: 'prioritas', label: 'Prioritas' },
+  { value: 'terbaru', label: 'Terbaru' },
+]
+export const kunciUrut = (t: BdTask): number => (typeof t.urutan === 'number' && Number.isFinite(t.urutan) ? t.urutan : Number(t.createdAt) || 0)
+const RANK_PRIO: Record<string, number> = { High: 0, Medium: 1, Low: 2 }
+
+export function urutTask(mode: ModeUrut): (a: BdTask, b: BdTask) => number {
+  if (mode === 'deadline') return urutDeadline
+  if (mode === 'prioritas') return (a, b) => ((RANK_PRIO[a.priority] ?? 1) - (RANK_PRIO[b.priority] ?? 1)) || urutDeadline(a, b)
+  if (mode === 'terbaru') return (a, b) => (Number(b.createdAt) || 0) - (Number(a.createdAt) || 0)
+  return (a, b) => (kunciUrut(a) - kunciUrut(b)) || (a.id < b.id ? -1 : 1)
+}
+
+/** The new `urutan` for moving `id` one step up (-1) or down (+1) in an already sorted list; null at the edge. */
+export function urutanGeser(daftar: BdTask[], id: string, arah: -1 | 1): number | null {
+  const i = daftar.findIndex(t => t.id === id)
+  const j = i + arah
+  if (i < 0 || j < 0 || j >= daftar.length) return null
+  const k = daftar.map(kunciUrut)
+  if (arah < 0) return j - 1 >= 0 ? (k[j - 1]! + k[j]!) / 2 : k[j]! - 1000
+  return j + 1 < daftar.length ? (k[j]! + k[j + 1]!) / 2 : k[j]! + 1000
+}

@@ -57,9 +57,14 @@ export interface RadarSumber {
   n?: number
 }
 
+/** Daily entertainment from Event › Talent Schedule (MC, DJ, Band …). Separate from the agenda. */
+export interface RadarHiburan { id: string, tanggal: string, mulai: string, selesai: string, talent: string, kategori: string, status: string }
+
 export interface RadarBoard {
   agenda: RadarAgenda[]
   reservations: RadarReservasi[]
+  /** Missing on an older API: treat as empty. */
+  hiburan?: RadarHiburan[]
   /** Marketing's F&B format list; null when Marketing never saved one (use the seed). */
   fbFormats: string[] | null
   sumber: RadarSumber[]

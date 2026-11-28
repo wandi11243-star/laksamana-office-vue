@@ -8,7 +8,7 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
-import { lampiranSah } from '~/composables/useBd'
+import { lampiranSah, linkWaTask, useNomorWaBd } from '~/composables/useBd'
 import { fDue, inisial, kunciTag, labelUlang, lewat, penghalang, pics, reviewers, selesai, sisaHari, subHitung, subs, tagsOf } from '~/utils/bd-rumus'
 import { fTglP } from '~/utils/format'
 import BdTagChip from '~/widgets/bd/BdTagChip.vue'
@@ -32,6 +32,10 @@ const sub = computed(() => subHitung(props.task))
 const progres = computed(() => Math.max(0, Math.min(100, Number(props.task.progress) || 0)))
 /** Sub-task dropdown (`SUB_BUKA`): closed by default on the board, as in the old card. */
 const subBuka = ref(false)
+const nomor = useNomorWaBd()
+const kontakWa = computed(() => dipakai.value
+  .map(p => ({ nama: p.name, url: linkWaTask(props.task, p.name, nomor.value?.[String(p.officeUserId || '')] || '') }))
+  .filter(x => x.url))
 const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
 /** The crew a sub-task is assigned to (`p`), by name — empty when unassigned. */
 const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.name || '') : '')
@@ -115,6 +119,22 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
         v-else
         class="text-[11px] text-dimmed"
       >tanpa PIC</span>
+      <a
+        v-for="k in kontakWa"
+        :key="k.url"
+        :href="k.url"
+        target="_blank"
+        rel="noopener"
+        draggable="false"
+        class="inline-flex items-center gap-1 rounded-full bg-success/12 px-2 py-0.5 text-[11px] font-semibold text-success hover:bg-success/20"
+        :title="`WhatsApp ${k.nama}`"
+        @click.stop
+      >
+        <UIcon
+          name="i-lucide-message-circle"
+          class="size-3"
+        />{{ kontakWa.length > 1 ? k.nama.split(' ')[0] : 'WA' }}
+      </a>
       <button
         v-if="sub.n"
         type="button"

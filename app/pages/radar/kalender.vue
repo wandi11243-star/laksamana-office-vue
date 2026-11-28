@@ -23,7 +23,7 @@ definePageMeta({ access: ['radar'] })
 
 const hari = hariIni()
 const cur = useState('radar-cal', () => ({ y: Number(hari.slice(0, 4)), m: Number(hari.slice(5, 7)) - 1 }))
-const fCal = useState('radar-cal-f', () => ({ mkt: true, evt: true, rsv: true, vip: true }))
+const fCal = useState('radar-cal-f', () => ({ mkt: true, evt: true, rsv: true, vip: true, hib: true }))
 
 const pad = (n: number) => String(n).padStart(2, '0')
 const isoOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
@@ -90,6 +90,7 @@ const CHIP: { k: keyof typeof fCal.value, label: string, warna: string }[] = [
   { k: 'evt', label: 'Event', warna: 'bg-lilac-light' },
   { k: 'rsv', label: 'Reservasi', warna: 'bg-info' },
   { k: 'vip', label: 'Reservasi VIP', warna: 'bg-success' },
+  { k: 'hib', label: 'Entertainment', warna: 'bg-sky-500' },
 ]
 const KELAS_EV: Record<SumberAgenda, string> = {
   mkt: 'bg-yellow-light text-yellow-dark',
@@ -104,7 +105,10 @@ const GARIS_EV: Record<SumberAgenda, string> = {
   evt: 'bg-vip',
   vip: 'bg-success',
 }
-const semuaMati = computed(() => !fCal.value.mkt && !fCal.value.evt && !fCal.value.rsv && !fCal.value.vip)
+const semuaMati = computed(() => !fCal.value.mkt && !fCal.value.evt && !fCal.value.rsv && !fCal.value.vip && !fCal.value.hib)
+
+// Daily entertainment (MC/DJ/Band): a count line only, never an event pill and never in pax.
+const hibTgl = (iso: string) => fCal.value.hib !== false ? (board.value?.hiburan ?? []).filter(h => h.tanggal === iso) : []
 
 const pilih = ref<RadarPilihan>(null)
 const buka = ref(false)
@@ -284,6 +288,18 @@ useSegarSenyap(refresh, () => buka.value)
             :class="c.luar ? 'opacity-60' : ''"
           >
             {{ resTgl(res, c.iso).length }} rsv
+          </NuxtLink>
+          <NuxtLink
+            v-if="hibTgl(c.iso).length"
+            to="/radar/hiburan"
+            class="flex items-center gap-1 px-1 text-[11px] text-sky-700 hover:underline"
+            :class="c.luar ? 'opacity-60' : ''"
+            :title="hibTgl(c.iso).map(h => h.mulai + ' ' + h.kategori + ': ' + h.talent).join(', ')"
+          >
+            <UIcon
+              name="i-lucide-music"
+              class="size-3"
+            />{{ hibTgl(c.iso).length }} entertainment
           </NuxtLink>
           <!-- Only the total sits in the cell; the breakdown (and VIP pax kept
                out of it) lives in the tooltip so cells stay one size. -->
