@@ -1289,12 +1289,20 @@ export function urutTask(mode: ModeUrut): (a: BdTask, b: BdTask) => number {
   return (a, b) => (kunciUrut(a) - kunciUrut(b)) || (a.id < b.id ? -1 : 1)
 }
 
-/** The new `urutan` for moving `id` one step up (-1) or down (+1) in an already sorted list; null at the edge. */
-export function urutanGeser(daftar: BdTask[], id: string, arah: -1 | 1): number | null {
-  const i = daftar.findIndex(t => t.id === id)
-  const j = i + arah
-  if (i < 0 || j < 0 || j >= daftar.length) return null
-  const k = daftar.map(kunciUrut)
-  if (arah < 0) return j - 1 >= 0 ? (k[j - 1]! + k[j]!) / 2 : k[j]! - 1000
-  return j + 1 < daftar.length ? (k[j]! + k[j + 1]!) / 2 : k[j]! + 1000
+/**
+ * The new `urutan` for dropping `id` right before `sebelum` (null = at the end)
+ * in an already sorted list. Null when nothing changes.
+ */
+export function urutanSisip(daftar: BdTask[], id: string, sebelum: string | null): number | null {
+  if (id === sebelum) return null
+  const lain = daftar.filter(t => t.id !== id)
+  const k = lain.map(kunciUrut)
+  const j = sebelum ? lain.findIndex(t => t.id === sebelum) : lain.length
+  if (j < 0) return null
+  const lama = daftar.findIndex(t => t.id === id)
+  if (lama >= 0 && lama === j) return null
+  if (!lain.length) return Date.now()
+  if (j === 0) return k[0]! - 1000
+  if (j >= lain.length) return k[lain.length - 1]! + 1000
+  return (k[j - 1]! + k[j]!) / 2
 }

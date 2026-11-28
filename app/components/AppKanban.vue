@@ -44,7 +44,10 @@ const props = withDefaults(defineProps<{
 })
 
 const emit = defineEmits<{
-  move: [payload: { id: string, to: string }]
+  /** `sebelum`: the card it was dropped above (null = end of the column). */
+  move: [payload: { id: string, to: string, sebelum?: string | null }]
+  /** A drop inside the same column, for boards with a manual order. */
+  reorder: [payload: { id: string, column: string, sebelum: string | null }]
   cardClick: [payload: { id: string, column: string }]
 }>()
 
@@ -69,12 +72,29 @@ function onDragOver(colId: string) {
   drag.dragOver(colId)
 }
 
+// Insert marker while dragging: the card the pointer is above (null = end).
+const sisip = ref<{ col: string, sebelum: string | null } | null>(null)
+function onCardOver(ev: DragEvent, colId: string, items: T[], i: number) {
+  if (!props.canDrag || !drag.draggedId.value) return
+  const r = (ev.currentTarget as HTMLElement).getBoundingClientRect()
+  const atas = ev.clientY < r.top + r.height / 2
+  sisip.value = { col: colId, sebelum: atas ? items[i]!.id : (items[i + 1]?.id ?? null) }
+}
+watch(() => drag.draggedId.value, (v) => {
+  if (!v) sisip.value = null
+})
+
 function onDrop(ev: DragEvent, colId: string) {
+  const s = sisip.value?.col === colId ? sisip.value.sebelum : null
+  sisip.value = null
   const id = drag.dropTo(ev)
   if (!id) return
-  // Same-column drops only swallow the follow-up click, they move nothing.
-  if (props.columns.find(c => c.id === colId)?.items.some(i => i.id === id)) return
-  emit('move', { id, to: colId })
+  // A drop in its own column is a reorder (boards without a manual order ignore it).
+  if (props.columns.find(c => c.id === colId)?.items.some(i => i.id === id)) {
+    emit('reorder', { id, column: colId, sebelum: s })
+    return
+  }
+  emit('move', { id, to: colId, sebelum: s })
 }
 
 defineExpose({ swallowClick: drag.swallowClick })
@@ -107,10 +127,17 @@ defineExpose({ swallowClick: drag.swallowClick })
         class="flex min-h-16 flex-1 flex-col p-2"
         :class="listClass ? `${listClass} gap-3 overflow-y-auto [scrollbar-width:thin] *:shrink-0` : 'gap-2'"
       >
-        <template
-          v-for="item in col.items"
+        <div
+          v-for="(item, i) in col.items"
           :key="item.id"
+          class="relative"
+          @dragover="onCardOver($event, col.id, col.items, i)"
         >
+          <span
+            v-if="sisip?.col === col.id && sisip.sebelum === item.id && drag.draggedId.value !== item.id"
+            class="pointer-events-none absolute inset-x-1 -top-2 h-1 rounded-full bg-primary"
+            aria-hidden="true"
+          />
           <slot
             name="card"
             :item="item"
@@ -137,7 +164,7 @@ defineExpose({ swallowClick: drag.swallowClick })
               </template>
             </AppKanbanCard>
           </slot>
-        </template>
+        </div>
         <slot
           name="empty"
           :column="col"
