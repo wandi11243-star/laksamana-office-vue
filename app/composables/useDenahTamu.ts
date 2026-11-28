@@ -15,6 +15,8 @@ export interface DenahTamu {
   /** True only for links minted for one chat; other links are view-only. */
   pick: boolean
   maxTables: number
+  /** The bot's WhatsApp number (digits) for the "Kembali ke WhatsApp" button. */
+  wa?: string
   master: MasterDenah & { dineEstMin?: number, clashLeadMin?: number }
   /** Bookings a day either side, without any guest detail (name is "Tamu"). */
   reservations: Reservasi[]
@@ -26,7 +28,11 @@ export async function ambilDenahTamu(t: string): Promise<DenahTamu> {
   return r.data
 }
 
-/** POST /automation/denah-pilih — 409 `taken` names the tables in `error.details.tables`. */
-export async function kirimPilihanMeja(t: string, tables: string[]): Promise<void> {
-  await useApi()('/automation/denah-pilih', { method: 'POST', body: { t, tables } })
+/**
+ * POST /automation/denah-pilih — 409 `taken` names the tables in `error.details.tables`;
+ * 410 `used` = this link already sent a choice (one choice per link).
+ */
+export async function kirimPilihanMeja(t: string, tables: string[]): Promise<{ tables: string[], wa?: string }> {
+  const r = await useApi()<Envelope<{ tables: string[], wa?: string }>>('/automation/denah-pilih', { method: 'POST', body: { t, tables } })
+  return r.data
 }
