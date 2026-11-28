@@ -50,6 +50,7 @@ const daftar = computed<ReviewGoogle[]>(() => {
     if (saring.value === 'rendah' && Number(r.rating) > 3) return false
     if (saring.value === 'dibalas' && !r.balasan) return false
     if (saring.value === 'selesai' && Number(r.ditangani) !== 1) return false
+    if (topikPilih.value && !topikReview(r).some(k => k.id === topikPilih.value)) return false
     if (q && `${r.penulis} ${r.teks || ''} ${r.balasan || ''}`.toLowerCase().includes(q)) return true
     return !q
   })
@@ -58,6 +59,27 @@ const daftar = computed<ReviewGoogle[]>(() => {
 })
 
 const tempatPilih = ref('')
+
+// Colour topic tags (like the Google Maps "menu" chips), read from the review
+// text by keyword — reviews carry no topic data of their own.
+const TOPIK = [
+  { id: 'makanan', label: 'Makanan', kelas: 'bg-orange-100 text-orange-800 ring-orange-300 dark:bg-orange-950 dark:text-orange-200', kata: /makan|food|menu|rasa|enak|lezat|steak|ayam|ikan|nasi|mie|pasta|pizza|dessert|porsi|sambal|seafood|daging/ },
+  { id: 'minuman', label: 'Minuman', kelas: 'bg-sky-100 text-sky-800 ring-sky-300 dark:bg-sky-950 dark:text-sky-200', kata: /minum|kopi|coffee|jus|juice|teh |tea|mocktail|cocktail|drink|es / },
+  { id: 'pelayanan', label: 'Pelayanan', kelas: 'bg-emerald-100 text-emerald-800 ring-emerald-300 dark:bg-emerald-950 dark:text-emerald-200', kata: /layan|service|staf|staff|pelayan|waiter|ramah|friendly|sopan|lama|lambat|cepat|tunggu/ },
+  { id: 'suasana', label: 'Suasana', kelas: 'bg-violet-100 text-violet-800 ring-violet-300 dark:bg-violet-950 dark:text-violet-200', kata: /suasana|tempat|nyaman|cozy|view|pemandangan|musik|music|live|dekor|interior|ambience|atmosph|instagramable|aesthetic/ },
+  { id: 'harga', label: 'Harga', kelas: 'bg-amber-100 text-amber-800 ring-amber-300 dark:bg-amber-950 dark:text-amber-200', kata: /harga|price|mahal|murah|worth|terjangkau|pricey|bayar|tagihan|bill/ },
+  { id: 'kebersihan', label: 'Kebersihan', kelas: 'bg-teal-100 text-teal-800 ring-teal-300 dark:bg-teal-950 dark:text-teal-200', kata: /bersih|kotor|clean|dirty|toilet|wc|bau|lalat|kecoa/ },
+  { id: 'lokasi', label: 'Lokasi & Parkir', kelas: 'bg-rose-100 text-rose-800 ring-rose-300 dark:bg-rose-950 dark:text-rose-200', kata: /parkir|parking|lokasi|location|akses|jalan|macet|strategis/ },
+  { id: 'reservasi', label: 'Reservasi & Acara', kelas: 'bg-indigo-100 text-indigo-800 ring-indigo-300 dark:bg-indigo-950 dark:text-indigo-200', kata: /reserv|booking|book |acara|event|ulang tahun|birthday|meeting|rombongan|wedding/ },
+] as const
+type IdTopik = typeof TOPIK[number]['id']
+const topikReview = (r: ReviewGoogle) => {
+  const t = ` ${(r.teks || '').toLowerCase()} `
+  return TOPIK.filter(k => k.kata.test(t))
+}
+const topikPilih = ref<IdTopik | ''>('')
+const hitungTopik = computed(() => TOPIK.map(k => ({ ...k, jumlah: ulasanTempat.value.filter(r => k.kata.test(` ${(r.teks || '').toLowerCase()} `)).length })).filter(k => k.jumlah))
+const WARNA_SARING: Record<string, string> = { tangani: 'bg-orange-500', segera: 'bg-red-500', belum: 'bg-amber-500', rendah: 'bg-rose-500', dibalas: 'bg-sky-500', selesai: 'bg-emerald-500', semua: 'bg-neutral-400' }
 const tempat = computed(() => data.value?.tempat ?? [])
 
 const bintang = (n: number) => '★★★★★'.slice(0, Math.max(0, Math.min(5, Math.round(Number(n) || 0)))) || '—'
@@ -371,19 +393,35 @@ const segSegera = computed(() => ulasanTempat.value.filter(r => r.tingkat === 's
           <AppPanel title="Review tamu">
             <template #head>
               <div class="flex w-full flex-wrap items-center gap-2">
-                <AppSeg
-                  v-model="saring"
-                  size="sm"
-                  :options="[
-                    { value: 'tangani', label: `Perlu ditangani${segSegera ? ` (${segSegera} segera)` : ''}` },
-                    { value: 'segera', label: 'Segera' },
-                    { value: 'belum', label: 'Belum dibalas' },
-                    { value: 'rendah', label: 'Bintang 1-3' },
-                    { value: 'dibalas', label: 'Sudah dibalas' },
-                    { value: 'selesai', label: 'Sudah ditangani' },
-                    { value: 'semua', label: 'Semua' },
-                  ]"
-                />
+                <div
+                  class="flex flex-wrap gap-1.5"
+                  role="radiogroup"
+                  aria-label="Saring review"
+                >
+                  <button
+                    v-for="o in [
+                      { value: 'tangani', label: `Perlu ditangani${segSegera ? ` (${segSegera} segera)` : ''}` },
+                      { value: 'segera', label: 'Segera' },
+                      { value: 'belum', label: 'Belum dibalas' },
+                      { value: 'rendah', label: 'Bintang 1-3' },
+                      { value: 'dibalas', label: 'Sudah dibalas' },
+                      { value: 'selesai', label: 'Sudah ditangani' },
+                      { value: 'semua', label: 'Semua' },
+                    ]"
+                    :key="o.value"
+                    type="button"
+                    role="radio"
+                    :aria-checked="saring === o.value"
+                    class="inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-medium transition"
+                    :class="saring === o.value ? 'border-transparent bg-inverted text-inverted' : 'border-default bg-default text-default hover:bg-elevated'"
+                    @click="saring = o.value as SaringGreview"
+                  >
+                    <i
+                      class="inline-block size-2 rounded-full"
+                      :class="WARNA_SARING[o.value]"
+                    />{{ o.label }}
+                  </button>
+                </div>
                 <USelect
                   v-if="tempat.length > 1"
                   :model-value="tempatPilih || KOSONG"
@@ -399,6 +437,23 @@ const segSegera = computed(() => ulasanTempat.value.filter(r => r.tingkat === 's
                   size="sm"
                   class="min-w-44 flex-1"
                 />
+                <div
+                  v-if="hitungTopik.length"
+                  class="mt-2 flex w-full flex-wrap gap-1.5"
+                  aria-label="Topik ulasan"
+                >
+                  <button
+                    v-for="k in hitungTopik"
+                    :key="k.id"
+                    type="button"
+                    class="inline-flex items-center gap-1 rounded-full px-3 py-1 text-sm font-medium ring-1 transition"
+                    :class="[k.kelas, topikPilih === k.id ? 'ring-2 ring-offset-1' : 'ring-transparent opacity-90 hover:opacity-100']"
+                    :aria-pressed="topikPilih === k.id"
+                    @click="topikPilih = topikPilih === k.id ? '' : k.id"
+                  >
+                    {{ k.label }} <span class="num opacity-70">{{ k.jumlah }}</span>
+                  </button>
+                </div>
               </div>
             </template>
             <p
@@ -453,6 +508,17 @@ const segSegera = computed(() => ulasanTempat.value.filter(r => r.tingkat === 's
                 >
                   Places
                 </AppStatus>
+              </div>
+              <div
+                v-if="topikReview(r).length"
+                class="mt-2 flex flex-wrap gap-1"
+              >
+                <span
+                  v-for="k in topikReview(r)"
+                  :key="k.id"
+                  class="rounded-full px-2 py-0.5 text-xs font-medium"
+                  :class="k.kelas"
+                >{{ k.label }}</span>
               </div>
               <p
                 v-if="r.teks"
