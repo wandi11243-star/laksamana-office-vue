@@ -63,14 +63,14 @@ const tempatPilih = ref('')
 // Colour topic tags (like the Google Maps "menu" chips), read from the review
 // text by keyword — reviews carry no topic data of their own.
 const TOPIK = [
-  { id: 'makanan', label: 'Makanan', kelas: 'bg-orange-100 text-orange-800 ring-orange-300 dark:bg-orange-950 dark:text-orange-200', kata: /makan|food|menu|rasa|enak|lezat|steak|ayam|ikan|nasi|mie|pasta|pizza|dessert|porsi|sambal|seafood|daging/ },
-  { id: 'minuman', label: 'Minuman', kelas: 'bg-sky-100 text-sky-800 ring-sky-300 dark:bg-sky-950 dark:text-sky-200', kata: /minum|kopi|coffee|jus|juice|teh |tea|mocktail|cocktail|drink|es / },
-  { id: 'pelayanan', label: 'Pelayanan', kelas: 'bg-emerald-100 text-emerald-800 ring-emerald-300 dark:bg-emerald-950 dark:text-emerald-200', kata: /layan|service|staf|staff|pelayan|waiter|ramah|friendly|sopan|lama|lambat|cepat|tunggu/ },
-  { id: 'suasana', label: 'Suasana', kelas: 'bg-violet-100 text-violet-800 ring-violet-300 dark:bg-violet-950 dark:text-violet-200', kata: /suasana|tempat|nyaman|cozy|view|pemandangan|musik|music|live|dekor|interior|ambience|atmosph|instagramable|aesthetic/ },
-  { id: 'harga', label: 'Harga', kelas: 'bg-amber-100 text-amber-800 ring-amber-300 dark:bg-amber-950 dark:text-amber-200', kata: /harga|price|mahal|murah|worth|terjangkau|pricey|bayar|tagihan|bill/ },
-  { id: 'kebersihan', label: 'Kebersihan', kelas: 'bg-teal-100 text-teal-800 ring-teal-300 dark:bg-teal-950 dark:text-teal-200', kata: /bersih|kotor|clean|dirty|toilet|wc|bau|lalat|kecoa/ },
-  { id: 'lokasi', label: 'Lokasi & Parkir', kelas: 'bg-rose-100 text-rose-800 ring-rose-300 dark:bg-rose-950 dark:text-rose-200', kata: /parkir|parking|lokasi|location|akses|jalan|macet|strategis/ },
-  { id: 'reservasi', label: 'Reservasi & Acara', kelas: 'bg-indigo-100 text-indigo-800 ring-indigo-300 dark:bg-indigo-950 dark:text-indigo-200', kata: /reserv|booking|book |acara|event|ulang tahun|birthday|meeting|rombongan|wedding/ },
+  { id: 'makanan', label: 'Makanan', kelas: 'bg-orange-500 text-white ring-orange-700', kata: /makan|food|menu|rasa|enak|lezat|steak|ayam|ikan|nasi|mie|pasta|pizza|dessert|porsi|sambal|seafood|daging/ },
+  { id: 'minuman', label: 'Minuman', kelas: 'bg-sky-500 text-white ring-sky-700', kata: /minum|kopi|coffee|jus|juice|teh |tea|mocktail|cocktail|drink|es / },
+  { id: 'pelayanan', label: 'Pelayanan', kelas: 'bg-emerald-500 text-white ring-emerald-700', kata: /layan|service|staf|staff|pelayan|waiter|ramah|friendly|sopan|lama|lambat|cepat|tunggu/ },
+  { id: 'suasana', label: 'Suasana', kelas: 'bg-violet-500 text-white ring-violet-700', kata: /suasana|tempat|nyaman|cozy|view|pemandangan|musik|music|live|dekor|interior|ambience|atmosph|instagramable|aesthetic/ },
+  { id: 'harga', label: 'Harga', kelas: 'bg-amber-500 text-white ring-amber-700', kata: /harga|price|mahal|murah|worth|terjangkau|pricey|bayar|tagihan|bill/ },
+  { id: 'kebersihan', label: 'Kebersihan', kelas: 'bg-teal-500 text-white ring-teal-700', kata: /bersih|kotor|clean|dirty|toilet|wc|bau|lalat|kecoa/ },
+  { id: 'lokasi', label: 'Lokasi & Parkir', kelas: 'bg-rose-500 text-white ring-rose-700', kata: /parkir|parking|lokasi|location|akses|jalan|macet|strategis/ },
+  { id: 'reservasi', label: 'Reservasi & Acara', kelas: 'bg-indigo-500 text-white ring-indigo-700', kata: /reserv|booking|book |acara|event|ulang tahun|birthday|meeting|rombongan|wedding/ },
 ] as const
 type IdTopik = typeof TOPIK[number]['id']
 const topikReview = (r: ReviewGoogle) => {
@@ -79,6 +79,11 @@ const topikReview = (r: ReviewGoogle) => {
 }
 const topikPilih = ref<IdTopik | ''>('')
 const hitungTopik = computed(() => TOPIK.map(k => ({ ...k, jumlah: ulasanTempat.value.filter(r => k.kata.test(` ${(r.teks || '').toLowerCase()} `)).length })).filter(k => k.jumlah))
+const kartuRating = (n: number) => Number(n) <= 2
+  ? 'border-red-500 bg-red-50 dark:bg-red-950/40'
+  : Number(n) === 3
+    ? 'border-amber-400 bg-amber-50 dark:bg-amber-950/40'
+    : 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40'
 const WARNA_SARING: Record<string, string> = { tangani: 'bg-orange-500', segera: 'bg-red-500', belum: 'bg-amber-500', rendah: 'bg-rose-500', dibalas: 'bg-sky-500', selesai: 'bg-emerald-500', semua: 'bg-neutral-400' }
 const tempat = computed(() => data.value?.tempat ?? [])
 
@@ -465,7 +470,8 @@ const segSegera = computed(() => ulasanTempat.value.filter(r => r.tingkat === 's
             <div
               v-for="r in daftar"
               :key="r.id"
-              class="border-b border-default py-3 last:border-0"
+              class="mb-3 rounded-xl border-l-8 p-4 last:mb-0"
+              :class="kartuRating(r.rating)"
             >
               <div class="flex flex-wrap items-center gap-2">
                 <span class="flex size-8 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted">
@@ -476,13 +482,17 @@ const segSegera = computed(() => ulasanTempat.value.filter(r => r.tingkat === 's
                     {{ r.penulis || 'Pengguna Google' }}
                   </p>
                   <p class="text-xs text-muted">
-                    <span class="text-primary-700">{{ bintang(r.rating) }}</span>
+                    <span
+                      class="rounded-full px-2 py-0.5 text-sm font-bold text-white"
+                      :class="Number(r.rating) <= 2 ? 'bg-red-600' : Number(r.rating) === 3 ? 'bg-amber-500' : 'bg-emerald-600'"
+                    >{{ r.rating }} ★</span>
                     · {{ r.waktuMs ? new Date(r.waktuMs).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '—' }}
                   </p>
                 </div>
                 <AppStatus
                   v-if="r.tingkat"
                   size="sm"
+                  class="ring-1 ring-inset ring-current/40"
                   :color="r.tingkat === 'segera' ? 'error' : r.tingkat === 'tinggi' ? 'warning' : 'info'"
                 >
                   {{ LABEL_TINGKAT_GREVIEW[r.tingkat] }}
@@ -534,7 +544,7 @@ const segSegera = computed(() => ulasanTempat.value.filter(r => r.tingkat === 's
               </p>
               <div
                 v-if="r.balasan"
-                class="mt-2 rounded-xl bg-muted p-2.5 text-sm"
+                class="mt-3 rounded-xl border border-sky-200 bg-white p-3 text-sm dark:border-sky-900 dark:bg-neutral-900"
               >
                 <p class="mb-1 text-[11px] text-muted">
                   Balasan bisnis<template v-if="r.balasanAt > 0">
