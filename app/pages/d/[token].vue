@@ -8,6 +8,10 @@
   detail stripped. The guest taps one or more free tables, confirms, and
   POST /automation/denah-pilih relays the choice into their chat, where the
   bot continues the booking. A booked table is never overridable here.
+
+  After sending, the page says so at once and sends the guest back to
+  WhatsApp (owner request, Nov 2026). A link sends one choice only: a wrong
+  pick is fixed by replying "ganti meja", which gets a fresh link.
 -->
 <script setup lang="ts">
 import type { FetchError } from 'ofetch'
@@ -26,6 +30,8 @@ const token = computed(() => String(route.params.token ?? ''))
 const data = ref<DenahTamu | null>(null)
 const galat = ref('')
 const kodeGalat = ref<string | undefined>()
+/** The bot's number from an error body (a used link still knows where to go back). */
+const waGalat = ref('')
 const memuat = ref(true)
 
 async function muat() {
@@ -37,6 +43,7 @@ async function muat() {
   catch (e) {
     kodeGalat.value = apiErrorCode(e)
     galat.value = apiErrorMessage(e, 'Denah belum bisa dibuka. Coba lagi sebentar ya Kak.')
+    waGalat.value = String(((e as FetchError<ApiErrorBody>)?.data?.error?.details as { wa?: string } | undefined)?.wa ?? '')
   }
   finally {
     memuat.value = false
@@ -112,16 +119,50 @@ const konfirmasi = ref(false)
 const mengirim = ref(false)
 const terkirim = ref(false)
 
+/** wa.me link back to the bot's chat; empty when the number is unknown. */
+const waUrl = computed(() => {
+  const n = String(data.value?.wa || waGalat.value || '').replace(/\D/g, '')
+  return n ? `https://wa.me/${n}` : ''
+})
+function keWhatsApp() {
+  if (waUrl.value) window.location.href = waUrl.value
+}
+
+// After sending: a short countdown, then straight back to WhatsApp.
+const hitung = ref(0)
+let mundur: ReturnType<typeof setInterval> | undefined
+function mulaiHitung() {
+  if (!waUrl.value) return
+  hitung.value = 3
+  mundur = setInterval(() => {
+    hitung.value--
+    if (hitung.value <= 0) {
+      clearInterval(mundur)
+      keWhatsApp()
+    }
+  }, 1000)
+}
+onBeforeUnmount(() => clearInterval(mundur))
+
 async function kirim() {
   if (!pilih.value.length || mengirim.value) return
   mengirim.value = true
   try {
-    await kirimPilihanMeja(token.value, pilih.value)
+    const r = await kirimPilihanMeja(token.value, pilih.value)
+    if (r?.wa && data.value) data.value = { ...data.value, wa: r.wa }
     terkirim.value = true
     konfirmasi.value = false
+    window.scrollTo({ top: 0 })
+    mulaiHitung()
   }
   catch (e) {
     const tables = ((e as FetchError<ApiErrorBody>)?.data?.error?.details as { tables?: string[] } | undefined)?.tables
+    if (apiErrorCode(e) === 'used') {
+      // Sent already (another tab, a double tap): nothing more to do here.
+      terkirim.value = true
+      konfirmasi.value = false
+      return
+    }
     if (apiErrorCode(e) === 'taken' && tables?.length) {
       // Someone booked it meanwhile: drop it and redraw it as taken.
       pilih.value = pilih.value.filter(m => !tables.includes(m))
@@ -164,6 +205,55 @@ async function kirim() {
         Memuat denah…
       </p>
 
+      <!-- Sent: say so at once and send the guest back to WhatsApp. -->
+      <div
+        v-else-if="terkirim || kodeGalat === 'used'"
+        class="mt-6 rounded-panel bg-default p-6 text-center shadow-panel sm:p-8"
+      >
+        <UIcon
+          name="i-lucide-circle-check"
+          class="size-16 text-success"
+        />
+        <h2 class="mt-3 text-2xl font-extrabold text-highlighted">
+          Berhasil!
+        </h2>
+        <p class="mt-1 text-muted">
+          Pilihan meja Kakak sudah terkirim ke chat WhatsApp.
+        </p>
+        <div
+          v-if="terkirim && pilih.length"
+          class="mt-4 flex flex-wrap justify-center gap-1.5"
+        >
+          <span
+            v-for="m in pilih"
+            :key="m"
+            class="rounded-full bg-gold-soft px-3 py-1 text-sm font-bold text-gold-deep ring-1 ring-gold-deep"
+          >{{ m }}</span>
+        </div>
+        <p class="mt-4 font-semibold text-highlighted">
+          Silakan kembali ke WhatsApp untuk melanjutkan reservasinya ya Kak.
+        </p>
+        <UButton
+          v-if="waUrl"
+          class="mt-4 w-full justify-center sm:w-auto"
+          size="xl"
+          color="primary"
+          icon="i-lucide-message-circle"
+          label="Kembali ke WhatsApp"
+          :to="waUrl"
+          external
+        />
+        <p
+          v-if="hitung > 0"
+          class="mt-2 text-sm text-muted"
+        >
+          Otomatis pindah ke WhatsApp dalam {{ hitung }} detik…
+        </p>
+        <p class="mt-5 text-sm text-muted">
+          Salah pilih meja? Balas <b>ganti meja</b> di WhatsApp, nanti dikirim link denah baru.
+        </p>
+      </div>
+
       <div
         v-else-if="galat && !data"
         class="mt-6 rounded-panel bg-default p-6 text-center shadow-panel"
@@ -192,16 +282,7 @@ async function kirim() {
       <template v-else-if="data">
         <!-- What to do, or why picking is closed. -->
         <UAlert
-          v-if="terkirim"
-          class="mt-4"
-          color="success"
-          variant="subtle"
-          icon="i-lucide-circle-check"
-          title="Pilihan meja terkirim"
-          :description="`Meja ${pilih.join(', ')} sudah masuk ke chat WhatsApp. Silakan kembali ke WhatsApp ya Kak, asisten kami melanjutkan reservasinya di sana.`"
-        />
-        <UAlert
-          v-else-if="kedaluwarsa"
+          v-if="kedaluwarsa"
           class="mt-4"
           color="warning"
           variant="subtle"
