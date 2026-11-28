@@ -160,6 +160,17 @@ function bukaSheet(t: BdTask) {
   taskPilih.value = t
   bukaTask.value = true
 }
+/** Deep link from the WhatsApp reminders (?task=<id>): open that task's sheet once the state lands. */
+const route = useRoute()
+const router = useRouter()
+watch([() => route.query.task, () => state.value.tasks.length], () => {
+  const id = typeof route.query.task === 'string' ? route.query.task : ''
+  if (!id) return
+  const t = state.value.tasks.find(x => String(x.id) === id)
+  if (!t) return
+  bukaSheet(t)
+  router.replace({ query: { ...route.query, task: undefined } })
+}, { immediate: true })
 function toggle(t: BdTask) {
   toggleTask(t, state.value.tasks)
 }
