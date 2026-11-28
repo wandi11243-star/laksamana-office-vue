@@ -34,9 +34,12 @@ const pilarPutar = ['primary', 'success', 'info', 'warning', 'secondary'] as con
 
 const buka = ref(false)
 const brandId = ref('')
-const brandItem = computed(() => st.value.brands.find(b => b.id === brandId.value) ?? null)
+// Keep the last known brand so the sheet doesn't flip to 'Brand baru' while it closes after a delete.
+const brandTerakhir = shallowRef<BrandKonten | null>(null)
+const brandItem = computed(() => brandId.value ? (st.value.brands.find(x => x.id === brandId.value) ?? brandTerakhir.value) : null)
 function bukaForm(b?: BrandKonten) {
   brandId.value = b?.id ?? ''
+  brandTerakhir.value = b ?? null
   buka.value = true
 }
 </script>

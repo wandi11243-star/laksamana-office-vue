@@ -151,6 +151,28 @@ function kelompokTanggal(tanggal: string) {
   return d.toISOString().slice(0, 10)
 }
 const warnaPlatform: Record<string, string> = { TikTok: 'text-gold', Instagram: 'text-info', YouTube: 'text-success' }
+// Colour tags so lists scan at a glance.
+const tagPlatform: Record<string, string> = {
+  TikTok: 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900',
+  Instagram: 'bg-pink-100 text-pink-800 dark:bg-pink-950 dark:text-pink-200',
+  YouTube: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200',
+}
+const TAG_PUTAR = [
+  'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200',
+  'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
+  'bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-200',
+  'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200',
+  'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200',
+  'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-200',
+]
+const tagKategori = (k?: string) => TAG_PUTAR[[...(k ?? '')].reduce((a, c) => a + c.charCodeAt(0), 0) % TAG_PUTAR.length]
+const tagEr = (er: number | null) => er == null
+  ? 'bg-muted text-muted'
+  : er >= 0.08
+    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
+    : er >= 0.03
+      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'
+      : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200'
 const tren = computed(() => {
   const groups = new Map<string, Map<string, number[]>>()
   for (const row of terfilter.value) {
@@ -439,7 +461,7 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
             v-model="rentangTop"
             size="sm"
             aria-label="Periode"
-            :items="['Semua waktu', '7 hari', '30 hari', '90 hari', 'Bulan ini', 'Tahun ini', 'Rentang?']"
+            :items="['Semua waktu', '7 hari', '30 hari', '90 hari', 'Bulan ini', 'Tahun ini', 'Rentang…']"
           />
         </div>
         <div
@@ -502,7 +524,7 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
           v-else
           class="overflow-x-auto"
         >
-          <div class="mb-2 flex flex-wrap gap-4 text-xs">
+          <div class="mb-3 flex flex-wrap gap-4 text-sm font-medium">
             <span
               v-for="platform in trenPlatform"
               :key="platform"
@@ -561,7 +583,7 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
                   />
                   <span
                     v-else-if="t.values[platform] != null"
-                    class="text-xs"
+                    class="text-sm font-semibold"
                     :class="warnaPlatform[platform] || 'text-muted'"
                   >{{ formatTren(t.values[platform]!) }}</span>
                 </template>
@@ -572,7 +594,7 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
                 v-for="t in tren"
                 :key="t.key"
                 type="button"
-                class="w-20 shrink-0 rounded p-1 text-xs hover:bg-muted"
+                class="w-20 shrink-0 rounded p-1.5 text-sm hover:bg-muted aria-pressed:bg-primary/15 aria-pressed:font-semibold"
                 :aria-pressed="titikDipilih === t.key"
                 @click="titikDipilih = titikDipilih === t.key ? '' : t.key; halTop = 1"
               >
@@ -617,12 +639,19 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
                 :stroke-dashoffset="-p.offset"
               />
             </svg>
-            <div class="space-y-2 text-sm">
+            <div class="space-y-3 text-base">
               <p
                 v-for="p in platformShare"
                 :key="p.name"
+                class="flex items-center gap-2"
               >
-                <span :class="p.color">&#9679;</span> {{ p.name }} · {{ p.value.toLocaleString('id-ID') }} ({{ p.percent.toFixed(1) }}%)
+                <span :class="p.color">&#9679;</span>
+                <span
+                  class="rounded-full px-2.5 py-0.5 text-sm font-semibold"
+                  :class="tagPlatform[p.name] || 'bg-muted'"
+                >{{ p.name }}</span>
+                <b class="num">{{ p.value.toLocaleString('id-ID') }}</b>
+                <span class="text-muted">({{ p.percent.toFixed(1) }}%)</span>
               </p>
             </div>
           </div>
@@ -637,7 +666,7 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
           title="Aktivitas berdasarkan hari"
           description="Rata-rata views per postingan menurut hari tayang. Jam tayang tidak tersedia."
         >
-          <div class="grid grid-cols-7 gap-2 text-center text-xs">
+          <div class="grid grid-cols-7 gap-2 text-center text-sm">
             <div
               v-for="h in hariShare"
               :key="h.label"
@@ -705,23 +734,35 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
         <div
           v-for="(b, i) in topJalan ? [] : (top?.baris ?? [])"
           :key="`${b.sumber}-${b.url}-${i}`"
-          class="border-b border-default py-2"
+          class="border-b border-default py-4 last:border-0"
         >
-          <div class="flex items-center gap-2">
-            <span class="text-sm text-muted">{{ ((top?.hal ?? 1) - 1) * perTop + i + 1 }}</span>
-            <div class="min-w-0 flex-1">
-              <p class="truncate text-sm font-medium">
+          <div class="flex flex-wrap items-center gap-3">
+            <span
+              class="flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold"
+              :class="((top?.hal ?? 1) - 1) * perTop + i < 3 ? 'bg-gold-soft text-gold-deep' : 'bg-muted text-muted'"
+            >{{ ((top?.hal ?? 1) - 1) * perTop + i + 1 }}</span>
+            <div class="min-w-0 flex-1 basis-60">
+              <p class="line-clamp-2 text-base leading-snug font-semibold text-highlighted">
                 {{ b.judul }}
               </p>
-              <div class="mt-1 h-1 w-full max-w-40 rounded bg-muted">
+              <div class="mt-2 flex flex-wrap items-center gap-1.5 text-sm">
+                <span
+                  class="rounded-full px-2.5 py-0.5 font-medium"
+                  :class="tagPlatform[b.platform] || 'bg-muted'"
+                >{{ b.platform }}</span>
+                <span class="rounded-full bg-muted px-2.5 py-0.5 text-muted">{{ b.tanggal || 'tanpa tanggal' }}</span>
+                <span class="rounded-full bg-sky-100 px-2.5 py-0.5 font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-200">{{ b.views }} views</span>
+                <span
+                  class="rounded-full px-2.5 py-0.5 font-medium"
+                  :class="tagEr(b.er)"
+                >ER {{ b.er === null ? '—' : `${(b.er * 100).toFixed(1)}%` }}</span>
+              </div>
+              <div class="mt-2 h-1.5 w-full max-w-60 rounded bg-muted">
                 <div
                   class="h-full rounded bg-gold"
                   :style="{ width: Math.max(1, (nilaiMetrik(b) ?? 0) / Math.max(0.000001, nilaiKpi[4] ?? 0) * 100) + '%' }"
                 />
               </div>
-              <p class="text-xs text-muted">
-                {{ b.platform }} · {{ b.tanggal || 'tanpa tanggal' }} · {{ b.views }} views · ER {{ b.er === null ? '—' : `${(b.er * 100).toFixed(1)}%` }}
-              </p>
             </div>
             <UButton
               v-if="b.url"
@@ -751,20 +792,20 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
           </div>
           <div
             v-if="detailBuka === i"
-            class="mt-2 grid grid-cols-3 gap-2"
+            class="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3"
           >
             <div
               v-for="[k, label] in KOTAK_RINCI"
               :key="k"
-              class="rounded bg-muted p-2"
+              class="rounded-lg bg-muted p-3"
             >
-              <p class="text-xs text-muted">
+              <p class="text-sm text-muted">
                 {{ label }}
               </p>
-              <p class="text-sm font-medium">
+              <p class="text-lg font-semibold">
                 {{ b.rinci[k]?.v ?? '—' }}
               </p>
-              <p class="text-[11px] text-muted">
+              <p class="text-xs text-muted">
                 {{ b.rinci[k]?.s === 'api' ? `${b.sumber} API` : b.rinci[k]?.s === 'manual' ? 'Input Performa' : 'belum ada' }}
               </p>
             </div>
@@ -1047,14 +1088,14 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
           <div
             v-for="(u, i) in usulan"
             :key="i"
-            class="mt-2 rounded border border-default p-2"
+            class="mt-3 rounded-xl border border-default p-4"
           >
-            <p class="text-sm font-medium">
+            <p class="text-base leading-relaxed font-semibold text-highlighted">
               {{ String(u.temuan ?? '') }}
             </p>
             <p
               v-if="u.aksi"
-              class="text-sm text-muted"
+              class="mt-2 flex gap-2 rounded-lg bg-amber-50 p-3 text-base leading-relaxed text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
             >
               <UIcon
                 name="i-lucide-lightbulb"
@@ -1121,24 +1162,37 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
           <div
             v-for="i in daftarInsight"
             :key="i.id"
-            class="border-b border-default py-2"
+            class="border-b border-default py-4 last:border-0"
           >
-            <p class="text-sm font-medium">
+            <div class="mb-2 flex flex-wrap gap-1.5 text-sm">
+              <span
+                class="rounded-full px-2.5 py-0.5 font-medium"
+                :class="tagPlatform[i.platform] || 'bg-muted'"
+              >{{ i.platform }}</span>
+              <span
+                v-if="i.kategori"
+                class="rounded-full px-2.5 py-0.5 font-medium"
+                :class="tagKategori(i.kategori)"
+              >{{ i.kategori }}</span>
+              <span class="rounded-full bg-muted px-2.5 py-0.5 text-muted">Tayang {{ i.tgl_tayang }}</span>
+              <span
+                v-if="i.metrik"
+                class="rounded-full bg-sky-100 px-2.5 py-0.5 font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-200"
+              >{{ i.metrik }}</span>
+            </div>
+            <p class="text-base leading-relaxed font-semibold text-highlighted">
               {{ i.temuan }}
-            </p>
-            <p class="text-xs text-muted">
-              {{ i.platform }} · Tayang {{ i.tgl_tayang }} · {{ i.kategori }} {{ i.metrik ? `· ${i.metrik}` : '' }}
             </p>
             <p
               v-if="i.aksi"
-              class="text-sm text-muted"
+              class="mt-2 flex gap-2 rounded-lg bg-amber-50 p-3 text-base leading-relaxed text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
             >
               <UIcon
                 name="i-lucide-lightbulb"
                 class="size-4"
               /> {{ i.aksi }}
             </p>
-            <div class="mt-1 flex gap-2">
+            <div class="mt-2 flex flex-wrap gap-2">
               <UButton
                 v-if="i.url"
                 icon="i-lucide-arrow-up-right"
