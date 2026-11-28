@@ -16,6 +16,14 @@ const { key, shell } = useModulShell()
 
 const desktop = useMediaQuery('(min-width: 1024px)')
 const sembunyi = ref(false)
+const aktivitasKonten = useState('konten-api-pending', () => ({ baca: 0, tulis: 0 }))
+const { isLoading: pindahHalaman } = useLoadingIndicator()
+const statusKonten = computed(() => {
+  if (key.value !== 'konten') return ''
+  if (pindahHalaman.value) return 'Membuka halaman...'
+  if (aktivitasKonten.value.tulis) return 'Memproses perubahan...'
+  return aktivitasKonten.value.baca ? 'Memuat data...' : ''
+})
 
 // Beranda (the launcher) drops the sidebar on desktop: the page already lists
 // every module the viewer holds, so the extra column only repeats it. Module
@@ -111,7 +119,23 @@ onBeforeUnmount(() => {
         <AppTopAksi :key="key" />
       </header>
 
+      <div
+        v-if="statusKonten"
+        role="status"
+        aria-live="polite"
+        class="fixed inset-x-0 bottom-24 pointer-events-none z-[100] flex justify-center px-4 print:hidden lg:bottom-6 lg:ps-64"
+      >
+        <div class="flex items-center gap-2 rounded-full bg-inverted px-4 py-2 text-sm text-inverted shadow-panel">
+          <UIcon
+            name="i-lucide-loader-circle"
+            class="size-4 shrink-0 animate-spin motion-reduce:animate-none"
+          />
+          {{ statusKonten }}
+        </div>
+      </div>
       <main
+        :aria-busy="!!statusKonten"
+        :inert="key === 'konten' && (pindahHalaman || aktivitasKonten.tulis > 0)"
         class="px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-5 lg:px-8 lg:pb-12 lg:pt-4 2xl:px-10"
         :class="{ 'modul-cashier': route.path.startsWith('/cashier') || route.path.startsWith('/finance/omset') }"
       >

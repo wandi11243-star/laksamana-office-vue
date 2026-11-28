@@ -130,7 +130,7 @@ const katalog = computed(() => ROLE_KEYS_KONTEN.map(r => ({
 <template>
   <KontenGerbang lihat="settings">
     <AppPage
-      title="Pengaturan"
+      title="Kelola Akses"
       description="Konfigurasi sistem, daftar kru & hak akses"
     >
       <UAlert

@@ -43,7 +43,9 @@ export function useApi() {
   const token = useToken()
   const { apiBase } = useRuntimeConfig().public
 
-  return $fetch.create({
+  const route = useRouter().currentRoute
+  const aktivitas = useState('konten-api-pending', () => ({ baca: 0, tulis: 0 }))
+  const api = $fetch.create({
     baseURL: apiBase,
     headers: { Accept: 'application/json' },
     onRequest({ options }) {
@@ -55,6 +57,22 @@ export function useApi() {
         useMe().value = null
         navigateTo('/login')
       }
+    },
+  })
+
+  return new Proxy(api, {
+    apply(target, receiver, args: [string | Request, { method?: string }?]) {
+      const [request, options] = args
+      const path = typeof request === 'string' ? request : request.url
+      if (!path.startsWith('/konten/') && !/^\/konten(?:\/|$)/.test(route.value.path)) {
+        return Reflect.apply(target, receiver, args)
+      }
+      const method = (options?.method ?? (typeof request === 'string' ? 'GET' : request.method)).toUpperCase()
+      const jenis = method === 'GET' || method === 'HEAD' ? 'baca' : 'tulis'
+      aktivitas.value[jenis]++
+      return Promise.resolve().then(() => Reflect.apply(target, receiver, args)).finally(() => {
+        aktivitas.value[jenis]--
+      })
     },
   })
 }

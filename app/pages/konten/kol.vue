@@ -62,6 +62,11 @@ const nMp = computed(() => kols.value.filter(k => kolType(k) === 'Media Partner'
 const fTipe = pilihan(() => fk.value, 'type')
 const fNiche = pilihan(() => fk.value, 'category')
 const opsiTipe = [{ value: SEMUA, label: 'Semua tipe' }, ...KOL_TYPES.map(t => ({ value: t, label: t }))]
+const warnaNiche = ['warning', 'info', 'success', 'secondary', 'primary', 'error'] as const
+const nicheWarna = (nama: string) => {
+  const indeks = KOL_CATEGORIES.indexOf(nama)
+  return indeks < 0 ? 'neutral' : warnaNiche[indeks % warnaNiche.length]
+}
 const opsiNiche = [{ value: SEMUA, label: 'Semua niche' }, ...KOL_CATEGORIES.map(c => ({ value: c, label: c }))]
 
 const kolBuka = ref(false)
@@ -263,7 +268,7 @@ const kolomV: TableColumn<VisitPenuh>[] = [
               size="sm"
               @click="fk = filterKolBawaan()"
             />
-            <span class="text-xs text-muted sm:ms-auto">{{ listK.length }} ditampilkan</span>
+            <span class="text-sm text-muted sm:ms-auto">{{ listK.length }} ditampilkan</span>
           </div>
         </AppPanel>
 
@@ -435,7 +440,7 @@ const kolomV: TableColumn<VisitPenuh>[] = [
                     v-for="c in kolCats(row.original)"
                     :key="c"
                     :label="c"
-                    color="neutral"
+                    :color="nicheWarna(c)"
                     variant="soft"
                     size="sm"
                   />
@@ -469,9 +474,18 @@ const kolomV: TableColumn<VisitPenuh>[] = [
                   @click="bukaKol(k)"
                 >
                   <b class="text-highlighted">{{ k.name }}</b>
-                  <span class="ms-1 text-xs text-muted">{{ kolType(k) }}</span>
-                  <span class="block text-xs text-muted">{{ [k.whatsapp, k.instagram && `@${tanpaAt(k.instagram)}`, k.tiktok && `TT @${tanpaAt(k.tiktok)}`].filter(Boolean).join(' · ') || '-' }}</span>
-                  <span class="block text-xs text-muted">{{ kolCats(k).join(' · ') }}</span>
+                  <span class="ms-1 text-sm text-muted">{{ kolType(k) }}</span>
+                  <span class="block text-sm text-muted">{{ [k.whatsapp, k.instagram && `@${tanpaAt(k.instagram)}`, k.tiktok && `TT @${tanpaAt(k.tiktok)}`].filter(Boolean).join(' · ') || '-' }}</span>
+                  <span class="mt-1.5 flex flex-wrap gap-1.5">
+                    <UBadge
+                      v-for="c in kolCats(k)"
+                      :key="c"
+                      :label="c"
+                      :color="nicheWarna(c)"
+                      variant="soft"
+                      size="sm"
+                    />
+                  </span>
                 </button>
                 <span class="num shrink-0 text-sm font-semibold">{{ k.rateValue ? rupiah(k.rateValue) : '' }}</span>
               </li>
@@ -515,7 +529,7 @@ const kolomV: TableColumn<VisitPenuh>[] = [
               size="sm"
               @click="fv = filterVisitBawaan()"
             />
-            <span class="text-xs text-muted sm:ms-auto">{{ listV.length }} ditampilkan</span>
+            <span class="text-sm text-muted sm:ms-auto">{{ listV.length }} ditampilkan</span>
           </div>
         </AppPanel>
 
@@ -563,7 +577,7 @@ const kolomV: TableColumn<VisitPenuh>[] = [
                   @click="bukaVisit(row.original)"
                 >
                   <b class="text-highlighted">{{ row.original.title || 'Event Activity' }}</b>
-                  <span class="block text-xs text-muted">{{ undangan(row.original) }}</span>
+                  <span class="block text-sm text-muted">{{ undangan(row.original) }}</span>
                 </button>
               </template>
               <template #brand-cell="{ row }">
@@ -571,7 +585,7 @@ const kolomV: TableColumn<VisitPenuh>[] = [
               </template>
               <template #tgl-cell="{ row }">
                 <span
-                  class="num text-xs font-semibold"
+                  class="num text-sm font-semibold"
                   :class="lewat(row.original) ? 'text-error' : 'text-default'"
                 >{{ relTgl(row.original) }}</span>
                 <span class="block text-[11px] text-muted">{{ row.original.date ? fTglP(row.original.date) : '' }}{{ row.original.time ? ` - ${row.original.time}` : '' }}</span>
@@ -627,9 +641,9 @@ const kolomV: TableColumn<VisitPenuh>[] = [
                   @click="bukaVisit(v)"
                 >
                   <b class="text-highlighted">{{ v.title || 'Event Activity' }}</b>
-                  <span class="block text-xs text-muted">{{ undangan(v) }}</span>
+                  <span class="block text-sm text-muted">{{ undangan(v) }}</span>
                   <span
-                    class="block text-xs"
+                    class="block text-sm"
                     :class="lewat(v) ? 'font-semibold text-error' : 'text-muted'"
                   >{{ relTgl(v) }}{{ v.time ? ` - ${v.time}` : '' }} · {{ namaBrand(v.brand) }}{{ v.location ? ` · ${v.location}` : '' }}</span>
                 </button>
@@ -701,7 +715,7 @@ const kolomV: TableColumn<VisitPenuh>[] = [
         :title="`Riwayat starting price - ${riwayat?.name ?? ''}`"
         @update:open="riwayat = $event ? riwayat : null"
       >
-        <p class="mb-2 text-xs text-muted">
+        <p class="mb-2 text-sm text-muted">
           Berlaku sekarang: <b class="num text-default">{{ riwayat?.rateValue ? rupiah(riwayat.rateValue) : '-' }}</b>
         </p>
         <div
@@ -712,11 +726,11 @@ const kolomV: TableColumn<VisitPenuh>[] = [
           <p class="num font-semibold">
             {{ rupiah(e.value) }}
             <span
-              class="text-xs"
+              class="text-sm"
               :class="!e.prev ? 'text-muted' : rateDelta(e) > 0 ? 'text-error' : 'text-success'"
             >{{ !e.prev ? 'ditetapkan' : `${rateDelta(e) > 0 ? '▲' : '▼'} ${rupiah(Math.abs(rateDelta(e)))}` }}</span>
           </p>
-          <p class="text-xs text-muted">
+          <p class="text-sm text-muted">
             {{ e.prev ? `sebelumnya ${rupiah(e.prev)} - ` : '' }}{{ waktu(e.at) }}{{ e.by ? ` - ${namaUser(e.by)}` : '' }}
           </p>
         </div>

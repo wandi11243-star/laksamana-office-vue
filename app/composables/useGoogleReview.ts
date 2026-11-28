@@ -1,11 +1,7 @@
 // Google Review — the Campaign Analytics panel (`#greview`,
 // deploy/konten/analytics/index.html, 17 Okt 2026).
 //
-// There is NO v1 contract yet (G-24): every call below targets the planned
-// shape under `/konten/analytics/google`, mirroring the legacy
-// `campaignGoogle*` actions. Until the API answers, the screen stays on the
-// "Segera" pattern (`idle/muat/ok/galat` + Coba lagi) and never touches a
-// legacy URL. All calls go through `useApi()`.
+// Reads and writes use the v1 Campaign Analytics API.
 //
 // Priority is COMPUTED here (`skorPrioritas`), never stored — the weights can
 // be retuned without touching data, and the newest AI flags join in at once.
@@ -57,9 +53,19 @@ export interface GoogleReviewData {
   totalTersimpan: number
   syncAt: number
   galat: string
+  akun?: { nama?: string, terhubung: boolean } | null
+  ai?: AnalisaGoogle | null
 }
 
-export type SaringGreview = 'tangani' | 'segera' | 'dibalas' | 'selesai' | 'semua'
+export interface AnalisaGoogle {
+  ringkasan: string
+  sentimen: Record<string, number> | null
+  kekuatan: { tema: string, penjelasan: string }[]
+  perbaikan: { area: string, masalah: string, prioritas: string, saran: string }[]
+  tangani: { id: string, urgensi: string, alasan: string, tindakan: string }[]
+}
+
+export type SaringGreview = 'tangani' | 'segera' | 'belum' | 'rendah' | 'dibalas' | 'selesai' | 'semua'
 
 /** Priority score (`grSkor`): low stars weigh most, then long complaints
  * ("guests who complain a lot"), then recency, then AI flags. Replied ones
@@ -96,11 +102,11 @@ export function nomorResmiGreview(teks: string): string {
   return teks.replace(POLA_HP_GREVIEW, NOMOR_RESERVASI_GREVIEW)
 }
 
-/** Planned reads (G-24 — the API does not answer these yet). */
+/** Read saved reviews and their latest analysis. */
 export const getGoogleReview = () =>
-  useApi()<Envelope<GoogleReviewData>>('/konten/analytics/google')
+  useApi()<Envelope<Omit<GoogleReviewData, 'review'> & { review: (ReviewGoogle & { tempat_id?: string, waktu_ms?: number, balasan_at?: number, balasan_oleh?: string })[] }>>('/konten/analytics/google')
 
-/** Planned sync (G-24). */
+/** Synchronize configured review sources. */
 export const sinkronGoogleReview = () =>
   useApi()<Envelope<{ jumlah: number, galat: string[] }>>('/konten/analytics/google/sync', { method: 'POST' })
 
@@ -114,7 +120,7 @@ export const balasGoogleReview = (id: string, teks: string) =>
 
 /** Mark a review handled (or reopen it), with an optional follow-up note. */
 export const tanganiGoogleReview = (id: string, ditangani: boolean, catatan: string) =>
-  useApi()<unknown>('/konten/analytics/google/tangani', { method: 'POST', body: { id, ditangani, catatan } })
+  useApi()<unknown>('/konten/analytics/google/flag', { method: 'POST', body: { id, ditangani, catatan } })
 
 /**
  * Shared loader for the screen: `idle` (never tried) → `muat` → `ok`/`galat`
@@ -133,7 +139,11 @@ export function useGoogleReviewState() {
       const r = await getGoogleReview()
       data.value = {
         ...r.data,
-        review: (r.data.review || []).map(x => ({ ...x, skor: skorPrioritas(x), tingkat: tingkatPrioritas(skorPrioritas(x)) })),
+        review: (r.data.review || []).map((x) => {
+          const review = { ...x, tempatId: x.tempat_id ?? x.tempatId, waktuMs: Number(x.waktu_ms ?? x.waktuMs), balasanAt: Number(x.balasan_at ?? x.balasanAt ?? 0), balasanOleh: x.balasan_oleh ?? x.balasanOleh }
+          const skor = skorPrioritas(review, r.data.ai?.tangani.find(t => t.id === x.id)?.urgensi)
+          return { ...review, skor, tingkat: tingkatPrioritas(skor) }
+        }),
       }
       status.value = 'ok'
     }

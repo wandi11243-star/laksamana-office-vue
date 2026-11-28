@@ -347,7 +347,11 @@ export const ubahAdsCampaign = (body: { jenis: string, id: string, aksi?: string
  * toast the error. Reloads the shared campaign state on success.
  */
 export async function campaignSimpan(aksi: () => Promise<unknown>, sukses?: string): Promise<boolean> {
-  return tulisBerVersi(aksi, { sukses, muatUlang: () => refreshNuxtData('campaign-state') })
+  const halaman = useRouter().currentRoute.value.path
+  return tulisBerVersi(async () => {
+    await aksi()
+    if (sukses) await logDenganCobaLagi(() => logKonten(sukses, halaman))
+  }, { sukses, muatUlang: () => refreshNuxtData(['campaign-state', 'konten-state']) })
 }
 
 export interface IgComment { id: string, text?: string, username?: string, hidden?: boolean, replies?: { data: IgComment[] } }
@@ -356,3 +360,73 @@ export const getIgComments = () => useApi()<Envelope<{ posts: IgCommentPost[] }>
 export const replyIgComment = (id: string, pesan: string) => useApi()('/konten/analytics/instagram/comments/' + encodeURIComponent(id) + '/reply', { method: 'POST', body: { pesan } })
 export const hideIgComment = (id: string, sembunyi: boolean) => useApi()('/konten/analytics/instagram/comments/' + encodeURIComponent(id) + '/hide', { method: 'POST', body: { sembunyi } })
 export const deleteIgComment = (id: string) => useApi()('/konten/analytics/instagram/comments/' + encodeURIComponent(id), { method: 'DELETE' })
+
+// ---------------------------------------------------------------- Pertumbuhan Akun & Iklan (sinkron)
+
+/** One day of cg_harian (null = not measured that day). */
+export interface HarianAkun {
+  platform: string
+  tgl: string
+  follower: number | null
+  follower_baru: number | null
+  views: number | null
+  reach: number | null
+  likes: number | null
+  comments: number | null
+  shares: number | null
+  saves: number | null
+  interaksi: number | null
+  likes_total: number | null
+  jml_post: number | null
+}
+export interface IklanHarian { tgl: string, spend: number, impresi: number, reach: number, klik: number, video_view: number, interaksi: number, chat: number }
+export interface BarisDemografi { label: string, n: number }
+export interface Demografi { at: number, umur: BarisDemografi[], gender: BarisDemografi[], kota: BarisDemografi[], negara: BarisDemografi[], galat?: string }
+export interface DataTumbuh {
+  hari: number
+  kini: string
+  harian: HarianAkun[]
+  iklan: IklanHarian[]
+  iklanAda: boolean
+  akun: Record<string, { nama: string, follower: number, syncAt: number }>
+  demografi: Demografi
+}
+/** GET /analytics/growth — the range AND the one before it (for ▲/▼). */
+export const getTumbuh = (hari: number) =>
+  useApi()<Envelope<DataTumbuh>>('/konten/analytics/growth', { query: { hari } })
+
+export interface BarisIklan {
+  ad_id: string
+  akun: string
+  nama: string
+  kampanye: string
+  adset: string
+  objective: string
+  status: string
+  thumb: string
+  permalink: string
+  spend: number
+  impresi: number
+  reach: number
+  klik: number
+  ctr: number
+  cpm: number
+  frekuensi: number
+  video_view: number
+  hasil_label: string
+  hasil_n: number
+  tgl_mulai: string | null
+  tgl_selesai: string | null
+  post: { judul: string, url: string, views: number, likes: number, comments: number, tanggal: string } | null
+}
+export interface AiIklanItem { ad_id: string, nama: string, alasan: string, saran: string }
+export interface AiIklan { ringkasan: string, model: string, lanjutkan: AiIklanItem[], perbaiki: AiIklanItem[], hentikan: AiIklanItem[], saranUmum: string[] }
+/** GET /analytics/ads — ads of one period from the last sync. */
+export const getIklan = (periode: string) =>
+  useApi()<Envelope<{ periode: string, baris: BarisIklan[], syncAt: number, galat: string }>>('/konten/analytics/ads', { query: { periode } })
+/** POST /analytics/ads/sync — pull the ads from Meta (can take a minute). */
+export const sinkronIklan = () =>
+  useApi()<Envelope<{ jumlah: number, syncAt: number }>>('/konten/analytics/ads/sync', { method: 'POST', timeout: 180000 })
+/** POST /analytics/ads/ai — continue / fix / stop per ad. */
+export const aiIklan = (periode: string) =>
+  useApi()<Envelope<AiIklan>>('/konten/analytics/ads/ai', { method: 'POST', body: { periode }, timeout: 180000 })

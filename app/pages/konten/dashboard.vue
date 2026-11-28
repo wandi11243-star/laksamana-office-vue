@@ -9,8 +9,6 @@
   - Top Konten ranks by the per-platform figures (performa-konten.ts, #49):
     the old screen read `metrics.reach`, a field nothing ever wrote (F.4), so
     its list was always zeros; old flat records still count;
-  - the old screen also ran autoUpdateStatuses() (ads) on open, a WRITE: done
-    once per session by useStatusIklanOtomatis (#50), only for ads editors.
 -->
 <script setup lang="ts">
 import type { AcaraKalender, FilterKalender } from '~/utils/konten'
@@ -22,7 +20,6 @@ import { ikonAcaraKonten, ikonStatusKonten, warnaAcaraKonten, warnaStatusKonten 
 import { angka, hariIni, tglPanjang, tglPendek } from '~/utils/format'
 
 definePageMeta({ access: ['konten'] })
-useStatusIklanOtomatis()
 useSinkronKruKonten()
 
 const me = useMe()

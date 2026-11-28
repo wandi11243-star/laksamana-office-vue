@@ -1,4 +1,4 @@
-<!--
+﻿<!--
   Konten › Insight Konten (deploy/konten/analytics/index.html #insight;
   #133). Akun terhubung (TikTok/Instagram/YouTube-segera), Konten terpopuler
   (satu halaman server + detail 9 angka), Insight otomatis AI, daftar insight.
@@ -9,6 +9,7 @@ import type { AkunCampaign, BarisTop, InsightCampaign, InsightInput, IgCommentPo
 definePageMeta({ access: ['konten', 'campaign'] })
 
 const route = useRoute()
+const demo = computed(() => import.meta.dev && route.query.demo === '1')
 const toast = useToast()
 const { data: st, error, refresh } = useStateCampaign()
 
@@ -27,6 +28,7 @@ onMounted(() => {
 
 // Auto-sync diam-diam bila sinkron terakhir > 6 jam (like legacy).
 onMounted(async () => {
+  if (demo.value) return
   await nextTick()
   const akun = st.value?.akun ?? []
   for (const a of akun) {
@@ -39,6 +41,7 @@ onMounted(async () => {
 
 const sinkronJalan = ref('')
 async function sinkronkan(provider: 'tiktok' | 'instagram') {
+  if (demo.value) return
   sinkronJalan.value = provider
   try {
     await oauthSinkronCampaign(provider)
@@ -50,6 +53,7 @@ async function sinkronkan(provider: 'tiktok' | 'instagram') {
 }
 
 async function hubungkan(provider: 'tiktok' | 'instagram') {
+  if (demo.value) return
   try {
     const r = await oauthMulaiCampaign(provider)
     navigateTo(r.data.url, { external: true })
@@ -58,6 +62,7 @@ async function hubungkan(provider: 'tiktok' | 'instagram') {
 }
 
 async function putuskan(a: { platform: string, nama: string }) {
+  if (demo.value) return
   if (!confirm(`Putuskan akun ${a.platform}? Postingan yang sudah ditarik tetap tersimpan; sinkron otomatis berhenti sampai dihubungkan lagi.`)) return
   const ok = await campaignSimpan(
     () => oauthPutusCampaign(a.platform as 'tiktok' | 'instagram'), 'Akun diputus.')
@@ -78,6 +83,7 @@ async function muatKomentar() {
   finally { igLoading.value = false }
 }
 async function ubahKomentar(id: string, aksi: 'reply' | 'hide' | 'delete', hidden = false) {
+  if (demo.value) return
   if (aksi === 'delete' && !confirm('Hapus komentar ini dari Instagram?')) return
   if (aksi === 'reply' && !igReply.value[id]?.trim()) return
   igLoading.value = true
@@ -93,13 +99,106 @@ async function ubahKomentar(id: string, aksi: 'reply' | 'hide' | 'delete', hidde
 }
 
 // ---------------------------------------------------------------- top
-const platTop = ref('Semua')
-const urutTop = ref('views')
+const platTop = ref<string[]>([])
+const cariTop = ref('')
+const urutTop = ref<'views' | 'likes' | 'comments' | 'shares' | 'er'>('views')
+const labelMetrik = { views: 'Views', likes: 'Likes', comments: 'Komentar', shares: 'Share', er: 'Engagement rate' }
+const nilaiMetrik = (b: BarisTop) => b[urutTop.value]
 const rentangTop = ref('30 hari')
 const dariTop = ref('')
 const sampaiTop = ref('')
 const halTop = ref(1)
-const top = ref<{ baris: BarisTop[], total: number, hal: number, per: number, halMaks: number } | null>(null)
+const perTop = ref(10)
+const semuaTop = ref<BarisTop[] | null>(null)
+const sebelumnya = ref<BarisTop[] | null>(null)
+const modeGrafik = ref('batang')
+const intervalGrafik = ref('hari')
+const titikDipilih = ref('')
+const cocokFilter = (b: BarisTop) => (!platTop.value.length || platTop.value.includes(b.platform)) && (!cariTop.value.trim() || b.judul.toLocaleLowerCase().includes(cariTop.value.trim().toLocaleLowerCase()))
+const terfilter = computed(() => (semuaTop.value ?? []).filter(cocokFilter))
+const kpi = [{ label: 'Postingan', icon: 'i-lucide-files' }, { label: 'Total views', icon: 'i-lucide-eye' }, { label: 'Interaksi', icon: 'i-lucide-heart' }, { label: 'Rata-rata ER', icon: 'i-lucide-percent' }, { label: 'Postingan terbaik', icon: 'i-lucide-trophy' }]
+const postinganTerbaik = computed(() => terfilter.value.reduce<BarisTop | undefined>((best, row) => {
+  const nilai = nilaiMetrik(row)
+  return nilai != null && (!best || nilai > (nilaiMetrik(best) ?? -1)) ? row : best
+}, undefined))
+function metrik(rows: BarisTop[]) {
+  const views = rows.reduce((n, b) => n + b.views, 0)
+  const interaksi = rows.reduce((n, b) => n + b.likes + b.comments + b.shares, 0)
+  const er = rows.flatMap(b => b.er == null ? [] : [b.er])
+  const terbaik = rows.reduce<number | null>((max, row) => {
+    const nilai = nilaiMetrik(row)
+    return nilai == null ? max : Math.max(max ?? nilai, nilai)
+  }, null)
+  return [rows.length, views, interaksi, er.length ? er.reduce((a, b) => a + b, 0) * 100 / er.length : null, terbaik]
+}
+const nilaiKpi = computed(() => metrik(terfilter.value))
+function formatKpi(n: number | null | undefined, i: number) {
+  return n == null ? '—' : i === 3 || (i === 4 && urutTop.value === 'er') ? (n * (i === 4 ? 100 : 1)).toFixed(1) + '%' : Math.round(n).toLocaleString('id-ID')
+}
+function bandingKpi(i: number) {
+  if (!sebelumnya.value) return 'Periode pembanding tidak tersedia'
+  const lalu = metrik(sebelumnya.value.filter(cocokFilter))[i], kini = nilaiKpi.value[i]
+  if (lalu == null || kini == null) return 'Tidak cukup data pembanding'
+  if (!lalu) return kini ? 'Periode sebelumnya: 0' : 'Sama dengan periode sebelumnya'
+  const beda = (kini - lalu) / lalu * 100
+  return (beda > 0 ? '+' : '') + beda.toFixed(1) + '% dibanding periode sebelumnya'
+}
+function kelompokTanggal(tanggal: string) {
+  const d = new Date(tanggal.slice(0, 10) + 'T00:00:00Z')
+  if (Number.isNaN(d.getTime())) return ''
+  if (intervalGrafik.value === 'bulan') return tanggal.slice(0, 7)
+  if (intervalGrafik.value === 'minggu') d.setUTCDate(d.getUTCDate() - (d.getUTCDay() + 6) % 7)
+  return d.toISOString().slice(0, 10)
+}
+const warnaPlatform: Record<string, string> = { TikTok: 'text-gold', Instagram: 'text-info', YouTube: 'text-success' }
+const tren = computed(() => {
+  const groups = new Map<string, Map<string, number[]>>()
+  for (const row of terfilter.value) {
+    const key = kelompokTanggal(row.tanggal)
+    const value = nilaiMetrik(row)
+    if (!key || value == null) continue
+    if (!groups.has(key)) groups.set(key, new Map())
+    const group = groups.get(key)!
+    group.set(row.platform, [...(group.get(row.platform) ?? []), value])
+  }
+  return [...groups].sort(([a], [b]) => a.localeCompare(b)).map(([key, group]) => ({ key, values: Object.fromEntries([...group].map(([platform, values]) => [platform, values.reduce((a, b) => a + b, 0) * (urutTop.value === 'er' ? 100 / values.length : 1)])) }))
+})
+const trenPlatform = computed(() => [...new Set(terfilter.value.map(row => row.platform))].sort())
+const maxTren = computed(() => Math.max(1, ...tren.value.flatMap(t => Object.values(t.values))))
+const formatTren = (value: number) => urutTop.value === 'er' ? value.toFixed(1) + '%' : Math.round(value).toLocaleString('id-ID')
+const xTren = (i: number) => 40 + i * 80
+const yTren = (value: number) => 155 - value / maxTren.value * 135
+const platformShare = computed(() => {
+  const groups = new Map<string, number>()
+  for (const b of terfilter.value) groups.set(b.platform, (groups.get(b.platform) ?? 0) + b.views)
+  let offset = 0
+  const total = [...groups.values()].reduce((a, b) => a + b, 0)
+  return [...groups].map(([name, value], i) => {
+    const percent = total ? value / total * 100 : 0
+    const item = { name, value, percent, offset, color: ['text-gold', 'text-info', 'text-success', 'text-muted'][i % 4] }
+    offset += percent
+    return item
+  })
+})
+const hariShare = computed(() => {
+  const hari = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map(label => ({ label, count: 0, views: 0 }))
+  for (const b of terfilter.value) {
+    const d = new Date(b.tanggal.slice(0, 10) + 'T00:00:00Z')
+    if (Number.isNaN(d.getTime())) continue
+    const baris = hari[d.getUTCDay()]!
+    baris.count++
+    baris.views += b.views
+  }
+  return [...hari.slice(1), hari[0]!].map(h => ({ ...h, rata: h.count ? Math.round(h.views / h.count) : null }))
+})
+const maxRataHari = computed(() => hariShare.value.reduce((max, h) => Math.max(max, h.rata ?? 0), 1))
+let topRequest = 0
+const top = computed(() => {
+  if (!semuaTop.value) return null
+  const baris = terfilter.value.filter(b => !titikDipilih.value || kelompokTanggal(b.tanggal) === titikDipilih.value)
+    .sort((a, b) => (nilaiMetrik(b) ?? -1) - (nilaiMetrik(a) ?? -1))
+  return { baris: baris.slice((halTop.value - 1) * perTop.value, halTop.value * perTop.value), total: baris.length, hal: halTop.value, halMaks: Math.max(1, Math.ceil(baris.length / perTop.value)) }
+})
 const topGalat = ref('')
 const topJalan = ref(false)
 
@@ -108,31 +207,99 @@ function rentangTopHitung(): { dari?: string, sampai?: string } {
     const d = new Date(Date.now() + 7 * 3600 * 1000 - n * 86400000)
     return d.toISOString().slice(0, 10) // UTC on purpose: shifted +7 h above = WIB day
   }
-  if (rentangTop.value === '7 hari') return { dari: hari(7) }
-  if (rentangTop.value === '30 hari') return { dari: hari(30) }
-  if (rentangTop.value === '90 hari') return { dari: hari(90) }
+  if (rentangTop.value === '7 hari') return { dari: hari(6), sampai: hari(0) }
+  if (rentangTop.value === '30 hari') return { dari: hari(29), sampai: hari(0) }
+  if (rentangTop.value === '90 hari') return { dari: hari(89), sampai: hari(0) }
   if (rentangTop.value === 'Bulan ini') return { dari: hari(0).slice(0, 7) + '-01' }
+  if (rentangTop.value === 'Tahun ini') return { dari: hari(0).slice(0, 4) + '-01-01' }
   if (rentangTop.value === 'Rentang…' && dariTop.value) return { dari: dariTop.value, sampai: sampaiTop.value || undefined }
   return {}
 }
 
+function rentangPembanding(range: { dari?: string, sampai?: string }) {
+  if (!range.dari) return null
+  const hari = 86400000
+  const akhir = range.sampai || new Date(Date.now() + 7 * 3600000).toISOString().slice(0, 10)
+  const start = Date.parse(range.dari + 'T00:00:00Z')
+  const end = Date.parse(akhir + 'T00:00:00Z')
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return null
+  return {
+    dari: new Date(start - (end - start + hari)).toISOString().slice(0, 10),
+    sampai: new Date(start - hari).toISOString().slice(0, 10),
+  }
+}
+
 async function muatTop() {
+  const request = ++topRequest
   topJalan.value = true
   topGalat.value = ''
+  sebelumnya.value = null
+  titikDipilih.value = ''
+  const range = rentangTopHitung()
+  const pembanding = rentangPembanding(range)
   try {
-    const r = await getTopCampaign({
-      platform: platTop.value === 'Semua' ? '' : platTop.value,
-      urut: urutTop.value, ...rentangTopHitung(), hal: halTop.value, per: 10,
-    })
-    top.value = r.data
+    if (demo.value) {
+      const platforms = ['TikTok', 'Instagram', 'YouTube']
+      const sekarang = Date.now() + 7 * 3600000
+      const daftar = Array.from({ length: 180 }, (_, i): BarisTop => ({
+        platform: platforms[i % platforms.length]!, judul: 'Konten contoh ' + (i + 1),
+        url: '', tanggal: new Date(sekarang - i * 86400000).toISOString().slice(0, 10), views: 12000 - i * 51, likes: 600 - i * 3,
+        comments: 50, shares: 20, er: (670 - i * 3) / (12000 - i * 51),
+        sumber: 'Demo', tercatat: false, rinci: {},
+      }))
+      const pilihRentang = ({ dari = '', sampai = '9999' }: typeof range) =>
+        daftar.filter(row => row.tanggal >= dari && row.tanggal <= sampai)
+      semuaTop.value = pilihRentang(range)
+      sebelumnya.value = pembanding ? pilihRentang(pembanding) : null
+    }
+    else {
+      const query = { ...range, urut: 'views', per: 50 }
+      const first = (await getTopCampaign({ ...query, hal: 1 })).data
+      const baris = [...first.baris]
+      for (let hal = 2; hal <= first.halMaks; hal++) {
+        if (request !== topRequest) return
+        baris.push(...(await getTopCampaign({ ...query, hal })).data.baris)
+      }
+      if (request === topRequest) semuaTop.value = baris
+      if (pembanding && request === topRequest) {
+        const previousQuery = { ...query, ...pembanding }
+        try {
+          const firstPrevious = (await getTopCampaign({ ...previousQuery, hal: 1 })).data
+          const previousRows = [...firstPrevious.baris]
+          for (let hal = 2; hal <= firstPrevious.halMaks; hal++) {
+            if (request !== topRequest) return
+            previousRows.push(...(await getTopCampaign({ ...previousQuery, hal })).data.baris)
+          }
+          if (request === topRequest) sebelumnya.value = previousRows
+        }
+        catch { /* Keep current results when comparison fails. */ }
+      }
+    }
   }
-  catch (e) { topGalat.value = `Konten terpopuler tidak bisa dimuat: ${apiErrorMessage(e)}` }
-  topJalan.value = false
+  catch (e) {
+    if (request === topRequest) {
+      semuaTop.value = null
+      topGalat.value = 'Konten terpopuler tidak bisa dimuat: ' + apiErrorMessage(e)
+    }
+  }
+  finally {
+    if (request === topRequest) topJalan.value = false
+  }
 }
 onMounted(muatTop)
-watch([platTop, urutTop, rentangTop, dariTop, sampaiTop], () => {
+watch([rentangTop, dariTop, sampaiTop, demo], () => {
   halTop.value = 1
   muatTop()
+})
+watch([platTop, cariTop, urutTop, intervalGrafik], () => {
+  titikDipilih.value = ''
+  halTop.value = 1
+}, { deep: true })
+watch(perTop, () => {
+  halTop.value = 1
+})
+watch(halTop, () => {
+  detailBuka.value = -1
 })
 
 const detailBuka = ref(-1)
@@ -159,6 +326,7 @@ const opsiUsulanPeriode = [
   { value: 'semua', label: 'Semua' },
 ]
 async function temukanInsight() {
+  if (demo.value) return
   if (usulanPeriode.value === 'rentang' && (!usulanDari.value || !usulanSampai.value)) {
     toast.add({ title: 'Rentang tanggal wajib diisi (dari & sampai).', color: 'error' })
     return
@@ -204,6 +372,7 @@ function bukaForm(i?: unknown) {
   formBuka.value = true
 }
 async function simpanForm() {
+  if (demo.value) return
   const v = form.value
   const versi = v.id
     ? (st.value?.insight.find(x => x.id === v.id)?.diubah_at ?? st.value?.insight.find(x => x.id === v.id)?.dibuat_at)
@@ -215,6 +384,7 @@ async function simpanForm() {
   }
 }
 async function arsipkan(i: InsightCampaign, arsip: boolean) {
+  if (demo.value) return
   const ok = await campaignSimpan(() => arsipInsightCampaign(i.id, arsip), arsip ? 'Insight diarsipkan.' : 'Insight dipulihkan.')
   if (ok) refresh()
 }
@@ -241,203 +411,263 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
         :title="pitaOauth"
       />
 
-      <!-- Akun terhubung -->
-      <AppPanel title="Komentar Instagram">
-        <p class="mb-3 text-sm text-muted">
-          Komentar dari postingan yang sudah disinkronkan. Hubungkan Instagram lagi untuk memberi izin kelola komentar.
-        </p>
-        <UButton
-          :loading="igLoading"
-          label="Muat komentar"
-          icon="i-lucide-refresh-cw"
-          @click="muatKomentar"
+      <div class="sticky top-0 z-10 mb-4 space-y-3 rounded-xl border border-default bg-default p-3">
+        <div class="flex flex-wrap gap-2">
+          <UButton
+            v-for="platform in ['TikTok', 'Instagram', 'YouTube']"
+            :key="platform"
+            size="sm"
+            color="neutral"
+            :variant="platTop.includes(platform) ? 'solid' : 'soft'"
+            :aria-pressed="platTop.includes(platform)"
+            @click="platTop = platTop.includes(platform) ? platTop.filter(p => p !== platform) : [...platTop, platform]"
+          >
+            {{ platform }}
+          </UButton>
+          <UInput
+            v-model="cariTop"
+            placeholder="Cari judul konten"
+            icon="i-lucide-search"
+          />
+          <USelect
+            v-model="urutTop"
+            size="sm"
+            aria-label="Metrik"
+            :items="Object.entries(labelMetrik).map(([value, label]) => ({ value, label }))"
+          />
+          <USelect
+            v-model="rentangTop"
+            size="sm"
+            aria-label="Periode"
+            :items="['Semua waktu', '7 hari', '30 hari', '90 hari', 'Bulan ini', 'Tahun ini', 'Rentang?']"
+          />
+        </div>
+        <div
+          v-if="rentangTop === 'Rentang…'"
+          class="mt-2 flex gap-2"
+        >
+          <AppTanggal
+            v-model="dariTop"
+          />
+          <AppTanggal
+            v-model="sampaiTop"
+          />
+        </div>
+      </div>
+      <AppStatGrid
+        :loading="topJalan && !top"
+        :count="5"
+      >
+        <AppStat
+          v-for="(item, i) in kpi"
+          :key="item.label"
+          :label="item.label"
+          :icon="item.icon"
+          :value="formatKpi(nilaiKpi[i], i)"
+          :sub="i === 4 && postinganTerbaik ? `${postinganTerbaik.judul} · ${bandingKpi(i)}` : bandingKpi(i)"
         />
+      </AppStatGrid>
+      <AppPanel
+        :title="`Tren ${labelMetrik[urutTop]}`"
+        description="Berdasarkan tanggal tayang. Pilih tanggal untuk menyaring daftar konten."
+      >
+        <div class="mb-4 flex flex-wrap gap-2">
+          <AppSeg
+            v-model="intervalGrafik"
+            size="sm"
+            :options="[{ value: 'hari', label: 'Hari' }, { value: 'minggu', label: 'Minggu' }, { value: 'bulan', label: 'Bulan' }]"
+          />
+          <AppSeg
+            v-model="modeGrafik"
+            size="sm"
+            :options="[{ value: 'garis', label: 'Garis' }, { value: 'batang', label: 'Batang' }, { value: 'angka', label: 'Angka' }]"
+          />
+          <UButton
+            v-if="titikDipilih"
+            size="xs"
+            color="neutral"
+            variant="soft"
+            @click="titikDipilih = ''; halTop = 1"
+          >
+            Hapus pilihan {{ titikDipilih }}
+          </UButton>
+        </div>
         <p
-          v-if="igError"
-          class="mt-3 text-error"
+          v-if="!tren.length"
+          class="text-sm text-muted"
         >
-          {{ igError }}
-        </p>
-        <p
-          v-if="igPosts && !igPosts.length"
-          class="mt-3 text-muted"
-        >
-          Belum ada postingan dengan komentar. Sinkronkan akun Instagram untuk memperbarui daftar.
+          Belum ada data bertanggal untuk ditampilkan.
         </p>
         <div
-          v-for="post in igPosts"
-          :key="post.id"
-          class="mt-4 rounded-xl border border-default p-4"
+          v-else
+          class="overflow-x-auto"
         >
-          <a
-            :href="post.url"
-            target="_blank"
-            rel="noopener noreferrer"
-            class="font-semibold text-gold-deep"
-          >{{ post.judul || 'Postingan Instagram' }}</a>
-          <p class="text-sm text-muted">
-            {{ post.jumlah }} komentar
-          </p>
-          <p
-            v-if="post.galat"
-            class="text-error"
-          >
-            {{ post.galat }}
-          </p>
-          <p
-            v-if="post.selanjutnya"
-            class="text-muted"
-          >
-            Menampilkan 50 komentar pertama.
-          </p>
-          <div
-            v-for="comment in post.komentar"
-            :key="comment.id"
-            class="mt-3 border-t border-default pt-3"
-          >
-            <div
-              v-for="item in [comment, ...(comment.replies?.data || [])]"
-              :key="item.id"
-              class="mb-3"
+          <div class="mb-2 flex flex-wrap gap-4 text-xs">
+            <span
+              v-for="platform in trenPlatform"
+              :key="platform"
+            ><span :class="warnaPlatform[platform] || 'text-muted'">●</span> {{ platform }}</span>
+          </div>
+          <div :style="{ width: Math.max(320, tren.length * 80) + 'px' }">
+            <svg
+              v-if="modeGrafik === 'garis'"
+              :viewBox="`0 0 ${Math.max(320, tren.length * 80)} 170`"
+              class="h-44 w-full"
+              role="img"
+              aria-label="Tren per platform"
             >
-              <p>
-                <strong>{{ item.username || 'Instagram' }}</strong> <span
-                  v-if="item.hidden"
-                  class="text-muted"
-                >(disembunyikan)</span>
-              </p>
-              <p class="whitespace-pre-wrap">
-                {{ item.text }}
-              </p>
-              <div class="mt-2 flex flex-wrap gap-2">
-                <UButton
-                  size="sm"
-                  color="neutral"
-                  variant="soft"
-                  :disabled="igLoading"
-                  :label="item.hidden ? 'Tampilkan' : 'Sembunyikan'"
-                  @click="ubahKomentar(item.id, 'hide', item.hidden)"
+              <template
+                v-for="platform in trenPlatform"
+                :key="platform"
+              >
+                <polyline
+                  :points="tren.map((t, i) => t.values[platform] == null ? null : `${xTren(i)},${yTren(t.values[platform]!)}`).filter(Boolean).join(' ')"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  :class="warnaPlatform[platform] || 'text-muted'"
                 />
-                <UButton
-                  size="sm"
-                  color="error"
-                  variant="ghost"
-                  :disabled="igLoading"
-                  label="Hapus"
-                  @click="ubahKomentar(item.id, 'delete')"
+                <circle
+                  v-for="t in tren.filter(t => t.values[platform] != null)"
+                  :key="t.key"
+                  :cx="xTren(tren.indexOf(t))"
+                  :cy="yTren(t.values[platform]!)"
+                  r="4"
+                  fill="currentColor"
+                  :class="warnaPlatform[platform] || 'text-muted'"
                 />
+              </template>
+            </svg>
+            <div
+              v-else
+              class="flex items-end"
+              :class="modeGrafik === 'batang' ? 'h-44' : ''"
+            >
+              <div
+                v-for="t in tren"
+                :key="t.key"
+                class="flex w-20 shrink-0 items-end justify-center gap-1"
+              >
+                <template
+                  v-for="platform in trenPlatform"
+                  :key="platform"
+                >
+                  <span
+                    v-if="t.values[platform] != null && modeGrafik === 'batang'"
+                    class="w-4 rounded-t bg-current"
+                    :class="warnaPlatform[platform] || 'text-muted'"
+                    :style="{ height: Math.max(2, t.values[platform]! / maxTren * 150) + 'px' }"
+                    :title="`${platform}: ${formatTren(t.values[platform]!)}`"
+                  />
+                  <span
+                    v-else-if="t.values[platform] != null"
+                    class="text-xs"
+                    :class="warnaPlatform[platform] || 'text-muted'"
+                  >{{ formatTren(t.values[platform]!) }}</span>
+                </template>
               </div>
             </div>
-            <div class="flex flex-wrap gap-2">
-              <UInput
-                v-model="igReply[comment.id]"
-                placeholder="Tulis balasan"
-                :maxlength="2200"
-                class="min-w-0 flex-1"
-              />
-              <UButton
-                label="Balas"
-                :disabled="igLoading || !igReply[comment.id]?.trim()"
-                @click="ubahKomentar(comment.id, 'reply')"
-              />
+            <div class="flex">
+              <button
+                v-for="t in tren"
+                :key="t.key"
+                type="button"
+                class="w-20 shrink-0 rounded p-1 text-xs hover:bg-muted"
+                :aria-pressed="titikDipilih === t.key"
+                @click="titikDipilih = titikDipilih === t.key ? '' : t.key; halTop = 1"
+              >
+                {{ t.key }}
+              </button>
             </div>
           </div>
         </div>
       </AppPanel>
-      <AppPanel title="Akun terhubung">
-        <div class="grid gap-3 md:grid-cols-3">
-          <UCard
-            v-for="slot in (['tiktok', 'instagram'] as const)"
-            :key="slot"
+      <div class="grid gap-4 lg:grid-cols-2">
+        <AppPanel title="Porsi views per platform">
+          <div
+            v-if="platformShare.length"
+            class="flex flex-wrap items-center gap-5"
           >
-            <template #header>
-              <span class="font-medium">{{ slot === 'tiktok' ? 'TikTok' : 'Instagram' }}</span>
-            </template>
-            <template
-              v-if="st?.akun.find(a => a.platform === slot)"
-              #default
+            <svg
+              viewBox="0 0 42 42"
+              class="size-36 -rotate-90"
+              role="img"
+              aria-label="Porsi views per platform"
             >
-              <KontenAkunCard
-                :akun="(st?.akun.find(a => a.platform === slot) as AkunCampaign)"
-                :jenis="slot"
-                :sinkron-jalan="sinkronJalan === slot"
-                @hubungkan="hubungkan(slot)"
-                @sinkronkan="sinkronkan(slot)"
-                @putuskan="putuskan"
+              <circle
+                cx="21"
+                cy="21"
+                r="15.915"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="6"
+                class="text-muted/20"
               />
-            </template>
-            <template
-              v-else
-              #default
-            >
-              <p class="text-sm text-muted">
-                {{ slot === 'tiktok'
-                  ? 'Hubungkan akun TikTok brand untuk menarik postingan terbaru beserta views, likes, komentar, dan share-nya.'
-                  : 'Hubungkan akun Instagram bisnis brand untuk menarik postingan beserta likes, komentar, views, reach, saves, dan share-nya.' }}
-              </p>
+              <circle
+                v-for="p in platformShare"
+                :key="p.name"
+                cx="21"
+                cy="21"
+                r="15.915"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="6"
+                :class="p.color"
+                :stroke-dasharray="p.percent + ' ' + (100 - p.percent)"
+                :stroke-dashoffset="-p.offset"
+              />
+            </svg>
+            <div class="space-y-2 text-sm">
               <p
-                v-if="!(slot === 'tiktok' ? st?.setting.tiktokSiap : st?.setting.igSiap)"
-                class="mt-1 text-xs text-muted"
+                v-for="p in platformShare"
+                :key="p.name"
               >
-                {{ slot === 'tiktok' ? 'Client key & secret TikTok belum diisi. Isi di Pengaturan.' : 'Instagram App ID & App Secret belum diisi. Isi di Pengaturan.' }}
+                <span :class="p.color">&#9679;</span> {{ p.name }} · {{ p.value.toLocaleString('id-ID') }} ({{ p.percent.toFixed(1) }}%)
               </p>
-              <UButton
-                class="mt-2"
-                color="primary"
-                size="xs"
-                :disabled="!(slot === 'tiktok' ? st?.setting.tiktokSiap : st?.setting.igSiap)"
-                @click="hubungkan(slot)"
+            </div>
+          </div>
+          <p
+            v-else
+            class="text-sm text-muted"
+          >
+            Belum ada data platform.
+          </p>
+        </AppPanel>
+        <AppPanel
+          title="Aktivitas berdasarkan hari"
+          description="Rata-rata views per postingan menurut hari tayang. Jam tayang tidak tersedia."
+        >
+          <div class="grid grid-cols-7 gap-2 text-center text-xs">
+            <div
+              v-for="h in hariShare"
+              :key="h.label"
+              class="space-y-2"
+            >
+              <div
+                class="rounded-lg p-3 font-bold"
+                :class="h.count ? 'bg-gold-soft text-gold-deep' : 'bg-muted text-muted'"
+                :title="`${h.count} postingan`"
+                :style="h.rata === null ? undefined : { backgroundColor: `color-mix(in srgb, currentColor ${8 + h.rata / maxRataHari * 20}%, transparent)` }"
               >
-                Hubungkan
-              </UButton>
-            </template>
-          </UCard>
-          <UCard>
-            <template #header>
-              <span class="font-medium">YouTube</span>
-            </template>
-            <p class="text-sm text-muted">
-              Segera hadir — angkanya lewat Input Performa modul Konten.
-            </p>
-          </UCard>
-        </div>
-      </AppPanel>
+                {{ h.rata?.toLocaleString('id-ID') ?? '—' }}
+              </div><span>{{ h.label }}</span>
+            </div>
+          </div>
+        </AppPanel>
+      </div>
+
+      <UAlert
+        v-if="demo"
+        color="info"
+        variant="subtle"
+        title="Mode demo: data konten contoh, perubahan dinonaktifkan."
+      />
 
       <!-- Konten terpopuler -->
       <AppPanel
         title="Konten terpopuler"
         description="Konten yang paling jalan dari semua sumber, menurut tanggal tayang. ER = (likes + komentar + share) dibagi views."
       >
-        <template #head>
-          <div class="flex flex-wrap gap-2">
-            <AppSeg
-              v-model="platTop"
-              size="sm"
-              :options="['Semua', 'TikTok', 'Instagram', 'YouTube'].map(v => ({ value: v, label: v }))"
-            />
-            <AppSeg
-              v-model="urutTop"
-              size="sm"
-              :options="[{ value: 'views', label: 'Paling banyak ditonton' }, { value: 'er', label: 'Engagement tertinggi' }]"
-            />
-            <AppSeg
-              v-model="rentangTop"
-              size="sm"
-              :options="['Semua waktu', '7 hari', '30 hari', '90 hari', 'Bulan ini', 'Rentang…'].map(v => ({ value: v, label: v }))"
-            />
-          </div>
-          <div
-            v-if="rentangTop === 'Rentang…'"
-            class="mt-2 flex gap-2"
-          >
-            <AppTanggal
-              v-model="dariTop"
-            />
-            <AppTanggal
-              v-model="sampaiTop"
-            />
-          </div>
-        </template>
         <UAlert
           v-if="topGalat"
           color="error"
@@ -462,16 +692,33 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
           Tidak ada postingan TikTok/Instagram pada rentang ini.
         </p>
         <div
-          v-for="(b, i) in top?.baris ?? []"
+          v-if="topJalan"
+          class="space-y-3"
+          aria-label="Memuat konten"
+        >
+          <USkeleton
+            v-for="n in 5"
+            :key="n"
+            class="h-12 w-full"
+          />
+        </div>
+        <div
+          v-for="(b, i) in topJalan ? [] : (top?.baris ?? [])"
           :key="`${b.sumber}-${b.url}-${i}`"
           class="border-b border-default py-2"
         >
           <div class="flex items-center gap-2">
-            <span class="text-sm text-muted">{{ ((top?.hal ?? 1) - 1) * 10 + i + 1 }}</span>
+            <span class="text-sm text-muted">{{ ((top?.hal ?? 1) - 1) * perTop + i + 1 }}</span>
             <div class="min-w-0 flex-1">
               <p class="truncate text-sm font-medium">
                 {{ b.judul }}
               </p>
+              <div class="mt-1 h-1 w-full max-w-40 rounded bg-muted">
+                <div
+                  class="h-full rounded bg-gold"
+                  :style="{ width: Math.max(1, (nilaiMetrik(b) ?? 0) / Math.max(0.000001, nilaiKpi[4] ?? 0) * 100) + '%' }"
+                />
+              </div>
               <p class="text-xs text-muted">
                 {{ b.platform }} · {{ b.tanggal || 'tanpa tanggal' }} · {{ b.views }} views · ER {{ b.er === null ? '—' : `${(b.er * 100).toFixed(1)}%` }}
               </p>
@@ -496,6 +743,7 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
               color="neutral"
               variant="soft"
               size="xs"
+              :disabled="demo"
               @click="bukaForm({ platform: b.platform, url: b.url, tglTayang: b.tanggal })"
             >
               + Jadikan insight
@@ -526,14 +774,21 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
           v-if="top"
           class="mt-2 flex items-center justify-between text-sm text-muted"
         >
-          <span>Menampilkan {{ top.baris.length }} dari {{ top.total }} konten</span>
+          <div class="flex items-center gap-2">
+            <span>Menampilkan {{ top.baris.length }} dari {{ top.total }} konten</span><USelect
+              v-model="perTop"
+              :items="[10, 20, 50]"
+              aria-label="Jumlah konten per halaman"
+              size="xs"
+            />
+          </div>
           <div class="flex items-center gap-2">
             <UButton
               icon="i-lucide-chevron-left"
               color="neutral"
               variant="ghost"
               :disabled="halTop <= 1"
-              @click="halTop--; muatTop()"
+              @click="halTop--"
             />
             <span>Halaman {{ top.hal }} dari {{ top.halMaks }}</span>
             <UButton
@@ -541,7 +796,7 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
               color="neutral"
               variant="ghost"
               :disabled="halTop >= top.halMaks"
-              @click="halTop++; muatTop()"
+              @click="halTop++"
             />
           </div>
         </div>
@@ -553,176 +808,369 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
         </p>
       </AppPanel>
 
-      <!-- Insight otomatis -->
-      <AppPanel
-        title="Insight otomatis (AI)"
-        description="AI membaca konten terpopuler di atas lalu mengusulkan pola. Usulan tidak tersimpan sampai kamu menekan Simpan."
+      <!-- Akun terhubung -->
+      <details
+        v-if="!demo"
+        class="rounded-panel bg-default shadow-panel"
       >
-        <div class="grid gap-2 md:grid-cols-2">
-          <UFormField
-            label="Periode data bukti"
-            help="Bukti dibaca dari tanggal tayang postingan (WIB)."
-          >
-            <AppSeg
-              v-model="usulanPeriode"
-              size="sm"
-              :options="opsiUsulanPeriode"
-            />
-          </UFormField>
-          <UFormField label="Fokus pilar (opsional)">
-            <USelect
-              v-model="usulanFokus"
-              :items="[FOKUS_SEMUA, ...(st?.setting.kategori ?? [])]"
-            />
-          </UFormField>
-        </div>
-        <div
-          v-if="usulanPeriode === 'rentang'"
-          class="grid gap-2 md:grid-cols-2"
-        >
-          <UFormField label="Dari tanggal *">
-            <AppTanggal
-              v-model="usulanDari"
-            />
-          </UFormField>
-          <UFormField label="Sampai tanggal *">
-            <AppTanggal
-              v-model="usulanSampai"
-            />
-          </UFormField>
-        </div>
-        <UButton
-          color="primary"
-          :loading="usulanJalan"
-          :disabled="!st?.setting.aiSiap"
-          @click="temukanInsight()"
-        >
-          Temukan insight
-        </UButton>
-        <p
-          v-if="!st?.setting.aiSiap"
-          class="mt-1 text-xs text-muted"
-        >
-          API key AI belum diisi. Minta admin modul mengisinya di Pengaturan.
-        </p>
-        <div
-          v-for="(u, i) in usulan"
-          :key="i"
-          class="mt-2 rounded border border-default p-2"
-        >
-          <p class="text-sm font-medium">
-            {{ String(u.temuan ?? '') }}
-          </p>
-          <p
-            v-if="u.aksi"
-            class="text-sm text-muted"
-          >
-            <UIcon
-              name="i-lucide-lightbulb"
-              class="size-4"
-            /> {{ String(u.aksi) }}
+        <summary class="cursor-pointer p-5 font-bold">
+          Komentar Instagram
+        </summary>
+        <AppPanel>
+          <p class="mb-3 text-sm text-muted">
+            Komentar dari postingan yang sudah disinkronkan. Hubungkan Instagram lagi untuk memberi izin kelola komentar.
           </p>
           <UButton
-            class="mt-1"
-            color="neutral"
-            variant="soft"
-            size="xs"
-            @click="bukaForm(u)"
+            :loading="igLoading"
+            label="Muat komentar"
+            icon="i-lucide-refresh-cw"
+            @click="muatKomentar"
+          />
+          <p
+            v-if="igError"
+            class="mt-3 text-error"
           >
-            ✓ Simpan sebagai insight
-          </UButton>
-        </div>
-      </AppPanel>
-
-      <!-- Daftar insight -->
-      <AppPanel title="Insight konten">
-        <template #head>
-          <div class="flex flex-wrap items-center gap-2">
-            <AppSeg
-              v-model="saringPlat"
-              size="sm"
-              :options="['Semua', 'TikTok', 'Instagram', 'YouTube'].map(v => ({ value: v, label: v }))"
-            />
-            <UButton
-              color="neutral"
-              :variant="saringArsip ? 'solid' : 'soft'"
-              size="xs"
-              @click="saringArsip = !saringArsip"
-            >
-              Arsip ({{ st?.insight.filter(i => !!i.arsip).length ?? 0 }})
-            </UButton>
-            <USelect
-              v-model="saringKat"
-              :items="['Semua kategori', ...(st?.setting.kategori ?? [])]"
-              size="xs"
-            />
-            <UButton
-              color="primary"
-              size="xs"
-              @click="bukaForm()"
-            >
-              + Catat insight
-            </UButton>
-          </div>
-        </template>
-        <p
-          v-if="!daftarInsight.length"
-          class="text-sm text-muted"
-        >
-          {{ (st?.insight.length ?? 0) ? 'Tidak ada insight yang cocok dengan saringan.' : 'Belum ada insight. Catat dari konten terpopuler di atas, atau minta usulan dari Insight otomatis (AI).' }}
-        </p>
-        <div
-          v-for="i in daftarInsight"
-          :key="i.id"
-          class="border-b border-default py-2"
-        >
-          <p class="text-sm font-medium">
-            {{ i.temuan }}
-          </p>
-          <p class="text-xs text-muted">
-            {{ i.platform }} · Tayang {{ i.tgl_tayang }} · {{ i.kategori }} {{ i.metrik ? `· ${i.metrik}` : '' }}
+            {{ igError }}
           </p>
           <p
-            v-if="i.aksi"
-            class="text-sm text-muted"
+            v-if="igPosts && !igPosts.length"
+            class="mt-3 text-muted"
           >
-            <UIcon
-              name="i-lucide-lightbulb"
-              class="size-4"
-            /> {{ i.aksi }}
+            Belum ada postingan dengan komentar. Sinkronkan akun Instagram untuk memperbarui daftar.
           </p>
-          <div class="mt-1 flex gap-2">
-            <UButton
-              v-if="i.url"
-              icon="i-lucide-arrow-up-right"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              :to="i.url"
+          <div
+            v-for="post in igPosts"
+            :key="post.id"
+            class="mt-4 rounded-xl border border-default p-4"
+          >
+            <a
+              :href="post.url"
               target="_blank"
+              rel="noopener noreferrer"
+              class="font-semibold text-gold-deep"
+            >{{ post.judul || 'Postingan Instagram' }}</a>
+            <p class="text-sm text-muted">
+              {{ post.jumlah }} komentar
+            </p>
+            <p
+              v-if="post.galat"
+              class="text-error"
             >
-              Lihat konten
-            </UButton>
+              {{ post.galat }}
+            </p>
+            <p
+              v-if="post.selanjutnya"
+              class="text-muted"
+            >
+              Menampilkan 50 komentar pertama.
+            </p>
+            <div
+              v-for="comment in post.komentar"
+              :key="comment.id"
+              class="mt-3 border-t border-default pt-3"
+            >
+              <div
+                v-for="item in [comment, ...(comment.replies?.data || [])]"
+                :key="item.id"
+                class="mb-3"
+              >
+                <p>
+                  <strong>{{ item.username || 'Instagram' }}</strong> <span
+                    v-if="item.hidden"
+                    class="text-muted"
+                  >(disembunyikan)</span>
+                </p>
+                <p class="whitespace-pre-wrap">
+                  {{ item.text }}
+                </p>
+                <div class="mt-2 flex flex-wrap gap-2">
+                  <UButton
+                    size="sm"
+                    color="neutral"
+                    variant="soft"
+                    :disabled="igLoading"
+                    :label="item.hidden ? 'Tampilkan' : 'Sembunyikan'"
+                    @click="ubahKomentar(item.id, 'hide', item.hidden)"
+                  />
+                  <UButton
+                    size="sm"
+                    color="error"
+                    variant="ghost"
+                    :disabled="igLoading"
+                    label="Hapus"
+                    @click="ubahKomentar(item.id, 'delete')"
+                  />
+                </div>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <UInput
+                  v-model="igReply[comment.id]"
+                  placeholder="Tulis balasan"
+                  :maxlength="2200"
+                  class="min-w-0 flex-1"
+                />
+                <UButton
+                  label="Balas"
+                  :disabled="igLoading || !igReply[comment.id]?.trim()"
+                  @click="ubahKomentar(comment.id, 'reply')"
+                />
+              </div>
+            </div>
+          </div>
+        </AppPanel>
+      </details>
+      <details
+        v-if="!demo"
+        class="rounded-panel bg-default shadow-panel"
+      >
+        <summary class="cursor-pointer p-5 font-bold">
+          Akun terhubung
+        </summary>
+        <AppPanel>
+          <div class="grid gap-3 md:grid-cols-3">
+            <UCard
+              v-for="slot in (['tiktok', 'instagram'] as const)"
+              :key="slot"
+            >
+              <template #header>
+                <span class="font-medium">{{ slot === 'tiktok' ? 'TikTok' : 'Instagram' }}</span>
+              </template>
+              <template
+                v-if="st?.akun.find(a => a.platform === slot)"
+                #default
+              >
+                <KontenAkunCard
+                  :akun="(st?.akun.find(a => a.platform === slot) as AkunCampaign)"
+                  :jenis="slot"
+                  :sinkron-jalan="sinkronJalan === slot"
+                  @hubungkan="hubungkan(slot)"
+                  @sinkronkan="sinkronkan(slot)"
+                  @putuskan="putuskan"
+                />
+              </template>
+              <template
+                v-else
+                #default
+              >
+                <p class="text-sm text-muted">
+                  {{ slot === 'tiktok'
+                    ? 'Hubungkan akun TikTok brand untuk menarik postingan terbaru beserta views, likes, komentar, dan share-nya.'
+                    : 'Hubungkan akun Instagram bisnis brand untuk menarik postingan beserta likes, komentar, views, reach, saves, dan share-nya.' }}
+                </p>
+                <p
+                  v-if="!(slot === 'tiktok' ? st?.setting.tiktokSiap : st?.setting.igSiap)"
+                  class="mt-1 text-xs text-muted"
+                >
+                  {{ slot === 'tiktok' ? 'Client key & secret TikTok belum diisi. Isi di Pengaturan.' : 'Instagram App ID & App Secret belum diisi. Isi di Pengaturan.' }}
+                </p>
+                <UButton
+                  class="mt-2"
+                  color="primary"
+                  size="xs"
+                  :disabled="!(slot === 'tiktok' ? st?.setting.tiktokSiap : st?.setting.igSiap)"
+                  @click="hubungkan(slot)"
+                >
+                  Hubungkan
+                </UButton>
+              </template>
+            </UCard>
+            <UCard>
+              <template #header>
+                <span class="font-medium">YouTube</span>
+              </template>
+              <p class="text-sm text-muted">
+                Segera hadir — angkanya lewat Input Performa modul Konten.
+              </p>
+            </UCard>
+          </div>
+        </AppPanel>
+      </details>
+
+      <!-- Insight otomatis -->
+      <details
+        v-if="!demo"
+        class="rounded-panel bg-default shadow-panel"
+      >
+        <summary class="cursor-pointer p-5 font-bold">
+          Insight otomatis (AI)
+        </summary>
+        <AppPanel
+          description="AI membaca konten terpopuler di atas lalu mengusulkan pola. Usulan tidak tersimpan sampai kamu menekan Simpan."
+        >
+          <div class="grid gap-2 md:grid-cols-2">
+            <UFormField
+              label="Periode data bukti"
+              help="Bukti dibaca dari tanggal tayang postingan (WIB)."
+            >
+              <AppSeg
+                v-model="usulanPeriode"
+                size="sm"
+                :options="opsiUsulanPeriode"
+              />
+            </UFormField>
+            <UFormField label="Fokus pilar (opsional)">
+              <USelect
+                v-model="usulanFokus"
+                :items="[FOKUS_SEMUA, ...(st?.setting.kategori ?? [])]"
+              />
+            </UFormField>
+          </div>
+          <div
+            v-if="usulanPeriode === 'rentang'"
+            class="grid gap-2 md:grid-cols-2"
+          >
+            <UFormField label="Dari tanggal *">
+              <AppTanggal
+                v-model="usulanDari"
+              />
+            </UFormField>
+            <UFormField label="Sampai tanggal *">
+              <AppTanggal
+                v-model="usulanSampai"
+              />
+            </UFormField>
+          </div>
+          <UButton
+            color="primary"
+            :loading="usulanJalan"
+            :disabled="!st?.setting.aiSiap"
+            @click="temukanInsight()"
+          >
+            Temukan insight
+          </UButton>
+          <p
+            v-if="!st?.setting.aiSiap"
+            class="mt-1 text-xs text-muted"
+          >
+            API key AI belum diisi. Minta admin modul mengisinya di Pengaturan.
+          </p>
+          <div
+            v-for="(u, i) in usulan"
+            :key="i"
+            class="mt-2 rounded border border-default p-2"
+          >
+            <p class="text-sm font-medium">
+              {{ String(u.temuan ?? '') }}
+            </p>
+            <p
+              v-if="u.aksi"
+              class="text-sm text-muted"
+            >
+              <UIcon
+                name="i-lucide-lightbulb"
+                class="size-4"
+              /> {{ String(u.aksi) }}
+            </p>
             <UButton
+              class="mt-1"
               color="neutral"
               variant="soft"
               size="xs"
-              @click="bukaForm(i)"
+              @click="bukaForm(u)"
             >
-              Sunting
-            </UButton>
-            <UButton
-              color="neutral"
-              variant="soft"
-              size="xs"
-              loading-auto
-              @click="arsipkan(i, !i.arsip)"
-            >
-              {{ i.arsip ? 'Pulihkan' : 'Arsipkan' }}
+              ✓ Simpan sebagai insight
             </UButton>
           </div>
-        </div>
-      </AppPanel>
+        </AppPanel>
+      </details>
+
+      <!-- Daftar insight -->
+      <details
+        v-if="!demo"
+        class="rounded-panel bg-default shadow-panel"
+      >
+        <summary class="cursor-pointer p-5 font-bold">
+          Insight konten
+        </summary>
+        <AppPanel>
+          <template #head>
+            <div class="flex flex-wrap items-center gap-2">
+              <AppSeg
+                v-model="saringPlat"
+                size="sm"
+                :options="['Semua', 'TikTok', 'Instagram', 'YouTube'].map(v => ({ value: v, label: v }))"
+              />
+              <UButton
+                color="neutral"
+                :variant="saringArsip ? 'solid' : 'soft'"
+                size="xs"
+                @click="saringArsip = !saringArsip"
+              >
+                Arsip ({{ st?.insight.filter(i => !!i.arsip).length ?? 0 }})
+              </UButton>
+              <USelect
+                v-model="saringKat"
+                :items="['Semua kategori', ...(st?.setting.kategori ?? [])]"
+                size="xs"
+              />
+              <UButton
+                color="primary"
+                size="xs"
+                @click="bukaForm()"
+              >
+                + Catat insight
+              </UButton>
+            </div>
+          </template>
+          <p
+            v-if="!daftarInsight.length"
+            class="text-sm text-muted"
+          >
+            {{ (st?.insight.length ?? 0) ? 'Tidak ada insight yang cocok dengan saringan.' : 'Belum ada insight. Catat dari konten terpopuler di atas, atau minta usulan dari Insight otomatis (AI).' }}
+          </p>
+          <div
+            v-for="i in daftarInsight"
+            :key="i.id"
+            class="border-b border-default py-2"
+          >
+            <p class="text-sm font-medium">
+              {{ i.temuan }}
+            </p>
+            <p class="text-xs text-muted">
+              {{ i.platform }} · Tayang {{ i.tgl_tayang }} · {{ i.kategori }} {{ i.metrik ? `· ${i.metrik}` : '' }}
+            </p>
+            <p
+              v-if="i.aksi"
+              class="text-sm text-muted"
+            >
+              <UIcon
+                name="i-lucide-lightbulb"
+                class="size-4"
+              /> {{ i.aksi }}
+            </p>
+            <div class="mt-1 flex gap-2">
+              <UButton
+                v-if="i.url"
+                icon="i-lucide-arrow-up-right"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                :to="i.url"
+                target="_blank"
+              >
+                Lihat konten
+              </UButton>
+              <UButton
+                color="neutral"
+                variant="soft"
+                size="xs"
+                @click="bukaForm(i)"
+              >
+                Sunting
+              </UButton>
+              <UButton
+                color="neutral"
+                variant="soft"
+                size="xs"
+                loading-auto
+                @click="arsipkan(i, !i.arsip)"
+              >
+                {{ i.arsip ? 'Pulihkan' : 'Arsipkan' }}
+              </UButton>
+            </div>
+          </div>
+        </AppPanel>
+      </details>
 
       <ResponsiveSheet
         v-model="formBuka"

@@ -90,55 +90,82 @@ async function simpanBank() {
         icon="i-lucide-triangle-alert"
         :title="`Gagal memuat data Analytics: ${apiErrorMessage(error)}`"
       />
+      <AppStatGrid :count="3">
+        <AppStat
+          label="Riset tersimpan"
+          :value="riwayat.length"
+          icon="i-lucide-file-search"
+        />
+        <AppStat
+          label="Platform dipilih"
+          :value="platform"
+          icon="i-lucide-layout-grid"
+          wrap
+        />
+        <AppStat
+          label="Model AI"
+          :value="st?.setting.aiSiap ? 'Siap' : 'Belum siap'"
+          icon="i-lucide-sparkles"
+          :tone="st?.setting.aiSiap ? 'success' : 'warning'"
+        />
+      </AppStatGrid>
       <AppPanel title="Mulai riset tren">
-        <UFormField label="Topik riset *">
-          <UInput
-            v-model="topik"
-            placeholder="Contoh: konten malam minggu & live music"
-          />
-        </UFormField>
-        <UFormField label="Platform">
-          <USelect
-            v-model="platform"
-            :items="['TikTok, Instagram', 'TikTok', 'Instagram', 'YouTube']"
-          />
-        </UFormField>
-        <UFormField label="Catatan / fokus (opsional)">
-          <UTextarea
-            v-model="catatan"
-            :rows="2"
-          />
-        </UFormField>
-        <UFormField
-          label="Periode data bukti"
-          help="Bukti dibaca dari tanggal tayang postingan (WIB)."
-        >
-          <AppSeg
-            v-model="periode"
-            :options="opsiPeriode"
-          />
-        </UFormField>
-        <div
-          v-if="periode === 'rentang'"
-          class="grid gap-2 md:grid-cols-2"
-        >
-          <UFormField label="Dari tanggal *">
-            <AppTanggal
-              v-model="dari"
+        <div class="mb-4 grid items-start gap-4 sm:grid-cols-2">
+          <UFormField label="Topik riset *">
+            <UInput
+              v-model="topik"
+              class="w-full"
+              placeholder="Contoh: konten malam minggu & live music"
             />
           </UFormField>
-          <UFormField label="Sampai tanggal *">
-            <AppTanggal
-              v-model="sampai"
+          <UFormField label="Platform">
+            <USelect
+              v-model="platform"
+              class="w-full"
+              :items="['TikTok, Instagram', 'TikTok', 'Instagram', 'YouTube']"
+            />
+          </UFormField>
+          <UFormField
+            label="Catatan / fokus (opsional)"
+            class="sm:col-span-2"
+          >
+            <UTextarea
+              v-model="catatan"
+              class="w-full"
+              :rows="2"
+            />
+          </UFormField>
+          <UFormField
+            label="Periode data bukti"
+            help="Bukti dibaca dari tanggal tayang postingan (WIB)."
+          >
+            <AppSeg
+              v-model="periode"
+              :options="opsiPeriode"
+            />
+          </UFormField>
+          <div
+            v-if="periode === 'rentang'"
+            class="grid gap-2 sm:col-span-2 sm:grid-cols-2"
+          >
+            <UFormField label="Dari tanggal *">
+              <AppTanggal
+                v-model="dari"
+              />
+            </UFormField>
+            <UFormField label="Sampai tanggal *">
+              <AppTanggal
+                v-model="sampai"
+              />
+            </UFormField>
+          </div>
+          <UFormField label="Fokus pilar (opsional)">
+            <USelect
+              v-model="fokus"
+              :items="[FOKUS_SEMUA, ...(st?.setting.kategori ?? [])]"
             />
           </UFormField>
         </div>
-        <UFormField label="Fokus pilar (opsional)">
-          <USelect
-            v-model="fokus"
-            :items="[FOKUS_SEMUA, ...(st?.setting.kategori ?? [])]"
-          />
-        </UFormField>
         <UButton
           color="primary"
           icon="i-lucide-zap"
