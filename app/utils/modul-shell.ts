@@ -220,9 +220,6 @@ export const MODUL_SHELL: Record<string, ModulShell> = {
   konten: {
     subjudul: 'Konten',
     layar: LAYAR_KONTEN,
-    // The old global search (initSearch, deploy/konten/index.html) looked in
-    // content titles first; Content Planning searches title + detailing.
-    cari: { placeholder: 'Cari judul / caption…', to: '/konten/planning' },
     tambah: { label: 'Konten baru', to: '/konten/detail/baru' },
     // The old footer showed the role short names, joined with "+" (roleShorts).
     peran: (me) => {

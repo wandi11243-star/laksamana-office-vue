@@ -42,7 +42,7 @@ cek('role yang hilang di baris → ambil default', lama.approve.content_planner 
 cek('modul yang hilang → default', lama.brands.account_manager === 2)
 cek('rangkap: level TERLONGGAR menang', K.levelKonten(def, ['designer', 'content_planner'], 'brands') === 2 && K.levelKonten(def, ['designer'], 'brands') === 0)
 cek('super_admin selalu ubah', K.modPermKonten({ settings: { super_admin: 0 } }, 'settings', 'super_admin') === 2)
-cek('pensiun bank/reports tercatat', sama(K.PERM_PENSIUN_KONTEN, ['bank', 'reports']))
+cek('pensiun bank/reports/ads tercatat', sama(K.PERM_PENSIUN_KONTEN, ['bank', 'reports', 'ads']))
 
 console.log('\nkonten: pembaca dua arah')
 cek('platform: nama panjang dinormalkan + dobel dibuang', sama(K.contentPlatforms({ platforms: ['Instagram', 'IG', 'TikTok'] }), ['IG', 'TT']))

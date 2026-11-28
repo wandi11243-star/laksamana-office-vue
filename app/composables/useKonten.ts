@@ -26,10 +26,8 @@ import type {
 import { ROLE_BAWAAN_KONTEN, VIEW_PERM_KONTEN, levelKonten, normPlatform, opsiDesainMkt, permsKonten } from '~/utils/konten'
 import type { KatPk, UrutPk } from '~/utils/performa-konten'
 import type { DanaIklan, IklanKonten, KolKonten, VisitPenuh } from '~/utils/promosi-konten'
-import { statusIklanOtomatis } from '~/utils/promosi-konten'
 import type { MemberOffice } from '~/utils/sistem-konten'
 import { rencanaSinkronKru } from '~/utils/sistem-konten'
-import { hariIni } from '~/utils/format'
 import { BATAS_TULIS_PARALEL, hitungBerhasilParalel, petaParalel } from '~/utils/paralel'
 import { pkBulanIni } from '~/utils/performa-konten'
 import type { Versi } from '~/utils/versi'
@@ -280,9 +278,10 @@ export const putDokumenKonten = <T>(doc: 'settings' | 'perms' | 'seeded', value:
  * fails the write.
  */
 export async function kontenSimpan<T>(aksi: () => Promise<T>, sukses?: string, jejak?: { action: string, target?: string }): Promise<boolean> {
+  const halaman = useRouter().currentRoute.value.path
   return tulisBerVersi(async () => {
     const hasil = await aksi()
-    if (jejak) await logDenganCobaLagi(() => logKonten(jejak.action, jejak.target))
+    if (jejak || sukses) await logDenganCobaLagi(() => logKonten(jejak?.action ?? sukses ?? '', jejak?.target ?? halaman))
     return hasil
   }, { sukses, muatUlang: () => refreshNuxtData('konten-state') })
 }
@@ -400,43 +399,6 @@ export function kirimOpsiDesainMkt(st: StateKonten) {
 export interface KeadaanPk { bulan: string, plat: string, urut: UrutPk, cari: string, kat: KatPk }
 export const useKeadaanPk = (kunci = 'konten-pk') =>
   useState<KeadaanPk>(kunci, () => ({ bulan: pkBulanIni(), plat: '', urut: 'reach', cari: '', kat: 'pillar' }))
-
-// ---------------------------------------------------------------- ads
-
-/**
- * Ad statuses follow their dates (old autoUpdateStatuses, :1635, run when the
- * Panel opened): ended / active / draft from start & end, a manual "paused"
- * untouched. One PATCH per changed ad with its version; a failure just leaves
- * the old status. Returns how many changed.
- */
-export async function perbaruiStatusIklanOtomatis(): Promise<number> {
-  const { data } = useStateKonten()
-  const hari = hariIni()
-  const ubah = data.value.ads.map(a => ({ a, s: statusIklanOtomatis(a, hari) })).filter(x => x.s)
-  const hasil = await petaParalel(ubah, BATAS_TULIS_PARALEL, ({ a, s }) =>
-    tambalKonten<IklanKonten>('ads', a.id, { status: s! }, a.updatedAt))
-  // A stale or refused row just keeps its old status; the next run tries again.
-  const n = hitungBerhasilParalel(hasil)
-  if (n) await refreshNuxtData('konten-state')
-  return n
-}
-
-/**
- * The session guard around the run above: once per session, only for whoever
- * may edit `ads` (a viewer opening the dashboard should not write), silently.
- * The ads page itself runs every mount instead, so a status dating out
- * mid-session is corrected when its manager looks.
- */
-export function useStatusIklanOtomatis() {
-  const { status } = useStateKonten()
-  const { can } = useAksesKonten()
-  const sudah = useState('konten-iklan-status', () => false)
-  watch([status, () => can('ads')], async ([s]) => {
-    if (sudah.value || s !== 'success' || !can('ads')) return
-    sudah.value = true
-    await perbaruiStatusIklanOtomatis()
-  }, { immediate: true })
-}
 
 // ---------------------------------------------------------------- documents
 

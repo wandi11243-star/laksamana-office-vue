@@ -108,21 +108,21 @@ function bukaTayang(c: KontenItem) {
             <li
               v-for="c in terjadwal"
               :key="c.id"
-              class="flex items-center gap-3 px-4 py-3"
+              class="flex items-center gap-4 px-5 py-4 sm:px-6"
             >
               <NuxtLink
                 :to="`/konten/detail/${c.id}`"
                 class="min-w-0 flex-1"
               >
-                <p class="truncate text-sm font-semibold text-highlighted">{{ c.title || '(tanpa judul)' }}</p>
-                <p class="truncate text-xs text-muted">
+                <p class="break-words text-sm font-semibold text-highlighted">{{ c.title || '(tanpa judul)' }}</p>
+                <p class="break-words text-sm text-muted">
                   {{ [namaBrand(c.brand), contentPlatforms(c).slice(0, 3).join(' · ')].filter(Boolean).join(' · ') }}
                   <template v-if="c.publishDate"> - {{ fTglP(c.publishDate) }} {{ c.publishTime || '' }}</template>
                 </p>
               </NuxtLink>
               <span
                 v-if="c.publishDate"
-                class="num shrink-0 text-xs"
+                class="num shrink-0 text-sm"
                 :class="lewat(c) ? 'font-bold text-error' : 'text-primary-700'"
                 :title="lewat(c) ? 'Lewat tanggal tayang' : undefined"
               >{{ lewat(c) ? fTglP(c.publishDate) : relHariKonten(c.publishDate) }}</span>
@@ -157,20 +157,20 @@ function bukaTayang(c: KontenItem) {
             <li
               v-for="c in tayang.slice(0, 10)"
               :key="c.id"
-              class="flex items-center gap-3 px-4 py-3"
+              class="flex items-center gap-4 px-5 py-4 sm:px-6"
             >
               <NuxtLink
                 :to="`/konten/detail/${c.id}`"
                 class="min-w-0 flex-1"
               >
-                <p class="truncate text-sm font-semibold text-highlighted">{{ c.title || '(tanpa judul)' }}</p>
-                <p class="truncate text-xs text-muted">
+                <p class="break-words text-sm font-semibold text-highlighted">{{ c.title || '(tanpa judul)' }}</p>
+                <p class="break-words text-sm text-muted">
                   {{ [namaBrand(c.brand), contentPlatforms(c).slice(0, 3).join(' · ')].filter(Boolean).join(' · ') }} - {{ fWaktu(c.publishRecord?.at) }}
                 </p>
               </NuxtLink>
               <span
                 v-if="reach(c)"
-                class="num shrink-0 text-xs text-primary-700"
+                class="num shrink-0 text-sm text-primary-700"
               >{{ angka(reach(c)) }} reach</span>
               <UButton
                 v-if="adaUrl(c.publishRecord?.url)"

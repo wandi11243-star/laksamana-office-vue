@@ -65,7 +65,7 @@ export function permDefaultKonten(): PermsKonten {
 }
 
 /** Rows whose page was removed; kept in storage, hidden from the matrix (:4720). */
-export const PERM_PENSIUN_KONTEN = ['bank', 'reports']
+export const PERM_PENSIUN_KONTEN = ['bank', 'reports', 'ads']
 
 /**
  * The stored matrix brought up to date, like the old boot did (:867-883):

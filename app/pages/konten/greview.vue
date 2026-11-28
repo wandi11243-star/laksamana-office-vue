@@ -1,10 +1,9 @@
 <!--
   Konten › Google Review (deploy/konten/analytics/index.html #greview; D.24).
-  Guest Google reviews: which need handling now, replied straight from here,
-  and read by AI. No v1 contract yet (G-24), so the screen holds the "Segera"
-  pattern (`idle/muat/ok/galat` + Coba lagi) and calls nothing else.
+  Guest reviews, follow-up, replies and AI analysis.
 -->
 <script setup lang="ts">
+import type { Envelope } from '~/composables/useApi'
 import {
   balasGoogleReview, tanganiGoogleReview, nomorResmiGreview, NOMOR_RESERVASI_GREVIEW,
   useGoogleReviewState, LABEL_TINGKAT_GREVIEW,
@@ -47,6 +46,8 @@ const daftar = computed<ReviewGoogle[]>(() => {
   const out = semua.filter((r) => {
     if (saring.value === 'tangani' && !r.tingkat) return false
     if (saring.value === 'segera' && r.tingkat !== 'segera') return false
+    if (saring.value === 'belum' && r.balasan) return false
+    if (saring.value === 'rendah' && Number(r.rating) > 3) return false
     if (saring.value === 'dibalas' && !r.balasan) return false
     if (saring.value === 'selesai' && Number(r.ditangani) !== 1) return false
     if (q && `${r.penulis} ${r.teks || ''} ${r.balasan || ''}`.toLowerCase().includes(q)) return true
@@ -97,7 +98,43 @@ async function tandai(r: ReviewGoogle, ya: boolean) {
   catch (e) { toast.add({ title: apiErrorMessage(e), color: 'error' }) }
 }
 
-const segSegera = computed(() => (data.value?.review ?? []).filter(r => r.tingkat === 'segera').length)
+const hubungkanSibuk = ref(false)
+async function hubungkanGoogle() {
+  hubungkanSibuk.value = true
+  try {
+    const res = await useApi()<Envelope<{ url: string }>>('/konten/analytics/google/start', { method: 'POST' })
+    await navigateTo(res.data.url, { external: true })
+  }
+  catch (e) { toast.add({ title: apiErrorMessage(e), color: 'error' }) }
+  finally { hubungkanSibuk.value = false }
+}
+
+const periodeAi = ref('90')
+const aiSibuk = ref(false)
+const aiGalat = ref('')
+const ulasanTempat = computed(() => (data.value?.review ?? []).filter(r => !tempatPilih.value || r.tempatId === tempatPilih.value))
+const ulasan30 = computed(() => ulasanTempat.value.filter(r => r.waktuMs >= Date.now() - 30 * 86400e3))
+const rata30 = computed(() => ulasan30.value.length
+  ? (ulasan30.value.reduce((total, r) => total + Number(r.rating), 0) / ulasan30.value.length).toFixed(1)
+  : '-')
+const belumBalas = computed(() => ulasanTempat.value.filter(r => !r.balasan && Number(r.rating) <= 3).length)
+const distribusi = computed(() => [5, 4, 3, 2, 1].map(bintang => ({
+  bintang,
+  jumlah: ulasanTempat.value.filter(r => Number(r.rating) === bintang).length,
+})))
+async function analisa() {
+  if (aiSibuk.value) return
+  aiSibuk.value = true
+  aiGalat.value = ''
+  try {
+    await useApi()('/konten/analytics/google/ai', { method: 'POST', body: { hari: Number(periodeAi.value), tempat: tempatPilih.value || undefined } })
+    await muat()
+  }
+  catch (e) { aiGalat.value = apiErrorMessage(e) }
+  finally { aiSibuk.value = false }
+}
+
+const segSegera = computed(() => ulasanTempat.value.filter(r => r.tingkat === 'segera').length)
 </script>
 
 <template>
@@ -138,9 +175,8 @@ const segSegera = computed(() => (data.value?.review ?? []).filter(r => r.tingka
             <UAlert
               color="warning"
               variant="subtle"
-              icon="i-lucide-clock"
-              title="Segera — menarik ulasan Google belum tersedia di sistem baru"
-              description="Layar ini menunggu endpoint Google Review di API (G-24). Tidak ada data yang hilang: ulasan tetap tersimpan di Google."
+              icon="i-lucide-triangle-alert"
+              title="Gagal memuat Google Review"
               class="mb-3"
             />
             <p
@@ -163,6 +199,16 @@ const segSegera = computed(() => (data.value?.review ?? []).filter(r => r.tingka
           <AppPanel title="Sumber review">
             <template #actions>
               <UButton
+                v-if="!data?.akun?.terhubung"
+                label="Hubungkan Google"
+                icon="i-lucide-link"
+                color="neutral"
+                variant="outline"
+                size="sm"
+                :loading="hubungkanSibuk"
+                @click="hubungkanGoogle()"
+              />
+              <UButton
                 label="Sinkronkan"
                 icon="i-lucide-refresh-cw"
                 size="sm"
@@ -170,7 +216,10 @@ const segSegera = computed(() => (data.value?.review ?? []).filter(r => r.tingka
                 @click="sinkronkan()"
               />
             </template>
-            <p class="text-sm text-muted">
+            <AppStatus :color="data?.akun?.terhubung ? 'success' : 'neutral'">
+              {{ data?.akun?.terhubung ? 'Google Business terhubung' : 'Google Business belum terhubung' }}
+            </AppStatus>
+            <p class="mt-2 text-sm text-muted">
               {{ data?.review.length || 0 }} review tersimpan · sinkron terakhir
               {{ data?.syncAt ? new Date(data.syncAt).toLocaleString('id-ID') : 'belum pernah' }}.
             </p>
@@ -201,6 +250,124 @@ const segSegera = computed(() => (data.value?.review ?? []).filter(r => r.tingka
             </div>
           </AppPanel>
 
+          <AppStatGrid :count="3">
+            <AppStat
+              label="Perlu segera"
+              :value="segSegera"
+              icon="i-lucide-alarm-clock"
+              tone="warning"
+            />
+            <AppStat
+              label="Keluhan belum dibalas"
+              :value="belumBalas"
+              icon="i-lucide-message-circle"
+            />
+            <AppStat
+              label="Rata-rata 30 hari"
+              :value="rata30"
+              icon="i-lucide-star"
+            />
+          </AppStatGrid>
+
+          <AppPanel title="Sebaran bintang">
+            <ul class="space-y-2">
+              <li
+                v-for="bar in distribusi"
+                :key="bar.bintang"
+                class="flex items-center gap-3 text-sm"
+              >
+                <span class="w-8 shrink-0">{{ bar.bintang }} ★</span>
+                <progress
+                  :value="bar.jumlah"
+                  :max="ulasanTempat.length || 1"
+                  :aria-label="'Jumlah ulasan bintang ' + bar.bintang"
+                  class="h-2 min-w-0 flex-1 accent-primary"
+                />
+                <span class="num w-12 text-right">{{ bar.jumlah }}</span>
+              </li>
+            </ul>
+          </AppPanel>
+
+          <AppPanel title="Analisa AI">
+            <template #actions>
+              <USelect
+                v-model="periodeAi"
+                :items="[{ value: '30', label: '30 hari' }, { value: '90', label: '90 hari' }, { value: '180', label: '180 hari' }, { value: '365', label: '1 tahun' }]"
+                aria-label="Periode analisa"
+              />
+              <UButton
+                label="Analisa"
+                icon="i-lucide-sparkles"
+                :loading="aiSibuk"
+                :disabled="!ulasanTempat.length"
+                @click="analisa()"
+              />
+            </template>
+            <UAlert
+              v-if="aiGalat"
+              color="error"
+              variant="subtle"
+              :title="aiGalat"
+            />
+            <div
+              v-if="data?.ai"
+              class="space-y-4 text-sm"
+            >
+              <p>{{ data.ai.ringkasan }}</p>
+              <div
+                v-if="data.ai.sentimen"
+                class="flex flex-wrap gap-2"
+              >
+                <AppStatus
+                  v-for="(jumlah, label) in data.ai.sentimen"
+                  :key="label"
+                >
+                  {{ label }} {{ jumlah }}
+                </AppStatus>
+              </div>
+              <h3 class="font-semibold">
+                Yang harus ditingkatkan
+              </h3>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                  <thead><tr><th>Prioritas</th><th>Area</th><th>Masalah</th><th>Saran</th></tr></thead>
+                  <tbody>
+                    <tr
+                      v-for="(baris, i) in data.ai.perbaikan"
+                      :key="i"
+                      class="border-t border-default align-top [&>td]:px-2 [&>td]:py-2"
+                    >
+                      <td>{{ baris.prioritas }}</td><td>{{ baris.area }}</td><td>{{ baris.masalah }}</td><td>{{ baris.saran }}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <h3 class="font-semibold">
+                Yang disukai tamu
+              </h3>
+              <ul class="space-y-1">
+                <li
+                  v-for="(item, i) in data.ai.kekuatan"
+                  :key="i"
+                >
+                  <b>{{ item.tema }}</b> {{ item.penjelasan }}
+                </li>
+              </ul>
+              <UAlert
+                v-if="data.ai.tangani.length"
+                color="warning"
+                variant="subtle"
+                :title="data.ai.tangani.length + ' ulasan ditandai AI untuk ditangani'"
+              />
+            </div>
+            <p
+              v-else-if="!aiGalat"
+              class="text-sm text-muted"
+            >
+              Pilih periode untuk menganalisa ulasan.
+            </p>
+          </AppPanel>
+
           <AppPanel title="Review tamu">
             <template #head>
               <div class="flex w-full flex-wrap items-center gap-2">
@@ -210,6 +377,8 @@ const segSegera = computed(() => (data.value?.review ?? []).filter(r => r.tingka
                   :options="[
                     { value: 'tangani', label: `Perlu ditangani${segSegera ? ` (${segSegera} segera)` : ''}` },
                     { value: 'segera', label: 'Segera' },
+                    { value: 'belum', label: 'Belum dibalas' },
+                    { value: 'rendah', label: 'Bintang 1-3' },
                     { value: 'dibalas', label: 'Sudah dibalas' },
                     { value: 'selesai', label: 'Sudah ditangani' },
                     { value: 'semua', label: 'Semua' },

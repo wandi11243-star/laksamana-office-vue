@@ -25,7 +25,7 @@ const tab = computed(() => {
   <nav
     v-if="tab.length"
     :aria-label="`Halaman ${tab[0]!.kelompok!.label}`"
-    class="mb-5 overflow-x-auto print:hidden"
+    class="mx-auto mb-5 w-full max-w-[1400px] overflow-x-auto print:hidden"
   >
     <div class="inline-flex items-center gap-1 rounded-field border border-default bg-default p-1 shadow-panel">
       <NuxtLink

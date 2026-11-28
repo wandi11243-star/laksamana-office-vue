@@ -4,11 +4,11 @@
   column sets its status (needs edit on `content`; moving into Approval
   notifies). The board scrolls inside its own box, not the page.
 
-  On phones (konten.md H) the same rows are a list grouped per status — drag &
-  drop is not reliable on touch; the status is changed from the detail page.
+  On phones the board scrolls horizontally; status changes use the detail page.
   PIC filter: counts over ACTIVE content (not Cancelled), "Belum ada PIC" = __none__.
 -->
 <script setup lang="ts">
+import { useMediaQuery } from '@vueuse/core'
 import type { KontenItem } from '~/utils/konten'
 import { PIPELINE_KONTEN, contentPlatforms, opsiPicKonten, picCocok, sudahArsip } from '~/utils/konten'
 import { ikonStatusKonten, warnaStatusKonten } from '~/utils/status-konten'
@@ -19,7 +19,18 @@ const { data: st, error, status } = useStateKonten()
 const { saya, can } = useAksesKonten()
 const brand = useBrandKonten()
 const pic = useState('konten-pipe-pic', () => '')
-const router = useRouter()
+const desktop = useMediaQuery('(min-width: 1024px)')
+const route = useRoute()
+const demo = computed(() => import.meta.dev && route.query.demo === '1')
+const contoh: KontenItem[] = [
+  { id: 'demo-1', title: 'Ide konten menu akhir pekan', status: 'Idea', platform: 'IG' },
+  { id: 'demo-2', title: 'Riset tren video live music', status: 'Research', platform: 'TT' },
+  { id: 'demo-3', title: 'Storyboard suasana senja', status: 'Script', platform: 'IG' },
+  { id: 'demo-4', title: 'Poster agenda November', status: 'Design', platform: 'IG' },
+  { id: 'demo-5', title: 'Rekam behind the scenes', status: 'Shooting', platform: 'TT' },
+  { id: 'demo-6', title: 'Edit cuplikan penampilan band', status: 'Editing', platform: 'TT' },
+  { id: 'demo-7', title: 'Reels menu favorit tamu', status: 'Approval', platform: 'IG' },
+]
 const toast = useToast()
 
 const SEMUA = '__semua'
@@ -27,8 +38,8 @@ const fPic = computed({ get: () => pic.value || SEMUA, set: (v: string) => {
   pic.value = v === SEMUA ? '' : v
 } })
 
-const dasar = computed(() => saringBrand(st.value.content, brand.value))
-const tersaring = computed(() => dasar.value.filter(c => picCocok(pic.value, c.pic)))
+const dasar = computed(() => demo.value ? contoh : saringBrand(st.value.content, brand.value))
+const tersaring = computed(() => demo.value ? dasar.value : dasar.value.filter(c => picCocok(pic.value, c.pic)))
 const aktif = computed(() => dasar.value.filter(c => c.status !== 'Cancelled'))
 const nAktif = computed(() => tersaring.value.filter(c => c.status !== 'Cancelled').length)
 const opsiPic = computed(() => opsiPicKonten(
@@ -39,6 +50,9 @@ const opsiPic = computed(() => opsiPicKonten(
 const kolom = computed(() => PIPELINE_KONTEN.map(s => ({ s, items: tersaring.value.filter(c => c.status === s) })))
 const kolomKanban = computed(() => kolom.value.map(k => ({ id: k.s, title: k.s, items: k.items })))
 
+const detailId = ref('')
+const detailBuka = ref(false)
+const detailKonten = computed(() => tersaring.value.find(c => c.id === detailId.value))
 const namaBrand = (id?: string) => st.value.brands.find(b => b.id === id)?.name.split(' (')[0] ?? ''
 const namaUser = (id?: string) => st.value.users.find(u => u.id === id)?.name ?? ''
 const inisial = (n: string) => n.trim().split(/\s+/).slice(0, 2).map(w => w[0] ?? '').join('').toUpperCase()
@@ -46,10 +60,12 @@ const inisial = (n: string) => n.trim().split(/\s+/).slice(0, 2).map(w => w[0] ?
 // ---- board moves (drag state lives in AppKanban; guards + save stay here) ----
 function alihKartu(id: string, telan: () => boolean) {
   // A click fires right after a drop on the same card — swallow it once.
-  if (telan()) return
-  router.push(`/konten/detail/${id}`)
+  if (demo.value || telan()) return
+  detailId.value = id
+  detailBuka.value = true
 }
 async function lepas(p: { id: string, to: string }) {
+  if (demo.value) return
   const col = p.to
   if (!can('content')) return toast.add({ title: 'Tidak punya akses ubah status', color: 'error' })
   const c = st.value.content.find(x => x.id === p.id)
@@ -70,7 +86,7 @@ async function lepas(p: { id: string, to: string }) {
       description="Geser kartu antar kolom untuk update status"
     >
       <template
-        v-if="can('content')"
+        v-if="can('content') && !demo"
         #actions
       >
         <UButton
@@ -88,9 +104,20 @@ async function lepas(p: { id: string, to: string }) {
         :title="`Gagal memuat data Konten: ${apiErrorMessage(error)}`"
       />
 
-      <KontenBrandBar :brands="st.brands" />
+      <UAlert
+        v-if="demo"
+        title="Data contoh Pipeline"
+        description="Mode pratinjau. Kartu contoh tidak tersimpan atau bisa dipindahkan."
+        color="info"
+        variant="subtle"
+        class="mb-4"
+      />
+      <KontenBrandBar
+        v-else
+        :brands="st.brands"
+      />
 
-      <AppPanel>
+      <AppPanel v-if="!demo">
         <div class="flex flex-wrap items-center gap-3">
           <USelect
             v-model="fPic"
@@ -129,14 +156,14 @@ async function lepas(p: { id: string, to: string }) {
       </div>
       <!-- Desktop: shared board (AppKanban owns the drag state). -->
       <div
-        class="hidden lg:block"
+        class="min-w-0"
         :class="status === 'pending' ? 'opacity-60' : ''"
       >
         <AppKanban
           :columns="kolomKanban"
-          :can-drag="can('content')"
+          :can-drag="desktop && can('content') && !demo"
           drag-reason="Kamu tidak punya izin mengubah status konten."
-          layout="scroll"
+          :layout="desktop ? 'grid' : 'scroll'"
           empty-text="-"
           list-class="max-h-[min(68dvh,640px)]"
           @move="lepas"
@@ -192,56 +219,54 @@ async function lepas(p: { id: string, to: string }) {
           </template>
         </AppKanban>
       </div>
-
-      <!-- Phone: grouped list. -->
-      <div class="space-y-3 lg:hidden">
-        <AppPanel
-          v-for="k in kolom.filter(x => x.items.length)"
-          :key="k.s"
-          flush
+      <ResponsiveSheet
+        v-model:open="detailBuka"
+        :title="detailKonten?.title || 'Detail konten'"
+        :description="detailKonten ? contentPlatforms(detailKonten).join(' / ') : ''"
+      >
+        <dl
+          v-if="detailKonten"
+          class="grid grid-cols-2 gap-3 text-sm"
         >
-          <template #head>
-            <div class="flex items-center gap-2 px-4 pt-3">
-              <AppStatus
-                :color="warnaStatusKonten(k.s)"
-                :icon="ikonStatusKonten(k.s)"
-                size="sm"
-              >
-                {{ k.s }}
-              </AppStatus>
-              <span class="num text-xs text-muted">{{ k.items.length }}</span>
-            </div>
-          </template>
-          <ul class="divide-y divide-default">
-            <li
-              v-for="c in k.items"
-              :key="c.id"
-            >
-              <NuxtLink
-                :to="`/konten/detail/${c.id}`"
-                class="flex items-start justify-between gap-2 p-4 hover:bg-muted"
-              >
-                <div class="min-w-0">
-                  <b class="text-highlighted">{{ c.title || '(tanpa judul)' }}</b>
-                  <p class="text-xs text-muted">
-                    {{ [namaBrand(c.brand), contentPlatforms(c).join(' · '), namaUser(c.pic).split(' ')[0] || 'Belum ada PIC'].filter(Boolean).join(' · ') }}
-                  </p>
-                </div>
-                <KontenDeadline
-                  :tgl="c.deadline"
-                  :selesai="sudahArsip(c)"
-                />
-              </NuxtLink>
-            </li>
-          </ul>
-        </AppPanel>
-        <p
-          v-if="!tersaring.length"
-          class="p-6 text-center text-sm text-muted"
-        >
-          Belum ada konten.
-        </p>
-      </div>
+          <div>
+            <dt class="text-muted">
+              Tahap
+            </dt>
+            <dd>{{ detailKonten.status || '-' }}</dd>
+          </div>
+          <div>
+            <dt class="text-muted">
+              Tenggat
+            </dt>
+            <dd>
+              <KontenDeadline
+                :tgl="detailKonten.deadline"
+                :selesai="sudahArsip(detailKonten)"
+              />
+            </dd>
+          </div>
+          <div>
+            <dt class="text-muted">
+              Brand
+            </dt>
+            <dd>{{ namaBrand(detailKonten.brand) || '-' }}</dd>
+          </div>
+          <div>
+            <dt class="text-muted">
+              PIC
+            </dt>
+            <dd>{{ namaUser(detailKonten.pic) || 'Belum ada PIC' }}</dd>
+          </div>
+        </dl>
+        <template #footer>
+          <UButton
+            v-if="detailKonten"
+            label="Buka detail lengkap"
+            icon="i-lucide-arrow-right"
+            :to="'/konten/detail/' + detailKonten.id"
+          />
+        </template>
+      </ResponsiveSheet>
     </AppPage>
   </KontenGerbang>
 </template>

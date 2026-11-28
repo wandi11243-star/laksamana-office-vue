@@ -5,16 +5,29 @@
 -->
 <script setup lang="ts">
 import type { JadwalCampaign, JadwalInput } from '~/composables/useCampaign'
-import { hariIni, ymdLokal } from '~/utils/format'
+import { hariIni, tglPanjang, ymdLokal } from '~/utils/format'
 
 definePageMeta({ access: ['konten', 'campaign'] })
 
 const toast = useToast()
-const { data: st, error, refresh } = useStateCampaign()
+const { data: st, error } = useStateCampaign()
 
-const bulan = ref(new Date())
+const route = useRoute()
+const tanggalRute = computed(() => typeof route.query.tanggal === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(route.query.tanggal)
+  ? route.query.tanggal
+  : hariIni())
+const buatBulan = (tanggal: string) => new Date(Number(tanggal.slice(0, 4)), Number(tanggal.slice(5, 7)) - 1, 1)
+const bulan = ref(buatBulan(tanggalRute.value))
 const bulanJudul = computed(() => bulan.value.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' }))
-const selTanggal = ref(hariIni())
+const selTanggal = ref(tanggalRute.value)
+watch(tanggalRute, (tanggal) => {
+  selTanggal.value = tanggal
+  bulan.value = buatBulan(tanggal)
+})
+function pilihTanggal(tanggal: string) {
+  selTanggal.value = tanggal
+  bulan.value = buatBulan(tanggal)
+}
 
 const selHari = computed(() => {
   const y = bulan.value.getFullYear()
@@ -37,7 +50,7 @@ const jadwalTelat = computed(() => (st.value?.jadwal ?? []).filter((j) => {
 const jadwalTanggal = computed(() => (st.value?.jadwal ?? []).filter(j => j.tanggal === selTanggal.value))
 
 function geserBulan(n: number) {
-  bulan.value = new Date(bulan.value.getFullYear(), bulan.value.getMonth() + n, 1)
+  pilihTanggal(ymdLokal(new Date(bulan.value.getFullYear(), bulan.value.getMonth() + n, 1)))
 }
 
 const formBuka = ref(false)
@@ -60,7 +73,7 @@ async function simpanForm() {
     () => simpanJadwalCampaign(v, cur ? (cur.diubah_at ?? cur.dibuat_at) : undefined), 'Jadwal disimpan.')
   if (ok) {
     formBuka.value = false
-    refresh()
+    if (v.tanggal) pilihTanggal(v.tanggal)
   }
 }
 async function salinCaption(caption: string) {
@@ -150,7 +163,7 @@ async function salinCaption(caption: string) {
             color="neutral"
             variant="soft"
             size="xs"
-            @click="bulan = new Date(); selTanggal = hariIni()"
+            @click="pilihTanggal(hariIni())"
           >
             Hari ini
           </UButton>
@@ -165,22 +178,24 @@ async function salinCaption(caption: string) {
           <button
             v-for="t in selHari.hari"
             :key="t"
-            class="min-h-11 rounded border p-1 text-left text-xs"
+            class="relative flex min-h-11 min-w-0 items-center justify-center rounded-md border text-xs sm:min-h-12"
             :class="t === selTanggal ? 'border-primary' : 'border-default'"
-            @click="selTanggal = t"
+            :aria-label="tglPanjang(t)"
+            :aria-pressed="t === selTanggal"
+            @click="pilihTanggal(t)"
           >
             <span :class="t === selTanggal ? 'tgl-bulat' : t === hariIni() ? 'tgl-cincin' : t.slice(0, 7) !== `${selHari.y}-${String(selHari.m + 1).padStart(2, '0')}` ? 'text-muted' : ''">
               {{ Number(t.slice(8)) }}
             </span>
             <span
               v-if="(st?.jadwal ?? []).some(j => j.tanggal === t)"
-              class="ml-1 inline-block size-1.5 rounded-full bg-primary"
+              class="absolute bottom-1 size-1 rounded-full bg-primary"
             />
           </button>
         </div>
-        <div class="mt-3 flex items-center justify-between">
+        <div class="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-default pt-3">
           <p class="text-sm font-medium">
-            {{ selTanggal }}
+            {{ tglPanjang(selTanggal) }}
           </p>
           <UButton
             color="neutral"
@@ -194,10 +209,12 @@ async function salinCaption(caption: string) {
         <div
           v-for="j in jadwalTanggal"
           :key="j.id"
-          class="mt-2 rounded border border-default p-2"
+          class="mt-2 rounded-lg border border-default p-3"
         >
           <div class="flex items-center gap-2">
-            <AppStatus :status="j.status" />
+            <AppStatus :color="j.status === 'TAYANG' ? 'success' : j.status === 'TERJADWAL' ? 'info' : 'neutral'">
+              {{ j.status }}
+            </AppStatus>
             <span class="text-xs text-muted">{{ j.platform }}</span>
             <span class="flex-1 truncate text-sm font-medium">{{ j.judul }}</span>
           </div>
@@ -210,7 +227,7 @@ async function salinCaption(caption: string) {
           >
             {{ j.caption }}
           </p>
-          <div class="mt-1 flex gap-2">
+          <div class="mt-2 flex flex-wrap gap-2">
             <UButton
               v-if="j.caption"
               color="neutral"
