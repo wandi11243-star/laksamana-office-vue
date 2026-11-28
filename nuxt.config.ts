@@ -70,8 +70,15 @@ export default defineNuxtConfig({
       short_name: 'Office',
       description: 'Office Laksamana Muda · Coffee & Live Space',
       lang: 'id',
+      id: '/',
       start_url: '/',
+      scope: '/',
       display: 'standalone',
+      // Links into the app (e.g. the WhatsApp review reminders' /bd/mytask?task=<id>)
+      // open in the installed app instead of a browser tab where the platform allows it
+      // (Android Chrome WebAPK; desktop Chrome/Edge). Reuse the open window if there is one.
+      handle_links: 'preferred',
+      launch_handler: { client_mode: ['navigate-existing', 'auto'] },
       background_color: '#F7F6F4',
       theme_color: '#F7F6F4',
       icons: [
