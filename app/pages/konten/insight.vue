@@ -153,26 +153,26 @@ function kelompokTanggal(tanggal: string) {
 const warnaPlatform: Record<string, string> = { TikTok: 'text-gold', Instagram: 'text-info', YouTube: 'text-success' }
 // Colour tags so lists scan at a glance.
 const tagPlatform: Record<string, string> = {
-  TikTok: 'bg-neutral-900 text-white dark:bg-white dark:text-neutral-900',
-  Instagram: 'bg-pink-100 text-pink-800 dark:bg-pink-950 dark:text-pink-200',
-  YouTube: 'bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200',
+  TikTok: 'bg-neutral-900 text-white',
+  Instagram: 'bg-pink-100 text-pink-800',
+  YouTube: 'bg-red-100 text-red-800',
 }
 const TAG_PUTAR = [
-  'bg-sky-100 text-sky-800 dark:bg-sky-950 dark:text-sky-200',
-  'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200',
-  'bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-200',
-  'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200',
-  'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200',
-  'bg-teal-100 text-teal-800 dark:bg-teal-950 dark:text-teal-200',
+  'bg-sky-100 text-sky-800',
+  'bg-emerald-100 text-emerald-800',
+  'bg-violet-100 text-violet-800',
+  'bg-amber-100 text-amber-800',
+  'bg-rose-100 text-rose-800',
+  'bg-teal-100 text-teal-800',
 ]
 const tagKategori = (k?: string) => TAG_PUTAR[[...(k ?? '')].reduce((a, c) => a + c.charCodeAt(0), 0) % TAG_PUTAR.length]
 const tagEr = (er: number | null) => er == null
   ? 'bg-muted text-muted'
   : er >= 0.08
-    ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200'
+    ? 'bg-emerald-100 text-emerald-800'
     : er >= 0.03
-      ? 'bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-200'
-      : 'bg-rose-100 text-rose-800 dark:bg-rose-950 dark:text-rose-200'
+      ? 'bg-amber-100 text-amber-800'
+      : 'bg-rose-100 text-rose-800'
 const tren = computed(() => {
   const groups = new Map<string, Map<string, number[]>>()
   for (const row of terfilter.value) {
@@ -751,7 +751,7 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
                   :class="tagPlatform[b.platform] || 'bg-muted'"
                 >{{ b.platform }}</span>
                 <span class="rounded-full bg-muted px-2.5 py-0.5 text-muted">{{ b.tanggal || 'tanpa tanggal' }}</span>
-                <span class="rounded-full bg-sky-100 px-2.5 py-0.5 font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-200">{{ b.views }} views</span>
+                <span class="rounded-full bg-sky-100 px-2.5 py-0.5 font-medium text-sky-800">{{ b.views }} views</span>
                 <span
                   class="rounded-full px-2.5 py-0.5 font-medium"
                   :class="tagEr(b.er)"
@@ -1095,7 +1095,7 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
             </p>
             <p
               v-if="u.aksi"
-              class="mt-2 flex gap-2 rounded-lg bg-amber-50 p-3 text-base leading-relaxed text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+              class="mt-2 flex gap-2 rounded-lg bg-amber-50 p-3 text-base leading-relaxed text-amber-900"
             >
               <UIcon
                 name="i-lucide-lightbulb"
@@ -1177,7 +1177,7 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
               <span class="rounded-full bg-muted px-2.5 py-0.5 text-muted">Tayang {{ i.tgl_tayang }}</span>
               <span
                 v-if="i.metrik"
-                class="rounded-full bg-sky-100 px-2.5 py-0.5 font-medium text-sky-800 dark:bg-sky-950 dark:text-sky-200"
+                class="rounded-full bg-sky-100 px-2.5 py-0.5 font-medium text-sky-800"
               >{{ i.metrik }}</span>
             </div>
             <p class="text-base leading-relaxed font-semibold text-highlighted">
@@ -1185,7 +1185,7 @@ async function arsipkan(i: InsightCampaign, arsip: boolean) {
             </p>
             <p
               v-if="i.aksi"
-              class="mt-2 flex gap-2 rounded-lg bg-amber-50 p-3 text-base leading-relaxed text-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
+              class="mt-2 flex gap-2 rounded-lg bg-amber-50 p-3 text-base leading-relaxed text-amber-900"
             >
               <UIcon
                 name="i-lucide-lightbulb"

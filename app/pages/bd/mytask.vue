@@ -13,10 +13,10 @@
 -->
 <script setup lang="ts">
 import type { BdTask } from '~/composables/useBd'
-import { centangSub, hapusTaskDenganUrutan, pesanHapusTask, toggleTask, useBdState } from '~/composables/useBd'
+import { centangSub, geserTask, hapusTaskDenganUrutan, pesanHapusTask, toggleTask, useBdState } from '~/composables/useBd'
 import {
-  bawahan, cariAku, lewat, lingkupIds, menungguReviewSaya, orangPantau, pelaksana, penghalang, pics, saringLingkup, selesai, sisaHari, tugasSaya, urutDeadline,
-  type ModeArsip,
+  bawahan, cariAku, lewat, lingkupIds, menungguReviewSaya, orangPantau, pelaksana, penghalang, pics, saringLingkup, selesai, sisaHari, tugasSaya, urutTask, OPSI_URUT,
+  type ModeArsip, type ModeUrut,
 } from '~/utils/bd-rumus'
 import BdCari, { type HasilPilih } from '~/widgets/bd/BdCari.vue'
 import BdKanban from '~/widgets/bd/BdKanban.vue'
@@ -34,7 +34,7 @@ const { data: state, status, refresh: muatBd } = useBdState()
  *  in until the first state lands. Refetch keeps old numbers, so the cards
  *  never blank. */
 const statMemuat = computed(() => !state.value.tasks.length && (status.value === 'pending' || status.value === 'idle'))
-const f = useState('bd-mytask', () => ({ mode: 'list' as 'list' | 'kanban', arsip: 'aktif' as ModeArsip }))
+const f = useState('bd-mytask', () => ({ mode: 'list' as 'list' | 'kanban', arsip: 'aktif' as ModeArsip, urut: 'manual' as ModeUrut }))
 
 // ---- whose tasks are shown ----
 // Sentinels, not '': the select treats an empty value as "nothing chosen".
@@ -82,7 +82,7 @@ const semua = computed(() => {
   if (lihatSah.value === TIM) return tugasTim.value
   return tugasSaya(tampak.value, orang.value?.id)
 })
-const buka = computed(() => semua.value.filter(t => !selesai(t)).slice().sort(urutDeadline))
+const buka = computed(() => semua.value.filter(t => !selesai(t)).slice().sort(urutTask(f.value.urut ?? 'manual')))
 const telat = computed(() => buka.value.filter(lewat))
 const menunggu = computed(() => buka.value.filter(t => penghalang(t, state.value.tasks).length))
 const nSelesai = computed(() => semua.value.length - buka.value.length)
@@ -209,6 +209,14 @@ onUnmounted(() => {
         :options="[{ value: 'list', label: 'List' }, { value: 'kanban', label: 'Kanban' }]"
         size="sm"
       />
+      <USelect
+        v-model="f.urut"
+        :items="OPSI_URUT"
+        size="sm"
+        icon="i-lucide-arrow-up-down"
+        class="w-44"
+        aria-label="Urutkan task"
+      />
       <UButton
         label="Task"
         icon="i-lucide-plus"
@@ -294,6 +302,7 @@ onUnmounted(() => {
         :projects="projects"
         show-project
         :arsip="f.arsip"
+        :urut="f.urut"
         :pic-default="(orang || aku)?.id"
         :div-default="(orang || aku)?.div"
         @buka="bukaSheet"
@@ -341,6 +350,8 @@ onUnmounted(() => {
             :people="people"
             :projects="projects"
             show-project
+            :geser="f.urut === 'manual'"
+            @geser="(t, arah) => geserTask(g.items, t, arah)"
             @buka="bukaSheet"
             @toggle="toggle"
             @hapus="taskHapus = $event"

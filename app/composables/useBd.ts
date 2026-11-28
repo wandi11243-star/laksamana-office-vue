@@ -18,7 +18,7 @@
 // (T-25 → per-record CRUD).
 import type { Versi } from '~/utils/versi'
 import { ifMatch, tulisBerVersi } from '~/utils/versi'
-import { cekBolehDone, deps, labelUlang, normalisasiStatus, normResp, penunggu, pesanTunggu, rantaiUlang, segarkanProgress, selesai } from '~/utils/bd-rumus'
+import { cekBolehDone, deps, labelUlang, normalisasiStatus, normResp, penunggu, pesanTunggu, rantaiUlang, segarkanProgress, selesai, urutanGeser } from '~/utils/bd-rumus'
 import { isAdminOf, type Me } from '~/composables/useMe'
 import { BATAS_TULIS_PARALEL, hitungBerhasilParalel, petaParalel } from '~/utils/paralel'
 import type { RencanaPindah } from '~/utils/bd-pindah'
@@ -140,6 +140,8 @@ export interface BdTask {
   reviewOleh?: Record<string, { by: string, at: number }>
   /** Drag marker: the column the card was dropped into + drag time (`dropBoard`). */
   pindahKe?: { st: string, at: number }
+  /** Manual order key (ms scale, like createdAt). Missing = createdAt, so new tasks land at the bottom. */
+  urutan?: number
   /** Stamped when the task becomes Done, dropped when reopened: a done deadline stops counting. */
   doneAt?: string
   createdAt?: number
@@ -821,4 +823,47 @@ export function layarTersembunyiBd(me: Me | null, akses?: Record<string, string[
   if (!me || isAdminOf(me, 'bd')) return []
   const a = akses ?? (useNuxtData<{ data?: BdSettings }>('bd-settings').data.value?.data?.aksesHalaman)
   return Array.isArray(a?.[me.id]) ? a![me.id]! : []
+}
+
+// ---------------------------------------------------------------- WhatsApp (tombol, manual)
+
+/** Crew phone numbers by office user id, from the module roster (any signed-in crew may read it). Only for the WhatsApp button; the n8n reminders are separate. */
+export function useNomorWaBd() {
+  const nomor = useState<Record<string, string> | null>('bd-nomor-wa', () => null)
+  if (import.meta.client && nomor.value === null) {
+    nomor.value = {}
+    useApi()<Envelope<{ id: string, noHp?: string }[]> | { id: string, noHp?: string }[]>('/account/modules/bd/members')
+      .then((r) => {
+        const rows = Array.isArray(r) ? r : (r.data ?? [])
+        nomor.value = Object.fromEntries(rows.filter(m => m.noHp).map(m => [String(m.id), String(m.noHp)]))
+      })
+      .catch(() => { nomor.value = {} })
+  }
+  return nomor
+}
+
+/** 08xx / +62 / 62 → 62xxxxxxxx, or '' when it is not a phone number (same rule as the n8n reminder). */
+export function nomorWa(raw?: string): string {
+  let v = String(raw || '').trim()
+  if (!/^\+?[\d ().-]+$/.test(v)) return ''
+  v = v.replace(/\D/g, '')
+  if (v.startsWith('0')) v = '62' + v.slice(1)
+  else if (v.startsWith('8')) v = '62' + v
+  return /^[1-9]\d{8,14}$/.test(v) ? v : ''
+}
+
+/** Move a task one step in the manual order (owner request, 28 Nov 2026): one PATCH of `urutan`. */
+export async function geserTask(daftar: BdTask[], t: BdTask, arah: -1 | 1): Promise<boolean> {
+  const urutan = urutanGeser(daftar, t.id, arah)
+  if (urutan === null) return false
+  return bdTulisDiam(() => tambalBd<BdTask>('tasks', t.id, { urutan }, versiBaris(t)))
+}
+
+/** wa.me link to a crew member with a ready reminder about this task (sent by hand from the user's own WhatsApp). */
+export function linkWaTask(t: BdTask, nama: string, noHp: string): string {
+  const nomor = nomorWa(noHp)
+  if (!nomor) return ''
+  const dl = t.deadline ? `\nDeadline: ${t.deadline}` : ''
+  const teks = `Halo ${nama}, reminder task:\n*${t.name}*\nStatus: ${t.status || 'To Do'}${dl}\n\nCek di Task Management: ${location.origin}/bd/mytask`
+  return `https://wa.me/${nomor}?text=${encodeURIComponent(teks)}`
 }

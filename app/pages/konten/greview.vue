@@ -80,10 +80,10 @@ const topikReview = (r: ReviewGoogle) => {
 const topikPilih = ref<IdTopik | ''>('')
 const hitungTopik = computed(() => TOPIK.map(k => ({ ...k, jumlah: ulasanTempat.value.filter(r => k.kata.test(` ${(r.teks || '').toLowerCase()} `)).length })).filter(k => k.jumlah))
 const kartuRating = (n: number) => Number(n) <= 2
-  ? 'border-red-500 bg-red-50 dark:bg-red-950/40'
+  ? 'border-red-500 bg-red-50'
   : Number(n) === 3
-    ? 'border-amber-400 bg-amber-50 dark:bg-amber-950/40'
-    : 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/40'
+    ? 'border-amber-400 bg-amber-50'
+    : 'border-emerald-500 bg-emerald-50'
 const WARNA_SARING: Record<string, string> = { tangani: 'bg-orange-500', segera: 'bg-red-500', belum: 'bg-amber-500', rendah: 'bg-rose-500', dibalas: 'bg-sky-500', selesai: 'bg-emerald-500', semua: 'bg-neutral-400' }
 const tempat = computed(() => data.value?.tempat ?? [])
 
@@ -544,7 +544,7 @@ const segSegera = computed(() => ulasanTempat.value.filter(r => r.tingkat === 's
               </p>
               <div
                 v-if="r.balasan"
-                class="mt-3 rounded-xl border border-sky-200 bg-white p-3 text-sm dark:border-sky-900 dark:bg-neutral-900"
+                class="mt-3 rounded-xl border border-sky-200 bg-white p-3 text-sm"
               >
                 <p class="mb-1 text-[11px] text-muted">
                   Balasan bisnis<template v-if="r.balasanAt > 0">

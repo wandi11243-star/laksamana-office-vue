@@ -12,8 +12,8 @@
 import type { BdPerson, BdTask } from '~/composables/useBd'
 import { bdTulisDiam, buatBd, ubahBd, versiBaris } from '~/composables/useBd'
 import {
-  STATUS_FLOW, cekBolehDone, divisiBawaan, kanbanUrut, opsiDivisi, pesanTunggu, segarkanProgress, setPics,
-  type ModeArsip,
+  STATUS_FLOW, cekBolehDone, divisiBawaan, kanbanUrut, opsiDivisi, urutTask, pesanTunggu, segarkanProgress, setPics,
+  type ModeArsip, type ModeUrut,
 } from '~/utils/bd-rumus'
 import BdKanbanCard from '~/widgets/bd/BdKanbanCard.vue'
 
@@ -32,7 +32,10 @@ const props = withDefaults(defineProps<{
   divDefault?: string
   /** Daily board: cards added here are Daily Tasks, never in a project. */
   dailyDefault?: boolean
+  /** Card order; deadline keeps the old "dragged cards at the bottom" rule. */
+  urut?: ModeUrut
 }>(), {
+  urut: 'manual',
   arsip: 'aktif',
   allowAdd: true,
 })
@@ -52,7 +55,7 @@ const kolomKanban = computed(() => kolom.value.map(st => ({
   items: isiKolom(st),
 })))
 const isiKolom = (st: string) => {
-  const l = props.tasks.filter(t => (t.status || 'To Do') === st).slice().sort(kanbanUrut(st))
+  const l = props.tasks.filter(t => (t.status || 'To Do') === st).slice().sort(props.urut === 'deadline' ? kanbanUrut(st) : urutTask(props.urut))
   return (st === 'Done' && props.arsip === 'aktif') ? [] : l
 }
 const arsipKolom = (st: string) => props.tasks.filter(t => (t.status || 'To Do') === st).length
@@ -73,7 +76,7 @@ async function pindahKartu(p: { id: string, to: string }) {
   // PUT carries the whole row: dragging OUT of Done must also drop `doneAt`.
   // Dragged cards land at the bottom of their new column (`pindahKe`).
   const { updatedAt: _buang, ...sisa } = t
-  const body = { ...sisa, status: p.to, pindahKe: { st: p.to, at: Date.now() } }
+  const body = { ...sisa, status: p.to, pindahKe: { st: p.to, at: Date.now() }, urutan: Date.now() }
   segarkanProgress(body)
   await bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
 }
