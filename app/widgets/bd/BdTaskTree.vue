@@ -21,7 +21,7 @@ const props = defineProps<{
   people: BdPerson[]
   projects?: { id: string, name: string }[]
   showProject?: boolean
-  /** Manual order on: show move up/down buttons. */
+  /** Manual order on: rows can be dragged to a new place. */
   geser?: boolean
 }>()
 const emit = defineEmits<{
@@ -29,7 +29,8 @@ const emit = defineEmits<{
   toggle: [t: BdTask]
   hapus: [t: BdTask]
   subToggle: [t: BdTask, ix: number, on: boolean]
-  geser: [t: BdTask, arah: -1 | 1]
+  /** Dropped right before `sebelum` (null = at the end of this list). */
+  sisip: [t: BdTask, sebelum: string | null]
 }>()
 
 /** Open sub-task dropdowns (`SUB_BUKA`): open by default, outside the row data. */
@@ -41,6 +42,30 @@ const dipakai = (t: BdTask) => pics(t).map(id => props.people.find(p => p.id ===
 /** The crew a sub-task is assigned to (`p`), by name — empty when unassigned. */
 const namaSubPic = (id?: string) => (id ? (props.people.find(p => p.id === id)?.name || '') : '')
 const hal = (t: BdTask) => (selesai(t) ? [] : penghalang(t, props.semua))
+// Drag to reorder (manual order only), with a gold line where it will land.
+const seret = ref<string | null>(null)
+const sisipDi = ref<string | null | undefined>(undefined)
+function mulaiSeret(ev: DragEvent, t: BdTask) {
+  seret.value = t.id
+  ev.dataTransfer?.setData('text/plain', t.id)
+  if (ev.dataTransfer) ev.dataTransfer.effectAllowed = 'move'
+}
+function diAtas(ev: DragEvent, i: number) {
+  if (!seret.value) return
+  ev.preventDefault()
+  const r = (ev.currentTarget as HTMLElement).getBoundingClientRect()
+  sisipDi.value = ev.clientY < r.top + r.height / 2 ? props.tasks[i]!.id : (props.tasks[i + 1]?.id ?? null)
+}
+function lepas(ev: DragEvent) {
+  ev.preventDefault()
+  const t = props.tasks.find(x => x.id === seret.value)
+  if (t && sisipDi.value !== undefined) emit('sisip', t, sisipDi.value)
+  selesaiSeret()
+}
+function selesaiSeret() {
+  seret.value = null
+  sisipDi.value = undefined
+}
 const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
 </script>
 
@@ -50,7 +75,32 @@ const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
       v-for="t in tasks"
       :key="t.id"
     >
-      <div class="flex flex-wrap items-start gap-x-3 gap-y-1 px-4 py-3">
+      <div
+        class="relative flex flex-wrap items-start gap-x-3 gap-y-1 px-4 py-3"
+        :class="[geser ? 'cursor-grab active:cursor-grabbing' : '', seret === t.id ? 'opacity-40' : '']"
+        :draggable="geser ? 'true' : undefined"
+        :title="geser ? 'Seret untuk mengubah urutan' : undefined"
+        @dragstart="geser && mulaiSeret($event, t)"
+        @dragend="selesaiSeret"
+        @dragover="geser && diAtas($event, tasks.indexOf(t))"
+        @drop="geser && lepas($event)"
+      >
+        <span
+          v-if="seret && sisipDi === t.id && seret !== t.id"
+          class="pointer-events-none absolute inset-x-2 top-0 h-1 -translate-y-1/2 rounded-full bg-primary"
+          aria-hidden="true"
+        />
+        <span
+          v-if="seret && sisipDi === null && tasks.at(-1)?.id === t.id"
+          class="pointer-events-none absolute inset-x-2 bottom-0 h-1 translate-y-1/2 rounded-full bg-primary"
+          aria-hidden="true"
+        />
+        <UIcon
+          v-if="geser"
+          name="i-lucide-grip-vertical"
+          class="mt-1 size-4 shrink-0 text-dimmed"
+          aria-hidden="true"
+        />
         <button
           v-if="subs(t).length"
           type="button"
@@ -191,26 +241,6 @@ const dlSub = (d?: string) => !!d && /^\d{4}-\d{2}-\d{2}$/.test(d)
             />
           </span>
           <span class="text-[11px] font-semibold text-muted num">{{ Math.max(0, Math.min(100, Number(t.progress) || 0)) }}%</span>
-          <template v-if="geser">
-            <UButton
-              icon="i-lucide-arrow-up"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              aria-label="Naikkan urutan"
-              :disabled="tasks[0]?.id === t.id"
-              @click="emit('geser', t, -1)"
-            />
-            <UButton
-              icon="i-lucide-arrow-down"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              aria-label="Turunkan urutan"
-              :disabled="tasks.at(-1)?.id === t.id"
-              @click="emit('geser', t, 1)"
-            />
-          </template>
           <UButton
             icon="i-lucide-pencil"
             color="neutral"

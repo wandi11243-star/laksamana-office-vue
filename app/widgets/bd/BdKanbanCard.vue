@@ -20,12 +20,8 @@ const props = defineProps<{
   projectName?: string
   showDaily?: boolean
   dragging?: boolean
-  /** Manual order: show up/down; false at the top/bottom edge. */
-  naik?: boolean
-  turun?: boolean
-  geser?: boolean
 }>()
-const emit = defineEmits<{ buka: [], subToggle: [ix: number, on: boolean], geser: [arah: -1 | 1] }>()
+const emit = defineEmits<{ buka: [], subToggle: [ix: number, on: boolean] }>()
 
 const sel = computed(() => selesai(props.task))
 const od = computed(() => lewat(props.task))
@@ -62,31 +58,6 @@ const namaReview = computed(() => reviewers(props.task).map(id => props.people.f
         class="block min-w-0 flex-1 break-words text-sm font-semibold leading-snug transition-colors"
         :class="sel ? 'text-muted line-through' : 'text-highlighted group-hover:text-gold-deep'"
       >{{ task.name }}</span>
-      <span
-        v-if="geser"
-        class="-mr-2 -mt-1 flex shrink-0"
-      >
-        <UButton
-          icon="i-lucide-arrow-up"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          aria-label="Naikkan urutan"
-          :disabled="!naik"
-          draggable="false"
-          @click.stop="emit('geser', -1)"
-        />
-        <UButton
-          icon="i-lucide-arrow-down"
-          color="neutral"
-          variant="ghost"
-          size="xs"
-          aria-label="Turunkan urutan"
-          :disabled="!turun"
-          draggable="false"
-          @click.stop="emit('geser', 1)"
-        />
-      </span>
     </span>
     <span
       v-if="hal.length"

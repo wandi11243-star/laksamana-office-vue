@@ -10,9 +10,9 @@
 -->
 <script setup lang="ts">
 import type { BdPerson, BdTask } from '~/composables/useBd'
-import { bdTulisDiam, buatBd, geserTask, ubahBd, versiBaris } from '~/composables/useBd'
+import { bdTulisDiam, buatBd, sisipTask, ubahBd, versiBaris } from '~/composables/useBd'
 import {
-  STATUS_FLOW, cekBolehDone, divisiBawaan, kanbanUrut, opsiDivisi, urutTask, pesanTunggu, segarkanProgress, setPics,
+  STATUS_FLOW, cekBolehDone, divisiBawaan, kanbanUrut, opsiDivisi, urutTask, urutanSisip, pesanTunggu, segarkanProgress, setPics,
   type ModeArsip, type ModeUrut,
 } from '~/utils/bd-rumus'
 import BdKanbanCard from '~/widgets/bd/BdKanbanCard.vue'
@@ -63,7 +63,14 @@ const namaProject = (id?: string | null) => props.projects?.find(p => p.id === i
 
 // Dropping onto Done runs the one guard (`cekBolehDone`); a dragged card
 // lands at the bottom of its new column (`pindahKe` + `kanbanUrut`).
-async function pindahKartu(p: { id: string, to: string }) {
+/** Same-column drop: new place in the manual order (other orders ignore it). */
+function urutKartu(p: { id: string, column: string, sebelum: string | null }) {
+  if (props.urut !== 'manual') return
+  const t = bank.value.find(x => x.id === p.id)
+  if (t) sisipTask(isiKolom(p.column), t, p.sebelum)
+}
+
+async function pindahKartu(p: { id: string, to: string, sebelum?: string | null }) {
   const t = bank.value.find(x => x.id === p.id)
   if (!t || t.status === p.to) return
   if (p.to === 'Done') {
@@ -76,7 +83,7 @@ async function pindahKartu(p: { id: string, to: string }) {
   // PUT carries the whole row: dragging OUT of Done must also drop `doneAt`.
   // Dragged cards land at the bottom of their new column (`pindahKe`).
   const { updatedAt: _buang, ...sisa } = t
-  const body = { ...sisa, status: p.to, pindahKe: { st: p.to, at: Date.now() }, urutan: Date.now() }
+  const body = { ...sisa, status: p.to, pindahKe: { st: p.to, at: Date.now() }, urutan: urutanSisip([...isiKolom(p.to), t], t.id, p.sebelum ?? null) ?? Date.now() }
   segarkanProgress(body)
   await bdTulisDiam(() => ubahBd<BdTask>('tasks', t.id, body, versiBaris(t)))
 }
@@ -122,6 +129,7 @@ async function tambahKartu(st: string) {
     list-class="max-h-[min(68dvh,640px)]"
     :col-min="300"
     @move="pindahKartu"
+    @reorder="urutKartu"
   >
     <template #header="{ column }">
       <span class="text-xs font-bold uppercase tracking-wider text-highlighted">{{ column.title }}</span>
@@ -135,11 +143,7 @@ async function tambahKartu(st: string) {
         :project-name="showProject ? namaProject(item.project) : undefined"
         :show-daily="showProject"
         :dragging="dragging"
-        :geser="urut === 'manual'"
-        :naik="isiKolom(item.status || 'To Do')[0]?.id !== item.id"
-        :turun="isiKolom(item.status || 'To Do').at(-1)?.id !== item.id"
         draggable="true"
-        @geser="(arah: -1 | 1) => geserTask(isiKolom(item.status || 'To Do'), item, arah)"
         @dragstart="dragStart"
         @dragend="dragEnd"
         @buka="emit('buka', item)"

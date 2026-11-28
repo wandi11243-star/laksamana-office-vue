@@ -18,7 +18,7 @@
 // (T-25 → per-record CRUD).
 import type { Versi } from '~/utils/versi'
 import { ifMatch, tulisBerVersi } from '~/utils/versi'
-import { cekBolehDone, deps, labelUlang, normalisasiStatus, normResp, penunggu, pesanTunggu, rantaiUlang, segarkanProgress, selesai, urutanGeser } from '~/utils/bd-rumus'
+import { cekBolehDone, deps, labelUlang, normalisasiStatus, normResp, penunggu, pesanTunggu, rantaiUlang, segarkanProgress, selesai, urutanSisip } from '~/utils/bd-rumus'
 import { isAdminOf, type Me } from '~/composables/useMe'
 import { BATAS_TULIS_PARALEL, hitungBerhasilParalel, petaParalel } from '~/utils/paralel'
 import type { RencanaPindah } from '~/utils/bd-pindah'
@@ -852,18 +852,21 @@ export function nomorWa(raw?: string): string {
   return /^[1-9]\d{8,14}$/.test(v) ? v : ''
 }
 
-/** Move a task one step in the manual order (owner request, 28 Nov 2026): one PATCH of `urutan`. */
-export async function geserTask(daftar: BdTask[], t: BdTask, arah: -1 | 1): Promise<boolean> {
-  const urutan = urutanGeser(daftar, t.id, arah)
+/** Drop a task before another one (null = at the end) in the manual order: one PATCH of `urutan`. */
+export async function sisipTask(daftar: BdTask[], t: BdTask, sebelum: string | null): Promise<boolean> {
+  const urutan = urutanSisip(daftar, t.id, sebelum)
   if (urutan === null) return false
   return bdTulisDiam(() => tambalBd<BdTask>('tasks', t.id, { urutan }, versiBaris(t)))
 }
 
-/** wa.me link to one crew member with a recap of ALL their open tasks (sent by hand from the user's own WhatsApp). */
-export function linkWaRekap(nama: string, noHp: string, tasks: BdTask[]): string {
-  const nomor = nomorWa(noHp)
-  if (!nomor || !tasks.length) return ''
+/** Recap text of ALL open tasks of one crew member (shown first, then copied or sent by hand). */
+export function teksRekapWa(nama: string, tasks: BdTask[]): string {
   const baris = tasks.map((t, i) => `${i + 1}. *${t.name}* (${t.status || 'To Do'}${t.deadline ? `, deadline ${t.deadline}` : ''})`)
-  const teks = `Halo ${nama}, berikut task kamu yang masih terbuka (${tasks.length}):\n\n${baris.join('\n')}\n\nCek di Task Management: ${location.origin}/bd/mytask`
-  return `https://wa.me/${nomor}?text=${encodeURIComponent(teks)}`
+  return `Halo ${nama}, berikut task kamu yang masih terbuka (${tasks.length}):\n\n${baris.join('\n')}\n\nCek di Task Management: ${location.origin}/bd/mytask`
+}
+
+/** wa.me link with a ready text; '' when the number is not a phone number. */
+export function linkWa(noHp: string, teks: string): string {
+  const nomor = nomorWa(noHp)
+  return nomor ? `https://wa.me/${nomor}?text=${encodeURIComponent(teks)}` : ''
 }
